@@ -32,31 +32,19 @@ endif()
 # Fits
 #
 
-#find_package(CFITSIO REQUIRED)
-
-set(cfitsio_inc /media/Storage/PhD_Groningen/code/cfitsio)
-
-set(cfitsio_lib /media/Storage/PhD_Groningen/code/cfitsio-build)
-
 if (NOT CFITSIO_INCLUDES) 
   find_path (CFITSIO_INCLUDES fitsio.h
-    PATHS ${cfitsio_inc}
+    PATHS ${CFITSIO_INCLUDE_DIR}
     )
 endif (NOT CFITSIO_INCLUDES)
 
 if (NOT CFITSIO_LIBRARIES)
   find_library (CFITSIO_LIBRARIES cfitsio
-    PATHS ${cfitsio_lib}
+    PATHS ${CFITSIO_LIBRARY}
     )
 endif (NOT CFITSIO_LIBRARIES)
 
 set(KIT ${PROJECT_NAME})
-
-set(${KIT}_EXPORT_DIRECTIVE "VTK_Fits_EXPORT")
-
-#find_package(CFITSIO REQUIRED NO_MODULE)
-
-#include(${CFITSIO_USE_FILE})
 
 
 # --------------------------------------------------------------------------
