@@ -18,12 +18,24 @@
 // Qt includes
 #include <QtPlugin>
 
+// SlicerQt includes
+#include <qSlicerCoreApplication.h>
+#include <qSlicerIOManager.h>
+#include <qSlicerModuleManager.h>
+#include <qSlicerNodeWriter.h>
+
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 
 // AstroVolume includes
 #include "qSlicerAstroVolumeModule.h"
 #include "qSlicerAstroVolumeModuleWidget.h"
+
+// MRML Logic includes
+#include <vtkMRMLColorLogic.h>
+
+// MRML includes
+#include <vtkMRMLScene.h>
 
 //-----------------------------------------------------------------------------
 Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
@@ -91,21 +103,20 @@ QStringList qSlicerAstroVolumeModule::categories() const
   return QStringList() << "Astro";
 }
 
+
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
-  return QStringList();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModule::setup()
 {
-  this->Superclass::setup();
+
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAbstractModuleRepresentation* qSlicerAstroVolumeModule
-::createWidgetRepresentation()
+qSlicerAbstractModuleRepresentation* qSlicerAstroVolumeModule::createWidgetRepresentation()
 {
   return new qSlicerAstroVolumeModuleWidget;
 }

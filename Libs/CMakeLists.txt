@@ -51,9 +51,7 @@ set(Slicer_Libs_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "Slicer Libs include
 #-----------------------------------------------------------------------------
 # Set MRML_LIBRARIES
 #-----------------------------------------------------------------------------
-# Anticipating the move of MRML related libraries to a standalone project,
-# let's group these libraries.
-# Note also that since MRMLIDImageIO is an ITK plugin it is NOT added to that list.
+
 set(_mrml_libraries MRMLCore)
 
 set(MRML_LIBRARIES ${_mrml_libraries} CACHE INTERNAL "MRML libraries" FORCE)

@@ -5,6 +5,10 @@ set(MODULE_TITLE ${MODULE_NAME})
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 
+find_package(Slicer REQUIRED)
+include(${Slicer_USE_FILE})
+mark_as_superbuild(Slicer_DIR)
+
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)
 add_subdirectory(Widgets)
@@ -18,7 +22,11 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/Logic
   ${CMAKE_CURRENT_SOURCE_DIR}/Widgets
   ${CMAKE_CURRENT_BINARY_DIR}/Widgets
+  #${qSlicerVolumesModule_SOURCE_DIR}
+  #${qSlicerVolumesModule_BINARY_DIR}
   )
+
+message(STATUS "VOLUME_INCLUDE_DIRECTORIES={${qSlicerVolumesModule_SOURCE_DIR}}")
 
 set(MODULE_SRCS
   qSlicer${MODULE_NAME}Module.cxx
@@ -39,6 +47,7 @@ set(MODULE_UI_SRCS
 set(MODULE_TARGET_LIBRARIES
   vtkSlicer${MODULE_NAME}ModuleLogic
   qSlicer${MODULE_NAME}ModuleWidgets
+  #qSlicerVolumesModule
   )
 
 set(MODULE_RESOURCES

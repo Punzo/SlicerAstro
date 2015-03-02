@@ -86,7 +86,7 @@ endif()
 # Sources
 # --------------------------------------------------------------------------
 set(MRMLAstroCore_SRCS
-    vtkMRMLFITSStorageNode.cxx)
+    vtkMRMLAstroVolumeStorageNode.cxx)
 
 string(REGEX REPLACE "\\.cxx" ".h" MRMLCore_SRCS_HEADERS "${MRMLCore_SRCS}")
 source_group("Header Files" FILES ${MRMLCore_SRCS_HEADERS})

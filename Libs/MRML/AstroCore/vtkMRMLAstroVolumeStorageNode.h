@@ -12,21 +12,20 @@
 
 =========================================================================auto=*/
 
-#ifndef __vtkMRMLFITSStorageNode_h
-#define __vtkMRMLFITSStorageNode_h
+#ifndef __vtkMRMLAstroVolumeStorageNode_h
+#define __vtkMRMLAstroVolumeStorageNode_h
 
 #include "vtkMRMLStorageNode.h"
 
-
 /// \brief MRML node for representing a volume storage.
 ///
-/// vtkMRMLFITSStorageNode nodes describe the archetybe based volume storage
-/// node that allows to read/write volume data from/to FITS file
-class VTK_MRML_EXPORT vtkMRMLFITSStorageNode : public vtkMRMLStorageNode
+/// vtkMRMLAstroVolumeStorageNode nodes describe the archetybe based volume storage
+/// node that allows to read/write volume data from/to AstroVolume file
+class VTK_MRML_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorageNode
 {
   public:
-  static vtkMRMLFITSStorageNode *New();
-  vtkTypeMacro(vtkMRMLFITSStorageNode,vtkMRMLStorageNode);
+  static vtkMRMLAstroVolumeStorageNode *New();
+  vtkTypeMacro(vtkMRMLAstroVolumeStorageNode,vtkMRMLStorageNode);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   virtual vtkMRMLNode* CreateNodeInstance();
@@ -66,10 +65,10 @@ class VTK_MRML_EXPORT vtkMRMLFITSStorageNode : public vtkMRMLStorageNode
   virtual void ConfigureForDataExchange();
 
 protected:
-  vtkMRMLFITSStorageNode();
-  ~vtkMRMLFITSStorageNode();
-  vtkMRMLFITSStorageNode(const vtkMRMLFITSStorageNode&);
-  void operator=(const vtkMRMLFITSStorageNode&);
+  vtkMRMLAstroVolumeStorageNode();
+  ~vtkMRMLAstroVolumeStorageNode();
+  vtkMRMLAstroVolumeStorageNode(const vtkMRMLAstroVolumeStorageNode&);
+  void operator=(const vtkMRMLAstroVolumeStorageNode&);
 
   /// Initialize all the supported write file types
   virtual void InitializeSupportedReadFileTypes();

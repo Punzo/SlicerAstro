@@ -13,7 +13,7 @@ Version:   $Revision: 1.6 $
 =========================================================================auto=*/
 
 // MRML includes
-#include "vtkMRMLFITSStorageNode.h"
+#include "vtkMRMLAstroVolumeStorageNode.h"
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLScalarVolumeNode.h"
@@ -30,22 +30,22 @@ Version:   $Revision: 1.6 $
 #include <vtkVersion.h>
 
 //----------------------------------------------------------------------------
-vtkMRMLNodeNewMacro(vtkMRMLFITSStorageNode);
+vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeStorageNode);
 
 //----------------------------------------------------------------------------
-vtkMRMLFITSStorageNode::vtkMRMLFITSStorageNode()
+vtkMRMLAstroVolumeStorageNode::vtkMRMLAstroVolumeStorageNode()
 {
   this->CenterImage = 0;
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLFITSStorageNode::~vtkMRMLFITSStorageNode()
+vtkMRMLAstroVolumeStorageNode::~vtkMRMLAstroVolumeStorageNode()
 {
 }
 
 
 //----------------------------------------------------------------------------
-void vtkMRMLFITSStorageNode::WriteXML(ostream& of, int nIndent)
+void vtkMRMLAstroVolumeStorageNode::WriteXML(ostream& of, int nIndent)
 {
   Superclass::WriteXML(of, nIndent);
   vtkIndent indent(nIndent);
@@ -57,7 +57,7 @@ void vtkMRMLFITSStorageNode::WriteXML(ostream& of, int nIndent)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLFITSStorageNode::ReadXMLAttributes(const char** atts)
+void vtkMRMLAstroVolumeStorageNode::ReadXMLAttributes(const char** atts)
 {
   int disabledModify = this->StartModify();
 
@@ -84,12 +84,12 @@ void vtkMRMLFITSStorageNode::ReadXMLAttributes(const char** atts)
 //----------------------------------------------------------------------------
 // Copy the node's attributes to this object.
 // Does NOT copy: ID, FilePrefix, Name, StorageID
-void vtkMRMLFITSStorageNode::Copy(vtkMRMLNode *anode)
+void vtkMRMLAstroVolumeStorageNode::Copy(vtkMRMLNode *anode)
 {
   int disabledModify = this->StartModify();
 
   Superclass::Copy(anode);
-  vtkMRMLFITSStorageNode *node = (vtkMRMLFITSStorageNode *) anode;
+  vtkMRMLAstroVolumeStorageNode *node = (vtkMRMLAstroVolumeStorageNode *) anode;
 
   this->SetCenterImage(node->CenterImage);
 
@@ -98,23 +98,21 @@ void vtkMRMLFITSStorageNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLFITSStorageNode::PrintSelf(ostream& os, vtkIndent indent)
+void vtkMRMLAstroVolumeStorageNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   vtkMRMLStorageNode::PrintSelf(os,indent);
   os << indent << "CenterImage:   " << this->CenterImage << "\n";
 }
 
 //----------------------------------------------------------------------------
-bool vtkMRMLFITSStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
+bool vtkMRMLAstroVolumeStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
 {
   return refNode->IsA("vtkMRMLScalarVolumeNode");
 }
 
 //----------------------------------------------------------------------------
-int vtkMRMLFITSStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
+int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 {
-
-    //cout<<"I am NRRDStorage and flag1 and refNode is  "<<refNode->GetClassName()<<endl;
 
     vtkMRMLVolumeNode *volNode = NULL;
 
@@ -161,8 +159,6 @@ int vtkMRMLFITSStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   reader->SetFileName(fullName.c_str());
 
-  //cout<<"I am NRRDStorage and flag2and refNode is  "<<refNode->GetClassName()<<endl;
-
 
   // Check if this is a FITS file that we can read
   if (!reader->CanReadFile(fullName.c_str()))
@@ -171,18 +167,15 @@ int vtkMRMLFITSStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     return 0;
     }
 
-  // Read the header to see if the NRRD file corresponds to the
-  // MRML Node
-
-  //cout<<"I am NRRDStorage and flag3 and refNode is  "<<refNode->GetClassName()<<endl;
+  // Read the header to see if the file corresponds to the MRML Node
+\
   reader->UpdateInformation();
-  //cout<<"I am NRRDStorage and flag4 and refNode is  "<<refNode->GetClassName()<<endl;
+
 
 
   // Check type
   if( refNode->IsA("vtkMRMLScalarVolumeNode") )
     {
-      //cout<<"cazzo4 : vtkMRMLScalarVolumeNode"<<endl;
     if (!(reader->GetPointDataType() == vtkDataSetAttributes::SCALARS &&
         (reader->GetNumberOfComponents() == 1 || reader->GetNumberOfComponents()==2 || reader->GetNumberOfComponents()==3) ))
       {
@@ -191,9 +184,8 @@ int vtkMRMLFITSStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     }
 
-  //cout<<"I am NRRDStorage and flag5 and refNode is  "<<refNode->GetClassName()<<endl;
   reader->Update();
-  //cout<<"I am NRRDStorage and flag6 and refNode is  "<<refNode->GetClassName()<<endl;
+
   // set volume attributes
   vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
   volNode->SetRASToIJKMatrix(mat);
@@ -207,7 +199,7 @@ int vtkMRMLFITSStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
     }
 
-//cout<<"I am NRRDStorage and flag7 and refNode is  "<<refNode->GetClassName()<<endl;
+
   vtkNew<vtkImageChangeInformation> ici;
 #if (VTK_MAJOR_VERSION <= 5)
   ici->SetInput (reader->GetOutput());
@@ -228,7 +220,7 @@ int vtkMRMLFITSStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 }
 
 //----------------------------------------------------------------------------
-int vtkMRMLFITSStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
+int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 {
  /* vtkMRMLVolumeNode *volNode = NULL;
   //Store volume nodes attributes.
@@ -338,25 +330,25 @@ int vtkMRMLFITSStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLFITSStorageNode::InitializeSupportedReadFileTypes()
+void vtkMRMLAstroVolumeStorageNode::InitializeSupportedReadFileTypes()
 {
   this->SupportedReadFileTypes->InsertNextValue("FITS (.fits)");
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLFITSStorageNode::InitializeSupportedWriteFileTypes()
+void vtkMRMLAstroVolumeStorageNode::InitializeSupportedWriteFileTypes()
 {
   this->SupportedWriteFileTypes->InsertNextValue("FITS (.fits)");
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLFITSStorageNode::GetDefaultWriteFileExtension()
+const char* vtkMRMLAstroVolumeStorageNode::GetDefaultWriteFileExtension()
 {
   return "fits";
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLFITSStorageNode::ConfigureForDataExchange()
+void vtkMRMLAstroVolumeStorageNode::ConfigureForDataExchange()
 {
   this->UseCompressionOff();
 }

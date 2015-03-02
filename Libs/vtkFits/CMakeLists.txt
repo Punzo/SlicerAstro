@@ -23,12 +23,6 @@ endif()
 # --------------------------------------------------------------------------
 
 #
-# VTK
-#
-#find_package(VTK REQUIRED)
-#include(${VTK_USE_FILE})
-
-#
 # Fits
 #
 
@@ -54,19 +48,6 @@ set(vtkFits_SRCS
   vtkFITSReader.cxx
   )
 
-# Abstract/pure virtual classes
-
-#set_source_files_properties(
-#  ABSTRACT
-#  )
-
-# Helper classes
-
-set_source_files_properties(
-  vtkHyperPointandArray.cxx
-  vtkTractographyPointAndArray.cxx
-  WRAP_EXCLUDE
-  )
 # --------------------------------------------------------------------------
 # Include dirs
 # --------------------------------------------------------------------------
@@ -86,9 +67,7 @@ set(srcs ${vtkFits_SRCS})
 add_library(${lib_name} ${srcs})
 
 if(${VTK_VERSION_MAJOR} GREATER 5)
-  # Minimum set of libraries already specified using components
 
-  # Teem vtkNRRDReader overwrites VTK vtkNrrdReader
   set(VTK_WRAP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${VTK_INCLUDE_DIRS}
       CACHE INTERNAL "VTK wrap include dirs" FORCE)
 else()
@@ -165,10 +144,3 @@ endif()
 set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
   CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)
 
-# --------------------------------------------------------------------------
-# Configure support file
-# --------------------------------------------------------------------------
-#configure_file(
-#  ${CMAKE_CURRENT_SOURCE_DIR}/vtkFitsConfig.cmake.in
-#  ${CMAKE_CURRENT_BINARY_DIR}/vtkFitsConfig.cmake
-#  )
