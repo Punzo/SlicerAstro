@@ -39,22 +39,6 @@ mark_as_advanced(MRML_SUPPORT_VERSION)
 find_package(VTK REQUIRED)
 include(${VTK_USE_FILE})
 
-#
-# ITK
-#
-set(${PROJECT_NAME}_ITK_COMPONENTS
-  ITKCommon
-  ITKIOImageBase
-  ITKIOSpatialObjects
-  ITKIOTransformBase
-  ITKTransform
-  )
-find_package(ITK 4.6 COMPONENTS ${${PROJECT_NAME}_ITK_COMPONENTS} REQUIRED)
-set(ITK_NO_IO_FACTORY_REGISTER_MANAGER 1) # See Libs/ITKFactoryRegistration/CMakeLists.txt
-list(APPEND ITK_LIBRARIES ITKFactoryRegistration)
-list(APPEND ITK_INCLUDE_DIRS ${ITKFactoryRegistration_INCLUDE_DIRS})
-include(${ITK_USE_FILE})
-
 # --------------------------------------------------------------------------
 # Include dirs
 # --------------------------------------------------------------------------
@@ -63,8 +47,6 @@ set(include_dirs
   ${CMAKE_CURRENT_BINARY_DIR}
   ${vtkFits_INCLUDE_DIRS}
   ${MRMLCore_INCLUDE_DIRS}
-  ${vtkITK_INCLUDE_DIRS}
-  ${FreeSurfer_INCLUDE_DIRS}
   )
 
 include_directories(BEFORE ${include_dirs})
@@ -107,19 +89,17 @@ if(${VTK_VERSION_MAJOR} GREATER 5)
   # Minimum set of libraries already specified using components
 else()
   set(VTK_LIBRARIES
-    #vtkCommon # Provided by vtkITK, FreeSurfer
-    #vtkFiltering # Provided by vtkITK, FreeSurfer
+    vtkCommon
+    vtkFiltering
     vtkGraphics
     vtkHybrid
     vtkInfovis
-    #vtkIO # Provided by FreeSurfer
-    #vtkImaging # Provided by vtkITK
+    vtkIO
+    vtkImaging
     )
 endif()
 
 set(libs
-  vtkITK
-  ${ITK_LIBRARIES}
   ${VTK_LIBRARIES}
   MRMLCore
   vtkFits
