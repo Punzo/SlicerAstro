@@ -2,7 +2,7 @@
 
   Program: 3D Slicer
 
-  Portions (c) Copyright Brigham and Women's Hospital (BWH) All Rights Reserved.
+  Copyright (c) Kitware Inc.
 
   See COPYRIGHT.txt
   or http://www.slicer.org/copyright/copyright.txt for details.
@@ -12,6 +12,9 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
+
+  This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc.
+  and was partially funded by NIH grant 3P41RR013218-12S1
 
 ==============================================================================*/
 
@@ -26,7 +29,7 @@
 class qSlicerAstroVolumeModuleWidgetPrivate;
 class vtkMRMLNode;
 
-/// \ingroup Slicer_QtModules_ExtensionTemplate
+/// \ingroup Slicer_QtModules_AstroVolume
 class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModuleWidget :
   public qSlicerAbstractModuleWidget
 {
@@ -38,13 +41,11 @@ public:
   qSlicerAstroVolumeModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroVolumeModuleWidget();
 
-public slots:
-
+protected:
+  virtual void setup();
 
 protected:
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
-
-  virtual void setup();
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModuleWidget);

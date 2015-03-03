@@ -5,6 +5,10 @@ set(KIT ${PROJECT_NAME})
 set(${KIT}_EXPORT_DIRECTIVE "VTK_SLICER_${MODULE_NAME_UPPER}_MODULE_LOGIC_EXPORT")
 
 set(${KIT}_INCLUDE_DIRECTORIES
+   ${MRMLAstroCore_INCLUDE_DIRS}
+   ${MRMLCore_INCLUDE_DIRS}
+   ${vtkSlicerVolumesModuleLogic_SOURCE_DIR}
+   ${vtkSlicerVolumesModuleLogic_BINARY_DIR}
   )
 
 set(${KIT}_SRCS
@@ -14,7 +18,13 @@ set(${KIT}_SRCS
 
 set(${KIT}_TARGET_LIBRARIES
   ${ITK_LIBRARIES}
+  MRMLAstroCore
+  MRMLCore
+  vtkSlicerVolumesModuleLogic
   )
+
+#MESSAGE( STATUS "LIB_DIR:         " ${vtkSlicerAstroVolumeModuleLogic_TARGET_LIBRARIES} )
+
 
 #-----------------------------------------------------------------------------
 SlicerMacroBuildModuleLogic(

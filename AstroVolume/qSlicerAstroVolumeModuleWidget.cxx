@@ -2,7 +2,7 @@
 
   Program: 3D Slicer
 
-  Portions (c) Copyright Brigham and Women's Hospital (BWH) All Rights Reserved.
+  Copyright (c) Kitware Inc.
 
   See COPYRIGHT.txt
   or http://www.slicer.org/copyright/copyright.txt for details.
@@ -13,38 +13,30 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
+  This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc.
+  and was partially funded by NIH grant 3P41RR013218-12S1
+
 ==============================================================================*/
 
 // Qt includes
-#include <QDebug>
 
-// SlicerQt includes
+// CTK includes
+//#include <ctkModelTester.h>
+
 #include "qSlicerAstroVolumeModuleWidget.h"
 #include "ui_qSlicerAstroVolumeModuleWidget.h"
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_ExtensionTemplate
+/// \ingroup Slicer_QtModules_AstroVolume
 class qSlicerAstroVolumeModuleWidgetPrivate: public Ui_qSlicerAstroVolumeModuleWidget
 {
 public:
-  qSlicerAstroVolumeModuleWidgetPrivate();
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroVolumeModuleWidgetPrivate methods
-
-//-----------------------------------------------------------------------------
-qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate()
-{
-}
-
-//-----------------------------------------------------------------------------
-// qSlicerAstroVolumeModuleWidget methods
-
-//-----------------------------------------------------------------------------
 qSlicerAstroVolumeModuleWidget::qSlicerAstroVolumeModuleWidget(QWidget* _parent)
-  : Superclass( _parent )
-  , d_ptr( new qSlicerAstroVolumeModuleWidgetPrivate )
+  : Superclass(_parent)
+  , d_ptr(new qSlicerAstroVolumeModuleWidgetPrivate)
 {
 }
 
@@ -58,5 +50,9 @@ void qSlicerAstroVolumeModuleWidget::setup()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
   d->setupUi(this);
-  this->Superclass::setup();
+
+  QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   d->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+  //ctkModelTester* tester = new ctkModelTester(this);
+  //tester->setModel(d->ActiveVolumeNodeSelector->model());
 }

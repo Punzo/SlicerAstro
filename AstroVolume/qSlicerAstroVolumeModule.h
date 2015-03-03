@@ -1,8 +1,8 @@
-/*============================================================================
+/*==============================================================================
 
   Program: 3D Slicer
 
-  Portions (c) Copyright Brigham and Women's Hospital (BWH) All Rights Reserved.
+  Copyright (c) Kitware Inc.
 
   See COPYRIGHT.txt
   or http://www.slicer.org/copyright/copyright.txt for details.
@@ -12,6 +12,9 @@
   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
   See the License for the specific language governing permissions and
   limitations under the License.
+
+  This file was originally developed by Jean-Christophe Fillion-Robin, Kitware Inc.
+  and was partially funded by NIH grant 3P41RR013218-12S1
 
 ==============================================================================*/
 
@@ -23,12 +26,12 @@
 
 #include "qSlicerAstroVolumeModuleExport.h"
 
+class qSlicerAbstractModuleWidget;
 class qSlicerAstroVolumeModulePrivate;
 
-/// \ingroup Slicer_QtModules_ExtensionTemplate
-class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT
-qSlicerAstroVolumeModule
-  : public qSlicerLoadableModule
+/// \ingroup Slicer_QtModules_AstroVolume
+class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModule :
+  public qSlicerLoadableModule
 {
   Q_OBJECT
   Q_INTERFACES(qSlicerLoadableModule);
@@ -36,27 +39,23 @@ qSlicerAstroVolumeModule
 public:
 
   typedef qSlicerLoadableModule Superclass;
-  explicit qSlicerAstroVolumeModule(QObject *parent=0);
+  qSlicerAstroVolumeModule(QObject *parent=0);
   virtual ~qSlicerAstroVolumeModule();
-
-  qSlicerGetTitleMacro(QTMODULE_TITLE);
 
   virtual QString helpText()const;
   virtual QString acknowledgementText()const;
   virtual QStringList contributors()const;
-
   virtual QIcon icon()const;
-
   virtual QStringList categories()const;
-  virtual QStringList dependencies() const;
+  virtual QStringList dependencies()const;
+  qSlicerGetTitleMacro(QTMODULE_TITLE);
 
 protected:
-
-  /// Initialize the module. Register the volumes reader/writer
+  /// Initialize the module. Register the AstroVolume reader/writer
   virtual void setup();
 
   /// Create and return the widget representation associated to this module
-  virtual qSlicerAbstractModuleRepresentation * createWidgetRepresentation();
+  virtual qSlicerAbstractModuleRepresentation* createWidgetRepresentation();
 
   /// Create and return the logic associated to this module
   virtual vtkMRMLAbstractLogic* createLogic();
@@ -67,7 +66,6 @@ protected:
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModule);
   Q_DISABLE_COPY(qSlicerAstroVolumeModule);
-
 };
 
 #endif

@@ -1,64 +1,62 @@
-/*==============================================================================
+/*=auto=========================================================================
 
-  Program: 3D Slicer
-
-  Portions (c) Copyright Brigham and Women's Hospital (BWH) All Rights Reserved.
+  Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
 
   See COPYRIGHT.txt
   or http://www.slicer.org/copyright/copyright.txt for details.
 
-  Unless required by applicable law or agreed to in writing, software
-  distributed under the License is distributed on an "AS IS" BASIS,
-  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  See the License for the specific language governing permissions and
-  limitations under the License.
+  Program:   3D Slicer
+  Module:    $RCSfile: vtkSlicerAstroVolumeLogic.h,v $
+  Date:      $Date: 2006/01/08 04:48:05 $
+  Version:   $Revision: 1.45 $
 
-==============================================================================*/
+=========================================================================auto=*/
 
-// .NAME vtkSlicerAstroVolumeLogic - slicer logic class for volumes manipulation
+// .NAME vtkSlicerAstroVolumeLogic - slicer logic class for AstroVolume manipulation
 // .SECTION Description
 // This class manages the logic associated with reading, saving,
-// and changing propertied of the volumes
+// and changing properties of AstroVolume
 
 
 #ifndef __vtkSlicerAstroVolumeLogic_h
 #define __vtkSlicerAstroVolumeLogic_h
 
 // Slicer includes
-#include "vtkSlicerModuleLogic.h"
+#include "vtkSlicerVolumesLogic.h"
 
 // MRML includes
+#include "vtkMRML.h"
+#include "vtkMRMLScene.h"
+#include "vtkMRMLVolumeNode.h"
 
 // STD includes
 #include <cstdlib>
+#include <list>
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
 
-/// \ingroup Slicer_QtModules_ExtensionTemplate
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
-  public vtkSlicerModuleLogic
+  public vtkSlicerVolumesLogic
 {
 public:
 
   static vtkSlicerAstroVolumeLogic *New();
-  vtkTypeMacro(vtkSlicerAstroVolumeLogic, vtkSlicerModuleLogic);
+  vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerVolumesLogic);
   void PrintSelf(ostream& os, vtkIndent indent);
+  virtual void SetColorLogic(vtkMRMLColorLogic* colorLogic);
 
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
+  vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&);
+  void operator=(const vtkSlicerAstroVolumeLogic&);
 
-  virtual void SetMRMLSceneInternal(vtkMRMLScene* newScene);
-  /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
-  virtual void RegisterNodes();
-  virtual void UpdateFromMRMLScene();
-  virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
-  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
-private:
 
-  vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&); // Not implemented
-  void operator=(const vtkSlicerAstroVolumeLogic&); // Not implemented
+  virtual void ProcessMRMLNodesEvents(vtkObject * caller,
+                                  unsigned long event,
+                                  void * callData);
+
 };
 
 #endif

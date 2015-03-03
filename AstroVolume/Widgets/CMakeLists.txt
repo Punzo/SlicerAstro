@@ -2,30 +2,38 @@ project(qSlicer${MODULE_NAME}ModuleWidgets)
 
 set(KIT ${PROJECT_NAME})
 
-set(${KIT}_EXPORT_DIRECTIVE "Q_SLICER_MODULE_${MODULE_NAME_UPPER}_WIDGETS_EXPORT")
+set(${KIT}_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_WIDGETS_EXPORT")
 
 set(${KIT}_INCLUDE_DIRECTORIES
+    ${MRMLCore_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS
-  qSlicer${MODULE_NAME}FooBarWidget.cxx
-  qSlicer${MODULE_NAME}FooBarWidget.h
+  qSlicerLabelMapVolumeDisplayWidget.cxx
+  qSlicerLabelMapVolumeDisplayWidget.h
+  qSlicerScalarVolumeDisplayWidget.cxx
+  qSlicerScalarVolumeDisplayWidget.h
+  qSlicerAstroVolumeDisplayWidget.cxx
+  qSlicerAstroVolumeDisplayWidget.h
   )
 
 set(${KIT}_MOC_SRCS
-  qSlicer${MODULE_NAME}FooBarWidget.h
+  qSlicerLabelMapVolumeDisplayWidget.h
+  qSlicerScalarVolumeDisplayWidget.h
+  qSlicerAstroVolumeDisplayWidget.h
   )
 
 set(${KIT}_UI_SRCS
-  ../Resources/UI/qSlicer${MODULE_NAME}FooBarWidget.ui
+  Resources/UI/qSlicerLabelMapVolumeDisplayWidget.ui
+  Resources/UI/qSlicerScalarVolumeDisplayWidget.ui
   )
 
 set(${KIT}_RESOURCES
-  ../Resources/UI/qSlicer${MODULE_NAME}FooBarWidget.ui
+  Resources/qSlicer${MODULE_NAME}WidgetsModule.qrc
   )
 
 set(${KIT}_TARGET_LIBRARIES
-  vtkSlicer${MODULE_NAME}ModuleLogic
+   MRMLCore
   )
 
 #-----------------------------------------------------------------------------
@@ -40,3 +48,8 @@ SlicerMacroBuildModuleWidgets(
   RESOURCES ${${KIT}_RESOURCES}
   WRAP_PYTHONQT
   )
+
+#-----------------------------------------------------------------------------
+if(BUILD_TESTING)
+  add_subdirectory(Testing)
+endif()
