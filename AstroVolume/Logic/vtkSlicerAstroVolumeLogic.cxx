@@ -6,15 +6,20 @@
   or http://www.slicer.org/copyright/copyright.txt for details.
 
   Program:   3D Slicer
-  Module:    $RCSfile: vtkSlicerVolumesLogic.cxx,v $
+  Module:    $RCSfile: vtkSlicerAstroVolumeLogic.cxx,v $
   Date:      $Date: 2006/01/06 17:56:48 $
   Version:   $Revision: 1.58 $
 
 =========================================================================auto=*/
 
+// STD includes
+#include <algorithm>
 
-// Volumes includes
+// AstroVolume includes
 #include "vtkSlicerAstroVolumeLogic.h"
+
+// MRML logic includes
+#include "vtkMRMLColorLogic.h"
 
 // MRML nodes includes
 
@@ -35,6 +40,7 @@
 
 // VTK includes
 #include <vtkCallbackCommand.h>
+#include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
 #include <vtkImageThreshold.h>
 #include <vtkMathUtilities.h>
@@ -62,7 +68,7 @@ ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, 
 {
   ArchetypeVolumeNodeSet nodeSet(scene);
 
-  // set up the scalar node's support nodes
+  // set up the Astro scalar node's support nodes
   vtkNew<vtkMRMLScalarVolumeNode> scalarNode;
   scalarNode->SetName(volumeName.c_str());
   scalarNode->SetLabelMap(0);
@@ -84,7 +90,8 @@ ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, 
   return nodeSet;
 }
 
-}//end of anonyous namespace
+}
+//end of anonyous namespace
 
 
 //----------------------------------------------------------------------------
@@ -100,34 +107,66 @@ vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
 {
 }
 
-//----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject *vtkNotUsed(caller),
-                                            unsigned long event,
-                                            void *callData)
-{
-  if (event ==  vtkCommand::ProgressEvent)
-    {
-    this->InvokeEvent ( vtkCommand::ProgressEvent,callData );
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::SetColorLogic(vtkMRMLColorLogic *colorLogic)
-{
-  if (this->ColorLogic == colorLogic)
-    {
-    return;
-    }
-  this->ColorLogic = colorLogic;
-  this->Modified();
-}
 
 void vtkSlicerAstroVolumeLogic::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->vtkObject::PrintSelf(os, indent);
 
-  os << indent << "vtkSlicerAstroVolumesLogic:             " << this->GetClassName() << "\n";
+  os << indent << "vtkSlicerAstroVolumeLogic:             " << this->GetClassName() << "\n";
 
   os << indent << "ActiveVolumeNode: " <<
-    (this->ActiveVolumeNode ? this->ActiveVolumeNode->GetName() : "(none)") << "\n";
+        (this->ActiveVolumeNode ? this->ActiveVolumeNode->GetName() : "(none)") << "\n";
 }
+
+int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRMLVolumeNode *volumeNode)
+{
+  if (volumeNode == NULL || filename == NULL)
+    {
+    return 0;
+    }
+
+  vtkMRMLAstroVolumeStorageNode *storageNode1 = NULL;
+  vtkMRMLStorageNode *storageNode = NULL;
+  vtkMRMLStorageNode *snode = volumeNode->GetStorageNode();
+
+  if (snode != NULL)
+    {
+    storageNode1 = vtkMRMLAstroVolumeStorageNode::SafeDownCast(snode);
+    }
+
+  bool useURI = false;
+  if (this->GetMRMLScene() &&
+      this->GetMRMLScene()->GetCacheManager())
+    {
+    useURI = this->GetMRMLScene()->GetCacheManager()->IsRemoteReference(filename);
+    }
+
+  // Use FITS writer if we are dealing with Astro volumes
+
+  if (volumeNode->IsA("vtkMRMLScalarVolumeNode"))
+    {
+
+    if (storageNode1 == NULL)
+      {
+      storageNode1 = vtkMRMLAstroVolumeStorageNode::New();
+      storageNode1->SetScene(this->GetMRMLScene());
+      this->GetMRMLScene()->AddNode(storageNode1);
+      volumeNode->SetAndObserveStorageNodeID(storageNode1->GetID());
+      storageNode1->Delete();
+      }
+    if (useURI)
+      {
+      storageNode1->SetURI(filename);
+      }
+    else
+      {
+      storageNode1->SetFileName(filename);
+      }
+    storageNode = storageNode1;
+    }
+  else vtkErrorMacro("FITSWriter handle only Scalar Volumes");
+
+  int res = storageNode->WriteData(volumeNode);
+  return res;
+}
+

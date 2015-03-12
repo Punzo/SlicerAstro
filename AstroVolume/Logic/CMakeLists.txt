@@ -23,8 +23,6 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerVolumesModuleLogic
   )
 
-#MESSAGE( STATUS "LIB_DIR:         " ${vtkSlicerAstroVolumeModuleLogic_TARGET_LIBRARIES} )
-
 
 #-----------------------------------------------------------------------------
 SlicerMacroBuildModuleLogic(

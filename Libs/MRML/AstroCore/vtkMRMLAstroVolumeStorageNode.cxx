@@ -20,6 +20,7 @@ Version:   $Revision: 1.6 $
 
 //vtkFits includes
 #include <vtkFITSReader.h>
+#include <vtkFITSWriter.h>
 
 // VTK includes
 #include <vtkImageChangeInformation.h>
@@ -206,7 +207,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 #else
   ici->SetInputConnection(reader->GetOutputPort());
 #endif
-  //check this:
   ici->SetOutputSpacing( 1, 1, 1 );
   ici->SetOutputOrigin( 0, 0, 0 );
   ici->Update();
@@ -222,41 +222,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 //----------------------------------------------------------------------------
 int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 {
- /* vtkMRMLVolumeNode *volNode = NULL;
-  //Store volume nodes attributes.
-  vtkNew<vtkMatrix4x4> mf;
-  vtkDoubleArray *grads = NULL;
-  vtkDoubleArray *bValues = NULL;
-  vtkNew<vtkMatrix4x4> ijkToRas;
+  vtkMRMLVolumeNode *volNode = NULL;
+  int writeFlag = 0;
 
-  if ( refNode->IsA("vtkMRMLDiffusionTensorVolumeNode") )
-    {
-    volNode = vtkMRMLDiffusionTensorVolumeNode::SafeDownCast(refNode);
-    if (volNode)
-      {
-      ((vtkMRMLDiffusionTensorVolumeNode *) volNode)->GetMeasurementFrameMatrix(mf.GetPointer());
-      }
-    }
-  else if ( refNode->IsA("vtkMRMLDiffusionWeightedVolumeNode") )
-    {
-
-    volNode = vtkMRMLDiffusionWeightedVolumeNode::SafeDownCast(refNode);
-    if (volNode)
-      {
-      ((vtkMRMLDiffusionWeightedVolumeNode *) volNode)->GetMeasurementFrameMatrix(mf.GetPointer());
-      grads = ((vtkMRMLDiffusionWeightedVolumeNode *) volNode)->GetDiffusionGradients();
-      bValues = ((vtkMRMLDiffusionWeightedVolumeNode *) volNode)->GetBValues();
-      }
-    }
-  else if ( refNode->IsA("vtkMRMLVectorVolumeNode") )
-    {
-    volNode = vtkMRMLVectorVolumeNode::SafeDownCast(refNode);
-    if (volNode)
-      {
-      ((vtkMRMLVectorVolumeNode *) volNode)->GetMeasurementFrameMatrix(mf.GetPointer());
-      }
-    }
-  else if ( refNode->IsA("vtkMRMLScalarVolumeNode") )
+  if ( refNode->IsA("vtkMRMLScalarVolumeNode") )
     {
     volNode = vtkMRMLScalarVolumeNode::SafeDownCast(refNode);
     }
@@ -272,8 +241,6 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     return 0;
     }
 
-  volNode->GetIJKToRASMatrix(ijkToRas.GetPointer());
-
   if (volNode->GetImageData() == NULL)
     {
     vtkErrorMacro("WriteData: Cannot write NULL ImageData");
@@ -285,8 +252,9 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     vtkErrorMacro("WriteData: File name not specified");
     return 0;
     }
-  // Use here the NRRD Writer
-  vtkNew<vtkNRRDWriter> writer;
+
+  // Use here the FITS Writer
+  vtkNew<vtkFITSWriter> writer;
   writer->SetFileName(fullName.c_str());
 #if (VTK_MAJOR_VERSION <= 5)
   writer->SetInput(volNode->GetImageData() );
@@ -294,18 +262,6 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   writer->SetInputConnection(volNode->GetImageDataConnection());
 #endif
   writer->SetUseCompression(this->GetUseCompression());
-
-  // set volume attributes
-  writer->SetIJKToRASMatrix(ijkToRas.GetPointer());
-  writer->SetMeasurementFrameMatrix(mf.GetPointer());
-  if (grads)
-    {
-    writer->SetDiffusionGradients(grads);
-    }
-  if (bValues)
-    {
-    writer->SetBValues(bValues);
-    }
 
   // pass down all MRML attributes to NRRD
   std::vector<std::string> attributeNames = volNode->GetAttributeNames();
@@ -316,17 +272,16 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     }
 
   writer->Write();
-  int writeFlag = 1;
   if (writer->GetWriteError())
     {
-    vtkErrorMacro("ERROR writing NRRD file " << (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
+    vtkErrorMacro("ERROR writing FITS file " << (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
     writeFlag = 0;
     }
 
   this->StageWriteData(refNode);
 
   return writeFlag;
-  */
+
 }
 
 //----------------------------------------------------------------------------

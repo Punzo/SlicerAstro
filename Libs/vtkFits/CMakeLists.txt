@@ -18,6 +18,11 @@ if(NOT DEFINED BUILD_SHARED_LIBS)
   option(BUILD_SHARED_LIBS "Build with shared libraries." ON)
 endif()
 
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
+endif()
+
+
 # --------------------------------------------------------------------------
 # Dependencies
 # --------------------------------------------------------------------------
@@ -25,12 +30,6 @@ endif()
 #
 # Fits
 #
-
-if (NOT CFITSIO_INCLUDES) 
-  find_path (CFITSIO_INCLUDES fitsio.h
-    PATHS ${CFITSIO_INCLUDE_DIR}
-    )
-endif (NOT CFITSIO_INCLUDES)
 
 if (NOT CFITSIO_LIBRARIES)
   find_library (CFITSIO_LIBRARIES cfitsio
@@ -46,6 +45,7 @@ set(KIT ${PROJECT_NAME})
 # --------------------------------------------------------------------------
 set(vtkFits_SRCS
   vtkFITSReader.cxx
+  vtkFITSWriter.cxx
   )
 
 # --------------------------------------------------------------------------
@@ -54,7 +54,7 @@ set(vtkFits_SRCS
 set(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
-  ${CFITSIO_INCLUDES}
+  ${CFITSIO_INCLUDE_DIR}/../cfitsio
   )
 include_directories(BEFORE ${include_dirs})
 
@@ -141,6 +141,5 @@ endif()
 # --------------------------------------------------------------------------
 # Set INCLUDE_DIRS variable
 # --------------------------------------------------------------------------
-set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-  CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)
+set(${PROJECT_NAME}_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)
 

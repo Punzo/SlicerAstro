@@ -79,26 +79,13 @@ void qSlicerScalarVolumeDisplayWidgetPrivate::init()
   //scene->setTransferFunction(this->Histogram);
   ctkTransferFunctionBarsItem* barsItem =
     new ctkTransferFunctionBarsItem(this->Histogram);
-  barsItem->setBarWidth(1.);
+  barsItem->setBarWidth(1);
   scene->addItem(barsItem);
 
   QObject::connect(this->InterpolateCheckbox, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
   QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setColorNode(vtkMRMLNode*)));
-
-  QObject::connect(this->CTBonePresetToolButton, SIGNAL(clicked()),
-                   q, SLOT(onPresetButtonClicked()));
-  QObject::connect(this->CTAirPresetToolButton, SIGNAL(clicked()),
-                   q, SLOT(onPresetButtonClicked()));
-  QObject::connect(this->PETPresetToolButton, SIGNAL(clicked()),
-                   q, SLOT(onPresetButtonClicked()));
-  QObject::connect(this->CTAbdomenPresetToolButton, SIGNAL(clicked()),
-                   q, SLOT(onPresetButtonClicked()));
-  QObject::connect(this->CTBrainPresetToolButton, SIGNAL(clicked()),
-                   q, SLOT(onPresetButtonClicked()));
-  QObject::connect(this->CTLungPresetToolButton, SIGNAL(clicked()),
-                   q, SLOT(onPresetButtonClicked()));
 }
 
 // --------------------------------------------------------------------------
@@ -324,76 +311,3 @@ void qSlicerScalarVolumeDisplayWidget::setColorNode(vtkMRMLNode* colorNode)
   displayNode->SetAndObserveColorNodeID(colorNode->GetID());
 }
 
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::onPresetButtonClicked()
-{
-  QToolButton* preset = qobject_cast<QToolButton*>(this->sender());
-  this->setPreset(preset->accessibleName());
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setPreset(const QString& presetName)
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  QString colorNodeID;
-  double window = -1.;
-  double level = std::numeric_limits<double>::max();
-  if (presetName == "CT-Bone")
-    {
-    colorNodeID = "vtkMRMLColorTableNodeGrey";
-    window = 1000.;
-    level = 400.;
-    }
-  else if (presetName == "CT-Air")
-    {
-    colorNodeID = "vtkMRMLColorTableNodeGrey";
-    window = 1000.;
-    level = -426.;
-    }
-  else if (presetName == "PET")
-    {
-    colorNodeID = "vtkMRMLColorTableNodeRainbow";
-    window = 10000.;
-    level = 6000.;
-    }
-  else if (presetName == "CT-Abdomen")
-    {
-    colorNodeID = "vtkMRMLColorTableNodeGrey";
-    window = 350.;
-    level = 40.;
-    }
-  else if (presetName == "CT-Brain")
-    {
-    colorNodeID = "vtkMRMLColorTableNodeGrey";
-    window = 100.;
-    level = 50.;
-    }
-  else if (presetName == "CT-Lung")
-    {
-    colorNodeID = "vtkMRMLColorTableNodeGrey";
-    window = 1400.;
-    level = -500.;
-    }
-
-  vtkMRMLNode* colorNode = this->mrmlScene()->GetNodeByID(colorNodeID.toLatin1());
-  if (colorNode)
-    {
-    this->setColorNode(colorNode);
-    }
-  if (window != -1 || level!= std::numeric_limits<double>::max())
-    {
-    d->MRMLWindowLevelWidget->setAutoWindowLevel(qMRMLWindowLevelWidget::Manual);
-    }
-  if (window != -1 && level != std::numeric_limits<double>::max())
-    {
-    d->MRMLWindowLevelWidget->setWindowLevel(window, level);
-    }
-  else if (window != -1)
-    {
-    d->MRMLWindowLevelWidget->setWindow(window);
-    }
-  else if (level != std::numeric_limits<double>::max())
-    {
-    d->MRMLWindowLevelWidget->setLevel(level);
-    }
-}

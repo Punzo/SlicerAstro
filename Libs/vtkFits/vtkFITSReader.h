@@ -31,14 +31,11 @@
 
 #include "vtkMedicalImageReader2.h"
 
-//#include "vtkDataObject.h"
-//#include "vtkImageData.h"
-
 #include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
 #include <vtkVersion.h>
 
-#include "/media/Storage/PhD_Groningen/code/cfitsio/fitsio.h"
+#include "fitsio.h"
 
 #define VTK_Fits_EXPORT
 
@@ -145,7 +142,6 @@ protected:
   ~vtkFITSReader();
 
   vtkMatrix4x4* RasToIjkMatrix;
-  vtkMatrix4x4* FITSWorldToRasMatrix;
 
   char* HeaderKeys;
   char* CurrentFileName;
@@ -155,7 +151,7 @@ protected:
   int NumberOfComponents;
   bool UseNativeOrigin;
 
-  float *cube_ptr;
+  void *ptr;
   fitsfile *fptr;
   int ReadStatus;
 
@@ -168,7 +164,7 @@ protected:
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo);
 #endif
 
-  void *AllocateHeader();
+  virtual void AllocateHeader();
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

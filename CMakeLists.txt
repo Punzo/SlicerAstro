@@ -42,3 +42,4 @@ add_subdirectory(Libs)
 #-----------------------------------------------------------------------------
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
 include(${Slicer_EXTENSION_CPACK})
+

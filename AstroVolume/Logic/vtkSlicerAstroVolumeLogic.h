@@ -44,18 +44,15 @@ public:
   static vtkSlicerAstroVolumeLogic *New();
   vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerVolumesLogic);
   void PrintSelf(ostream& os, vtkIndent indent);
-  virtual void SetColorLogic(vtkMRMLColorLogic* colorLogic);
+
+  /// Write volume's image data to a specified file
+  int SaveArchetypeVolume (const char* filename, vtkMRMLVolumeNode *volumeNode);
 
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
   vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&);
   void operator=(const vtkSlicerAstroVolumeLogic&);
-
-
-  virtual void ProcessMRMLNodesEvents(vtkObject * caller,
-                                  unsigned long event,
-                                  void * callData);
 
 };
 

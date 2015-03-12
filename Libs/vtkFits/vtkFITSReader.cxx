@@ -25,7 +25,9 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-// vtkTeem includes
+#include<cstdlib>
+
+// vtkASTRO includes
 #include "vtkFITSReader.h"
 
 // VTK includes
@@ -54,11 +56,10 @@ vtkStandardNewMacro(vtkFITSReader);
 vtkFITSReader::vtkFITSReader()
 {
   RasToIjkMatrix = NULL;
-  FITSWorldToRasMatrix = NULL;
   HeaderKeys = NULL;
   CurrentFileName = NULL;
   UseNativeOrigin = true;
-  cube_ptr = NULL;
+  ptr = NULL;
   fptr = NULL;
   ReadStatus = 0;
 }
@@ -70,11 +71,6 @@ vtkFITSReader::~vtkFITSReader()
     RasToIjkMatrix = NULL;
   }
 
-  if (FITSWorldToRasMatrix) {
-    FITSWorldToRasMatrix->Delete();
-    FITSWorldToRasMatrix = NULL;
-  }
-
   if (HeaderKeys) {
     delete [] HeaderKeys;
     HeaderKeys = NULL;
@@ -83,11 +79,6 @@ vtkFITSReader::~vtkFITSReader()
   if (CurrentFileName) {
     delete [] CurrentFileName;
     CurrentFileName = NULL;
-  }
-
-  if (cube_ptr) {
-    delete [] cube_ptr;
-    cube_ptr = NULL;
   }
 
   if (fptr) {
@@ -163,12 +154,6 @@ int vtkFITSReader::CanReadFile(const char* filename)
     return false;
     }
 
-  // We'll assume we can read from stdin (don't try to read the header though)
-  //if ( fname == "-" )
-  //  {
-  //  return true;
-  //  }
-
   std::string extension = vtksys::SystemTools::LowerCase( vtksys::SystemTools::GetFilenameLastExtension(fname) );
   if (extension != ".fits")
     {
@@ -226,8 +211,6 @@ void vtkFITSReader::ExecuteInformation()
    // image origin
    // meta data dictionary information
 
-   int i;
-
    // save the Fits struct for the current file and
    // don't re-execute the read unless the filename changes
    if ( this->CurrentFileName != NULL &&
@@ -257,126 +240,133 @@ void vtkFITSReader::ExecuteInformation()
      this->RasToIjkMatrix->Delete();
    }
    this->RasToIjkMatrix = vtkMatrix4x4::New();
-   vtkMatrix4x4* IjkToRasMatrix = vtkMatrix4x4::New();
-
    this->RasToIjkMatrix->Identity();
-   IjkToRasMatrix->Identity();
-
-   if (FITSWorldToRasMatrix) {
-      FITSWorldToRasMatrix->Delete();
-   }
-   FITSWorldToRasMatrix = vtkMatrix4x4::New();
-   FITSWorldToRasMatrix->Identity();
-
-
-   // Set the number of image dimensions
-   unsigned int naxes;
-   if (fits_read_key(fptr, TINT,"NAXIS", &naxes, NULL, &ReadStatus)) fits_report_error(stderr, ReadStatus);
 
    this->SetPointDataType(vtkDataSetAttributes::SCALARS);
    this->SetNumberOfComponents(1);
 
+   // Push FITS header key/value pair data into std::map
+   this->AllocateHeader();
+
    // Set type information
-   this->SetDataType( VTK_FLOAT );
+   switch(std::stoi(this->GetHeaderValue("BITPIX")))
+   {
+     case 8:
+       this->SetDataType( VTK_FLOAT );
 #if (VTK_MAJOR_VERSION > 5)
-   this->SetDataScalarType( VTK_FLOAT );
+       this->SetDataScalarType( VTK_FLOAT );
 #endif
+     case 16:
+       this->SetDataType( VTK_FLOAT );
+#if (VTK_MAJOR_VERSION > 5)
+       this->SetDataScalarType( VTK_FLOAT );
+#endif
+       break;
+     case 32:
+       this->SetDataType( VTK_FLOAT );
+#if (VTK_MAJOR_VERSION > 5)
+       this->SetDataScalarType( VTK_FLOAT );
+#endif
+       break;
+   case -32:
+     this->SetDataType( VTK_FLOAT );
+#if (VTK_MAJOR_VERSION > 5)
+     this->SetDataScalarType( VTK_FLOAT );
+#endif
+     break;
+     case 64:
+          this->SetDataType( VTK_DOUBLE );
+#if (VTK_MAJOR_VERSION > 5)
+          this->SetDataScalarType( VTK_DOUBLE );
+#endif
+       break;
+   case -64:
+        this->SetDataType( VTK_DOUBLE );
+#if (VTK_MAJOR_VERSION > 5)
+        this->SetDataScalarType( VTK_DOUBLE );
+#endif
+     break;
+     default:
+       vtkErrorMacro("Could not allocate data type.");
+       return;
+   }
+
 
    // Set axis information
-   int dataExtent[6];
-   double spacings[3];
-   double spacing;
-   double origin[3];
+   int dataExtent[6]={0};
+   double spacings[3]={0.};
+   double origin[3]={0.};
 
 
-   if(naxes != 3){ vtkErrorMacro("fits file is not 3D");
-   }else{
-     long int naxe[3];
-     int nfound;
+   unsigned int naxes = std::stoi(this->GetHeaderValue("NAXIS"));
 
-     if(fits_read_keys_lng(fptr, "NAXIS",1,3,naxe, &nfound, &ReadStatus)) fits_report_error(stderr, ReadStatus);
-
-     int spaceDir[3];
-
-     spaceDir[0]= 1;
-     spaceDir[1]= 1;
-     spaceDir[2]= 1;
-
-     for (unsigned int axii=0; axii < naxes; axii++){
+   for (unsigned int axii=0; axii < naxes; axii++){
 
    //calculate the dataExtent
-
-       dataExtent[2*axii] = 0;
-       dataExtent[2*axii+1] = static_cast<int>(naxe[axii]) - 1;
+     dataExtent[2*axii] = 0;
+     dataExtent[2*axii+1] = static_cast<int>(std::stoi(this->GetHeaderValue(("NAXIS"+std::to_string(axii+1)).c_str())) - 1);
 
    //calculate the spacing
-       double spacing = 1.;
-       spacings[axii]=spacing;
-
+     //spacings[axii]= std::stod(this->GetHeaderValue(("CDELT"+std::to_string(axii+1)).c_str()));
+     spacings[axii]=1.0;
    //calculate the origin
-
-       origin[axii] = 0.0;
-
-       /*for (int j=0; j < naxes; j++)
-         {
-          IjkToRasMatrix->SetElement(j, axii , spaceDir[j]*spacing);
-         }*/
-
-     }
-
+     //origin[axii] = std::stod(this->GetHeaderValue(("CRVAL"+std::to_string(axii+1)).c_str()));
+     origin[axii]=0.0;
+   //set RasToIjkMatrix
+     this->RasToIjkMatrix->SetElement(axii, axii , spacings[axii]);
    }
-   //set properly RasToIjkMatrix for world coordinates!!!!
-   /*
+
+   this->RasToIjkMatrix->Invert(this->RasToIjkMatrix,this->RasToIjkMatrix);
+
    if (this->UseNativeOrigin) {
-        for (i=0; i < 3; i++) {
-            IjkToRasMatrix->SetElement(i, 3, origin[i]);
+        for (unsigned int i=0; i < 3; i++) {
+            this->RasToIjkMatrix->SetElement(i, 3, origin[i]);
         }
-        vtkMatrix4x4::Invert(IjkToRasMatrix, this->RasToIjkMatrix);
     } else {
-        vtkMatrix4x4::Invert(IjkToRasMatrix, this->RasToIjkMatrix);
-        for (i=0; i < 3; i++) {
+        for (unsigned int i=0; i < 3; i++) {
             this->RasToIjkMatrix->SetElement(i, 3, (dataExtent[2*i+1] - dataExtent[2*i])/2.0);
         }
     }
-
-   this->RasToIjkMatrix->SetElement(1,1,-1.0);
-    this->RasToIjkMatrix->SetElement(3,3,1.0);
-
-   cout<<IjkToRasMatrix->GetElement(1,1)<<" "<<IjkToRasMatrix->GetElement(1,2)<<" "<<IjkToRasMatrix->GetElement(1,3)<<endl;
-   cout<<IjkToRasMatrix->GetElement(2,1)<<" "<<IjkToRasMatrix->GetElement(2,2)<<" "<<IjkToRasMatrix->GetElement(2,3)<<endl;
-   cout<<IjkToRasMatrix->GetElement(3,1)<<" "<<IjkToRasMatrix->GetElement(3,2)<<" "<<IjkToRasMatrix->GetElement(3,3)<<endl;
-
-   cout<<this->RasToIjkMatrix->GetElement(1,1)<<" "<< this->RasToIjkMatrix->GetElement(1,2)<<" "<< this->RasToIjkMatrix->GetElement(1,3)<<endl;
-   cout<<this->RasToIjkMatrix->GetElement(2,1)<<" "<< this->RasToIjkMatrix->GetElement(2,2)<<" "<< this->RasToIjkMatrix->GetElement(2,3)<<endl;
-   cout<<this->RasToIjkMatrix->GetElement(3,1)<<" "<< this->RasToIjkMatrix->GetElement(3,2)<<" "<< this->RasToIjkMatrix->GetElement(3,3)<<endl;
-*/
-
-   //this->RasToIjkMatrix->SetElement(1,1,-1.0);
-    IjkToRasMatrix->Delete();
 
    this->SetDataExtent(dataExtent);
    this->SetDataSpacing(spacings);
    this->SetDataOrigin(origin);
 
-
-   // Push extra key/value pair data into std::map
-   this->AllocateHeader();
-
    this->vtkImageReader2::ExecuteInformation();
+
    if (fits_close_file(fptr, &ReadStatus)) fits_report_error(stderr, ReadStatus);
 
 }
 
-void *vtkFITSReader::AllocateHeader(){
+void vtkFITSReader::AllocateHeader(){
+   char card[FLEN_CARD];/* Standard string lengths defined in fitsio.h */
+   char val[FLEN_VALUE];
+   char com[FLEN_COMMENT];
+   char key[FLEN_KEYWORD];
+   int keylen = FLEN_KEYWORD;
 
-    //do it
-   /*    char *key;
-    char *val;
-    //if (fits_read_key(fptr, TINT,"NAXIS", &naxes, NULL, &ReadStatus)) fits_report_error(stderr, ReadStatus);
-    HeaderKeyValue[std::string(key)] = std::string(val);
-    free(key);
-    free(val);
-    key = val = NULL;*/
+   int nkeys, ii;
+
+   fits_get_hdrspace(fptr, &nkeys, NULL, &ReadStatus); /* get # of keywords */
+
+   for (ii = 1; ii <= nkeys; ii++) { /* Read and print each keywords */
+
+     if (fits_read_record(fptr, ii, card, &ReadStatus))break;
+     if (fits_get_keyname(card, key, &keylen, &ReadStatus)) break;
+     if (std::string(key).compare(0,7,"HISTORY") == 0) continue;
+     if (std::string(key).compare(0,7,"COMMENT") == 0) continue;
+     if (fits_parse_value(card, val, com, &ReadStatus)) break;
+
+     std::string str(val);
+     if (std::string::npos != str.find_first_of("'")){
+       str.erase(0,1);
+       str.erase(str.size()-1, str.size());
+     }
+     HeaderKeyValue[std::string(key)] = str;
+   }
+
+   if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
+
 }
 
 
@@ -392,10 +382,6 @@ vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformati
     return NULL;
     }
 
-  // I would like to eliminate this method which requires extra "information"
-  // That is not computed in the graphics pipeline.
-  // Until I can eliminate the method, I will reexecute the ExecuteInformation
-  // before the execute.
   this->ExecuteInformation();
 
 #if (VTK_MAJOR_VERSION <= 5)
@@ -446,33 +432,6 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
   // allocate the new scalars
   switch (this->DataType)
     {
-    case VTK_BIT:
-      pd = vtkBitArray::New();
-      break;
-    case VTK_UNSIGNED_CHAR:
-      pd = vtkUnsignedCharArray::New();
-      break;
-    case VTK_CHAR:
-      pd = vtkCharArray::New();
-      break;
-    case VTK_UNSIGNED_SHORT:
-      pd = vtkUnsignedShortArray::New();
-      break;
-    case VTK_SHORT:
-      pd = vtkShortArray::New();
-      break;
-    case VTK_UNSIGNED_INT:
-      pd = vtkUnsignedIntArray::New();
-      break;
-    case VTK_INT:
-      pd = vtkIntArray::New();
-      break;
-    case VTK_UNSIGNED_LONG:
-      pd = vtkUnsignedLongArray::New();
-      break;
-    case VTK_LONG:
-      pd = vtkLongArray::New();
-      break;
     case VTK_DOUBLE:
       pd = vtkDoubleArray::New();
       break;
@@ -532,7 +491,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     }
 
 
-  // Read in the fits.  Yes, this means that the header is being read
+  // Open the fits.  Yes, this means that the file is being opened
   // twice: once by ExecuteInformation, and once here
 
   if(fits_open_data(&fptr, this->GetFileName(), READONLY, &ReadStatus)){
@@ -541,30 +500,47 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
       return;
   }
 
-  void *ptr = NULL;
-
   data->GetPointData()->GetScalars()->SetName("FITSImage");
   //get pointer
   ptr = data->GetPointData()->GetScalars()->GetVoidPointer(0);
 
   this->ComputeDataIncrements();
 
-  int naxe[3];
-  int nfound;
+  unsigned int naxes = data->GetDataDimension();
 
-  if(fits_read_keys_log(fptr, "NAXIS",1,3,naxe, &nfound, &ReadStatus)) fits_report_error(stderr, ReadStatus);
-
+  int naxe[naxes];
   data->GetDimensions(naxe);
 
-  int dim = naxe[0]*naxe[1]*naxe[2];
+  int dim = 1;
+  for (unsigned int axii=0; axii < naxes; axii++){
+    dim *= naxe[axii];
+  }
+
   float nullval = NAN;
   int anynull;
 
-  if(fits_read_img(fptr, TFLOAT, 1, dim, &nullval, ptr, &anynull, &ReadStatus))
-  {
-      fits_report_error(stderr, ReadStatus);
-      vtkErrorMacro(<< "data is null.");
-      return;
+  // load the data
+  switch (this->DataType)
+    {
+    case VTK_DOUBLE:
+      if(fits_read_img(fptr, TDOUBLE, 1, dim, &nullval, ptr, &anynull, &ReadStatus))
+      {
+        fits_report_error(stderr, ReadStatus);
+        vtkErrorMacro(<< "data is null.");
+        return;
+      }
+      break;
+    case VTK_FLOAT:
+      if(fits_read_img(fptr, TFLOAT, 1, dim, &nullval, ptr, &anynull, &ReadStatus))
+      {
+        fits_report_error(stderr, ReadStatus);
+        vtkErrorMacro(<< "data is null.");
+        return;
+      }
+    break;
+  default:
+    vtkErrorMacro("Could not load data");
+    return;
   }
 
   if (fits_close_file(fptr, &ReadStatus)) fits_report_error(stderr, ReadStatus);

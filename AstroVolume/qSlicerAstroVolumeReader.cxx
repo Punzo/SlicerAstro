@@ -113,6 +113,7 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
   QString fileName = properties["fileName"].toString();
 
   QString name = QFileInfo(fileName).baseName();
+
   if (properties.contains("name"))
     {
     name = properties["name"].toString();
@@ -147,12 +148,16 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
       fileList->InsertNextValue(file.toLatin1());
       }
     }
+
+
   Q_ASSERT(d->Logic);
+
   vtkMRMLVolumeNode* node = d->Logic->AddArchetypeVolume(
     fileName.toLatin1(),
     name.toLatin1(),
     options,
     fileList.GetPointer());
+
   if (node)
     {
     vtkSlicerApplicationLogic* appLogic =
@@ -183,5 +188,6 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     {
     this->setLoadedNodes(QStringList());
     }
+
   return node != 0;
 }

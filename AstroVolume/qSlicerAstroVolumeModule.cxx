@@ -42,8 +42,8 @@
 #include <vtkMRMLScene.h>
 
 // SubjectHierarchy Plugins includes
-//#include "qSlicerSubjectHierarchyPluginHandler.h"
-//#include "qSlicerSubjectHierarchyAstroVolumePlugin.h"
+#include "qSlicerSubjectHierarchyPluginHandler.h"
+#include "qSlicerSubjectHierarchyVolumesPlugin.h"
 
 
 //-----------------------------------------------------------------------------
@@ -83,7 +83,7 @@ QString qSlicerAstroVolumeModule::acknowledgementText()const
 {
   QString acknowledgement = QString(
     "<center><table border=\"0\"><tr>"
-    "<td><img src=\":Logos/kapteyn.png\" alt\"Kapteyn Astronomical Institute\"></td>"
+    "<td><img src=\":://Logos/kapteyn.png\" alt\"Kapteyn Astronomical Institute\"></td>"
     "</tr></table></center>"
     "This work was supported by ERC grant .... and the Slicer "
     "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
@@ -108,7 +108,7 @@ QIcon qSlicerAstroVolumeModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::categories() const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "";
 }
 
 //-----------------------------------------------------------------------------
@@ -142,7 +142,7 @@ void qSlicerAstroVolumeModule::setup()
     QStringList() << "vtkMRMLVolumeNode", this));
 
   // Register Subject Hierarchy core plugins
-  //qSlicerSubjectHierarchyPluginHandler::instance()->registerPlugin(new qSlicerSubjectHierarchyAstroVolumePlugin());
+  qSlicerSubjectHierarchyPluginHandler::instance()->registerPlugin(new qSlicerSubjectHierarchyVolumesPlugin());
 }
 
 //-----------------------------------------------------------------------------
