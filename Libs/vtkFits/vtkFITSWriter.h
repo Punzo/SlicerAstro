@@ -1,4 +1,3 @@
-
 #ifndef __vtkFITSWriter_h
 #define __vtkFITSWriter_h
 

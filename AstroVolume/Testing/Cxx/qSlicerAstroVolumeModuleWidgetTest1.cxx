@@ -28,7 +28,7 @@
 
 // AstroVolume includes
 #include "qSlicerAstroVolumeModule.h"
-#include "vtkSlicerAstroVolumeLogic.h"
+#include "vtkSlicerVolumesLogic.h"
 
 // VTK includes
 #include <vtkNew.h>
@@ -54,10 +54,10 @@ int qSlicerAstroVolumeModuleWidgetTest1( int argc, char * argv[] )
   module.initialize(0);
 
   vtkNew<vtkMRMLScene> scene;
-  vtkNew<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
-  AstroVolumeLogic->SetMRMLScene(scene.GetPointer());
+  vtkNew<vtkSlicerVolumesLogic> VolumesLogic;
+  VolumesLogic->SetMRMLScene(scene.GetPointer());
 
-  vtkMRMLVolumeNode* volumeNode = AstroVolumeLogic->AddArchetypeVolume(argv[1], "volume");
+  vtkMRMLVolumeNode* volumeNode = VolumesLogic->AddArchetypeVolume(argv[1], "volume");
   if (!volumeNode)
     {
     std::cerr << "Bad volume file:" << argv[1] << std::endl;

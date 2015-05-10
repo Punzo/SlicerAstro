@@ -19,7 +19,7 @@
 ==============================================================================*/
 
 // AstroVolume logic
-#include "vtkSlicerAstroVolumeLogic.h"
+#include "vtkSlicerVolumesLogic.h"
 
 // MRML includes
 #include <vtkMRMLScalarVolumeNode.h>
@@ -84,7 +84,7 @@ int vtkSlicerAstroVolumeLogicTest1( int argc, char * argv[] )
   itk::itkFactoryRegistration();
 
   vtkNew<vtkMRMLScene> scene;
-  vtkNew<vtkSlicerAstroVolumeLogic> logic;
+  vtkNew<vtkSlicerVolumesLogic> logic;
 
   if (argc < 2)
     {

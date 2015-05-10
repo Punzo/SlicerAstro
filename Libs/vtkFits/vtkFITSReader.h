@@ -1,27 +1,3 @@
-/*=auto=========================================================================
-
-  Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
-
-  See COPYRIGHT.txt
-  or http://www.slicer.org/copyright/copyright.txt for details.
-
-  Program:   3D Slicer
-  Module:    $RCSfile: vtkNRRDReader.h,v $
-  Date:      $Date: 2007/06/12 19:13:59 $
-  Version:   $Revision: 1.3.2.1 $
-
-=========================================================================auto=*/
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    $RCSfile: vtkFITSReader.h,v $
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
-
 #ifndef __vtkFITSReader_h
 #define __vtkFITSReader_h
 
@@ -72,7 +48,7 @@ public:
 
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
-  ///  is the given file name a NRRD file?
+  ///  is the given file name a FITS file?
   virtual int CanReadFile(const char* filename);
 
   ///
@@ -151,7 +127,6 @@ protected:
   int NumberOfComponents;
   bool UseNativeOrigin;
 
-  void *ptr;
   fitsfile *fptr;
   int ReadStatus;
 
@@ -164,7 +139,7 @@ protected:
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo);
 #endif
 
-  virtual void AllocateHeader();
+  void AllocateHeader();
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

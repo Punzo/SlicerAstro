@@ -19,7 +19,7 @@
 ==============================================================================*/
 
 // AstroVolume logic
-#include "vtkSlicerAstroVolumeLogic.h"
+#include "vtkSlicerVolumesLogic.h"
 
 // MRML includes
 #include <vtkMRMLVectorVolumeNode.h>
@@ -129,7 +129,7 @@ int main( int argc, char * argv[] )
 
 
   vtkNew<vtkMRMLScene> scene;
-  vtkNew<vtkSlicerAstroVolumeLogic> logic;
+  vtkNew<vtkSlicerVolumesLogic> logic;
 
   logic->SetMRMLScene(scene.GetPointer());
 
