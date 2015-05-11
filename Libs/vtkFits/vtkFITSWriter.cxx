@@ -23,7 +23,6 @@ vtkFITSWriter::vtkFITSWriter()
   this->FileType = VTK_BINARY;
   this->WriteErrorOff();
   this->Attributes = new AttributeMapType;
-  this->fptr = NULL;
   this->WriteStatus = 0;
 }
 
@@ -40,10 +39,6 @@ vtkFITSWriter::~vtkFITSWriter()
     delete this->Attributes;
     }
 
-  if (this->fptr) {
-    delete [] this->fptr;
-    this->fptr = NULL;
-  }
 }
 
 //----------------------------------------------------------------------------

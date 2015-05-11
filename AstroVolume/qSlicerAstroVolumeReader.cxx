@@ -13,9 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  This file was originally developed by Julien Finet, Kitware Inc.
-  and was partially funded by NIH grant 3P41RR013218-12S1
-
+  This file was originally developed by Davide Punzo, Kapteyn Astronomical Institute.
 ==============================================================================*/
 
 // Qt includes
@@ -24,6 +22,9 @@
 // SlicerQt includes
 #include "qSlicerAstroVolumeIOOptionsWidget.h"
 #include "qSlicerAstroVolumeReader.h"
+
+// Slicer includes
+#include <vtkSlicerVolumesLogic.h>
 
 // Logic includes
 #include <vtkSlicerApplicationLogic.h>
@@ -41,7 +42,7 @@
 class qSlicerAstroVolumeReaderPrivate
 {
   public:
-  vtkSmartPointer<vtkSlicerAstroVolumeLogic> Logic;
+  vtkSmartPointer<vtkSlicerVolumesLogic> Logic;
 };
 
 //-----------------------------------------------------------------------------
@@ -52,7 +53,7 @@ qSlicerAstroVolumeReader::qSlicerAstroVolumeReader(QObject* _parent)
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroVolumeReader::qSlicerAstroVolumeReader(vtkSlicerAstroVolumeLogic* logic, QObject* _parent)
+qSlicerAstroVolumeReader::qSlicerAstroVolumeReader(vtkSlicerVolumesLogic* logic, QObject* _parent)
   : Superclass(_parent)
   , d_ptr(new qSlicerAstroVolumeReaderPrivate)
 {
@@ -65,14 +66,14 @@ qSlicerAstroVolumeReader::~qSlicerAstroVolumeReader()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroVolumeReader::setLogic(vtkSlicerAstroVolumeLogic* logic)
+void qSlicerAstroVolumeReader::setLogic(vtkSlicerVolumesLogic* logic)
 {
   Q_D(qSlicerAstroVolumeReader);
   d->Logic = logic;
 }
 
 //-----------------------------------------------------------------------------
-vtkSlicerAstroVolumeLogic* qSlicerAstroVolumeReader::logic()const
+vtkSlicerVolumesLogic* qSlicerAstroVolumeReader::logic()const
 {
   Q_D(const qSlicerAstroVolumeReader);
   return d->Logic.GetPointer();

@@ -15,11 +15,12 @@
 // STD includes
 #include <algorithm>
 
+// Slicer includes
+#include <vtkSlicerColorLogic.h>
+#include <vtkSlicerVolumesLogic.h>
+
 // AstroVolume includes
 #include "vtkSlicerAstroVolumeLogic.h"
-
-// MRML logic includes
-#include "vtkMRMLColorLogic.h"
 
 // MRML nodes includes
 
@@ -30,13 +31,12 @@
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeArchetypeStorageNode.h"
 #include "vtkMRMLTransformNode.h"
-#include "vtkMRMLScalarVolumeNode.h"
-#include "vtkMRMLScalarVolumeDisplayNode.h"
 #include "vtkMRMLNode.h"
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLColorLogic.h"
-
+#include <vtkMRMLScalarVolumeDisplayNode.h>
+#include <vtkMRMLScalarVolumeNode.h>
 
 // VTK includes
 #include <vtkCallbackCommand.h>
@@ -59,10 +59,53 @@
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
 
 //----------------------------------------------------------------------------
+vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
+{
+}
+
+
+vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
+{
+}
+
+
+void vtkSlicerAstroVolumeLogic::PrintSelf(ostream& os, vtkIndent indent)
+{
+  this->Superclass::PrintSelf(os, indent);
+}
+
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::InitializeEventListeners()
+{
+  vtkNew<vtkIntArray> events;
+  events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
+  events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
+  events->InsertNextValue(vtkMRMLScene::EndBatchProcessEvent);
+  this->SetAndObserveMRMLSceneEventsInternal(this->GetMRMLScene(), events.GetPointer());
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::UpdateFromMRMLScene()
+{
+  assert(this->GetMRMLScene() != 0);
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic
+::OnMRMLSceneNodeAdded(vtkMRMLNode* vtkNotUsed(node))
+{
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic
+::OnMRMLSceneNodeRemoved(vtkMRMLNode* vtkNotUsed(node))
+{
+}
+
 
 namespace
 {
-//----------------------------------------------------------------------------
 
 ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
 {
@@ -79,7 +122,7 @@ ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, 
   scalarNode->SetAndObserveDisplayNodeID(sdisplayNode->GetID());
 
   vtkNew<vtkMRMLAstroVolumeStorageNode> storageNode;
-  storageNode->SetCenterImage(options & vtkSlicerAstroVolumeLogic::CenterImage);
+  storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
   nodeSet.Scene->AddNode(storageNode.GetPointer());
   scalarNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
@@ -90,33 +133,29 @@ ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, 
   return nodeSet;
 }
 
-}
-//end of anonyous namespace
+};
+
 
 
 //----------------------------------------------------------------------------
-vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
+void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic)
 {
-  this->RegisterArchetypeVolumeNodeSetFactory( AstroScalarVolumeNodeSetFactory );
-
-  this->SetCompareVolumeGeometryEpsilon(0.000001);
+  if (volumesLogic)
+    {
+    volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroScalarVolumeNodeSetFactory);
+    }
 }
 
-
-vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::RegisterNodes()
 {
+  if(!this->GetMRMLScene())
+    {
+    return;
+    }
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
 }
 
-
-void vtkSlicerAstroVolumeLogic::PrintSelf(ostream& os, vtkIndent indent)
-{
-  this->vtkObject::PrintSelf(os, indent);
-
-  os << indent << "vtkSlicerAstroVolumeLogic:             " << this->GetClassName() << "\n";
-
-  os << indent << "ActiveVolumeNode: " <<
-        (this->ActiveVolumeNode ? this->ActiveVolumeNode->GetName() : "(none)") << "\n";
-}
 
 int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRMLVolumeNode *volumeNode)
 {

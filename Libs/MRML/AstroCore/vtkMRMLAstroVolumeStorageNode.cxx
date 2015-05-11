@@ -1,17 +1,3 @@
-/*=auto=========================================================================
-
-Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
-
-See COPYRIGHT.txt
-or http://www.slicer.org/copyright/copyright.txt for details.
-
-Program:   3D Slicer
-Module:    $RCSfile: vtkMRMLNRRDStorageNode.cxx,v $
-Date:      $Date: 2006/03/17 15:10:10 $
-Version:   $Revision: 1.6 $
-
-=========================================================================auto=*/
-
 // MRML includes
 #include "vtkMRMLAstroVolumeStorageNode.h"
 #include "vtkMRMLScene.h"
@@ -114,7 +100,6 @@ bool vtkMRMLAstroVolumeStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
 //----------------------------------------------------------------------------
 int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 {
-
     vtkMRMLVolumeNode *volNode = NULL;
 
   if ( refNode->IsA("vtkMRMLScalarVolumeNode") )
@@ -263,7 +248,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 #endif
   writer->SetUseCompression(this->GetUseCompression());
 
-  // pass down all MRML attributes to NRRD
+  // pass down all MRML attributes
   std::vector<std::string> attributeNames = volNode->GetAttributeNames();
   std::vector<std::string>::iterator ait = attributeNames.begin();
   for (; ait != attributeNames.end(); ++ait)

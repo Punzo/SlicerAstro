@@ -13,8 +13,7 @@
   See the License for the specific language governing permissions and
   limitations under the License.
 
-  This file was originally developed by Julien Finet, Kitware Inc.
-  and was partially funded by NIH grant 3P41RR013218-12S1
+  This file was originally developed by Davide Punzo, Kapteyn Astronomical Institute.
 
 ==============================================================================*/
 
@@ -23,8 +22,9 @@
 
 // SlicerQt includes
 #include "qSlicerFileReader.h"
+
 class qSlicerAstroVolumeReaderPrivate;
-class vtkSlicerAstroVolumeLogic;
+class vtkSlicerVolumesLogic;
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume
@@ -35,11 +35,11 @@ class qSlicerAstroVolumeReader
 public:
   typedef qSlicerFileReader Superclass;
   qSlicerAstroVolumeReader(QObject* parent = 0);
-  qSlicerAstroVolumeReader(vtkSlicerAstroVolumeLogic* logic, QObject* parent = 0);
+  qSlicerAstroVolumeReader(vtkSlicerVolumesLogic* logic, QObject* parent = 0);
   virtual ~qSlicerAstroVolumeReader();
 
-  vtkSlicerAstroVolumeLogic* logic()const;
-  void setLogic(vtkSlicerAstroVolumeLogic* logic);
+  vtkSlicerVolumesLogic* logic()const;
+  void setLogic(vtkSlicerVolumesLogic* logic);
 
   virtual QString description()const;
   virtual IOFileType fileType()const;

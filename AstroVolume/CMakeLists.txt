@@ -23,8 +23,8 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${qSlicerSubjectHierarchyModuleWidgets_INCLUDE_DIRS}
   ${qSlicerVolumesModule_HEADER_DIRS}/SubjectHierarchyPlugins
   ${qSlicerVolumesModule_BUILD_DIRS}/SubjectHierarchyPlugins
-  ${CMAKE_CURRENT_SOURCE_DIR}/Widgets
-  ${CMAKE_CURRENT_BINARY_DIR}/Widgets
+  #${CMAKE_CURRENT_SOURCE_DIR}/Widgets
+  #${CMAKE_CURRENT_BINARY_DIR}/Widgets
   )
 
 set(MODULE_SRCS
@@ -32,8 +32,8 @@ set(MODULE_SRCS
   qSlicer${MODULE_NAME}IOOptionsWidget.h
   qSlicer${MODULE_NAME}Module.cxx
   qSlicer${MODULE_NAME}Module.h
-  qSlicer${MODULE_NAME}ModuleWidget.cxx
-  qSlicer${MODULE_NAME}ModuleWidget.h
+  #qSlicer${MODULE_NAME}ModuleWidget.cxx
+  #qSlicer${MODULE_NAME}ModuleWidget.h
   qSlicer${MODULE_NAME}Reader.cxx
   qSlicer${MODULE_NAME}Reader.h
   )
@@ -41,19 +41,19 @@ set(MODULE_SRCS
 set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}IOOptionsWidget.h
   qSlicer${MODULE_NAME}Module.h
-  qSlicer${MODULE_NAME}ModuleWidget.h
+  #qSlicer${MODULE_NAME}ModuleWidget.h
   qSlicer${MODULE_NAME}Reader.h
   )
 
 set(MODULE_UI_SRCS
   Resources/UI/qSlicer${MODULE_NAME}IOOptionsWidget.ui
-  Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
+  #Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
   )
 
 set(MODULE_TARGET_LIBRARIES
-  qSlicer${MODULE_NAME}ModuleWidgets
+  #qSlicer${MODULE_NAME}ModuleWidgets
   vtkSlicer${MODULE_NAME}ModuleLogic
-  qSlicerVolumesSubjectHierarchyPlugins
+  #qSlicerVolumesSubjectHierarchyPlugins
   )
 
 set(MODULE_RESOURCES

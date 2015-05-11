@@ -1,17 +1,3 @@
-/*=auto=========================================================================
-
-  Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
-
-  See COPYRIGHT.txt
-  or http://www.slicer.org/copyright/copyright.txt for details.
-
-  Program:   3D Slicer
-  Module:    $RCSfile: vtkSlicerAstroVolumeLogic.h,v $
-  Date:      $Date: 2006/01/08 04:48:05 $
-  Version:   $Revision: 1.45 $
-
-=========================================================================auto=*/
-
 // .NAME vtkSlicerAstroVolumeLogic - slicer logic class for AstroVolume manipulation
 // .SECTION Description
 // This class manages the logic associated with reading, saving,
@@ -22,28 +8,36 @@
 #define __vtkSlicerAstroVolumeLogic_h
 
 // Slicer includes
-#include "vtkSlicerVolumesLogic.h"
+#include <vtkSlicerModuleLogic.h>
 
 // MRML includes
-#include "vtkMRML.h"
-#include "vtkMRMLScene.h"
-#include "vtkMRMLVolumeNode.h"
 
 // STD includes
 #include <cstdlib>
-#include <list>
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
-
+class vtkMRMLScalarVolumeNode;
+class vtkMRMLVolumeArchetypeStorageNode;
+class vtkMRMLScalarVolumeDisplayNode;
+class vtkMRMLMultiVolumeNode;
+class vtkSlicerVolumesLogic;
+class vtkMRMLVolumeNode;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
-  public vtkSlicerVolumesLogic
+  public vtkSlicerModuleLogic
 {
 public:
 
   static vtkSlicerAstroVolumeLogic *New();
-  vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerVolumesLogic);
+  vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent);
+
+  /// Initialize listening to MRML events
+  void InitializeEventListeners();
+
+  /// Register the factory that the MultiVolume needs to manage nrrd
+  /// file with the specified volumes logic
+  void RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic);
 
   /// Write volume's image data to a specified file
   int SaveArchetypeVolume (const char* filename, vtkMRMLVolumeNode *volumeNode);
@@ -51,9 +45,20 @@ public:
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
-  vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&);
-  void operator=(const vtkSlicerAstroVolumeLogic&);
+
+  /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
+  virtual void RegisterNodes();
+
+  virtual void UpdateFromMRMLScene();
+  virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
+  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
+
+private:
+
+  vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&); // Not implemented
+  void operator=(const vtkSlicerAstroVolumeLogic&);               // Not implemented
 
 };
 
 #endif
+

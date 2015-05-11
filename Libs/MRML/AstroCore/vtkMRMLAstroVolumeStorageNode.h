@@ -1,17 +1,3 @@
-/*=auto=========================================================================
-
-  Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
-
-  See COPYRIGHT.txt
-  or http://www.slicer.org/copyright/copyright.txt for details.
-
-  Program:   3D Slicer
-  Module:    $RCSfile: vtkMRMLNRRDStorageNode.h,v $
-  Date:      $Date: 2006/03/19 17:12:29 $
-  Version:   $Revision: 1.8 $
-
-=========================================================================auto=*/
-
 #ifndef __vtkMRMLAstroVolumeStorageNode_h
 #define __vtkMRMLAstroVolumeStorageNode_h
 
@@ -44,7 +30,7 @@ class VTK_MRML_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorageNode
 
   ///
   /// Get node XML tag name (like Storage, Model)
-  virtual const char* GetNodeTagName()  {return "NRRDStorage";};
+  virtual const char* GetNodeTagName()  {return "AstroStorage";};
 
   ///
   /// Center image on read

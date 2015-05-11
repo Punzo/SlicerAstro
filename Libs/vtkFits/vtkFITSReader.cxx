@@ -1,30 +1,3 @@
-/*=auto=========================================================================
-
-  Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
-
-  See COPYRIGHT.txt
-  or http://www.slicer.org/copyright/copyright.txt for details.
-
-  Program:   3D Slicer
-  Module:    $RCSfile: vtkNRRDReader.cxx,v $
-  Date:      $Date: 2007/06/12 19:13:58 $
-  Version:   $Revision: 1.7.2.1 $
-
-=========================================================================auto=*/
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    $RCSfile: vtkNRRDReader.cxx,v $
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
 #include<cstdlib>
 
 // vtkASTRO includes
@@ -59,8 +32,6 @@ vtkFITSReader::vtkFITSReader()
   HeaderKeys = NULL;
   CurrentFileName = NULL;
   UseNativeOrigin = true;
-  ptr = NULL;
-  fptr = NULL;
   ReadStatus = 0;
 }
 
@@ -81,10 +52,10 @@ vtkFITSReader::~vtkFITSReader()
     CurrentFileName = NULL;
   }
 
-  if (fptr) {
+  /*if (fptr) {
     delete [] fptr;
     fptr = NULL;
-  }
+  }*/
 
 }
 
@@ -502,6 +473,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
 
   data->GetPointData()->GetScalars()->SetName("FITSImage");
   //get pointer
+  void *ptr = NULL;
   ptr = data->GetPointData()->GetScalars()->GetVoidPointer(0);
 
   this->ComputeDataIncrements();
