@@ -97,27 +97,27 @@ void vtkSlicerAstroVolumeLogic
 namespace
 {
 
-ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
+ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
 {
   ArchetypeVolumeNodeSet nodeSet(scene);
 
   // set up the Astro scalar node's support nodes
-  vtkNew<vtkMRMLAstroVolumeNode> scalarNode;
-  scalarNode->SetName(volumeName.c_str());
-  nodeSet.Scene->AddNode(scalarNode.GetPointer());
+  vtkNew<vtkMRMLAstroVolumeNode> astroNode;
+  astroNode->SetName(volumeName.c_str());
+  nodeSet.Scene->AddNode(astroNode.GetPointer());
 
-  vtkNew<vtkMRMLAstroVolumeDisplayNode> sdisplayNode;
-  nodeSet.Scene->AddNode(sdisplayNode.GetPointer());
-  scalarNode->SetAndObserveDisplayNodeID(sdisplayNode->GetID());
+  vtkNew<vtkMRMLAstroVolumeDisplayNode> adisplayNode;
+  nodeSet.Scene->AddNode(adisplayNode.GetPointer());
+  astroNode->SetAndObserveDisplayNodeID(adisplayNode->GetID());
 
   vtkNew<vtkMRMLAstroVolumeStorageNode> storageNode;
   storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
   nodeSet.Scene->AddNode(storageNode.GetPointer());
-  scalarNode->SetAndObserveStorageNodeID(storageNode->GetID());
+  astroNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
   nodeSet.StorageNode = storageNode.GetPointer();
-  nodeSet.DisplayNode = sdisplayNode.GetPointer();
-  nodeSet.Node = scalarNode.GetPointer();
+  nodeSet.DisplayNode = adisplayNode.GetPointer();
+  nodeSet.Node = astroNode.GetPointer();
 
   return nodeSet;
 }
@@ -131,7 +131,7 @@ void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerV
 {
   if (volumesLogic)
     {
-    volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroScalarVolumeNodeSetFactory);
+    volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroVolumeNodeSetFactory);
     }
 }
 

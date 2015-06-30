@@ -16,9 +16,7 @@
 #include <cstdlib>
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
-class vtkMRMLScalarVolumeNode;
-class vtkMRMLVolumeArchetypeStorageNode;
-class vtkMRMLScalarVolumeDisplayNode;
+
 class vtkSlicerVolumesLogic;
 class vtkMRMLVolumeNode;
 class vtkSlicerUnitsLogic;

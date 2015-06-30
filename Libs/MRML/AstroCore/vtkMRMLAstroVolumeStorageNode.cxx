@@ -2,7 +2,7 @@
 #include "vtkMRMLAstroVolumeStorageNode.h"
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
-#include "vtkMRMLScalarVolumeNode.h"
+#include "vtkMRMLAstroVolumeNode.h"
 
 //vtkFits includes
 #include <vtkFITSReader.h>
@@ -104,7 +104,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
-    volNode = dynamic_cast <vtkMRMLScalarVolumeNode *> (refNode);
+    volNode = dynamic_cast <vtkMRMLAstroVolumeNode *> (refNode);
     }
   else if ( refNode->IsA("vtkMRMLVolumeNode") )
     {
@@ -211,7 +211,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
-    volNode = vtkMRMLScalarVolumeNode::SafeDownCast(refNode);
+    volNode = vtkMRMLAstroVolumeNode::SafeDownCast(refNode);
     }
   else if ( refNode->IsA("vtkMRMLVolumeNode") )
     {
