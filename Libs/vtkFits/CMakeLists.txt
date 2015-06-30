@@ -35,7 +35,7 @@ if (NOT CFITSIO_LIBRARIES)
   find_library (CFITSIO_LIBRARIES cfitsio
     PATHS ${CFITSIO_LIBRARY}
     )
-endif (NOT CFITSIO_LIBRARIES)
+endif ()
 
 set(KIT ${PROJECT_NAME})
 
@@ -54,7 +54,7 @@ set(vtkFits_SRCS
 set(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
-  ${CFITSIO_INCLUDE_DIR}/../cfitsio
+  ${CFITSIO_INCLUDE_DIR}
   )
 include_directories(BEFORE ${include_dirs})
 

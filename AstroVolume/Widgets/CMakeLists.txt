@@ -9,31 +9,31 @@ set(${KIT}_INCLUDE_DIRECTORIES
   )
 
 set(${KIT}_SRCS
-  #qSlicerLabelMapVolumeDisplayWidget.cxx
-  #qSlicerLabelMapVolumeDisplayWidget.h
-  #qSlicerScalarVolumeDisplayWidget.cxx
-  #qSlicerScalarVolumeDisplayWidget.h
-  #qSlicerAstroVolumeDisplayWidget.cxx
-  #qSlicerAstroVolumeDisplayWidget.h
+  qSlicerLabelMapVolumeDisplayWidget.cxx
+  qSlicerLabelMapVolumeDisplayWidget.h
+  qSlicerScalarVolumeDisplayWidget.cxx
+  qSlicerScalarVolumeDisplayWidget.h
+  qSlicerAstroVolumeDisplayWidget.cxx
+  qSlicerAstroVolumeDisplayWidget.h
   )
 
 set(${KIT}_MOC_SRCS
-  #qSlicerLabelMapVolumeDisplayWidget.h
-  #qSlicerScalarVolumeDisplayWidget.h
-  #qSlicerAstroVolumeDisplayWidget.h
+  qSlicerLabelMapVolumeDisplayWidget.h
+  qSlicerScalarVolumeDisplayWidget.h
+  qSlicerAstroVolumeDisplayWidget.h
   )
 
 set(${KIT}_UI_SRCS
-  #Resources/UI/qSlicerLabelMapVolumeDisplayWidget.ui
-  #Resources/UI/qSlicerScalarVolumeDisplayWidget.ui
+  Resources/UI/qSlicerLabelMapVolumeDisplayWidget.ui
+  Resources/UI/qSlicerScalarVolumeDisplayWidget.ui
   )
 
 set(${KIT}_RESOURCES
-  #Resources/qSlicer${MODULE_NAME}WidgetsModule.qrc
+  Resources/qSlicer${MODULE_NAME}WidgetsModule.qrc
   )
 
 set(${KIT}_TARGET_LIBRARIES
-   #MRMLCore
+   MRMLCore
   )
 
 #-----------------------------------------------------------------------------

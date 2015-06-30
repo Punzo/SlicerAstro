@@ -11,14 +11,14 @@
 class vtkImageData;
 class AttributeMapType;
 
-#define VTK_Fits_EXPORT
+#define VTK_FITS_EXPORT
 
 /// \brief Writes fits files.
 ///
 /// vtkFITSWriter writes FITS files.
 ///
 /// \sa vtkFITSReader
-class VTK_Fits_EXPORT vtkFITSWriter : public vtkWriter
+class VTK_FITS_EXPORT vtkFITSWriter : public vtkWriter
 {
 public:
 
@@ -50,7 +50,7 @@ public:
   vtkSetMacro(WriteError, int);
   vtkGetMacro(WriteError, int);
 
-  /// Method to set an attribute that will be passed into the NRRD
+  /// Method to set an attribute that will be passed into the FITS
   /// file on write
   void SetAttribute(const std::string& name, const std::string& value);
   const char* GetAttribute(const std::string& key);

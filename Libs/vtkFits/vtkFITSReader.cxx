@@ -42,6 +42,7 @@ vtkFITSReader::~vtkFITSReader()
     RasToIjkMatrix = NULL;
   }
 
+
   if (HeaderKeys) {
     delete [] HeaderKeys;
     HeaderKeys = NULL;
@@ -51,11 +52,6 @@ vtkFITSReader::~vtkFITSReader()
     delete [] CurrentFileName;
     CurrentFileName = NULL;
   }
-
-  /*if (fptr) {
-    delete [] fptr;
-    fptr = NULL;
-  }*/
 
 }
 
@@ -220,7 +216,7 @@ void vtkFITSReader::ExecuteInformation()
    this->AllocateHeader();
 
    // Set type information
-   switch(std::stoi(this->GetHeaderValue("BITPIX")))
+   switch(std::stoi(this->GetHeaderValue("SlicerAstro.BITPIX")))
    {
      case 8:
        this->SetDataType( VTK_FLOAT );
@@ -269,23 +265,37 @@ void vtkFITSReader::ExecuteInformation()
    double origin[3]={0.};
 
 
-   unsigned int naxes = std::stoi(this->GetHeaderValue("NAXIS"));
+   unsigned int naxes = std::stoi(this->GetHeaderValue("SlicerAstro.NAXIS"));
+
+   if(naxes > 3){
+       vtkErrorMacro("SlicerAstro, currently, can't import datacube with NAXIS > 3");
+       return;
+   }
+
 
    for (unsigned int axii=0; axii < naxes; axii++){
 
    //calculate the dataExtent
      dataExtent[2*axii] = 0;
-     dataExtent[2*axii+1] = static_cast<int>(std::stoi(this->GetHeaderValue(("NAXIS"+std::to_string(axii+1)).c_str())) - 1);
+     dataExtent[2*axii+1] = static_cast<int>(std::stoi(this->GetHeaderValue(("SlicerAstro.NAXIS"+std::to_string(axii+1)).c_str())) - 1);
 
    //calculate the spacing
-     //spacings[axii]= std::stod(this->GetHeaderValue(("CDELT"+std::to_string(axii+1)).c_str()));
-     spacings[axii]=1.0;
+     //spacings[axii]= std::stod(this->GetHeaderValue(("SlicerAstro.CDELT"+std::to_string(axii+1)).c_str()));
+     //spacings[axii]=1.0;
    //calculate the origin
-     //origin[axii] = std::stod(this->GetHeaderValue(("CRVAL"+std::to_string(axii+1)).c_str()));
+     //origin[axii] = std::stod(this->GetHeaderValue(("SlicerAstro.CRVAL"+std::to_string(axii+1)).c_str()));
      origin[axii]=0.0;
    //set RasToIjkMatrix
-     this->RasToIjkMatrix->SetElement(axii, axii , spacings[axii]);
+     //this->RasToIjkMatrix->SetElement(axii, axii, spacings[axii]);
+     //this->RasToIjkMatrix->Multiply4x4(this->RasToIjkMatrix,this->rotMatrix,this->RasToIjkMatrix);
+
    }
+
+   this->RasToIjkMatrix->SetElement(0, 0, -1.);
+   this->RasToIjkMatrix->SetElement(1, 1, 0.);
+   this->RasToIjkMatrix->SetElement(1, 2, -1.);
+   this->RasToIjkMatrix->SetElement(2, 1,  1.);
+   this->RasToIjkMatrix->SetElement(2, 2, 0.);
 
    this->RasToIjkMatrix->Invert(this->RasToIjkMatrix,this->RasToIjkMatrix);
 
@@ -324,8 +334,9 @@ void vtkFITSReader::AllocateHeader(){
 
      if (fits_read_record(fptr, ii, card, &ReadStatus))break;
      if (fits_get_keyname(card, key, &keylen, &ReadStatus)) break;
-     if (std::string(key).compare(0,7,"HISTORY") == 0) continue;
-     if (std::string(key).compare(0,7,"COMMENT") == 0) continue;
+     std::string strkey(key);
+     if (strkey.compare(0,7,"HISTORY") == 0) continue;
+     if (strkey.compare(0,7,"COMMENT") == 0) continue;
      if (fits_parse_value(card, val, com, &ReadStatus)) break;
 
      std::string str(val);
@@ -333,7 +344,9 @@ void vtkFITSReader::AllocateHeader(){
        str.erase(0,1);
        str.erase(str.size()-1, str.size());
      }
-     HeaderKeyValue[std::string(key)] = str;
+     std::string strkey1 = "SlicerAstro." + strkey;
+     HeaderKeyValue[strkey1] = str;
+
    }
 
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */

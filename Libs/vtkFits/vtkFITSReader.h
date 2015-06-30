@@ -13,14 +13,14 @@
 
 #include "fitsio.h"
 
-#define VTK_Fits_EXPORT
+#define VTK_FITS_EXPORT
 
 /// \brief Reads FITS files.
 ///
 /// Reads FITS using the CFITSIO library
 //
 /// \sa vtkImageReader2
-class VTK_Fits_EXPORT vtkFITSReader : public vtkMedicalImageReader2
+class VTK_FITS_EXPORT vtkFITSReader : public vtkMedicalImageReader2
 {
 public:
   static vtkFITSReader *New();

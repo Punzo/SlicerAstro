@@ -16,14 +16,15 @@
 #include <algorithm>
 
 // Slicer includes
-#include <vtkSlicerColorLogic.h>
+#include <vtkSlicerUnitsLogic.h>
 #include <vtkSlicerVolumesLogic.h>
 
 // AstroVolume includes
 #include "vtkSlicerAstroVolumeLogic.h"
 
 // MRML nodes includes
-
+#include "vtkMRMLAstroVolumeNode.h"
+#include "vtkMRMLAstroVolumeDisplayNode.h"
 #include "vtkMRMLAstroVolumeStorageNode.h"
 #include "vtkCacheManager.h"
 #include "vtkDataIOManager.h"
@@ -34,26 +35,15 @@
 #include "vtkMRMLNode.h"
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
-#include "vtkMRMLColorLogic.h"
-#include <vtkMRMLScalarVolumeDisplayNode.h>
-#include <vtkMRMLScalarVolumeNode.h>
+#include "vtkMRMLUnitNode.h"
 
-// VTK includes
-#include <vtkCallbackCommand.h>
-#include <vtkGeneralTransform.h>
-#include <vtkImageData.h>
-#include <vtkImageThreshold.h>
-#include <vtkMathUtilities.h>
-#include <vtkMatrix4x4.h>
-#include <vtkNew.h>
-#include <vtkObjectFactory.h>
-#include <vtkSmartPointer.h>
+//VTK includes
+#include <vtkDoubleArray.h>
+#include "vtkObjectFactory.h"
 #include <vtkStringArray.h>
-#include <vtksys/SystemTools.hxx>
-#include <vtkVersion.h>
-#include <vtkWeakPointer.h>
-#include <vtkImageReslice.h>
-#include <vtkTransform.h>
+#include "vtkNew.h"
+
+
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -112,12 +102,11 @@ ArchetypeVolumeNodeSet AstroScalarVolumeNodeSetFactory(std::string& volumeName, 
   ArchetypeVolumeNodeSet nodeSet(scene);
 
   // set up the Astro scalar node's support nodes
-  vtkNew<vtkMRMLScalarVolumeNode> scalarNode;
+  vtkNew<vtkMRMLAstroVolumeNode> scalarNode;
   scalarNode->SetName(volumeName.c_str());
-  scalarNode->SetLabelMap(0);
   nodeSet.Scene->AddNode(scalarNode.GetPointer());
 
-  vtkNew<vtkMRMLScalarVolumeDisplayNode> sdisplayNode;
+  vtkNew<vtkMRMLAstroVolumeDisplayNode> sdisplayNode;
   nodeSet.Scene->AddNode(sdisplayNode.GetPointer());
   scalarNode->SetAndObserveDisplayNodeID(sdisplayNode->GetID());
 
@@ -143,6 +132,19 @@ void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerV
   if (volumesLogic)
     {
     volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroScalarVolumeNodeSetFactory);
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetAstroUnits(vtkSlicerUnitsLogic* unitsLogic)
+{
+  if (unitsLogic)
+    {
+    //unitsLogic->AddUnitNode("ApplicationLength", "length", "", "DAJE1", 3);
+    //unitsLogic->AddUnitNode("ApplicationLength1", "length1", "", "DAJE2", 3);
+    //vtkMRMLUnitNode* node = unitsLogic->AddUnitNode("ApplicationLength", "length", "", "degree", 3);
+    //node->SetSaveWithScene(false);
+    //unitsLogic->SetDefaultUnit(node->GetQuantity(), node->GetID());
     }
 }
 
@@ -182,7 +184,7 @@ int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRML
 
   // Use FITS writer if we are dealing with Astro volumes
 
-  if (volumeNode->IsA("vtkMRMLScalarVolumeNode"))
+  if (volumeNode->IsA("vtkMRMLAstroVolumeNode"))
     {
 
     if (storageNode1 == NULL)
@@ -203,7 +205,7 @@ int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRML
       }
     storageNode = storageNode1;
     }
-  else vtkErrorMacro("FITSWriter handle only Scalar Volumes");
+  else vtkErrorMacro("FITSWriter handle only AstroVolume");
 
   int res = storageNode->WriteData(volumeNode);
   return res;

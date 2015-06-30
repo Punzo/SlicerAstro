@@ -68,6 +68,8 @@ endif()
 # Sources
 # --------------------------------------------------------------------------
 set(MRMLAstroCore_SRCS
+    vtkMRMLAstroVolumeNode.cxx
+    vtkMRMLAstroVolumeDisplayNode.cxx
     vtkMRMLAstroVolumeStorageNode.cxx)
 
 string(REGEX REPLACE "\\.cxx" ".h" MRMLCore_SRCS_HEADERS "${MRMLCore_SRCS}")

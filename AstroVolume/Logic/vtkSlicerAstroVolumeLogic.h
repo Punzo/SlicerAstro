@@ -19,9 +19,9 @@
 class vtkMRMLScalarVolumeNode;
 class vtkMRMLVolumeArchetypeStorageNode;
 class vtkMRMLScalarVolumeDisplayNode;
-class vtkMRMLMultiVolumeNode;
 class vtkSlicerVolumesLogic;
 class vtkMRMLVolumeNode;
+class vtkSlicerUnitsLogic;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerModuleLogic
@@ -41,6 +41,8 @@ public:
 
   /// Write volume's image data to a specified file
   int SaveArchetypeVolume (const char* filename, vtkMRMLVolumeNode *volumeNode);
+
+  void SetAstroUnits(vtkSlicerUnitsLogic* unitsLogic);
 
 protected:
   vtkSlicerAstroVolumeLogic();

@@ -22,6 +22,7 @@
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkSlicerUnitsLogic.h>
 
 // SlicerQt includes
 #include <qSlicerCoreApplication.h>
@@ -42,8 +43,6 @@
 #include "qSlicerAstroVolumeModule.h"
 #include "qSlicerAstroVolumeModuleWidget.h"
 
-// MRML Logic includes
-#include <vtkMRMLColorLogic.h>
 
 // MRML includes
 #include <vtkMRMLScene.h>
@@ -115,14 +114,14 @@ QIcon qSlicerAstroVolumeModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::categories() const
 {
-  return QStringList() << "";
+  return QStringList() << "Astronomy";
 }
 
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Volumes" << "Colors" << "Units";
+  moduleDependencies << "Volumes" << "Units";
   return moduleDependencies;
 }
 
@@ -133,41 +132,39 @@ void qSlicerAstroVolumeModule::setup()
 
   // Register the IO module for loading AstroVolumes as a variant of nrrd files
   qSlicerAbstractCoreModule* volumes = qSlicerApplication::application()->moduleManager()->module("Volumes");
-  if (volumes)
-    {
-      vtkSlicerVolumesLogic* volumesLogic =
-        vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
-      vtkSlicerAstroVolumeLogic* logic =
-        vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-      if (volumesLogic && logic)
-        {
+  if (volumes){
+     vtkSlicerVolumesLogic* volumesLogic =
+       vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
+     vtkSlicerAstroVolumeLogic* logic =
+       vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+     if (volumesLogic && logic){
         logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
-        }
-      qSlicerCoreIOManager* ioManager =
-        qSlicerCoreApplication::application()->coreIOManager();
-      ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
-      ioManager->registerIO(new qSlicerNodeWriter(
-        "AstroVolume", QString("VolumeFile"),
-        QStringList() << "vtkMRMLScalarVolumeNode", this));
-    }
+     }
+     qSlicerCoreIOManager* ioManager =
+       qSlicerCoreApplication::application()->coreIOManager();
+     ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
+     ioManager->registerIO(new qSlicerNodeWriter(
+       "AstroVolume", QString("VolumeFile"),
+       QStringList() << "vtkMRMLScalarVolumeNode", this));
+  }
 
-  /*qSlicerAbstractCoreModule* colorsModule =
-    qSlicerCoreApplication::application()->moduleManager()->module("Colors");
-  if (colorsModule)
-    {
-    vtkMRMLColorLogic* colorLogic =
-      vtkMRMLColorLogic::SafeDownCast(colorsModule->logic());
-    logic->SetColorLogic(colorLogic);
-    }*/
-
-  // Register Subject Hierarchy core plugins
-  //qSlicerSubjectHierarchyPluginHandler::instance()->registerPlugin(new qSlicerSubjectHierarchyVolumesPlugin());
+  qSlicerAbstractCoreModule* unitsModule =
+    qSlicerCoreApplication::application()->moduleManager()->module("Units");
+  if (unitsModule){
+     vtkSlicerAstroVolumeLogic* logic =
+       vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+     vtkSlicerUnitsLogic* unitsLogic =
+       vtkSlicerUnitsLogic::SafeDownCast(unitsModule->logic());
+     if (unitsLogic && logic){
+        logic->SetAstroUnits(unitsLogic);
+     }
+  }
 }
 
 //-----------------------------------------------------------------------------
 qSlicerAbstractModuleRepresentation* qSlicerAstroVolumeModule::createWidgetRepresentation()
 {
-  //return new qSlicerAstroVolumeModuleWidget;
+  return new qSlicerAstroVolumeModuleWidget;
 }
 
 //-----------------------------------------------------------------------------

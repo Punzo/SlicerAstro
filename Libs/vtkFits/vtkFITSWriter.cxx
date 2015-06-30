@@ -124,36 +124,40 @@ void vtkFITSWriter::WriteData()
   for (ait = this->Attributes->begin(); ait != this->Attributes->end(); ++ait)
     {
 
-    if((!(ait->first).compare(0,6,"SIMPLE")) || (!(ait->first).compare(0,6,"EXTEND"))
-          || (!(ait->first).compare(0,7,"BLOCKED"))) continue;
+    std::size_t pos = ait->first.find("SlicerAstro.");
+    if(pos == std::string::npos) continue;
 
-    std::string ts;
-    ts +=((ait->second).at(0));
+    std::string tmp = ait->first.substr(pos+12);
 
-    if((!(ait->first).compare(0,6,"BITPIX")) || (!(ait->first).compare(0,5,"NAXIS"))
-            || (!(ait->first).compare(0,5,"BLANK"))){
-        int ti = std::stoi((ait->second).c_str());;
-        fits_update_key(fptr, TINT, ait->first.c_str(), &ti, "", &WriteStatus);
+    if((!tmp.compare(0,6,"SIMPLE")) || (!tmp.compare(0,6,"EXTEND"))
+          || (!tmp.compare(0,7,"BLOCKED"))) continue;
+
+    std::string ts = ((ait->second).substr(0,1));
+
+    if((!tmp.compare(0,6,"BITPIX")) || (!tmp.compare(0,5,"NAXIS"))
+            || (!tmp.compare(0,5,"BLANK"))){
+       int ti = std::stoi((ait->second).c_str());;
+       fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
 
     } else if (!(std::string::npos != ts.find_first_of("-1234567890"))
-               || (!(ait->first).compare(0,4,"DATE"))){
-      fits_update_key(fptr, TSTRING, ait->first.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
+               || (!tmp.compare(0,4,"DATE"))){
+       fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
 
     }else{
-      float tf;
-      tf = std::stof((ait->second).c_str());
-      fits_update_key(fptr, TFLOAT, ait->first.c_str(), &tf, "", &WriteStatus);
+       float tf;
+       tf = std::stof((ait->second).c_str());
+       fits_update_key(fptr, TFLOAT, tmp.c_str(), &tf, "", &WriteStatus);
     }
-    ts.clear();
   }
 
   // Write the FITS to file.
   for (unsigned int axii=0; axii < naxes; axii++){
-    naxe[axii] = std::stoi(this->GetAttribute(("NAXIS"+std::to_string(axii+1))));
+    naxe[axii] = std::stoi(this->GetAttribute(("SlicerAstro.NAXIS"+std::to_string(axii+1))));
     dim *= naxe[axii];
   }
 
   int fileType = this->GetFileType();
+
   switch ( fileType ){
     case VTK_BINARY:
       switch (vtkType){
@@ -176,8 +180,8 @@ void vtkFITSWriter::WriteData()
       }
       break;
     case VTK_ASCII:
-      vtkErrorMacro("In 3-DSlicer FITS table are not supported");
-      break;
+     vtkErrorMacro("In 3-DSlicer FITS table are not supported");
+    break;
   }
 
   // Free the FITS struct

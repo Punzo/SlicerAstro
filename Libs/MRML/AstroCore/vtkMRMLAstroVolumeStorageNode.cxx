@@ -94,7 +94,7 @@ void vtkMRMLAstroVolumeStorageNode::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
 {
-  return refNode->IsA("vtkMRMLScalarVolumeNode");
+  return refNode->IsA("vtkMRMLAstroVolumeNode");
 }
 
 //----------------------------------------------------------------------------
@@ -102,7 +102,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 {
     vtkMRMLVolumeNode *volNode = NULL;
 
-  if ( refNode->IsA("vtkMRMLScalarVolumeNode") )
+  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     volNode = dynamic_cast <vtkMRMLScalarVolumeNode *> (refNode);
     }
@@ -160,10 +160,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
 
   // Check type
-  if( refNode->IsA("vtkMRMLScalarVolumeNode") )
+  if( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
-    if (!(reader->GetPointDataType() == vtkDataSetAttributes::SCALARS &&
-        (reader->GetNumberOfComponents() == 1 || reader->GetNumberOfComponents()==2 || reader->GetNumberOfComponents()==3) ))
+    if (reader->GetPointDataType() != vtkDataSetAttributes::SCALARS &&
+         reader->GetNumberOfComponents() > 3 )
       {
       vtkErrorMacro("ReadData: MRMLVolumeNode does not match file kind");
       return 0;
@@ -208,9 +208,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 {
   vtkMRMLVolumeNode *volNode = NULL;
-  int writeFlag = 0;
 
-  if ( refNode->IsA("vtkMRMLScalarVolumeNode") )
+  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     volNode = vtkMRMLScalarVolumeNode::SafeDownCast(refNode);
     }
@@ -257,6 +256,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     }
 
   writer->Write();
+  int writeFlag = 1;
   if (writer->GetWriteError())
     {
     vtkErrorMacro("ERROR writing FITS file " << (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));

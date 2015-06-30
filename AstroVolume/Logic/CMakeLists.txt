@@ -21,6 +21,7 @@ set(${KIT}_TARGET_LIBRARIES
   MRMLAstroCore
   MRMLCore
   vtkSlicerVolumesModuleLogic
+  vtkSlicerUnitsModuleLogic
   )
 
 

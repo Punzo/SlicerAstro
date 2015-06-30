@@ -8,6 +8,7 @@
 // MRML includes
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLScalarVolumeNode.h>
+#include <vtkMRMLLabelMapVolumeNode.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume
@@ -68,12 +69,12 @@ void qSlicerAstroVolumeDisplayWidgetPrivate::setCurrentDisplayWidget(
       {
       this->ScalarVolumeDisplayWidget->setMRMLVolumeNode(emptyVolumeNode);
       }
+    activeWidget->setMRMLScene(0);
     if (activeWidget == this->LabelMapVolumeDisplayWidget)
       {
       this->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(emptyVolumeNode);
       }
-    activeWidget->setMRMLScene(0);
-    }
+  }
   // QStackWidget::setCurrentWidget(0) is not supported
   if (displayWidget)
     {
@@ -111,9 +112,11 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
     }
 
   vtkMRMLScene* scene = VolumeNode->GetScene();
+  vtkMRMLLabelMapVolumeNode* labelMapVolumeNode =
+    vtkMRMLLabelMapVolumeNode::SafeDownCast(VolumeNode);
   vtkMRMLScalarVolumeNode* scalarVolumeNode =
     vtkMRMLScalarVolumeNode::SafeDownCast(VolumeNode);
-  if (scalarVolumeNode && !scalarVolumeNode->GetLabelMap())
+  if (scalarVolumeNode)
     {
     qvtkConnect(VolumeNode, vtkCommand::ModifiedEvent,
               this, SLOT(updateFromMRML(vtkObject*)));
@@ -121,14 +124,14 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
     d->ScalarVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
     d->setCurrentDisplayWidget(d->ScalarVolumeDisplayWidget);
     }
-  else if (scalarVolumeNode && scalarVolumeNode->GetLabelMap())
-    {
-    qvtkConnect(VolumeNode, vtkCommand::ModifiedEvent,
-              this, SLOT(updateFromMRML(vtkObject*)));
-    d->LabelMapVolumeDisplayWidget->setMRMLScene(scene);
-    d->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
-    d->setCurrentDisplayWidget(d->LabelMapVolumeDisplayWidget);
-    }
+  else if (labelMapVolumeNode)
+   {
+   qvtkConnect(VolumeNode, vtkCommand::ModifiedEvent,
+             this, SLOT(updateFromMRML(vtkObject*)));
+   d->LabelMapVolumeDisplayWidget->setMRMLScene(scene);
+   d->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
+   d->setCurrentDisplayWidget(d->LabelMapVolumeDisplayWidget);
+   }
 }
 
 // --------------------------------------------------------------------------
