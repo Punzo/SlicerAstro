@@ -916,7 +916,7 @@ void vtkMRMLAstroVolumeNode::PrintSelf(ostream& os, vtkIndent indent)
     } else {
       os << indent << pre << "mjdavg:   " << wcs->mjdavg <<std::endl;
     }
-
+/*
     if (wcs->tab) {
       os << indent << pre << "ntab:   " << wcs->ntab <<std::endl;
       for (j = 0; j < wcs->ntab; j++) {
@@ -945,7 +945,7 @@ void vtkMRMLAstroVolumeNode::PrintSelf(ostream& os, vtkIndent indent)
           os << indent << pre << "tabcoord"<<i<<":   " << *((wcs->tab+j)->coord+i) <<std::endl;
         }
       }
-    }
+    }*/
 }
 
 

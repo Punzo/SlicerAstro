@@ -37,7 +37,7 @@ class VTK_MRMLASTROCORE_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolu
   virtual void Copy(vtkMRMLNode *node);
 
   /// Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() {return "MRMLAstroVolume";};
+  virtual const char* GetNodeTagName() {return "AstroVolume";};
 
   ///Set WCSStruct
   void SetWcsStruct(struct wcsprm*);
