@@ -46,20 +46,20 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
   int disabledModify = this->StartModify();
 
   Superclass::ReadXMLAttributes(atts);
-
+  /*
   const char* attName;
   const char* attValue;
   while (*atts != NULL) 
     {
     attName = *(atts++);
     attValue = *(atts++);
-    //if (!strcmp(attName, ""))
-      //{
-      //std::stringstream ss;
-      //ss << attValue;
-      //ss >> this->;
-      //}
-    }  
+    if (!strcmp(attName, ""))
+      {
+      std::stringstream ss;
+      ss << attValue;
+      ss >> this->;
+      }
+    }*/
   this->EndModify(disabledModify);
 }
 
@@ -71,7 +71,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   int disabledModify = this->StartModify();
 
   Superclass::Copy(anode);
-  vtkMRMLAstroVolumeDisplayNode *node = (vtkMRMLAstroVolumeDisplayNode *) anode;
+  //vtkMRMLAstroVolumeDisplayNode *node = (vtkMRMLAstroVolumeDisplayNode *) anode;
 
   this->EndModify(disabledModify);
 }

@@ -12,6 +12,8 @@
 #include <vtkVersion.h>
 
 #include "fitsio.h"
+#include "wcslib.h"
+#include "getwcstab.h"
 
 #define VTK_FITS_EXPORT
 
@@ -45,6 +47,11 @@ public:
   ///
   /// Get a value given a key in the header
   const char* GetHeaderValue(const char *key);
+
+  ///
+  /// Get WCSstruct
+  ///
+  struct wcsprm* GetWcsStruct();
 
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
@@ -130,6 +137,10 @@ protected:
   fitsfile *fptr;
   int ReadStatus;
 
+  struct wcsprm *wcs;
+  int WcsStatus;
+  int nwcs;
+
   std::map <std::string, std::string> HeaderKeyValue;
 
   virtual void ExecuteInformation();
@@ -140,6 +151,8 @@ protected:
 #endif
 
   void AllocateHeader();
+
+  void AllocateWCS();
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

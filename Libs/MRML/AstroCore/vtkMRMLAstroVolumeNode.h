@@ -10,6 +10,8 @@
 #include <vtkDoubleArray.h>
 #include <vtkSmartPointer.h>
 
+#include "wcslib.h"
+
 #define VTK_MRMLASTROCORE_EXPORT
 
 class vtkMRMLAstroVolumeDisplayNode;
@@ -37,6 +39,9 @@ class VTK_MRMLASTROCORE_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolu
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() {return "MRMLAstroVolume";};
 
+  ///Set WCSStruct
+  void SetWcsStruct(struct wcsprm*);
+
   /// Update the stored reference to another node in the scene
   //virtual void UpdateReferenceID(const char *oldID, const char *newID);
 
@@ -61,6 +66,9 @@ protected:
 
   vtkMRMLAstroVolumeNode(const vtkMRMLAstroVolumeNode&);
   void operator=(const vtkMRMLAstroVolumeNode&);
+
+  struct wcsprm* wcs;
+  int WcsStatus;
 
 };
 

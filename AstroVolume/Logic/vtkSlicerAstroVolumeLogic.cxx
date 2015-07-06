@@ -1,17 +1,3 @@
-/*=auto=========================================================================
-
-  Portions (c) Copyright 2005 Brigham and Women's Hospital (BWH) All Rights Reserved.
-
-  See COPYRIGHT.txt
-  or http://www.slicer.org/copyright/copyright.txt for details.
-
-  Program:   3D Slicer
-  Module:    $RCSfile: vtkSlicerAstroVolumeLogic.cxx,v $
-  Date:      $Date: 2006/01/06 17:56:48 $
-  Version:   $Revision: 1.58 $
-
-=========================================================================auto=*/
-
 // STD includes
 #include <algorithm>
 
@@ -155,6 +141,8 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
     {
     return;
     }
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeNode>().GetPointer());
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeDisplayNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
 }
 

@@ -1,4 +1,4 @@
-#include<cstdlib>
+#include <cstdlib>
 
 // vtkASTRO includes
 #include "vtkFITSReader.h"
@@ -32,7 +32,11 @@ vtkFITSReader::vtkFITSReader()
   HeaderKeys = NULL;
   CurrentFileName = NULL;
   UseNativeOrigin = true;
+  fptr = NULL;
   ReadStatus = 0;
+  wcs = NULL;
+  nwcs = 0;
+  WcsStatus = 0;
 }
 
 vtkFITSReader::~vtkFITSReader()
@@ -41,7 +45,6 @@ vtkFITSReader::~vtkFITSReader()
     RasToIjkMatrix->Delete();
     RasToIjkMatrix = NULL;
   }
-
 
   if (HeaderKeys) {
     delete [] HeaderKeys;
@@ -53,6 +56,13 @@ vtkFITSReader::~vtkFITSReader()
     CurrentFileName = NULL;
   }
 
+  if(wcs){
+    if((WcsStatus = wcsvfree(&nwcs, &wcs))){
+      vtkErrorMacro("wcsfree ERROR "<<WcsStatus<<": "<<wcshdr_errmsg[WcsStatus]<<"\n");
+    }
+    delete [] wcs;
+    wcs = NULL;
+  }
 }
 
 vtkMatrix4x4* vtkFITSReader::GetRasToIjkMatrix()
@@ -106,6 +116,12 @@ const char* vtkFITSReader::GetHeaderValue(const char *key)
   else {
     return NULL;
   }
+}
+
+struct wcsprm* vtkFITSReader::GetWcsStruct()
+{
+  this->ExecuteInformation();
+  return this->wcs;
 }
 
 int vtkFITSReader::CanReadFile(const char* filename)
@@ -214,6 +230,9 @@ void vtkFITSReader::ExecuteInformation()
 
    // Push FITS header key/value pair data into std::map
    this->AllocateHeader();
+
+   // Push FITS header into WCS struct
+   this->AllocateWCS();
 
    // Set type information
    switch(std::stoi(this->GetHeaderValue("SlicerAstro.BITPIX")))
@@ -351,6 +370,38 @@ void vtkFITSReader::AllocateHeader(){
 
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
 
+}
+
+void vtkFITSReader::AllocateWCS(){
+
+    char *header;
+    int  i, nkeyrec, nreject, stat[NWCSFIX];
+
+    if ((WcsStatus = fits_hdr2str(fptr, 1, NULL, 0, &header, &nkeyrec, &WcsStatus))) {
+        fits_report_error(stderr, WcsStatus);
+      }
+
+    if ((WcsStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &nwcs, &wcs))) {
+      vtkErrorMacro("wcspih ERROR "<<WcsStatus<<": "<<wcshdr_errmsg[WcsStatus]<<"\n");
+    }
+
+    if (nwcs > 1){
+        vtkErrorMacro("the image has more than one WCS, SlicerAstro assume only one WCS per volume")
+    }
+
+    if ((WcsStatus = wcsfix(7, 0, wcs, stat))) {
+      for (i = 0; i < NWCSFIX; i++) {
+        if (stat[i] > 0) {
+          vtkErrorMacro("wcsfix ERROR "<<WcsStatus<<": "<<wcshdr_errmsg[WcsStatus]<<"\n");
+        }
+      }
+    }
+
+    if ((WcsStatus = wcsset(wcs))) {
+        vtkErrorMacro("wcsset ERROR "<<WcsStatus<<": "<<wcshdr_errmsg[WcsStatus]<<"\n");
+    }
+
+    free(header);
 }
 
 

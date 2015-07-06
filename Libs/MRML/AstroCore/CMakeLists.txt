@@ -18,14 +18,10 @@ if(NOT DEFINED BUILD_SHARED_LIBS)
   option(BUILD_SHARED_LIBS "Build with shared libraries." ON)
 endif()
 
-# MRML scenes that are older than MRML_SUPPORT_VERSION won't be supported.
-# Or said differently, MRML_SUPPORT_VERSION is the earliest version supported
-# for a MRML scene.
-# The format is: 0xXXYYZZ where XX is the major version, YY the minor and
-# ZZ the patch version.
-# For example, set MRML_SUPPORT_VERSION to 0x040000 if you don't want to
-# support scenes of Slicer 3.
-# Supports Slicer3 and Slicer4 scenes by default.
+if(UNIX)
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
+endif()
+
 set(MRML_SUPPORT_VERSION 0x030000 CACHE STRING "MRML scene version to support " )
 mark_as_advanced(MRML_SUPPORT_VERSION)
 
@@ -47,6 +43,7 @@ set(include_dirs
   ${CMAKE_CURRENT_BINARY_DIR}
   ${vtkFits_INCLUDE_DIRS}
   ${MRMLCore_INCLUDE_DIRS}
+  ${WCSLIB_INCLUDE_DIR}
   )
 
 include_directories(BEFORE ${include_dirs})
@@ -161,5 +158,4 @@ endif()
 # --------------------------------------------------------------------------
 # Set INCLUDE_DIRS variable
 # --------------------------------------------------------------------------
-set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
-  CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)
+set(${PROJECT_NAME}_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)

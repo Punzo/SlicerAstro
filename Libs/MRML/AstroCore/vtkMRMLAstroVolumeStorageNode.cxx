@@ -100,17 +100,11 @@ bool vtkMRMLAstroVolumeStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
 //----------------------------------------------------------------------------
 int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 {
-    vtkMRMLVolumeNode *volNode = NULL;
+  vtkMRMLAstroVolumeNode *volNode = NULL;
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     volNode = dynamic_cast <vtkMRMLAstroVolumeNode *> (refNode);
-    }
-  else if ( refNode->IsA("vtkMRMLVolumeNode") )
-    {
-    // Generic case used for any VolumeNode. Used when Extensions add
-    // node types that are subclasses of VolumeNode.
-    volNode = dynamic_cast<vtkMRMLVolumeNode *>(refNode);
     }
   else
     {
@@ -145,7 +139,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   reader->SetFileName(fullName.c_str());
 
-
   // Check if this is a FITS file that we can read
   if (!reader->CanReadFile(fullName.c_str()))
     {
@@ -154,21 +147,18 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
 
   // Read the header to see if the file corresponds to the MRML Node
-\
+
   reader->UpdateInformation();
 
-
-
-  // Check type
   if( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     if (reader->GetPointDataType() != vtkDataSetAttributes::SCALARS &&
-         reader->GetNumberOfComponents() > 3 )
+         reader->GetNumberOfComponents() > 1 )
       {
       vtkErrorMacro("ReadData: MRMLVolumeNode does not match file kind");
       return 0;
       }
-    }
+     }
 
   reader->Update();
 
@@ -176,6 +166,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
   volNode->SetRASToIJKMatrix(mat);
 
+  //set WCSstruct
+  volNode->SetWcsStruct(reader->GetWcsStruct());
 
   // parse non-specific key-value pairs
   std::vector<std::string> keys = reader->GetHeaderKeysVector();

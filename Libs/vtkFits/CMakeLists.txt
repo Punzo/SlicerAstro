@@ -35,10 +35,19 @@ if (NOT CFITSIO_LIBRARIES)
   find_library (CFITSIO_LIBRARIES cfitsio
     PATHS ${CFITSIO_LIBRARY}
     )
-endif ()
+endif()
+
+#
+# WCS
+#
+
+if (NOT WCSLIB_LIBRARIES)
+  find_library (WCSLIB_LIBRARIES wcs
+    PATHS ${WCSLIB_LIBRARY}
+    )
+endif()
 
 set(KIT ${PROJECT_NAME})
-
 
 # --------------------------------------------------------------------------
 # Sources
@@ -55,6 +64,7 @@ set(include_dirs
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CFITSIO_INCLUDE_DIR}
+  ${WCSLIB_INCLUDE_DIR}
   )
 include_directories(BEFORE ${include_dirs})
 
@@ -82,6 +92,7 @@ endif()
 
 set(libs
   ${CFITSIO_LIBRARIES}
+  ${WCSLIB_LIBRARIES}
   ${VTK_LIBRARIES}
   )
 target_link_libraries(${lib_name} ${libs})
