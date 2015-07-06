@@ -14,6 +14,6 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 <div style="width: 27%; float: left; padding-right: 3%;">
 <div style="width: 27%; float: left; padding-right: 3%;">
 <h3>Progress:  </h3>
-* FITS reader and AstroVolume done; WCS included in AstroVolume. Working generalization of qSlicerUnits and the Slicer dataProbe modules.
+* FITS reader and AstroVolume done; WCS included in AstroVolume. Working on the generalization of qSlicerUnits and the Slicer dataProbe modules.
 </div>
 </div>
