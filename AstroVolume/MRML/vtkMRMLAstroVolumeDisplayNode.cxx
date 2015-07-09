@@ -1,4 +1,3 @@
-
 // MRML includes
 #include "vtkMRMLAstroVolumeDisplayNode.h"
 
