@@ -12,12 +12,12 @@
 
 #include "wcslib.h"
 
-#define VTK_MRMLASTROCORE_EXPORT
+#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLAstroVolumeDisplayNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
-class VTK_MRMLASTROCORE_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
+class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
 {
   public:
 

@@ -1,4 +1,3 @@
-
 set(proj wcslib)
 
 # Set dependency list
@@ -22,10 +21,10 @@ endif()
 
 if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
-  set(WCSLIB_DOWNLOAD_VERSION "5.5" CACHE STRING "Version of WCSlib source package to download")
-  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "5.5")
+  set(WCSLIB_DOWNLOAD_VERSION "5.8" CACHE STRING "Version of WCSlib source package to download")
+  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "5.8")
 
-  set(WCSlib_5.5_URL ftp://ftp.atnf.csiro.au/pub/software/wcslib/wcslib.tar.bz2) 
+  set(WCSlib_5.8_URL ftp://ftp.atnf.csiro.au/pub/software/wcslib/wcslib.tar.bz2) 
 
   if(NOT DEFINED WCSlib_${WCSLIB_DOWNLOAD_VERSION}_URL)
       message(FATAL_ERROR "There is no source version of WCSlib ${WCSLIB_DOWNLOAD_VERSION} available, contact the developers, please!")
@@ -41,7 +40,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
   #------------------------------------------------------------------------------
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    URL ${WCSlib_5.5_URL}
+    URL ${WCSlib_5.8_URL}
     #URL_MD5 ""
     SOURCE_DIR ${proj}
     BUILD_IN_SOURCE 1

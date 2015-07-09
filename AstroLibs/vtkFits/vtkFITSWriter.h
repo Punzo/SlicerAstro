@@ -7,7 +7,6 @@
 #include "vtkDoubleArray.h"
 #include "fitsio.h"
 
-
 class vtkImageData;
 class AttributeMapType;
 

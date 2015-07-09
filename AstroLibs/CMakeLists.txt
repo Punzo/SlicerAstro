@@ -9,7 +9,7 @@ set(GENERATECLP_USE_MD5 ON)
 # Order of project directory matters. Project should be topologically ordered
 # --------------------------------------------------------------------------
 
-set(dirs vtkFits MRML/AstroCore)
+set(dirs vtkFits)
 
 #-----------------------------------------------------------------------------
 # Set library properties
@@ -45,23 +45,15 @@ foreach(dir ${dirs})
   list(APPEND include_dirs ${${dir_noslash}_INCLUDE_DIRS})
 endforeach()
 
-# Set variable Slicer_Libs_INCLUDE_DIRS
-set(Slicer_Libs_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "Slicer Libs includes" FORCE)
+# Set variable Slicer_AstroLibs_INCLUDE_DIRS
+set(Slicer_AstroLibs_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "Slicer AstroLibs includes" FORCE)
 
 #-----------------------------------------------------------------------------
-# Set MRML_LIBRARIES
-#-----------------------------------------------------------------------------
-
-set(_mrml_libraries MRMLCore)
-
-set(MRML_LIBRARIES ${_mrml_libraries} CACHE INTERNAL "MRML libraries" FORCE)
-
-#-----------------------------------------------------------------------------
-# Set variable Slicer_Libs_VTK_WRAPPED_LIBRARIES
+# Set variable Slicer_AstroLibs_VTK_WRAPPED_LIBRARIES
 #-----------------------------------------------------------------------------
 set(_vtk_wrapped_libraries
   vtkFits
   )
 
-set(Slicer_Libs_VTK_WRAPPED_LIBRARIES
-  ${_vtk_wrapped_libraries} CACHE INTERNAL "Slicer Libs VTK wrapped" FORCE)
+set(Slicer_AstroLibs_VTK_WRAPPED_LIBRARIES
+  ${_vtk_wrapped_libraries} CACHE INTERNAL "Slicer AstroLibs VTK wrapped" FORCE)

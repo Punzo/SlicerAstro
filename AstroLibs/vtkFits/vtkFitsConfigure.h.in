@@ -1,0 +1,22 @@
+/*
+ * Here is where system computed values get stored.
+ * These values should only change when the target compile platform changes.
+ */
+
+#cmakedefine BUILD_SHARED_LIBS
+#ifndef BUILD_SHARED_LIBS
+#define VTKFITS_STATIC
+#endif
+
+#if defined(WIN32) && !defined(VTKFITS_STATIC)
+#pragma warning ( disable : 4275 )
+
+#if defined(vtkTeem_EXPORTS)
+#define VTK_FITS_EXPORT __declspec( dllexport )
+#else
+#define VTK_FITS_EXPORT __declspec( dllimport )
+#endif
+#else
+#define VTK_FITS_EXPORT
+#endif
+

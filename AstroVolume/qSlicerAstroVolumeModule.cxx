@@ -47,11 +47,6 @@
 // MRML includes
 #include <vtkMRMLScene.h>
 
-// SubjectHierarchy Plugins includes
-#include "qSlicerSubjectHierarchyPluginHandler.h"
-#include "qSlicerSubjectHierarchyVolumesPlugin.h"
-
-
 //-----------------------------------------------------------------------------
 Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
 

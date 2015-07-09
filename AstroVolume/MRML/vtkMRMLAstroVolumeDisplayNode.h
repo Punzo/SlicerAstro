@@ -4,13 +4,13 @@
 // MRML includes
 #include "vtkMRMLScalarVolumeDisplayNode.h"
 
+#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+
 // VTK includes
 class vtkAlgorithmOutput;
 class vtkImageData;
 
-#define VTK_MRMLASTROCORE_EXPORT
-
-class VTK_MRMLASTROCORE_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarVolumeDisplayNode
+class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarVolumeDisplayNode
 {
   public:
   static vtkMRMLAstroVolumeDisplayNode *New();

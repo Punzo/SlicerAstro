@@ -18,6 +18,7 @@ if(NOT DEFINED BUILD_SHARED_LIBS)
   option(BUILD_SHARED_LIBS "Build with shared libraries." ON)
 endif()
 
+#this should be checked (and the function stoi, etc.) for compiling on Windows and MAC
 if(UNIX)
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
 endif()
@@ -48,6 +49,30 @@ if (NOT WCSLIB_LIBRARIES)
 endif()
 
 set(KIT ${PROJECT_NAME})
+
+# --------------------------------------------------------------------------
+# Configure headers
+# --------------------------------------------------------------------------
+set(configure_header_file vtkFitsConfigure.h)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/${configure_header_file}.in
+  ${CMAKE_CURRENT_BINARY_DIR}/${configure_header_file}
+  )
+
+
+# --------------------------------------------------------------------------
+# Install headers
+# --------------------------------------------------------------------------
+if(NOT DEFINED ${PROJECT_NAME}_INSTALL_NO_DEVELOPMENT)
+  set(${PROJECT_NAME}_INSTALL_NO_DEVELOPMENT ON)
+endif()
+if(NOT ${PROJECT_NAME}_INSTALL_NO_DEVELOPMENT)
+  file(GLOB headers "${CMAKE_CURRENT_SOURCE_DIR}/*.(h|txx)")
+  install(
+    FILES ${headers} ${CMAKE_CURRENT_BINARY_DIR}/${configure_header_file}
+    DESTINATION include/${PROJECT_NAME} COMPONENT Development)
+endif()
+
 
 # --------------------------------------------------------------------------
 # Sources
@@ -103,6 +128,16 @@ if(Slicer_LIBRARY_PROPERTIES)
 endif()
 
 # --------------------------------------------------------------------------
+# Folder
+# --------------------------------------------------------------------------
+if(NOT DEFINED ${PROJECT_NAME}_FOLDER)
+  set(${PROJECT_NAME}_FOLDER ${PROJECT_NAME})
+endif()
+if(NOT "${${PROJECT_NAME}_FOLDER}" STREQUAL "")
+  set_target_properties(${lib_name} PROPERTIES FOLDER ${${PROJECT_NAME}_FOLDER})
+endif()
+
+# --------------------------------------------------------------------------
 # Export target
 # --------------------------------------------------------------------------
 if(NOT DEFINED ${PROJECT_NAME}_EXPORT_FILE)
@@ -138,8 +173,13 @@ if(VTK_WRAP_PYTHON)
     KIT_INSTALL_BIN_DIR ${${PROJECT_NAME}_INSTALL_BIN_DIR}
     KIT_INSTALL_LIB_DIR ${${PROJECT_NAME}_INSTALL_LIB_DIR}
     )
-  # Export target
+ # Export target
   export(TARGETS ${lib_name}Python ${lib_name}PythonD APPEND FILE ${${PROJECT_NAME}_EXPORT_FILE})
+  # Folder
+  if(NOT "${${PROJECT_NAME}_FOLDER}" STREQUAL "")
+    set_target_properties(${lib_name}Python PROPERTIES FOLDER ${${PROJECT_NAME}_FOLDER})
+    set_target_properties(${lib_name}PythonD PROPERTIES FOLDER ${${PROJECT_NAME}_FOLDER})
+  endif()
 endif()
 
 # --------------------------------------------------------------------------
@@ -152,5 +192,14 @@ endif()
 # --------------------------------------------------------------------------
 # Set INCLUDE_DIRS variable
 # --------------------------------------------------------------------------
-set(${PROJECT_NAME}_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)
+set(${PROJECT_NAME}_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+  CACHE INTERNAL "${PROJECT_NAME} include dirs" FORCE)
+
+# --------------------------------------------------------------------------
+# Configure support file
+# --------------------------------------------------------------------------
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/vtkFitsConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/vtkFitsConfig.cmake
+  )
 

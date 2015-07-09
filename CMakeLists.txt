@@ -35,8 +35,8 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Extension modules
+add_subdirectory(AstroLibs)
 add_subdirectory(AstroVolume)
-add_subdirectory(Libs)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

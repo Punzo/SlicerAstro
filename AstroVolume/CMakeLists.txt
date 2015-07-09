@@ -1,4 +1,3 @@
-
 #-----------------------------------------------------------------------------
 set(MODULE_NAME AstroVolume)
 set(MODULE_TITLE "${MODULE_NAME}")
@@ -8,23 +7,19 @@ string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)
 add_subdirectory(Widgets)
+add_subdirectory(MRML)
 
 #-----------------------------------------------------------------------------
 set(MODULE_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_EXPORT")
-
-list (GET qSlicerVolumesModule_INCLUDE_DIRS 0 qSlicerVolumesModule_HEADER_DIRS)
-list (GET qSlicerVolumesModule_INCLUDE_DIRS 1 qSlicerVolumesModule_BUILD_DIRS)
 
 # Additional includes - Current_{source,binary} and Slicer_{Libs,Base} already included
 set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/Logic
   ${CMAKE_CURRENT_BINARY_DIR}/Logic
-  ${vtkSlicerSubjectHierarchyModuleMRML_INCLUDE_DIRS}
-  ${qSlicerSubjectHierarchyModuleWidgets_INCLUDE_DIRS}
-  ${qSlicerVolumesModule_HEADER_DIRS}/SubjectHierarchyPlugins
-  ${qSlicerVolumesModule_BUILD_DIRS}/SubjectHierarchyPlugins
   ${CMAKE_CURRENT_SOURCE_DIR}/Widgets
   ${CMAKE_CURRENT_BINARY_DIR}/Widgets
+  ${CMAKE_CURRENT_SOURCE_DIR}/MRML
+  ${CMAKE_CURRENT_BINARY_DIR}/MRML
   )
 
 set(MODULE_SRCS
@@ -53,6 +48,7 @@ set(MODULE_UI_SRCS
 set(MODULE_TARGET_LIBRARIES
   qSlicer${MODULE_NAME}ModuleWidgets
   vtkSlicer${MODULE_NAME}ModuleLogic
+  vtkSlicer${MODULE_NAME}ModuleMRML
   )
 
 set(MODULE_RESOURCES
