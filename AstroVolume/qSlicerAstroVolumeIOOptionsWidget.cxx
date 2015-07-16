@@ -57,8 +57,6 @@ qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* pa
           this, SLOT(updateProperties()));
   connect(d->SingleFileCheckBox, SIGNAL(toggled(bool)),
           this, SLOT(updateProperties()));
-  connect(d->OrientationCheckBox, SIGNAL(toggled(bool)),
-          this, SLOT(updateProperties()));
 
   // Single file by default
   d->SingleFileCheckBox->setChecked(true);
@@ -89,7 +87,6 @@ void qSlicerAstroVolumeIOOptionsWidget::updateProperties()
   d->Properties["labelmap"] = d->LabelMapCheckBox->isChecked();
   d->Properties["center"] = d->CenteredCheckBox->isChecked();
   d->Properties["singleFile"] = d->SingleFileCheckBox->isChecked();
-  d->Properties["discardOrientation"] = d->OrientationCheckBox->isChecked();
 }
 
 //-----------------------------------------------------------------------------

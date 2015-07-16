@@ -7,15 +7,18 @@
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerUnitsLogic.h>
 
 // Logic includes
 #include <vtkSlicerApplicationLogic.h>
-#include "vtkSlicerAstroVolumeLogic.h"
 
 // MRML includes
 #include <vtkMRMLLabelMapVolumeNode.h>
 #include <vtkMRMLScalarVolumeNode.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLUnitNode.h>
 
 // VTK includes
 #include <vtkSmartPointer.h>
@@ -71,7 +74,7 @@ QString qSlicerAstroVolumeReader::description()const
 //-----------------------------------------------------------------------------
 qSlicerIO::IOFileType qSlicerAstroVolumeReader::fileType()const
 {
-  return QString("VolumeFile");
+  return QString("AstroVolumeFile");
 }
 
 //-----------------------------------------------------------------------------
@@ -119,10 +122,6 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     {
     options |= properties["autoWindowLevel"].toBool() ? 0x8: 0x0;
     }
-  if (properties.contains("discardOrientation"))
-    {
-    options |= properties["discardOrientation"].toBool() ? 0x10 : 0x0;
-    }
   vtkSmartPointer<vtkStringArray> fileList;
   if (properties.contains("fileNames"))
     {
@@ -141,7 +140,6 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     name.toLatin1(),
     options,
     fileList.GetPointer());
-
   if (node)
     {
     vtkSlicerApplicationLogic* appLogic =

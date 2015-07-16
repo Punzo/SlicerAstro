@@ -22,12 +22,14 @@
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLUnitNode.h"
+#include "vtkMRMLSelectionNode.h"
 
 //VTK includes
 #include <vtkDoubleArray.h>
 #include "vtkObjectFactory.h"
 #include <vtkStringArray.h>
 #include "vtkNew.h"
+#include <vtkFloatArray.h>
 
 
 
@@ -67,10 +69,59 @@ void vtkSlicerAstroVolumeLogic::UpdateFromMRMLScene()
   assert(this->GetMRMLScene() != 0);
 }
 
-//---------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic
-::OnMRMLSceneNodeAdded(vtkMRMLNode* vtkNotUsed(node))
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
 {
+  // List of events the slice logics should listen
+  vtkNew<vtkIntArray> events;
+  vtkNew<vtkFloatArray> priorities;
+
+  float normalPriority = 0.0;
+
+  // Events that use the default priority.  Don't care the order they
+  // are triggered
+  events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
+  priorities->InsertNextValue(normalPriority);
+
+
+  this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer(), priorities.GetPointer());
+
+  this->ProcessMRMLSceneEvents(newScene, vtkCommand::ModifiedEvent, 0);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
+{
+  if (!node)
+    {
+    return;
+    }
+
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLAstroVolumeNode* astrovolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(
+      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLAstroVolumeNode"));
+    if(astrovolumeNode)
+      {
+      vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+      unitNode1->SetMaximumValue(std::stod(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX")));
+      unitNode1->SetMinimumValue(std::stod(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN")));
+      unitNode1->SetSuffix(astrovolumeNode->GetAttribute("SlicerAstro.BUNIT"));
+      unitNode1->SetPrecision(9);
+      selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+      //here put some if max<0.001 then use micro, etc.
+
+      vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length"); // Note: most often quantity will be a const string like "length" or "time"
+      unitNode2->SetMaximumValue(360.);
+      unitNode2->SetMinimumValue(-180.);
+      unitNode2->SetSuffix("\xB0");
+      selectionNode->SetUnitNodeID("length", unitNode2->GetID());
+
+      }
+    //put a check for the velocity chose between km/s or m/s automatically.
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -118,19 +169,6 @@ void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerV
   if (volumesLogic)
     {
     volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroVolumeNodeSetFactory);
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::SetAstroUnits(vtkSlicerUnitsLogic* unitsLogic)
-{
-  if (unitsLogic)
-    {
-    //unitsLogic->AddUnitNode("ApplicationLength", "length", "", "DAJE1", 3);
-    //unitsLogic->AddUnitNode("ApplicationLength1", "length1", "", "DAJE2", 3);
-    //vtkMRMLUnitNode* node = unitsLogic->AddUnitNode("ApplicationLength", "length", "", "degree", 3);
-    //node->SetSaveWithScene(false);
-    //unitsLogic->SetDefaultUnit(node->GetQuantity(), node->GetID());
     }
 }
 

@@ -97,7 +97,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Volumes" << "Units";
+  moduleDependencies << "Volumes";
   return moduleDependencies;
 }
 
@@ -106,7 +106,7 @@ void qSlicerAstroVolumeModule::setup()
 {
   this->Superclass::setup();
 
-  // Register the IO module for loading AstroVolumes as a variant of nrrd files
+  // Register the IO module for loading AstroVolumes as a variant of fits files
   qSlicerAbstractCoreModule* volumes = qSlicerApplication::application()->moduleManager()->module("Volumes");
   if (volumes){
      vtkSlicerVolumesLogic* volumesLogic =
@@ -120,20 +120,8 @@ void qSlicerAstroVolumeModule::setup()
        qSlicerCoreApplication::application()->coreIOManager();
      ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
      ioManager->registerIO(new qSlicerNodeWriter(
-       "AstroVolume", QString("VolumeFile"),
-       QStringList() << "vtkMRMLScalarVolumeNode", this));
-  }
-
-  qSlicerAbstractCoreModule* unitsModule =
-    qSlicerCoreApplication::application()->moduleManager()->module("Units");
-  if (unitsModule){
-     vtkSlicerAstroVolumeLogic* logic =
-       vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-     vtkSlicerUnitsLogic* unitsLogic =
-       vtkSlicerUnitsLogic::SafeDownCast(unitsModule->logic());
-     if (unitsLogic && logic){
-        logic->SetAstroUnits(unitsLogic);
-     }
+       "AstroVolume", QString("AstroVolumeFile"),
+       QStringList() << "vtkMRMLAstroVolumeNode", this));
   }
 }
 

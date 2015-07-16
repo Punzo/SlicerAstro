@@ -40,8 +40,6 @@ public:
   /// Write volume's image data to a specified file
   int SaveArchetypeVolume (const char* filename, vtkMRMLVolumeNode *volumeNode);
 
-  void SetAstroUnits(vtkSlicerUnitsLogic* unitsLogic);
-
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
@@ -49,6 +47,7 @@ protected:
   /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
   virtual void RegisterNodes();
 
+  virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene);
   virtual void UpdateFromMRMLScene();
   virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
   virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);

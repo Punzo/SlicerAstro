@@ -421,10 +421,6 @@ void vtkMRMLAstroVolumeNode::ReadXMLAttributes(const char** atts)
       continue;
     }
 
-
-
-
-
   }
 
 
@@ -642,7 +638,7 @@ void vtkMRMLAstroVolumeNode::WriteXML(ostream& of, int nIndent)
     of << indent << pre << "mjdavg=\"" << wcs->mjdavg << "\"";
   }
 /*
- * tab seems not necessary.
+ * tab is necessary only if we implement reading of fits tab
   if (wcs->tab) {
     of << indent << pre << "ntab=\"" << wcs->ntab << "\"";
     for (j = 0; j < wcs->ntab; j++) {
@@ -917,6 +913,7 @@ void vtkMRMLAstroVolumeNode::PrintSelf(ostream& os, vtkIndent indent)
       os << indent << pre << "mjdavg:   " << wcs->mjdavg <<std::endl;
     }
 /*
+ * tab is necessary only if we implement reading of fits tab
     if (wcs->tab) {
       os << indent << pre << "ntab:   " << wcs->ntab <<std::endl;
       for (j = 0; j < wcs->ntab; j++) {

@@ -14,7 +14,16 @@
    <string>Volume Options</string>
   </property>
   <layout class="QHBoxLayout" name="horizontalLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -31,13 +40,6 @@
     <widget class="QCheckBox" name="CenteredCheckBox">
      <property name="text">
       <string>Centered</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="OrientationCheckBox">
-     <property name="text">
-      <string>Ignore Orientation</string>
      </property>
     </widget>
    </item>
