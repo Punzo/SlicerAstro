@@ -298,25 +298,25 @@ void vtkFITSReader::ExecuteInformation()
      dataExtent[2*axii] = 0;
      dataExtent[2*axii+1] = static_cast<int>(std::stoi(this->GetHeaderValue(("SlicerAstro.NAXIS"+std::to_string(axii+1)).c_str())) - 1);
 
-   //calculate the spacing
-     //spacings[axii]= std::stod(this->GetHeaderValue(("SlicerAstro.CDELT"+std::to_string(axii+1)).c_str()));
-     //spacings[axii]=1.0;
-   //calculate the origin
-     //origin[axii] = std::stod(this->GetHeaderValue(("SlicerAstro.CRVAL"+std::to_string(axii+1)).c_str()));
-     origin[axii]=0.0;
-   //set RasToIjkMatrix
-     //this->RasToIjkMatrix->SetElement(axii, axii, spacings[axii]);
-     //this->RasToIjkMatrix->Multiply4x4(this->RasToIjkMatrix,this->rotMatrix,this->RasToIjkMatrix);
-
+     origin[axii] = 0.0;
+     spacings[axii] = 1.0;
    }
 
-   this->RasToIjkMatrix->SetElement(0, 0, -1.);
-   this->RasToIjkMatrix->SetElement(1, 1, 0.);
-   this->RasToIjkMatrix->SetElement(1, 2, -1.);
-   this->RasToIjkMatrix->SetElement(2, 1,  1.);
-   this->RasToIjkMatrix->SetElement(2, 2, 0.);
 
-   this->RasToIjkMatrix->Invert(this->RasToIjkMatrix,this->RasToIjkMatrix);
+   float theta1 = (std::stof(this->GetHeaderValue("SlicerAstro.CDELT1")) > 0.) ? 0. : M_PI;
+   float theta2 = (std::stof(this->GetHeaderValue("SlicerAstro.CDELT2")) > 0.) ? 0. : M_PI;
+   float theta3 = (std::stof(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.) ? 0. : M_PI;
+   theta1 += M_PI/2.;
+
+   this->RasToIjkMatrix->SetElement(0, 0, cos(theta2) * cos(theta3));
+   this->RasToIjkMatrix->SetElement(0, 1, cos(theta1) * sin(theta3) + sin(theta1) * sin(theta2) * cos(theta3));
+   this->RasToIjkMatrix->SetElement(0, 2, sin(theta1) * sin(theta3) - cos(theta1) * sin(theta2) * cos(theta3));
+   this->RasToIjkMatrix->SetElement(1, 0, -cos(theta2) * sin(theta3));
+   this->RasToIjkMatrix->SetElement(1, 1, cos(theta1) * cos(theta3) - sin(theta1) * sin(theta2) * sin(theta3));
+   this->RasToIjkMatrix->SetElement(1, 2, sin(theta1) * cos(theta3) + cos(theta1) * sin(theta2) * sin(theta3));
+   this->RasToIjkMatrix->SetElement(2, 0, sin(theta2));
+   this->RasToIjkMatrix->SetElement(2, 1, -sin(theta1) * cos(theta2));
+   this->RasToIjkMatrix->SetElement(2, 2, cos(theta1) * cos(theta2));
 
    if (this->UseNativeOrigin) {
         for (unsigned int i=0; i < 3; i++) {

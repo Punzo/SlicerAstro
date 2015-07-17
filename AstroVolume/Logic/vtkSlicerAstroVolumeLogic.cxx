@@ -97,21 +97,22 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     return;
     }
 
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
-  if (selectionNode)
+  vtkMRMLAstroVolumeNode* astrovolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(
+    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLAstroVolumeNode"));
+  if(astrovolumeNode)
     {
-    vtkMRMLAstroVolumeNode* astrovolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(
-      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLAstroVolumeNode"));
-    if(astrovolumeNode)
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+    if (selectionNode)
       {
+
       vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
       unitNode1->SetMaximumValue(std::stod(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX")));
       unitNode1->SetMinimumValue(std::stod(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN")));
       unitNode1->SetSuffix(astrovolumeNode->GetAttribute("SlicerAstro.BUNIT"));
       unitNode1->SetPrecision(9);
       selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
-      //here put some if max<0.001 then use micro, etc.
+      //here put some if max<0.01 then use milli, etc.
 
       vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length"); // Note: most often quantity will be a const string like "length" or "time"
       unitNode2->SetMaximumValue(360.);
