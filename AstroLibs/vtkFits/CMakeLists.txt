@@ -18,12 +18,6 @@ if(NOT DEFINED BUILD_SHARED_LIBS)
   option(BUILD_SHARED_LIBS "Build with shared libraries." ON)
 endif()
 
-#this should be checked (and the function stoi, etc.) for compiling on Windows and MAC
-if(UNIX)
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -std=gnu++0x")
-endif()
-
-
 # --------------------------------------------------------------------------
 # Dependencies
 # --------------------------------------------------------------------------

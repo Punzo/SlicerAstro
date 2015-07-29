@@ -7,7 +7,7 @@ project(SlicerAstro)
 set(EXTENSION_HOMEPAGE "http://www.example.com/Slicer/Extensions/SlicerAstro")
 set(EXTENSION_CATEGORY "Astronomy")
 set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute)")
-set(EXTENSION_DESCRIPTION "Extension for enabling Astronomy Slicer")
+set(EXTENSION_DESCRIPTION "Extension for enabling Astronomical visualization in Slicer")
 set(EXTENSION_ICONURL "http://www.example.com/Slicer/Extensions/SlicerAstro.png")
 set(EXTENSION_SCREENSHOTURLS "http://www.example.com/Slicer/Extensions/SlicerAstro/Screenshots/1.png")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated list or 'NA' if any

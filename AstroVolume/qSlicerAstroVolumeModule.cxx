@@ -108,21 +108,23 @@ void qSlicerAstroVolumeModule::setup()
 
   // Register the IO module for loading AstroVolumes as a variant of fits files
   qSlicerAbstractCoreModule* volumes = qSlicerApplication::application()->moduleManager()->module("Volumes");
-  if (volumes){
-     vtkSlicerVolumesLogic* volumesLogic =
-       vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
-     vtkSlicerAstroVolumeLogic* logic =
-       vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-     if (volumesLogic && logic){
-        logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
-     }
-     qSlicerCoreIOManager* ioManager =
-       qSlicerCoreApplication::application()->coreIOManager();
-     ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
-     ioManager->registerIO(new qSlicerNodeWriter(
-       "AstroVolume", QString("AstroVolumeFile"),
-       QStringList() << "vtkMRMLAstroVolumeNode", this));
-  }
+  if (volumes)
+    {
+    vtkSlicerVolumesLogic* volumesLogic =
+      vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
+    vtkSlicerAstroVolumeLogic* logic =
+      vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+    if (volumesLogic && logic)
+      {
+      logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
+      }
+    qSlicerCoreIOManager* ioManager =
+      qSlicerCoreApplication::application()->coreIOManager();
+    ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
+    ioManager->registerIO(new qSlicerNodeWriter(
+      "AstroVolume", QString("AstroVolumeFile"),
+      QStringList() << "vtkMRMLAstroVolumeNode", this));
+    }
 }
 
 //-----------------------------------------------------------------------------

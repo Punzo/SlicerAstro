@@ -35,14 +35,15 @@ class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarV
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() {return "AstroVolumeDisplay";};
 
+  ///
+  /// Given a volume node, create a human readable string describing the contents
+  virtual std::string GetPixelString(double *ijk);
 
 protected:
   vtkMRMLAstroVolumeDisplayNode();
   ~vtkMRMLAstroVolumeDisplayNode();
   vtkMRMLAstroVolumeDisplayNode(const vtkMRMLAstroVolumeDisplayNode&);
   void operator=(const vtkMRMLAstroVolumeDisplayNode&);
-
-
 
 
 };

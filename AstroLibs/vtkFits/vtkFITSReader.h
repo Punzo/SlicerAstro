@@ -51,7 +51,7 @@ public:
   ///
   /// Get WCSstruct
   ///
-  struct wcsprm* GetWcsStruct();
+  struct wcsprm* GetWCSStruct();
 
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
@@ -62,14 +62,14 @@ public:
   /// Valid extentsions
   virtual const char* GetFileExtensions()
     {
-      return ".fits";
+    return ".fits";
     }
 
   ///
   /// A descriptive name for this format
   virtual const char* GetDescriptiveName()
     {
-      return "FITS - Flexible Image Transport System";
+    return "FITS - Flexible Image Transport System";
     }
 
   //Description:
@@ -89,24 +89,28 @@ public:
   vtkGetMacro(DataType,int);
 
   ///
-  //Number of components
+  ///Number of components
   vtkSetMacro(NumberOfComponents,int);
   vtkGetMacro(NumberOfComponents,int);
 
+  ///
+  ///WCSStatus
+  vtkSetMacro(WCSStatus,int);
+  vtkGetMacro(WCSStatus,int);
 
   ///
   /// Use image origin from the file
   void SetUseNativeOriginOn()
-  {
+    {
     UseNativeOrigin = true;
-  }
+    }
 
   ///
   /// Use image center as origin
   void SetUseNativeOriginOff()
-  {
+    {
     UseNativeOrigin = false;
-  }
+    }
 
 #if (VTK_MAJOR_VERSION <= 5)
 virtual vtkImageData * AllocateOutputData(vtkDataObject *out);
@@ -137,9 +141,9 @@ protected:
   fitsfile *fptr;
   int ReadStatus;
 
-  struct wcsprm *wcs;
-  int WcsStatus;
-  int nwcs;
+  struct wcsprm *WCS;
+  int WCSStatus;
+  int NWCS;
 
   std::map <std::string, std::string> HeaderKeyValue;
 
@@ -151,7 +155,6 @@ protected:
 #endif
 
   void AllocateHeader();
-
   void AllocateWCS();
 
 private:

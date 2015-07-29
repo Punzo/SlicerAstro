@@ -70,8 +70,6 @@ protected:
 
   char *FileName;
 
-  //vtkMatrix4x4 *IJKToRASMatrix;
-
   int UseCompression;
   int FileType;
 

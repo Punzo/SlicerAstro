@@ -132,7 +132,6 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
       }
     }
 
-
   Q_ASSERT(d->Logic);
 
   vtkMRMLVolumeNode* node = d->Logic->AddArchetypeVolume(

@@ -23,6 +23,7 @@
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLUnitNode.h"
 #include "vtkMRMLSelectionNode.h"
+#include "vtkMRMLSliceCompositeNode.h"
 
 //VTK includes
 #include <vtkDoubleArray.h>
@@ -41,12 +42,30 @@ vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 {
 }
 
-
+//----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
 {
 }
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
 
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+}// end namespace
+
+//----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
@@ -60,6 +79,8 @@ void vtkSlicerAstroVolumeLogic::InitializeEventListeners()
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
   events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
   events->InsertNextValue(vtkMRMLScene::EndBatchProcessEvent);
+  events->InsertNextValue(vtkMRMLSliceCompositeNode::ReferencedNodeModifiedEvent);
+
   this->SetAndObserveMRMLSceneEventsInternal(this->GetMRMLScene(), events.GetPointer());
 }
 
@@ -81,8 +102,8 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   // Events that use the default priority.  Don't care the order they
   // are triggered
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
+  //events->InsertNextValue(vtkMRMLSliceCompositeNode::ReferencedNodeModifiedEvent);
   priorities->InsertNextValue(normalPriority);
-
 
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer(), priorities.GetPointer());
 
@@ -105,23 +126,45 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
     if (selectionNode)
       {
-
       vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
-      unitNode1->SetMaximumValue(std::stod(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX")));
-      unitNode1->SetMinimumValue(std::stod(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN")));
-      unitNode1->SetSuffix(astrovolumeNode->GetAttribute("SlicerAstro.BUNIT"));
-      unitNode1->SetPrecision(9);
-      selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
-      //here put some if max<0.01 then use milli, etc.
+      double max = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+      double min = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+      unitNode1->SetMaximumValue(max);
+      unitNode1->SetMinimumValue(min);
+      unitNode1->SetDisplayCoefficient(1.);
+      std::string temp = " ";
+      if(max < 0.001)
+        {
+        temp += "\xB5";
+        unitNode1->SetDisplayCoefficient(1000000.);
+        }
+      else
+        {
+        if(max < 1.)
+          {
+          temp += "m";
+          unitNode1->SetDisplayCoefficient(1000.);
+          }
+        }
 
-      vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length"); // Note: most often quantity will be a const string like "length" or "time"
+      temp += astrovolumeNode->GetAttribute("SlicerAstro.BUNIT");
+      unitNode1->SetPrecision(6);
+      unitNode1->SetSuffix(temp.c_str());
+      selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+
+      vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
       unitNode2->SetMaximumValue(360.);
       unitNode2->SetMinimumValue(-180.);
       unitNode2->SetSuffix("\xB0");
       selectionNode->SetUnitNodeID("length", unitNode2->GetID());
 
+      vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
+      unitNode3->SetDisplayCoefficient(0.001);
+      unitNode3->SetPrecision(1);
+      unitNode3->SetSuffix(" km/s");
+      selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
+
       }
-    //put a check for the velocity chose between km/s or m/s automatically.
     }
 }
 
@@ -131,10 +174,9 @@ void vtkSlicerAstroVolumeLogic
 {
 }
 
-
 namespace
 {
-
+//----------------------------------------------------------------------------
 ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
 {
   ArchetypeVolumeNodeSet nodeSet(scene);
@@ -162,8 +204,6 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
 
 };
 
-
-
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic)
 {
@@ -185,7 +225,7 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
 }
 
-
+//----------------------------------------------------------------------------
 int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRMLVolumeNode *volumeNode)
 {
   if (volumeNode == NULL || filename == NULL)
@@ -237,4 +277,3 @@ int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRML
   int res = storageNode->WriteData(volumeNode);
   return res;
 }
-

@@ -15,6 +15,7 @@
 #include <vtkObjectFactory.h>
 #include <vtkStringArray.h>
 #include <vtkVersion.h>
+#include <vtkType.h>
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeStorageNode);
@@ -30,6 +31,24 @@ vtkMRMLAstroVolumeStorageNode::~vtkMRMLAstroVolumeStorageNode()
 {
 }
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> std::string NumberToString(T V)
+{
+  std::string stringValue;
+  std::stringstream strstream;
+  strstream << V;
+  strstream >> stringValue;
+  return stringValue;
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
+}
+}//end namespace
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeStorageNode::WriteXML(ostream& of, int nIndent)
@@ -40,7 +59,6 @@ void vtkMRMLAstroVolumeStorageNode::WriteXML(ostream& of, int nIndent)
   std::stringstream ss;
   ss << this->CenterImage;
   of << indent << " centerImage=\"" << ss.str() << "\"";
-
 }
 
 //----------------------------------------------------------------------------
@@ -65,7 +83,6 @@ void vtkMRMLAstroVolumeStorageNode::ReadXMLAttributes(const char** atts)
     }
 
   this->EndModify(disabledModify);
-
 }
 
 //----------------------------------------------------------------------------
@@ -81,7 +98,6 @@ void vtkMRMLAstroVolumeStorageNode::Copy(vtkMRMLNode *anode)
   this->SetCenterImage(node->CenterImage);
 
   this->EndModify(disabledModify);
-
 }
 
 //----------------------------------------------------------------------------
@@ -158,7 +174,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       vtkErrorMacro("ReadData: MRMLVolumeNode does not match file kind");
       return 0;
       }
-     }
+    }
 
   reader->Update();
 
@@ -167,7 +183,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   volNode->SetRASToIJKMatrix(mat);
 
   //set WCSstruct
-  volNode->SetWcsStruct(reader->GetWcsStruct());
+  volNode->SetWcsStruct(reader->GetWCSStruct());
+
+  // parse WCS Status
+  volNode->SetWcsStatus(reader->GetWCSStatus());
 
   // parse non-specific key-value pairs
   std::vector<std::string> keys = reader->GetHeaderKeysVector();
@@ -177,6 +196,59 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
     }
 
+  // calculating max and min
+  if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
+       !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
+    {
+    vtkImageData *imageData = reader->GetOutput();
+    int vtkType = reader->GetDataType();
+    int *dims = imageData->GetDimensions();
+    const int numComponents = imageData->GetNumberOfScalarComponents();
+    double max = imageData->GetScalarTypeMin();
+    double min = imageData->GetScalarTypeMax();
+    const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+
+    switch (vtkType)
+      {
+      case VTK_DOUBLE:
+        double *dPixel;
+        dPixel = static_cast<double*>(imageData->GetScalarPointer(0,0,0));
+        for( int elemCnt = 0; elemCnt < numElements; elemCnt++ )
+          {
+          if(*dPixel > max)
+            {
+            max = *dPixel;
+            }
+          if(*dPixel < min)
+            {
+            min = *dPixel;
+            }
+          dPixel++;
+          }
+        break;
+      case VTK_FLOAT:
+        float *fPixel;
+        fPixel = static_cast<float*>(imageData->GetScalarPointer(0,0,0));
+        for( int elemCnt = 0; elemCnt < numElements; elemCnt++ )
+          {
+          if(*fPixel > max)
+            {
+            max = *fPixel;
+            }
+          if(*fPixel < min)
+            {
+            min = *fPixel;
+            }
+          fPixel++;
+          }
+        break;
+      default:
+        vtkErrorMacro("Could not get the data pointer.");
+        return 0;
+      }
+      volNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
+      volNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+    }
 
   vtkNew<vtkImageChangeInformation> ici;
 #if (VTK_MAJOR_VERSION <= 5)
@@ -258,7 +330,6 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   this->StageWriteData(refNode);
 
   return writeFlag;
-
 }
 
 //----------------------------------------------------------------------------

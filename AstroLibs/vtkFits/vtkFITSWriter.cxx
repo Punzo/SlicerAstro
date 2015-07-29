@@ -11,6 +11,9 @@
 #include "vtkInformation.h"
 #include <vtkVersion.h>
 
+// STD includes
+#include <sstream>
+
 class AttributeMapType: public std::map<std::string, std::string> {};
 
 vtkStandardNewMacro(vtkFITSWriter);
@@ -40,6 +43,47 @@ vtkFITSWriter::~vtkFITSWriter()
     }
 
 }
+
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+float StringToFloat(const char* str)
+{
+  return StringToNumber<float>(str);
+}
+
+//----------------------------------------------------------------------------
+template <typename T> std::string NumberToString(T V)
+{
+    std::string stringValue;
+    std::stringstream strstream;
+    strstream << V;
+    strstream >> stringValue;
+    return stringValue;
+}
+
+//----------------------------------------------------------------------------
+std::string IntToString(int Value)
+{
+    return NumberToString<int>(Value);
+}
+}// end namespace
+
 
 //----------------------------------------------------------------------------
 vtkImageData* vtkFITSWriter::GetInput()
@@ -123,44 +167,52 @@ void vtkFITSWriter::WriteData()
   AttributeMapType::iterator ait;
   for (ait = this->Attributes->begin(); ait != this->Attributes->end(); ++ait)
     {
-
     std::size_t pos = ait->first.find("SlicerAstro.");
-    if(pos == std::string::npos) continue;
-
+    if(pos == std::string::npos)
+      {
+      continue;
+      }
     std::string tmp = ait->first.substr(pos+12);
 
     if((!tmp.compare(0,6,"SIMPLE")) || (!tmp.compare(0,6,"EXTEND"))
-          || (!tmp.compare(0,7,"BLOCKED"))) continue;
-
+          || (!tmp.compare(0,7,"BLOCKED")))
+      {
+      continue;
+      }
     std::string ts = ((ait->second).substr(0,1));
-
     if((!tmp.compare(0,6,"BITPIX")) || (!tmp.compare(0,5,"NAXIS"))
-            || (!tmp.compare(0,5,"BLANK"))){
-       int ti = std::stoi((ait->second).c_str());;
-       fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
-
-    } else if (!(std::string::npos != ts.find_first_of("-1234567890"))
-               || (!tmp.compare(0,4,"DATE"))){
-       fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
-
-    }else{
-       float tf;
-       tf = std::stof((ait->second).c_str());
-       fits_update_key(fptr, TFLOAT, tmp.c_str(), &tf, "", &WriteStatus);
+            || (!tmp.compare(0,5,"BLANK")))
+      {
+      int ti = StringToInt((ait->second).c_str());;
+      fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
+      }
+    else if (!(std::string::npos != ts.find_first_of("-1234567890"))
+               || (!tmp.compare(0,4,"DATE")))
+      {
+      fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
+      }
+    else
+      {
+      float tf;
+      tf = StringToFloat((ait->second).c_str());
+      fits_update_key(fptr, TFLOAT, tmp.c_str(), &tf, "", &WriteStatus);
+      }
     }
-  }
 
   // Write the FITS to file.
-  for (unsigned int axii=0; axii < naxes; axii++){
-    naxe[axii] = std::stoi(this->GetAttribute(("SlicerAstro.NAXIS"+std::to_string(axii+1))));
+  for (unsigned int axii=0; axii < naxes; axii++)
+    {
+    naxe[axii] = StringToInt(this->GetAttribute(("SlicerAstro.NAXIS"+IntToString(axii+1))));
     dim *= naxe[axii];
-  }
+    }
 
   int fileType = this->GetFileType();
 
-  switch ( fileType ){
+  switch (fileType)
+    {
     case VTK_BINARY:
-      switch (vtkType){
+      switch (vtkType)
+        {
         case VTK_FLOAT:
           if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
           {
@@ -177,7 +229,7 @@ void vtkFITSWriter::WriteData()
             this->WriteErrorOn();
           }
           break;
-      }
+        }
       break;
     case VTK_ASCII:
      vtkErrorMacro("In 3-DSlicer FITS table are not supported");
@@ -194,8 +246,6 @@ void vtkFITSWriter::WriteData()
 void vtkFITSWriter::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
-
-
 }
 
 void vtkFITSWriter::SetAttribute(const std::string& name, const std::string& value)
@@ -211,11 +261,13 @@ void vtkFITSWriter::SetAttribute(const std::string& name, const std::string& val
 const char* vtkFITSWriter::GetAttribute(const std::string &key)
 {
   std::map<std::string,std::string>::iterator i = Attributes->find(key);
-  if (i != Attributes->end()) {
+  if (i != Attributes->end())
+    {
     return (i->second.c_str());
-  }
-  else {
+    }
+  else
+    {
     return NULL;
-  }
+    }
 }
 
