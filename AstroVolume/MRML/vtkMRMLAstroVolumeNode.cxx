@@ -566,7 +566,7 @@ void vtkMRMLAstroVolumeNode::ReadXMLAttributes(const char** atts)
       }
   }
 
-  if ((this->WCSStatus = WCSset(this->WCS)))
+  if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<"\n");
     }
@@ -864,7 +864,7 @@ void vtkMRMLAstroVolumeNode::Copy(vtkMRMLNode *anode)
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, astroVolumeNode->WCS, this->WCS)))
     {
-    vtkErrorMacro("wcscopy ERROR "<<this->WcsStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+    vtkErrorMacro("wcscopy ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
     this->SetWCSStatus(astroVolumeNode->GetWCSStatus());
     }
 
@@ -882,7 +882,7 @@ void vtkMRMLAstroVolumeNode::SetWCSStruct(struct wcsprm* wcstemp)
   if(wcstemp)
     {
     this->WCS->flag=-1;
-    if ((this->WCSStatus = wcscopy(1, wcstemp, wcs)))
+    if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
       {
       vtkErrorMacro("wcscopy ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
       }

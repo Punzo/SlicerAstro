@@ -183,10 +183,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   volNode->SetRASToIJKMatrix(mat);
 
   //set WCSstruct
-  volNode->SetWcsStruct(reader->GetWCSStruct());
+  volNode->SetWCSStruct(reader->GetWCSStruct());
 
   // parse WCS Status
-  volNode->SetWcsStatus(reader->GetWCSStatus());
+  volNode->SetWCSStatus(reader->GetWCSStatus());
 
   // parse non-specific key-value pairs
   std::vector<std::string> keys = reader->GetHeaderKeysVector();
