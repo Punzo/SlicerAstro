@@ -143,7 +143,7 @@ void vtkMRMLAstroVolumeNode::ReadXMLAttributes(const char** atts)
       temp = pre + "cdelt" + IntToString(i);
       if (!strcmp(attName, temp.c_str()))
         {
-        this->WCS->cdelt[i] = StringToInt(attValue);
+        this->WCS->cdelt[i] = StringToDouble(attValue);
         continue;
         }
       }
