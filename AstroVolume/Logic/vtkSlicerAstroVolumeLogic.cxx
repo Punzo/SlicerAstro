@@ -71,19 +71,6 @@ void vtkSlicerAstroVolumeLogic::PrintSelf(ostream& os, vtkIndent indent)
   this->Superclass::PrintSelf(os, indent);
 }
 
-
-//---------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::InitializeEventListeners()
-{
-  vtkNew<vtkIntArray> events;
-  events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
-  events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
-  events->InsertNextValue(vtkMRMLScene::EndBatchProcessEvent);
-  events->InsertNextValue(vtkMRMLSliceCompositeNode::ReferencedNodeModifiedEvent);
-
-  this->SetAndObserveMRMLSceneEventsInternal(this->GetMRMLScene(), events.GetPointer());
-}
-
 //---------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::UpdateFromMRMLScene()
 {
@@ -95,19 +82,18 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
 {
   // List of events the slice logics should listen
   vtkNew<vtkIntArray> events;
-  vtkNew<vtkFloatArray> priorities;
-
-  float normalPriority = 0.0;
 
   // Events that use the default priority.  Don't care the order they
   // are triggered
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
+  events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
   //events->InsertNextValue(vtkMRMLSliceCompositeNode::ReferencedNodeModifiedEvent);
-  priorities->InsertNextValue(normalPriority);
 
-  this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer(), priorities.GetPointer());
+  this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
 
-  this->ProcessMRMLSceneEvents(newScene, vtkCommand::ModifiedEvent, 0);
+  this->ProcessMRMLSceneEvents(newScene, vtkMRMLScene::EndBatchProcessEvent, 0);
+  //I think I can also overload ProcessMRMLSceneEvents -> if event
+  //vtkMRMLSliceCompositeNode::ReferencedNodeModifiedEvent do something
 }
 
 //----------------------------------------------------------------------------
@@ -119,13 +105,80 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     }
 
   vtkMRMLAstroVolumeNode* astrovolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(
-    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLAstroVolumeNode"));
-  if(astrovolumeNode)
-    {
-    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
-    if (selectionNode)
+      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLAstroVolumeNode"));
+    if(astrovolumeNode)
       {
+      vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+        this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+      if (selectionNode)
+        {
+        vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+        double max = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+        double min = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+        unitNode1->SetMaximumValue(max);
+        unitNode1->SetMinimumValue(min);
+        unitNode1->SetDisplayCoefficient(1.);
+        std::string temp = " ";
+        if(max < 0.001)
+          {
+          temp += "\xB5";
+          unitNode1->SetDisplayCoefficient(1000000.);
+          }
+        else
+          {
+          if(max < 1.)
+            {
+            temp += "m";
+            unitNode1->SetDisplayCoefficient(1000.);
+            }
+          }
+
+        temp += astrovolumeNode->GetAttribute("SlicerAstro.BUNIT");
+        unitNode1->SetPrecision(6);
+        unitNode1->SetSuffix(temp.c_str());
+        selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+
+        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
+        unitNode2->SetMaximumValue(360.);
+        unitNode2->SetMinimumValue(-180.);
+        unitNode2->SetSuffix("\xB0");
+        selectionNode->SetUnitNodeID("length", unitNode2->GetID());
+
+        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
+        unitNode3->SetDisplayCoefficient(0.001);
+        unitNode3->SetPrecision(2);
+        unitNode3->SetSuffix(" km/s");
+        selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
+
+        }
+      }
+
+
+  //I think I should use node in some way IsA call a this->dosomething()
+/*
+  vtkMRMLSliceCompositeNode* SliceCompositeNode = vtkMRMLSliceCompositeNode::SafeDownCast(
+    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSliceCompositeNode"));
+
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+
+  if (SliceCompositeNode && selectionNode)
+    {
+     vtkMRMLVolumeNode *volumeNode = vtkMRMLVolumeNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID(SliceCompositeNode->GetBackgroundVolumeID()));
+    if(!volumeNode)
+      {
+      //This should be unnecessary (when you add a volume is always a Background,
+      //but let's mantain it for the moment
+      volumeNode = vtkMRMLVolumeNode::SafeDownCast(
+        this->GetMRMLScene()->GetNodeByID(SliceCompositeNode->GetForegroundVolumeID()));
+      }
+
+    if(volumeNode)
+      {
+      vtkMRMLAstroVolumeNode* astrovolumeNode =
+        vtkMRMLAstroVolumeNode::SafeDownCast(volumeNode);
+      //here put a if on WCS
       vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
       double max = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
       double min = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
@@ -165,13 +218,37 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
 
       }
-    }
+    }*/
+}
+
+void vtkSlicerAstroVolumeLogic::OnMRMLNodeModified(vtkMRMLNode *node)
+{
+  //assert(node);
+  /*if (this->GetMRMLScene()->IsBatchProcessing())
+    {
+    return;
+    }*/
+//boh pare che non funziona
+  //cout<<"bella"<<endl;
+  /*
+  if (node == )
+    {
+      cout<<SliceCompositeNode->GetBackgroundVolumeID()<<endl;
+    }*/
+
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic
-::OnMRMLSceneNodeRemoved(vtkMRMLNode* vtkNotUsed(node))
+void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeRemoved(vtkMRMLNode* node)
 {
+
+  if (!node)
+    {
+    return;
+    }
+  //here we should put if the node removed is astro and there are no Foreground and Backgreound
+  //then reput the units in default.
+
 }
 
 namespace

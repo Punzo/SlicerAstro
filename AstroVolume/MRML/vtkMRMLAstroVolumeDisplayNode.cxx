@@ -13,6 +13,8 @@
 #include <vtkImageMapToWindowLevelColors.h>
 #include <vtkImageThreshold.h>
 #include <vtkObjectFactory.h>
+#include <vtkStringArray.h>
+#include <vtkNew.h>
 
 //------------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeDisplayNode);
@@ -20,13 +22,29 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeDisplayNode);
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
 {
-  this->SetSpaceQuantities("length;length;velocity");
+  this->SpaceQuantities = vtkStringArray::New();
+  this->SpaceQuantities->SetName("Tokens");
+  this->SpaceQuantities->SetNumberOfValues(3);
+  this->SpaceQuantities->SetValue(0, "length");
+  this->SpaceQuantities->SetValue(1, "length");
+  this->SpaceQuantities->SetValue(2, "velocity");
+  this->Space = 0;
   this->SetSpace("WCS");
 }
 
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
 {
+
+  if (this->SpaceQuantities)
+    {
+    this->SpaceQuantities->Delete();
+    }
+
+  if (this->Space)
+    {
+    delete [] this->Space;
+    }
 }
 
 namespace
@@ -44,14 +62,35 @@ template <typename T> std::string NumberToString(T V)
 //----------------------------------------------------------------------------
 std::string IntToString(int Value)
 {
-    return NumberToString<int>(Value);
+  return NumberToString<int>(Value);
 }
+
+//----------------------------------------------------------------------------
+//std::string DoubleToString(double Value)
+//{
+//  return NumberToString<double>(Value);
+//}
+
 }// end namespace
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 {
   Superclass::WriteXML(of, nIndent);
+
+  vtkIndent indent(nIndent);
+
+  std::string quantities = "";
+  if (this->SpaceQuantities)
+    {
+    for(int i = 0; i < this->SpaceQuantities->GetNumberOfValues(); i++)
+      {
+      quantities +=  this->SpaceQuantities->GetValue(i) + ";";
+      }
+    }
+
+  of << indent << " SpaceQuantities=\"" << quantities << "\"";
+  of << indent << " Space=\"" << (this->Space ? this->Space : "") << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -60,6 +99,37 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
   int disabledModify = this->StartModify();
 
   Superclass::ReadXMLAttributes(atts);
+
+
+  const char* attName;
+  const char* attValue;
+
+  while (*atts != NULL)
+    {
+    attName = *(atts++);
+    attValue = *(atts++);
+
+    if (!strcmp(attName, "SpaceQuantities"))
+      {
+      std::istringstream f(attValue);
+      std::string s;
+      int i = 0;
+      while (std::getline(f, s, ';'))
+        {
+        this->SetSpaceQuantity(i, s.c_str());
+        i++;
+        }
+      continue;
+      }
+
+    if (!strcmp(attName, "Space"))
+      {
+      this->SetSpace(attValue);
+      continue;
+      }
+    }
+
+  this->WriteXML(std::cout,0);
 
   this->EndModify(disabledModify);
 }
@@ -72,8 +142,41 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   int disabledModify = this->StartModify();
 
   Superclass::Copy(anode);
+  vtkMRMLAstroVolumeDisplayNode *node =vtkMRMLAstroVolumeDisplayNode::SafeDownCast(anode);
+
+  if (node)
+    {
+#if VTK_MAJOR_VERSION > 5
+    this->SetInputImageDataConnection(node->GetInputImageDataConnection());
+#endif
+    this->SetSpaceQuantities(node->GetSpaceQuantities());
+    this->SetSpace(node->GetSpace());
+    }
+
+#if VTK_MAJOR_VERSION > 5
+  this->UpdateImageDataPipeline();
+#endif
 
   this->EndModify(disabledModify);
+}
+
+//----------------------------------------------------------------------------
+int vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
+{
+
+  if (ind >= this->SpaceQuantities->GetNumberOfValues())
+    {
+    this->SpaceQuantities->SetNumberOfValues(ind+1);
+    }
+
+  vtkStdString SpaceQuantities(name);
+  if (this->SpaceQuantities->GetValue(ind) != SpaceQuantities)
+    {
+    this->SpaceQuantities->SetValue(ind, SpaceQuantities);
+    return 1;
+    }
+  return 0;
+
 }
 
 //----------------------------------------------------------------------------
@@ -123,4 +226,17 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
+
+  std::string quantities = "";
+  if (this->SpaceQuantities)
+    {
+    for(int i = 0; i < this->SpaceQuantities->GetNumberOfValues(); i++)
+      {
+      quantities +=  this->SpaceQuantities->GetValue(i) + ";";
+      }
+    }
+
+  os << indent << " SpaceQuantities=\"" << quantities << "\n";
+  os << indent << "Space: " << (this->Space ? this->Space : "(none)") << "\n";
+
 }

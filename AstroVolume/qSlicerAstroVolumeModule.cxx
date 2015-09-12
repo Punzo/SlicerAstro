@@ -123,7 +123,7 @@ void qSlicerAstroVolumeModule::setup()
     ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
     ioManager->registerIO(new qSlicerNodeWriter(
       "AstroVolume", QString("AstroVolumeFile"),
-      QStringList() << "vtkMRMLAstroVolumeNode", this));
+      QStringList() << "vtkMRMLAstroVolumeNode", true, this));
     }
 }
 

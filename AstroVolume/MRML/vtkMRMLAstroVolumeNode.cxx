@@ -1174,9 +1174,9 @@ vtkMRMLAstroVolumeDisplayNode* vtkMRMLAstroVolumeNode::GetAstroVolumeDisplayNode
   return vtkMRMLAstroVolumeDisplayNode::SafeDownCast(this->GetDisplayNode());
 }
 
-void vtkMRMLAstroVolumeNode::GetReferenceSpace(const double *ijk, const char *Space, double *SpaceCoordinates)
+void vtkMRMLAstroVolumeNode::GetReferenceSpace(const double ijk[3], const char *Space, double SpaceCoordinates[3])
 {
-  if (ijk != NULL && SpaceCoordinates != NULL)
+  if (Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
