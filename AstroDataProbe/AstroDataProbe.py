@@ -127,7 +127,7 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
     ScriptedLoadableModuleLogic.__init__(self, parent)
     self.factorizing = True
     # Observe Astrovolume has been loaded
-    self.nodeAddedModifiedObserverTag = slicer.mrmlScene.AddObserver(slicer.vtkMRMLScene.NodeAddedEvent, self.factorize)
+    self.nodeAddedModifiedObserverTag = slicer.mrmlScene.AddObserver(slicer.vtkMRMLScene.NodeAddedEvent, self.nodeAddedCallback)
 
   def __del__(self):
     self.removeObservers()
@@ -138,16 +138,13 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
       slicer.mrmlScene.AddObserver.RemoveObserver(self.nodeAddedModifiedObserverTag)
     self.nodeAddedModifiedObserverTag = None
 
-
-  def factorize(self,observee,event):
-    Node = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLVolumeNode')
-    #print Node
-    if self.factorizing and Node:
+  @vtk.calldata_type(vtk.VTK_OBJECT)
+  def nodeAddedCallback(self, caller, eventId, callData):
+    if callData.GetName() == "AstroVolumeDisplay" and self.factorizing:
       self.factorizing = False
       dataProbeInstance = slicer.modules.DataProbeInstance
       funcType = type(dataProbeInstance.infoWidget.GetInfo)
       dataProbeInstance.infoWidget.GetInfo = funcType(GetInfoAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
-
 
 class AstroDataProbeTest(ScriptedLoadableModuleTest):
 
