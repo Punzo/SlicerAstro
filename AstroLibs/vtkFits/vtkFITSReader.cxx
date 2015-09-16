@@ -457,6 +457,19 @@ void vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.BITPIX"] = "64";
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.BTYPE") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the BTYPE keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.BTYPE"] = "";
+     }
+   else
+     {
+     if(!strcmp(HeaderKeyValue.at("SlicerAstro.BTYPE"),"intensity"))
+       {
+       vtkWarningMacro("It seems that teh value of the keyword BTYPE is not intensity. Polarization is not supported by SlicerAstro. Odd behaviors may show up!")
+       }
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
      {
      vtkWarningMacro("The fits header is missing the BUNIT keyword. Odd behaviors may show up!");
