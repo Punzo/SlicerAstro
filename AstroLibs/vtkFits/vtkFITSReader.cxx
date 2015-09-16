@@ -359,14 +359,14 @@ void vtkFITSReader::ExecuteInformation()
   theta1 += M_PI/2.;
 
   this->RasToIjkMatrix->SetElement(0, 0, cos(theta2) * cos(theta3));
-  this->RasToIjkMatrix->SetElement(0, 1, cos(theta1) * sin(theta3) + sin(theta1) * sin(theta2) * cos(theta3));
-  this->RasToIjkMatrix->SetElement(0, 2, sin(theta1) * sin(theta3) - cos(theta1) * sin(theta2) * cos(theta3));
-  this->RasToIjkMatrix->SetElement(1, 0, -cos(theta2) * sin(theta3));
-  this->RasToIjkMatrix->SetElement(1, 1, cos(theta1) * cos(theta3) - sin(theta1) * sin(theta2) * sin(theta3));
-  this->RasToIjkMatrix->SetElement(1, 2, sin(theta1) * cos(theta3) + cos(theta1) * sin(theta2) * sin(theta3));
-  this->RasToIjkMatrix->SetElement(2, 0, sin(theta2));
+  this->RasToIjkMatrix->SetElement(0, 1, 0.);
+  this->RasToIjkMatrix->SetElement(0, 2, 0.);
+  this->RasToIjkMatrix->SetElement(1, 0, 0.);
+  this->RasToIjkMatrix->SetElement(1, 1, 0.);
+  this->RasToIjkMatrix->SetElement(1, 2, sin(theta1) * cos(theta3));
+  this->RasToIjkMatrix->SetElement(2, 0, 0.);
   this->RasToIjkMatrix->SetElement(2, 1, -sin(theta1) * cos(theta2));
-  this->RasToIjkMatrix->SetElement(2, 2, cos(theta1) * cos(theta2));
+  this->RasToIjkMatrix->SetElement(2, 2, 0.);
 
   if (this->UseNativeOrigin)
     {
@@ -407,7 +407,9 @@ void vtkFITSReader::AllocateHeader()
 
    fits_get_hdrspace(fptr, &nkeys, NULL, &ReadStatus); /* get # of keywords */
 
-   for (ii = 1; ii <= nkeys; ii++) { /* Read and print each keywords */
+   /* Read and print each keywords */
+   for (ii = 1; ii <= nkeys; ii++)
+     {
 
      if (fits_read_record(fptr, ii, card, &ReadStatus))break;
      if (fits_get_keyname(card, key, &keylen, &ReadStatus)) break;
@@ -417,43 +419,49 @@ void vtkFITSReader::AllocateHeader()
      if (fits_parse_value(card, val, com, &ReadStatus)) break;
 
      std::string str(val);
-     if (std::string::npos != str.find_first_of("'")){
+     if (std::string::npos != str.find_first_of("'"))
+       {
        str.erase(0,1);
        str.erase(str.size()-1, str.size());
-     }
+       }
      std::string strkey1 = "SlicerAstro." + strkey;
      HeaderKeyValue[strkey1] = str;
 
-   }
+     }
 
-   if(HeaderKeyValue.count("SlicerAstro.NAXIS") == 0){
-       vtkErrorMacro("The fits header is missing the NAXIS keyword. It is not possible to load the datacube!");
-       return;
-   }
+   if(HeaderKeyValue.count("SlicerAstro.NAXIS") == 0)
+     {
+     vtkErrorMacro("The fits header is missing the NAXIS keyword. It is not possible to load the datacube!");
+     return;
+     }
 
    int n = StringToInt((HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
    std::string temp = "SlicerAstro.NAXIS";
 
-   for(ii = 1; ii <= n; ii++){
-       temp += IntToString(ii);
+   for(ii = 1; ii <= n; ii++)
+     {
+     temp += IntToString(ii);
 
-       if(HeaderKeyValue.count(temp.c_str()) == 0){
-           vtkErrorMacro("The fits header is missing the NAXIS" << ii <<
-                         " keyword. It is not possible to load the datacube!");
-           return;
+     if(HeaderKeyValue.count(temp.c_str()) == 0)
+       {
+       vtkErrorMacro("The fits header is missing the NAXIS" << ii <<
+                       " keyword. It is not possible to load the datacube!");
+       return;
        }
        temp.erase(temp.size()-1);
-   }
+     }
 
-   if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0){
-       vtkWarningMacro("The fits header is missing the BITPIX keyword. Using in default 64 (double). Odd behaviors may show up!");
-       HeaderKeyValue["SlicerAstro.BITPIX"] = "64";
-   }
+   if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the BITPIX keyword. Using in default 64 (double). Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.BITPIX"] = "64";
+     }
 
-   if(HeaderKeyValue.count("SlicerAstro.BUNIT") == 0){
-       vtkWarningMacro("The fits header is missing the BUNIT keyword. Odd behaviors may show up!");
-       HeaderKeyValue["SlicerAstro.BUNIT"] = "";
-   }
+   if(HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the BUNIT keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.BUNIT"] = "";
+     }
 
    if(HeaderKeyValue.count("SlicerAstro.DATAMAX") == 0)
        HeaderKeyValue["SlicerAstro.DATAMAX"] = "0.";
@@ -482,6 +490,7 @@ void vtkFITSReader::AllocateWCS(){
     {
     vtkErrorMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")
     }
+
   if ((WCSStatus = wcsfix(7, 0, WCS, stat)))
     {
     for (i = 0; i < NWCSFIX; i++)

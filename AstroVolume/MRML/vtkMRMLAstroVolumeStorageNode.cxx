@@ -3,6 +3,7 @@
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLAstroVolumeNode.h"
+#include "vtkMRMLAstroVolumeDisplayNode.h"
 
 //vtkFits includes
 #include <vtkFITSReader.h>
@@ -196,9 +197,32 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
     }
 
-  // calculating max and min
+  // parse Space (WCS or IJK) to the display node
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = volNode->GetAstroVolumeDisplayNode();
+  if (astroDisplay)
+    {
+      if (volNode->GetWCSStatus() != 0)
+        {
+        astroDisplay->SetSpace("IJK");
+        }
+      if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ"))
+        {
+        astroDisplay->SetSpaceQuantity(2,"frequency");
+        }
+
+    }
+
+  if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U. "))
+    {
+    volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
+    vtkWarningMacro("THe flux unit of Volume "<<volNode->GetName()<<
+                    " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
+    }
+
+  // rescaling flux and calculating max and min
   if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-       !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
+       !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0.") ||
+       !strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
     {
     vtkImageData *imageData = reader->GetOutput();
     int vtkType = reader->GetDataType();
@@ -213,33 +237,47 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       case VTK_DOUBLE:
         double *dPixel;
         dPixel = static_cast<double*>(imageData->GetScalarPointer(0,0,0));
+        if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+          {
+          for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+            {
+            *(dPixel+elemCnt) *= 0.005;
+            }
+          }
+
         for( int elemCnt = 0; elemCnt < numElements; elemCnt++ )
           {
-          if(*dPixel > max)
+          if(*(dPixel+elemCnt) > max)
             {
-            max = *dPixel;
+            max = *(dPixel+elemCnt);
             }
-          if(*dPixel < min)
+          if(*(dPixel+elemCnt) < min)
             {
-            min = *dPixel;
+            min = *(dPixel+elemCnt);
             }
-          dPixel++;
           }
         break;
       case VTK_FLOAT:
         float *fPixel;
         fPixel = static_cast<float*>(imageData->GetScalarPointer(0,0,0));
+        if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+          {
+          for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+            {
+            *(fPixel+elemCnt) *= 0.005;
+            }
+          }
+
         for( int elemCnt = 0; elemCnt < numElements; elemCnt++ )
           {
-          if(*fPixel > max)
+          if(*(fPixel+elemCnt) > max)
             {
-            max = *fPixel;
+            max = *(fPixel+elemCnt);
             }
-          if(*fPixel < min)
+          if(*(fPixel+elemCnt) < min)
             {
-            min = *fPixel;
+            min = *(fPixel+elemCnt);
             }
-          fPixel++;
           }
         break;
       default:
