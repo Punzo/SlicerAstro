@@ -11,9 +11,10 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * interactive HI data modeling coupled to visualization;
 * introduction of the SAMP protocol to enable interoperability with Topcat, and other VO tools and catalogs.
 </div>
-<div style="width: 27%; float: left; padding-right: 3%;">
-<div style="width: 27%; float: left; padding-right: 3%;">
+
 <h3>Progress:  </h3>
-* FITS reader and AstroVolume done; WCS included in AstroVolume. Working on the generalization of qSlicerUnits and the Slicer dataProbe modules.
-</div>
+* FITS reader and AstroVolume done; WCS included in AstroVolume. 
+* Generalization of qSlicerUnits and the Slicer dataProbe modules done.
+* Working on SliceViewNode factorization.
+
 </div>
