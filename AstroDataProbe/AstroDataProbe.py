@@ -6,13 +6,8 @@ import logging
 from DataProbe import DataProbeInfoWidget
 
 
-def GetInfoAstro(self, xyz, ras, sliceNode, sliceLogic):
 
-  selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
-
-  spacing = "%.1f" % sliceLogic.GetLowestVolumeSliceSpacing()[2]
-  if sliceNode.GetSliceSpacingMode() == slicer.vtkMRMLSliceNode.PrescribedSliceSpacingMode:
-    spacing = "(%s)" % spacing
+def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
 
   def _roundInt(value):
     try:
@@ -24,77 +19,99 @@ def GetInfoAstro(self, xyz, ras, sliceNode, sliceLogic):
   hasBLayer = False
   hasFLayer = False
   hasLLayer = False
+  world_x = "0"
+  world_y = "0"
+  world_z = "0"
 
-  layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
-                     ('F', sliceLogic.GetForegroundLayer),
-                     ('L', sliceLogic.GetLabelLayer))
-  for layer,logicCall in layerLogicCalls:
-    layerLogic = logicCall()
-    volumeNode = layerLogic.GetVolumeNode()
-    ijk = [0, 0, 0]
-    if volumeNode:
-      hasVolume = True
-      xyToIJK = layerLogic.GetXYToIJKTransform()
-      ijkFloat = xyToIJK.TransformDoublePoint(xyz)
-      ijk = [_roundInt(value) for value in ijkFloat]
-      display = volumeNode.GetDisplayNode()
-      if display:
-        if layer == 'B':
-          hasBLayer = True
-          CoordinateSystemName = display.GetSpace()
-          volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-          Quantities = display.GetSpaceQuantities()
-          UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-          UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-          UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+  CoordinateSystemName = "IJK"
+  if sliceLogic:
+    layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
+                   ('F', sliceLogic.GetForegroundLayer),
+                   ('L', sliceLogic.GetLabelLayer))
+    for layer,logicCall in layerLogicCalls:
+      layerLogic = logicCall()
+      volumeNode = layerLogic.GetVolumeNode()
+      ijk = [0, 0, 0]
+      if volumeNode:
+        hasVolume = True
+        xyToIJK = layerLogic.GetXYToIJKTransform()
+        ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+        ijk = [_roundInt(value) for value in ijkFloat]
+        display = volumeNode.GetDisplayNode()
+        if display:
+          selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
+          if layer == 'B':
+            hasBLayer = True
+            CoordinateSystemName = display.GetSpace()
+            volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
+            Quantities = display.GetSpaceQuantities()
+            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
 
-        if layer == "F" and hasBLayer == False:
-          hasFLayer = True
-          CoordinateSystemName = display.GetSpace()
-          volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-          Quantities = display.GetSpaceQuantities()
-          UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-          UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-          UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+          if layer == "F" and hasBLayer == False:
+            hasFLayer = True
+            CoordinateSystemName = display.GetSpace()
+            volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
+            Quantities = display.GetSpaceQuantities()
+            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
 
-        if layer == "L" and hasBLayer == False and hasFLayer == False:
-          hasLLayer = True
-          CoordinateSystemName = display.GetSpace()
-          volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-          Quantities = display.GetSpaceQuantities()
-          UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-          UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-          UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+          if layer == "L" and hasBLayer == False and hasFLayer == False:
+            hasLLayer = True
+            CoordinateSystemName = display.GetSpace()
+            volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
+            Quantities = display.GetSpaceQuantities()
+            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
 
-      self.layerNames[layer].setText(
-          "<b>%s</b>" % (self.fitName(volumeNode.GetName()) if volumeNode else "None"))
-      self.layerIJKs[layer].setText(
-          "({i:4d}, {j:4d}, {k:4d})".format(i=ijk[0], j=ijk[1], k=ijk[2]) if volumeNode else "")
-      self.layerValues[layer].setText(
-          "<b>%s</b>" % display.GetPixelString(ijk) if display else "")
+      if hasVolume == True:
+        world_x = UnitNode1.GetDisplayStringFromValue(ras[0])
+        world_y = UnitNode2.GetDisplayStringFromValue(ras[1])
+        world_z = UnitNode3.GetDisplayStringFromValue(ras[2])
+      else:
+        if sliceNode:
+          if sliceNode.GetLayoutName() == "Red":
+            world_x = str(xyz[0])
+            world_y = str(xyz[2])
+            world_z = str(xyz[1])
+          elif sliceNode.GetLayoutName() == "Yellow":
+            world_x = str(xyz[2])
+            world_y = str(xyz[1])
+            world_z = str(xyz[0])
+          else:
+            world_x = str(xyz[0])
+            world_y = str(xyz[1])
+            world_z = str(xyz[2])
 
-      if not (hasBLayer or hasFLayer or hasLLayer):
-        UnitNode1 = selectionNode.GetUnitNode("length")
-        UnitNode2 = selectionNode.GetUnitNode("length")
-        UnitNode3 = selectionNode.GetUnitNode("velocity")
-        CoordinateSystemName = "WCS"
-
-      world_x = UnitNode1.GetDisplayStringFromValue(ras[0])
-      world_y = UnitNode2.GetDisplayStringFromValue(ras[1])
-      world_z = UnitNode3.GetDisplayStringFromValue(ras[2])
-
-      self.viewInfo.text = \
-        "  {layoutName: <8s} {sys:s}:({world_x:>10s},{world_y:>10s},{world_z:>10s}) {orient: >8s} Sp:{spacing:s}" \
+      return "  {layoutName: <8s} {sys:s}:({world_x:>10s},{world_y:>10s},{world_z:>10s}) {orient: >8s}" \
         .format(layoutName=sliceNode.GetLayoutName(),
-                  sys = CoordinateSystemName,
-                  world_x=world_x,
-                  world_y=world_y,
-                  world_z=world_z,
-                  orient=sliceNode.GetOrientationString(),
-                  spacing=spacing
-                  )
+                sys = CoordinateSystemName,
+                world_x=world_x,
+                world_y=world_y,
+                world_z=world_z,
+                orient=sliceNode.GetOrientationString(),
+                )
 
-  return hasVolume
+
+def generateLayerNameAstro(self, slicerLayerLogic):
+  volumeNode = slicerLayerLogic.GetVolumeNode()
+  return "<b>%s</b>" % (self.fitName(volumeNode.GetName()) if volumeNode else "None")
+
+def generateIJKPixelDescriptionAstro(self, ijk, slicerLayerLogic):
+  volumeNode = slicerLayerLogic.GetVolumeNode()
+  return "({i:4d}, {j:4d}, {k:4d})".format(i=ijk[0], j=ijk[1], k=ijk[2]) if volumeNode else ""
+
+def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
+  volumeNode = slicerLayerLogic.GetVolumeNode()
+  if volumeNode:
+    if volumeNode.IsA("vtkMRMLAstroVolumeNode"):
+      display = volumeNode.GetDisplayNode()
+      return "<b>%s</b>" % display.GetPixelString(ijk) if display else ""
+    else:
+      return "<b>%s</b>" % self.getPixelString(volumeNode,ijk) if volumeNode else ""
 
 
 class AstroDataProbe(ScriptedLoadableModule):
@@ -143,8 +160,18 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
     if callData.GetName() == "AstroVolumeDisplay" and self.factorizing:
       self.factorizing = False
       dataProbeInstance = slicer.modules.DataProbeInstance
-      funcType = type(dataProbeInstance.infoWidget.GetInfo)
-      dataProbeInstance.infoWidget.GetInfo = funcType(GetInfoAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+      funcType = type(dataProbeInstance.infoWidget.generateViewDescription)
+      dataProbeInstance.infoWidget.generateViewDescription = funcType(generateViewDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+      dataProbeInstance = slicer.modules.DataProbeInstance
+      funcType = type(dataProbeInstance.infoWidget.generateLayerName)
+      dataProbeInstance.infoWidget.generateLayerName = funcType(generateLayerNameAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+      dataProbeInstance = slicer.modules.DataProbeInstance
+      funcType = type(dataProbeInstance.infoWidget.generateIJKPixelDescription)
+      dataProbeInstance.infoWidget.generateIJKPixelDescription = funcType(generateIJKPixelDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+      dataProbeInstance = slicer.modules.DataProbeInstance
+      funcType = type(dataProbeInstance.infoWidget.generateIJKPixelValueDescription)
+      dataProbeInstance.infoWidget.generateIJKPixelValueDescription = funcType(generateIJKPixelValueDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+
 
 class AstroDataProbeTest(ScriptedLoadableModuleTest):
 
