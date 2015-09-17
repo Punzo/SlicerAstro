@@ -14,6 +14,7 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 
 <h3>Progress:  </h3>
 * 1) FITS reader and AstroVolume done; WCS included in AstroVolume. 
+* 1) Added AstroLabelMapVolume (WCS compatible).
 * 1) Generalization of qSlicerUnits and the Slicer dataProbe modules done.
 * 1) Working on SliceViewNode factorization.
 
