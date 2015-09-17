@@ -97,7 +97,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Volumes";
+  moduleDependencies << "Volumes" << "Data";
   return moduleDependencies;
 }
 
@@ -123,7 +123,7 @@ void qSlicerAstroVolumeModule::setup()
     ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
     ioManager->registerIO(new qSlicerNodeWriter(
       "AstroVolume", QString("AstroVolumeFile"),
-      QStringList() << "vtkMRMLAstroVolumeNode", true, this));
+      QStringList() << "vtkMRMLVolumeNode", true, this));
     }
 }
 

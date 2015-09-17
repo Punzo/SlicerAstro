@@ -1188,12 +1188,6 @@ void vtkMRMLAstroVolumeNode::GetReferenceSpace(const double ijk[3], const char *
         vtkErrorMacro("wcsp2s ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
         }
       }
-    else if (!strcmp(Space, "IJK"))
-      {
-      SpaceCoordinates[0] = ijk[0];
-      SpaceCoordinates[1] = ijk[1];
-      SpaceCoordinates[2] = ijk[2];
-      }
     }
 }
 

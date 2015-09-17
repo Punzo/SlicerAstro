@@ -8,17 +8,14 @@
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
 #include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerUnitsLogic.h>
 
 // Logic includes
 #include <vtkSlicerApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLLabelMapVolumeNode.h>
-#include <vtkMRMLScalarVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLUnitNode.h>
 
 // VTK includes
 #include <vtkSmartPointer.h>
@@ -147,7 +144,7 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
       appLogic ? appLogic->GetSelectionNode() : 0;
     if (selectionNode)
       {
-      if (vtkMRMLLabelMapVolumeNode::SafeDownCast(node))
+      if (vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node))
         {
         selectionNode->SetReferenceActiveLabelVolumeID(node->GetID());
         }

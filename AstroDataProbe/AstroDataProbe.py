@@ -9,22 +9,25 @@ from DataProbe import DataProbeInfoWidget
 
 def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
 
-  def _roundInt(value):
-    try:
-      return int(round(value))
-    except ValueError:
-      return 0
-
-  hasVolume = False
-  hasBLayer = False
-  hasFLayer = False
-  hasLLayer = False
-  world_x = "0"
-  world_y = "0"
-  world_z = "0"
-
-  CoordinateSystemName = "IJK"
   if sliceLogic:
+
+    def _roundInt(value):
+      try:
+        return int(round(value))
+      except ValueError:
+        return 0
+
+    world_x = "0"
+    world_y = "0"
+    world_z = "0"
+
+    CoordinateSystemName = "IJK"
+
+    hasVolume = False
+    hasBLayer = False
+    hasFLayer = False
+    hasLLayer = False
+
     layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
                    ('F', sliceLogic.GetForegroundLayer),
                    ('L', sliceLogic.GetLabelLayer))
@@ -40,58 +43,49 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         display = volumeNode.GetDisplayNode()
         if display:
           selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
-          if layer == 'B':
-            hasBLayer = True
-            CoordinateSystemName = display.GetSpace()
-            volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-            Quantities = display.GetSpaceQuantities()
-            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+          if selectionNode:
+            if layer == 'B':
+              hasBLayer = True
+              CoordinateSystemName = display.GetSpace()
+              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
+              Quantities = display.GetSpaceQuantities()
+              UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+              UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+              UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+            if layer == "F" and hasBLayer == False:
+              hasFLayer = True
+              CoordinateSystemName = display.GetSpace()
+              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
+              Quantities = display.GetSpaceQuantities()
+              UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+              UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+              UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+            if layer == "L" and hasBLayer == False and hasFLayer == False:
+              hasLLayer = True
+              CoordinateSystemName = display.GetSpace()
+              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
+              Quantities = display.GetSpaceQuantities()
+              UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+              UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+              UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
 
-          if layer == "F" and hasBLayer == False:
-            hasFLayer = True
-            CoordinateSystemName = display.GetSpace()
-            volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-            Quantities = display.GetSpaceQuantities()
-            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+    if hasVolume == True:
+      world_x = UnitNode1.GetDisplayStringFromValue(ras[0])
+      world_y = UnitNode2.GetDisplayStringFromValue(ras[1])
+      world_z = UnitNode3.GetDisplayStringFromValue(ras[2])
 
-          if layer == "L" and hasBLayer == False and hasFLayer == False:
-            hasLLayer = True
-            CoordinateSystemName = display.GetSpace()
-            volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-            Quantities = display.GetSpaceQuantities()
-            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
-
-      if hasVolume == True:
-        world_x = UnitNode1.GetDisplayStringFromValue(ras[0])
-        world_y = UnitNode2.GetDisplayStringFromValue(ras[1])
-        world_z = UnitNode3.GetDisplayStringFromValue(ras[2])
-      else:
-        if sliceNode:
-          if sliceNode.GetLayoutName() == "Red":
-            world_x = str(xyz[0])
-            world_y = str(xyz[2])
-            world_z = str(xyz[1])
-          elif sliceNode.GetLayoutName() == "Yellow":
-            world_x = str(xyz[2])
-            world_y = str(xyz[1])
-            world_z = str(xyz[0])
-          else:
-            world_x = str(xyz[0])
-            world_y = str(xyz[1])
-            world_z = str(xyz[2])
-
+    if CoordinateSystemName == "WCS":
       return "  {layoutName: <8s} {sys:s}:({world_x:>10s},{world_y:>10s},{world_z:>10s}) {orient: >8s}" \
         .format(layoutName=sliceNode.GetLayoutName(),
                 sys = CoordinateSystemName,
                 world_x=world_x,
                 world_y=world_y,
                 world_z=world_z,
+                orient=sliceNode.GetOrientationString(),
+                )
+    else:
+      return "  {layoutName: <8s} AstroDataProbe could not find WCS coordinates in View: {orient: >8s}" \
+        .format(layoutName=sliceNode.GetLayoutName(),
                 orient=sliceNode.GetOrientationString(),
                 )
 
@@ -155,9 +149,10 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
       slicer.mrmlScene.AddObserver.RemoveObserver(self.nodeAddedModifiedObserverTag)
     self.nodeAddedModifiedObserverTag = None
 
+
   @vtk.calldata_type(vtk.VTK_OBJECT)
   def nodeAddedCallback(self, caller, eventId, callData):
-    if callData.GetName() == "AstroVolumeDisplay" and self.factorizing:
+    if (callData.GetName() == "AstroVolumeDisplay" or callData.GetName() == "AstroLabelMapVolumeDisplay") and self.factorizing:
       self.factorizing = False
       dataProbeInstance = slicer.modules.DataProbeInstance
       funcType = type(dataProbeInstance.infoWidget.generateViewDescription)

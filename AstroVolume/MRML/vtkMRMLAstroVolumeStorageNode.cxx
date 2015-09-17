@@ -4,6 +4,8 @@
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLAstroVolumeNode.h"
 #include "vtkMRMLAstroVolumeDisplayNode.h"
+#include "vtkMRMLAstroLabelMapVolumeNode.h"
+#include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
 
 //vtkFits includes
 #include <vtkFITSReader.h>
@@ -111,17 +113,27 @@ void vtkMRMLAstroVolumeStorageNode::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
 {
-  return refNode->IsA("vtkMRMLAstroVolumeNode");
+  return refNode->IsA("vtkMRMLAstroVolumeNode") ||
+         refNode->IsA("vtkMRMLAstroLabelMapVolumeNode");
 }
 
 //----------------------------------------------------------------------------
 int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 {
   vtkMRMLAstroVolumeNode *volNode = NULL;
+  vtkMRMLAstroLabelMapVolumeNode *labvolNode = NULL;
+  vtkMRMLAstroVolumeDisplayNode *disNode = NULL;
+  vtkMRMLAstroLabelMapVolumeDisplayNode *labdisNode = NULL;
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     volNode = dynamic_cast <vtkMRMLAstroVolumeNode *> (refNode);
+    disNode = volNode->GetAstroVolumeDisplayNode();
+    }
+  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+    {
+    labvolNode = dynamic_cast <vtkMRMLAstroLabelMapVolumeNode *> (refNode);
+    labdisNode = labvolNode->GetAstroLabelMapVolumeDisplayNode();
     }
   else
     {
@@ -140,10 +152,21 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     {
     reader->SetUseNativeOriginOn();
     }
+  cout<<"bellaaa"<<endl;
 
-  if (volNode->GetImageData())
+  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
-    volNode->SetAndObserveImageData (NULL);
+    if (volNode->GetImageData())
+      {
+      volNode->SetAndObserveImageData (NULL);
+      }
+    }
+  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+    {
+    if (labvolNode->GetImageData())
+      {
+      labvolNode->SetAndObserveImageData (NULL);
+      }
     }
 
   std::string fullName = this->GetFullNameFromFileName();
@@ -164,10 +187,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
 
   // Read the header to see if the file corresponds to the MRML Node
-
   reader->UpdateInformation();
 
-  if( refNode->IsA("vtkMRMLAstroVolumeNode") )
+  if( refNode->IsA("vtkMRMLAstroVolumeNode") || refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
     {
     if (reader->GetPointDataType() != vtkDataSetAttributes::SCALARS &&
          reader->GetNumberOfComponents() > 1 )
@@ -178,47 +200,80 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
 
   reader->Update();
-
-  // set volume attributes
-  vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
-  volNode->SetRASToIJKMatrix(mat);
-
-  //set WCSstruct
-  volNode->SetWCSStruct(reader->GetWCSStruct());
-
-  // parse WCS Status
-  volNode->SetWCSStatus(reader->GetWCSStatus());
-
-  // parse non-specific key-value pairs
-  std::vector<std::string> keys = reader->GetHeaderKeysVector();
-  for ( std::vector<std::string>::iterator kit = keys.begin();
-        kit != keys.end(); ++kit)
+  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
-    volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
-    }
+    // set volume attributes
+    vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
+    volNode->SetRASToIJKMatrix(mat);
 
-  // parse Space (WCS or IJK) to the display node
-  vtkMRMLAstroVolumeDisplayNode* astroDisplay = volNode->GetAstroVolumeDisplayNode();
-  if (astroDisplay)
-    {
+    //set WCSstruct
+    volNode->SetWCSStruct(reader->GetWCSStruct());
+
+    // parse WCS Status
+    volNode->SetWCSStatus(reader->GetWCSStatus());
+
+    // parse non-specific key-value pairs
+    std::vector<std::string> keys = reader->GetHeaderKeysVector();
+    for ( std::vector<std::string>::iterator kit = keys.begin();
+          kit != keys.end(); ++kit)
+      {
+      volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
+      }
+
+    // parse Space (WCS or IJK) to the display node
+    if (disNode)
+      {
       if (volNode->GetWCSStatus() != 0)
         {
-        astroDisplay->SetSpace("IJK");
+        disNode->SetSpace("IJK");
         }
       if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ"))
         {
-        astroDisplay->SetSpaceQuantity(2,"frequency");
+        disNode->SetSpaceQuantity(2,"frequency");
         }
-
+      }
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+      {
+      volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
+      vtkWarningMacro("THe flux unit of Volume "<<volNode->GetName()<<
+                      " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
+      }
     }
-
-  if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U. "))
+  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
     {
-    volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
-    vtkWarningMacro("THe flux unit of Volume "<<volNode->GetName()<<
-                    " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
+    // set volume attributes
+    vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
+    labvolNode->SetRASToIJKMatrix(mat);
+    //set WCSstruct
+    labvolNode->SetWCSStruct(reader->GetWCSStruct());
+    // parse WCS Status
+    labvolNode->SetWCSStatus(reader->GetWCSStatus());
+    // parse non-specific key-value pairs
+    std::vector<std::string> keys = reader->GetHeaderKeysVector();
+    for ( std::vector<std::string>::iterator kit = keys.begin();
+          kit != keys.end(); ++kit)
+      {
+      labvolNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
+      }
+      // parse Space (WCS or IJK) to the display node
+    if (labdisNode)
+      {
+      if (labvolNode->GetWCSStatus() != 0)
+        {
+        labdisNode->SetSpace("IJK");
+        }
+      if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ"))
+        {
+        labdisNode->SetSpaceQuantity(2,"frequency");
+        }
+      }
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+      {
+      labvolNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
+      vtkWarningMacro("THe flux unit of Volume "<<labvolNode->GetName()<<
+                      " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
+      }
     }
-
   // rescaling flux and calculating max and min
   if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0.") ||
@@ -284,8 +339,16 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         vtkErrorMacro("Could not get the data pointer.");
         return 0;
       }
+    if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
+      {
       volNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
       volNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+      }
+    else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+      {
+      labvolNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
+      labvolNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+      }
     }
 
   vtkNew<vtkImageChangeInformation> ici;
@@ -298,11 +361,23 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   ici->SetOutputOrigin( 0, 0, 0 );
   ici->Update();
 
+  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
+    {
 #if (VTK_MAJOR_VERSION <= 5)
   volNode->SetAndObserveImageData (ici->GetOutput());
 #else
   volNode->SetImageDataConnection(ici->GetOutputPort());
 #endif
+    }
+  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+    {
+#if (VTK_MAJOR_VERSION <= 5)
+  labvolNode->SetAndObserveImageData (ici->GetOutput());
+#else
+  labvolNode->SetImageDataConnection(ici->GetOutputPort());
+#endif
+    }
+
   return 1;
 }
 
@@ -314,6 +389,10 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     volNode = vtkMRMLAstroVolumeNode::SafeDownCast(refNode);
+    }
+  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+    {
+    volNode = vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(refNode);
     }
   else if ( refNode->IsA("vtkMRMLVolumeNode") )
     {

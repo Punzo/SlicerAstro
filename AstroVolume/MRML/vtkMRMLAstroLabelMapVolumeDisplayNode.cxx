@@ -1,26 +1,27 @@
-// MRML includes
-#include "vtkMRMLAstroVolumeDisplayNode.h"
-#include "vtkMRMLSelectionNode.h"
-#include "vtkMRMLUnitNode.h"
+
+//MRML includes
+#include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
 
 // VTK includes
-#include <vtkAlgorithmOutput.h>
-#include <vtkImageAppendComponents.h>
 #include <vtkImageData.h>
-#include <vtkImageExtractComponents.h>
-#include <vtkImageMapToWindowLevelColors.h>
-#include <vtkImageThreshold.h>
-#include <vtkObjectFactory.h>
-#include <vtkStringArray.h>
 #include <vtkNew.h>
+#include <vtkObjectFactory.h>
+#include <vtkVersion.h>
+#include <vtkStringArray.h>
+#include <vtkMRMLColorNode.h>
+#include <vtkNew.h>
+#include <vtkObjectFactory.h>
 
-//------------------------------------------------------------------------------
-vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeDisplayNode);
+// STD includes
+#include <cassert>
 
 //----------------------------------------------------------------------------
-vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
+vtkMRMLNodeNewMacro(vtkMRMLAstroLabelMapVolumeDisplayNode);
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroLabelMapVolumeDisplayNode::vtkMRMLAstroLabelMapVolumeDisplayNode()
 {
   this->SpaceQuantities = vtkStringArray::New();
   this->SpaceQuantities->SetName("Tokens");
@@ -33,9 +34,8 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
+vtkMRMLAstroLabelMapVolumeDisplayNode::~vtkMRMLAstroLabelMapVolumeDisplayNode()
 {
-
   if (this->SpaceQuantities)
     {
     this->SpaceQuantities->Delete();
@@ -68,7 +68,7 @@ std::string IntToString(int Value)
 }// end namespace
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
+void vtkMRMLAstroLabelMapVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 {
   Superclass::WriteXML(of, nIndent);
 
@@ -88,7 +88,7 @@ void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
+void vtkMRMLAstroLabelMapVolumeDisplayNode::ReadXMLAttributes(const char** atts)
 {
   int disabledModify = this->StartModify();
 
@@ -131,12 +131,12 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
 //----------------------------------------------------------------------------
 // Copy the node\"s attributes to this object.
 // Does NOT copy: ID, FilePrefix, Name, VolumeID
-void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
+void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 {
   int disabledModify = this->StartModify();
 
   Superclass::Copy(anode);
-  vtkMRMLAstroVolumeDisplayNode *node =vtkMRMLAstroVolumeDisplayNode::SafeDownCast(anode);
+  vtkMRMLAstroLabelMapVolumeDisplayNode *node =vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(anode);
 
   if (node)
     {
@@ -155,7 +155,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-int vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
+int vtkMRMLAstroLabelMapVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 {
 
   if (ind >= this->SpaceQuantities->GetNumberOfValues())
@@ -174,13 +174,12 @@ int vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 {
   if(this->GetVolumeNode()->GetImageData() == NULL)
     {
     return "No Image";
     }
-
   for(int i = 0; i < 3; i++)
     {
     if(ijk[i] < 0 or ijk[i] >=  this->GetVolumeNode()->GetImageData()->GetDimensions()[i])
@@ -188,36 +187,20 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
       return "Out of Frame";
       }
     }
-
-  int numberOfComponents = this->GetVolumeNode()->GetImageData()->GetNumberOfScalarComponents();
-  if(numberOfComponents > 3)
+  std::string labelValue = "Unknown";
+  int labelIndex = int(this->GetVolumeNode()->GetImageData()->GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0));
+  vtkMRMLColorNode *colornode = this->GetColorNode();
+  if(colornode)
     {
-    std::string s = IntToString(numberOfComponents) + " components";
-    return s.c_str();
+    labelValue = colornode->GetColorName(labelIndex);
     }
+  labelValue += "(" + IntToString(labelIndex) + ")";
 
-  std::string pixel;
-
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
-  if (selectionNode)
-    {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
-
-    for(int i = 0; i < numberOfComponents; i++)
-      {
-      double component = this->GetVolumeNode()->GetImageData()->GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
-      pixel += unitNode->GetDisplayStringFromValue(component);
-      pixel += ",";
-      }
-      pixel.erase(pixel.size()-1);
-    }
-
-  return pixel;
+  return labelValue;
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
+void vtkMRMLAstroLabelMapVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
 

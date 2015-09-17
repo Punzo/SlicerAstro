@@ -18,6 +18,8 @@
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLUnitNode.h"
 #include "vtkMRMLSelectionNode.h"
+#include "vtkMRMLAstroLabelMapVolumeNode.h"
+#include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
 
 //VTK includes
 #include <vtkDoubleArray.h>
@@ -160,48 +162,20 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
 
       vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
-      if(WCS)
-        {
-        unitNode2->SetMaximumValue(360.);
-        unitNode2->SetMinimumValue(-180.);
-        unitNode2->SetSuffix("\xB0");
-        }
-      else
-        {
-        unitNode2->SetMinimumValue(0.);
-        unitNode2->SetSuffix("");
-        }
-
+      unitNode2->SetMaximumValue(360.);
+      unitNode2->SetMinimumValue(-180.);
+      unitNode2->SetSuffix("\xB0");
       selectionNode->SetUnitNodeID("length", unitNode2->GetID());
 
       vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
-      if(WCS)
-        {
-        unitNode3->SetDisplayCoefficient(0.001);
-        unitNode3->SetSuffix("km/s");
-        }
-      else
-        {
-        unitNode3->SetDisplayCoefficient(1.);
-        unitNode3->SetSuffix("");
-        }
-
+      unitNode3->SetDisplayCoefficient(0.001);
+      unitNode3->SetSuffix("km/s");
       selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
 
       vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
-      if(WCS)
-        {
-        unitNode4->SetDisplayCoefficient(0.000000001);
-        unitNode4->SetSuffix("GHz");
-        }
-      else
-        {
-        unitNode4->SetDisplayCoefficient(1.);
-        unitNode4->SetSuffix("");
-        }
-
+      unitNode4->SetDisplayCoefficient(0.000000001);
+      unitNode4->SetSuffix("GHz");
       selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
-
       }
     }
 }
@@ -247,11 +221,45 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
 
 };
 
+
+namespace
+{
+//----------------------------------------------------------------------------
+ArchetypeVolumeNodeSet AstroLabelMapVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
+{
+  ArchetypeVolumeNodeSet nodeSet(scene);
+
+  // set up the AstroLabelMap node's support nodes
+  vtkNew<vtkMRMLAstroLabelMapVolumeNode> astroLabelMapNode;
+  astroLabelMapNode->SetName(volumeName.c_str());
+  nodeSet.Scene->AddNode(astroLabelMapNode.GetPointer());
+
+  vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode> lmdisplayNode;
+  nodeSet.Scene->AddNode(lmdisplayNode.GetPointer());
+  astroLabelMapNode->SetAndObserveDisplayNodeID(lmdisplayNode->GetID());
+
+  vtkNew<vtkMRMLAstroVolumeStorageNode> storageNode;
+  storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
+  nodeSet.Scene->AddNode(storageNode.GetPointer());
+  astroLabelMapNode->SetAndObserveStorageNodeID(storageNode->GetID());
+
+  nodeSet.StorageNode = storageNode.GetPointer();
+  nodeSet.DisplayNode = lmdisplayNode.GetPointer();
+  nodeSet.Node = astroLabelMapNode.GetPointer();
+
+  nodeSet.LabelMap = true;
+
+  return nodeSet;
+}
+
+};
+
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic)
 {
   if (volumesLogic)
     {
+    volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroLabelMapVolumeNodeSetFactory);
     volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroVolumeNodeSetFactory);
     }
 }
@@ -266,6 +274,8 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeDisplayNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
 }
 
 //----------------------------------------------------------------------------

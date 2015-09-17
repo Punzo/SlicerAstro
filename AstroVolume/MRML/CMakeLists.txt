@@ -25,8 +25,11 @@ set(module_mrml_SRCS
     vtkMRMLAstroVolumeDisplayNode.cxx
     vtkMRMLAstroVolumeDisplayNode.h
     vtkMRMLAstroVolumeStorageNode.cxx
-    vtkMRMLAstroVolumeStorageNode.h)
-
+    vtkMRMLAstroVolumeStorageNode.h
+    vtkMRMLAstroLabelMapVolumeNode.cxx
+    vtkMRMLAstroLabelMapVolumeNode.h
+    vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
+    vtkMRMLAstroLabelMapVolumeDisplayNode.h)
 
 # The header '${module_mrml_name}Export.h' will be automatically configured.
 set(module_mrml_export_directive "VTK_MRMLASTRO_EXPORT")

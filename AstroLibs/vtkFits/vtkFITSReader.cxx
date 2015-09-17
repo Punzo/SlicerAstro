@@ -451,6 +451,96 @@ void vtkFITSReader::AllocateHeader()
        temp.erase(temp.size()-1);
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.CUNIT1") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CUNIT1 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CUNIT1"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CUNIT2 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CUNIT2"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CUNIT3") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CUNIT3"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CDELT1 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CDELT1"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CDELT2 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CDELT2"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CDELT3 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CDELT3"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CRPIX1 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CRPIX1"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CRPIX2 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CRPIX2"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CRPIX3 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CRPIX3"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CRVAL1") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CRVAL1 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CRVAL1"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CRVAL2") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CRVAL2 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CRVAL2"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CRVAL3") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CRVAL3 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CRVAL3"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CTYPE1") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CTYPE1 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CTYPE1"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CTYPE2") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CTYPE2 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CTYPE2"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CTYPE3") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CTYPE3 keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.CTYPEL3"] = "";
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
      {
      vtkWarningMacro("The fits header is missing the BITPIX keyword. Using in default 64 (double). Odd behaviors may show up!");
@@ -464,9 +554,9 @@ void vtkFITSReader::AllocateHeader()
      }
    else
      {
-     if(!strcmp(HeaderKeyValue.at("SlicerAstro.BTYPE"),"intensity"))
+     if(strcmp(HeaderKeyValue.at("SlicerAstro.BTYPE").c_str(), "intensity"))
        {
-       vtkWarningMacro("It seems that teh value of the keyword BTYPE is not intensity. Polarization is not supported by SlicerAstro. Odd behaviors may show up!")
+       vtkWarningMacro("It seems that the value of the keyword BTYPE is not intensity. Polarization is not supported by SlicerAstro. Odd behaviors may show up!")
        }
      }
 
