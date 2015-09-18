@@ -144,6 +144,7 @@ protected:
   struct wcsprm *WCS;
   int WCSStatus;
   int NWCS;
+  struct wcserr info[NWCSFIX];
 
   std::map <std::string, std::string> HeaderKeyValue;
 

@@ -152,7 +152,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     {
     reader->SetUseNativeOriginOn();
     }
-  cout<<"bellaaa"<<endl;
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
@@ -235,7 +234,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
       volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
-      vtkWarningMacro("THe flux unit of Volume "<<volNode->GetName()<<
+      vtkWarningMacro("The flux unit of Volume "<<volNode->GetName()<<
                       " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
       }
     }

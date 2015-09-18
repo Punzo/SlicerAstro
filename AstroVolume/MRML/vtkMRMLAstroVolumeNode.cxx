@@ -864,13 +864,19 @@ void vtkMRMLAstroVolumeNode::Copy(vtkMRMLNode *anode)
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, astroVolumeNode->WCS, this->WCS)))
     {
-    vtkErrorMacro("wcscopy ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+    vtkWarningMacro("wcscopy ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     this->SetWCSStatus(astroVolumeNode->GetWCSStatus());
     }
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+    vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     this->SetWCSStatus(astroVolumeNode->GetWCSStatus());
    }
 }
@@ -884,11 +890,17 @@ void vtkMRMLAstroVolumeNode::SetWCSStruct(struct wcsprm* wcstemp)
     this->WCS->flag=-1;
     if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
       {
-      vtkErrorMacro("wcscopy ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+      vtkWarningMacro("wcscopy ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                      "Message from "<<WCS->err->function<<
+                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                      ": \n"<<WCS->err->msg<<"\n");
       }
     if ((this->WCSStatus = wcsset (this->WCS)))
       {
-      vtkErrorMacro("wcsset ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+      vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                      "Message from "<<WCS->err->function<<
+                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                      ": \n"<<WCS->err->msg<<"\n");
       }
     }
 }

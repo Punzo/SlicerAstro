@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <algorithm>
 
 // vtkASTRO includes
 #include "vtkFITSReader.h"
@@ -424,6 +425,7 @@ void vtkFITSReader::AllocateHeader()
        str.erase(0,1);
        str.erase(str.size()-1, str.size());
        }
+     str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
      std::string strkey1 = "SlicerAstro." + strkey;
      HeaderKeyValue[strkey1] = str;
 
@@ -549,15 +551,7 @@ void vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.BTYPE") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BTYPE keyword. Odd behaviors may show up!");
      HeaderKeyValue["SlicerAstro.BTYPE"] = "";
-     }
-   else
-     {
-     if(strcmp(HeaderKeyValue.at("SlicerAstro.BTYPE").c_str(), "intensity"))
-       {
-       vtkWarningMacro("It seems that the value of the keyword BTYPE is not intensity. Polarization is not supported by SlicerAstro. Odd behaviors may show up!")
-       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
@@ -567,10 +561,20 @@ void vtkFITSReader::AllocateHeader()
      }
 
    if(HeaderKeyValue.count("SlicerAstro.DATAMAX") == 0)
-       HeaderKeyValue["SlicerAstro.DATAMAX"] = "0.";
+     {
+     HeaderKeyValue["SlicerAstro.DATAMAX"] = "0.";
+     }
 
    if(HeaderKeyValue.count("SlicerAstro.DATAMIN") == 0)
-       HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
+     {
+     HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.RESTFRQ") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the RESTFRQ keyword. Assuming HI data, i.e. RESTFRQ = 1.42040575e9");
+     HeaderKeyValue["SlicerAstro.RESTFRQ"] = "1.42040575e9";
+     }
 
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
 
@@ -585,33 +589,56 @@ void vtkFITSReader::AllocateWCS(){
     {
     fits_report_error(stderr, WCSStatus);
     }
+
+  wcserr_enable(1);
   if ((WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &NWCS, &WCS)))
     {
-    vtkErrorMacro("wcspih ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<"\n");
-    }
-  if (NWCS > 1)
-    {
-    vtkErrorMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")
+    vtkWarningMacro("wcspih ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     }
 
-  if ((WCSStatus = wcsfix(7, 0, WCS, stat)))
+
+  if (NWCS > 1)
     {
-    for (i = 0; i < NWCSFIX; i++)
-      {
-      if (stat[i] > 0)
-        {
-        vtkErrorMacro("wcsfix ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<"\n");
-        }
-      }
+    vtkWarningMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")
     }
+
+  if ((WCSStatus = wcsfixi(7, 0, WCS, stat, info)))
+    {
+    vtkWarningMacro("wcsfix error: "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n");
+    }
+
+  std::string print = "wcsfix status returns: (";
+  for (i = 0; i < NWCSFIX; i++)
+    {
+    print += IntToString(stat[i])+",";
+    }
+  print += ")";
+
+  vtkWarningMacro(<<print);
+
+  for (i = 0; i < NWCSFIX; i++) {
+    if (info[i].status < -1 || 0 < info[i].status) {
+      vtkWarningMacro("wcsfix INFORMATIVE message from "<<info[i].function<<
+                      "at line "<<info[i].line_no<<" of file "<<info[i].file<<
+                      ": \n"<< info[i].msg<<"\n");
+    }
+  }
+
   if ((WCSStatus = wcsset(WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<"\n");
+    vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     }
+
   if (WCSStatus!=0)
     {
-    vtkWarningMacro("The fits header is missing essential keywords."<< "\n"<<
-                    "World coordinates wil no be displayed. "<< "\n"<<
+    vtkWarningMacro("WCSlib failed to create WCSstruct."<< "\n"<<
+                    "World coordinates will not be displayed. "<< "\n"<<
                     "In addition, odd behaviors may show up!"<< "\n");
     }
     free(header);
