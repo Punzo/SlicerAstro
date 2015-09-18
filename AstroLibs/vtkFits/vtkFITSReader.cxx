@@ -40,6 +40,7 @@ vtkFITSReader::vtkFITSReader()
   WCS = NULL;
   NWCS = 0;
   WCSStatus = 0;
+  wcserr_enable(1);
 }
 
 vtkFITSReader::~vtkFITSReader()
@@ -590,7 +591,6 @@ void vtkFITSReader::AllocateWCS(){
     fits_report_error(stderr, WCSStatus);
     }
 
-  wcserr_enable(1);
   if ((WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &NWCS, &WCS)))
     {
     vtkWarningMacro("wcspih ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
