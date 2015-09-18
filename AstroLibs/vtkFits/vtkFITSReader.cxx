@@ -571,11 +571,31 @@ void vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.FREQ0") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the FREQ0 keyword. Assuming HI data, i.e. FREQ0 = 1.1.420405750000E+09");
+     HeaderKeyValue["SlicerAstro.FREQ0"] = "1.1.420405750000E+09";
+     HeaderKeyValue["SlicerAstro.RESTFRQ"] = "1.1.420405750000E+09";
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.RESTFRQ") == 0)
      {
-     vtkWarningMacro("The fits header is missing the RESTFRQ keyword. Assuming HI data, i.e. RESTFRQ = 1.42040575e9");
-     HeaderKeyValue["SlicerAstro.RESTFRQ"] = "1.42040575e9";
+     vtkWarningMacro("The fits header is missing the RESTFRQ keyword. Assuming HI data, i.e. RESTFRQ = 1.1.420405750000E+09");
+     HeaderKeyValue["SlicerAstro.RESTFRQ"] = "1.1.420405750000E+09";
      }
+
+   if(HeaderKeyValue.count("SlicerAstro.DATE-OBS") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the DATE-OBS keyword. Odd behaviors may show up!");
+     HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the EPOCH keyword. Assuming JD2000.");
+     HeaderKeyValue["SlicerAstro.EPOCH"] = "2000.";
+     }
+
 
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
 
