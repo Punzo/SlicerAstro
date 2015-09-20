@@ -24,7 +24,10 @@ vtkMRMLAstroLabelMapVolumeNode::vtkMRMLAstroLabelMapVolumeNode()
   this->WCS->flag=-1;
   if((this->WCSStatus = wcsini(1,0,this->WCS)))
     {
-    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+    vtkWarningMacro("wcsini ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     }
 }
 
@@ -35,7 +38,10 @@ vtkMRMLAstroLabelMapVolumeNode::~vtkMRMLAstroLabelMapVolumeNode()
     {
     if((this->WCSStatus = wcsfree(this->WCS)))
       {
-      vtkErrorMacro("wcsfree ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+      vtkWarningMacro("wcsfree ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                      "Message from "<<WCS->err->function<<
+                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                      ": \n"<<WCS->err->msg<<"\n");
       }
     delete [] this->WCS;
     this->WCS = NULL;
@@ -365,7 +371,10 @@ void vtkMRMLAstroLabelMapVolumeNode::ReadXMLAttributes(const char **atts)
   this->WCS->flag=-1;
   if((this->WCSStatus = wcsini(1, StringToInt(this->GetAttribute("SlicerAstro.NAXIS")), this->WCS)))
     {
-    vtkErrorMacro("wcsfree ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+    vtkWarningMacro("wcsini ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     }
 
   const char* attName;
@@ -842,7 +851,10 @@ void vtkMRMLAstroLabelMapVolumeNode::ReadXMLAttributes(const char **atts)
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<"\n");
+    vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": \n"<<WCS->err->msg<<"\n");
     }
 
   this->WriteXML(std::cout,0);
@@ -1210,19 +1222,31 @@ vtkMRMLAstroLabelMapVolumeDisplayNode *vtkMRMLAstroLabelMapVolumeNode::GetAstroL
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeNode::GetReferenceSpace(const double ijk[3], const char *Space, double SpaceCoordinates[3])
+void vtkMRMLAstroLabelMapVolumeNode::GetReferenceSpace(const double ijk[3],
+                                                       const char *Space,
+                                                       double SpaceCoordinates[3][3])
 {
   if (Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[3], theta[1];
+      double phi[1], imgcrd[3], theta[1], world[3];
       int stati[1];
 
-      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 3, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
+      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 3, ijk, imgcrd, phi, theta, world, stati)))
         {
-        vtkErrorMacro("wcsp2s ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+        vtkWarningMacro("wcsp2s ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                        "Message from "<<WCS->err->function<<
+                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                        ": \n"<<WCS->err->msg<<"\n");
         }
+      imgcrd[0] = modf(world[0], &SpaceCoordinates[0][0]);
+      imgcrd[0] *= 60.;
+      SpaceCoordinates[0][2] = modf(imgcrd[0], &SpaceCoordinates[0][1]) * 60.;
+      imgcrd[1] = modf(world[1], &SpaceCoordinates[1][0]);
+      imgcrd[1] *= 60.;
+      SpaceCoordinates[1][2] = modf(imgcrd[1], &SpaceCoordinates[1][1]) * 60.;
+      SpaceCoordinates[2][0] = world[2];
       }
     }
 }

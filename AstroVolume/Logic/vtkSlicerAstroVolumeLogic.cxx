@@ -36,6 +36,7 @@ vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 {
+  UnitInit = false;
 }
 
 //----------------------------------------------------------------------------
@@ -133,49 +134,70 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         }
       }
 
-    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
-    if (selectionNode)
+    if(!UnitInit)
       {
-      vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
-      unitNode1->SetMaximumValue(max);
-      unitNode1->SetMinimumValue(min);
-      unitNode1->SetDisplayCoefficient(1.);
-      std::string temp = " ";
-      if(max < 0.001)
+      vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+        this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+      if (selectionNode)
         {
-        temp += "\xB5";
-        unitNode1->SetDisplayCoefficient(1000000.);
-        }
-      else
-        {
-        if(max < 1.)
+        vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+        unitNode1->SetMaximumValue(max);
+        unitNode1->SetMinimumValue(min);
+        unitNode1->SetDisplayCoefficient(1.);
+        std::string temp = " ";
+        if(max < 0.001)
           {
-          temp += "m";
-          unitNode1->SetDisplayCoefficient(1000.);
+          temp += "\xB5";
+          unitNode1->SetDisplayCoefficient(1000000.);
           }
+        else
+          {
+          if(max < 1.)
+            {
+            temp += "m";
+            unitNode1->SetDisplayCoefficient(1000.);
+            }
+          }
+
+        temp += "Jy/beam";
+        unitNode1->SetPrecision(6);
+        unitNode1->SetPrefix("");
+        unitNode1->SetSuffix(temp.c_str());
+        unitNode1->SetSecondSuffix("");
+        unitNode1->SetThirdSuffix("");
+        selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+
+        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
+        unitNode2->SetMaximumValue(360.);
+        unitNode2->SetMinimumValue(-180.);
+        unitNode2->SetDisplayCoefficient(1.);
+        unitNode2->SetPrefix("");
+        unitNode2->SetSuffix("\xB0");
+        unitNode2->SetSecondSuffix("\x27");
+        unitNode2->SetThirdSuffix("\x22");
+        unitNode2->SetPrecision(3);
+        selectionNode->SetUnitNodeID("length", unitNode2->GetID());
+
+        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
+        unitNode3->SetDisplayCoefficient(0.001);
+        unitNode3->SetPrefix("");
+        unitNode3->SetPrecision(3);
+        unitNode3->SetSuffix("km/s");
+        unitNode3->SetSecondSuffix("");
+        unitNode3->SetThirdSuffix("");
+        selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
+
+        vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
+        unitNode4->SetDisplayCoefficient(0.000000001);
+        unitNode4->SetPrefix("");
+        unitNode4->SetPrecision(6);
+        unitNode4->SetSuffix("GHz");
+        unitNode4->SetSecondSuffix("");
+        unitNode4->SetThirdSuffix("");
+        selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
+
+        UnitInit = true;
         }
-
-      temp += "Jy/beam";
-      unitNode1->SetPrecision(6);
-      unitNode1->SetSuffix(temp.c_str());
-      selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
-
-      vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
-      unitNode2->SetMaximumValue(360.);
-      unitNode2->SetMinimumValue(-180.);
-      unitNode2->SetSuffix("\xB0");
-      selectionNode->SetUnitNodeID("length", unitNode2->GetID());
-
-      vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
-      unitNode3->SetDisplayCoefficient(0.001);
-      unitNode3->SetSuffix("km/s");
-      selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
-
-      vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
-      unitNode4->SetDisplayCoefficient(0.000000001);
-      unitNode4->SetSuffix("GHz");
-      selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
       }
     }
 }

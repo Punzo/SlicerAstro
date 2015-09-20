@@ -21,6 +21,9 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     world_y = "0"
     world_z = "0"
 
+    world = [[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]]
+
+
     CoordinateSystemName = "IJK"
 
     hasVolume = False
@@ -42,37 +45,27 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         ijk = [_roundInt(value) for value in ijkFloat]
         display = volumeNode.GetDisplayNode()
         if display:
+          Quantities = display.GetSpaceQuantities()
+          CoordinateSystemName = display.GetSpace()
           selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
           if selectionNode:
+            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
             if layer == 'B':
               hasBLayer = True
-              CoordinateSystemName = display.GetSpace()
-              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-              Quantities = display.GetSpaceQuantities()
-              UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-              UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-              UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, world)
             if layer == "F" and hasBLayer == False:
               hasFLayer = True
-              CoordinateSystemName = display.GetSpace()
-              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-              Quantities = display.GetSpaceQuantities()
-              UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-              UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-              UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, world)
             if layer == "L" and hasBLayer == False and hasFLayer == False:
               hasLLayer = True
-              CoordinateSystemName = display.GetSpace()
-              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, ras)
-              Quantities = display.GetSpaceQuantities()
-              UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-              UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-              UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+              volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, world)
 
     if hasVolume == True:
-      world_x = UnitNode1.GetDisplayStringFromValue(ras[0])
-      world_y = UnitNode2.GetDisplayStringFromValue(ras[1])
-      world_z = UnitNode3.GetDisplayStringFromValue(ras[2])
+      world_x = UnitNode1.GetDisplayStringFromValue(world[0])
+      world_y = UnitNode2.GetDisplayStringFromValue(world[1])
+      world_z = UnitNode3.GetDisplayStringFromValue(world[2][0])
 
     if CoordinateSystemName == "WCS":
       return "  {layoutName: <8s} {sys:s}:({world_x:>10s},{world_y:>10s},{world_z:>10s}) {orient: >8s}" \

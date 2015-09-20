@@ -50,6 +50,8 @@ protected:
 
 private:
 
+  bool UnitInit;
+
   vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&); // Not implemented
   void operator=(const vtkSlicerAstroVolumeLogic&);               // Not implemented
 

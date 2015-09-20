@@ -65,7 +65,7 @@ class VTK_MRMLASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabelM
 
   ///
   ///Get WCSCoordinates
-  virtual void GetReferenceSpace(const double ijk[3], const char* Space, double SpaceCoordinate[3]);
+  virtual void GetReferenceSpace(const double ijk[3], const char* Space, double SpaceCoordinates[3][3]);
 
 protected:
   vtkMRMLAstroLabelMapVolumeNode();
