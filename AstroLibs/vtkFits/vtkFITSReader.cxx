@@ -607,6 +607,12 @@ void vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the EPOCH keyword. Assuming JD2000.");
+     HeaderKeyValue["SlicerAstro.EPOCH"] = "2000.";
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.CELLSCAL") > 0)
      {
      vtkWarningMacro("The keyword CELLSCAL has been found. However, SlicerAstro currently doesn't take in account it.");
