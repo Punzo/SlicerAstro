@@ -21,11 +21,11 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 
 <h3> To Do list before first alpha release  </h3>
 * add SecondSuffix and ThirdSUffix in units logic, MRML and Qt -> submitted
-* make GetReferenceSpace aware of CELLSCALL keyword.
 * SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
 * factorization of 3-D view:  use W, S, N, etc. for the labels.
 * DataProbeLib: ruler -> make axes like kvis.
 * design AstroVolume interface.
-* enable clestial transformation fk4 -> fk5 and enable spectral transformation FREQ -> VRAD.
+* enable clestial transformation and enable spectral transformation FREQ -> VRAD, etc.
+* make GetReferenceSpace aware of CELLSCALL keyword.
 </div>
 
