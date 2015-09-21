@@ -155,7 +155,7 @@ protected:
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo);
 #endif
 
-  void AllocateHeader();
+  bool AllocateHeader();
   void AllocateWCS();
 
 private:

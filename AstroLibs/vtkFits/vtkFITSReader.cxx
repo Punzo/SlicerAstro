@@ -285,7 +285,10 @@ void vtkFITSReader::ExecuteInformation()
   this->SetNumberOfComponents(1);
 
   // Push FITS header key/value pair data into std::map
-  this->AllocateHeader();
+  if(!this->AllocateHeader())
+    {
+    return;
+    }
 
   // Push FITS header into WCS struct
   this->AllocateWCS();
@@ -339,12 +342,6 @@ void vtkFITSReader::ExecuteInformation()
   double origin[3]={0.};
   unsigned int naxes = StringToInt(this->GetHeaderValue("SlicerAstro.NAXIS"));
 
-  if(naxes > 3)
-    {
-    vtkErrorMacro("SlicerAstro, currently, can't load datacube with NAXIS > 3");
-    return;
-    }
-
   //calculate the dataExtent and setting the Spacings and Origin
   for (unsigned int axii=0; axii < naxes; axii++)
     {
@@ -397,7 +394,7 @@ void vtkFITSReader::ExecuteInformation()
     }
 }
 
-void vtkFITSReader::AllocateHeader()
+bool vtkFITSReader::AllocateHeader()
 {
    char card[FLEN_CARD];/* Standard string lengths defined in fitsio.h */
    char val[FLEN_VALUE];
@@ -435,11 +432,17 @@ void vtkFITSReader::AllocateHeader()
    if(HeaderKeyValue.count("SlicerAstro.NAXIS") == 0)
      {
      vtkErrorMacro("The fits header is missing the NAXIS keyword. It is not possible to load the datacube!");
-     return;
+     return false;
      }
 
    int n = StringToInt((HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
    std::string temp = "SlicerAstro.NAXIS";
+
+   if(n > 3)
+     {
+     vtkErrorMacro("SlicerAstro, currently, can't load datacube with NAXIS > 3");
+     return false;
+     }
 
    for(ii = 1; ii <= n; ii++)
      {
@@ -449,7 +452,7 @@ void vtkFITSReader::AllocateHeader()
        {
        vtkErrorMacro("The fits header is missing the NAXIS" << ii <<
                        " keyword. It is not possible to load the datacube!");
-       return;
+       return false;
        }
        temp.erase(temp.size()-1);
      }
