@@ -106,9 +106,9 @@ class AstroDataProbe(ScriptedLoadableModule):
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
     parent.title = "AstroDataProbe"
-    parent.categories = ["Quantification"]
+    parent.categories = ["Quantification", "Astronomy"]
     parent.dependencies = ["DataProbe"]
-    parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute."]
+    parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)."]
     parent.helpText = """
     Data probe factorization for WCS astronomical coordinates.
     """
@@ -120,10 +120,11 @@ class AstroDataProbe(ScriptedLoadableModule):
 
     logic = AstroDataProbeLogic(parent)
 
-#class AstroDataProbeWidget(ScriptedLoadableModuleWidget):
+class AstroDataProbeWidget(ScriptedLoadableModuleWidget):
 
- # def setup(self):
-  #  ScriptedLoadableModuleWidget.setup(self)
+  def setup(self):
+    ScriptedLoadableModuleWidget.setup(self)
+
 
 class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
 
