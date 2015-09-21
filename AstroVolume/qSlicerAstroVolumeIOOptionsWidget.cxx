@@ -119,8 +119,10 @@ void qSlicerAstroVolumeIOOptionsWidget::setFileNames(const QStringList& fileName
     // doesn't consider '_' as a word boundary.
     QRegExp labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
     QRegExp segName("(\\b|_)([Ss]eg)(\\b|_)");
+    QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
     if (fileInfo.baseName().contains(labelMapName) ||
-        fileInfo.baseName().contains(segName))
+        fileInfo.baseName().contains(segName) ||
+        fileInfo.baseName().contains(maskName))
       {
       hasLabelMapName = true;
       }

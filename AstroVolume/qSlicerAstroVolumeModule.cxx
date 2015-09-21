@@ -90,7 +90,7 @@ QIcon qSlicerAstroVolumeModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::categories() const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "Astronomy" << "";
 }
 
 //-----------------------------------------------------------------------------
