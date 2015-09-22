@@ -1,3 +1,5 @@
+#include <math.h>
+
 // MRML includes
 #include "vtkMRMLAstroVolumeDisplayNode.h"
 #include "vtkMRMLSelectionNode.h"
@@ -63,6 +65,12 @@ template <typename T> std::string NumberToString(T V)
 std::string IntToString(int Value)
 {
   return NumberToString<int>(Value);
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
 }
 
 }// end namespace
@@ -214,6 +222,41 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
     }
 
   return pixel;
+}
+//----------------------------------------------------------------------------
+const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+{
+  std::string value = "";
+  if(node && !strcmp(node->GetAttribute("DisplayHint"), "FractionsAsArcMinutesArcSeconds"))
+    {
+    double fractpart, intpart, displayValue;
+    std::string displayValueString;
+    std::stringstream strstream;
+    strstream.setf(ios::fixed,ios::floatfield);
+
+    fractpart = modf(world, &intpart);
+    displayValue = node->GetDisplayValueFromValue(intpart);
+    value = DoubleToString(displayValue) + node->GetSuffix() + " ";
+
+    fractpart = (modf(fractpart * 60., &intpart)) * 60.;
+    displayValueString = DoubleToString(intpart);
+    if(intpart < 10.)
+      {
+       displayValueString = " " + displayValueString;
+      }
+    value = value + displayValueString +"\x27 ";
+    displayValueString = "";
+    strstream.precision(node->GetPrecision());
+    strstream << fractpart;
+    strstream >> displayValueString;
+    if(fractpart < 10.)
+      {
+      displayValueString = " " + displayValueString;
+      }
+
+    value = value + displayValueString + "\x22";
+    }
+  return value.c_str();
 }
 
 //----------------------------------------------------------------------------

@@ -11,6 +11,7 @@
 
 class vtkAlgorithmOutput;
 class vtkImageData;
+class vtkMRMLUnitNode;
 
 class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarVolumeDisplayNode
 {
@@ -58,6 +59,10 @@ class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarV
   ///
   /// Given a volume node, create a human readable string describing the contents
   virtual std::string GetPixelString(double *ijk);
+
+  ///
+  /// Given a coordinate of the volume, create a string if special formatting is required
+  virtual const char* GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node);
 
 protected:
 

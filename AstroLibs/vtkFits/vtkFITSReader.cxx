@@ -592,16 +592,17 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
-   if(HeaderKeyValue.count("SlicerAstro.FREQ0") == 0)
-     {
-     vtkWarningMacro("The fits header is missing the FREQ0 keyword. Assuming HI data, i.e. FREQ0 = 1.420405752E+09");
-     HeaderKeyValue["SlicerAstro.FREQ0"] = "1.420405752E+09";
-     }
-
    if(HeaderKeyValue.count("SlicerAstro.RESTFREQ") == 0)
      {
-     vtkWarningMacro("The fits header is missing the RESTFREQ keyword. Assuming HI data, i.e. RESTFRQ = 1.420405752E+09");
-     HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
+     if (!(HeaderKeyValue.count("SlicerAstro.FREQ0") == 0))
+       {
+       HeaderKeyValue["SlicerAstro.RESTFREQ"] = HeaderKeyValue.at("SlicerAstro.FREQ0");
+       }
+     else
+       {
+       vtkWarningMacro("The fits header is missing the RESTFREQ keyword. Assuming HI data, i.e. RESTFREQ = 1.420405752E+09");
+       HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.DATE-OBS") == 0)
@@ -621,9 +622,9 @@ bool vtkFITSReader::AllocateHeader()
      vtkWarningMacro("The keyword CELLSCAL has been found. However, SlicerAstro currently doesn't take in account it.");
      }
 
-
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
 
+   return true;
 }
 
 //----------------------------------------------------------------------------
@@ -647,7 +648,7 @@ void vtkFITSReader::AllocateWCS(){
 
   if (NWCS > 1)
     {
-    vtkWarningMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")
+    vtkErrorMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")
     }
 
   if ((WCSStatus = wcsfixi(7, 0, WCS, stat, info)))
@@ -662,7 +663,7 @@ void vtkFITSReader::AllocateWCS(){
     }
   print += ")";
 
-  vtkWarningMacro(<<print);
+  vtkDebugMacro(<<print);
 
   for (i = 0; i < NWCSFIX; i++) {
     if (info[i].status < -1 || 0 < info[i].status) {

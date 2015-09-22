@@ -163,8 +163,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode1->SetPrecision(6);
         unitNode1->SetPrefix("");
         unitNode1->SetSuffix(temp.c_str());
-        unitNode1->SetSecondSuffix("");
-        unitNode1->SetThirdSuffix("");
         selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
 
         vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
@@ -173,8 +171,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode2->SetDisplayCoefficient(1.);
         unitNode2->SetPrefix("");
         unitNode2->SetSuffix("\xB0");
-        unitNode2->SetSecondSuffix("\x27");
-        unitNode2->SetThirdSuffix("\x22");
+        unitNode2->SetAttribute("DisplayHint","FractionsAsArcMinutesArcSeconds");
         unitNode2->SetPrecision(3);
         selectionNode->SetUnitNodeID("length", unitNode2->GetID());
 
@@ -183,8 +180,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode3->SetPrefix("");
         unitNode3->SetPrecision(3);
         unitNode3->SetSuffix("km/s");
-        unitNode3->SetSecondSuffix("");
-        unitNode3->SetThirdSuffix("");
         selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
 
         vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
@@ -192,8 +187,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode4->SetPrefix("");
         unitNode4->SetPrecision(6);
         unitNode4->SetSuffix("GHz");
-        unitNode4->SetSecondSuffix("");
-        unitNode4->SetThirdSuffix("");
         selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
 
         UnitInit = true;

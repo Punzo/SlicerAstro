@@ -1221,32 +1221,26 @@ vtkMRMLAstroLabelMapVolumeDisplayNode *vtkMRMLAstroLabelMapVolumeNode::GetAstroL
   return vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(this->GetDisplayNode());
 }
 
+
 //----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeNode::GetReferenceSpace(const double ijk[3],
-                                                       const char *Space,
-                                                       double SpaceCoordinates[3][3])
+                                               const char *Space,
+                                               double SpaceCoordinates[3])
 {
   if (Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[3], theta[1], world[3];
+      double phi[1], imgcrd[3], theta[1];
       int stati[1];
 
-      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 3, ijk, imgcrd, phi, theta, world, stati)))
+      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 3, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
         {
         vtkWarningMacro("wcsp2s ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
         }
-      imgcrd[0] = modf(world[0], &SpaceCoordinates[0][0]);
-      imgcrd[0] *= 60.;
-      SpaceCoordinates[0][2] = modf(imgcrd[0], &SpaceCoordinates[0][1]) * 60.;
-      imgcrd[1] = modf(world[1], &SpaceCoordinates[1][0]);
-      imgcrd[1] *= 60.;
-      SpaceCoordinates[1][2] = modf(imgcrd[1], &SpaceCoordinates[1][1]) * 60.;
-      SpaceCoordinates[2][0] = world[2];
       }
     }
 }

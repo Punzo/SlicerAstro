@@ -4,7 +4,7 @@ from __main__ import vtk, qt, ctk, slicer
 from slicer.ScriptedLoadableModule import *
 import logging
 from DataProbe import DataProbeInfoWidget
-
+from math import floor
 
 
 def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
@@ -17,12 +17,11 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
       except ValueError:
         return 0
 
-    world_x = "0"
-    world_y = "0"
-    world_z = "0"
+    worldX = "0"
+    worldY = "0"
+    worldZ = "0"
 
-    world = [[0., 0., 0.], [0., 0., 0.], [0., 0., 0.]]
-
+    world = [0., 0., 0.]
 
     CoordinateSystemName = "IJK"
 
@@ -63,17 +62,23 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
               volumeNode.GetReferenceSpace(ijk, CoordinateSystemName, world)
 
     if hasVolume == True:
-      world_x = UnitNode1.GetDisplayStringFromValue(world[0])
-      world_y = UnitNode2.GetDisplayStringFromValue(world[1])
-      world_z = UnitNode3.GetDisplayStringFromValue(world[2][0])
+      if (not(UnitNode1.GetAttribute("DisplayHint") == "")):
+        worldX = display.GetDisplayStringFromValue(world[0], UnitNode1)
+      else:
+        worldX = UnitNode1.GetDisplayStringFromValue(world[0])
+      if (not(UnitNode2.GetAttribute("DisplayHint") == "")):
+        worldY = display.GetDisplayStringFromValue(world[1], UnitNode2)
+      else:
+        worldY = UnitNode2.GetDisplayStringFromValue(world[1])
+      worldZ = UnitNode3.GetDisplayStringFromValue(world[2])
 
     if CoordinateSystemName == "WCS":
-      return "  {layoutName: <8s} {sys:s}:({world_x:>10s},{world_y:>10s},{world_z:>10s}) {orient: >8s}" \
+      return "  {layoutName: <8s} {sys:s}:({worldX:>16s},{worldY:>16s},{worldZ:>10s}) {orient: >8s}" \
         .format(layoutName=sliceNode.GetLayoutName(),
                 sys = CoordinateSystemName,
-                world_x=world_x,
-                world_y=world_y,
-                world_z=world_z,
+                worldX=worldX,
+                worldY=worldY,
+                worldZ=worldZ,
                 orient=sliceNode.GetOrientationString(),
                 )
     else:
@@ -121,6 +126,9 @@ class AstroDataProbe(ScriptedLoadableModule):
     logic = AstroDataProbeLogic(parent)
 
 class AstroDataProbeWidget(ScriptedLoadableModuleWidget):
+
+  def __init__(self, parent):
+    ScriptedLoadableModuleLogic.__init__(self, parent)
 
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
