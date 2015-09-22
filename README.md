@@ -20,7 +20,6 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 </div>
 
 <h3> To Do list before first alpha release  </h3>
-* add SecondSuffix and ThirdSUffix in units logic, MRML and Qt -> submitted
 * SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
 * factorization of 3-D view:  use W, S, N, etc. for the labels.
 * DataProbeLib: ruler -> make axes like kvis.
