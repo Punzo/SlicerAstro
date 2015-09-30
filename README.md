@@ -21,7 +21,7 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 
 <h3> To Do list before first alpha release  </h3>
 * SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
-* factorization of 3-D view:  use W, S, N, etc. for the labels.
+* factorization of 3-D view:  use W, S, N, etc. for the labels. (hint: ctkAxesWidgetPrivate -> AxesLabels)
 * DataProbeLib: ruler -> make axes like kvis.
 * design AstroVolume interface.
 * enable clestial transformation and enable spectral transformation FREQ -> VRAD, etc.
