@@ -1,9 +1,16 @@
 // Qt includes
 #include <QtPlugin>
+#include <QApplication>
+
+//VTK includes
+#include <vtkCollection.h>
+#include <vtkNew.h>
+#include <vtkObjectFactory.h>
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
 #include <vtkSlicerUnitsLogic.h>
+#include <vtkMRMLSliceLogic.h>
 
 // SlicerQt includes
 #include <qSlicerCoreApplication.h>
@@ -14,19 +21,26 @@
 #include <qSlicerModuleManager.h>
 #include <qSlicerScriptedLoadableModuleWidget.h>
 #include <qSlicerApplication.h>
+#include <qSlicerLayoutManager.h>
 #include <vtkSlicerConfigure.h>
+#include <qMRMLLayoutManager.h>
+#include <qMRMLLayoutManager_p.h>
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 
-// AstroVolume QTModule includes
+// AstroVolume QtModule includes
 #include "qSlicerAstroVolumeReader.h"
 #include "qSlicerAstroVolumeModule.h"
 #include "qSlicerAstroVolumeModuleWidget.h"
-
+#include "qSlicerAstroVolumeLayoutSliceViewFactory.h"
 
 // MRML includes
 #include <vtkMRMLScene.h>
+#include <vtkMRMLApplicationLogic.h>
+#include <vtkMRMLLayoutLogic.h>
+#include <vtkMRMLLayoutNode.h>
+#include <vtkMRMLSliceNode.h>
 
 //-----------------------------------------------------------------------------
 Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
@@ -97,7 +111,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Volumes" << "Data";
+  moduleDependencies << "Data" << "Volumes" << "VolumeRendering";
   return moduleDependencies;
 }
 
@@ -106,8 +120,9 @@ void qSlicerAstroVolumeModule::setup()
 {
   this->Superclass::setup();
 
+  qSlicerApplication* app = qSlicerApplication::application();
   // Register the IO module for loading AstroVolumes as a variant of fits files
-  qSlicerAbstractCoreModule* volumes = qSlicerApplication::application()->moduleManager()->module("Volumes");
+  qSlicerAbstractCoreModule* volumes = app->moduleManager()->module("Volumes");
   if (volumes)
     {
     vtkSlicerVolumesLogic* volumesLogic =
@@ -118,13 +133,23 @@ void qSlicerAstroVolumeModule::setup()
       {
       logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
       }
-    qSlicerCoreIOManager* ioManager =
-      qSlicerCoreApplication::application()->coreIOManager();
+    qSlicerCoreIOManager* ioManager = app->coreIOManager();
     ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
     ioManager->registerIO(new qSlicerNodeWriter(
       "AstroVolume", QString("AstroVolumeFile"),
       QStringList() << "vtkMRMLVolumeNode", true, this));
     }
+
+ /* qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
+    qobject_cast<qMRMLLayoutSliceViewFactory*>(
+    app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
+
+  qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
+    new qSlicerAstroVolumeLayoutSliceViewFactory(app->layoutManager());
+  astroSliceViewFactory->setSliceLogics(mrmlSliceViewFactory->sliceLogics());
+
+  app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
+  app->layoutManager()->registerViewFactory(astroSliceViewFactory);*/
 }
 
 //-----------------------------------------------------------------------------

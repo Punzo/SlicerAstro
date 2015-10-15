@@ -13,18 +13,21 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 </div>
 
 <h3> Progress:  </h3>
-* 1) FITS reader and AstroVolume done; WCS included in AstroVolume. 
+* 1) FITS reader and AstroVolume done; WCS included in AstroVolume.
 * 1) Added AstroLabelMapVolume (WCS compatible).
 * 1) Generalization of qSlicerUnits and the Slicer dataProbe modules done.
-* 1) Working on SliceViewNode factorization.
 </div>
 
 <h3> To Do list before first alpha release  </h3>
 * SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
-* factorization of 3-D view:  use W, S, N, etc. for the labels. (hint: ctkAxesWidgetPrivate -> AxesLabels)
 * DataProbeLib: ruler -> make axes like kvis.
-* design AstroVolume interface.
 * enable clestial transformation and enable spectral transformation FREQ -> VRAD, etc.
-* make GetReferenceSpace aware of CELLSCALL keyword.
 </div>
+
+<h3> NOTE  </h3>
+* label of 3-D view:  use W, S, N, etc. for the labels. (hint: ctkAxesWidgetPrivate -> AxesLabels)
+* for adding more decimals (both slider and spinbox) in volume rendering interface (color function) -> ctkVTKScalarsToColorsWidget (in ctkVTKVolumeProprietiesWidget)
+* at the moment the SLicerAstro is not aware of the CELLSCALL keyword
+</div>
+
 

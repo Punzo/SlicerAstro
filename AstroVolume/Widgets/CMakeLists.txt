@@ -15,12 +15,22 @@ set(${KIT}_SRCS
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.cxx
   qSlicerAstroVolumeDisplayWidget.h
+  #qMRMLSliceAstroControllerWidget.cxx
+  #qMRMLSliceAstroControllerWidget.h
+  #qMRMLSliceAstroControllerWidget_p.h
+  #qMRMLSliceAstroWidget.cxx
+  #qMRMLSliceAstroWidget.h
+  #qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_MOC_SRCS
   qSlicerLabelMapVolumeDisplayWidget.h
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.h
+  #qMRMLSliceAstroControllerWidget.h
+  #qMRMLSliceAstroControllerWidget_p.h
+  #qMRMLSliceAstroWidget.h
+  #qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_UI_SRCS

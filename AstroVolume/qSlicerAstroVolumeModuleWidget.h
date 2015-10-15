@@ -21,10 +21,13 @@ public:
   qSlicerAstroVolumeModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroVolumeModuleWidget();
 
-protected:
-  virtual void setup();
+protected slots:
+  void resetOffset(vtkMRMLNode* node);
+  void SetPresets(vtkMRMLNode* node);
+  void onROICropDisplayCheckBoxToggled(bool toggle);
 
 protected:
+  virtual void setup();
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
 
 private:

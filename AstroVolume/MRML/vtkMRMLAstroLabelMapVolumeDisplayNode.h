@@ -11,6 +11,7 @@
 
 class vtkImageAlgorithm;
 class vtkImageMapToColors;
+class vtkMRMLUnitNode;
 
 /// \brief MRML node for representing a volume display attributes.
 ///
@@ -61,6 +62,10 @@ class VTK_MRMLASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMRM
   ///
   /// Given a volume node, create a human readable string describing the contents
   virtual std::string GetPixelString(double *ijk);
+
+  ///
+  /// Given a coordinate of the volume, create a string if special formatting is required
+  virtual const char* GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node);
 
 protected:
 

@@ -8,6 +8,7 @@
 
 class qSlicerAbstractModuleWidget;
 class qSlicerAstroVolumeModulePrivate;
+class vtkMRMLSliceLogic;
 
 /// \ingroup Slicer_QtModules_AstroVolume
 class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModule :

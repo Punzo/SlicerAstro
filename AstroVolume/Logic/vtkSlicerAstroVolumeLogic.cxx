@@ -20,6 +20,8 @@
 #include "vtkMRMLSelectionNode.h"
 #include "vtkMRMLAstroLabelMapVolumeNode.h"
 #include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
+#include "vtkMRMLAstroSliceNode.h"
+#include "vtkMRMLVolumePropertyNode.h"
 
 //VTK includes
 #include <vtkDoubleArray.h>
@@ -29,6 +31,12 @@
 #include <vtkFloatArray.h>
 #include <vtkCollection.h>
 #include <vtkSmartPointer.h>
+#include <vtkColorTransferFunction.h>
+#include <vtkImageData.h>
+#include <vtkLookupTable.h>
+#include <vtkPiecewiseFunction.h>
+#include <vtkPointData.h>
+#include <vtkVolumeProperty.h>
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -36,12 +44,17 @@ vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 {
-  UnitInit = false;
+  this->UnitInit = false;
+  this->PresetsScene = 0;
 }
 
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
 {
+  if (this->PresetsScene)
+    {
+    this->PresetsScene->Delete();
+    }
 }
 
 namespace
@@ -98,7 +111,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     return;
     }
 
-  if (node->IsA("vtkMRMLAstroVolumeNode"))
+  if (node->IsA("vtkMRMLAstroVolumeNode") || node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
 
     vtkSmartPointer<vtkCollection> listAstroVolumes = vtkSmartPointer<vtkCollection>::Take(
@@ -108,26 +121,46 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     double min = std::numeric_limits<double>::max(), max = -std::numeric_limits<double>::max();
     for(int i = 0; i < listAstroVolumes->GetNumberOfItems(); i++)
       {
-      vtkMRMLAstroVolumeNode* astrovolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(listAstroVolumes->GetItemAsObject(i));
-      if (astrovolumeNode)
+      vtkMRMLAstroVolumeNode* astroVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(listAstroVolumes->GetItemAsObject(i));
+      if (astroVolumeNode)
         {
-        double mint = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+        double mint = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
         if (mint < min)
           {
           min = mint;
           }
-        double maxt = StringToDouble(astrovolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+        double maxt = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
         if (maxt > max)
           {
           max = maxt;
           }
 
-        if(astrovolumeNode->GetWCSStatus() != 0 && WCS)
+        if(astroVolumeNode->GetWCSStatus() != 0 && WCS)
           {
           vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
                         <<"It may results in odd behaviours."<<endl);
           }
-        if(astrovolumeNode->GetWCSStatus() == 0)
+        if(astroVolumeNode->GetWCSStatus() == 0)
+          {
+          WCS = true;
+          }
+        }
+      }
+
+    vtkSmartPointer<vtkCollection> listAstroLabelMapVolumes = vtkSmartPointer<vtkCollection>::Take(
+        this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroLabelMapVolumeNode"));
+    for(int i = 0; i < listAstroLabelMapVolumes->GetNumberOfItems(); i++)
+      {
+      vtkMRMLAstroVolumeNode* astroLabelMapVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(listAstroLabelMapVolumes->GetItemAsObject(i));
+      if (astroLabelMapVolumeNode)
+        {
+
+        if(astroLabelMapVolumeNode->GetWCSStatus() != 0 && WCS)
+          {
+          vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
+                        <<"It may results in odd behaviours."<<endl);
+          }
+        if(astroLabelMapVolumeNode->GetWCSStatus() == 0)
           {
           WCS = true;
           }
@@ -183,10 +216,10 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
 
         vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
-        unitNode4->SetDisplayCoefficient(0.000000001);
+        unitNode4->SetDisplayCoefficient(0.000001);
         unitNode4->SetPrefix("");
         unitNode4->SetPrecision(6);
-        unitNode4->SetSuffix("GHz");
+        unitNode4->SetSuffix("MHz");
         selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
 
         UnitInit = true;
@@ -345,3 +378,221 @@ int vtkSlicerAstroVolumeLogic::SaveArchetypeVolume(const char *filename, vtkMRML
   int res = storageNode->WriteData(volumeNode);
   return res;
 }
+
+//----------------------------------------------------------------------------
+vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
+{
+  if (!this->PresetsScene)
+    {
+    this->PresetsScene = vtkMRMLScene::New();
+    this->LoadPresets(this->PresetsScene);
+    }
+  return this->PresetsScene;
+}
+
+bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node)
+{
+  if (node && (node->IsA("vtkMRMLAstroVolumeNode") ||
+               node->IsA("vtkMRMLAstroLabelMapVolumeNode")))
+    {
+    double max = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) * 2.;
+    double min = StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN")) * 2.;
+    double noise = StringToDouble(node->GetAttribute("SlicerAstro.NOISE"));
+    double noise3 = noise * 3.;
+    double noise7 = noise * 7.;
+    double noise15 = noise * 15.;
+
+    vtkSmartPointer<vtkCollection> presets = vtkSmartPointer<vtkCollection>::Take(
+        this->PresetsScene->GetNodesByClass("vtkMRMLVolumePropertyNode"));
+
+    for(int i = 0; i < presets->GetNumberOfItems(); i++)
+      {
+      vtkMRMLVolumePropertyNode* volumePropertyNode =
+          vtkMRMLVolumePropertyNode::SafeDownCast(presets->GetItemAsObject(i));
+      if (volumePropertyNode)
+        {
+        if(!strcmp(volumePropertyNode->GetName(),"LowCostantOpacity"))
+          {
+           vtkPiecewiseFunction *compositeOpacity =
+               volumePropertyNode->GetScalarOpacity();
+           compositeOpacity->RemoveAllPoints();
+           compositeOpacity->AddPoint(min, 0.);
+           compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.1);
+           compositeOpacity->AddPoint(max, 0.1);
+
+           vtkColorTransferFunction *color =
+               volumePropertyNode->GetColor();
+           color->RemoveAllPoints();
+           color->AddRGBPoint(min, 0., 0., 0.);
+           color->AddRGBPoint(noise3, 0., 0.3, 0.);
+           color->AddRGBPoint(max, 0., 1., 0.);
+
+           vtkPiecewiseFunction *gradientOpacity =
+               volumePropertyNode->GetGradientOpacity();
+           gradientOpacity->RemoveAllPoints();
+           gradientOpacity->AddPoint(min, 1.);
+           gradientOpacity->AddPoint(max, 1.);
+          }
+        if(!strcmp(volumePropertyNode->GetName(),"MediumCostantOpacity"))
+          {
+           vtkPiecewiseFunction *compositeOpacity =
+               volumePropertyNode->GetScalarOpacity();
+           compositeOpacity->RemoveAllPoints();
+           compositeOpacity->AddPoint(min, 0.);
+           compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.3);
+           compositeOpacity->AddPoint(max, 0.3);
+
+           vtkColorTransferFunction *color =
+               volumePropertyNode->GetColor();
+           color->RemoveAllPoints();
+           color->AddRGBPoint(min, 0., 0., 0.);
+           color->AddRGBPoint(noise3, 0., 0.3, 0.);
+           color->AddRGBPoint(max, 0., 1., 0.);
+
+           vtkPiecewiseFunction *gradientOpacity =
+               volumePropertyNode->GetGradientOpacity();
+           gradientOpacity->RemoveAllPoints();
+           gradientOpacity->AddPoint(min, 1.);
+           gradientOpacity->AddPoint(max, 1.);
+          }
+        if(!strcmp(volumePropertyNode->GetName(),"HighCostantOpacity"))
+          {
+           vtkPiecewiseFunction *compositeOpacity =
+               volumePropertyNode->GetScalarOpacity();
+           compositeOpacity->RemoveAllPoints();
+           compositeOpacity->AddPoint(min, 0.);
+           compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.6);
+           compositeOpacity->AddPoint(max, 0.6);
+
+           vtkColorTransferFunction *color =
+               volumePropertyNode->GetColor();
+           color->RemoveAllPoints();
+           color->AddRGBPoint(min, 0., 0., 0.);
+           color->AddRGBPoint(noise3, 0., 0.3, 0.);
+           color->AddRGBPoint(max, 0., 1., 0.);
+
+           vtkPiecewiseFunction *gradientOpacity =
+               volumePropertyNode->GetGradientOpacity();
+           gradientOpacity->RemoveAllPoints();
+           gradientOpacity->AddPoint(min, 1.);
+           gradientOpacity->AddPoint(max, 1.);
+          }
+        if(!strcmp(volumePropertyNode->GetName(),"OneSurface"))
+          {
+           vtkPiecewiseFunction *compositeOpacity =
+               volumePropertyNode->GetScalarOpacity();
+           compositeOpacity->RemoveAllPoints();
+           compositeOpacity->AddPoint(min, 0.);
+           compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.3, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
+           compositeOpacity->AddPoint(max, 0.);
+
+           vtkColorTransferFunction *color =
+               volumePropertyNode->GetColor();
+           color->RemoveAllPoints();
+           color->AddRGBPoint(min, 0., 0., 0.);
+           color->AddRGBPoint(noise3, 0., 1., 0.);
+           color->AddRGBPoint(max, 0., 1., 0.);
+
+           vtkPiecewiseFunction *gradientOpacity =
+               volumePropertyNode->GetGradientOpacity();
+           gradientOpacity->RemoveAllPoints();
+           gradientOpacity->AddPoint(min, 1.);
+           gradientOpacity->AddPoint(max, 1.);
+          }
+        if(!strcmp(volumePropertyNode->GetName(),"TwoSurface"))
+          {
+           vtkPiecewiseFunction *compositeOpacity =
+               volumePropertyNode->GetScalarOpacity();
+           compositeOpacity->RemoveAllPoints();
+           compositeOpacity->AddPoint(min, 0.);
+           compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.3, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
+           compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise7, 0.6, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
+           compositeOpacity->AddPoint(max, 0.);
+
+           vtkColorTransferFunction *color =
+               volumePropertyNode->GetColor();
+           color->RemoveAllPoints();
+           color->AddRGBPoint(min, 0., 0., 0.);
+           color->AddRGBPoint(noise3, 1., 1., 1.);
+           color->AddRGBPoint(noise7, 0., 1., 0.);
+           color->AddRGBPoint(max, 0., 1., 0.);
+
+           vtkPiecewiseFunction *gradientOpacity =
+               volumePropertyNode->GetGradientOpacity();
+           gradientOpacity->RemoveAllPoints();
+           gradientOpacity->AddPoint(min, 1.);
+           gradientOpacity->AddPoint(max, 1.);
+          }
+        if(!strcmp(volumePropertyNode->GetName(),"ThreeSurface"))
+          {
+           vtkPiecewiseFunction *compositeOpacity =
+               volumePropertyNode->GetScalarOpacity();
+           compositeOpacity->RemoveAllPoints();
+           compositeOpacity->AddPoint(min, 0.);
+           compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.2, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
+           compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise7, 0.4, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
+           compositeOpacity->AddPoint(noise15 - (noise15 / 5.), 0., 0.5, 0.2);
+           compositeOpacity->AddPoint(noise15, 0.6, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise15 + (noise15 / 5.), 0., 0.5, 0.);
+           compositeOpacity->AddPoint(max, 0.);
+
+           vtkColorTransferFunction *color =
+               volumePropertyNode->GetColor();
+           color->RemoveAllPoints();
+           color->AddRGBPoint(min, 0., 0., 0.);
+           color->AddRGBPoint(noise3, 1., 1., 1.);
+           color->AddRGBPoint(noise7, 0., 1., 0.);
+           color->AddRGBPoint(noise15, 0., 0., 1.);
+           color->AddRGBPoint(max, 0., 0., 1.);
+
+           vtkPiecewiseFunction *gradientOpacity =
+               volumePropertyNode->GetGradientOpacity();
+           gradientOpacity->RemoveAllPoints();
+           gradientOpacity->AddPoint(min, 1.);
+           gradientOpacity->AddPoint(max, 1.);
+          }
+        }
+      }
+    return 0;
+    }
+  else
+    {
+    return 1;
+    }
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::LoadPresets(vtkMRMLScene *scene)
+{
+  this->PresetsScene->RegisterNodeClass(vtkNew<vtkMRMLVolumePropertyNode>().GetPointer());
+
+  if (this->GetModuleShareDirectory().empty())
+    {
+    vtkErrorMacro(<< "Failed to load presets: Share directory *NOT* set !");
+    return false;
+    }
+
+  std::string presetFileName = this->GetModuleShareDirectory() + "/presets.xml";
+  scene->SetURL(presetFileName.c_str());
+  int connected = scene->Connect();
+  if (!connected)
+    {
+    vtkErrorMacro(<< "Failed to load presets [" << presetFileName << "]");
+    return false;
+    }
+  return true;
+}
+

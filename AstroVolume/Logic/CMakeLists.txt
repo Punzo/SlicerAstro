@@ -7,10 +7,9 @@ set(${KIT}_EXPORT_DIRECTIVE "VTK_SLICER_${MODULE_NAME_UPPER}_MODULE_LOGIC_EXPORT
 set(${KIT}_INCLUDE_DIRECTORIES
    ${CMAKE_CURRENT_SOURCE_DIR}/../MRML
    ${CMAKE_CURRENT_BINARY_DIR}/../MRML
-   ${vtkSlicerVolumesModuleLogic_SOURCE_DIR}
-   ${vtkSlicerVolumesModuleLogic_BINARY_DIR}
    ${WCSLIB_INCLUDE_DIR}
    ${vtkFits_INCLUDE_DIRS}
+   ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -23,6 +22,7 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerVolumesModuleLogic
   vtkSlicerUnitsModuleLogic
+  vtkSlicerVolumeRenderingModuleMRML
   )
 
 

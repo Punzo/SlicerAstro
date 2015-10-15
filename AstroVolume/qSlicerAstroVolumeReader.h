@@ -4,12 +4,13 @@
 // SlicerQt includes
 #include "qSlicerFileReader.h"
 
+#include "qSlicerAstroVolumeModuleExport.h"
+
 class qSlicerAstroVolumeReaderPrivate;
 class vtkSlicerVolumesLogic;
 
-//-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume
-class qSlicerAstroVolumeReader
+class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeReader
   : public qSlicerFileReader
 {
   Q_OBJECT

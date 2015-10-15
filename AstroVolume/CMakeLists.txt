@@ -21,6 +21,7 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/MRML
   ${CMAKE_CURRENT_BINARY_DIR}/MRML
   ${WCSLIB_INCLUDE_DIR}
+  ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
   )
 
 set(MODULE_SRCS
@@ -32,6 +33,8 @@ set(MODULE_SRCS
   qSlicer${MODULE_NAME}ModuleWidget.h
   qSlicer${MODULE_NAME}Reader.cxx
   qSlicer${MODULE_NAME}Reader.h
+  #qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
+  #qSlicer${MODULE_NAME}LayoutSliceViewFactory.cxx
   )
 
 set(MODULE_MOC_SRCS
@@ -39,6 +42,7 @@ set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}ModuleWidget.h
   qSlicer${MODULE_NAME}Reader.h
+  #qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
   )
 
 set(MODULE_UI_SRCS
@@ -50,6 +54,8 @@ set(MODULE_TARGET_LIBRARIES
   qSlicer${MODULE_NAME}ModuleWidgets
   vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicer${MODULE_NAME}ModuleMRML
+
+  qSlicerVolumeRenderingModuleWidgets
   )
 
 set(MODULE_RESOURCES
@@ -69,6 +75,17 @@ slicerMacroBuildLoadableModule(
   RESOURCES ${MODULE_RESOURCES}
   WITH_GENERIC_TESTS
   )
+
+#-----------------------------------------------------------------------------
+# create the share forlder and copy presets.xml
+
+set(directory ${CMAKE_CURRENT_BINARY_DIR}/../share/Slicer-${Slicer_VERSION_MAJOR}.${Slicer_VERSION_MINOR}/qt-loadable-modules/${MODULE_NAME})
+add_custom_target(build-time-make-share-directory ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${directory})
+
+set(sourcePresets ${CMAKE_CURRENT_SOURCE_DIR}/Resources/presets.xml)
+add_custom_target(build-time-copy-presets ALL
+    COMMAND ${CMAKE_COMMAND} -E copy ${sourcePresets} ${directory}/presets.xml)
 
 #-----------------------------------------------------------------------------
 if(BUILD_TESTING)

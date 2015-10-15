@@ -26,6 +26,8 @@ set(module_mrml_SRCS
     vtkMRMLAstroVolumeDisplayNode.h
     vtkMRMLAstroVolumeStorageNode.cxx
     vtkMRMLAstroVolumeStorageNode.h
+    vtkMRMLAstroSliceNode.h
+    vtkMRMLAstroSliceNode.cxx
     vtkMRMLAstroLabelMapVolumeNode.cxx
     vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroLabelMapVolumeDisplayNode.cxx

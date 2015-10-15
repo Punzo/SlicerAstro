@@ -10,4 +10,12 @@
         <file>Icons/XLarge/SlicerVolumes.png</file>
         <file>Logos/kapteyn.png</file>
     </qresource>
+    <qresource prefix="/presets">
+        <file alias="OneSurface">Icons/OneSurface.png</file>
+        <file alias="MediumCostantOpacity">Icons/medium.png</file>
+        <file alias="LowCostantOpacity">Icons/low.png</file>
+        <file alias="HighCostantOpacity">Icons/high.png</file>
+        <file alias="ThreeSurface">Icons/ThreeSurface.png</file>
+        <file alias="TwoSurface">Icons/TwoSurface.png</file>
+    </qresource>
 </RCC>
