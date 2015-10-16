@@ -302,8 +302,6 @@ void qSlicerAstroVolumeModuleWidget::
 
   if(sender->IsA("vtkMRMLVolumeRenderingDisplayNode"))
     {
-
-  cout<<"bella"<<endl;
     vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
        SafeDownCast(sender);
     d->VisibilityCheckBox->setChecked(
@@ -313,7 +311,7 @@ void qSlicerAstroVolumeModuleWidget::
       displayNode ? displayNode->GetCroppingEnabled() : false);
 
     d->ROICropDisplayCheckBox->setChecked(
-      displayNode ? displayNode->GetROIDisplayEnabled() : false);
+      displayNode ? displayNode->GetROINode()->GetDisplayVisibility() : false);
 
     d->QualityControlComboBox->setCurrentIndex(
       displayNode ? displayNode->GetPerformanceControl() : -1);
@@ -358,7 +356,8 @@ void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
     return;
     }
 
-  displayNode->SetROIDisplayEnabled(visibility);
+  displayNode->GetROINode()->SetDisplayVisibility(visibility);
+  displayNode->GetROINode()->Modified();
 }
 
 //---------------------------------------------------------------------------
