@@ -38,7 +38,6 @@ class qSlicerAstroVolumeModuleWidgetPrivate
   : public Ui_qSlicerAstroVolumeModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroVolumeModuleWidget);
-  QVTK_OBJECT;
 protected:
   qSlicerAstroVolumeModuleWidget* const q_ptr;
 
@@ -209,11 +208,16 @@ void qSlicerAstroVolumeModuleWidget::setup()
   Q_D(qSlicerAstroVolumeModuleWidget);
   d->setupUi(this);
 
+  this->qvtkDisconnectAll();
+
   vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
      SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
 
-  this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
+  if(displayNode)
+    {
+    this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
                   this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -386,10 +390,27 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
     return;
     }
 
-  vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
-     SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
+  vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLVolumeRenderingDisplayNode");
+  unsigned int numNodes = col->GetNumberOfItems();
 
-  this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
+  for (unsigned int n = 0; n < numNodes; n++)
+    {
+    vtkMRMLNode *displayNode = vtkMRMLNode::SafeDownCast(col->GetItemAsObject(n));
+    if (displayNode)
+      {
+      // is this the display node?
+      if (node->GetID() && displayNode->GetID() && strcmp(node->GetID(), displayNode->GetID()) == 0)
+        {
+        // don't disconnect
+        // qDebug() << "\tskipping disconnecting " << node->GetID();
+        continue;
+        }
+      this->qvtkDisconnect(displayNode, vtkCommand::ModifiedEvent,
+                           this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+      }
+    }
+
+  this->qvtkConnect(node, vtkCommand::ModifiedEvent,
                   this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
 
   this->onMRMLVolumeRenderingDisplayNodeModified(node);
@@ -401,10 +422,30 @@ void qSlicerAstroVolumeModuleWidget::setNodeConnection(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if(!node)
+  if(!node || !d->volumeRenderingWidget)
     {
     return;
     }
+
+  vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLVolumeRenderingDisplayNode");
+     unsigned int numNodes = col->GetNumberOfItems();
+
+     for (unsigned int n = 0; n < numNodes; n++)
+       {
+       vtkMRMLNode *displayNode = vtkMRMLNode::SafeDownCast(col->GetItemAsObject(n));
+       if (displayNode)
+         {
+         // is this the display node?
+           if (node->GetID() && displayNode->GetID() && strcmp(node->GetID(), displayNode->GetID()) == 0)
+             {
+             // don't disconnect
+             // qDebug() << "\tskipping disconnecting " << node->GetID();
+             continue;
+             }
+           this->qvtkDisconnect(displayNode, vtkCommand::ModifiedEvent,
+                                this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+         }
+       }
 
   vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
      SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
