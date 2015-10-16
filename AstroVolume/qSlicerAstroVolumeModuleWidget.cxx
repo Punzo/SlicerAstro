@@ -410,6 +410,9 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
       }
     }
 
+  col->RemoveAllItems();
+  col->Delete();
+
   this->qvtkConnect(node, vtkCommand::ModifiedEvent,
                   this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
 
@@ -446,6 +449,9 @@ void qSlicerAstroVolumeModuleWidget::setNodeConnection(vtkMRMLNode *node)
                                 this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
          }
        }
+
+  col->RemoveAllItems();
+  col->Delete();
 
   vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
      SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
