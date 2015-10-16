@@ -28,6 +28,7 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * label of 3-D view:  use W, S, N, etc. for the labels. (hint: ctkAxesWidgetPrivate -> AxesLabels)
 * for adding more decimals (both slider and spinbox) in volume rendering interface (color function) -> ctkVTKScalarsToColorsWidget (in ctkVTKVolumeProprietiesWidget)
 * at the moment the SLicerAstro is not aware of the CELLSCALL keyword
+* qvtkConnect in AstroVolumeWidget make crash on closeScene
 </div>
 
 
