@@ -38,6 +38,7 @@ class qSlicerAstroVolumeModuleWidgetPrivate
   : public Ui_qSlicerAstroVolumeModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroVolumeModuleWidget);
+  QVTK_OBJECT;
 protected:
   qSlicerAstroVolumeModuleWidget* const q_ptr;
 
@@ -81,9 +82,17 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   this->SynchronizeScalarDisplayNodeButton->setEnabled(false);
 
   QObject::connect(this->VisibilityCheckBox, SIGNAL(toggled(bool)),
-                   this->volumeRenderingWidget, SLOT(onVisibilityChanged(bool)));
+                   q, SLOT(onVisibilityChanged(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    this->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(newCurrentMRMLVolumeNode(vtkMRMLNode*)),
+                   this->ActiveVolumeNodeSelector, SLOT(setCurrentNode(vtkMRMLNode*)));
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(newCurrentMRMLVolumeNode(vtkMRMLNode*)),
+                   q, SLOT(setNodeConnection(vtkMRMLNode*)));
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(newCurrentDisplayNode(vtkMRMLNode*)),
+                   q, SLOT(setDisplayConnection(vtkMRMLNode*)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->VisibilityCheckBox, SLOT(setEnabled(bool)));
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
@@ -120,7 +129,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                   this->volumeRenderingWidget, SLOT(onCurrentRenderingMethodChanged(int)));
 
  QObject::connect(this->QualityControlComboBox, SIGNAL(currentIndexChanged(int)),
-                  this->volumeRenderingWidget, SLOT(onCurrentQualityControlChanged(int)));
+                  q, SLOT(onCurrentQualityControlChanged(int)));
 
  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                   q, SLOT(resetOffset(vtkMRMLNode*)));
@@ -148,16 +157,14 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                   this->ROIFitPushButton, SLOT(setEnabled(bool)));
 
  QObject::connect(this->ROICropDisplayCheckBox, SIGNAL(toggled(bool)),
-                  this->volumeRenderingWidget, SLOT(setDisplayROIEnabled(bool)));
+                  q, SLOT(setDisplayROIEnabled(bool)));
 
- QObject::connect(this->ROICropDisplayCheckBox, SIGNAL(toggled(bool)),
-                  this->volumeRenderingWidget, SLOT(onROICropDisplayCheckBoxToggled(bool)));
  QObject::connect(this->ROICropDisplayCheckBox, SIGNAL(toggled(bool)),
                   q, SLOT(onROICropDisplayCheckBoxToggled(bool)));
 
  // Rendering
  QObject::connect(this->ROICropCheckBox, SIGNAL(toggled(bool)),
-                  this->volumeRenderingWidget, SLOT(onCropToggled(bool)));
+                  q, SLOT(onCropToggled(bool)));
  QObject::connect(this->ROIFitPushButton, SIGNAL(clicked()),
                   this->volumeRenderingWidget, SLOT(fitROIToVolume()));
 
@@ -201,6 +208,12 @@ void qSlicerAstroVolumeModuleWidget::setup()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
   d->setupUi(this);
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
+     SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
+
+  this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
+                  this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
 }
 
 //---------------------------------------------------------------------------
@@ -255,8 +268,7 @@ void qSlicerAstroVolumeModuleWidget::SetPresets(vtkMRMLNode *node)
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget
-::onROICropDisplayCheckBoxToggled(bool toggle)
+void qSlicerAstroVolumeModuleWidget::onROICropDisplayCheckBoxToggled(bool toggle)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -264,4 +276,140 @@ void qSlicerAstroVolumeModuleWidget
     {
     d->ROICropCheckBox->setChecked(true);
     }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode =
+        d->volumeRenderingWidget->mrmlDisplayNode();
+
+  if (!displayNode)
+    {
+    return;
+    }
+
+  displayNode->SetVisibility(visibility);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::
+  onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if(sender->IsA("vtkMRMLVolumeRenderingDisplayNode"))
+    {
+
+  cout<<"bella"<<endl;
+    vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
+       SafeDownCast(sender);
+    d->VisibilityCheckBox->setChecked(
+      displayNode ? displayNode->GetVisibility() : false);
+
+    d->ROICropCheckBox->setChecked(
+      displayNode ? displayNode->GetCroppingEnabled() : false);
+
+    d->ROICropDisplayCheckBox->setChecked(
+      displayNode ? displayNode->GetROIDisplayEnabled() : false);
+
+    d->QualityControlComboBox->setCurrentIndex(
+      displayNode ? displayNode->GetPerformanceControl() : -1);
+
+    QSettings settings;
+    QString defaultRenderingMethod =
+      settings.value("VolumeRendering/RenderingMethod",
+                   QString("vtkMRMLCPURayCastVolumeRenderinDisplayNode")).toString();
+    QString currentVolumeMapper = displayNode ?
+      QString(displayNode->GetClassName()) : defaultRenderingMethod;
+    d->RenderingMethodComboBox->setCurrentIndex(
+      d->RenderingMethodComboBox->findData(currentVolumeMapper) );
+    }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onCurrentQualityControlChanged(int index)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode =
+      d->volumeRenderingWidget->mrmlDisplayNode();
+
+  if (!displayNode)
+    {
+    return;
+    }
+
+  displayNode->SetPerformanceControl(index);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode =
+      d->volumeRenderingWidget->mrmlDisplayNode();
+
+  if (!displayNode)
+    {
+    return;
+    }
+
+  displayNode->SetROIDisplayEnabled(visibility);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode =
+      d->volumeRenderingWidget->mrmlDisplayNode();
+
+  if (!displayNode)
+    {
+    return;
+    }
+
+  displayNode->SetCroppingEnabled(crop);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if(!node)
+    {
+    return;
+    }
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
+     SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
+
+  this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
+                  this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+
+  this->onMRMLVolumeRenderingDisplayNodeModified(node);
+
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setNodeConnection(vtkMRMLNode *node)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if(!node)
+    {
+    return;
+    }
+
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
+     SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
+
+  this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
+                  this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
 }

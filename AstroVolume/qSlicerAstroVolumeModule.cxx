@@ -140,7 +140,8 @@ void qSlicerAstroVolumeModule::setup()
       QStringList() << "vtkMRMLVolumeNode", true, this));
     }
 
- /* qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
+
+  qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
     app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
 
@@ -149,7 +150,7 @@ void qSlicerAstroVolumeModule::setup()
   astroSliceViewFactory->setSliceLogics(mrmlSliceViewFactory->sliceLogics());
 
   app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
-  app->layoutManager()->registerViewFactory(astroSliceViewFactory);*/
+  app->layoutManager()->registerViewFactory(astroSliceViewFactory);
 }
 
 //-----------------------------------------------------------------------------
