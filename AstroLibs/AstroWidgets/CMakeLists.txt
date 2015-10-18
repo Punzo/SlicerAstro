@@ -78,14 +78,11 @@ set(MRMLAstroWidgets_MOC_SRCS
 
 # UI files
 set(MRMLAstroWidgets_UI_SRCS
-    Resources/UI/qMRMLAstroVolumeInfoWidget.ui
     #Resources/UI/qMRMLSliceAstroControllerWidget.ui
   )
 
-#configure_file(Resources/jqPlot.qrc.in ${qMRMLWidgets_BINARY_DIR}/Resources/jqPlot.qrc)
 set(MRMLAstroWidgets_QRC_SRCS
   Resources/qMRMLAstroWidgets.qrc
- # ${qMRMLWidgets_BINARY_DIR}/Resources/jqPlot.qrc
   )
 
 QT4_WRAP_CPP(MRMLAstroWidgets_MOC_CXX ${MRMLAstroWidgets_MOC_SRCS})
