@@ -436,6 +436,23 @@ bool vtkFITSReader::AllocateHeader()
      }
 
    int n = StringToInt((HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
+
+   if(n == 4 && !(HeaderKeyValue.count("SlicerAstro.NAXIS4")) == 0)
+     {
+     int n4 = StringToInt((HeaderKeyValue.at("SlicerAstro.NAXIS4")).c_str());
+     if(n4 == 1)
+       {
+       HeaderKeyValue["SlicerAstro.NAXIS"] = "3";
+       n = 3;
+       }
+     else
+       {
+       vtkErrorMacro("Datacube with polarization (NAXIS=4 and NAXIS4>1) at the moment are not supported."<<
+                     "If you want to visulize such kind of datacube in 3-D: please, contact me."<<
+                     "Davide Punzo, punzodavide@hotmail.it");
+       }
+     }
+
    std::string temp = "SlicerAstro.NAXIS";
 
    if(n > 3)

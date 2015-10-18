@@ -72,11 +72,7 @@
      <property name="contentsFrameShape">
       <enum>QFrame::StyledPanel</enum>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <item>
-       <widget class="qMRMLVolumeInfoWidget" name="MRMLVolumeInfoWidget"/>
-      </item>
-     </layout>
+     <layout class="QVBoxLayout" name="verticalLayout"/>
     </widget>
    </item>
    <item row="3" column="0" colspan="2">
@@ -300,17 +296,6 @@
    <header>qMRMLNodeComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>qMRMLVolumeInfoWidget</class>
-   <extends>qMRMLWidget</extends>
-   <header>qMRMLVolumeInfoWidget.h</header>
-  </customwidget>
-  <customwidget>
-   <class>qMRMLWidget</class>
-   <extends>QWidget</extends>
-   <header>qMRMLWidget.h</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>qSlicerWidget</class>
    <extends>QWidget</extends>
    <header>qSlicerWidget.h</header>
@@ -350,22 +335,6 @@
   <connection>
    <sender>qSlicerAstroVolumeModuleWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>MRMLVolumeInfoWidget</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>118</x>
-     <y>78</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>118</x>
-     <y>76</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>qSlicerAstroVolumeModuleWidget</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>ActiveVolumeNodeSelector</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
@@ -392,22 +361,6 @@
     <hint type="destinationlabel">
      <x>230</x>
      <y>414</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ActiveVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(vtkMRMLNode*)</signal>
-   <receiver>MRMLVolumeInfoWidget</receiver>
-   <slot>setVolumeNode(vtkMRMLNode*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>152</x>
-     <y>11</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>155</x>
-     <y>133</y>
     </hint>
    </hints>
   </connection>

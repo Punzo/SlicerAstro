@@ -1,7 +1,7 @@
 #ifndef __vtkMRMLAstroLabelMapVolumeNode_h
 #define __vtkMRMLAstroLabelMapVolumeNode_h
 
-#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+//#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 // MRML includes
 #include "vtkMRMLLabelMapVolumeNode.h"
@@ -17,7 +17,7 @@ class vtkMRMLAstroLabelMapVolumeDisplayNode;
 /// labels each voxel according to its segment (e.g., a certain type of tissue).
 ///
 /// /// \ingroup Slicer_QtModules_AstroVolumeNode
-class VTK_MRMLASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabelMapVolumeNode
+class VTK_MRML_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabelMapVolumeNode
 {
   public:
   static vtkMRMLAstroLabelMapVolumeNode *New();

@@ -3,13 +3,13 @@
 
 #include "vtkMRMLStorageNode.h"
 
-#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+//#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 /// \brief MRML node for representing a volume storage.
 ///
 /// vtkMRMLAstroVolumeStorageNode nodes describe the archetybe based volume storage
 /// node that allows to read/write volume data from/to AstroVolume file
-class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorageNode
+class VTK_MRML_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorageNode
 {
   public:
   static vtkMRMLAstroVolumeStorageNode *New();

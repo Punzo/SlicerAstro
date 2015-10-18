@@ -3,13 +3,13 @@
 
 // MRML includes
 #include "vtkMRMLSliceNode.h"
-#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+//#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 class vtkMRMLVolumeNode;
 
 // VTK includes
 class vtkMatrix4x4;
 
-class VTK_MRMLASTRO_EXPORT vtkMRMLAstroSliceNode : public vtkMRMLSliceNode
+class VTK_MRML_EXPORT vtkMRMLAstroSliceNode : public vtkMRMLSliceNode
 {
   public:
   static vtkMRMLAstroSliceNode *New();

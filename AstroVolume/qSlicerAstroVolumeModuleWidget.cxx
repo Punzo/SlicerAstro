@@ -6,11 +6,7 @@
 #include <ctkUtils.h>
 
 // qMRMLWidgets include
-#include "qSlicerAstroVolumeModuleWidget.h"
-#include "ui_qSlicerAstroVolumeModuleWidget.h"
-#include "qSlicerPresetComboBox.h"
-#include "qSlicerPresetComboBox_p.h"
-#include "qSlicerVolumeRenderingModuleWidget.h"
+#include "qMRMLAstroVolumeInfoWidget.h"
 
 // SlicerQt includes
 #include <qSlicerCoreApplication.h>
@@ -20,6 +16,11 @@
 #include <qSlicerApplication.h>
 #include <qSlicerLayoutManager.h>
 #include <qSlicerAbstractCoreModule.h>
+#include "qSlicerAstroVolumeModuleWidget.h"
+#include "ui_qSlicerAstroVolumeModuleWidget.h"
+#include "qSlicerPresetComboBox.h"
+#include "qSlicerPresetComboBox_p.h"
+#include "qSlicerVolumeRenderingModuleWidget.h"
 
 // MRML includes
 #include "vtkMRMLAnnotationROINode.h"
@@ -47,6 +48,7 @@ public:
 
   virtual void setupUi(qSlicerAstroVolumeModuleWidget*);
   qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget;
+  qMRMLAstroVolumeInfoWidget *MRMLAstroVolumeInfoWidget;
 };
 
 //-----------------------------------------------------------------------------
@@ -70,11 +72,19 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 {
   this->Ui_qSlicerAstroVolumeModuleWidget::setupUi(q);
 
+  this->MRMLAstroVolumeInfoWidget = new qMRMLAstroVolumeInfoWidget(InfoCollapsibleButton);
+  this->MRMLAstroVolumeInfoWidget->setObjectName(QString::fromUtf8("MRMLAstroVolumeInfoWidget"));
+
+  this->verticalLayout->addWidget(MRMLAstroVolumeInfoWidget);
+
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   this->MRMLAstroVolumeInfoWidget, SLOT(setVolumeNode(vtkMRMLNode*)));
+
   qSlicerApplication* app = qSlicerApplication::application();
   qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
   if (volumeRendering)
     {
-     volumeRenderingWidget = dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
+     this->volumeRenderingWidget = dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
          (volumeRendering->widgetRepresentation());
     }
 

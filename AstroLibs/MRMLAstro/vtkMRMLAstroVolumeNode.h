@@ -13,12 +13,12 @@
 // WCS includes
 #include "wcslib.h"
 
-#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+//#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLAstroVolumeDisplayNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
-class VTK_MRMLASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
+class VTK_MRML_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
 {
   public:
 

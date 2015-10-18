@@ -7,7 +7,6 @@ string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)
 add_subdirectory(Widgets)
-add_subdirectory(MRML)
 
 #-----------------------------------------------------------------------------
 set(MODULE_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_EXPORT")
@@ -18,10 +17,9 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/Logic
   ${CMAKE_CURRENT_SOURCE_DIR}/Widgets
   ${CMAKE_CURRENT_BINARY_DIR}/Widgets
-  ${CMAKE_CURRENT_SOURCE_DIR}/MRML
-  ${CMAKE_CURRENT_BINARY_DIR}/MRML
   ${WCSLIB_INCLUDE_DIR}
   ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
+  ${Slicer_AstroLibs_INCLUDE_DIRS}
   )
 
 set(MODULE_SRCS
@@ -53,9 +51,8 @@ set(MODULE_UI_SRCS
 set(MODULE_TARGET_LIBRARIES
   qSlicer${MODULE_NAME}ModuleWidgets
   vtkSlicer${MODULE_NAME}ModuleLogic
-  vtkSlicer${MODULE_NAME}ModuleMRML
-
   qSlicerVolumeRenderingModuleWidgets
+  qMRMLAstroWidgets
   )
 
 set(MODULE_RESOURCES

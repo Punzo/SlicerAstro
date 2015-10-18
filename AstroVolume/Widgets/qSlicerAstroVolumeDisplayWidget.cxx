@@ -7,8 +7,8 @@
 
 // MRML includes
 #include <vtkMRMLVolumeNode.h>
-#include <vtkMRMLScalarVolumeNode.h>
-#include <vtkMRMLLabelMapVolumeNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume
@@ -112,11 +112,11 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
     }
 
   vtkMRMLScene* scene = VolumeNode->GetScene();
-  vtkMRMLLabelMapVolumeNode* labelMapVolumeNode =
-    vtkMRMLLabelMapVolumeNode::SafeDownCast(VolumeNode);
-  vtkMRMLScalarVolumeNode* scalarVolumeNode =
-    vtkMRMLScalarVolumeNode::SafeDownCast(VolumeNode);
-  if (scalarVolumeNode)
+  vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
+    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(VolumeNode);
+  vtkMRMLAstroVolumeNode* astroVolumeNode =
+    vtkMRMLAstroVolumeNode::SafeDownCast(VolumeNode);
+  if (astroVolumeNode)
     {
     qvtkConnect(VolumeNode, vtkCommand::ModifiedEvent,
               this, SLOT(updateFromMRML(vtkObject*)));

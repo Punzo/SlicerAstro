@@ -6,6 +6,8 @@ set(${KIT}_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_WIDGETS_EXP
 
 set(${KIT}_INCLUDE_DIRECTORIES
     ${MRMLCore_INCLUDE_DIRS}
+    ${WCSLIB_INCLUDE_DIR}
+    ${Slicer_AstroLibs_INCLUDE_DIRS}  
   )
 
 set(${KIT}_SRCS
@@ -15,22 +17,12 @@ set(${KIT}_SRCS
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.cxx
   qSlicerAstroVolumeDisplayWidget.h
-  #qMRMLSliceAstroControllerWidget.cxx
-  #qMRMLSliceAstroControllerWidget.h
-  #qMRMLSliceAstroControllerWidget_p.h
-  #qMRMLSliceAstroWidget.cxx
-  #qMRMLSliceAstroWidget.h
-  #qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_MOC_SRCS
   qSlicerLabelMapVolumeDisplayWidget.h
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.h
-  #qMRMLSliceAstroControllerWidget.h
-  #qMRMLSliceAstroControllerWidget_p.h
-  #qMRMLSliceAstroWidget.h
-  #qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_UI_SRCS
@@ -44,6 +36,7 @@ set(${KIT}_RESOURCES
 
 set(${KIT}_TARGET_LIBRARIES
    MRMLCore
+   MRMLAstro
   )
 
 #-----------------------------------------------------------------------------

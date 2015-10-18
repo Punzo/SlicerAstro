@@ -9,7 +9,10 @@ set(GENERATECLP_USE_MD5 ON)
 # Order of project directory matters. Project should be topologically ordered
 # --------------------------------------------------------------------------
 
-set(dirs vtkFits)
+set(dirs vtkFits
+         MRMLAstro
+         AstroWidgets)
+
 
 #-----------------------------------------------------------------------------
 # Set library properties
@@ -23,7 +26,7 @@ foreach(dir ${dirs})
   message(STATUS "Configuring library: ${dir}")
   string(REPLACE "/" "" dir_noslash ${dir})
   if(dir_noslash MATCHES "Widgets$")
-    set(dir_noslash "q${dir_noslash}")
+    set(dir_noslash "qMRML${dir_noslash}")
   endif()
   set(${dir_noslash}_INSTALL_BIN_DIR ${Slicer_INSTALL_LIB_DIR})
   set(${dir_noslash}_INSTALL_LIB_DIR ${Slicer_INSTALL_LIB_DIR})
@@ -40,7 +43,7 @@ set(include_dirs)
 foreach(dir ${dirs})
   string(REPLACE "/" "" dir_noslash ${dir})
   if(dir_noslash MATCHES "Widgets$")
-    set(dir_noslash "q${dir_noslash}")
+    set(dir_noslash "qMRML${dir_noslash}")
   endif()
   list(APPEND include_dirs ${${dir_noslash}_INCLUDE_DIRS})
 endforeach()
@@ -49,10 +52,20 @@ endforeach()
 set(Slicer_AstroLibs_INCLUDE_DIRS ${include_dirs} CACHE INTERNAL "Slicer AstroLibs includes" FORCE)
 
 #-----------------------------------------------------------------------------
+# Set MRML_LIBRARIES
+#-----------------------------------------------------------------------------
+# Anticipating the move of MRML related libraries to a standalone project,
+# let's group these libraries.
+# Note also that since MRMLIDImageIO is an ITK plugin it is NOT added to that list.
+set(_mrml_libraries MRMLAstro)
+set(MRMLASTRO_LIBRARIES ${_mrml_libraries} CACHE INTERNAL "MRML libraries" FORCE)
+
+#-----------------------------------------------------------------------------
 # Set variable Slicer_AstroLibs_VTK_WRAPPED_LIBRARIES
 #-----------------------------------------------------------------------------
 set(_vtk_wrapped_libraries
   vtkFits
+  MRMLAstro
   )
 
 set(Slicer_AstroLibs_VTK_WRAPPED_LIBRARIES
