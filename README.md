@@ -5,7 +5,7 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 
 <h3> Objective: general description</h3>
 * 1) proper visualization of astronomical data cubes: using data astronomical data formats, such as FITS, and astronomical world coordinates system (WCS);
-* 2) generation of flux density profiles, moment maps and position-velocity diagrams linked with the 3-D view;
+* 2) generation of Histogram, flux density profiles, moment maps and position-velocity diagrams linked with the 3-D view;
 * 3) enabling interactive smoothing in all three dimensions and multiscale analysis, such as wavelet lifting;
 * 4) interactive HI data modeling coupled to visualization;
 * 5) interactive 3-D selection of HI sources;
