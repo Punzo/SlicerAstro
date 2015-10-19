@@ -2,7 +2,6 @@
 #include "ui_qSlicerScalarVolumeDisplayWidget.h"
 
 // Qt includes
-#include <QVariant>
 
 // CTK includes
 #include <ctkVTKColorTransferFunction.h>
@@ -80,7 +79,7 @@ void qSlicerScalarVolumeDisplayWidgetPrivate::init()
   //scene->setTransferFunction(this->Histogram);
   ctkTransferFunctionBarsItem* barsItem =
     new ctkTransferFunctionBarsItem(this->Histogram);
-  barsItem->setBarWidth(1.);
+  barsItem->setBarWidth(1);
   scene->addItem(barsItem);
 
   QObject::connect(this->InterpolateCheckbox, SIGNAL(toggled(bool)),
