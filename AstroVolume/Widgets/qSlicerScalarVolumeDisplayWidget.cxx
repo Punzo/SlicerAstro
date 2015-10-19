@@ -9,6 +9,8 @@
 #include <ctkTransferFunctionScene.h>
 #include <ctkTransferFunctionBarsItem.h>
 #include <ctkVTKHistogram.h>
+#include "ctkCollapsibleGroupBox.h"
+#include "ctkTransferFunctionView.h"
 
 // MRML includes
 #include "vtkMRMLColorNode.h"
@@ -40,8 +42,11 @@ public:
   ~qSlicerScalarVolumeDisplayWidgetPrivate();
   void init();
 
-  ctkVTKHistogram* Histogram;
+  //ctkVTKHistogram* Histogram;
   vtkSmartPointer<vtkColorTransferFunction> ColorTransferFunction;
+ /* ctkCollapsibleGroupBox *CollapsibleGroupBox;
+  QGridLayout *gridLayout_2;
+  ctkTransferFunctionView *TransferFunctionView;*/
 };
 
 //-----------------------------------------------------------------------------
@@ -49,14 +54,14 @@ qSlicerScalarVolumeDisplayWidgetPrivate::qSlicerScalarVolumeDisplayWidgetPrivate
   qSlicerScalarVolumeDisplayWidget& object)
   : q_ptr(&object)
 {
-  this->Histogram = new ctkVTKHistogram();
+ // this->Histogram = new ctkVTKHistogram();
   this->ColorTransferFunction = vtkSmartPointer<vtkColorTransferFunction>::New();
 }
 
 //-----------------------------------------------------------------------------
 qSlicerScalarVolumeDisplayWidgetPrivate::~qSlicerScalarVolumeDisplayWidgetPrivate()
 {
-  delete this->Histogram;
+ // delete this->Histogram;
 }
 
 //-----------------------------------------------------------------------------
@@ -65,6 +70,25 @@ void qSlicerScalarVolumeDisplayWidgetPrivate::init()
   Q_Q(qSlicerScalarVolumeDisplayWidget);
 
   this->setupUi(q);
+
+ /* CollapsibleGroupBox = new ctkCollapsibleGroupBox(q);
+  CollapsibleGroupBox->setObjectName(QString::fromUtf8("CollapsibleGroupBox"));
+  CollapsibleGroupBox->setChecked(false);
+  CollapsibleGroupBox->setTitle("Histogram");
+  gridLayout_2 = new QGridLayout(CollapsibleGroupBox);
+  gridLayout_2->setObjectName(QString::fromUtf8("gridLayout_2"));
+  gridLayout_2->setContentsMargins(0, 6, 0, 0);
+  TransferFunctionView = new ctkTransferFunctionView(CollapsibleGroupBox);
+  TransferFunctionView->setObjectName(QString::fromUtf8("TransferFunctionView"));
+  QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  sizePolicy.setHorizontalStretch(0);
+  sizePolicy.setVerticalStretch(0);
+  sizePolicy.setHeightForWidth(TransferFunctionView->sizePolicy().hasHeightForWidth());
+  TransferFunctionView->setSizePolicy(sizePolicy);
+  TransferFunctionView->setMinimumSize(QSize(0, 100));
+
+  gridLayout_2->addWidget(TransferFunctionView, 0, 0, 1, 1);
+  gridLayout->addWidget(CollapsibleGroupBox, 5, 0, 1, 2);
 
   ctkTransferFunctionScene* scene = qobject_cast<ctkTransferFunctionScene*>(
     this->TransferFunctionView->scene());
@@ -80,7 +104,7 @@ void qSlicerScalarVolumeDisplayWidgetPrivate::init()
   ctkTransferFunctionBarsItem* barsItem =
     new ctkTransferFunctionBarsItem(this->Histogram);
   barsItem->setBarWidth(1);
-  scene->addItem(barsItem);
+  scene->addItem(barsItem);*/
 
   QObject::connect(this->InterpolateCheckbox, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
@@ -168,12 +192,12 @@ void qSlicerScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLScalarVolumeNode
   qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
                 vtkCommand::ModifiedEvent,
                 this, SLOT(updateWidgetFromMRML()));
-  d->Histogram->setDataArray(volumeNode &&
+ /* d->Histogram->setDataArray(volumeNode &&
                              volumeNode->GetImageData() &&
                              volumeNode->GetImageData()->GetPointData() ?
                              volumeNode->GetImageData()->GetPointData()->GetScalars() :
                              0);
-  d->Histogram->build();
+  d->Histogram->build();*/
   this->setEnabled(volumeNode != 0);
 
   this->updateWidgetFromMRML();
