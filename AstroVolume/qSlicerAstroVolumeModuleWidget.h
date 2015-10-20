@@ -30,11 +30,11 @@ protected slots:
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onVisibilityChanged(bool visibility);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject*);
+  void onMRMLDisplayROINodeModified(vtkObject*);
   void onCurrentQualityControlChanged(int);
   void setDisplayROIEnabled(bool);
   void onCropToggled(bool);
   void setDisplayConnection(vtkMRMLNode* node);
-  void setNodeConnection(vtkMRMLNode* node);
 
 protected:
   virtual void setup();
