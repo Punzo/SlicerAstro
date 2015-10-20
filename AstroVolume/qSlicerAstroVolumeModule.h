@@ -44,6 +44,7 @@ protected:
 protected:
   QScopedPointer<qSlicerAstroVolumeModulePrivate> d_ptr;
 
+  void modifyRenderingWidgets(qSlicerAbstractCoreModule *volumeRendering);
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModule);
   Q_DISABLE_COPY(qSlicerAstroVolumeModule);

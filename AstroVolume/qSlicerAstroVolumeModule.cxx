@@ -1,11 +1,16 @@
 // Qt includes
 #include <QtPlugin>
 #include <QApplication>
+#include <QDoubleSpinBox>
 
 //VTK includes
 #include <vtkCollection.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
+
+//CTK includes
+#include <ctkVTKVolumePropertyWidget.h>
+#include <ctkVTKScalarsToColorsWidget.h>
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
@@ -25,6 +30,7 @@
 #include <vtkSlicerConfigure.h>
 #include <qMRMLLayoutManager.h>
 #include <qMRMLLayoutManager_p.h>
+#include "qSlicerVolumeRenderingModuleWidget.h"
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -141,6 +147,15 @@ void qSlicerAstroVolumeModule::setup()
     }
 
 
+  //modify precision in VolumeRenderingWidgets
+  qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
+  if (volumeRendering)
+    {
+    this->modifyRenderingWidgets(volumeRendering);
+    }
+
+  //set the Slice Factory
+
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
     app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
@@ -151,6 +166,38 @@ void qSlicerAstroVolumeModule::setup()
 
   app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
   app->layoutManager()->registerViewFactory(astroSliceViewFactory);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModule::modifyRenderingWidgets(qSlicerAbstractCoreModule* volumeRendering)
+{
+  qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
+      dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
+         (volumeRendering->widgetRepresentation());
+  if(volumeRenderingWidget)
+    {
+    ctkVTKVolumePropertyWidget* volumePropertyWidget =
+        volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
+        (QString("VolumeProperty"));
+
+    ctkVTKScalarsToColorsWidget* opacityWidget =
+        volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
+        (QString("ScalarOpacityWidget"));
+
+    QDoubleSpinBox* XSpinBox = opacityWidget->findChild<QDoubleSpinBox*>
+        (QString("XSpinBox"));
+
+    XSpinBox->setDecimals(6);
+
+    ctkVTKScalarsToColorsWidget* colorWidget =
+        volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
+        (QString("ScalarColorWidget"));
+
+    QDoubleSpinBox* XSpinBox1 = colorWidget->findChild<QDoubleSpinBox*>
+        (QString("XSpinBox"));
+
+    XSpinBox1->setDecimals(6);
+    }
 }
 
 //-----------------------------------------------------------------------------
