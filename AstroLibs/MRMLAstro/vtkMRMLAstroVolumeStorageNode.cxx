@@ -296,7 +296,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
     const int lowBoundary = dims[0] * dims[1] * 2;
     const int highBoundary = dims[0] * dims[1] * 4;
-    const int numCropElements = highBoundary - lowBoundary;
     switch (vtkType)
       {
       case VTK_DOUBLE:
@@ -330,16 +329,24 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
           {
           double sum = 0.;
+          int cont = 0;
           for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
             {
-            sum += *(dPixel+elemCnt);
+            if(*(dPixel+elemCnt) < 0.)
+              {
+              sum += *(dPixel+elemCnt);
+              cont++;
+              }
             }
-          sum /= numCropElements;
+          sum /= cont;
           for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
             {
-            noise += (*(dPixel+elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
+            if(*(dPixel+elemCnt) < 0.)
+              {
+              noise += (*(dPixel+elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
+              }
             }
-          noise = sqrt(noise / numCropElements);
+          noise = sqrt(noise / cont);
           }
         break;
       case VTK_FLOAT:
@@ -372,16 +379,24 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
           {
           double sum = 0.;
+          int cont = 0;
           for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
             {
-            sum += *(fPixel+elemCnt);
+            if(*(fPixel+elemCnt) < 0.)
+              {
+              sum += *(fPixel+elemCnt);
+              cont++;
+              }
             }
-          sum /= numCropElements;
+          sum /= cont;
           for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
             {
-            noise += (*(fPixel+elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
+            if(*(fPixel+elemCnt) < 0.)
+              {
+              noise += (*(fPixel+elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
+              }
             }
-          noise = sqrt(noise / numCropElements);
+          noise = sqrt(noise / cont);
           }
         break;
       default:
