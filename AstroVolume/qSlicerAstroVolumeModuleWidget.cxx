@@ -233,11 +233,6 @@ void qSlicerAstroVolumeModuleWidget::resetOffset(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if(!node)
-    {
-    return;
-    }
-
   double width = 0.;
   if (node && (node->IsA("vtkMRMLAstroVolumeNode") ||
                node->IsA("vtkMRMLAstroLabelMapVolumeNode")))
@@ -311,13 +306,13 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  vtkMRMLAnnotationROINode* ROINode =
-      vtkMRMLAnnotationROINode::SafeDownCast(sender);
-
-  if(!ROINode)
+  if(!sender)
     {
     return;
     }
+
+  vtkMRMLAnnotationROINode* ROINode =
+      vtkMRMLAnnotationROINode::SafeDownCast(sender);
 
   d->ROICropDisplayCheckBox->setChecked(ROINode->
       GetDisplayClassVisibility("vtkMRMLAnnotationLineDisplayNode"));
@@ -329,6 +324,11 @@ void qSlicerAstroVolumeModuleWidget::
   onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if(!sender)
+    {
+    return;
+    }
 
   vtkMRMLVolumeRenderingDisplayNode* displayNode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(sender);
@@ -405,11 +405,6 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
 void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
-
-  if(!node)
-    {
-    return;
-    }
 
   vtkMRMLVolumeRenderingDisplayNode *displayNode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(node);
