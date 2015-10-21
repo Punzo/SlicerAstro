@@ -13,20 +13,25 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 </div>
 
 <h3> Progress:  </h3>
-* 1) FITS reader and AstroVolume done; WCS included in AstroVolume.
+* 1) FITS reader and AstroVolume done;
+* 1) WCS included in AstroVolume.
 * 1) Added AstroLabelMapVolume (WCS compatible).
-* 1) Generalization of qSlicerUnits and the Slicer dataProbe modules done.
+* 1) Generalization of qSlicerUnits.
+* 1) Slicer dataProbe moduile overrided with AstroDataProbe one.
+* 1) first desing of the AstroVolume interface done.
 </div>
 
 <h3> To Do list before first alpha release  </h3>
 * SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
 * DataProbeLib: ruler -> make axes like kvis.
-* enable clestial transformation and enable spectral transformation FREQ -> VRAD, etc.
 </div>
 
 <h3> NOTE  </h3>
+* Editor and LabelStatistics for the moment are not fully compatible with child class of ScalarVolume and LabelVolume. However let's wait the release of the segmentation class and editor from SlicerRT.
+* at the moment the Slicer annotaions (ROI, fiducials and ruler) display the RAS coordinates (for SlicerAstro are the display coordinates).
 * label of 3-D view:  use W, S, N, etc. for the labels. (hint: ctkAxesWidgetPrivate -> AxesLabels)
 * at the moment the SLicerAstro is not aware of the CELLSCALL keyword
+* WCSlib a fully integrated in SlicerAstro, but for the moment celestial and spectral trasformation are not implmented in the interface.
 </div>
 
 
