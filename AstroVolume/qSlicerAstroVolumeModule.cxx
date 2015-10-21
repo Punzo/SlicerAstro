@@ -146,6 +146,11 @@ void qSlicerAstroVolumeModule::setup()
       QStringList() << "vtkMRMLVolumeNode", true, this));
     }
 
+  //removing Volumes action from mainWindow interface:
+  //for the moment I just disable the widget creation,
+  //i.e. the action is till present on mainWindows.
+  //For the moment is satisfactory.
+  volumes->setWidgetRepresentationCreationEnabled(false);
 
   //modify precision in VolumeRenderingWidgets
   qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
@@ -155,7 +160,6 @@ void qSlicerAstroVolumeModule::setup()
     }
 
   //set the Slice Factory
-
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
     app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
