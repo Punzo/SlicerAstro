@@ -11,6 +11,7 @@
 //CTK includes
 #include <ctkVTKVolumePropertyWidget.h>
 #include <ctkVTKScalarsToColorsWidget.h>
+#include <ctkRangeWidget.h>
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
@@ -30,7 +31,8 @@
 #include <vtkSlicerConfigure.h>
 #include <qMRMLLayoutManager.h>
 #include <qMRMLLayoutManager_p.h>
-#include "qSlicerVolumeRenderingModuleWidget.h"
+#include <qMRMLVolumeThresholdWidget.h>
+#include <qSlicerVolumeRenderingModuleWidget.h>
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -47,6 +49,8 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLSelectionNode.h>
 
 //-----------------------------------------------------------------------------
 Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
@@ -55,13 +59,36 @@ Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
 /// \ingroup Slicer_QtModules_AstroVolume
 class qSlicerAstroVolumeModulePrivate
 {
+  Q_DECLARE_PUBLIC(qSlicerAstroVolumeModule);
+protected:
+  qSlicerAstroVolumeModule* const q_ptr;
+
 public:
+  qSlicerApplication* app;
+  qSlicerAbstractCoreModule *volumeRendering;
+
+  qSlicerAstroVolumeModulePrivate(qSlicerAstroVolumeModule& object);
+  virtual ~qSlicerAstroVolumeModulePrivate();
 };
+
+//-----------------------------------------------------------------------------
+qSlicerAstroVolumeModulePrivate::qSlicerAstroVolumeModulePrivate(
+  qSlicerAstroVolumeModule& object)
+  : q_ptr(&object)
+{
+  this->app = 0;
+  this->volumeRendering = 0;
+}
+
+//-----------------------------------------------------------------------------
+qSlicerAstroVolumeModulePrivate::~qSlicerAstroVolumeModulePrivate()
+{
+}
 
 //-----------------------------------------------------------------------------
 qSlicerAstroVolumeModule::qSlicerAstroVolumeModule(QObject* _parent)
   : Superclass(_parent)
-  , d_ptr(new qSlicerAstroVolumeModulePrivate)
+  , d_ptr(new qSlicerAstroVolumeModulePrivate(*this))
 {
 }
 
@@ -124,11 +151,18 @@ QStringList qSlicerAstroVolumeModule::dependencies() const
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModule::setup()
 {
+  Q_D(qSlicerAstroVolumeModule);
   this->Superclass::setup();
 
-  qSlicerApplication* app = qSlicerApplication::application();
+  d->app = qSlicerApplication::application();
   // Register the IO module for loading AstroVolumes as a variant of fits files
-  qSlicerAbstractCoreModule* volumes = app->moduleManager()->module("Volumes");
+
+  if(d->app->mrmlScene())
+    {
+    this->setMRMLScene(d->app->mrmlScene());
+    }
+
+  qSlicerAbstractCoreModule* volumes = d->app->moduleManager()->module("Volumes");
   if (volumes)
     {
     vtkSlicerVolumesLogic* volumesLogic =
@@ -139,7 +173,7 @@ void qSlicerAstroVolumeModule::setup()
       {
       logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
       }
-    qSlicerCoreIOManager* ioManager = app->coreIOManager();
+    qSlicerCoreIOManager* ioManager = d->app->coreIOManager();
     ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
     ioManager->registerIO(new qSlicerNodeWriter(
       "AstroVolume", QString("AstroVolumeFile"),
@@ -153,31 +187,49 @@ void qSlicerAstroVolumeModule::setup()
   volumes->setWidgetRepresentationCreationEnabled(false);
 
   //modify precision in VolumeRenderingWidgets
-  qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
-  if (volumeRendering)
+  d->volumeRendering = d->app->moduleManager()->module("VolumeRendering");
+
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    this->mrmlScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if(selectionNode)
     {
-    this->modifyRenderingWidgets(volumeRendering);
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
+    this->qvtkConnect(unitNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLUnitModified(vtkObject*)));
+    this->onMRMLUnitModified(unitNode);
     }
+
 
   //set the Slice Factory
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
-    app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
+    d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
 
   qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
-    new qSlicerAstroVolumeLayoutSliceViewFactory(app->layoutManager());
+    new qSlicerAstroVolumeLayoutSliceViewFactory(d->app->layoutManager());
   astroSliceViewFactory->setSliceLogics(mrmlSliceViewFactory->sliceLogics());
 
-  app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
-  app->layoutManager()->registerViewFactory(astroSliceViewFactory);
+  d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
+  d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroVolumeModule::modifyRenderingWidgets(qSlicerAbstractCoreModule* volumeRendering)
+void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
 {
+  cout<<"bella"<<endl;
+  Q_D(qSlicerAstroVolumeModule);
+  if(!sender && d->volumeRendering)
+    {
+    return;
+    }
+
+  vtkMRMLUnitNode* unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
+
+  //
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
-         (volumeRendering->widgetRepresentation());
+         (d->volumeRendering->widgetRepresentation());
+
   if(volumeRenderingWidget)
     {
     ctkVTKVolumePropertyWidget* volumePropertyWidget =
@@ -191,7 +243,7 @@ void qSlicerAstroVolumeModule::modifyRenderingWidgets(qSlicerAbstractCoreModule*
     QDoubleSpinBox* XSpinBox = opacityWidget->findChild<QDoubleSpinBox*>
         (QString("XSpinBox"));
 
-    XSpinBox->setDecimals(6);
+    XSpinBox->setDecimals(unitNode->GetPrecision());
 
     ctkVTKScalarsToColorsWidget* colorWidget =
         volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
@@ -200,7 +252,7 @@ void qSlicerAstroVolumeModule::modifyRenderingWidgets(qSlicerAbstractCoreModule*
     QDoubleSpinBox* XSpinBox1 = colorWidget->findChild<QDoubleSpinBox*>
         (QString("XSpinBox"));
 
-    XSpinBox1->setDecimals(6);
+    XSpinBox1->setDecimals(unitNode->GetPrecision());
     }
 }
 

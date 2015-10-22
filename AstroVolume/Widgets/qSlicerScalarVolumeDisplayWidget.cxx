@@ -9,14 +9,17 @@
 #include <ctkTransferFunctionScene.h>
 #include <ctkTransferFunctionBarsItem.h>
 #include <ctkVTKHistogram.h>
-#include "ctkCollapsibleGroupBox.h"
-#include "ctkTransferFunctionView.h"
+#include <ctkCollapsibleGroupBox.h>
+#include <ctkTransferFunctionView.h>
+#include <ctkRangeWidget.h>
 
 // MRML includes
 #include "vtkMRMLColorNode.h"
 #include "vtkMRMLScalarVolumeDisplayNode.h"
 #include "vtkMRMLScalarVolumeNode.h"
 #include "vtkMRMLScene.h"
+#include "vtkMRMLUnitNode.h"
+#include "vtkMRMLSelectionNode.h"
 
 // VTK includes
 #include <vtkAlgorithm.h>

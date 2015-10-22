@@ -1,3 +1,4 @@
+from __future__ import division
 import os
 import unittest
 from __main__ import vtk, qt, ctk, slicer
@@ -5,7 +6,15 @@ from slicer.ScriptedLoadableModule import *
 import logging
 from DataProbe import DataProbeInfoWidget
 from math import floor
+import DataProbeLib
+from slicer.util import settingsValue
+from slicer.util import VTKObservationMixin
 
+try:
+  import numpy as np
+  NUMPY_AVAILABLE = True
+except ImportError:
+  NUMPY_AVAILABLE = False
 
 def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
 
@@ -105,6 +114,88 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
     else:
       return "<b>%s</b>" % self.getPixelString(volumeNode,ijk) if volumeNode else ""
 
+def  makeAstroRuler(self, sliceNode):
+    sliceViewName = sliceNode.GetLayoutName()
+    renderer = self.renderers[sliceViewName]
+    if self.sliceViews[sliceViewName]:
+      #
+      # update scaling ruler
+      #
+      self.minimumWidthForRuler = 200
+      viewWidth = self.sliceViews[sliceViewName].width
+
+      rasToXY = vtk.vtkMatrix4x4()
+      m = sliceNode.GetXYToRAS()
+      rasToXY.DeepCopy(m)
+      rasToXY.Invert()
+
+      # TODO: The current logic only supports rulers from 1mm to 10cm
+      # add support for other ranges.
+      import math
+      scalingFactor = math.sqrt( rasToXY.GetElement(0,0)**2 +
+          rasToXY.GetElement(0,1)**2 +rasToXY.GetElement(0,2) **2 )
+
+      if scalingFactor != 0:
+        rulerArea = viewWidth/scalingFactor/4
+      else:
+        rulerArea = viewWidth/4
+
+      #print "la view e  ", viewWidth
+      #if self.rulerEnabled and \
+      if viewWidth > self.minimumWidthForRuler and 0.5 < rulerArea < 500 and NUMPY_AVAILABLE:
+        rulerSizesArray = np.array([1,5,10,50,100])
+        index = np.argmin(np.abs(rulerSizesArray- rulerArea))
+
+        if rulerSizesArray[index]/10 > 1:
+          scalingFactorString = str(int(rulerSizesArray[index]/10))+" daje"
+        else:
+          scalingFactorString = str(rulerSizesArray[index])+" daje1"
+
+        RASRulerSize = rulerSizesArray[index]
+
+        pts = self.points[sliceViewName]
+
+        pts.SetPoint(0,[(viewWidth/2-RASRulerSize*scalingFactor/10*5),5, 0])
+
+        pts.SetPoint(1,[(viewWidth/2-RASRulerSize*scalingFactor/10*5),15, 0])
+        pts.SetPoint(2,[(viewWidth/2-RASRulerSize*scalingFactor/10*4),5, 0])
+        pts.SetPoint(3,[(viewWidth/2-RASRulerSize*scalingFactor/10*4),10, 0])
+        pts.SetPoint(4,[(viewWidth/2-RASRulerSize*scalingFactor/10*3),5, 0])
+        pts.SetPoint(5,[(viewWidth/2-RASRulerSize*scalingFactor/10*3),15, 0])
+        pts.SetPoint(6,[(viewWidth/2-RASRulerSize*scalingFactor/10*2),5, 0])
+        pts.SetPoint(7,[(viewWidth/2-RASRulerSize*scalingFactor/10*2),10, 0])
+        pts.SetPoint(8,[(viewWidth/2-RASRulerSize*scalingFactor/10),5, 0])
+        pts.SetPoint(9,[(viewWidth/2-RASRulerSize*scalingFactor/10),15, 0])
+        pts.SetPoint(10,[viewWidth/2,5, 0])
+        pts.SetPoint(11,[viewWidth/2,10, 0])
+        pts.SetPoint(12,[(viewWidth/2+RASRulerSize*scalingFactor/10),5, 0])
+        pts.SetPoint(13,[(viewWidth/2+RASRulerSize*scalingFactor/10),15, 0])
+        pts.SetPoint(14,[(viewWidth/2+RASRulerSize*scalingFactor/10*2),5, 0])
+        pts.SetPoint(15,[(viewWidth/2+RASRulerSize*scalingFactor/10*2),10, 0])
+        pts.SetPoint(16,[(viewWidth/2+RASRulerSize*scalingFactor/10*3),5, 0])
+        pts.SetPoint(17,[(viewWidth/2+RASRulerSize*scalingFactor/10*3),15, 0])
+        pts.SetPoint(18,[(viewWidth/2+RASRulerSize*scalingFactor/10*4),5, 0])
+        pts.SetPoint(19,[(viewWidth/2+RASRulerSize*scalingFactor/10*4),10, 0])
+        pts.SetPoint(20,[(viewWidth/2+RASRulerSize*scalingFactor/10*5),5, 0])
+        pts.SetPoint(21,[(viewWidth/2+RASRulerSize*scalingFactor/10*5),15, 0])
+
+        textActor = self.rulerTextActors[sliceViewName]
+        textActor.SetInput(scalingFactorString)
+        textProperty = textActor.GetTextProperty()
+        # set font size
+        textProperty.SetFontSize(self.fontSize)
+        # set font family
+        if self.fontFamily == 'Times':
+          textProperty.SetFontFamilyToTimes()
+        else:
+          textProperty.SetFontFamilyToArial()
+        # set ruler text actor position
+        textActor.SetDisplayPosition(int((viewWidth+RASRulerSize*scalingFactor)/2)+10,5)
+
+        renderer.AddActor2D(self.rulerActors[sliceViewName])
+        renderer.RemoveActor2D(textActor)
+        renderer.AddActor2D(textActor)
+
 
 class AstroDataProbe(ScriptedLoadableModule):
 
@@ -159,16 +250,18 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
       dataProbeInstance = slicer.modules.DataProbeInstance
       funcType = type(dataProbeInstance.infoWidget.generateViewDescription)
       dataProbeInstance.infoWidget.generateViewDescription = funcType(generateViewDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
-      dataProbeInstance = slicer.modules.DataProbeInstance
+
       funcType = type(dataProbeInstance.infoWidget.generateLayerName)
       dataProbeInstance.infoWidget.generateLayerName = funcType(generateLayerNameAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
-      dataProbeInstance = slicer.modules.DataProbeInstance
+
       funcType = type(dataProbeInstance.infoWidget.generateIJKPixelDescription)
       dataProbeInstance.infoWidget.generateIJKPixelDescription = funcType(generateIJKPixelDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
-      dataProbeInstance = slicer.modules.DataProbeInstance
+
       funcType = type(dataProbeInstance.infoWidget.generateIJKPixelValueDescription)
       dataProbeInstance.infoWidget.generateIJKPixelValueDescription = funcType(generateIJKPixelValueDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
 
+      funcType = type(dataProbeInstance.infoWidget.sliceAnnotations.makeRuler)
+      dataProbeInstance.infoWidget.sliceAnnotations.makeRuler = funcType(makeAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
 
 class AstroDataProbeTest(ScriptedLoadableModuleTest):
 

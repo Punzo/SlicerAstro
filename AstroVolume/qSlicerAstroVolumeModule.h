@@ -1,6 +1,9 @@
 #ifndef __qSlicerAstroVolumeModule_h
 #define __qSlicerAstroVolumeModule_h
 
+// CTK includes
+#include <ctkVTKObject.h>
+
 // SlicerQt includes
 #include "qSlicerLoadableModule.h"
 
@@ -9,12 +12,14 @@
 class qSlicerAbstractModuleWidget;
 class qSlicerAstroVolumeModulePrivate;
 class vtkMRMLSliceLogic;
+class vtkObject;
 
 /// \ingroup Slicer_QtModules_AstroVolume
 class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT
+  QVTK_OBJECT
   Q_INTERFACES(qSlicerLoadableModule);
 
 public:
@@ -41,10 +46,12 @@ protected:
   /// Create and return the logic associated to this module
   virtual vtkMRMLAbstractLogic* createLogic();
 
-protected:
   QScopedPointer<qSlicerAstroVolumeModulePrivate> d_ptr;
 
-  void modifyRenderingWidgets(qSlicerAbstractCoreModule *volumeRendering);
+ protected slots:
+
+  void onMRMLUnitModified(vtkObject* sender);
+
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModule);
   Q_DISABLE_COPY(qSlicerAstroVolumeModule);

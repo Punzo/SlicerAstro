@@ -290,9 +290,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     int vtkType = reader->GetDataType();
     int *dims = imageData->GetDimensions();
     const int numComponents = imageData->GetNumberOfScalarComponents();
-    double max = imageData->GetScalarTypeMin();
-    double min = imageData->GetScalarTypeMax();
     double noise = 0.;
+    double range[2];
     const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
     const int lowBoundary = dims[0] * dims[1] * 2;
     const int highBoundary = dims[0] * dims[1] * 4;
@@ -307,22 +306,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
           for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
             {
             *(dPixel+elemCnt) *= 0.005;
-            }
-          }
-
-        if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-             !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
-          {
-          for( int elemCnt = 0; elemCnt < numElements; elemCnt++ )
-            {
-            if(*(dPixel+elemCnt) > max)
-              {
-              max = *(dPixel+elemCnt);
-              }
-            if(*(dPixel+elemCnt) < min)
-              {
-              min = *(dPixel+elemCnt);
-              }
             }
           }
 
@@ -360,22 +343,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
             }
           }
 
-        if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-             !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
-          {
-          for( int elemCnt = 0; elemCnt < numElements; elemCnt++ )
-            {
-            if(*(fPixel+elemCnt) > max)
-              {
-              max = *(fPixel+elemCnt);
-              }
-            if(*(fPixel+elemCnt) < min)
-              {
-              min = *(fPixel+elemCnt);
-              }
-            }
-          }
-
         if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
           {
           double sum = 0.;
@@ -408,8 +375,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
              !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
         {
-        volNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
-        volNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+        volNode->GetDisplayNode()->GetScalarRange(range);
+        volNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[0]).c_str());
+        volNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[1]).c_str());
         }
       if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
         {
@@ -421,8 +389,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
              !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
         {
-        labvolNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
-        labvolNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+        volNode->GetDisplayNode()->GetScalarRange(range);
+        labvolNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[0]).c_str());
+        labvolNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[1]).c_str());
         }
       }
     }
