@@ -10,6 +10,54 @@ import DataProbeLib
 from slicer.util import settingsValue
 from slicer.util import VTKObservationMixin
 
+"""
+  sliceLogic = None
+  if sliceNode:
+    appLogic = slicer.app.applicationLogic()
+    if appLogic:
+      sliceLogic = appLogic.GetSliceLogic(sliceNode)
+
+  world = [0., 0., 0.]
+  CoordinateSystemName = "IJK"
+  hasVolume = False
+
+  if sliceLogic:
+
+    hasBLayer = False
+    hasFLayer = False
+    hasLLayer = False
+
+    layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
+                     ('F', sliceLogic.GetForegroundLayer),
+                     ('L', sliceLogic.GetLabelLayer))
+    for layer,logicCall in layerLogicCalls:
+      layerLogic = logicCall()
+      volumeNode = layerLogic.GetVolumeNode()
+      ijk = [0, 0, 0]
+      if volumeNode:
+        hasVolume = True
+        xyToIJK = layerLogic.GetXYToIJKTransform()
+        ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+        display = volumeNode.GetDisplayNode()
+        if display:
+          Quantities = display.GetSpaceQuantities()
+          CoordinateSystemName = display.GetSpace()
+          selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
+          if selectionNode:
+            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
+            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
+            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
+            if layer == 'B':
+              hasBLayer = True
+              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
+            if layer == "F" and hasBLayer == False:
+              hasFLayer = True
+              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
+            if layer == "L" and hasBLayer == False and hasFLayer == False:
+              hasLLayer = True
+              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
+"""
+
 try:
   import numpy as np
   NUMPY_AVAILABLE = True
@@ -103,87 +151,55 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
 
 
 def  makeAstroRuler(self, sliceNode):
-    sliceViewName = sliceNode.GetLayoutName()
-    renderer = self.renderers[sliceViewName]
-    if self.sliceViews[sliceViewName]:
-      #
-      # update scaling ruler
-      #
-      self.minimumWidthForRuler = 200
-      viewWidth = self.sliceViews[sliceViewName].width
+  sliceViewName = sliceNode.GetLayoutName()
+  renderer = self.renderers[sliceViewName]
+  if self.sliceViews[sliceViewName]:
+    #
+    # update scaling ruler
+    #
+    viewWidth = self.sliceViews[sliceViewName].width
+    pts = self.points[sliceViewName]
+    pts.SetPoint(0,[0,5, 0])
+    pts.SetPoint(1,[10,15, 0])
+    pts.SetPoint(2,[20,5, 0])
+    pts.SetPoint(3,[30,10, 0])
+    pts.SetPoint(4,[40,5, 0])
+    pts.SetPoint(5,[50,15, 0])
+    pts.SetPoint(6,[60,5, 0])
+    pts.SetPoint(7,[70,10, 0])
+    pts.SetPoint(8,[80,5, 0])
+    pts.SetPoint(9,[90,15, 0])
+    pts.SetPoint(10,[100, 0, 0])
+    pts.SetPoint(11,[110,10, 0])
+    pts.SetPoint(12,[120,5, 0])
+    pts.SetPoint(13,[130,15, 0])
+    pts.SetPoint(14,[140,5, 0])
+    pts.SetPoint(15,[150,10, 0])
+    pts.SetPoint(16,[160,5, 0])
+    pts.SetPoint(17,[170,15, 0])
+    pts.SetPoint(18,[180,5, 0])
+    pts.SetPoint(19,[190,10, 0])
+    pts.SetPoint(20,[2000,5, 0])
+    pts.SetPoint(21,[210,15, 0])
 
-      rasToXY = vtk.vtkMatrix4x4()
-      m = sliceNode.GetXYToRAS()
-      rasToXY.DeepCopy(m)
-      rasToXY.Invert()
+    textActor = self.rulerTextActors[sliceViewName]
+    textActor.SetInput("bella")
+    textProperty = textActor.GetTextProperty()
+    # set font size
+    textProperty.SetFontSize(self.fontSize)
+    # set font family
+    if self.fontFamily == 'Times':
+      textProperty.SetFontFamilyToTimes()
+    else:
+      textProperty.SetFontFamilyToArial()
+    # set ruler text actor position
+    textActor.SetDisplayPosition(int(viewWidth/2.), int(viewWidth/2.))
 
-      # TODO: The current logic only supports rulers from 1mm to 10cm
-      # add support for other ranges.
-      import math
-      scalingFactor = math.sqrt( rasToXY.GetElement(0,0)**2 +
-          rasToXY.GetElement(0,1)**2 +rasToXY.GetElement(0,2) **2 )
+    renderer.AddActor2D(self.rulerActors[sliceViewName])
+    renderer.RemoveActor2D(textActor)
+    renderer.AddActor2D(textActor)
 
-      if scalingFactor != 0:
-        rulerArea = viewWidth/scalingFactor/4
-      else:
-        rulerArea = viewWidth/4
-
-      #print "la view e  ", viewWidth
-      #if self.rulerEnabled and \
-      if viewWidth > self.minimumWidthForRuler and 0.5 < rulerArea < 500 and NUMPY_AVAILABLE:
-        rulerSizesArray = np.array([1,5,10,50,100])
-        index = np.argmin(np.abs(rulerSizesArray- rulerArea))
-
-        if rulerSizesArray[index]/10 > 1:
-          scalingFactorString = str(int(rulerSizesArray[index]/10))+" daje"
-        else:
-          scalingFactorString = str(rulerSizesArray[index])+" daje1"
-
-        RASRulerSize = rulerSizesArray[index]
-
-        pts = self.points[sliceViewName]
-
-        pts.SetPoint(0,[(viewWidth/2-RASRulerSize*scalingFactor/10*5),5, 0])
-
-        pts.SetPoint(1,[(viewWidth/2-RASRulerSize*scalingFactor/10*5),15, 0])
-        pts.SetPoint(2,[(viewWidth/2-RASRulerSize*scalingFactor/10*4),5, 0])
-        pts.SetPoint(3,[(viewWidth/2-RASRulerSize*scalingFactor/10*4),10, 0])
-        pts.SetPoint(4,[(viewWidth/2-RASRulerSize*scalingFactor/10*3),5, 0])
-        pts.SetPoint(5,[(viewWidth/2-RASRulerSize*scalingFactor/10*3),15, 0])
-        pts.SetPoint(6,[(viewWidth/2-RASRulerSize*scalingFactor/10*2),5, 0])
-        pts.SetPoint(7,[(viewWidth/2-RASRulerSize*scalingFactor/10*2),10, 0])
-        pts.SetPoint(8,[(viewWidth/2-RASRulerSize*scalingFactor/10),5, 0])
-        pts.SetPoint(9,[(viewWidth/2-RASRulerSize*scalingFactor/10),15, 0])
-        pts.SetPoint(10,[viewWidth/2,5, 0])
-        pts.SetPoint(11,[viewWidth/2,10, 0])
-        pts.SetPoint(12,[(viewWidth/2+RASRulerSize*scalingFactor/10),5, 0])
-        pts.SetPoint(13,[(viewWidth/2+RASRulerSize*scalingFactor/10),15, 0])
-        pts.SetPoint(14,[(viewWidth/2+RASRulerSize*scalingFactor/10*2),5, 0])
-        pts.SetPoint(15,[(viewWidth/2+RASRulerSize*scalingFactor/10*2),10, 0])
-        pts.SetPoint(16,[(viewWidth/2+RASRulerSize*scalingFactor/10*3),5, 0])
-        pts.SetPoint(17,[(viewWidth/2+RASRulerSize*scalingFactor/10*3),15, 0])
-        pts.SetPoint(18,[(viewWidth/2+RASRulerSize*scalingFactor/10*4),5, 0])
-        pts.SetPoint(19,[(viewWidth/2+RASRulerSize*scalingFactor/10*4),10, 0])
-        pts.SetPoint(20,[(viewWidth/2+RASRulerSize*scalingFactor/10*5),5, 0])
-        pts.SetPoint(21,[(viewWidth/2+RASRulerSize*scalingFactor/10*5),15, 0])
-
-        textActor = self.rulerTextActors[sliceViewName]
-        textActor.SetInput(scalingFactorString)
-        textProperty = textActor.GetTextProperty()
-        # set font size
-        textProperty.SetFontSize(self.fontSize)
-        # set font family
-        if self.fontFamily == 'Times':
-          textProperty.SetFontFamilyToTimes()
-        else:
-          textProperty.SetFontFamilyToArial()
-        # set ruler text actor position
-        textActor.SetDisplayPosition(int((viewWidth+RASRulerSize*scalingFactor)/2)+10,5)
-
-        renderer.AddActor2D(self.rulerActors[sliceViewName])
-        renderer.RemoveActor2D(textActor)
-        renderer.AddActor2D(textActor)
-
+  return
 
 class AstroDataProbe(ScriptedLoadableModule):
 
