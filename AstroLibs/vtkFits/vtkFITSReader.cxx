@@ -418,6 +418,9 @@ bool vtkFITSReader::AllocateHeader()
      if (fits_parse_value(card, val, com, &ReadStatus)) break;
 
      std::string str(val);
+
+     std::replace(str.begin(), str.end(), 'D', 'E');
+
      if (std::string::npos != str.find_first_of("'"))
        {
        str.erase(0,1);

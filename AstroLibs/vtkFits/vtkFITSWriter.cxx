@@ -62,9 +62,9 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
-float StringToFloat(const char* str)
+float StringToDouble(const char* str)
 {
-  return StringToNumber<float>(str);
+  return StringToNumber<double>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -193,9 +193,9 @@ void vtkFITSWriter::WriteData()
       }
     else
       {
-      float tf;
-      tf = StringToFloat((ait->second).c_str());
-      fits_update_key(fptr, TFLOAT, tmp.c_str(), &tf, "", &WriteStatus);
+      double td;
+      td = StringToDouble((ait->second).c_str());
+      fits_update_key(fptr, TDOUBLE, tmp.c_str(), &td, "", &WriteStatus);
       }
     }
 
