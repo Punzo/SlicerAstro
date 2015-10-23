@@ -101,6 +101,7 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
     else:
       return "<b>%s</b>" % self.getPixelString(volumeNode,ijk) if volumeNode else ""
 
+
 def  makeAstroRuler(self, sliceNode):
     sliceViewName = sliceNode.GetLayoutName()
     renderer = self.renderers[sliceViewName]

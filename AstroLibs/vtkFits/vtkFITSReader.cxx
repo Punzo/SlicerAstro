@@ -639,9 +639,9 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if(HeaderKeyValue.count("SlicerAstro.CELLSCAL") > 0)
+   if(HeaderKeyValue.count("SlicerAstro.CELLSCAL") == 0)
      {
-     vtkWarningMacro("The keyword CELLSCAL has been found. However, SlicerAstro currently doesn't take in account it.");
+     HeaderKeyValue["SlicerAstro.CELLSCAL"] = "";
      }
 
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
