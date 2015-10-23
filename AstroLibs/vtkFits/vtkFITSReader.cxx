@@ -92,9 +92,9 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
-float StringToFloat(const char* str)
+float StringToDouble(const char* str)
 {
-  return StringToNumber<float>(str);
+  return StringToNumber<double>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -352,9 +352,9 @@ void vtkFITSReader::ExecuteInformation()
     }
 
 
-  float theta1 = (StringToFloat(this->GetHeaderValue("SlicerAstro.CDELT1")) > 0.) ? 0. : M_PI;
-  float theta2 = (StringToFloat(this->GetHeaderValue("SlicerAstro.CDELT2")) > 0.) ? 0. : M_PI;
-  float theta3 = (StringToFloat(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.) ? 0. : M_PI;
+  float theta1 = (StringtoDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) > 0.) ? 0. : M_PI;
+  float theta2 = (StringtoDouble(this->GetHeaderValue("SlicerAstro.CDELT2")) > 0.) ? 0. : M_PI;
+  float theta3 = (StringtoDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.) ? 0. : M_PI;
   theta1 += M_PI/2.;
 
   this->RasToIjkMatrix->SetElement(0, 0, cos(theta2) * cos(theta3));
