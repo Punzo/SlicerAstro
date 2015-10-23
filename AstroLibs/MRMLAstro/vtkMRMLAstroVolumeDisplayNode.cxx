@@ -227,7 +227,12 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
 {
   std::string value = "";
-  if(node && !strcmp(node->GetAttribute("DisplayHint"), "FractionsAsArcMinutesArcSeconds"))
+  if(!node)
+    {
+    return value.c_str();
+    }
+
+  if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
     {
     double fractpart, intpart, displayValue;
     std::string displayValueString;
@@ -255,8 +260,13 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
       }
 
     value = value + displayValueString + "\x22";
+    return value.c_str();
     }
-  return value.c_str();
+  else
+    {
+    return node->GetDisplayStringFromValue(world);
+    }
+
 }
 
 //----------------------------------------------------------------------------

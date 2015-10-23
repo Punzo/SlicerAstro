@@ -216,7 +216,6 @@ void qSlicerAstroVolumeModule::setup()
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
 {
-  cout<<"bella"<<endl;
   Q_D(qSlicerAstroVolumeModule);
   if(!sender && d->volumeRendering)
     {
@@ -225,7 +224,6 @@ void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
 
   vtkMRMLUnitNode* unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
 
-  //
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
          (d->volumeRendering->widgetRepresentation());

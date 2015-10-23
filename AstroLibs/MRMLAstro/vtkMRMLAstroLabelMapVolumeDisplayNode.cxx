@@ -210,7 +210,12 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
 {
   std::string value = "";
-  if(node && !strcmp(node->GetAttribute("DisplayHint"), "FractionsAsArcMinutesArcSeconds"))
+  if(!node)
+    {
+    return value.c_str();
+    }
+
+  if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
     {
     double fractpart, intpart, displayValue;
     std::string displayValueString;
@@ -238,8 +243,12 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
       }
 
     value = value + displayValueString + "\x22";
+    return value.c_str();
     }
-  return value.c_str();
+  else
+    {
+    return node->GetDisplayStringFromValue(world);
+    }
 }
 
 //----------------------------------------------------------------------------

@@ -631,12 +631,12 @@ bool vtkFITSReader::AllocateHeader()
      {
      vtkWarningMacro("The fits header is missing the DATE-OBS keyword. Odd behaviors may show up!");
      HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
-     }
 
-   if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
-     {
-     vtkWarningMacro("The fits header is missing the EPOCH keyword. Assuming JD2000.");
-     HeaderKeyValue["SlicerAstro.EPOCH"] = "2000.";
+     if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
+       {
+       vtkWarningMacro("The fits header is also missing the EPOCH keyword. Assuming JD2000.");
+       HeaderKeyValue["SlicerAstro.EPOCH"] = "2000.";
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CELLSCAL") > 0)
