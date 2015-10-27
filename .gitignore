@@ -26,3 +26,6 @@
 *.exe
 *.out
 *.app
+
+# Exclude QtCreator files ...
+CMakeLists.txt.user*

@@ -1,3 +1,0 @@
-set(qMRMLAstroWidgets_INCLUDE_DIRS "@qMRMLAstroWidgets_INCLUDE_DIRS@")
-set(qMRMLAstroWidgets_LIB_DIR "@CMAKE_BINARY_DIR@/bin" "@CMAKE_BINARY_DIR@")
-set(VTK_DIR "@VTK_DIR@")

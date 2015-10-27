@@ -15,7 +15,7 @@
 #include "wcslib.h"
 #include "getwcstab.h"
 
-#define VTK_FITS_EXPORT
+#include "vtkFitsWin32Header.h"
 
 /// \brief Reads FITS files.
 ///

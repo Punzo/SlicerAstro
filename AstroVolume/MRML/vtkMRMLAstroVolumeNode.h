@@ -1,6 +1,7 @@
 #ifndef __vtkMRMLAstroVolumeNode_h
 #define __vtkMRMLAstroVolumeNode_h
 
+
 // MRML includes
 #include <vtkMRML.h>
 #include <vtkMRMLScene.h>
@@ -13,12 +14,12 @@
 // WCS includes
 #include "wcslib.h"
 
-//#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLAstroVolumeDisplayNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
-class VTK_MRML_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
+class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
 {
   public:
 

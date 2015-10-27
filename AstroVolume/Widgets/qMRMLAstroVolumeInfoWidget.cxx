@@ -1,12 +1,18 @@
 // QT includes
 #include <QDebug>
+#include <QFormLayout>
+#include <QLabel>
+#include <QLineEdit>
+#include <QCheckBox>
+#include <QPushButton>
+#include <QSpinBox>
 
 // CTK includes
 #include <ctkUtils.h>
 
 // qMRML includes
 #include "qMRMLAstroVolumeInfoWidget.h"
-#include "ui_qMRMLAstroVolumeInfoWidget.h"
+#include "qMRMLCoordinatesWidget.h"
 
 // MRML includes
 #include <vtkMRMLLabelMapVolumeDisplayNode.h>

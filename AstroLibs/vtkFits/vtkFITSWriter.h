@@ -10,7 +10,7 @@
 class vtkImageData;
 class AttributeMapType;
 
-#define VTK_FITS_EXPORT
+#include "vtkFitsWin32Header.h"
 
 /// \brief Writes fits files.
 ///

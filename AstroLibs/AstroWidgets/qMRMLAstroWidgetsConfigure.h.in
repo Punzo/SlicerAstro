@@ -1,6 +1,0 @@
-#ifndef __qMRMLWidgetsConfigure_h
-#define __qMRMLWidgetsConfigure_h
-
-#cmakedefine HAVE_STDINT_H
-
-#endif

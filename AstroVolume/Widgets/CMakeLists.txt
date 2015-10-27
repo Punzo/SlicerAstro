@@ -5,9 +5,11 @@ set(KIT ${PROJECT_NAME})
 set(${KIT}_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_WIDGETS_EXPORT")
 
 set(${KIT}_INCLUDE_DIRECTORIES
+    ${CMAKE_CURRENT_SOURCE_DIR}/../MRML
+    ${CMAKE_CURRENT_BINARY_DIR}/../MRML
     ${MRMLCore_INCLUDE_DIRS}
     ${WCSLIB_INCLUDE_DIR}
-    ${Slicer_AstroLibs_INCLUDE_DIRS}  
+    ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -17,17 +19,31 @@ set(${KIT}_SRCS
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.cxx
   qSlicerAstroVolumeDisplayWidget.h
+  qMRMLAstroVolumeInfoWidget.cxx
+  qMRMLAstroVolumeInfoWidget.h
+  #qMRMLSliceAstroControllerWidget.cxx
+  #qMRMLSliceAstroControllerWidget.h
+  #qMRMLSliceAstroControllerWidget_p.h
+  #qMRMLSliceAstroWidget.cxx
+  #qMRMLSliceAstroWidget.h
+  #qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_MOC_SRCS
   qSlicerLabelMapVolumeDisplayWidget.h
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.h
+  qMRMLAstroVolumeInfoWidget.h
+  #qMRMLSliceAstroControllerWidget.h
+  #qMRMLSliceAstroControllerWidget_p.h
+  #qMRMLSliceAstroWidget.h
+  #qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_UI_SRCS
   Resources/UI/qSlicerLabelMapVolumeDisplayWidget.ui
   Resources/UI/qSlicerScalarVolumeDisplayWidget.ui
+  #Resources/UI/qMRMLSliceAstroControllerWidget.ui
   )
 
 set(${KIT}_RESOURCES
@@ -36,7 +52,7 @@ set(${KIT}_RESOURCES
 
 set(${KIT}_TARGET_LIBRARIES
    MRMLCore
-   MRMLAstro
+   vtkSlicerAstroVolumeModuleMRML
   )
 
 #-----------------------------------------------------------------------------
