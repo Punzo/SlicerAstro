@@ -76,11 +76,6 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
 
     CoordinateSystemName = "IJK"
 
-    hasVolume = False
-    hasBLayer = False
-    hasFLayer = False
-    hasLLayer = False
-
     layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
                    ('F', sliceLogic.GetForegroundLayer),
                    ('L', sliceLogic.GetLabelLayer))
@@ -89,32 +84,17 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
       volumeNode = layerLogic.GetVolumeNode()
       ijk = [0, 0, 0]
       if volumeNode:
-        hasVolume = True
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
         display = volumeNode.GetDisplayNode()
         if display:
-          Quantities = display.GetSpaceQuantities()
           CoordinateSystemName = display.GetSpace()
-          selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
-          if selectionNode:
-            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
-            if layer == 'B':
-              hasBLayer = True
-              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-            if layer == "F" and hasBLayer == False:
-              hasFLayer = True
-              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-            if layer == "L" and hasBLayer == False and hasFLayer == False:
-              hasLLayer = True
-              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
+          volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
+          worldX = display.GetDisplayStringFromValueX(world[0])
+          worldY = display.GetDisplayStringFromValueY(world[1])
+          worldZ = display.GetDisplayStringFromValueZ(world[2])
+      break
 
-    if hasVolume == True:
-      worldX = display.GetDisplayStringFromValue(world[0], UnitNode1)
-      worldY = display.GetDisplayStringFromValue(world[1], UnitNode2)
-      worldZ = display.GetDisplayStringFromValue(world[2], UnitNode3)
 
     if CoordinateSystemName == "WCS":
       return "  {layoutName: <8s} {sys:s}:({worldX:>16s},{worldY:>16s},{worldZ:>10s}) {orient: >8s}" \

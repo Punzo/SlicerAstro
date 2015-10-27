@@ -223,6 +223,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 
   return pixel;
 }
+
 //----------------------------------------------------------------------------
 const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
 {
@@ -262,12 +263,49 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
     value = value + displayValueString + "\x22";
     return value.c_str();
     }
-  else
-    {
-    return node->GetDisplayStringFromValue(world);
-    }
-
+  return node->GetDisplayStringFromValue(world);
 }
+
+
+//----------------------------------------------------------------------------
+const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    }
+  return "";
+}
+
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)

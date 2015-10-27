@@ -61,8 +61,17 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   virtual std::string GetPixelString(double *ijk);
 
   ///
-  /// Given a coordinate of the volume, create a string if special formatting is required
+  /// Given a coordinate of the volume and unit node, create a string if special formatting is required
   virtual const char* GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node);
+
+  ///
+  /// \brief GetDisplayStringFromValueAxes
+  /// \param world
+  /// \return Given a coordinate of the volume, create a string if special formatting is required
+  ///
+  virtual const char *GetDisplayStringFromValueX(const double world);
+  virtual const char *GetDisplayStringFromValueY(const double world);
+  virtual const char *GetDisplayStringFromValueZ(const double world);
 
 protected:
 

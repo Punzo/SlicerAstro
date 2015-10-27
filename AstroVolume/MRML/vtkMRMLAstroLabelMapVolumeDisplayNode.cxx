@@ -4,6 +4,7 @@
 #include "vtkMRMLScene.h"
 #include "vtkMRMLVolumeNode.h"
 #include "vtkMRMLUnitNode.h"
+#include "vtkMRMLSelectionNode.h"
 
 // VTK includes
 #include <vtkImageData.h>
@@ -245,10 +246,46 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     value = value + displayValueString + "\x22";
     return value.c_str();
     }
-  else
+  return node->GetDisplayStringFromValue(world);
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
     {
-    return node->GetDisplayStringFromValue(world);
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
     }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    }
+  return "";
 }
 
 //----------------------------------------------------------------------------
