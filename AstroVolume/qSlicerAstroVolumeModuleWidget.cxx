@@ -214,17 +214,21 @@ double StringToDouble(const char* str)
 void qSlicerAstroVolumeModuleWidget::setup()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
   d->setupUi(this);
 
   this->qvtkDisconnectAll();
 
-  vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
-     SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
-
-  if(displayNode)
+  if(d->volumeRenderingWidget)
     {
-    this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
+    vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
+       SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
+
+    if(displayNode)
+      {
+      this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
                   this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+      }
     }
 }
 
@@ -310,10 +314,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
     {
     return;
     }
-
   vtkMRMLAnnotationROINode* ROINode =
       vtkMRMLAnnotationROINode::SafeDownCast(sender);
-
   if(ROINode->GetDisplayVisibility())
     {
     d->ROICropDisplayCheckBox->setChecked(true);
@@ -322,7 +324,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
     {
     d->ROICropDisplayCheckBox->setChecked(false);
     }
-
 }
 
 //---------------------------------------------------------------------------
@@ -363,6 +364,11 @@ void qSlicerAstroVolumeModuleWidget::onCurrentQualityControlChanged(int index)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if(!d->volumeRenderingWidget)
+    {
+    return;
+    }
+
   vtkMRMLVolumeRenderingDisplayNode* displayNode =
       d->volumeRenderingWidget->mrmlDisplayNode();
 
@@ -378,6 +384,11 @@ void qSlicerAstroVolumeModuleWidget::onCurrentQualityControlChanged(int index)
 void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if(!d->volumeRenderingWidget)
+    {
+    return;
+    }
 
   vtkMRMLAnnotationROINode* ROINode =
       d->volumeRenderingWidget->mrmlDisplayNode()->GetROINode();
@@ -407,6 +418,11 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if(!d->volumeRenderingWidget)
+    {
+    return;
+    }
+
   vtkMRMLVolumeRenderingDisplayNode* displayNode =
       d->volumeRenderingWidget->mrmlDisplayNode();
 
@@ -425,15 +441,18 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 
   vtkMRMLVolumeRenderingDisplayNode *displayNode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(node);
+  if(!displayNode)
+    {
+    return;
+    }
 
   vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLVolumeRenderingDisplayNode");
   unsigned int numNodes = col->GetNumberOfItems();
-
   for (unsigned int n = 0; n < numNodes; n++)
     {
     vtkMRMLVolumeRenderingDisplayNode *displayNodeIter =
         vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(col->GetItemAsObject(n));
-    if (displayNodeIter)
+    if (displayNodeIter && displayNode)
       {
       // is this the display node?
       if (displayNode->GetID() && displayNodeIter->GetID() && strcmp(displayNode->GetID(), displayNodeIter->GetID()) == 0)
@@ -448,7 +467,6 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
                            this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
       }
     }
-
   col->RemoveAllItems();
   col->Delete();
 
@@ -459,5 +477,4 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 
   this->onMRMLVolumeRenderingDisplayNodeModified(displayNode);
   this->onMRMLDisplayROINodeModified(displayNode->GetROINode());
-
 }
