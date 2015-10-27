@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 from __future__ import division
 import os
 import unittest
@@ -9,54 +12,6 @@ from math import floor
 import DataProbeLib
 from slicer.util import settingsValue
 from slicer.util import VTKObservationMixin
-
-"""
-  sliceLogic = None
-  if sliceNode:
-    appLogic = slicer.app.applicationLogic()
-    if appLogic:
-      sliceLogic = appLogic.GetSliceLogic(sliceNode)
-
-  world = [0., 0., 0.]
-  CoordinateSystemName = "IJK"
-  hasVolume = False
-
-  if sliceLogic:
-
-    hasBLayer = False
-    hasFLayer = False
-    hasLLayer = False
-
-    layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
-                     ('F', sliceLogic.GetForegroundLayer),
-                     ('L', sliceLogic.GetLabelLayer))
-    for layer,logicCall in layerLogicCalls:
-      layerLogic = logicCall()
-      volumeNode = layerLogic.GetVolumeNode()
-      ijk = [0, 0, 0]
-      if volumeNode:
-        hasVolume = True
-        xyToIJK = layerLogic.GetXYToIJKTransform()
-        ijkFloat = xyToIJK.TransformDoublePoint(xyz)
-        display = volumeNode.GetDisplayNode()
-        if display:
-          Quantities = display.GetSpaceQuantities()
-          CoordinateSystemName = display.GetSpace()
-          selectionNode = slicer.mrmlScene.GetNthNodeByClass(0,'vtkMRMLSelectionNode')
-          if selectionNode:
-            UnitNode1 = selectionNode.GetUnitNode(Quantities.GetValue(0))
-            UnitNode2 = selectionNode.GetUnitNode(Quantities.GetValue(1))
-            UnitNode3 = selectionNode.GetUnitNode(Quantities.GetValue(2))
-            if layer == 'B':
-              hasBLayer = True
-              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-            if layer == "F" and hasBLayer == False:
-              hasFLayer = True
-              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-            if layer == "L" and hasBLayer == False and hasFLayer == False:
-              hasLLayer = True
-              volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-"""
 
 try:
   import numpy as np
@@ -82,7 +37,6 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
-      ijk = [0, 0, 0]
       if volumeNode:
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
@@ -133,51 +87,100 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
 def  makeAstroRuler(self, sliceNode):
   sliceViewName = sliceNode.GetLayoutName()
   renderer = self.renderers[sliceViewName]
+  actor = self.rulerActors[sliceViewName]
+
   if self.sliceViews[sliceViewName]:
     #
     # update scaling ruler
     #
-    viewWidth = self.sliceViews[sliceViewName].width
-    pts = self.points[sliceViewName]
-    pts.SetPoint(0,[0,5, 0])
-    pts.SetPoint(1,[10,15, 0])
-    pts.SetPoint(2,[20,5, 0])
-    pts.SetPoint(3,[30,10, 0])
-    pts.SetPoint(4,[40,5, 0])
-    pts.SetPoint(5,[50,15, 0])
-    pts.SetPoint(6,[60,5, 0])
-    pts.SetPoint(7,[70,10, 0])
-    pts.SetPoint(8,[80,5, 0])
-    pts.SetPoint(9,[90,15, 0])
-    pts.SetPoint(10,[100, 0, 0])
-    pts.SetPoint(11,[110,10, 0])
-    pts.SetPoint(12,[120,5, 0])
-    pts.SetPoint(13,[130,15, 0])
-    pts.SetPoint(14,[140,5, 0])
-    pts.SetPoint(15,[150,10, 0])
-    pts.SetPoint(16,[160,5, 0])
-    pts.SetPoint(17,[170,15, 0])
-    pts.SetPoint(18,[180,5, 0])
-    pts.SetPoint(19,[190,10, 0])
-    pts.SetPoint(20,[2000,5, 0])
-    pts.SetPoint(21,[210,15, 0])
 
-    textActor = self.rulerTextActors[sliceViewName]
-    textActor.SetInput("bella")
-    textProperty = textActor.GetTextProperty()
-    # set font size
-    textProperty.SetFontSize(self.fontSize)
-    # set font family
-    if self.fontFamily == 'Times':
-      textProperty.SetFontFamilyToTimes()
-    else:
-      textProperty.SetFontFamilyToArial()
-    # set ruler text actor position
-    textActor.SetDisplayPosition(int(viewWidth/2.), int(viewWidth/2.))
+    sliceLogic = None
+    if sliceNode:
+      appLogic = slicer.app.applicationLogic()
+      if appLogic:
+        sliceLogic = appLogic.GetSliceLogic(sliceNode)
 
-    renderer.AddActor2D(self.rulerActors[sliceViewName])
-    renderer.RemoveActor2D(textActor)
-    renderer.AddActor2D(textActor)
+    world = [0., 0., 0.]
+    CoordinateSystemName = "IJK"
+
+    if sliceLogic:
+
+      layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
+                       ('F', sliceLogic.GetForegroundLayer),
+                       ('L', sliceLogic.GetLabelLayer))
+      for layer,logicCall in layerLogicCalls:
+        layerLogic = logicCall()
+        volumeNode = layerLogic.GetVolumeNode()
+        if volumeNode:
+          xyToIJK = layerLogic.GetXYToIJKTransform()
+          display = volumeNode.GetDisplayNode()
+          if display:
+            CoordinateSystemName = display.GetSpace()
+            viewWidth = self.sliceViews[sliceViewName].width
+            pts = self.points[sliceViewName]
+            pts.Resize(0)
+            pts.Squeeze()
+            pts.InsertPoint(0,[10,5, 0])
+            pts.InsertPoint(1,[10,15, 0])
+            pts.InsertPoint(2,[30,5, 0])
+            pts.InsertPoint(3,[30,10, 0])
+
+            n = pts.GetNumberOfPoints()
+
+            lines = []
+            for i in xrange(0, n-1):
+              line = vtk.vtkLine()
+              lines.append(line)
+
+            for i in xrange(0, n-1):
+              if (i%2 == 0):
+                lines[i].GetPointIds().SetId(0,i)
+                lines[i].GetPointIds().SetId(1,i+1)
+              else:
+                lines[i].GetPointIds().SetId(0,i-1)
+                lines[i].GetPointIds().SetId(1,i+1)
+
+            linesArray = vtk.vtkCellArray()
+            for i in xrange(0, n-1):
+              linesArray.InsertNextCell(lines[i])
+            linesPolyData = vtk.vtkPolyData()
+            linesPolyData.SetPoints(pts)
+            linesPolyData.SetLines(linesArray)
+
+            mapper = actor.GetMapper()
+            if vtk.VTK_MAJOR_VERSION <= 5:
+              mapper.SetInput(linesPolyData)
+            else:
+              mapper.SetInputData(linesPolyData)
+
+            actor.SetMapper(mapper)
+            actor.GetProperty().SetLineWidth(2)
+
+            textActor = self.rulerTextActors[sliceViewName]
+            xyz = [10, 0, 0]
+            ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+            volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
+            worldX = "0"
+            if(sliceNode.GetOrientationString() == "Coronal"):
+           #   worldX = display.GetDisplayStringFromValueX(world[0])
+           #   print "({worldX:>16s}) ".format(worldX=worldX)
+           #   print "bella"
+              textActor.SetInput("bella")
+            textProperty = textActor.GetTextProperty()
+            # set font size
+            textProperty.SetFontSize(self.fontSize)
+            # set font family
+            if self.fontFamily == 'Times':
+              textProperty.SetFontFamilyToTimes()
+            else:
+              textProperty.SetFontFamilyToArial()
+            # set ruler text actor position
+            textActor.SetDisplayPosition(10, 5)
+
+            renderer.AddActor2D(self.rulerActors[sliceViewName])
+            renderer.RemoveActor2D(textActor)
+            renderer.AddActor2D(textActor)
+        break
 
   return
 

@@ -314,8 +314,14 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
   vtkMRMLAnnotationROINode* ROINode =
       vtkMRMLAnnotationROINode::SafeDownCast(sender);
 
-  d->ROICropDisplayCheckBox->setChecked(ROINode->
-      GetDisplayClassVisibility("vtkMRMLAnnotationLineDisplayNode"));
+  if(ROINode->GetDisplayVisibility())
+    {
+    d->ROICropDisplayCheckBox->setChecked(true);
+    }
+  else
+    {
+    d->ROICropDisplayCheckBox->setChecked(false);
+    }
 
 }
 
@@ -373,16 +379,27 @@ void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  vtkMRMLVolumeRenderingDisplayNode* displayNode =
-      d->volumeRenderingWidget->mrmlDisplayNode();
+  vtkMRMLAnnotationROINode* ROINode =
+      d->volumeRenderingWidget->mrmlDisplayNode()->GetROINode();
 
-  if (!displayNode)
+  if (!ROINode)
     {
     return;
     }
 
-  displayNode->GetROINode()->SetDisplayClassVisibility
-      ("vtkMRMLAnnotationLineDisplayNode", visibility);
+  int n = ROINode->GetNumberOfDisplayNodes();
+  int wasModifying [n];
+  for(int i = 0; i < n; i++)
+    {
+    wasModifying[i] = ROINode->GetNthDisplayNode(i)->StartModify();
+    }
+
+ ROINode->SetDisplayVisibility(visibility);
+
+  for(int i = 0; i < n; i++)
+    {
+    ROINode->GetNthDisplayNode(i)->EndModify(wasModifying[i]);
+    }
 }
 
 //---------------------------------------------------------------------------

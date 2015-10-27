@@ -30,7 +30,7 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * Editor and LabelStatistics for the moment are not fully compatible with child class of ScalarVolume and LabelVolume. However let's wait the release of the segmentation class and editor from SlicerRT.
 * at the moment the Slicer annotaions (ROI, fiducials and ruler) display the RAS coordinates (for SlicerAstro are the display coordinates).
 * label of 3-D view:  use W, S, N, etc. for the labels. (hint: ctkAxesWidgetPrivate -> AxesLabels)
-* at the moment the SLicerAstro is not aware of the CELLSCALL keyword
+* at the moment the SlicerAstro is not aware of the CELLSCAL keyword
 * WCSlib a fully integrated in SlicerAstro, but for the moment celestial and spectral trasformation are not implmented in the interface.
 * at the moment datacubes NAXIS>3 not supported (NAXIS=4 and NAXIS4=1 -> NAXIS=3)
 * at the moment SlicerAstro doesn't "align" label and foreground volume to the background. This means that, at the moment, the users should take care to load datacubes with same gridding and and same WCS.

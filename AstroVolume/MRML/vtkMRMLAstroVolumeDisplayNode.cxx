@@ -250,7 +250,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
       {
        displayValueString = " " + displayValueString;
       }
-    value = value + displayValueString +"\x27 ";
+    value = value + displayValueString + "\x27 ";
     displayValueString = "";
     strstream.precision(node->GetPrecision());
     strstream << fractpart;

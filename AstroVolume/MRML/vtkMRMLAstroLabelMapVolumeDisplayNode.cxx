@@ -257,7 +257,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(co
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
     }
   return "";
 }
@@ -270,7 +270,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(co
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
     }
   return "";
 }
@@ -283,7 +283,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(co
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
     }
   return "";
 }
