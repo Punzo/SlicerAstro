@@ -452,7 +452,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
     {
     vtkMRMLVolumeRenderingDisplayNode *displayNodeIter =
         vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(col->GetItemAsObject(n));
-    if (displayNodeIter && displayNode)
+    if (displayNodeIter)
       {
       // is this the display node?
       if (displayNode->GetID() && displayNodeIter->GetID() && strcmp(displayNode->GetID(), displayNodeIter->GetID()) == 0)
