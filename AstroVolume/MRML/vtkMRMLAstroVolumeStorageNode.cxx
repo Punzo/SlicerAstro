@@ -204,6 +204,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
 
   reader->Update();
+
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
     // set volume attributes
@@ -211,10 +212,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     volNode->SetRASToIJKMatrix(mat);
 
     //set WCSstruct
-    volNode->SetWCSStruct(reader->GetWCSStruct());
+    disNode->SetWCSStruct(reader->GetWCSStruct());
 
     // parse WCS Status
-    volNode->SetWCSStatus(reader->GetWCSStatus());
+    disNode->SetWCSStatus(reader->GetWCSStatus());
 
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
@@ -224,10 +225,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
 
-    // parse Space (WCS or IJK) to the display node
     if (disNode)
       {
-      if (volNode->GetWCSStatus() != 0)
+      if (disNode->GetWCSStatus() != 0)
         {
         disNode->SetSpace("IJK");
         }
@@ -251,9 +251,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
     labvolNode->SetRASToIJKMatrix(mat);
     //set WCSstruct
-    labvolNode->SetWCSStruct(reader->GetWCSStruct());
+    labdisNode->SetWCSStruct(reader->GetWCSStruct());
     // parse WCS Status
-    labvolNode->SetWCSStatus(reader->GetWCSStatus());
+    labdisNode->SetWCSStatus(reader->GetWCSStatus());
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
     for ( std::vector<std::string>::iterator kit = keys.begin();
@@ -264,7 +264,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       // parse Space (WCS or IJK) to the display node
     if (labdisNode)
       {
-      if (labvolNode->GetWCSStatus() != 0)
+      if (labdisNode->GetWCSStatus() != 0)
         {
         labdisNode->SetSpace("IJK");
         }
@@ -281,6 +281,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
                       " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
       }
     }
+
   // rescaling flux and calculating max, min and noise
   if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0.") ||
@@ -459,7 +460,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   labvolNode->SetImageDataConnection(ici->GetOutputPort());
 #endif
     }
-
   return 1;
 }
 

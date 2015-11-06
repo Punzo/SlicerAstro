@@ -419,7 +419,7 @@ bool vtkFITSReader::AllocateHeader()
 
      std::string str(val);
 
-     std::replace(str.begin(), str.end(), 'D', 'E');
+     std::replace(str.begin(), str.end(), 'D+', 'E+');
 
      if (std::string::npos != str.find_first_of("'"))
        {

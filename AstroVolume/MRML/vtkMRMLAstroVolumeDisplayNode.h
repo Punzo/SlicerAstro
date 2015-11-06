@@ -9,6 +9,9 @@
 // VTK includes
 #include "vtkStringArray.h"
 
+// WCS includes
+#include "wcslib.h"
+
 class vtkAlgorithmOutput;
 class vtkImageData;
 class vtkMRMLUnitNode;
@@ -57,33 +60,108 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   int SetSpaceQuantity(int ind, const char *name);
 
   ///
-  /// Given a volume node, create a human readable string describing the contents
+  /// Set WCSStruct
+  virtual void SetWCSStruct(struct wcsprm*);
+
+  ///
+  /// WcsStatus
+  vtkSetMacro(WCSStatus,int);
+  vtkGetMacro(WCSStatus,int);
+
+  ///
+  /// Get WCS Coordinates from IJK
+  virtual void GetReferenceSpace(const double ijk[3],
+                                 double SpaceCoordinates[3]);
+
+  ///
+  /// Get IJK Coordinates from WCS
+  virtual void GetIJKSpace(const double SpaceCoordinates[3],
+                                 double ijk[3]);
+
+  ///
+  /// Get the first tick for the display of axes at given unitNode in WCS units
+  double GetFirstWcsTickAxis(const double worldA, const double worldB,
+                             const double wcsStep, vtkMRMLUnitNode *node);
+
+  ///
+  /// Get the first tick for the display of the axis X in WCS units
+  double GetFirstWcsTickAxisX(const double worldA, const double worldB, const double wcsStep);
+
+  ///
+  /// Get the first tick for the display of the axis Y in WCS units
+  double GetFirstWcsTickAxisY(const double worldA, const double worldB, const double wcsStep);
+
+  ///
+  /// Get the first tick for the display of the axis Z in WCS units
+  double GetFirstWcsTickAxisZ(const double worldA, const double worldB, const double wcsStep);
+
+  ///
+  /// Get the ticks step for the display of axes at given unitNode in WCS units
+  double GetWcsTickStepAxis(const double wcsLength,
+                             int *numberOfPoints,
+                             vtkMRMLUnitNode *node);
+
+  ///
+  /// Get the ticks step for the display of the axis X in WCS units
+  virtual double GetWcsTickStepAxisX(const double wcsLength,
+                                     int* numberOfPoints);
+
+  ///
+  /// Get the ticks step for the display of the axis Y in WCS units
+  virtual double GetWcsTickStepAxisY(const double wcsLength,
+                                     int* numberOfPoints);
+
+  ///
+  /// Get the ticks step for the display of the axis Z in WCS units
+  virtual double GetWcsTickStepAxisZ(const double wcsLength,
+                                     int* numberOfPoints);
+
+  ///
+  /// Given a volume node, create a human
+  /// readable string describing the contents
   virtual std::string GetPixelString(double *ijk);
 
   ///
-  /// Given a coordinate of the volume and unit node, create a string if special formatting is required
-  virtual const char* GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node);
+  /// Given a coordinate of the volume and unit node,
+  /// create a string (for DAtaProve display)
+  /// if special formatting is required
+  virtual const char* GetDisplayStringFromValue(const double world,
+                                                vtkMRMLUnitNode *node);
 
   ///
   /// \brief GetDisplayStringFromValueAxes
   /// \param world
-  /// \return Given a coordinate of the volume, create a string if special formatting is required
-  ///
+  /// \return Given a coordinate of the volume,
+  /// create a string if special formatting is required
+
   virtual const char *GetDisplayStringFromValueX(const double world);
   virtual const char *GetDisplayStringFromValueY(const double world);
   virtual const char *GetDisplayStringFromValueZ(const double world);
 
-protected:
 
+  ///
+  /// \brief GetAxisDisplayStringFromValue, same as
+  /// GetDisplayStringFromValue but for display coordinates on axes
+  /// \param world
+  /// \param node
+  /// \return string to display
+  virtual const char *GetAxisDisplayStringFromValue(const double world,
+                                                    vtkMRMLUnitNode *node);
+
+  virtual const char *GetAxisDisplayStringFromValueX(const double world);
+  virtual const char *GetAxisDisplayStringFromValueY(const double world);
+  virtual const char *GetAxisDisplayStringFromValueZ(const double world);
+
+protected:
   char* Space;
   vtkStringArray* SpaceQuantities;
+  struct wcsprm* WCS;
+  int WCSStatus;
 
   vtkMRMLAstroVolumeDisplayNode();
   ~vtkMRMLAstroVolumeDisplayNode();
   vtkMRMLAstroVolumeDisplayNode(const vtkMRMLAstroVolumeDisplayNode&);
   void operator=(const vtkMRMLAstroVolumeDisplayNode&);
-
-
 };
 
 #endif

@@ -43,15 +43,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
   virtual const char* GetNodeTagName() {return "AstroLabelMapVolume";};
 
   ///
-  ///Set WCSStruct
-  virtual void SetWCSStruct(struct wcsprm*);
-
-  ///
-  ///WcsStatus
-  vtkSetMacro(WCSStatus,int);
-  vtkGetMacro(WCSStatus,int);
-
-  ///
   /// Create and observe default display node
   virtual void CreateDefaultDisplayNodes();
 
@@ -63,18 +54,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
   /// Get AstroVolume display node
   virtual vtkMRMLAstroLabelMapVolumeDisplayNode* GetAstroLabelMapVolumeDisplayNode();
 
-  ///
-  ///Get WCSCoordinates
-  virtual void GetReferenceSpace(const double ijk[3], const char* Space, double SpaceCoordinates[3]);
-
 protected:
   vtkMRMLAstroLabelMapVolumeNode();
   ~vtkMRMLAstroLabelMapVolumeNode();
   vtkMRMLAstroLabelMapVolumeNode(const vtkMRMLAstroLabelMapVolumeNode&);
   void operator=(const vtkMRMLAstroLabelMapVolumeNode&);
-
-  struct wcsprm* WCS;
-  int WCSStatus;
 };
 
 #endif

@@ -11,9 +11,6 @@
 #include <vtkDoubleArray.h>
 #include <vtkSmartPointer.h>
 
-// WCS includes
-#include "wcslib.h"
-
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLAstroVolumeDisplayNode;
@@ -46,15 +43,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   virtual const char* GetNodeTagName() {return "AstroVolume";};
 
   ///
-  ///Set WCSStruct
-  virtual void SetWCSStruct(struct wcsprm*);
-
-  ///
-  ///WcsStatus
-  vtkSetMacro(WCSStatus,int);
-  vtkGetMacro(WCSStatus,int);
-
-  ///
   /// Create and observe default Storage node
   virtual vtkMRMLStorageNode* CreateDefaultStorageNode();
 
@@ -66,22 +54,12 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   /// Get AstroVolume display node
   virtual vtkMRMLAstroVolumeDisplayNode* GetAstroVolumeDisplayNode();
 
-  ///
-  ///Get WCSCoordinates
-  virtual void GetReferenceSpace(const double ijk[3],
-                                 const char* Space,
-                                 double SpaceCoordinates[3]);
-
 protected:
   vtkMRMLAstroVolumeNode();
   virtual ~vtkMRMLAstroVolumeNode();
 
   vtkMRMLAstroVolumeNode(const vtkMRMLAstroVolumeNode&);
   void operator=(const vtkMRMLAstroVolumeNode&);
-
-  struct wcsprm* WCS;
-  int WCSStatus;
-
 };
 
 #endif

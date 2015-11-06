@@ -9,6 +9,7 @@ from slicer.ScriptedLoadableModule import *
 import logging
 from DataProbe import DataProbeInfoWidget
 from math import floor
+from math import fabs
 import DataProbeLib
 from slicer.util import settingsValue
 from slicer.util import VTKObservationMixin
@@ -40,14 +41,14 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
       if volumeNode:
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
-        display = volumeNode.GetDisplayNode()
-        if display:
-          CoordinateSystemName = display.GetSpace()
-          volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-          worldX = display.GetDisplayStringFromValueX(world[0])
-          worldY = display.GetDisplayStringFromValueY(world[1])
-          worldZ = display.GetDisplayStringFromValueZ(world[2])
-      break
+        displayNode = volumeNode.GetDisplayNode()
+        if displayNode:
+          CoordinateSystemName = displayNode.GetSpace()
+          displayNode.GetReferenceSpace(ijkFloat, world)
+          worldX = displayNode.GetDisplayStringFromValueX(world[0])
+          worldY = displayNode.GetDisplayStringFromValueY(world[1])
+          worldZ = displayNode.GetDisplayStringFromValueZ(world[2])
+          break
 
 
     if CoordinateSystemName == "WCS":
@@ -78,13 +79,34 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
   volumeNode = slicerLayerLogic.GetVolumeNode()
   if volumeNode:
     if volumeNode.IsA("vtkMRMLAstroVolumeNode"):
-      display = volumeNode.GetDisplayNode()
-      return "<b>%s</b>" % display.GetPixelString(ijk) if display else ""
+      displayNode = volumeNode.GetDisplayNode()
+      return "<b>%s</b>" % displayNode.GetPixelString(ijk) if displayNode else ""
     else:
       return "<b>%s</b>" % self.getPixelString(volumeNode,ijk) if volumeNode else ""
 
 
+def updateAstroRuler(self, sliceLogic):
+  sliceCompositeNode = sliceLogic.GetSliceCompositeNode()
+  # Get the layers
+  sliceNode = sliceLogic.GetBackgroundLayer().GetSliceNode()
+  if not sliceNode:
+    return
+  sliceViewName = sliceNode.GetLayoutName()
+  renderer = self.renderers[sliceViewName]
+  if self.rulerEnabled:
+    self.makeRuler(sliceNode)
+  else:
+    renderer.RemoveActor2D(self.rulerActors[sliceViewName])
+    Actors = renderer.GetActors2D()
+    Actors.InitTraversal()
+    for i in range(0, Actors.GetNumberOfItems()):
+      Actor2D = Actors.GetNextActor2D()
+      if(Actor2D.IsA("vtkTextActor")):
+        renderer.RemoveActor2D(Actor2D)
+
+
 def  makeAstroRuler(self, sliceNode):
+
   sliceViewName = sliceNode.GetLayoutName()
   renderer = self.renderers[sliceViewName]
   actor = self.rulerActors[sliceViewName]
@@ -100,7 +122,6 @@ def  makeAstroRuler(self, sliceNode):
       if appLogic:
         sliceLogic = appLogic.GetSliceLogic(sliceNode)
 
-    world = [0., 0., 0.]
     CoordinateSystemName = "IJK"
 
     if sliceLogic:
@@ -108,80 +129,251 @@ def  makeAstroRuler(self, sliceNode):
       layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
                        ('F', sliceLogic.GetForegroundLayer),
                        ('L', sliceLogic.GetLabelLayer))
+
       for layer,logicCall in layerLogicCalls:
         layerLogic = logicCall()
+
         volumeNode = layerLogic.GetVolumeNode()
         if volumeNode:
           xyToIJK = layerLogic.GetXYToIJKTransform()
-          display = volumeNode.GetDisplayNode()
-          if display:
-            CoordinateSystemName = display.GetSpace()
-            viewWidth = self.sliceViews[sliceViewName].width
-            pts = self.points[sliceViewName]
-            pts.Resize(0)
-            pts.Squeeze()
-            pts.InsertPoint(0,[10,5, 0])
-            pts.InsertPoint(1,[10,15, 0])
-            pts.InsertPoint(2,[30,5, 0])
-            pts.InsertPoint(3,[30,10, 0])
+          displayNode = volumeNode.GetDisplayNode()
+          if displayNode:
+            if(displayNode.GetSpace() == "WCS"):
 
-            n = pts.GetNumberOfPoints()
+              viewWidth = self.sliceViews[sliceViewName].width
+              numberOfPointsHorizontal = [0]
+              numberOfPointsHorizontal[0] = (int) (viewWidth / 120.) + 1
 
-            lines = []
-            for i in xrange(0, n-1):
-              line = vtk.vtkLine()
-              lines.append(line)
+              viewHeight = self.sliceViews[sliceViewName].height
+              numberOfPointsVertical = [0]
+              numberOfPointsVertical[0] = (int) (viewHeight / 100.) + 1
 
-            for i in xrange(0, n-1):
-              if (i%2 == 0):
-                lines[i].GetPointIds().SetId(0,i)
-                lines[i].GetPointIds().SetId(1,i+1)
+              worldA = [0., 0., 0.]
+              worldB = [0., 0., 0.]
+              worldC = [0., 0., 0.]
+              world = []
+              xyzDisplay = []
+              axisCoord = [0., 0.]
+              wcsStep = [0., 0.,]
+
+              xyz = [0, 0, 0]
+              ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+              displayNode.GetReferenceSpace(ijkFloat, worldA)
+              xyz = [viewWidth, 0, 0]
+              ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+              displayNode.GetReferenceSpace(ijkFloat, worldB)
+              xyz = [0, viewHeight, 0]
+              ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+              displayNode.GetReferenceSpace(ijkFloat, worldC)
+
+              # calculate the wcsSteps for the two axes
+              if(sliceNode.GetOrientationString() == "Sagittal"):
+                wcsStep[0] = displayNode.GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), numberOfPointsHorizontal)
+                axisCoord[0] = displayNode.GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0])
+                wcsStep[1] = displayNode.GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), numberOfPointsVertical)
+                axisCoord[1] = displayNode.GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1])
+
+              if(sliceNode.GetOrientationString() == "Coronal"):
+                wcsStep[0] = displayNode.GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), numberOfPointsHorizontal)
+                axisCoord[0] = displayNode.GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0])
+                wcsStep[1] = displayNode.GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), numberOfPointsVertical)
+                axisCoord[1] = displayNode.GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1])
+
+              if(sliceNode.GetOrientationString() == "Axial"):
+                wcsStep[0] = displayNode.GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), numberOfPointsHorizontal)
+                axisCoord[0] = displayNode.GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0])
+                wcsStep[1] = displayNode.GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), numberOfPointsVertical)
+                axisCoord[1] = displayNode.GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1])
+
+              #allocate point along the horizontal axes
+              pts = vtk.vtkPoints()
+              for i in range(numberOfPointsHorizontal[0]):
+
+                i8 = i * 8
+                if(sliceNode.GetOrientationString() == "Sagittal"):
+                  world.append([worldA[0], worldA[1], axisCoord[0] + wcsStep[0] * i])
+                if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
+                  world.append([axisCoord[0] + wcsStep[0] * i, worldA[1], worldA[2]])
+                ijk = [0., 0., 0.]
+                displayNode.GetIJKSpace(world[i], ijk)
+                xyToIJK.Inverse()
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                xyzDisplay.append(xyz)
+                pts.InsertPoint(i8, [xyz[0], 2, 0])
+                pts.InsertPoint(i8 + 1, [xyz[0], 12, 0])
+                if(sliceNode.GetOrientationString() == "Sagittal"):
+                  displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[0] \
+                            + (wcsStep[0] * i + wcsStep[0] / 4.)], ijk)
+                if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
+                    displayNode.GetIJKSpace([axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.), \
+                                            worldA[1], worldA[2]], ijk)
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                pts.InsertPoint(i8 + 2, [xyz[0], 2, 0])
+                pts.InsertPoint(i8 + 3, [xyz[0], 7, 0])
+                if(sliceNode.GetOrientationString() == "Sagittal"):
+                  displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[0] \
+                            + (wcsStep[0] * i + wcsStep[0] / 2.)], ijk)
+                if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
+                  displayNode.GetIJKSpace([axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.), \
+                                           worldA[1], worldA[2]], ijk)
+
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                pts.InsertPoint(i8 + 4, [xyz[0], 2, 0])
+                pts.InsertPoint(i8 + 5, [xyz[0], 7, 0])
+                if(sliceNode.GetOrientationString() == "Sagittal"):
+                  displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[0] \
+                            + (wcsStep[0] * i + wcsStep[0] * 3. / 4.)], ijk)
+                if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
+                  displayNode.GetIJKSpace([axisCoord[0] + (wcsStep[0] * i + wcsStep[0] *3. / 4.), \
+                                           worldA[1], worldA[2]], ijk)
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                pts.InsertPoint(i8 + 6, [xyz[0], 2, 0])
+                pts.InsertPoint(i8 + 7, [xyz[0], 7, 0])
+                xyToIJK.Inverse()
+
+              nTot = numberOfPointsVertical[0] + numberOfPointsHorizontal[0]
+
+
+              #allocate point along the vertical axes
+              for i in range(numberOfPointsHorizontal[0], nTot):
+                i8 = i * 8
+                ii = i - numberOfPointsHorizontal[0]
+                if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
+                  world.append([worldA[0], axisCoord[1] + wcsStep[1] * ii, worldA[2]])
+                if(sliceNode.GetOrientationString() == "Axial"):
+                  world.append([worldA[0], worldA[1], axisCoord[1] + wcsStep[1] * ii])
+                ijk = [0., 0., 0.]
+                displayNode.GetIJKSpace(world[i], ijk)
+                xyToIJK.Inverse()
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                xyzDisplay.append(xyz)
+                pts.InsertPoint(i8, [2, xyz[1], 0])
+                pts.InsertPoint(i8 + 1, [12, xyz[1], 0])
+                if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
+                  displayNode.GetIJKSpace([worldA[0], axisCoord[1] \
+                            + (wcsStep[1] * ii + wcsStep[1] / 4.), worldA[2]], ijk)
+                if(sliceNode.GetOrientationString() == "Axial"):
+                  displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[1] \
+                            + (wcsStep[1] * ii + wcsStep[1] / 4.)], ijk)
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                pts.InsertPoint(i8 + 2, [2, xyz[1], 0])
+                pts.InsertPoint(i8 + 3, [7, xyz[1], 0])
+                if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
+                  displayNode.GetIJKSpace([worldA[0], axisCoord[1] \
+                            + (wcsStep[1] * ii + wcsStep[1] / 2.), worldA[2]], ijk)
+                if(sliceNode.GetOrientationString() == "Axial"):
+                  displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[1] \
+                            + (wcsStep[1] * ii + wcsStep[1] / 2.)], ijk)
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                pts.InsertPoint(i8 + 4, [2, xyz[1], 0])
+                pts.InsertPoint(i8 + 5, [7, xyz[1], 0])
+                if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
+                  displayNode.GetIJKSpace([worldA[0], axisCoord[1] \
+                            + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.), worldA[2]], ijk)
+                if(sliceNode.GetOrientationString() == "Axial"):
+                  displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[1] \
+                            + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.)], ijk)
+                xyz = xyToIJK.TransformDoublePoint(ijk)
+                pts.InsertPoint(i8 + 6, [2, xyz[1], 0])
+                pts.InsertPoint(i8 + 7, [7, xyz[1], 0])
+                xyToIJK.Inverse()
+
+              n = pts.GetNumberOfPoints()
+
+              # unify the points with lines
+              lines = []
+              for i in xrange(0, n-1):
+                line = vtk.vtkLine()
+                lines.append(line)
+
+              nHori8 = numberOfPointsHorizontal[0] * 8
+              for i in xrange(0, nHori8 -1):
+                if (i%2 == 0):
+                  lines[i].GetPointIds().SetId(0,i)
+                  lines[i].GetPointIds().SetId(1,i+1)
+                else:
+                  lines[i].GetPointIds().SetId(0,i-1)
+                  lines[i].GetPointIds().SetId(1,i+1)
+
+              nVert8 = numberOfPointsVertical[0] * 8
+              nTot8 = nHori8 + nVert8
+              for i in xrange(nHori8, nTot8 - 1):
+                if (i%2 == 0):
+                  lines[i].GetPointIds().SetId(0,i)
+                  lines[i].GetPointIds().SetId(1,i+1)
+                else:
+                  lines[i].GetPointIds().SetId(0,i-1)
+                  lines[i].GetPointIds().SetId(1,i+1)
+
+              # create the cellArray
+              linesArray = vtk.vtkCellArray()
+              for i in xrange(0, n-1):
+                linesArray.InsertNextCell(lines[i])
+              linesPolyData = vtk.vtkPolyData()
+              linesPolyData.SetPoints(pts)
+              linesPolyData.SetLines(linesArray)
+
+              # setup the mapper
+              mapper = actor.GetMapper()
+
+              if vtk.VTK_MAJOR_VERSION <= 5:
+                mapper.SetInput(linesPolyData)
               else:
-                lines[i].GetPointIds().SetId(0,i-1)
-                lines[i].GetPointIds().SetId(1,i+1)
+                mapper.SetInputData(linesPolyData)
 
-            linesArray = vtk.vtkCellArray()
-            for i in xrange(0, n-1):
-              linesArray.InsertNextCell(lines[i])
-            linesPolyData = vtk.vtkPolyData()
-            linesPolyData.SetPoints(pts)
-            linesPolyData.SetLines(linesArray)
+              actor.SetMapper(mapper)
+              actor.GetProperty().SetLineWidth(2)
 
-            mapper = actor.GetMapper()
-            if vtk.VTK_MAJOR_VERSION <= 5:
-              mapper.SetInput(linesPolyData)
-            else:
-              mapper.SetInputData(linesPolyData)
+              renderer.AddActor2D(self.rulerActors[sliceViewName])
 
-            actor.SetMapper(mapper)
-            actor.GetProperty().SetLineWidth(2)
+              #setup the 2DActros
+              Actors = renderer.GetActors2D()
+              Actors.InitTraversal()
+              for i in range(0, Actors.GetNumberOfItems()):
+                Actor2D = Actors.GetNextActor2D()
+                if(Actor2D.IsA("vtkTextActor")):
+                  renderer.RemoveActor2D(Actor2D)
 
-            textActor = self.rulerTextActors[sliceViewName]
-            xyz = [10, 0, 0]
-            ijkFloat = xyToIJK.TransformDoublePoint(xyz)
-            volumeNode.GetReferenceSpace(ijkFloat, CoordinateSystemName, world)
-            worldX = "0"
-            if(sliceNode.GetOrientationString() == "Coronal"):
-           #   worldX = display.GetDisplayStringFromValueX(world[0])
-           #   print "({worldX:>16s}) ".format(worldX=worldX)
-           #   print "bella"
-              textActor.SetInput("bella")
-            textProperty = textActor.GetTextProperty()
-            # set font size
-            textProperty.SetFontSize(self.fontSize)
-            # set font family
-            if self.fontFamily == 'Times':
-              textProperty.SetFontFamilyToTimes()
-            else:
-              textProperty.SetFontFamilyToArial()
-            # set ruler text actor position
-            textActor.SetDisplayPosition(10, 5)
+              textActor = self.rulerTextActors[sliceViewName]
+              textProperty = textActor.GetTextProperty()
+              textProperty.SetFontSize(self.fontSize)
+              if self.fontFamily == 'Times':
+                textProperty.SetFontFamilyToTimes()
+              else:
+                textProperty.SetFontFamilyToArial()
 
-            renderer.AddActor2D(self.rulerActors[sliceViewName])
-            renderer.RemoveActor2D(textActor)
-            renderer.AddActor2D(textActor)
-        break
+              textActor.SetInput("")
 
+              # allocate 2DTextActors for the horizontal axes
+              for i in range(1, numberOfPointsHorizontal[0]):
+                if(xyzDisplay[i][0] < 50 or xyzDisplay[i][0] > viewWidth - 50):
+                  continue
+                if(sliceNode.GetOrientationString() == "Sagittal"):
+                  coord = displayNode.GetAxisDisplayStringFromValueZ(world[i][2])
+                if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
+                  coord = displayNode.GetAxisDisplayStringFromValueX(world[i][0])
+                textActorHorizontal = vtk.vtkTextActor()
+                textActorHorizontal.SetTextProperty(textActor.GetTextProperty())
+                textActorHorizontal.SetInput(coord)
+                textActorHorizontal.SetDisplayPosition((int) (xyzDisplay[i][0]-40), 15)
+                renderer.AddActor2D(textActorHorizontal)
+
+              # allocate 2DTextActors for the vertical axes
+              for i in range(numberOfPointsHorizontal[0], nTot):
+                if (xyzDisplay[i][1] < 50 or xyzDisplay[i][1] > viewHeight):
+                  continue
+                if(sliceNode.GetOrientationString() == "Sagittal" or \
+                  sliceNode.GetOrientationString() == "Coronal"):
+                  coord = displayNode.GetAxisDisplayStringFromValueY(world[i][1])
+                if(sliceNode.GetOrientationString() == "Axial"):
+                    coord = displayNode.GetAxisDisplayStringFromValueZ(world[i][2])
+                textActorVertical = vtk.vtkTextActor()
+                textActorVertical.SetTextProperty(textActor.GetTextProperty())
+                textActorVertical.SetInput(coord)
+                textActorVertical.SetDisplayPosition(20, (int) (xyzDisplay[i][1]-5))
+                renderer.AddActor2D(textActorVertical)
+
+              break
   return
 
 class AstroDataProbe(ScriptedLoadableModule):
@@ -249,6 +441,9 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
 
       funcType = type(dataProbeInstance.infoWidget.sliceAnnotations.makeRuler)
       dataProbeInstance.infoWidget.sliceAnnotations.makeRuler = funcType(makeAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
+
+      uncType = type(dataProbeInstance.infoWidget.sliceAnnotations.updateRuler)
+      dataProbeInstance.infoWidget.sliceAnnotations.updateRuler = funcType(updateAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
 
 class AstroDataProbeTest(ScriptedLoadableModuleTest):
 

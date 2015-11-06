@@ -121,7 +121,9 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     double min = std::numeric_limits<double>::max(), max = -std::numeric_limits<double>::max();
     for(int i = 0; i < listAstroVolumes->GetNumberOfItems(); i++)
       {
-      vtkMRMLAstroVolumeNode* astroVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(listAstroVolumes->GetItemAsObject(i));
+      vtkMRMLAstroVolumeNode* astroVolumeNode =
+          vtkMRMLAstroVolumeNode::SafeDownCast
+          (listAstroVolumes->GetItemAsObject(i));
       if (astroVolumeNode)
         {
         double mint = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
@@ -134,13 +136,18 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
           {
           max = maxt;
           }
-
-        if(astroVolumeNode->GetWCSStatus() != 0 && WCS)
+        vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
+             astroVolumeNode->GetAstroVolumeDisplayNode();
+        if(!astroVolumeDisplayNode)
+          {
+          continue;
+          }
+        if(astroVolumeDisplayNode->GetWCSStatus() != 0 && WCS)
           {
           vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
                         <<"It may results in odd behaviours."<<endl);
           }
-        if(astroVolumeNode->GetWCSStatus() == 0)
+        if(astroVolumeDisplayNode->GetWCSStatus() == 0)
           {
           WCS = true;
           }
@@ -151,16 +158,23 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroLabelMapVolumeNode"));
     for(int i = 0; i < listAstroLabelMapVolumes->GetNumberOfItems(); i++)
       {
-      vtkMRMLAstroVolumeNode* astroLabelMapVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(listAstroLabelMapVolumes->GetItemAsObject(i));
+      vtkMRMLAstroLabelMapVolumeNode* astroLabelMapVolumeNode =
+          vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+          (listAstroLabelMapVolumes->GetItemAsObject(i));
       if (astroLabelMapVolumeNode)
         {
-
-        if(astroLabelMapVolumeNode->GetWCSStatus() != 0 && WCS)
+        vtkMRMLAstroLabelMapVolumeDisplayNode* astroLabelMapVolumeDisplayNode =
+              astroLabelMapVolumeNode->GetAstroLabelMapVolumeDisplayNode();
+        if(!astroLabelMapVolumeDisplayNode)
+          {
+          continue;
+          }
+        if(astroLabelMapVolumeDisplayNode->GetWCSStatus() != 0 && WCS)
           {
           vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
                         <<"It may results in odd behaviours."<<endl);
           }
-        if(astroLabelMapVolumeNode->GetWCSStatus() == 0)
+        if(astroLabelMapVolumeDisplayNode->GetWCSStatus() == 0)
           {
           WCS = true;
           }
@@ -220,7 +234,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
         unitNode4->SetDisplayCoefficient(0.000001);
         unitNode4->SetPrefix("");
-        unitNode4->SetPrecision(6);
+        unitNode4->SetPrecision(2);
         unitNode4->SetSuffix("MHz");
         unitNode4->SetAttribute("DisplayHint","");
         selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
