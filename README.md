@@ -18,12 +18,12 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * 1) Added AstroLabelMapVolume (WCS compatible).
 * 1) Generalization of qSlicerUnits.
 * 1) Slicer dataProbe moduile overrided with AstroDataProbe one.
-* 1) first desing of the AstroVolume interface done.
+* 1) First desing of the AstroVolume interface done.
+* 1) Added WCS axis in the 2-D views. 
 </div>
 
 <h3> To Do list before first alpha release  </h3>
 * SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
-* DataProbeLib: ruler -> make axes like kvis.
 </div>
 
 <h3> NOTE  </h3>
