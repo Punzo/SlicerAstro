@@ -106,7 +106,8 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->ImageSpacingWidget->setObjectName(QString::fromUtf8("ImageSpacingWidget"));
   this->ImageSpacingWidget->setDecimals(4);
   this->ImageSpacingWidget->setDecimalsOption(ctkDoubleSpinBox::DecimalsByKey|ctkDoubleSpinBox::DecimalsByShortcuts|ctkDoubleSpinBox::DecimalsByValue);
-  this->ImageSpacingWidget->setMinimum(0.0001);
+  this->ImageSpacingWidget->setMinimum(0.005);
+  this->ImageSpacingWidget->setSingleStep(0.5);
   this->ImageSpacingWidget->setMaximum(1e+09);
   this->ImageSpacingWidget->setUnitAwareProperties(qMRMLCoordinatesWidget::Precision|qMRMLCoordinatesWidget::Prefix|qMRMLCoordinatesWidget::Scaling|qMRMLCoordinatesWidget::Suffix);
 
