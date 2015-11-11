@@ -44,7 +44,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
     #URL_MD5 ""
     SOURCE_DIR ${proj}
     BUILD_IN_SOURCE 1
-    CONFIGURE_COMMAND ./configure --with-cfitsiolib=_cfitsio_library --with-cfitsioinc=_cfitsio_include  --prefix=${EP_SOURCE_DIR} --exec-prefix=${EP_SOURCE_DIR} 
+    CONFIGURE_COMMAND ./configure --with-cfitsiolib=_cfitsio_library --with-cfitsioinc=_cfitsio_include  --prefix=${EP_SOURCE_DIR} --exec-prefix=${EP_SOURCE_DIR} --without-pgplot
     BUILD_COMMAND make
     INSTALL_COMMAND make install
     DEPENDS
