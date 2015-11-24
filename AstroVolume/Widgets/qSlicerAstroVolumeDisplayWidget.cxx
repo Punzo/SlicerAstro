@@ -69,11 +69,12 @@ void qSlicerAstroVolumeDisplayWidgetPrivate::setCurrentDisplayWidget(
       {
       this->ScalarVolumeDisplayWidget->setMRMLVolumeNode(emptyVolumeNode);
       }
-    activeWidget->setMRMLScene(0);
+
     if (activeWidget == this->LabelMapVolumeDisplayWidget)
       {
       this->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(emptyVolumeNode);
       }
+    activeWidget->setMRMLScene(0);
   }
   // QStackWidget::setCurrentWidget(0) is not supported
   if (displayWidget)

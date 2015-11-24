@@ -21,13 +21,12 @@ except ImportError:
   NUMPY_AVAILABLE = False
 
 def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
-
   if sliceLogic:
 
     worldX = "0"
     worldY = "0"
     worldZ = "0"
-
+    print "bella1"
     world = [0., 0., 0.]
 
     CoordinateSystemName = "IJK"
@@ -50,7 +49,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
           worldZ = displayNode.GetDisplayStringFromValueZ(world[2])
           break
 
-
+    print "bella9"
     if CoordinateSystemName == "WCS":
       return "  {layoutName: <8s} {sys:s}:({worldX:>16s},{worldY:>16s},{worldZ:>10s}) {orient: >8s}" \
         .format(layoutName=sliceNode.GetLayoutName(),

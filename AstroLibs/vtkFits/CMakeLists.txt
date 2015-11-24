@@ -96,7 +96,6 @@ set(srcs ${vtkFits_SRCS})
 add_library(${lib_name} ${srcs})
 
 if(${VTK_VERSION_MAJOR} GREATER 5)
-
   set(VTK_WRAP_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} ${VTK_INCLUDE_DIRS}
       CACHE INTERNAL "VTK wrap include dirs" FORCE)
 else()

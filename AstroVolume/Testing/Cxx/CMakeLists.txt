@@ -18,7 +18,7 @@ include(${ITK_USE_FILE})
 
 #-----------------------------------------------------------------------------
 set(TEMP ${Slicer_BINARY_DIR}/Testing/Temporary)
-set(INPUT ${MRMLCore_SOURCE_DIR}/Testing/TestData/)
+set(INPUT ${CMAKE_CURRENT_SOURCE_DIR}/..)
 
 #-----------------------------------------------------------------------------
 set(KIT_TEST_SRCS
@@ -37,15 +37,5 @@ slicerMacroConfigureModuleCxxTestDriver(
 
 #-----------------------------------------------------------------------------
 simple_test(qSlicerVolumesIOOptionsWidgetTest1)
-simple_test(qSlicerVolumesModuleWidgetTest1 ${INPUT}/fixed.nrrd)
-simple_test(vtkSlicerVolumesLogicTest1 ${INPUT}/fixed.nrrd)
-  
-#-----------------------------------------------------------------------------
-add_executable(vtkSlicer${MODULE_NAME}LogicTest2 vtkSlicer${MODULE_NAME}LogicTest2.cxx)
-target_link_libraries(vtkSlicer${MODULE_NAME}LogicTest2 ${KIT})
-set_target_properties(vtkSlicer${MODULE_NAME}LogicTest2 PROPERTIES FOLDER "Module-${MODULE_NAME}")
-
-add_test(NAME vtkSlicer${MODULE_NAME}LogicTest2
-  COMMAND ${Slicer_LAUNCH_COMMAND} $<TARGET_FILE:vtkSlicer${MODULE_NAME}LogicTest2>
-  vtkSlicer${MODULE_NAME}LogicTest2 ${TEMP}
-  )
+simple_test(qSlicerVolumesModuleWidgetTest1 ${INPUT}/N2403.fits)
+simple_test(vtkSlicerVolumesLogicTest1 ${INPUT}/N2403.fits)

@@ -2,8 +2,8 @@
 #include "vtkSlicerVolumesLogic.h"
 
 // MRML includes
-#include <vtkMRMLLabelMapVolumeNode.h>
-#include <vtkMRMLScalarVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLScene.h>
 
 // VTK includes
@@ -118,10 +118,10 @@ int vtkSlicerAstroVolumeLogicTest1( int argc, char * argv[] )
       }
 
     // basic checks on volume geometry
-    vtkMRMLScalarVolumeNode *scalarVolume =
-      vtkMRMLScalarVolumeNode::SafeDownCast(volume);
-    vtkMRMLLabelMapVolumeNode *labelMapVolume =
-      vtkMRMLLabelMapVolumeNode::SafeDownCast(volume2);
+    vtkMRMLAstroVolumeNode *scalarVolume =
+      vtkMRMLAstroVolumeNode::SafeDownCast(volume);
+    vtkMRMLAstroLabelMapVolumeNode *labelMapVolume =
+      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(volume2);
 
     if (scalarVolume == NULL)
       {
