@@ -7,13 +7,16 @@
 
 // qMRML includes
 #include "qMRMLWidget.h"
-#include "qMRMLWidgetsExport.h"
+
+// Volumes includes
+#include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class qMRMLAstroVolumeInfoWidgetPrivate;
 class vtkMRMLNode;
 class vtkMRMLVolumeNode;
 
-class QMRML_WIDGETS_EXPORT qMRMLAstroVolumeInfoWidget : public qMRMLWidget
+/// \ingroup Slicer_QtModules_AstroVolume
+class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qMRMLAstroVolumeInfoWidget : public qMRMLWidget
 {
   Q_OBJECT
   QVTK_OBJECT

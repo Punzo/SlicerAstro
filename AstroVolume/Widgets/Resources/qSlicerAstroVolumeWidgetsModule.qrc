@@ -1,3 +1,20 @@
 <RCC>
-    <qresource prefix="/"/>
+    <qresource prefix="/">
+        <file>Icons/Large/SlicerAddVolume.png</file>
+        <file>Icons/Large/SlicerVolumes.png</file>
+        <file>Icons/Medium/SlicerAddVolume.png</file>
+        <file>Icons/Medium/SlicerVolumes.png</file>
+        <file>Icons/Small/SlicerAddVolume.png</file>
+        <file>Icons/Small/SlicerVolumes.png</file>
+        <file>Icons/XLarge/SlicerAddVolume.png</file>
+        <file>Icons/XLarge/SlicerVolumes.png</file>
+    </qresource>
+    <qresource prefix="/presets">
+        <file>Icons/high.png</file>
+        <file>Icons/low.png</file>
+        <file>Icons/medium.png</file>
+        <file>Icons/OneSurface.png</file>
+        <file>Icons/ThreeSurface.png</file>
+        <file>Icons/TwoSurface.png</file>
+    </qresource>
 </RCC>

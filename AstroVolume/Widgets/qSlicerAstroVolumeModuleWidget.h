@@ -7,7 +7,8 @@
 // SlicerQt includes
 #include "qSlicerAbstractModuleWidget.h"
 
-#include "qSlicerAstroVolumeModuleExport.h"
+// Volumes includes
+#include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class qSlicerAstroVolumeModuleWidgetPrivate;
 class vtkMRMLNode;
@@ -18,7 +19,7 @@ class qMRMLAstroVolumeInfoWidget;
 class qSlicerAstroVolumeDisplayWidget;
 
 /// \ingroup Slicer_QtModules_AstroVolume
-class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModuleWidget :
+class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroVolumeModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
