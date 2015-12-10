@@ -38,6 +38,7 @@ endif()
 add_subdirectory(AstroLibs)
 add_subdirectory(AstroVolume)
 add_subdirectory(AstroDataProbe)
+add_subdirectory(Smoothing)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------

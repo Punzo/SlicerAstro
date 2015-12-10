@@ -1,340 +1,134 @@
-#include "qSlicerScalarVolumeDisplayWidget.h"
-#include "ui_qSlicerScalarVolumeDisplayWidget.h"
-
-// Qt includes
+/// Qt includes
+#include <QFileInfo>
 
 // CTK includes
-#include <ctkVTKColorTransferFunction.h>
-#include <ctkTransferFunctionGradientItem.h>
-#include <ctkTransferFunctionScene.h>
-#include <ctkTransferFunctionBarsItem.h>
-#include <ctkVTKHistogram.h>
-#include <ctkCollapsibleGroupBox.h>
-#include <ctkTransferFunctionView.h>
-#include <ctkRangeWidget.h>
+#include <ctkFlowLayout.h>
+#include <ctkUtils.h>
 
-// MRML includes
-#include "vtkMRMLColorNode.h"
-#include "vtkMRMLScalarVolumeDisplayNode.h"
-#include "vtkMRMLScalarVolumeNode.h"
-#include "vtkMRMLScene.h"
-#include "vtkMRMLUnitNode.h"
-#include "vtkMRMLSelectionNode.h"
-
-// VTK includes
-#include <vtkAlgorithm.h>
-#include <vtkAlgorithmOutput.h>
-#include <vtkColorTransferFunction.h>
-#include <vtkImageData.h>
-#include <vtkPointData.h>
-#include <vtkSmartPointer.h>
-
-// STD includes
-#include <limits>
+// AstroVolume includes
+#include "qSlicerIOOptions_p.h"
+#include "qSlicerAstroVolumeIOOptionsWidget.h"
+#include "ui_qSlicerAstroVolumeIOOptionsWidget.h"
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_Volumes
-class qSlicerScalarVolumeDisplayWidgetPrivate
-  : public Ui_qSlicerScalarVolumeDisplayWidget
+/// \ingroup Slicer_QtModules_AstroVolume
+class qSlicerAstroVolumeIOOptionsWidgetPrivate
+  : public qSlicerIOOptionsPrivate
+  , public Ui_qSlicerAstroVolumeIOOptionsWidget
 {
-  Q_DECLARE_PUBLIC(qSlicerScalarVolumeDisplayWidget);
-protected:
-  qSlicerScalarVolumeDisplayWidget* const q_ptr;
 public:
-  qSlicerScalarVolumeDisplayWidgetPrivate(qSlicerScalarVolumeDisplayWidget& object);
-  ~qSlicerScalarVolumeDisplayWidgetPrivate();
-  void init();
-
-  //ctkVTKHistogram* Histogram;
-  vtkSmartPointer<vtkColorTransferFunction> ColorTransferFunction;
- /* ctkCollapsibleGroupBox *CollapsibleGroupBox;
-  QGridLayout *gridLayout_2;
-  ctkTransferFunctionView *TransferFunctionView;*/
 };
 
 //-----------------------------------------------------------------------------
-qSlicerScalarVolumeDisplayWidgetPrivate::qSlicerScalarVolumeDisplayWidgetPrivate(
-  qSlicerScalarVolumeDisplayWidget& object)
-  : q_ptr(&object)
+qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* parentWidget)
+  : qSlicerIOOptionsWidget(new qSlicerAstroVolumeIOOptionsWidgetPrivate, parentWidget)
 {
- // this->Histogram = new ctkVTKHistogram();
-  this->ColorTransferFunction = vtkSmartPointer<vtkColorTransferFunction>::New();
+  Q_D(qSlicerAstroVolumeIOOptionsWidget);
+  d->setupUi(this);
+
+  ctkFlowLayout::replaceLayout(this);
+  /*
+  // Replace the horizontal layout with a flow layout
+  ctkFlowLayout* flowLayout = new ctkFlowLayout;
+  flowLayout->setPreferredExpandingDirections(Qt::Horizontal);
+  flowLayout->setAlignItems(false);
+  QLayout* oldLayout = this->layout();
+  int margins[4];
+  oldLayout->getContentsMargins(&margins[0],&margins[1],&margins[2],&margins[3]);
+  QLayoutItem* item = 0;
+  while((item = oldLayout->takeAt(0)))
+    {
+    if (item->widget())
+      {
+      flowLayout->addWidget(item->widget());
+      }
+    }
+  // setLayout() will take care or reparenting layouts and widgets
+  delete oldLayout;
+  flowLayout->setContentsMargins(0,0,0,0);
+  this->setLayout(flowLayout);
+  */
+
+  connect(d->NameLineEdit, SIGNAL(textChanged(QString)),
+          this, SLOT(updateProperties()));
+  connect(d->LabelMapCheckBox, SIGNAL(toggled(bool)),
+          this, SLOT(updateProperties()));
+  connect(d->CenteredCheckBox, SIGNAL(toggled(bool)),
+          this, SLOT(updateProperties()));
+  connect(d->SingleFileCheckBox, SIGNAL(toggled(bool)),
+          this, SLOT(updateProperties()));
+
+  // Single file by default
+  d->SingleFileCheckBox->setChecked(true);
 }
 
 //-----------------------------------------------------------------------------
-qSlicerScalarVolumeDisplayWidgetPrivate::~qSlicerScalarVolumeDisplayWidgetPrivate()
+qSlicerAstroVolumeIOOptionsWidget::~qSlicerAstroVolumeIOOptionsWidget()
 {
- // delete this->Histogram;
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidgetPrivate::init()
+void qSlicerAstroVolumeIOOptionsWidget::updateProperties()
 {
-  Q_Q(qSlicerScalarVolumeDisplayWidget);
-
-  this->setupUi(q);
-
- /* CollapsibleGroupBox = new ctkCollapsibleGroupBox(q);
-  CollapsibleGroupBox->setObjectName(QString::fromUtf8("CollapsibleGroupBox"));
-  CollapsibleGroupBox->setChecked(false);
-  CollapsibleGroupBox->setTitle("Histogram");
-  gridLayout_2 = new QGridLayout(CollapsibleGroupBox);
-  gridLayout_2->setObjectName(QString::fromUtf8("gridLayout_2"));
-  gridLayout_2->setContentsMargins(0, 6, 0, 0);
-  TransferFunctionView = new ctkTransferFunctionView(CollapsibleGroupBox);
-  TransferFunctionView->setObjectName(QString::fromUtf8("TransferFunctionView"));
-  QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
-  sizePolicy.setHorizontalStretch(0);
-  sizePolicy.setVerticalStretch(0);
-  sizePolicy.setHeightForWidth(TransferFunctionView->sizePolicy().hasHeightForWidth());
-  TransferFunctionView->setSizePolicy(sizePolicy);
-  TransferFunctionView->setMinimumSize(QSize(0, 100));
-
-  gridLayout_2->addWidget(TransferFunctionView, 0, 0, 1, 1);
-  gridLayout->addWidget(CollapsibleGroupBox, 5, 0, 1, 2);
-
-  ctkTransferFunctionScene* scene = qobject_cast<ctkTransferFunctionScene*>(
-    this->TransferFunctionView->scene());
-  // Transfer Function
-  ctkVTKColorTransferFunction* transferFunction =
-    new ctkVTKColorTransferFunction(this->ColorTransferFunction, q);
-
-  ctkTransferFunctionGradientItem* gradientItem =
-    new ctkTransferFunctionGradientItem(transferFunction);
-  scene->addItem(gradientItem);
-  // Histogram
-  //scene->setTransferFunction(this->Histogram);
-  ctkTransferFunctionBarsItem* barsItem =
-    new ctkTransferFunctionBarsItem(this->Histogram);
-  barsItem->setBarWidth(1);
-  scene->addItem(barsItem);*/
-
-  QObject::connect(this->InterpolateCheckbox, SIGNAL(toggled(bool)),
-                   q, SLOT(setInterpolate(bool)));
-  QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setColorNode(vtkMRMLNode*)));
-}
-
-// --------------------------------------------------------------------------
-qSlicerScalarVolumeDisplayWidget::qSlicerScalarVolumeDisplayWidget(QWidget* _parent)
-  : Superclass(_parent)
-  , d_ptr(new qSlicerScalarVolumeDisplayWidgetPrivate(*this))
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  d->init();
-
-  // disable as there is not MRML Node associated with the widget
-  this->setEnabled(false);
-}
-
-// --------------------------------------------------------------------------
-qSlicerScalarVolumeDisplayWidget::~qSlicerScalarVolumeDisplayWidget()
-{
-}
-
-// --------------------------------------------------------------------------
-vtkMRMLScalarVolumeNode* qSlicerScalarVolumeDisplayWidget::volumeNode()const
-{
-  Q_D(const qSlicerScalarVolumeDisplayWidget);
-  return vtkMRMLScalarVolumeNode::SafeDownCast(
-    d->MRMLWindowLevelWidget->mrmlVolumeNode());
-}
-
-// --------------------------------------------------------------------------
-bool qSlicerScalarVolumeDisplayWidget::isColorTableComboBoxEnabled()const
-{
-  Q_D(const qSlicerScalarVolumeDisplayWidget);
-  return d->ColorTableComboBox->isEnabled();
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setColorTableComboBoxEnabled(bool enable)
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  d->ColorTableComboBox->setEnabled(enable);
-}
-
-// --------------------------------------------------------------------------
-bool qSlicerScalarVolumeDisplayWidget::isMRMLWindowLevelWidgetEnabled()const
-{
-  Q_D(const qSlicerScalarVolumeDisplayWidget);
-  return d->MRMLWindowLevelWidget->isEnabled();
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool enable)
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  d->MRMLWindowLevelWidget->setEnabled(enable);
-}
-
-// --------------------------------------------------------------------------
-vtkMRMLScalarVolumeDisplayNode* qSlicerScalarVolumeDisplayWidget::volumeDisplayNode()const
-{
-  vtkMRMLVolumeNode* volumeNode = this->volumeNode();
-  return volumeNode ? vtkMRMLScalarVolumeDisplayNode::SafeDownCast(
-    volumeNode->GetDisplayNode()) : 0;
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* node)
-{
-  this->setMRMLVolumeNode(vtkMRMLScalarVolumeNode::SafeDownCast(node));
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLScalarVolumeNode* volumeNode)
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-
-  vtkMRMLScalarVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
-
-  d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
-  d->MRMLVolumeThresholdWidget->setMRMLVolumeNode(volumeNode);
-
-  qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
-                vtkCommand::ModifiedEvent,
-                this, SLOT(updateWidgetFromMRML()));
- /* d->Histogram->setDataArray(volumeNode &&
-                             volumeNode->GetImageData() &&
-                             volumeNode->GetImageData()->GetPointData() ?
-                             volumeNode->GetImageData()->GetPointData()->GetScalars() :
-                             0);
-  d->Histogram->build();*/
-  this->setEnabled(volumeNode != 0);
-
-  this->updateWidgetFromMRML();
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::updateWidgetFromMRML()
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  vtkMRMLScalarVolumeDisplayNode* displayNode =
-    this->volumeDisplayNode();
-  if (displayNode)
+  Q_D(qSlicerAstroVolumeIOOptionsWidget);
+  if (!d->NameLineEdit->text().isEmpty())
     {
-    d->ColorTableComboBox->setCurrentNode(displayNode->GetColorNode());
-    d->InterpolateCheckbox->setChecked(displayNode->GetInterpolate());
-    }
-  if (this->isVisible())
-    {
-    this->updateTransferFunction();
-    }
-}
-
-//----------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::updateTransferFunction()
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  // from vtkKWWindowLevelThresholdEditor::UpdateTransferFunction
-  vtkMRMLVolumeNode* volumeNode = d->MRMLWindowLevelWidget->mrmlVolumeNode();
-  Q_ASSERT(volumeNode == d->MRMLVolumeThresholdWidget->mrmlVolumeNode());
-  vtkImageData* imageData = volumeNode ? volumeNode->GetImageData() : 0;
-  if (imageData == 0)
-    {
-    d->ColorTransferFunction->RemoveAllPoints();
-    return;
-    }
-  double range[2] = {0,255};
-#if (VTK_MAJOR_VERSION <= 5)
-  imageData->GetScalarRange(range);
-#else
-  vtkMRMLScalarVolumeDisplayNode* displayNode =
-    this->volumeDisplayNode();
-  if (displayNode)
-    {
-    displayNode->GetDisplayScalarRange(range);
+    QStringList names = d->NameLineEdit->text().split(';');
+    for (int i = 0; i < names.count(); ++i)
+      {
+      names[i] = names[i].trimmed();
+      }
+    d->Properties["name"] = names;
     }
   else
     {
-    imageData->GetScalarRange(range);
+    d->Properties.remove("name");
     }
-#endif
-  // AdjustRange call will take out points that are outside of the new
-  // range, but it needs the points to be there in order to work, so call
-  // RemoveAllPoints after it's done
-  d->ColorTransferFunction->AdjustRange(range);
-  d->ColorTransferFunction->RemoveAllPoints();
+  d->Properties["labelmap"] = d->LabelMapCheckBox->isChecked();
+  d->Properties["center"] = d->CenteredCheckBox->isChecked();
+  d->Properties["singleFile"] = d->SingleFileCheckBox->isChecked();
+}
 
-  double min = d->MRMLWindowLevelWidget->level() - 0.5 * d->MRMLWindowLevelWidget->window();
-  double max = d->MRMLWindowLevelWidget->level() + 0.5 * d->MRMLWindowLevelWidget->window();
-  double minVal = 0;
-  double maxVal = 1;
-  double low   = d->MRMLVolumeThresholdWidget->isOff() ? range[0] : d->MRMLVolumeThresholdWidget->lowerThreshold();
-  double upper = d->MRMLVolumeThresholdWidget->isOff() ? range[1] : d->MRMLVolumeThresholdWidget->upperThreshold();
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeIOOptionsWidget::setFileName(const QString& fileName)
+{
+  this->setFileNames(QStringList(fileName));
+}
 
-  d->ColorTransferFunction->SetColorSpaceToRGB();
-
-  if (low >= max || upper <= min)
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeIOOptionsWidget::setFileNames(const QStringList& fileNames)
+{
+  Q_D(qSlicerAstroVolumeIOOptionsWidget);
+  QStringList names;
+  bool onlyNumberInName = false;
+  bool onlyNumberInExtension = false;
+  bool hasLabelMapName = false;
+  foreach(const QString& fileName, fileNames)
     {
-    d->ColorTransferFunction->AddRGBPoint(range[0], 0, 0, 0);
-    d->ColorTransferFunction->AddRGBPoint(range[1], 0, 0, 0);
-    }
-  else
-    {
-    max = qMax(min+0.001, max);
-    low = qMax(range[0] + 0.001, low);
-    min = qMax(range[0] + 0.001, min);
-    upper = qMin(range[1] - 0.001, upper);
-
-    if (min <= low)
+    QFileInfo fileInfo(fileName);
+    if (fileInfo.isFile())
       {
-      minVal = (low - min)/(max - min);
-      min = low + 0.001;
+      names << fileInfo.completeBaseName();
+      // Single file
+      // If the name (or the extension) is just a number, then it must be a 2D
+      // slice from a 3D volume, so uncheck Single File.
+      onlyNumberInName = QRegExp("[0-9\\.\\-\\_\\@\\(\\)\\~]+").exactMatch(fileInfo.baseName());
+      fileInfo.suffix().toInt(&onlyNumberInExtension);
       }
-
-    if (max >= upper)
+    // Because '_' is considered as a word character (\w), \b
+    // doesn't consider '_' as a word boundary.
+    QRegExp labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
+    QRegExp segName("(\\b|_)([Ss]eg)(\\b|_)");
+    QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
+    if (fileInfo.baseName().contains(labelMapName) ||
+        fileInfo.baseName().contains(segName) ||
+        fileInfo.baseName().contains(maskName))
       {
-      maxVal = (upper - min)/(max-min);
-      max = upper - 0.001;
-      }
-
-    d->ColorTransferFunction->AddRGBPoint(range[0], 0, 0, 0);
-    d->ColorTransferFunction->AddRGBPoint(low, 0, 0, 0);
-    d->ColorTransferFunction->AddRGBPoint(min, minVal, minVal, minVal);
-    d->ColorTransferFunction->AddRGBPoint(max, maxVal, maxVal, maxVal);
-    d->ColorTransferFunction->AddRGBPoint(upper, maxVal, maxVal, maxVal);
-    if (upper+0.001 < range[1])
-      {
-      d->ColorTransferFunction->AddRGBPoint(upper+0.001, 0, 0, 0);
-      d->ColorTransferFunction->AddRGBPoint(range[1], 0, 0, 0);
+      hasLabelMapName = true;
       }
     }
-
-  d->ColorTransferFunction->SetAlpha(1.0);
-  d->ColorTransferFunction->Build();
+  d->NameLineEdit->setText( names.join("; ") );
+  d->SingleFileCheckBox->setChecked(!onlyNumberInName && !onlyNumberInExtension);
+  d->LabelMapCheckBox->setChecked(hasLabelMapName);
+  this->qSlicerIOOptionsWidget::setFileNames(fileNames);
 }
-
-// -----------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::showEvent( QShowEvent * event )
-{
-  this->updateTransferFunction();
-  this->Superclass::showEvent(event);
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setInterpolate(bool interpolate)
-{
-  vtkMRMLScalarVolumeDisplayNode* displayNode =
-    this->volumeDisplayNode();
-  if (!displayNode)
-    {
-    return;
-    }
-  displayNode->SetInterpolate(interpolate);
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::setColorNode(vtkMRMLNode* colorNode)
-{
-  vtkMRMLScalarVolumeDisplayNode* displayNode =
-    this->volumeDisplayNode();
-  if (!displayNode || !colorNode)
-    {
-    return;
-    }
-  Q_ASSERT(vtkMRMLColorNode::SafeDownCast(colorNode));
-  displayNode->SetAndObserveColorNodeID(colorNode->GetID());
-}
-

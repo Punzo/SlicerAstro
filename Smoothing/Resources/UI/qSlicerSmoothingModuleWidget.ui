@@ -1,0 +1,752 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>qSlicerSmoothingModuleWidget</class>
+ <widget class="qSlicerWidget" name="qSlicerSmoothingModuleWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>569</width>
+    <height>915</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Smooth Volume</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="margin">
+    <number>0</number>
+   </property>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_3">
+     <item>
+      <widget class="QLabel" name="InputVolumeLabel">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Input Volume:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="nodeTypes">
+        <stringlist>
+         <string>vtkMRMLAstroVolumeNode</string>
+        </stringlist>
+       </property>
+       <property name="addEnabled">
+        <bool>false</bool>
+       </property>
+       <property name="renameEnabled">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Nodes</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <property name="collapsed">
+      <bool>true</bool>
+     </property>
+     <layout class="QFormLayout" name="formLayout">
+      <property name="fieldGrowthPolicy">
+       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="ParametersLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Parameters Node:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLSmoothingParametersNode</string>
+         </stringlist>
+        </property>
+        <property name="showHidden">
+         <bool>true</bool>
+        </property>
+        <property name="renameEnabled">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="OutputLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Output Volume:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="qMRMLNodeComboBox" name="OutputVolumeNodeSelector">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
+        </property>
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLAstroVolumeNode</string>
+         </stringlist>
+        </property>
+        <property name="addEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="editEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="renameEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="noneDisplay">
+         <string>None</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="ctkCollapsibleButton" name="FilterCollapsibleButton">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="text">
+      <string>Filter Parameters</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+     <property name="collapsed">
+      <bool>false</bool>
+     </property>
+     <layout class="QFormLayout" name="formLayout_2">
+      <property name="fieldGrowthPolicy">
+       <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
+      </property>
+      <item row="0" column="0">
+       <widget class="QLabel" name="ModeLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Mode:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <property name="spacing">
+         <number>12</number>
+        </property>
+        <item>
+         <widget class="QRadioButton" name="AutomaticModeRadioButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Automatic</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="ManualModeRadioButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>Manual</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="FilterLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Filter:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="1" column="1">
+       <widget class="ctkComboBox" name="FilterComboBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="editable">
+         <bool>false</bool>
+        </property>
+        <item>
+         <property name="text">
+          <string>Gaussian</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Adaptive</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Wavelet Lifting</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="SigmaXLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>SigmaX:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxX">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="maximum">
+         <double>10.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="SigmaYLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>SigmaY:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxY">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="maximum">
+         <double>10.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="SigmaZLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>SigmaZ:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxZ">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="maximum">
+         <double>10.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="AccuracyLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Accuracy</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="ctkSliderWidget" name="AccuracySpinBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="minimum">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>5.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="ApplyButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Apply</string>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>16</width>
+         <height>16</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="CancelButton">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QProgressBar" name="progressBar">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="value">
+        <number>0</number>
+       </property>
+       <property name="textVisible">
+        <bool>true</bool>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>qMRMLNodeComboBox</class>
+   <extends>QWidget</extends>
+   <header>qMRMLNodeComboBox.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>qSlicerWidget</class>
+   <extends>QWidget</extends>
+   <header>qSlicerWidget.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ctkCollapsibleButton</class>
+   <extends>QWidget</extends>
+   <header>ctkCollapsibleButton.h</header>
+   <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ctkComboBox</class>
+   <extends>QComboBox</extends>
+   <header>ctkComboBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ctkSliderWidget</class>
+   <extends>QWidget</extends>
+   <header>ctkSliderWidget.h</header>
+  </customwidget>
+ </customwidgets>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ApplyButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>273</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>224</x>
+     <y>210</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>OutputVolumeNodeSelector</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>332</x>
+     <y>128</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>OutputLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>66</x>
+     <y>126</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ParametersNodeComboBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>332</x>
+     <y>93</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ParametersLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>59</x>
+     <y>91</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ModeLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>24</x>
+     <y>145</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>AutomaticModeRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>170</x>
+     <y>145</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ManualModeRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>FilterLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>25</x>
+     <y>175</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>FilterComboBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>296</x>
+     <y>177</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaXLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>45</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaYLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>226</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaZLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>407</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DoubleSpinBoxX</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>440</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>312</x>
+     <y>212</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DoubleSpinBoxY</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>440</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>312</x>
+     <y>247</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DoubleSpinBoxZ</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>440</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>312</x>
+     <y>282</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AccuracyLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>33</x>
+     <y>315</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AccuracySpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>315</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>CancelButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>329</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>132</x>
+     <y>898</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>progressBar</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>329</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>374</x>
+     <y>898</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

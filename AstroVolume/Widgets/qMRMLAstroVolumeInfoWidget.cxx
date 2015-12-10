@@ -10,9 +10,16 @@
 // CTK includes
 #include <ctkUtils.h>
 
+// SlicerQt includes
+#include <qSlicerCoreApplication.h>
+#include <qSlicerApplication.h>
+#include <qSlicerLayoutManager.h>
+
 // qMRML includes
 #include "qMRMLAstroVolumeInfoWidget.h"
 #include "qMRMLCoordinatesWidget.h"
+#include "qMRMLSliceWidget.h"
+#include "qMRMLSliceControllerWidget.h"
 
 // MRML includes
 #include <vtkMRMLLabelMapVolumeDisplayNode.h>
@@ -320,10 +327,13 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
   d->NumberOfScalarsSpinBox->setValue(
     image ? image->GetNumberOfScalarComponents() : 0);
 
+  qSlicerApplication* app = qSlicerApplication::application();
+  app->layoutManager()->sliceWidget("Red")->sliceController()->fitSliceToBackground();
+  app->layoutManager()->sliceWidget("Yellow")->sliceController()->fitSliceToBackground();
+  app->layoutManager()->sliceWidget("Green")->sliceController()->fitSliceToBackground();
+
   vtkMRMLStorageNode* storageNode = d->VolumeNode->GetStorageNode();
   d->FileNameLineEdit->setText(storageNode ? storageNode->GetFileName() : "");
-
-  //vtkMRMLScalarVolumeNode *scalarNode = vtkMRMLScalarVolumeNode::SafeDownCast( d->VolumeNode );
 
   vtkMRMLLabelMapVolumeNode *labelMapNode = vtkMRMLLabelMapVolumeNode::SafeDownCast( d->VolumeNode );
   d->LabelMapCheckBox->setChecked(labelMapNode!=0);

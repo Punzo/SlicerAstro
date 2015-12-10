@@ -12,6 +12,7 @@
 #include <ctkVTKVolumePropertyWidget.h>
 #include <ctkVTKScalarsToColorsWidget.h>
 #include <ctkRangeWidget.h>
+#include <ctkDoubleRangeSlider.h>
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
@@ -33,6 +34,7 @@
 #include <qMRMLLayoutManager_p.h>
 #include <qMRMLVolumeThresholdWidget.h>
 #include <qSlicerVolumeRenderingModuleWidget.h>
+#include "qSlicerPresetComboBox.h"
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -114,7 +116,7 @@ QString qSlicerAstroVolumeModule::acknowledgementText()const
     "<center><table border=\"0\"><tr>"
     "<td><img src=\":://Logos/kapteyn.png\" alt\"Kapteyn Astronomical Institute\"></td>"
     "</tr></table></center>"
-    "This work was supported by ERC grant .... and the Slicer "
+    "This work was supported by ERC grant nr. 29153Fikl and the Slicer "
     "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
     "</a> for details.<br>");
   return acknowledgement;
@@ -199,6 +201,17 @@ void qSlicerAstroVolumeModule::setup()
     this->onMRMLUnitModified(unitNode);
     }
 
+  qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
+      dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
+         (d->volumeRendering->widgetRepresentation());
+
+  if(volumeRenderingWidget)
+    {
+    qSlicerPresetComboBox* PresetsNodeComboBox =
+        volumeRenderingWidget->findChild<qSlicerPresetComboBox*>
+        (QString("PresetsNodeComboBox"));
+    PresetsNodeComboBox->setEnabled(false);
+    }
 
   //set the Slice Factory
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
@@ -229,7 +242,7 @@ void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
          (d->volumeRendering->widgetRepresentation());
 
   if(volumeRenderingWidget)
-    {
+    {  
     ctkVTKVolumePropertyWidget* volumePropertyWidget =
         volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
         (QString("VolumeProperty"));
@@ -243,6 +256,14 @@ void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
 
     XSpinBox->setDecimals(unitNode->GetPrecision());
 
+    ctkDoubleRangeSlider* XRangeSlider = opacityWidget->findChild<ctkDoubleRangeSlider*>
+        (QString("XRangeSlider"));
+
+    XRangeSlider->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+    XRangeSlider->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
+
+    opacityWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+
     ctkVTKScalarsToColorsWidget* colorWidget =
         volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
         (QString("ScalarColorWidget"));
@@ -251,6 +272,14 @@ void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
         (QString("XSpinBox"));
 
     XSpinBox1->setDecimals(unitNode->GetPrecision());
+
+    ctkDoubleRangeSlider* XRangeSlider1 = colorWidget->findChild<ctkDoubleRangeSlider*>
+        (QString("XRangeSlider"));
+
+    XRangeSlider1->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+    XRangeSlider1->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
+
+    colorWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
     }
 }
 

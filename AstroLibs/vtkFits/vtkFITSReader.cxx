@@ -564,7 +564,7 @@ bool vtkFITSReader::AllocateHeader()
    if(HeaderKeyValue.count("SlicerAstro.CTYPE3") == 0)
      {
      vtkWarningMacro("The fits header is missing the CTYPE3 keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.CTYPEL3"] = "";
+     HeaderKeyValue["SlicerAstro.CTYPE3"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)

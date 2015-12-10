@@ -120,6 +120,7 @@ def  makeAstroRuler(self, sliceNode):
         sliceLogic = appLogic.GetSliceLogic(sliceNode)
 
     CoordinateSystemName = "IJK"
+    hasVolume = False
 
     if sliceLogic:
 
@@ -132,6 +133,7 @@ def  makeAstroRuler(self, sliceNode):
 
         volumeNode = layerLogic.GetVolumeNode()
         if volumeNode:
+          hasVolume = True
           xyToIJK = layerLogic.GetXYToIJKTransform()
           displayNode = volumeNode.GetDisplayNode()
           if displayNode:
@@ -371,6 +373,15 @@ def  makeAstroRuler(self, sliceNode):
                 renderer.AddActor2D(textActorVertical)
 
               break
+
+        if(not hasVolume):
+          renderer.RemoveActor2D(self.rulerActors[sliceViewName])
+          Actors = renderer.GetActors2D()
+          Actors.InitTraversal()
+          for i in range(0, Actors.GetNumberOfItems()):
+            Actor2D = Actors.GetNextActor2D()
+            if(Actor2D.IsA("vtkTextActor")):
+              renderer.RemoveActor2D(Actor2D)
   return
 
 class AstroDataProbe(ScriptedLoadableModule):

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>455</width>
-    <height>347</height>
+    <height>439</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -41,18 +41,12 @@
      <property name="renameEnabled">
       <bool>true</bool>
      </property>
-     <property name="sizeAdjustPolicy">
-      <enum>QComboBox::AdjustToMinimumContentsLength</enum>
-     </property>
     </widget>
    </item>
    <item row="2" column="0" colspan="2">
     <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton">
      <property name="text">
       <string>Display</string>
-     </property>
-     <property name="contentsFrameShape">
-      <enum>QFrame::StyledPanel</enum>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
@@ -69,22 +63,19 @@
      <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="contentsFrameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
      <layout class="QVBoxLayout" name="verticalLayout"/>
     </widget>
    </item>
    <item row="3" column="0" colspan="2">
     <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton_2">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
      <property name="text">
       <string>Rendering</string>
      </property>
      <property name="collapsed">
       <bool>false</bool>
-     </property>
-     <property name="contentsFrameShape">
-      <enum>QFrame::NoFrame</enum>
      </property>
      <layout class="QFormLayout" name="formLayout_14">
       <property name="fieldGrowthPolicy">
@@ -92,6 +83,9 @@
       </property>
       <item row="0" column="0">
        <widget class="QLabel" name="activateLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Activate:</string>
         </property>
@@ -99,6 +93,9 @@
       </item>
       <item row="0" column="1">
        <widget class="ctkCheckBox" name="VisibilityCheckBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string/>
         </property>
@@ -117,6 +114,9 @@
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="synchLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>2-D/3-D synch: </string>
         </property>
@@ -124,6 +124,9 @@
       </item>
       <item row="1" column="1">
        <widget class="QPushButton" name="SynchronizeScalarDisplayNodeButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Synchornize</string>
         </property>
@@ -131,16 +134,26 @@
       </item>
       <item row="3" column="0">
        <widget class="QLabel" name="PresetsLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Preset:</string>
         </property>
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox"/>
+       <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+       </widget>
       </item>
       <item row="4" column="0">
        <widget class="QLabel" name="shiftLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="toolTip">
          <string>Shift transfer functions</string>
         </property>
@@ -154,8 +167,17 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="toolTip">
          <string>Shift transfer functions</string>
+        </property>
+        <property name="layoutDirection">
+         <enum>Qt::LeftToRight</enum>
         </property>
         <property name="value">
          <double>0.500000000000000</double>
@@ -179,6 +201,9 @@
       </item>
       <item row="5" column="0">
        <widget class="QLabel" name="CropLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Crop:</string>
         </property>
@@ -235,6 +260,9 @@
       </item>
       <item row="6" column="0">
        <widget class="QLabel" name="RenderingMethodLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Rendering:</string>
         </property>
@@ -249,6 +277,9 @@
       </item>
       <item row="7" column="1">
        <widget class="QComboBox" name="QualityControlComboBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="currentIndex">
          <number>0</number>
         </property>
@@ -279,6 +310,9 @@
       </item>
       <item row="7" column="0">
        <widget class="QLabel" name="qualityLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="text">
          <string>Quality:</string>
         </property>
@@ -294,6 +328,7 @@
    <class>qMRMLNodeComboBox</class>
    <extends>QWidget</extends>
    <header>qMRMLNodeComboBox.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>qSlicerWidget</class>
@@ -305,6 +340,7 @@
    <class>qSlicerPresetComboBox</class>
    <extends>qMRMLNodeComboBox</extends>
    <header>qSlicerPresetComboBox.h</header>
+   <container>1</container>
   </customwidget>
   <customwidget>
    <class>ctkCheckBox</class>
@@ -328,9 +364,7 @@
    <header>qSlicerAstroVolumeDisplayWidget.h</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="../qSlicerVolumesModule.qrc"/>
- </resources>
+ <resources/>
  <connections>
   <connection>
    <sender>qSlicerAstroVolumeModuleWidget</sender>
@@ -361,22 +395,6 @@
     <hint type="destinationlabel">
      <x>230</x>
      <y>414</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ActiveVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>SynchronizeScalarDisplayNodeButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>271</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>275</x>
-     <y>168</y>
     </hint>
    </hints>
   </connection>

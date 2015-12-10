@@ -225,18 +225,15 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
 
-    if (disNode)
+    if (disNode->GetWCSStatus() != 0)
       {
-      if (disNode->GetWCSStatus() != 0)
-        {
-        disNode->SetSpace("IJK");
-        }
-      if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ") ||
-         !strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "Hz") ||
-         !strncmp(reader->GetHeaderValue("SlicerAstro.CTYPE3"), "FREQ", 4))
-        {
-        disNode->SetSpaceQuantity(2,"frequency");
-        }
+      disNode->SetSpace("IJK");
+      }
+    if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ") ||
+       !strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "Hz") ||
+       !strncmp(reader->GetHeaderValue("SlicerAstro.CTYPE3"), "FREQ", 4))
+      {
+      disNode->SetSpaceQuantity(2,"frequency");
       }
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
@@ -262,17 +259,15 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       labvolNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
       // parse Space (WCS or IJK) to the display node
-    if (labdisNode)
+    if (labdisNode->GetWCSStatus() != 0)
       {
-      if (labdisNode->GetWCSStatus() != 0)
-        {
-        labdisNode->SetSpace("IJK");
-        }
-      if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ") ||
-         !strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "Hz"))
-        {
-        labdisNode->SetSpaceQuantity(2,"frequency");
-        }
+      labdisNode->SetSpace("IJK");
+      }
+    if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ") ||
+       !strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "Hz") ||
+       !strncmp(reader->GetHeaderValue("SlicerAstro.CTYPE3"), "FREQ", 4))
+      {
+      labdisNode->SetSpaceQuantity(2,"frequency");
       }
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {

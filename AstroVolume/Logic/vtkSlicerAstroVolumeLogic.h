@@ -19,6 +19,7 @@ class vtkSlicerVolumesLogic;
 class vtkMRMLVolumeNode;
 class vtkSlicerUnitsLogic;
 class vtkMRMLSliceCompositeNode;
+class vtkMRMLAstroVolumeNode;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerModuleLogic
@@ -28,6 +29,8 @@ public:
   static vtkSlicerAstroVolumeLogic *New();
   vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent);
+
+  typedef vtkSlicerAstroVolumeLogic Self;
 
   /// Register the factory that the MultiVolume needs to manage nrrd
   /// file with the specified volumes logic
@@ -48,6 +51,23 @@ public:
   /// \param volumeNode,
   /// \return succees
   bool synchronizePresetsToVolumeNode(vtkMRMLNode *node);
+
+  /// Create a deep copy of a \a volumeNode and add it to the current scene.
+  /// If cloneImageData is false then the volume node is created without image data.
+  /// \sa GetMRMLScene()
+  vtkMRMLAstroVolumeNode *CloneVolume(vtkMRMLVolumeNode *volumeNode, const char *name);
+
+  /// Create a empty copy of a \a volumeNode without imageData and add it to the current scene
+  /// \sa GetMRMLScene()
+  static vtkMRMLAstroVolumeNode *CloneVolumeWithoutImageData(vtkMRMLScene *scene,
+                                                              vtkMRMLVolumeNode *volumeNode,
+                                                              const char *name);
+
+  /// Create a deep copy of a \a volumeNode and add it to the \a scene
+  static vtkMRMLAstroVolumeNode *CloneVolume(vtkMRMLScene *scene,
+                                              vtkMRMLVolumeNode *volumeNode,
+                                              const char *name,
+                                              bool cloneImageData=true);
 
 protected:
   vtkSlicerAstroVolumeLogic();
