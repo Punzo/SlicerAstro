@@ -48,6 +48,7 @@ public slots:
   /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
+  void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
 
 protected slots:
   void resetOffset(vtkMRMLNode* node);

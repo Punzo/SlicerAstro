@@ -29,8 +29,9 @@
 #include "vtkMRMLScalarVolumeNode.h"
 #include "vtkMRMLViewNode.h"
 #include "vtkMRMLVolumeRenderingDisplayNode.h"
-#include <vtkMRMLSelectionNode.h>
+#include "vtkMRMLSelectionNode.h"
 #include "vtkMRMLAstroVolumeNode.h"
+#include "vtkMRMLAstroLabelMapVolumeNode.h"
 
 // logic includes
 #include "vtkSlicerVolumeRenderingLogic.h"
@@ -273,15 +274,10 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     col->RemoveAllItems();
     col->Delete();
 
-    vtkMRMLAstroVolumeNode *astroVol = vtkMRMLAstroVolumeNode::SafeDownCast
-        (this->mrmlScene()->GetNodeByID(selectionNode->GetActiveVolumeID()));
-    if(astroVol)
-      {
-      d->ActiveVolumeNodeSelector->setCurrentNodeID(selectionNode->GetActiveVolumeID());
-      }
-
     this->qvtkConnect(selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
+
+    this->onMRMLSelectionNodeModified(selectionNode);
     }
 }
 
@@ -312,18 +308,30 @@ void qSlicerAstroVolumeModuleWidget::setup()
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 {
+  Q_D(qSlicerAstroVolumeModuleWidget);
   if (node)
-    {
-    vtkMRMLVolumeNode *volNode = vtkMRMLVolumeNode::SafeDownCast(node);
+    {  
     if (this->mrmlScene() &&
         !this->mrmlScene()->IsClosing() &&
         !this->mrmlScene()->IsBatchProcessing())
       {
-      // set it to be active in the slice windows
-      vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-      vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-      selectionNode->SetReferenceActiveVolumeID(volNode->GetID());
-      appLogic->PropagateVolumeSelection();
+      vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
+        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+      vtkMRMLAstroVolumeNode* astroVolumeNode =
+        vtkMRMLAstroVolumeNode::SafeDownCast(node);
+      if (astroVolumeNode)
+        {
+        d->DisplayCollapsibleButton_2->setEnabled(true);
+        // set it to be active in the slice windows
+        vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+        vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+        selectionNode->SetReferenceActiveVolumeID(node->GetID());
+        appLogic->PropagateVolumeSelection();
+        }
+      else if (labelMapVolumeNode)
+        {
+        d->DisplayCollapsibleButton_2->setEnabled(false);
+        }
       }
     }
 }
@@ -585,8 +593,6 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
   this->qvtkConnect(displayNode->GetROINode(), vtkMRMLDisplayableNode::DisplayModifiedEvent,
                     this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
 
- // d->ActiveVolumeNodeSelector->setCurrentNodeID(displayNode->GetVolumeNodeID());
-
   this->onMRMLVolumeRenderingDisplayNodeModified(displayNode);
   this->onMRMLDisplayROINodeModified(displayNode->GetROINode());
 }
@@ -608,6 +614,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
     return;
     }
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
+
   vtkMRMLNode *activeVolumeNode = this->mrmlScene()->GetNodeByID(activeVolumeNodeID);
   if(activeVolumeNode)
     {
@@ -619,11 +626,37 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
 // --------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLNode* node)
 {
-  this->setMRMLVolumeNode(vtkMRMLAstroVolumeNode::SafeDownCast(node));
+  if (!node)
+    {
+    return;
+    }
+
+  vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
+    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+  vtkMRMLAstroVolumeNode* astroVolumeNode =
+    vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (astroVolumeNode)
+    {
+    this->setMRMLVolumeNode(astroVolumeNode);
+    }
+  else if (labelMapVolumeNode)
+    {
+    this->setMRMLVolumeNode(labelMapVolumeNode);
+    }
 }
 
 // --------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
+
+  this->setEnabled(volumeNode != 0);
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
