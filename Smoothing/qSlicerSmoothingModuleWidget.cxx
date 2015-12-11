@@ -38,6 +38,7 @@
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 
 //-----------------------------------------------------------------------------
@@ -124,8 +125,8 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   QObject::connect(DoubleSpinBoxZ, SIGNAL(valueChanged(double)),
                    q, SLOT(onParameterZChanged(double)));
 
-  QObject::connect(AccuracySpinBox, SIGNAL(valueChanged(int)),
-                   q, SLOT(onAccuracyChanged(int)));
+  QObject::connect(AccuracySpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onAccuracyChanged(double)));
 
   QObject::connect(ApplyButton, SIGNAL(clicked()),
                    q, SLOT(onApply()));
@@ -564,7 +565,7 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     }
 
   d->parametersNode->SetParameterX(value);
-  d->parametersNode->SetGaussianKernels();
+  d->parametersNode->SetGaussianKernelX();
 }
 
 //-----------------------------------------------------------------------------
@@ -577,7 +578,7 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     }
 
   d->parametersNode->SetParameterY(value);
-  d->parametersNode->SetGaussianKernels();
+  d->parametersNode->SetGaussianKernelY();
 }
 
 //-----------------------------------------------------------------------------
@@ -590,11 +591,11 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     }
 
   d->parametersNode->SetParameterZ(value);
-  d->parametersNode->SetGaussianKernels();
+  d->parametersNode->SetGaussianKernelZ();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onAccuracyChanged(int value)
+void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
 {
   Q_D(qSlicerSmoothingModuleWidget);
   if (!d->parametersNode)
@@ -602,7 +603,7 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(int value)
     return;
     }
 
-  d->parametersNode->SetAccuracy(value);
+  d->parametersNode->SetAccuracy((int) value);
   d->parametersNode->SetGaussianKernels();
 }
 
@@ -616,21 +617,17 @@ void qSlicerSmoothingModuleWidget::onApply()
     {
     return;
     }
-
   if (logic->Apply(d->parametersNode))
     {
     vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
     vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
     selectionNode->SetReferenceActiveVolumeID(d->parametersNode->GetOutputVolumeNodeID());
     appLogic->PropagateVolumeSelection();
-
-    vtkMRMLVolumeNode *outputVolume =
-      vtkMRMLVolumeNode::SafeDownCast(appLogic->GetMRMLScene()
+    vtkMRMLAstroVolumeNode *outputVolume =
+      vtkMRMLAstroVolumeNode::SafeDownCast(appLogic->GetMRMLScene()
         ->GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
     d->astroVolumeWidget->setMRMLVolumeNode(outputVolume);
-    //this once https://github.com/jcfr/Slicer/commit/57854080cde1bb8fb82118dd0fe7366518186f71
-    //is approved it can be substitude with:
-    //d->astroVolumeWidget->volumeRenderingDisplay()->SetVisibility(true)
+
     d->astroVolumeWidget->onVisibilityChanged(true);
     }
 }

@@ -103,10 +103,11 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    this->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
 
- /* QObject::connect(this->volumeRenderingWidget, SIGNAL(newCurrentMRMLVolumeNode(vtkMRMLNode*)),
-                   this->ActiveVolumeNodeSelector, SLOT(setCurrentNode(vtkMRMLNode*)));
-  QObject::connect(this->volumeRenderingWidget, SIGNAL(newCurrentDisplayNode(vtkMRMLNode*)),
-                   q, SLOT(setDisplayConnection(vtkMRMLNode*)));*/
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeRenderingDisplayNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setDisplayConnection(vtkMRMLNode*)));
+
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->VisibilityCheckBox, SLOT(setEnabled(bool)));
@@ -238,6 +239,7 @@ double StringToDouble(const char* str)
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
+  Q_D(qSlicerAstroVolumeModuleWidget);
   this->Superclass::setMRMLScene(scene);
   if(scene == NULL)
     {
@@ -257,7 +259,8 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
       if (selectionNodeIter)
         {
         // is this the display node?
-        if (selectionNode->GetID() && selectionNodeIter->GetID() && strcmp(selectionNode->GetID(), selectionNodeIter->GetID()) == 0)
+        if (selectionNode->GetID() && selectionNodeIter->GetID() &&
+            strcmp(selectionNode->GetID(), selectionNodeIter->GetID()) == 0)
           {
           // don't disconnect
           // qDebug() << "\tskipping disconnecting " << node->GetID();
@@ -269,6 +272,13 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
       }
     col->RemoveAllItems();
     col->Delete();
+
+    vtkMRMLAstroVolumeNode *astroVol = vtkMRMLAstroVolumeNode::SafeDownCast
+        (this->mrmlScene()->GetNodeByID(selectionNode->GetActiveVolumeID()));
+    if(astroVol)
+      {
+      d->ActiveVolumeNodeSelector->setCurrentNodeID(selectionNode->GetActiveVolumeID());
+      }
 
     this->qvtkConnect(selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
@@ -397,6 +407,7 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
     }
 
   displayNode->SetVisibility(visibility);
+
   qSlicerApplication* app = qSlicerApplication::application();
   for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
     {
@@ -574,6 +585,8 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
   this->qvtkConnect(displayNode->GetROINode(), vtkMRMLDisplayableNode::DisplayModifiedEvent,
                     this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
 
+ // d->ActiveVolumeNodeSelector->setCurrentNodeID(displayNode->GetVolumeNodeID());
+
   this->onMRMLVolumeRenderingDisplayNodeModified(displayNode);
   this->onMRMLDisplayROINodeModified(displayNode->GetROINode());
 }
@@ -598,7 +611,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
   vtkMRMLNode *activeVolumeNode = this->mrmlScene()->GetNodeByID(activeVolumeNodeID);
   if(activeVolumeNode)
     {
-    d->ActiveVolumeNodeSelector->setCurrentNode(activeVolumeNodeID);
+    d->ActiveVolumeNodeSelector->setCurrentNodeID(activeVolumeNodeID);
     }
 
 }
@@ -614,7 +627,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  d->ActiveVolumeNodeSelector->setCurrentNode(volumeNode);
+  d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
 
   this->setEnabled(volumeNode != 0);
 }

@@ -13,6 +13,7 @@
 class qSlicerAstroVolumeModuleWidgetPrivate;
 class vtkMRMLNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLAstroLabelMapVolumeNode;
 class qSlicerVolumeRenderingModuleWidget;
 class vtkMRMLVolumeRenderingDisplayNode;
 class qMRMLAstroVolumeInfoWidget;
@@ -45,8 +46,8 @@ public:
 public slots:
   void onVisibilityChanged(bool visibility);
   /// Set the MRML node of interest
-  void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLNode* node);
+  void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
 
 protected slots:
   void resetOffset(vtkMRMLNode* node);

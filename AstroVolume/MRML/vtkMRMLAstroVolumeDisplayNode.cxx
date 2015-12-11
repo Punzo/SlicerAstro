@@ -715,6 +715,7 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
 {
   int disabledModify = this->StartModify();
 
+  cout<<"bella"<<endl;
   Superclass::ReadXMLAttributes(atts);
 
   const char* attName;

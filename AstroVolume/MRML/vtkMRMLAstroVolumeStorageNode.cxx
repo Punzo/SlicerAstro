@@ -224,6 +224,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
+    disNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
     if (disNode->GetWCSStatus() != 0)
       {
@@ -258,6 +259,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       labvolNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
+    labdisNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
+
       // parse Space (WCS or IJK) to the display node
     if (labdisNode->GetWCSStatus() != 0)
       {

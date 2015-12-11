@@ -67,6 +67,10 @@ class VTK_SLICER_SMOOTHING_MODULE_MRML_EXPORT vtkMRMLSmoothingParametersNode : p
   vtkDoubleArray* GetGaussianKernelY();
   vtkDoubleArray* GetGaussianKernelZ();
 
+  void SetGaussianKernelX();
+  void SetGaussianKernelY();
+  void SetGaussianKernelZ();
+
   void SetGaussianKernels();
 
 protected:

@@ -320,9 +320,15 @@ inline double gauss1D(double x, double sigma)
  return exp(-x * x / (2. * sigma * sigma)) / (sigma * sqrt(2. * M_PI));
 };
 
+
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
+void vtkMRMLSmoothingParametersNode::SetGaussianKernelX()
 {
+  if(this->GetFilter() != 0)
+    {
+    return;
+    }
+
   if (this->gaussianKernelX)
     {
     int nItems = this->gaussianKernelX->GetNumberOfTuples();
@@ -340,6 +346,15 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
       double gx = this->gaussianKernelX->GetComponent(i, 0);
       this->gaussianKernelX->SetComponent(i, 0, gx / sum);
       }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLSmoothingParametersNode::SetGaussianKernelY()
+{
+  if(this->GetFilter() != 0)
+    {
+    return;
     }
 
   if (this->gaussianKernelY)
@@ -360,6 +375,15 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
       this->gaussianKernelY->SetComponent(i, 0, gy / sum);
       }
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLSmoothingParametersNode::SetGaussianKernelZ()
+{
+  if(this->GetFilter() != 0)
+    {
+    return;
+    }
 
   if (this->gaussianKernelZ)
     {
@@ -379,6 +403,19 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
       this->gaussianKernelZ->SetComponent(i, 0, gz / sum);
       }
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
+{
+  if(this->GetFilter() != 0)
+    {
+    return;
+    }
+
+  vtkMRMLSmoothingParametersNode::SetGaussianKernelX();
+  vtkMRMLSmoothingParametersNode::SetGaussianKernelY();
+  vtkMRMLSmoothingParametersNode::SetGaussianKernelZ();
 }
 
 //----------------------------------------------------------------------------
