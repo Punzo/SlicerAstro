@@ -9,6 +9,7 @@
 #include "qMRMLAstroVolumeInfoWidget.h"
 #include "qMRMLThreeDWidget.h"
 #include "qMRMLThreeDViewControllerWidget.h"
+#include "ctkAxesWidget.h"
 
 // SlicerQt includes
 #include <qSlicerCoreApplication.h>
@@ -32,10 +33,13 @@
 #include "vtkMRMLSelectionNode.h"
 #include "vtkMRMLAstroVolumeNode.h"
 #include "vtkMRMLAstroLabelMapVolumeNode.h"
+#include "vtkMRMLLayoutNode.h"
+#include "vtkMRMLCameraNode.h"
 
 // logic includes
 #include "vtkSlicerVolumeRenderingLogic.h"
 #include "vtkSlicerAstroVolumeLogic.h"
+#include <vtkMRMLLayoutLogic.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume
@@ -379,7 +383,8 @@ void qSlicerAstroVolumeModuleWidget::SetPresets(vtkMRMLNode *node)
     }
 
   d->PresetsNodeComboBox->setMRMLScene(presetsScene);
-  d->PresetsNodeComboBox->setCurrentNode(0);
+  d->PresetsNodeComboBox->setCurrentNodeIndex(5);
+  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 }
 
 //---------------------------------------------------------------------------
@@ -421,6 +426,107 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->resetFocalPoint();
     }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNodeOneID,
+                                                           const char* volumeNodeTwoID)
+{
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(15);
+
+  vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
+  vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
+
+  vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode");
+  unsigned int numViewNodes = col->GetNumberOfItems();
+
+  int n = volumeOne->GetNumberOfDisplayNodes();
+  for (int i = 0; i < n; i++)
+    {
+    vtkMRMLVolumeRenderingDisplayNode *volumeOneRenderingDisplay =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast
+        (this->mrmlScene()->GetNodeByID(volumeOne->GetNthDisplayNodeID(i)));
+    if (volumeOneRenderingDisplay)
+      {
+      volumeOneRenderingDisplay->RemoveAllViewNodeIDs();
+
+      for (unsigned int n = 0; n < numViewNodes; n++)
+        {
+        vtkMRMLViewNode *viewNodeIter =
+            vtkMRMLViewNode::SafeDownCast(col->GetItemAsObject(n));
+        if (viewNodeIter)
+          {
+          volumeOneRenderingDisplay->AddViewNodeID(viewNodeIter->GetID());
+          break;
+          }
+        }
+      }
+    }
+
+  n = volumeTwo->GetNumberOfDisplayNodes();
+  for (int i = 0; i < n; i++)
+    {
+    vtkMRMLVolumeRenderingDisplayNode *volumeTwoRenderingDisplay =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast
+        (this->mrmlScene()->GetNodeByID(volumeTwo->GetNthDisplayNodeID(i)));
+    if (volumeTwoRenderingDisplay)
+      {
+      volumeTwoRenderingDisplay->RemoveAllViewNodeIDs();
+
+      bool second = false;
+      for (unsigned int n = 0; n < numViewNodes; n++)
+        {
+        vtkMRMLViewNode *viewNodeIter =
+            vtkMRMLViewNode::SafeDownCast(col->GetItemAsObject(n));
+        if (viewNodeIter)
+          {
+          if(second)
+            {
+            volumeTwoRenderingDisplay->AddViewNodeID(viewNodeIter->GetID());
+            break;
+            }
+          second = true;
+          }
+        }
+      }
+    }
+
+  col = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
+  unsigned int numCameraNodes = col->GetNumberOfItems();
+  if (numCameraNodes < 2)
+    {
+    return;
+    }
+  vtkMRMLCameraNode *cameraNodeOne =
+    vtkMRMLCameraNode::SafeDownCast(col->GetItemAsObject(0));
+  if (cameraNodeOne)
+    {
+    double Origin[3];
+    volumeOne->GetOrigin(Origin);
+    Origin[2] -= 200;
+    cameraNodeOne->SetPosition(Origin);
+    cameraNodeOne->SetViewUp(0,-1,0);
+    }
+  vtkMRMLCameraNode *cameraNodeTwo =
+    vtkMRMLCameraNode::SafeDownCast(col->GetItemAsObject(1));
+  if (cameraNodeTwo)
+    {
+    double Origin[3];
+    volumeTwo->GetOrigin(Origin);
+    Origin[2] -= 200;
+    cameraNodeTwo->SetPosition(Origin);
+    cameraNodeTwo->SetViewUp(0,-1,0);
+    }
+
+  for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
+    {
+    app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
+    }
+
 }
 
 //---------------------------------------------------------------------------

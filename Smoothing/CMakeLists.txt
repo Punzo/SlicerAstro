@@ -22,7 +22,9 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/MRML
   ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
   ${qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS}
+  ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
   ${qSlicerAstroVolumeModule_INCLUDE_DIRS}
+  ${WCSLIB_INCLUDE_DIR}
   )
 
 set(MODULE_SRCS
@@ -46,6 +48,7 @@ set(MODULE_TARGET_LIBRARIES
   vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicerAstroVolumeModuleLogic
   qSlicerAstroVolumeModuleWidgets
+  qSlicerVolumeRenderingModuleWidgets
   qSlicerAstroVolumeModule
   )
 
