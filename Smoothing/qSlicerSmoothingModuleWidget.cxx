@@ -668,14 +668,8 @@ void qSlicerSmoothingModuleWidget::onApply()
 
     appLogic->PropagateVolumeSelection();
 
-    inputVolume->SetDisplayVisibility(true);
-    vtkMRMLAstroVolumeNode *smoothedVolume =
-      vtkMRMLAstroVolumeNode::SafeDownCast
-        (this->mrmlScene()->GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
-
     d->astroVolumeWidget->setComparative3DViews
-        (smoothedVolume->GetID(), inputVolume->GetID());
-    d->astroVolumeWidget->onVisibilityChanged(true);
+        (inputVolume->GetID(), d->parametersNode->GetOutputVolumeNodeID());
     }
 }
 

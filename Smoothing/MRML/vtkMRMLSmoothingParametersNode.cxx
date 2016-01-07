@@ -177,7 +177,7 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
     int nItems = this->gaussianKernelX->GetNumberOfTuples();
     for (int i = 0; i < nItems; i++)
       {
-      std::string temp = "gaussianKernelX[" + IntToString(i) + "]";
+      std::string temp = "gaussianKernelX" + IntToString(i);
       if (!strcmp(attName, temp.c_str()))
         {
         this->gaussianKernelX->SetComponent(i, 0, StringToDouble(attValue));
@@ -190,7 +190,7 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
     nItems = this->gaussianKernelY->GetNumberOfTuples();
     for (int i = 0; i < nItems; i++)
       {
-      std::string temp = "gaussianKernelY[" + IntToString(i) + "]";
+      std::string temp = "gaussianKernelY" + IntToString(i);
       if (!strcmp(attName, temp.c_str()))
         {
         this->gaussianKernelY->SetComponent(i, 0, StringToDouble(attValue));
@@ -203,7 +203,7 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
     nItems = this->gaussianKernelZ->GetNumberOfTuples();
     for (int i = 0; i < nItems; i++)
       {
-      std::string temp = "gaussianKernelZ[" + IntToString(i) + "]";
+      std::string temp = "gaussianKernelZ" + IntToString(i);
       if (!strcmp(attName, temp.c_str()))
         {
         this->gaussianKernelZ->SetComponent(i, 0, StringToDouble(attValue));
@@ -247,7 +247,7 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
     int nItems = this->gaussianKernelX->GetNumberOfTuples();
     for (int i = 0; i < nItems; i++)
       {
-      of << indent << "gaussianKernelX["<< i << "]=\"" <<
+      of << indent << "gaussianKernelX"<< i << "=\"" <<
             this->gaussianKernelX->GetComponent(i, 0) << "\"";
       }
     }
@@ -257,7 +257,7 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
     int nItems = this->gaussianKernelY->GetNumberOfTuples();
     for (int i = 0; i < nItems; i++)
       {
-      of << indent << "gaussianKernelY["<< i << "]=\"" <<
+      of << indent << "gaussianKernelY"<< i << "=\"" <<
             this->gaussianKernelY->GetComponent(i, 0) << "\"";
       }
     }
@@ -267,7 +267,7 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
     int nItems = this->gaussianKernelZ->GetNumberOfTuples();
     for (int i = 0; i < nItems; i++)
       {
-      of << indent << "gaussianKernelZ["<< i << "]=\"" <<
+      of << indent << "gaussianKernelZ"<< i << "=\"" <<
             this->gaussianKernelZ->GetComponent(i, 0) << "\"";
       }
     }
