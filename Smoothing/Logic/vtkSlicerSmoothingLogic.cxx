@@ -337,7 +337,6 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
     }
   noise = sqrt(noise / cont);
 
-  outputVolume->Modified();
   outputVolume->GetImageData()->Modified();
   outputVolume->GetImageData()->GetPointData()->GetScalars()->Modified();
 
