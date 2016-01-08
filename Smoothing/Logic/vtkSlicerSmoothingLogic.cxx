@@ -19,6 +19,13 @@
 #include <cassert>
 #include <iostream>
 
+// OpenMP includes
+#include <omp.h>
+
+#include <sys/time.h>
+#include <stdio.h>
+#include <unistd.h>
+
 //----------------------------------------------------------------------------
 class vtkSlicerSmoothingLogic::vtkInternal
 {
@@ -146,121 +153,169 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
   float *inPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
   double max = outputVolume->GetImageData()->GetScalarTypeMin();
   double min = outputVolume->GetImageData()->GetScalarTypeMax();
+  int status = 0;
+  bool cancel = false;
 
+  omp_set_num_threads(omp_get_num_procs());
+
+  #pragma omp parallel for shared(pnode, outPixel, inPixel, status)
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
-    int status = pnode->GetStatus();
-    if(status == -1)
+    status = pnode->GetStatus();
+
+    if (status == -1 && omp_get_thread_num() == 0)
       {
-      pnode->SetStatus(0);
-      return 0;
-      }
-    if ((elemCnt + 1) > (int) (numElements * status / 33))
-      {
-      status++;
-      pnode->SetStatus(status);
+      cancel = true;
       }
 
-    int i1, i2;
-
-    i1 = - (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
-    i2 = + (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
-    *(outPixel + elemCnt) = 0.;
-    for (int i = i1; i <= i2; i++)
+    if (!cancel)
       {
-      int ii = elemCnt + i;
-      int ref = (int) floor(elemCnt / dims[0]);
-      ref *= dims[0];
-      if(ii < ref)
+      if ((elemCnt + 1) > (int) (numElements * status / 33))
         {
-        continue;
+        #pragma omp atomic
+          status++;
+        if (omp_get_thread_num() == 0)
+          {
+          pnode->SetStatus(status);
+          }
         }
-      if(ii > ref + dims[0])
+
+      int i1, i2;
+
+      i1 = - (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
+      i2 = + (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
+      *(outPixel + elemCnt) = 0.;
+      for (int i = i1; i <= i2; i++)
         {
-        break;
+        int ii = elemCnt + i;
+        int ref = (int) floor(elemCnt / dims[0]);
+        ref *= dims[0];
+        if(ii < ref)
+          {
+          continue;
+          }
+        if(ii > ref + dims[0])
+          {
+          break;
+          }
+        *(outPixel + elemCnt) += *(inPixel + ii) * *(pnode->GetGaussianKernelX()->GetPointer(i-i1));
         }
-      *(outPixel + elemCnt) += *(inPixel + ii) * *(pnode->GetGaussianKernelX()->GetPointer(i-i1));
       }
     }
 
+  if (cancel)
+    {
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  #pragma omp parallel for shared(pnode, tempPixel, outPixel, status)
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int status = pnode->GetStatus();
-    if(status == -1)
+
+    if (status == -1 && omp_get_thread_num() == 0)
       {
-      pnode->SetStatus(0);
-      return 0;
-      }
-    if ((elemCnt + numElements + 1) > (int) (numElements * status / 33))
-      {
-      status++;
-      pnode->SetStatus(status);
+      cancel = true;
       }
 
-    int i1, i2;
-
-    i1 = - (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
-    i2 = + (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
-    *(tempPixel + elemCnt) = 0.;
-    for (int i = i1; i <= i2; i++)
+    if (!cancel)
       {
-      int ii = elemCnt + (i * dims[0]);
-      int ref = (int) floor(elemCnt / (dims[0] * dims[1]));
-      ref *= dims[0] * dims[1];
-      if(ii < ref)
+      if ((elemCnt + numElements + 1) > (int) (numElements * status / 33))
         {
-        continue;
+        #pragma omp atomic
+          status++;
+        if (omp_get_thread_num() == 0)
+          {
+          pnode->SetStatus(status);
+          }
         }
-      if(ii > ref + (dims[0] * dims[1]))
+
+      int i1, i2;
+
+      i1 = - (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
+      i2 = + (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
+      *(tempPixel + elemCnt) = 0.;
+      for (int i = i1; i <= i2; i++)
         {
-        break;
+        int ii = elemCnt + (i * dims[0]);
+        int ref = (int) floor(elemCnt / (dims[0] * dims[1]));
+        ref *= dims[0] * dims[1];
+        if(ii < ref)
+          {
+          continue;
+          }
+        if(ii > ref + (dims[0] * dims[1]))
+          {
+          break;
+          }
+        *(tempPixel + elemCnt) += *(outPixel + ii) * *(pnode->GetGaussianKernelY()->GetPointer(i-i1));
         }
-      *(tempPixel + elemCnt) += *(outPixel + ii) * *(pnode->GetGaussianKernelY()->GetPointer(i-i1));
       }
     }
 
+  if (cancel)
+    {
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  #pragma omp parallel for shared(pnode, tempPixel, outPixel, status)
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int status = pnode->GetStatus();
-    if(status == -1)
+
+    if (status == -1 && omp_get_thread_num() == 0)
       {
-      pnode->SetStatus(0);
-      return 0;
-      }
-    if ((elemCnt + (numElements * 2) + 1) > (int) (numElements * status / 33))
-      {
-      status++;
-      pnode->SetStatus(status);
+      cancel = true;
       }
 
-    int i1, i2;
-
-    i1 = - (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
-    i2 = + (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
-    *(outPixel + elemCnt) = 0.;
-    for (int i = i1; i <= i2; i++)
+    if (!cancel)
       {
-      int ii = elemCnt + (i * dims[0] * dims[1]);
-      if(ii < 0)
+      if ((elemCnt + (numElements * 2) + 1) > (int) (numElements * status / 33))
         {
-        continue;
+        #pragma omp atomic
+          status++;
+        if (omp_get_thread_num() == 0)
+          {
+          pnode->SetStatus(status);
+          }
         }
-      if(ii > dims[0] * dims[1] * dims[2])
+
+      int i1, i2;
+
+      i1 = - (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
+      i2 = + (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
+      *(outPixel + elemCnt) = 0.;
+      for (int i = i1; i <= i2; i++)
         {
-        break;
+        int ii = elemCnt + (i * dims[0] * dims[1]);
+        if(ii < 0)
+          {
+          continue;
+          }
+        if(ii > dims[0] * dims[1] * dims[2])
+         {
+          break;
+          }
+        *(outPixel + elemCnt) += *(tempPixel + ii) * *(pnode->GetGaussianKernelZ()->GetPointer(i-i1));
         }
-      *(outPixel + elemCnt) += *(tempPixel + ii) * *(pnode->GetGaussianKernelZ()->GetPointer(i-i1));
-      }
 
-    if(*(outPixel+elemCnt) > max)
-      {
-      max = *(outPixel+elemCnt);
+      if(*(outPixel+elemCnt) > max)
+        {
+        max = *(outPixel+elemCnt);
+        }
+      if(*(outPixel+elemCnt) < min)
+        {
+        min = *(outPixel+elemCnt);
+        }
       }
-    if(*(outPixel+elemCnt) < min)
-      {
-      min = *(outPixel+elemCnt);
-      }
+    }
 
+  if (cancel)
+    {
+    pnode->SetStatus(0);
+    return 0;
     }
 
   double sum = 0., noise = 0.;

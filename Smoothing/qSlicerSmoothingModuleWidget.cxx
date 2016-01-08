@@ -480,7 +480,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
   else
     {
-    if(status == 1)
+    if(status > 0)
       {
       this->onComputationStarted();
       }
@@ -632,21 +632,21 @@ void qSlicerSmoothingModuleWidget::onApply()
 
     vtkSlicerSmoothingLogic* logic =
       vtkSlicerSmoothingLogic::SafeDownCast(this->logic());
-    vtkMRMLAstroVolumeNode *cloneVolume = logic->GetAstroVolumeLogic()->
+   outputVolume = logic->GetAstroVolumeLogic()->
       CloneVolume(scene, inputVolume, outSS.str().c_str());
 
-    cloneVolume->SetName(outSS.str().c_str());
-    d->parametersNode->SetOutputVolumeNodeID(cloneVolume->GetID());
+    outputVolume->SetName(outSS.str().c_str());
+    d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
-    int ndnodes = cloneVolume->GetNumberOfDisplayNodes();
+    int ndnodes = outputVolume->GetNumberOfDisplayNodes();
     for (int i=0; i<ndnodes; i++)
       {
       vtkMRMLVolumeRenderingDisplayNode *dnode =
         vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-          cloneVolume->GetNthDisplayNode(i));
+          outputVolume->GetNthDisplayNode(i));
       if (dnode)
         {
-        cloneVolume->RemoveNthDisplayNodeID(i);
+        outputVolume->RemoveNthDisplayNodeID(i);
         }
       }
 
@@ -670,6 +670,10 @@ void qSlicerSmoothingModuleWidget::onApply()
 
     d->astroVolumeWidget->setComparative3DViews
         (inputVolume->GetID(), d->parametersNode->GetOutputVolumeNodeID());
+    }
+  else
+    {
+    scene->RemoveNode(outputVolume);
     }
 }
 
