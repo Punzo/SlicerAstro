@@ -14,6 +14,7 @@
 #include <vtkSmartPointer.h>
 #include <vtkVersion.h>
 #include <vtkImageData.h>
+#include <vtkPointData.h>
 
 // STD includes
 #include <cassert>
@@ -336,6 +337,10 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
     }
   noise = sqrt(noise / cont);
 
+  outputVolume->Modified();
+  outputVolume->GetImageData()->Modified();
+  outputVolume->GetImageData()->GetPointData()->GetScalars()->Modified();
+
   outputVolume->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
   outputVolume->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
   outputVolume->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
@@ -349,82 +354,11 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *outPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-  float *inPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-
-  double range[2];
-  outputVolume->GetImageData()->GetScalarRange(range);
-  cout<<"dentro1  : "<< range[0] <<" "<<range[1]<<endl;
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int status = pnode->GetStatus();
-    if(status == -1)
-      {
-      pnode->SetStatus(0);
-      return 0;
-      }
-    if((elemCnt+1) > (int) (numElements * status / 100))
-      {
-      status++;
-      pnode->SetStatus(status);
-      }
-    //here implement GradientCPUFilter
-    *(outPixel+elemCnt) = *(inPixel+elemCnt) *10.;
-    }
-
-  //investigate how to update scalarrange in imagedata af having modified the pointers
-  //outputVolume->GetImageData()->SetInformation(//here the info about range are chached);
-  outputVolume->GetImageData()->GetScalarRange(range);
-  cout<<"dentro2  : "<<range[0]<<" "<<range[1]<<endl;
-
-  pnode->SetStatus(0);
-
   return 1;
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::WaveletLiftingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *outPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-  float *inPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int status = pnode->GetStatus();
-    if(status == -1)
-      {
-      pnode->SetStatus(0);
-      return 0;
-      }
-    if((elemCnt+1) > (int) (numElements * status / 100))
-      {
-      status++;
-      pnode->SetStatus(status);
-      }
-    //here implement WaveletLiftingCPUFilter
-    *(outPixel+elemCnt) = *(inPixel+elemCnt);
-    }
-  pnode->SetStatus(0);
-
   return 1;
 }

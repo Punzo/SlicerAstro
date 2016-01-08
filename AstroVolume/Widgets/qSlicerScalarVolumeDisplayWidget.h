@@ -13,9 +13,10 @@
 #include "qSlicerVolumesModuleWidgetsExport.h"
 
 class vtkMRMLNode;
-class vtkMRMLScalarVolumeDisplayNode;
-class vtkMRMLScalarVolumeNode;
+class vtkMRMLAstroVolumeDisplayNode;
+class vtkMRMLAstroVolumeNode;
 class qSlicerScalarVolumeDisplayWidgetPrivate;
+class vtkImageData;
 
 /// \ingroup Slicer_QtModules_Volumes
 class Q_SLICER_QTMODULES_VOLUMES_WIDGETS_EXPORT qSlicerScalarVolumeDisplayWidget
@@ -31,8 +32,9 @@ public:
   explicit qSlicerScalarVolumeDisplayWidget(QWidget* parent);
   virtual ~qSlicerScalarVolumeDisplayWidget();
 
-  vtkMRMLScalarVolumeNode* volumeNode()const;
-  vtkMRMLScalarVolumeDisplayNode* volumeDisplayNode()const;
+  vtkMRMLAstroVolumeNode* volumeNode()const;
+  vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode()const;
+  vtkImageData* volumeImageData()const;
 
   bool isColorTableComboBoxEnabled()const;
   void setColorTableComboBoxEnabled(bool);
@@ -44,7 +46,7 @@ public slots:
 
   ///
   /// Set the MRML node of interest
-  void setMRMLVolumeNode(vtkMRMLScalarVolumeNode* volumeNode);
+  void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLNode* node);
 
   void setInterpolate(bool interpolate);
@@ -52,6 +54,7 @@ public slots:
 
 protected slots:
   void updateWidgetFromMRML();
+  void updateColorFunctionFromMRML();
   void updateTransferFunction();
 
 protected:
