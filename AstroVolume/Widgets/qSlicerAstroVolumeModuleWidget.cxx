@@ -443,10 +443,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
 
-  volumeOne->SetDisplayVisibility(true);
-
-  volumeTwo->SetDisplayVisibility(true);
-
   vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode");
   unsigned int numViewNodes = col->GetNumberOfItems();
 
@@ -532,6 +528,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
     }
+
+  volumeOne->SetDisplayVisibility(true);
+
+  volumeTwo->SetDisplayVisibility(true);
 
 }
 
