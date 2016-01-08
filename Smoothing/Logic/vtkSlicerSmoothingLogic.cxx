@@ -22,10 +22,6 @@
 // OpenMP includes
 #include <omp.h>
 
-#include <sys/time.h>
-#include <stdio.h>
-#include <unistd.h>
-
 //----------------------------------------------------------------------------
 class vtkSlicerSmoothingLogic::vtkInternal
 {
