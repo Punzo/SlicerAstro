@@ -148,8 +148,6 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
   float *outPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
   float *tempPixel = static_cast<float*> (tempVolumeData->GetScalarPointer(0,0,0));
   float *inPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-  double max = outputVolume->GetImageData()->GetScalarTypeMin();
-  double min = outputVolume->GetImageData()->GetScalarTypeMax();
   int status = 0;
   bool cancel = false;
 
@@ -298,14 +296,6 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
         *(outPixel + elemCnt) += *(tempPixel + ii) * *(pnode->GetGaussianKernelZ()->GetPointer(i-i1));
         }
 
-      if(*(outPixel+elemCnt) > max)
-        {
-        max = *(outPixel+elemCnt);
-        }
-      if(*(outPixel+elemCnt) < min)
-        {
-        min = *(outPixel+elemCnt);
-        }
       }
     }
 
@@ -339,9 +329,10 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
 
   outputVolume->GetImageData()->Modified();
   outputVolume->GetImageData()->GetPointData()->GetScalars()->Modified();
-
-  outputVolume->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
-  outputVolume->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  outputVolume->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
+  outputVolume->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
   outputVolume->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
 
   pnode->SetStatus(0);
