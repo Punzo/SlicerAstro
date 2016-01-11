@@ -153,98 +153,50 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
 
   omp_set_num_threads(omp_get_num_procs());
 
-  #pragma omp parallel for shared(pnode, outPixel, inPixel, status)
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+  if (pnode->GetParameterX() > 0.001)
     {
-    status = pnode->GetStatus();
-
-    if (status == -1 && omp_get_thread_num() == 0)
+    #pragma omp parallel for shared(pnode, outPixel, inPixel, status)
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
-      cancel = true;
-      }
+      status = pnode->GetStatus();
 
-    if (!cancel)
-      {
-      if ((elemCnt + 1) > (int) (numElements * status / 33))
+      if (status == -1 && omp_get_thread_num() == 0)
         {
-        #pragma omp atomic
-          status++;
-        if (omp_get_thread_num() == 0)
-          {
-          pnode->SetStatus(status);
-          }
+        cancel = true;
         }
 
-      int i1, i2;
-
-      i1 = - (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
-      i2 = + (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
-      *(outPixel + elemCnt) = 0.;
-      for (int i = i1; i <= i2; i++)
+      if (!cancel)
         {
-        int ii = elemCnt + i;
-        int ref = (int) floor(elemCnt / dims[0]);
-        ref *= dims[0];
-        if(ii < ref)
+        if ((elemCnt + 1) > (int) (numElements * status / 33))
           {
-          continue;
+          #pragma omp atomic
+            status++;
+          if (omp_get_thread_num() == 0)
+            {
+            pnode->SetStatus(status);
+            }
           }
-        if(ii > ref + dims[0])
+
+        int i1, i2;
+
+        i1 = - (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
+        i2 = + (int) ((pnode->GetGaussianKernelX()->GetNumberOfTuples() - 1) / 2.);
+        *(outPixel + elemCnt) = 0.;
+        for (int i = i1; i <= i2; i++)
           {
-          break;
+          int ii = elemCnt + i;
+          int ref = (int) floor(elemCnt / dims[0]);
+          ref *= dims[0];
+          if(ii < ref)
+            {
+            continue;
+            }
+          if(ii > ref + dims[0])
+            {
+            break;
+            }
+          *(outPixel + elemCnt) += *(inPixel + ii) * *(pnode->GetGaussianKernelX()->GetPointer(i-i1));
           }
-        *(outPixel + elemCnt) += *(inPixel + ii) * *(pnode->GetGaussianKernelX()->GetPointer(i-i1));
-        }
-      }
-    }
-
-  if (cancel)
-    {
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  #pragma omp parallel for shared(pnode, tempPixel, outPixel, status)
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int status = pnode->GetStatus();
-
-    if (status == -1 && omp_get_thread_num() == 0)
-      {
-      cancel = true;
-      }
-
-    if (!cancel)
-      {
-      if ((elemCnt + numElements + 1) > (int) (numElements * status / 33))
-        {
-        #pragma omp atomic
-          status++;
-        if (omp_get_thread_num() == 0)
-          {
-          pnode->SetStatus(status);
-          }
-        }
-
-      int i1, i2;
-
-      i1 = - (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
-      i2 = + (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
-      *(tempPixel + elemCnt) = 0.;
-      for (int i = i1; i <= i2; i++)
-        {
-        int ii = elemCnt + (i * dims[0]);
-        int ref = (int) floor(elemCnt / (dims[0] * dims[1]));
-        ref *= dims[0] * dims[1];
-        if(ii < ref)
-          {
-          continue;
-          }
-        if(ii > ref + (dims[0] * dims[1]))
-          {
-          break;
-          }
-        *(tempPixel + elemCnt) += *(outPixel + ii) * *(pnode->GetGaussianKernelY()->GetPointer(i-i1));
         }
       }
     }
@@ -255,47 +207,103 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
     return 0;
     }
 
-  #pragma omp parallel for shared(pnode, tempPixel, outPixel, status)
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+  if (pnode->GetParameterY() > 0.001)
     {
-    int status = pnode->GetStatus();
-
-    if (status == -1 && omp_get_thread_num() == 0)
+    #pragma omp parallel for shared(pnode, tempPixel, outPixel, status)
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
-      cancel = true;
+      int status = pnode->GetStatus();
+
+      if (status == -1 && omp_get_thread_num() == 0)
+        {
+        cancel = true;
+        }
+
+      if (!cancel)
+        {
+        if ((elemCnt + numElements + 1) > (int) (numElements * status / 33))
+          {
+          #pragma omp atomic
+            status++;
+          if (omp_get_thread_num() == 0)
+            {
+            pnode->SetStatus(status);
+            }
+          }
+
+        int i1, i2;
+
+        i1 = - (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
+        i2 = + (int) ((pnode->GetGaussianKernelY()->GetNumberOfTuples() - 1) / 2.);
+        *(tempPixel + elemCnt) = 0.;
+        for (int i = i1; i <= i2; i++)
+          {
+          int ii = elemCnt + (i * dims[0]);
+          int ref = (int) floor(elemCnt / (dims[0] * dims[1]));
+          ref *= dims[0] * dims[1];
+          if(ii < ref)
+            {
+            continue;
+            }
+          if(ii > ref + (dims[0] * dims[1]))
+            {
+            break;
+            }
+          *(tempPixel + elemCnt) += *(outPixel + ii) * *(pnode->GetGaussianKernelY()->GetPointer(i-i1));
+          }
+        }
       }
+    }
 
-    if (!cancel)
+  if (cancel)
+    {
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (pnode->GetParameterZ() > 0.001)
+    {
+    #pragma omp parallel for shared(pnode, tempPixel, outPixel, status)
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
-      if ((elemCnt + (numElements * 2) + 1) > (int) (numElements * status / 33))
+      int status = pnode->GetStatus();
+
+      if (status == -1 && omp_get_thread_num() == 0)
         {
-        #pragma omp atomic
-          status++;
-        if (omp_get_thread_num() == 0)
-          {
-          pnode->SetStatus(status);
-          }
+        cancel = true;
         }
 
-      int i1, i2;
-
-      i1 = - (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
-      i2 = + (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
-      *(outPixel + elemCnt) = 0.;
-      for (int i = i1; i <= i2; i++)
+      if (!cancel)
         {
-        int ii = elemCnt + (i * dims[0] * dims[1]);
-        if(ii < 0)
+        if ((elemCnt + (numElements * 2) + 1) > (int) (numElements * status / 33))
           {
-          continue;
+          #pragma omp atomic
+            status++;
+          if (omp_get_thread_num() == 0)
+            {
+            pnode->SetStatus(status);
+            }
           }
-        if(ii > dims[0] * dims[1] * dims[2])
-         {
-          break;
-          }
-        *(outPixel + elemCnt) += *(tempPixel + ii) * *(pnode->GetGaussianKernelZ()->GetPointer(i-i1));
-        }
 
+        int i1, i2;
+
+        i1 = - (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
+        i2 = + (int) ((pnode->GetGaussianKernelZ()->GetNumberOfTuples() - 1) / 2.);
+        *(outPixel + elemCnt) = 0.;
+        for (int i = i1; i <= i2; i++)
+          {
+          int ii = elemCnt + (i * dims[0] * dims[1]);
+          if(ii < 0)
+            {
+            continue;
+            }
+          if(ii > dims[0] * dims[1] * dims[2])
+            {
+            break;
+            }
+          *(outPixel + elemCnt) += *(tempPixel + ii) * *(pnode->GetGaussianKernelZ()->GetPointer(i-i1));
+          }
+        }
       }
     }
 
@@ -344,7 +352,7 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-  vtkMRMLAstroVolumeNode *inputVolume =
+ /* vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -361,9 +369,11 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   float *inPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
   int status = 0;
   bool cancel = false;
+  int iterations = pnode->GetAccuracy();
 
   omp_set_num_threads(omp_get_num_procs());
 
+  //for (int i = 0)
   #pragma omp parallel for shared(pnode, outPixel, inPixel, status)
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
@@ -376,7 +386,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
 
     if (!cancel)
       {
-      if ((elemCnt + 1) > (int) (numElements * status / 33))
+      if ((elemCnt + 1) > (int) (numElements * status / ))
         {
         #pragma omp atomic
           status++;
@@ -387,7 +397,9 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
         }
       }
 
-      //formula
+      //formula, accuracy is the iterations, time step we can put a fixed one
+    
+    
 
     }
 
@@ -428,7 +440,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   outputVolume->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
   outputVolume->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
 
-  pnode->SetStatus(0);
+  pnode->SetStatus(0);*/
   return 1;
 }
 

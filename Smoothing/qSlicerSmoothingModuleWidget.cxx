@@ -441,15 +441,27 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("SigmaX:");
       d->SigmaYLabel->setText("SigmaY:");
       d->SigmaZLabel->setText("SigmaZ:");
+      if (d->DoubleSpinBoxX->decimals() != 2)
+        {
+        d->DoubleSpinBoxX->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxY->decimals() != 2)
+        {
+        d->DoubleSpinBoxY->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxZ->decimals() != 2)
+        {
+        d->DoubleSpinBoxZ->setDecimals(2);
+        }
+      d->DoubleSpinBoxX->setMinimum(0);
+      d->DoubleSpinBoxY->setMinimum(0);
+      d->DoubleSpinBoxZ->setMinimum(0);
       d->DoubleSpinBoxX->setMaximum(10);
       d->DoubleSpinBoxY->setMaximum(10);
       d->DoubleSpinBoxZ->setMaximum(10);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
-      d->DoubleSpinBoxX->setMinimum(0.5);
-      d->DoubleSpinBoxY->setMinimum(0.5);
-      d->DoubleSpinBoxZ->setMinimum(0.5);
       d->AccuracyLabel->setText("Kernel Accuracy:");
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
@@ -460,6 +472,18 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("Cx:");
       d->SigmaYLabel->setText("Cy:");
       d->SigmaZLabel->setText("Cz:");
+      if (d->DoubleSpinBoxX->decimals() != 2)
+        {
+        d->DoubleSpinBoxX->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxY->decimals() != 2)
+        {
+        d->DoubleSpinBoxY->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxZ->decimals() != 2)
+        {
+        d->DoubleSpinBoxZ->setDecimals(2);
+        }
       d->DoubleSpinBoxX->setMinimum(0);
       d->DoubleSpinBoxY->setMinimum(0);
       d->DoubleSpinBoxZ->setMinimum(0);
@@ -479,6 +503,18 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("Horizontal Wavelet level:");
       d->SigmaYLabel->setText("Vertical Wavelet level:");
       d->SigmaZLabel->setText("Depth Wavelet level:");
+      if (d->DoubleSpinBoxX->decimals() != 0)
+        {
+        d->DoubleSpinBoxX->setDecimals(0);
+        }
+      if (d->DoubleSpinBoxY->decimals() != 0)
+        {
+        d->DoubleSpinBoxY->setDecimals(0);
+        }
+      if (d->DoubleSpinBoxZ->decimals() != 0)
+        {
+        d->DoubleSpinBoxZ->setDecimals(0);
+        }
       d->DoubleSpinBoxX->setMinimum(0);
       d->DoubleSpinBoxY->setMinimum(0);
       d->DoubleSpinBoxZ->setMinimum(0);
@@ -502,7 +538,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
   else
     {
-    if(status > 0)
+    if(status > 0 && status < 8)
       {
       this->onComputationStarted();
       }
@@ -547,10 +583,10 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   if (index == 0)
     {
-    d->parametersNode->SetAccuracy(2);
-    d->parametersNode->SetParameterX(2);
-    d->parametersNode->SetParameterY(2);
-    d->parametersNode->SetParameterZ(2);
+    d->parametersNode->SetAccuracy(3);
+    d->parametersNode->SetParameterX(1);
+    d->parametersNode->SetParameterY(1);
+    d->parametersNode->SetParameterZ(1);
     }
 
   if (index == 1)

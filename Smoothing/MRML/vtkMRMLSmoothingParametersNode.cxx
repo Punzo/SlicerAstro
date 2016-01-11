@@ -25,10 +25,10 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->SetMode("Automatic");
   this->SetStatus(0);
   this->SetFilter(0);
-  this->SetAccuracy(2);
-  this->SetParameterX(2.);
-  this->SetParameterY(2.);
-  this->SetParameterZ(2.);
+  this->SetAccuracy(3);
+  this->SetParameterX(1.);
+  this->SetParameterY(1.);
+  this->SetParameterZ(1.);
   this->gaussianKernelX = vtkSmartPointer<vtkDoubleArray>::New();
   this->gaussianKernelX->SetNumberOfComponents(1);
   this->gaussianKernelX->SetNumberOfTuples((int) (this->GetParameterX() *
