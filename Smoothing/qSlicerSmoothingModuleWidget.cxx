@@ -431,6 +431,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
   d->DoubleSpinBoxX->show();
   d->DoubleSpinBoxY->show();
   d->DoubleSpinBoxZ->show();
+  d->AccuracySpinBox->show();
+  d->AccuracyLabel->show();
+
   switch (d->parametersNode->GetFilter())
     {
     case 0:
@@ -438,8 +441,17 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("SigmaX:");
       d->SigmaYLabel->setText("SigmaY:");
       d->SigmaZLabel->setText("SigmaZ:");
+      d->DoubleSpinBoxX->setMaximum(10);
+      d->DoubleSpinBoxY->setMaximum(10);
+      d->DoubleSpinBoxZ->setMaximum(10);
+      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+      d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+      d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+      d->DoubleSpinBoxX->setMinimum(0.5);
+      d->DoubleSpinBoxY->setMinimum(0.5);
+      d->DoubleSpinBoxZ->setMinimum(0.5);
       d->AccuracyLabel->setText("Kernel Accuracy:");
-      d->AccuracySpinBox->setMinimum(0);
+      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
       break;
       }
@@ -448,29 +460,39 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("Cx:");
       d->SigmaYLabel->setText("Cy:");
       d->SigmaZLabel->setText("Cz:");
-      d->AccuracySpinBox->setMinimum(0);
-      d->AccuracySpinBox->setMaximum(30);
+      d->DoubleSpinBoxX->setMinimum(0);
+      d->DoubleSpinBoxY->setMinimum(0);
+      d->DoubleSpinBoxZ->setMinimum(0);
+      d->DoubleSpinBoxX->setMaximum(10);
+      d->DoubleSpinBoxY->setMaximum(10);
+      d->DoubleSpinBoxZ->setMaximum(10);
+      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+      d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+      d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
       d->AccuracyLabel->setText("Iterations:");
+      d->AccuracySpinBox->setMaximum(30);
+      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       break;
       }
     case 2:
       {
-      d->SigmaXLabel->hide();
-      d->SigmaYLabel->hide();
-      d->SigmaZLabel->hide();
-      d->DoubleSpinBoxX->hide();
-      d->DoubleSpinBoxY->hide();
-      d->DoubleSpinBoxZ->hide();
-      d->AccuracySpinBox->setMinimum(0);
-      d->AccuracySpinBox->setMaximum(3);
-      d->AccuracyLabel->setText("Wavelet level:");
+      d->SigmaXLabel->setText("Horizontal Wavelet level:");
+      d->SigmaYLabel->setText("Vertical Wavelet level:");
+      d->SigmaZLabel->setText("Depth Wavelet level:");
+      d->DoubleSpinBoxX->setMinimum(0);
+      d->DoubleSpinBoxY->setMinimum(0);
+      d->DoubleSpinBoxZ->setMinimum(0);
+      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+      d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+      d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+      d->DoubleSpinBoxX->setMaximum(5);
+      d->DoubleSpinBoxY->setMaximum(5);
+      d->DoubleSpinBoxZ->setMaximum(5);
+      d->AccuracySpinBox->hide();
+      d->AccuracyLabel->hide();
       break;
       }
     }
-  d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-  d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
-  d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
-  d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
 
   int status = d->parametersNode->GetStatus();
 
@@ -520,7 +542,35 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     return;
     }
 
+  int wasModifying;
+  wasModifying = d->parametersNode->StartModify();
+
+  if (index == 0)
+    {
+    d->parametersNode->SetAccuracy(2);
+    d->parametersNode->SetParameterX(2);
+    d->parametersNode->SetParameterY(2);
+    d->parametersNode->SetParameterZ(2);
+    }
+
+  if (index == 1)
+    {
+    d->parametersNode->SetAccuracy(10);
+    d->parametersNode->SetParameterX(1);
+    d->parametersNode->SetParameterY(1);
+    d->parametersNode->SetParameterZ(1);
+    }
+
+  if (index == 2)
+    {
+    d->parametersNode->SetParameterX(3);
+    d->parametersNode->SetParameterY(3);
+    d->parametersNode->SetParameterZ(3);
+    }
+
   d->parametersNode->SetFilter(index);
+
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------

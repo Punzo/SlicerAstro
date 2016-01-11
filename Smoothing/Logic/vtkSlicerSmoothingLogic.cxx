@@ -344,6 +344,91 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  vtkNew<vtkImageData> tempVolumeData;
+  tempVolumeData->DeepCopy(outputVolume->GetImageData());
+
+  int *dims = inputVolume->GetImageData()->GetDimensions();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *outPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+  float *tempPixel = static_cast<float*> (tempVolumeData->GetScalarPointer(0,0,0));
+  float *inPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+  int status = 0;
+  bool cancel = false;
+
+  omp_set_num_threads(omp_get_num_procs());
+
+  #pragma omp parallel for shared(pnode, outPixel, inPixel, status)
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    status = pnode->GetStatus();
+
+    if (status == -1 && omp_get_thread_num() == 0)
+      {
+      cancel = true;
+      }
+
+    if (!cancel)
+      {
+      if ((elemCnt + 1) > (int) (numElements * status / 33))
+        {
+        #pragma omp atomic
+          status++;
+        if (omp_get_thread_num() == 0)
+          {
+          pnode->SetStatus(status);
+          }
+        }
+      }
+
+      //formula
+
+    }
+
+
+  if (cancel)
+    {
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  double sum = 0., noise = 0.;
+  int cont = 0;
+  const int lowBoundary = dims[0] * dims[1] * 2;
+  const int highBoundary = dims[0] * dims[1] * 4;
+  for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
+    {
+    if(*(outPixel + elemCnt) < 0.)
+      {
+      sum += *(outPixel + elemCnt);
+      cont++;
+      }
+    }
+  sum /= cont;
+  for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
+    {
+    if(*(outPixel + elemCnt) < 0.)
+      {
+      noise += (*(outPixel + elemCnt) - sum) * (*(outPixel+elemCnt) - sum);
+      }
+    }
+  noise = sqrt(noise / cont);
+
+  outputVolume->GetImageData()->Modified();
+  outputVolume->GetImageData()->GetPointData()->GetScalars()->Modified();
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  outputVolume->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
+  outputVolume->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
+  outputVolume->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
+
+  pnode->SetStatus(0);
   return 1;
 }
 
