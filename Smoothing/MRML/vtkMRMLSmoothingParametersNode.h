@@ -44,6 +44,9 @@ class VTK_SLICER_SMOOTHING_MODULE_MRML_EXPORT vtkMRMLSmoothingParametersNode : p
   vtkSetStringMacro(Mode);
   vtkGetStringMacro(Mode);
 
+  vtkSetMacro(OutputSerial, int);
+  vtkGetMacro(OutputSerial, int);
+
   vtkSetMacro(Filter,int);
   vtkGetMacro(Filter,int);
 
@@ -83,6 +86,7 @@ protected:
   char *InputVolumeNodeID;
   char *OutputVolumeNodeID;
   char *Mode;
+  int OutputSerial;
 
   /// Filter method
   /// 0: Gaussian

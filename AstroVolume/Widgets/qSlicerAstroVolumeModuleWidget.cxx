@@ -529,9 +529,9 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
     }
 
-  volumeOne->SetDisplayVisibility(true);
+  volumeOne->SetDisplayVisibility(1);
 
-  volumeTwo->SetDisplayVisibility(true);
+  volumeTwo->SetDisplayVisibility(1);
 
 }
 

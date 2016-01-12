@@ -22,6 +22,7 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->InputVolumeNodeID = NULL;
   this->OutputVolumeNodeID = NULL;
   this->Mode = NULL;
+  this->OutputSerial = 1;
   this->SetMode("Automatic");
   this->SetStatus(0);
   this->SetFilter(0);
@@ -136,6 +137,12 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "OutputSerial"))
+      {
+      this->OutputSerial = StringToInt(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "Filter"))
       {
       this->Filter = StringToInt(attValue);
@@ -235,6 +242,7 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " Mode=\"" << this->Mode << "\"";
     }
 
+  of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
   of << indent << " Filter=\"" << this->Filter << "\"";
   of << indent << " Status=\"" << this->Status << "\"";
   of << indent << " Accuracy=\"" << this->Accuracy << "\"";
@@ -286,6 +294,7 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
   this->SetMode(node->GetMode());
+  this->SetOutputSerial(node->GetOutputSerial());
   this->SetFilter(node->GetFilter());
   this->SetStatus(node->GetStatus());
   this->SetAccuracy(node->GetAccuracy());
@@ -439,6 +448,7 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
   os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
   os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
   os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
+  os << "OutputSerial: " << this->OutputSerial << "\n";
   os << "Filter: " << this->Filter << "\n";
   os << "Status: " << this->Status << "\n";
   os << "Accuracy: " << this->Accuracy << "\n";

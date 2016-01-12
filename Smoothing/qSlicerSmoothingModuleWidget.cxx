@@ -182,6 +182,22 @@ int StringToInt(const char* str)
   return StringToNumber<int>(str);
 }
 
+//----------------------------------------------------------------------------
+template <typename T> std::string NumberToString(T V)
+{
+  std::string stringValue;
+  std::stringstream strstream;
+  strstream << V;
+  strstream >> stringValue;
+  return stringValue;
+}
+
+//----------------------------------------------------------------------------
+std::string IntToString(int Value)
+{
+  return NumberToString<int>(Value);
+}
+
 } // end namespace
 
 //-----------------------------------------------------------------------------
@@ -680,12 +696,14 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
 
+  inputVolume->SetDisplayVisibility(0);
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
-  outSS << inputVolume->GetName() << "-Smoothed-" <<
-    d->parametersNode->GetMode() << "-";
+  outSS << inputVolume->GetName() << "_Filtered_" <<
+    d->parametersNode->GetMode() << "_";
 
   switch (d->parametersNode->GetFilter())
     {
@@ -705,6 +723,11 @@ void qSlicerSmoothingModuleWidget::onApply()
       break;
       }
     }
+
+  int serial = d->parametersNode->GetOutputSerial();
+  outSS<<"_"<< IntToString(serial);
+  serial++;
+  d->parametersNode->SetOutputSerial(serial);
 
   // check Output volume
   if (!strcmp(inputVolume->GetID(), outputVolume->GetID()) ||
