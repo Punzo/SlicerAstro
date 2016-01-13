@@ -47,6 +47,7 @@ public slots:
   void onVisibilityChanged(bool visibility);
   void setComparative3DViews(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID);
+  void stopRockView(const char *volumeNodeOneID);
   /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);

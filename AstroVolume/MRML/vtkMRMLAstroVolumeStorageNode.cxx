@@ -367,7 +367,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
           }
         break;
       default:
-        vtkErrorMacro("Could not get the data pointer.");
+        vtkErrorMacro("Could not get the data pointer. DataType not allowed.");
         return 0;
       }
     if ( refNode->IsA("vtkMRMLAstroVolumeNode") )

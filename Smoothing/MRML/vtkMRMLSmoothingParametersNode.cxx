@@ -27,21 +27,15 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->SetStatus(0);
   this->SetFilter(0);
   this->SetAccuracy(3);
-  this->SetParameterX(1.);
-  this->SetParameterY(1.);
-  this->SetParameterZ(1.);
+  this->SetParameterX(1.5);
+  this->SetParameterY(1.5);
+  this->SetParameterZ(1.5);
   this->gaussianKernelX = vtkSmartPointer<vtkDoubleArray>::New();
   this->gaussianKernelX->SetNumberOfComponents(1);
-  this->gaussianKernelX->SetNumberOfTuples((int) (this->GetParameterX() *
-                                                  this->GetAccuracy() * 2 + 1));
   this->gaussianKernelY = vtkSmartPointer<vtkDoubleArray>::New();
   this->gaussianKernelY->SetNumberOfComponents(1);
-  this->gaussianKernelY->SetNumberOfTuples((int) (this->GetParameterY() *
-                                                  this->GetAccuracy() * 2 + 1));
   this->gaussianKernelZ = vtkSmartPointer<vtkDoubleArray>::New();
   this->gaussianKernelZ->SetNumberOfComponents(1);
-  this->gaussianKernelZ->SetNumberOfTuples((int) (this->GetParameterZ() *
-                                                  this->GetAccuracy() * 2 + 1));
   this->SetGaussianKernels();
 }
 
@@ -178,10 +172,12 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
       this->ParameterZ = StringToDouble(attValue);
       continue;
       }
-
-    this->gaussianKernelX->SetNumberOfTuples((int) (this->GetParameterX() *
-                                                    this->GetAccuracy() * 2 + 1));
-    int nItems = this->gaussianKernelX->GetNumberOfTuples();
+    int nItems = (int) (this->GetParameterX() * this->GetAccuracy() * 2 + 1);
+    if (nItems % 2 == 0)
+      {
+      nItems++;
+      }
+    this->gaussianKernelX->SetNumberOfTuples(nItems);
     for (int i = 0; i < nItems; i++)
       {
       std::string temp = "gaussianKernelX" + IntToString(i);
@@ -192,9 +188,12 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    this->gaussianKernelY->SetNumberOfTuples((int) (this->GetParameterY() *
-                                                    this->GetAccuracy() * 2 + 1));
-    nItems = this->gaussianKernelY->GetNumberOfTuples();
+    nItems = (int) (this->GetParameterY() * this->GetAccuracy() * 2 + 1);
+    if (nItems % 2 == 0)
+      {
+      nItems++;
+      }
+    this->gaussianKernelY->SetNumberOfTuples(nItems);
     for (int i = 0; i < nItems; i++)
       {
       std::string temp = "gaussianKernelY" + IntToString(i);
@@ -205,9 +204,12 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    this->gaussianKernelZ->SetNumberOfTuples((int) (this->GetParameterZ() *
-                                                    this->GetAccuracy() * 2 + 1));
-    nItems = this->gaussianKernelZ->GetNumberOfTuples();
+    nItems = (int) (this->GetParameterZ() * this->GetAccuracy() * 2 + 1);
+    if (nItems % 2 == 0)
+      {
+      nItems++;
+      }
+    this->gaussianKernelZ->SetNumberOfTuples(nItems);
     for (int i = 0; i < nItems; i++)
       {
       std::string temp = "gaussianKernelZ" + IntToString(i);
@@ -344,6 +346,10 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernelX()
     this->gaussianKernelX->Reset();
     this->gaussianKernelX->Squeeze();
     int nItems = (int) (this->GetParameterX() * this->GetAccuracy() * 2 + 1);
+    if (nItems % 2 == 0)
+      {
+      nItems++;
+      }
     this->gaussianKernelX->SetNumberOfTuples(nItems);
 
     double sum = 0.;
@@ -376,6 +382,10 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernelY()
     this->gaussianKernelY->Reset();
     this->gaussianKernelY->Squeeze();
     int nItems = (int) (this->GetParameterY() * this->GetAccuracy() * 2 + 1);
+    if (nItems % 2 == 0)
+      {
+      nItems++;
+      }
     this->gaussianKernelY->SetNumberOfTuples(nItems);
 
     double sum = 0.;
@@ -408,6 +418,10 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernelZ()
     this->gaussianKernelZ->Reset();
     this->gaussianKernelZ->Squeeze();
     int nItems = (int) (this->GetParameterZ() * this->GetAccuracy() * 2 + 1);
+    if (nItems % 2 == 0)
+      {
+      nItems++;
+      }
     this->gaussianKernelZ->SetNumberOfTuples(nItems);
 
     double sum = 0.;

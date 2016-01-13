@@ -54,6 +54,14 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   /// Get AstroVolume display node
   virtual vtkMRMLAstroVolumeDisplayNode* GetAstroVolumeDisplayNode();
 
+  ///
+  /// Update Max and Min Attributes
+  virtual void UpdateRangeAttributes();
+
+  ///
+  /// Update Noise Attribute
+   virtual void UpdateNoiseAttribute();
+
 protected:
   vtkMRMLAstroVolumeNode();
   virtual ~vtkMRMLAstroVolumeNode();

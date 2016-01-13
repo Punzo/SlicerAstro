@@ -5,6 +5,9 @@
 // CTK includes
 #include <ctkUtils.h>
 
+// VTK includes
+#include <vtkImageData.h>
+
 // qMRMLWidgets include
 #include "qMRMLAstroVolumeInfoWidget.h"
 #include "qMRMLThreeDWidget.h"
@@ -509,9 +512,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     double Origin[3];
     volumeOne->GetOrigin(Origin);
-    Origin[2] -= 200;
+    int* dims = volumeOne->GetImageData()->GetDimensions();
+    Origin[0] += dims[0] / 2.;
+    Origin[1] += dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+    Origin[2] += dims[1] / 2.;
     cameraNodeOne->SetPosition(Origin);
-    cameraNodeOne->SetViewUp(0,-1,0);
     }
   vtkMRMLCameraNode *cameraNodeTwo =
     vtkMRMLCameraNode::SafeDownCast(col->GetItemAsObject(1));
@@ -519,9 +524,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     double Origin[3];
     volumeTwo->GetOrigin(Origin);
-    Origin[2] -= 200;
+    int* dims = volumeTwo->GetImageData()->GetDimensions();
+    Origin[0] += dims[0] / 2.;
+    Origin[1] += dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+    Origin[2] += dims[1] / 2.;
     cameraNodeTwo->SetPosition(Origin);
-    cameraNodeTwo->SetViewUp(0,-1,0);
     }
 
   for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
@@ -530,10 +537,27 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     }
 
   volumeOne->SetDisplayVisibility(1);
-
   volumeTwo->SetDisplayVisibility(1);
-
 }
+
+//---------------------------------------------------------------------------
+
+void qSlicerAstroVolumeModuleWidget::stopRockView(const char* volumeNodeOneID)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  qSlicerApplication* app = qSlicerApplication::application();
+  for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
+    {
+    app->layoutManager()->threeDWidget(i)->threeDController()->rockView(false);
+    }
+
+  vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
+
+  volumeOne->SetDisplayVisibility(1);
+}
+
 
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sender)

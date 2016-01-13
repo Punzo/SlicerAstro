@@ -475,6 +475,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxX->setMaximum(10);
       d->DoubleSpinBoxY->setMaximum(10);
       d->DoubleSpinBoxZ->setMaximum(10);
+      d->DoubleSpinBoxX->setSingleStep(0.5);
+      d->DoubleSpinBoxY->setSingleStep(0.5);
+      d->DoubleSpinBoxZ->setSingleStep(0.5);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
@@ -485,9 +488,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       }
     case 1:
       { 
-      d->SigmaXLabel->setText("Cx:");
-      d->SigmaYLabel->setText("Cy:");
-      d->SigmaZLabel->setText("Cz:");
+      d->SigmaXLabel->setText("Horizontal Conduntance:");
+      d->SigmaYLabel->setText("Vertical Conduntance:");
+      d->SigmaZLabel->setText("Depth Conduntance:");
       if (d->DoubleSpinBoxX->decimals() != 2)
         {
         d->DoubleSpinBoxX->setDecimals(2);
@@ -506,6 +509,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxX->setMaximum(10);
       d->DoubleSpinBoxY->setMaximum(10);
       d->DoubleSpinBoxZ->setMaximum(10);
+      d->DoubleSpinBoxX->setSingleStep(0.5);
+      d->DoubleSpinBoxY->setSingleStep(0.5);
+      d->DoubleSpinBoxZ->setSingleStep(0.5);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
@@ -534,6 +540,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxX->setMinimum(0);
       d->DoubleSpinBoxY->setMinimum(0);
       d->DoubleSpinBoxZ->setMinimum(0);
+      d->DoubleSpinBoxX->setSingleStep(1);
+      d->DoubleSpinBoxY->setSingleStep(1);
+      d->DoubleSpinBoxZ->setSingleStep(1);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
@@ -554,7 +563,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
   else
     {
-    if(status > 0 && status < 8)
+    if(status == 1)
       {
       this->onComputationStarted();
       }
@@ -600,17 +609,17 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
   if (index == 0)
     {
     d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetParameterX(1);
-    d->parametersNode->SetParameterY(1);
-    d->parametersNode->SetParameterZ(1);
+    d->parametersNode->SetParameterX(1.5);
+    d->parametersNode->SetParameterY(1.5);
+    d->parametersNode->SetParameterZ(1.5);
     }
 
   if (index == 1)
     {
     d->parametersNode->SetAccuracy(10);
-    d->parametersNode->SetParameterX(1);
-    d->parametersNode->SetParameterY(1);
-    d->parametersNode->SetParameterZ(1);
+    d->parametersNode->SetParameterX(2);
+    d->parametersNode->SetParameterY(2);
+    d->parametersNode->SetParameterZ(2);
     }
 
   if (index == 2)
@@ -705,6 +714,8 @@ void qSlicerSmoothingModuleWidget::onApply()
   outSS << inputVolume->GetName() << "_Filtered_" <<
     d->parametersNode->GetMode() << "_";
 
+  //in case of Automatic here the filter and parameters has to be setted
+  //for the moment Automatic mode is not implemented
   switch (d->parametersNode->GetFilter())
     {
     case 0:
@@ -772,16 +783,25 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
     vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
 
+    //when Autoran will be implemented here should be checked how to improve perfomance.
+    //P.S.: before autoran it will be needed to implement the filters on GPU (OpneGL).
+    //Autoran implementation: will be a checkable box and if is true
+    //onMRMLSmoothingParametersNodeModified will call Apply.
     selectionNode->SetReferenceActiveVolumeID(d->parametersNode->GetOutputVolumeNodeID());
     selectionNode->SetReferenceSecondaryVolumeID(inputVolume->GetID());
 
     appLogic->PropagateVolumeSelection();
+    //when SliceRT will release the segmentation
+    //let's see to make overlayed contours also the 2-D.
+    //The editor now can do only a threshold of one volume.
+    //In pricinple we can also create an editor effect specific for this.
 
     d->astroVolumeWidget->setComparative3DViews
         (inputVolume->GetID(), d->parametersNode->GetOutputVolumeNodeID());
     }
   else
     {
+    d->astroVolumeWidget->stopRockView(inputVolume->GetID());
     scene->RemoveNode(outputVolume);
     }
 }
