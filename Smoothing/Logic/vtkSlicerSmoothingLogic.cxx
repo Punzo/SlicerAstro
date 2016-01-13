@@ -439,41 +439,67 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
       if (!cancel)
         {
         int x1 = elemCnt - 1;
-        int x2 = elemCnt + 1;
-        int y1 = elemCnt - dims[0];
-        int y2 = elemCnt + dims[0];
-        int z1 = elemCnt - numSlice;
-        int z2 = elemCnt + numSlice;
-        //with this if at the border is not smoothed at all
-        //put better conditions
-        if (x1 > 0 && y1 > 0 && z1 > 0 && x2 < numElements
-            && y2 < numElements && z2 < numElements)
+        int ref = (int) floor(elemCnt / dims[0]);
+        ref *= dims[0];
+        if(x1 < ref)
           {
-          double FPixel2, norm;
-          double cX, cY, cZ;
-
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              //add in the interface and MRML timestep (0.03 line 461)
-              //(should go from 0.0025 to 0.0625 step 0.003, defualt 0.0325)
-              //and K (0.5 in line 391)
-              //(K should go from 0.5 to 2, step 0.5, default 1)
-              FPixel2 = *(tempFPixel + elemCnt) * *(tempFPixel + elemCnt);
-              norm = 1 + (FPixel2 / noise2);
-              cX = ((*(outFPixel + x1) - *(tempFPixel + elemCnt)) +
-                    (*(outFPixel + x2) - *(tempFPixel + elemCnt))) * pnode->GetParameterX();
-              cY = ((*(outFPixel + y1) - *(tempFPixel + elemCnt)) +
-                    (*(outFPixel + y2) - *(tempFPixel + elemCnt))) * pnode->GetParameterY();
-              cZ = ((*(outFPixel + z1) - *(tempFPixel + elemCnt)) +
-                    (*(outFPixel + z2) - *(tempFPixel + elemCnt))) * pnode->GetParameterZ();
-
-              *(tempFPixel + elemCnt) += 0.03 * (cX + cY + cZ) / norm;
-              break;
-            case VTK_DOUBLE:
-              break;
-            }
+          x1++;
           }
+        int x2 = elemCnt + 1;
+        if(x1 >= ref + dims[0])
+          {
+          x1--;
+          }
+
+        int y1 = elemCnt - dims[0];
+        ref = (int) floor(elemCnt / numSlice);
+        ref *= numSlice;
+        if(y1 < ref)
+          {
+          y1 += dims[0];
+          }
+        int y2 = elemCnt + dims[0];
+        if(y2 >= ref + numSlice)
+          {
+          y2 -= dims[0];
+          }
+
+        int z1 = elemCnt - numSlice;
+        if(z1 < 0)
+          {
+          z1 += numSlice;
+          }
+        int z2 = elemCnt + numSlice;
+        if(z2 > numElements)
+          {
+          z2 -= numSlice;
+          }
+
+        double FPixel2, norm;
+        double cX, cY, cZ;
+
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            //add in the interface and MRML timestep (0.03 line 461)
+            //(should go from 0.0025 to 0.0625 step 0.003, defualt 0.0325)
+            //and K (0.5 in line 391)
+            //(K should go from 0.5 to 2, step 0.5, default 1)
+            FPixel2 = *(tempFPixel + elemCnt) * *(tempFPixel + elemCnt);
+            norm = 1 + (FPixel2 / noise2);
+            cX = ((*(outFPixel + x1) - *(tempFPixel + elemCnt)) +
+                  (*(outFPixel + x2) - *(tempFPixel + elemCnt))) * pnode->GetParameterX();
+            cY = ((*(outFPixel + y1) - *(tempFPixel + elemCnt)) +
+                  (*(outFPixel + y2) - *(tempFPixel + elemCnt))) * pnode->GetParameterY();
+            cZ = ((*(outFPixel + z1) - *(tempFPixel + elemCnt)) +
+                  (*(outFPixel + z2) - *(tempFPixel + elemCnt))) * pnode->GetParameterZ();
+
+            *(tempFPixel + elemCnt) += 0.03 * (cX + cY + cZ) / norm;
+            break;
+          case VTK_DOUBLE:
+            break;
+          }
+
         }
       }
 
