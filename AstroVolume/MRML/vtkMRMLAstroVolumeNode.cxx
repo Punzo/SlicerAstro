@@ -100,13 +100,14 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 //---------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
 {
+  //We calculate the noise as the RMS of the negative part of 3 slices from the 3rd.
   int *dims = this->GetImageData()->GetDimensions();
   float *outPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer(0,0,0));
-  double sum = 0., noise = 0.;
+  double sum = 0., noise1 = 0., noise2 = 0, noise = 0.;
   int cont = 0;
-  const int lowBoundary = dims[0] * dims[1] * 2;
-  const int highBoundary = dims[0] * dims[1] * 4;
-  for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
+  int lowBoundary = dims[0] * dims[1] * 2;
+  int highBoundary = dims[0] * dims[1] * 4;
+  for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
     {
     if(*(outPixel + elemCnt) < 0.)
       {
@@ -115,14 +116,55 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
       }
     }
   sum /= cont;
-  for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
+  for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
     {
     if(*(outPixel + elemCnt) < 0.)
       {
-      noise += (*(outPixel + elemCnt) - sum) * (*(outPixel+elemCnt) - sum);
+      noise1 += (*(outPixel + elemCnt) - sum) * (*(outPixel+elemCnt) - sum);
       }
     }
-  noise = sqrt(noise / cont);
+  noise1 = sqrt(noise1 / cont);
+
+  lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
+  highBoundary = dims[0] * dims[1] * (dims[2] - 2);
+
+  sum = 0.;
+  cont = 0;
+
+  for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+    {
+    if(*(outPixel + elemCnt) < 0.)
+      {
+      sum += *(outPixel + elemCnt);
+      cont++;
+      }
+    }
+  sum /= cont;
+  for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+    {
+    if(*(outPixel + elemCnt) < 0.)
+      {
+      noise2 += (*(outPixel + elemCnt) - sum) * (*(outPixel+elemCnt) - sum);
+      }
+    }
+  noise2 = sqrt(noise2 / cont);
+
+  if ((noise1 - noise2) > 0.3)
+    {
+    if (noise1 < noise2)
+      {
+      noise = noise1;
+      }
+    else
+      {
+      noise = noise2;
+      }
+    }
+  else
+    {
+    noise = (noise1 + noise2) / 2.;
+    }
+
   this->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
 }
 

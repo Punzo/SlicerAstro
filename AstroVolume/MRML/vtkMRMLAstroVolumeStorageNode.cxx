@@ -290,11 +290,11 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     int vtkType = reader->GetDataType();
     int *dims = imageData->GetDimensions();
     const int numComponents = imageData->GetNumberOfScalarComponents();
-    double noise = 0.;
+    double noise1 = 0., noise2 = 0, noise = 0.;
     double range[2];
     const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-    const int lowBoundary = dims[0] * dims[1] * 2;
-    const int highBoundary = dims[0] * dims[1] * 4;
+    int lowBoundary = dims[0] * dims[1] * 2;
+    int highBoundary = dims[0] * dims[1] * 4;
     switch (vtkType)
       {
       case VTK_DOUBLE:
@@ -326,10 +326,50 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
             {
             if(*(dPixel+elemCnt) < 0.)
               {
-              noise += (*(dPixel+elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
+              noise1 += (*(dPixel+elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
               }
             }
-          noise = sqrt(noise / cont);
+          noise1 = sqrt(noise1 / cont);
+
+          lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
+          highBoundary = dims[0] * dims[1] * (dims[2] - 2);
+
+          sum = 0.;
+          cont = 0;
+
+          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+            {
+            if(*(dPixel + elemCnt) < 0.)
+              {
+              sum += *(dPixel + elemCnt);
+              cont++;
+              }
+            }
+          sum /= cont;
+          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+            {
+            if(*(dPixel + elemCnt) < 0.)
+              {
+              noise2 += (*(dPixel + elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
+              }
+            }
+          noise2 = sqrt(noise2 / cont);
+
+          if ((noise1 - noise2) > 0.3)
+            {
+            if (noise1 < noise2)
+              {
+              noise = noise1;
+              }
+            else
+              {
+              noise = noise2;
+              }
+            }
+          else
+            {
+            noise = (noise1 + noise2) / 2.;
+            }
           }
         break;
       case VTK_FLOAT:
@@ -347,7 +387,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
           {
           double sum = 0.;
           int cont = 0;
-          for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
+          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
             {
             if(*(fPixel+elemCnt) < 0.)
               {
@@ -356,14 +396,54 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
               }
             }
           sum /= cont;
-          for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
+          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
             {
             if(*(fPixel+elemCnt) < 0.)
               {
-              noise += (*(fPixel+elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
+              noise1 += (*(fPixel+elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
               }
             }
-          noise = sqrt(noise / cont);
+          noise1 = sqrt(noise1 / cont);
+
+          lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
+          highBoundary = dims[0] * dims[1] * (dims[2] - 2);
+
+          sum = 0.;
+          cont = 0;
+
+          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+            {
+            if(*(fPixel + elemCnt) < 0.)
+              {
+              sum += *(fPixel + elemCnt);
+              cont++;
+              }
+            }
+          sum /= cont;
+          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+            {
+            if(*(fPixel + elemCnt) < 0.)
+              {
+              noise2 += (*(fPixel + elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
+              }
+            }
+          noise2 = sqrt(noise2 / cont);
+
+          if ((noise1 - noise2) > 0.3)
+            {
+            if (noise1 < noise2)
+              {
+              noise = noise1;
+              }
+            else
+              {
+              noise = noise2;
+              }
+            }
+          else
+            {
+            noise = (noise1 + noise2) / 2.;
+            }
           }
         break;
       default:
