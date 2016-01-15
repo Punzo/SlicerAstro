@@ -244,7 +244,16 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
     }
 
   if (cancel)
-    {
+    {  
+    outFPixel = NULL;
+    tempFPixel = NULL;
+    outDPixel = NULL;
+    tempDPixel = NULL;
+
+    delete outFPixel;
+    delete tempFPixel;
+    delete outDPixel;
+    delete tempDPixel;
     this->Internal->tempVolumeData->Initialize();
     pnode->SetStatus(0);
     return 0;
@@ -322,7 +331,16 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
     }
 
   if (cancel)
-    {
+    {  
+    outFPixel = NULL;
+    tempFPixel = NULL;
+    outDPixel = NULL;
+    tempDPixel = NULL;
+
+    delete outFPixel;
+    delete tempFPixel;
+    delete outDPixel;
+    delete tempDPixel;
     this->Internal->tempVolumeData->Initialize();
     pnode->SetStatus(0);
     return 0;
@@ -382,13 +400,15 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
     }
 
-  gettimeofday(&end, NULL);
+  outFPixel = NULL;
+  tempFPixel = NULL;
+  outDPixel = NULL;
+  tempDPixel = NULL;
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  cout<<"tempo : "<<mtime<<endl;
+  delete outFPixel;
+  delete tempFPixel;
+  delete outDPixel;
+  delete tempDPixel;
 
   if (cancel)
     {
@@ -401,6 +421,15 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
   outputVolume->UpdateNoiseAttribute();
   this->Internal->tempVolumeData->Initialize();
   pnode->SetStatus(0);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
   return 1;
 
 }
@@ -542,7 +571,16 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
       }
 
     if (cancel)
-      {
+      {  
+      outFPixel = NULL;
+      tempFPixel = NULL;
+      outDPixel = NULL;
+      tempDPixel = NULL;
+
+      delete outFPixel;
+      delete tempFPixel;
+      delete outDPixel;
+      delete tempDPixel;
       this->Internal->tempVolumeData->Initialize();
       pnode->SetStatus(0);
       return 0;
@@ -567,6 +605,16 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
         return 0;
       }
     }
+
+  outFPixel = NULL;
+  tempFPixel = NULL;
+  outDPixel = NULL;
+  tempDPixel = NULL;
+
+  delete outFPixel;
+  delete tempFPixel;
+  delete outDPixel;
+  delete tempDPixel;
 
   pnode->SetStatus(0);
 
