@@ -56,8 +56,6 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   sliceWidget->sliceController()->setControllerButtonGroup(this->SliceControllerButtonGroup);
   QString sliceLayoutName(viewNode->GetLayoutName());
   QString sliceViewLabel(viewNode->GetLayoutLabel());
-  //cout<<"bella"<<endl;
-  //cout<<viewNode->GetClassName()<<endl;
   vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(viewNode);
   QColor sliceLayoutColor = QColor::fromRgbF(sliceNode->GetLayoutColor()[0],
                                              sliceNode->GetLayoutColor()[1],

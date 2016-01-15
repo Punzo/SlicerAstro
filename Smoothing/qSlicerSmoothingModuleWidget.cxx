@@ -129,6 +129,12 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   QObject::connect(AccuracySpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onAccuracyChanged(double)));
 
+  QObject::connect(KSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onKChanged(double)));
+
+  QObject::connect(TimeStepSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onTimeStepChanged(double)));
+
   QObject::connect(ApplyButton, SIGNAL(clicked()),
                    q, SLOT(onApply()));
 
@@ -139,6 +145,10 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   progressBar->setMinimum(0);
   progressBar->setMaximum(100);
   CancelButton->hide();
+  KLabel->hide();
+  KSpinBox->hide();
+  TimeStepLabel->hide();
+  TimeStepSpinBox->hide();
 }
 
 //-----------------------------------------------------------------------------
@@ -449,26 +459,18 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
   d->DoubleSpinBoxZ->show();
   d->AccuracySpinBox->show();
   d->AccuracyLabel->show();
+  d->KLabel->hide();
+  d->KSpinBox->hide();
+  d->TimeStepLabel->hide();
+  d->TimeStepSpinBox->hide();
 
   switch (d->parametersNode->GetFilter())
     {
     case 0:
-      {    
+      {
       d->SigmaXLabel->setText("SigmaX:");
       d->SigmaYLabel->setText("SigmaY:");
       d->SigmaZLabel->setText("SigmaZ:");
-      if (d->DoubleSpinBoxX->decimals() != 2)
-        {
-        d->DoubleSpinBoxX->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxY->decimals() != 2)
-        {
-        d->DoubleSpinBoxY->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxZ->decimals() != 2)
-        {
-        d->DoubleSpinBoxZ->setDecimals(2);
-        }
       d->DoubleSpinBoxX->setMinimum(0);
       d->DoubleSpinBoxY->setMinimum(0);
       d->DoubleSpinBoxZ->setMinimum(0);
@@ -481,28 +483,34 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+      if (d->DoubleSpinBoxX->decimals() != 2)
+        {
+        d->DoubleSpinBoxX->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxY->decimals() != 2)
+        {
+        d->DoubleSpinBoxY->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxZ->decimals() != 2)
+        {
+        d->DoubleSpinBoxZ->setDecimals(2);
+        }
       d->AccuracyLabel->setText("Kernel Accuracy:");
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
       break;
       }
     case 1:
-      { 
+      {
+      d->KLabel->show();
+      d->KSpinBox->show();
+      d->KSpinBox->setValue(d->parametersNode->GetK());
+      d->TimeStepLabel->show();
+      d->TimeStepSpinBox->show();
+      d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
       d->SigmaXLabel->setText("Horizontal Conduntance:");
       d->SigmaYLabel->setText("Vertical Conduntance:");
       d->SigmaZLabel->setText("Depth Conduntance:");
-      if (d->DoubleSpinBoxX->decimals() != 2)
-        {
-        d->DoubleSpinBoxX->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxY->decimals() != 2)
-        {
-        d->DoubleSpinBoxY->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxZ->decimals() != 2)
-        {
-        d->DoubleSpinBoxZ->setDecimals(2);
-        }
       d->DoubleSpinBoxX->setMinimum(0);
       d->DoubleSpinBoxY->setMinimum(0);
       d->DoubleSpinBoxZ->setMinimum(0);
@@ -515,6 +523,18 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+      if (d->DoubleSpinBoxX->decimals() != 2)
+        {
+        d->DoubleSpinBoxX->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxY->decimals() != 2)
+        {
+        d->DoubleSpinBoxY->setDecimals(2);
+        }
+      if (d->DoubleSpinBoxZ->decimals() != 2)
+        {
+        d->DoubleSpinBoxZ->setDecimals(2);
+        }
       d->AccuracyLabel->setText("Iterations:");
       d->AccuracySpinBox->setMaximum(30);
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -525,18 +545,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("Horizontal Wavelet level:");
       d->SigmaYLabel->setText("Vertical Wavelet level:");
       d->SigmaZLabel->setText("Depth Wavelet level:");
-      if (d->DoubleSpinBoxX->decimals() != 0)
-        {
-        d->DoubleSpinBoxX->setDecimals(0);
-        }
-      if (d->DoubleSpinBoxY->decimals() != 0)
-        {
-        d->DoubleSpinBoxY->setDecimals(0);
-        }
-      if (d->DoubleSpinBoxZ->decimals() != 0)
-        {
-        d->DoubleSpinBoxZ->setDecimals(0);
-        }
       d->DoubleSpinBoxX->setMinimum(0);
       d->DoubleSpinBoxY->setMinimum(0);
       d->DoubleSpinBoxZ->setMinimum(0);
@@ -549,6 +557,18 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxX->setMaximum(5);
       d->DoubleSpinBoxY->setMaximum(5);
       d->DoubleSpinBoxZ->setMaximum(5);
+      if (d->DoubleSpinBoxX->decimals() != 0)
+        {
+        d->DoubleSpinBoxX->setDecimals(0);
+        }
+      if (d->DoubleSpinBoxY->decimals() != 0)
+        {
+        d->DoubleSpinBoxY->setDecimals(0);
+        }
+      if (d->DoubleSpinBoxZ->decimals() != 0)
+        {
+        d->DoubleSpinBoxZ->setDecimals(0);
+        }
       d->AccuracySpinBox->hide();
       d->AccuracyLabel->hide();
       break;
@@ -612,14 +632,15 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     d->parametersNode->SetParameterX(1.5);
     d->parametersNode->SetParameterY(1.5);
     d->parametersNode->SetParameterZ(1.5);
+    d->parametersNode->SetGaussianKernels();
     }
 
   if (index == 1)
     {
     d->parametersNode->SetAccuracy(10);
-    d->parametersNode->SetParameterX(2);
-    d->parametersNode->SetParameterY(2);
-    d->parametersNode->SetParameterZ(2);
+    d->parametersNode->SetParameterX(4);
+    d->parametersNode->SetParameterY(4);
+    d->parametersNode->SetParameterZ(4);
     }
 
   if (index == 2)
@@ -632,6 +653,30 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
   d->parametersNode->SetFilter(index);
 
   d->parametersNode->EndModify(wasModifying);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onKChanged(double value)
+{
+  Q_D(qSlicerSmoothingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->SetK(value);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
+{
+  Q_D(qSlicerSmoothingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->SetTimeStep(value);
 }
 
 //-----------------------------------------------------------------------------
@@ -699,7 +744,7 @@ void qSlicerSmoothingModuleWidget::onApply()
 
   vtkMRMLScene *scene = this->mrmlScene();
 
-  std::ostringstream outSS;
+  d->astroVolumeWidget->stopRockView();
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
@@ -711,6 +756,7 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
+  std::ostringstream outSS;
   outSS << inputVolume->GetName() << "_Filtered_" <<
     d->parametersNode->GetMode() << "_";
 
@@ -777,7 +823,6 @@ void qSlicerSmoothingModuleWidget::onApply()
     d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
     }
 
-
   if (logic->Apply(d->parametersNode))
     {
     vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
@@ -801,8 +846,8 @@ void qSlicerSmoothingModuleWidget::onApply()
     }
   else
     {
-    d->astroVolumeWidget->stopRockView(inputVolume->GetID());
     scene->RemoveNode(outputVolume);
+    inputVolume->SetDisplayVisibility(1);
     }
 }
 

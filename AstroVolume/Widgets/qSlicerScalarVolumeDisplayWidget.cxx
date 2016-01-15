@@ -67,25 +67,6 @@ qSlicerScalarVolumeDisplayWidgetPrivate::~qSlicerScalarVolumeDisplayWidgetPrivat
  // delete this->Histogram;
 }
 
-namespace
-{
-//----------------------------------------------------------------------------
-template <typename T> T StringToNumber(const char* num)
-{
-  std::stringstream ss;
-  ss << num;
-  T result;
-  return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-}// end namespace
-
 //-----------------------------------------------------------------------------
 void qSlicerScalarVolumeDisplayWidgetPrivate::init()
 {
@@ -211,12 +192,14 @@ void qSlicerScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode*
 {
   Q_D(qSlicerScalarVolumeDisplayWidget);
 
-  vtkMRMLAstroVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
-  vtkImageData* oldVolumeImageData = this->volumeImageData();
+  if(!volumeNode)
+  {
+    return;
+  }
 
+  vtkMRMLAstroVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
   d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
   d->MRMLVolumeThresholdWidget->setMRMLVolumeNode(volumeNode);
-
   qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
                 vtkCommand::ModifiedEvent,
                 this, SLOT(updateWidgetFromMRML()));
@@ -227,13 +210,7 @@ void qSlicerScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode*
                              0);
   d->Histogram->build();*/
   this->setEnabled(volumeNode != 0);
-
-  qvtkReconnect(oldVolumeImageData, volumeNode ? volumeNode->GetImageData() :0,
-                vtkCommand::ModifiedEvent,
-                this, SLOT(updateColorFunctionFromMRML()));
-
   this->updateWidgetFromMRML();
-  this->updateColorFunctionFromMRML();
 }
 
 // --------------------------------------------------------------------------
@@ -250,19 +227,6 @@ void qSlicerScalarVolumeDisplayWidget::updateWidgetFromMRML()
   if (this->isVisible())
     {
     this->updateTransferFunction();
-    }
-}
-
-// --------------------------------------------------------------------------
-void qSlicerScalarVolumeDisplayWidget::updateColorFunctionFromMRML()
-{
-  Q_D(qSlicerScalarVolumeDisplayWidget);
-  vtkMRMLAstroVolumeNode* volumeNode = this->volumeNode();
-  if (volumeNode)
-    {
-    double min = StringToDouble(volumeNode->GetAttribute("SlicerAstro.DATAMIN"));
-    double max = StringToDouble(volumeNode->GetAttribute("SlicerAstro.DATAMAX"));
-    d->MRMLWindowLevelWidget->setMinMaxRangeValue(min, max);
     }
 }
 

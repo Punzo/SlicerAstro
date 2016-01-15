@@ -514,7 +514,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeOne->GetOrigin(Origin);
     int* dims = volumeOne->GetImageData()->GetDimensions();
     Origin[0] += dims[0] / 2.;
-    Origin[1] += dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+    Origin[1] -= dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
     Origin[2] += dims[1] / 2.;
     cameraNodeOne->SetPosition(Origin);
     }
@@ -526,7 +526,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeTwo->GetOrigin(Origin);
     int* dims = volumeTwo->GetImageData()->GetDimensions();
     Origin[0] += dims[0] / 2.;
-    Origin[1] += dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+    Origin[1] -= dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
     Origin[2] += dims[1] / 2.;
     cameraNodeTwo->SetPosition(Origin);
     }
@@ -542,7 +542,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
 //---------------------------------------------------------------------------
 
-void qSlicerAstroVolumeModuleWidget::stopRockView(const char* volumeNodeOneID)
+void qSlicerAstroVolumeModuleWidget::stopRockView()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -551,11 +551,6 @@ void qSlicerAstroVolumeModuleWidget::stopRockView(const char* volumeNodeOneID)
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(false);
     }
-
-  vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
-
-  volumeOne->SetDisplayVisibility(1);
 }
 
 
@@ -754,7 +749,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
   vtkMRMLNode *activeVolumeNode = this->mrmlScene()->GetNodeByID(activeVolumeNodeID);
   if(activeVolumeNode)
     {
-    d->ActiveVolumeNodeSelector->setCurrentNodeID(activeVolumeNodeID);
+    this->setMRMLVolumeNode(activeVolumeNode);
     }
 
 }

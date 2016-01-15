@@ -27,6 +27,8 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->SetStatus(0);
   this->SetFilter(0);
   this->SetAccuracy(3);
+  this->SetTimeStep(0.0325);
+  this->SetK(2);
   this->SetParameterX(1.5);
   this->SetParameterY(1.5);
   this->SetParameterZ(1.5);
@@ -155,6 +157,18 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "TimeStep"))
+      {
+      this->TimeStep = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "K"))
+      {
+      this->K = StringToDouble(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "ParameterX"))
       {
       this->ParameterX = StringToDouble(attValue);
@@ -248,6 +262,8 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " Filter=\"" << this->Filter << "\"";
   of << indent << " Status=\"" << this->Status << "\"";
   of << indent << " Accuracy=\"" << this->Accuracy << "\"";
+  of << indent << " TimeStep=\"" << this->TimeStep << "\"";
+  of << indent << " K=\"" << this->K << "\"";
   of << indent << " ParameterX=\"" << this->ParameterX << "\"";
   of << indent << " ParameterY=\"" << this->ParameterY << "\"";
   of << indent << " ParameterZ=\"" << this->ParameterZ << "\"";
@@ -300,6 +316,8 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetFilter(node->GetFilter());
   this->SetStatus(node->GetStatus());
   this->SetAccuracy(node->GetAccuracy());
+  this->SetK(node->GetK());
+  this->SetTimeStep(node->GetTimeStep());
   this->SetParameterX(node->GetParameterX());
   this->SetParameterY(node->GetParameterY());
   this->SetParameterZ(node->GetParameterZ());
@@ -466,6 +484,8 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
   os << "Filter: " << this->Filter << "\n";
   os << "Status: " << this->Status << "\n";
   os << "Accuracy: " << this->Accuracy << "\n";
+  os << "TimeStep: " << this->TimeStep << "\n";
+  os << "K: " << this->K << "\n";
   os << "ParameterX: " << this->ParameterX << "\n";
   os << "ParameterY: " << this->ParameterY << "\n";
   os << "ParameterZ: " << this->ParameterZ << "\n";

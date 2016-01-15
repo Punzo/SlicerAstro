@@ -40,6 +40,8 @@ protected slots:
   void onModeChanged();
   void onEndCloseEvent();
   void onCurrentFilterChanged(int index);
+  void onKChanged(double value);
+  void onTimeStepChanged(double value);
   void onParameterXChanged(double value);
   void onParameterYChanged(double value);
   void onParameterZChanged(double value);

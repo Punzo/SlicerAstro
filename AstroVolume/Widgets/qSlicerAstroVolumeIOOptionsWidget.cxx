@@ -60,6 +60,7 @@ qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* pa
 
   // Single file by default
   d->SingleFileCheckBox->setChecked(true);
+  d->CenteredCheckBox->setChecked(true);
 }
 
 //-----------------------------------------------------------------------------

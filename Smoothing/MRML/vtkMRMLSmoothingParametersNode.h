@@ -56,6 +56,12 @@ class VTK_SLICER_SMOOTHING_MODULE_MRML_EXPORT vtkMRMLSmoothingParametersNode : p
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 
+  vtkSetMacro(K,double);
+  vtkGetMacro(K,double);
+
+  vtkSetMacro(TimeStep,double);
+  vtkGetMacro(TimeStep,double);
+
   vtkSetMacro(ParameterX,double);
   vtkGetMacro(ParameterX,double);
 
@@ -95,6 +101,9 @@ protected:
   int Filter;
   int Accuracy;
   int Status;
+
+  double K;
+  double TimeStep;
 
   double ParameterX;
   double ParameterY;

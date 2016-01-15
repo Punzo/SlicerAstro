@@ -54,7 +54,6 @@ public slots:
 
 protected slots:
   void updateWidgetFromMRML();
-  void updateColorFunctionFromMRML();
   void updateTransferFunction();
 
 protected:
