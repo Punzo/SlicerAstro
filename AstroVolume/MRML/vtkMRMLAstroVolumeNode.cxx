@@ -14,6 +14,7 @@
 #include "vtkMRMLAstroVolumeNode.h"
 #include "vtkMRMLAstroVolumeDisplayNode.h"
 #include "vtkMRMLAstroVolumeStorageNode.h"
+#include "vtkMRMLSmoothingParametersNode.h"
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
@@ -44,6 +45,27 @@ template <typename T> std::string NumberToString(T V)
 std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
 }
 
 }// end namespace

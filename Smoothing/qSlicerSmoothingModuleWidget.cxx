@@ -5,6 +5,19 @@
 // CTK includes
 #include <ctkFlowLayout.h>
 
+// VTK includes
+#include <vtkNew.h>
+#include <vtkPolyDataMapper.h>
+#include <vtkActor.h>
+#include <vtkActorCollection.h>
+#include <vtkRenderer.h>
+#include <vtkParametricEllipsoid.h>
+#include <vtkParametricFunctionSource.h>
+#include <vtkMatrixToLinearTransform.h>
+#include <vtkCamera.h>
+#include <vtkProperty.h>
+#include <vtkMatrix4x4.h>
+
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 
@@ -30,8 +43,6 @@
 
 // MRMLLogic includes
 #include <vtkMRMLApplicationLogic.h>
-#include <vtkNew.h>
-#include <vtkMatrix4x4.h>
 
 // MRML includes
 #include <vtkMRMLSmoothingParametersNode.h>
@@ -58,6 +69,13 @@ public:
   vtkSlicerSmoothingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkMRMLSmoothingParametersNode* parametersNode;
+  vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
+  vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
+  vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
+  vtkSmartPointer<vtkMatrixToLinearTransform> matrixToLinearTransform;
+  vtkSmartPointer<vtkPolyDataMapper> mapper;
+  vtkSmartPointer<vtkActor> actor;
+  double DegToRad;
 
 };
 
@@ -70,6 +88,14 @@ qSlicerSmoothingModuleWidgetPrivate::qSlicerSmoothingModuleWidgetPrivate(qSlicer
 {
   this->parametersNode = 0;
   this->astroVolumeWidget = 0;
+  this->parametricVTKEllipsoid = vtkSmartPointer<vtkParametricEllipsoid>::New();
+  this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
+  this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
+  this->transformationMatrix->Identity();
+  this->matrixToLinearTransform = vtkSmartPointer<vtkMatrixToLinearTransform>::New();
+  this->mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+  this->actor = vtkSmartPointer<vtkActor>::New();
+  this->DegToRad = atan(1.) / 45.;
 }
 
 //-----------------------------------------------------------------------------
@@ -135,6 +161,15 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   QObject::connect(TimeStepSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onTimeStepChanged(double)));
 
+  QObject::connect(RxSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRxChanged(double)));
+
+  QObject::connect(RySpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRyChanged(double)));
+
+  QObject::connect(RzSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRzChanged(double)));
+
   QObject::connect(ApplyButton, SIGNAL(clicked()),
                    q, SLOT(onApply()));
 
@@ -149,6 +184,13 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   KSpinBox->hide();
   TimeStepLabel->hide();
   TimeStepSpinBox->hide();
+  vtkCamera* camera = VTKRenderView->activeCamera();
+  double eyePosition[3];
+  eyePosition[0] = 0.;
+  eyePosition[1] = 0.;
+  eyePosition[2] = 30;
+  camera->SetPosition(eyePosition);
+
 }
 
 //-----------------------------------------------------------------------------
@@ -451,35 +493,26 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
 
   d->FilterComboBox->setCurrentIndex(d->parametersNode->GetFilter());
-  d->SigmaXLabel->show();
-  d->SigmaYLabel->show();
-  d->SigmaZLabel->show();
-  d->DoubleSpinBoxX->show();
-  d->DoubleSpinBoxY->show();
-  d->DoubleSpinBoxZ->show();
-  d->AccuracySpinBox->show();
-  d->AccuracyLabel->show();
-  d->KLabel->hide();
-  d->KSpinBox->hide();
-  d->TimeStepLabel->hide();
-  d->TimeStepSpinBox->hide();
 
   switch (d->parametersNode->GetFilter())
     {
     case 0:
       {
+      d->KLabel->hide();
+      d->KSpinBox->hide();
+      d->TimeStepLabel->hide();
+      d->TimeStepSpinBox->hide();
+      d->AccuracyLabel->show();
+      d->AccuracySpinBox->show();
+      d->SigmaYLabel->show();
+      d->DoubleSpinBoxY->show();
+      d->SigmaZLabel->show();
+      d->DoubleSpinBoxZ->show();
       d->SigmaXLabel->setText("SigmaX:");
       d->SigmaYLabel->setText("SigmaY:");
       d->SigmaZLabel->setText("SigmaZ:");
-      d->DoubleSpinBoxX->setMinimum(0);
-      d->DoubleSpinBoxY->setMinimum(0);
-      d->DoubleSpinBoxZ->setMinimum(0);
       d->DoubleSpinBoxX->setMaximum(10);
-      d->DoubleSpinBoxY->setMaximum(10);
-      d->DoubleSpinBoxZ->setMaximum(10);
       d->DoubleSpinBoxX->setSingleStep(0.5);
-      d->DoubleSpinBoxY->setSingleStep(0.5);
-      d->DoubleSpinBoxZ->setSingleStep(0.5);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
@@ -487,23 +520,124 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         {
         d->DoubleSpinBoxX->setDecimals(2);
         }
-      if (d->DoubleSpinBoxY->decimals() != 2)
-        {
-        d->DoubleSpinBoxY->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxZ->decimals() != 2)
-        {
-        d->DoubleSpinBoxZ->setDecimals(2);
-        }
       d->AccuracyLabel->setText("Kernel Accuracy:");
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
+
+      if (d->parametersNode->GetParameterX() == d->parametersNode->GetParameterY() &&
+         d->parametersNode->GetParameterY() == d->parametersNode->GetParameterZ())
+        {
+        d->VTKRenderView->hide();
+        d->RxLabel->hide();
+        d->RxSpinBox->hide();
+        d->RyLabel->hide();
+        d->RySpinBox->hide();
+        d->RzLabel->hide();
+        d->RzSpinBox->hide();
+        }
+      else
+        {
+        d->VTKRenderView->show();
+        d->RxLabel->show();
+        d->RxSpinBox->show();
+        d->RyLabel->show();
+        d->RySpinBox->show();
+        d->RzLabel->show();
+        d->RzSpinBox->show();
+
+        double Rx = d->parametersNode->GetRx();
+        double Ry = d->parametersNode->GetRy();
+        double Rz = d->parametersNode->GetRz();
+
+        d->RxSpinBox->setValue(Rx);
+        d->RySpinBox->setValue(Ry);
+        d->RzSpinBox->setValue(Rz);
+
+        d->VTKRenderView->show();
+        vtkRenderer* renderer = d->VTKRenderView->renderer();
+
+        vtkActorCollection* col = renderer->GetActors();
+        col->InitTraversal();
+        for (int i = 0; i < col->GetNumberOfItems(); i++)
+          {
+          renderer->RemoveActor(col->GetNextActor());
+          }
+
+        //Definition and transformation of the vtkEllipsoid
+        double RadiusX = d->parametersNode->GetParameterX();
+        if(RadiusX < 0.01)
+          {
+          RadiusX = 0.01;
+          }
+        double RadiusY = d->parametersNode->GetParameterY();
+        if(RadiusY < 0.01)
+          {
+          RadiusY = 0.01;
+          }
+        double RadiusZ = d->parametersNode->GetParameterZ();
+        if(RadiusZ < 0.01)
+          {
+          RadiusZ = 0.01;
+          }
+        d->parametricVTKEllipsoid->SetXRadius(RadiusX);
+        d->parametricVTKEllipsoid->SetYRadius(RadiusY);
+        d->parametricVTKEllipsoid->SetZRadius(RadiusZ);
+        d->parametricFunctionSource->SetParametricFunction(d->parametricVTKEllipsoid);
+        d->parametricFunctionSource->Update();
+
+        //Configuration of the rotation
+        Rx *= d->DegToRad;
+        Ry *= d->DegToRad;
+        Rz *= d->DegToRad;
+        d->transformationMatrix->Identity();
+        double cx = cos(Rx);
+        double sx = sin(Rx);
+        double cy = cos(Ry);
+        double sy = sin(Ry);
+        double cz = cos(Rz);
+        double sz = sin(Rz);
+        d->transformationMatrix->SetElement(0, 0, cy * cz);
+        d->transformationMatrix->SetElement(0, 1, -cy * sz);
+        d->transformationMatrix->SetElement(0, 2, sy);
+        d->transformationMatrix->SetElement(1, 0, cz * sx * sy + cx * sz);
+        d->transformationMatrix->SetElement(1, 1, cx * cz - sx * sy * sz);
+        d->transformationMatrix->SetElement(1, 2, -cy * sx);
+        d->transformationMatrix->SetElement(2, 0, -cx * cz * sy + sx * sz);
+        d->transformationMatrix->SetElement(2, 1, cz * sx + cx * sy * sz);
+        d->transformationMatrix->SetElement(2, 2, cx * cy);
+
+        d->matrixToLinearTransform->SetInput(d->transformationMatrix);
+        d->matrixToLinearTransform->Update();
+
+        d->mapper->SetInputConnection(d->parametricFunctionSource->GetOutputPort());
+        d->actor->SetMapper(d->mapper);
+        d->actor->GetProperty()->SetColor(0.0, 1.0, 1.0);
+        d->actor->SetUserTransform(d->matrixToLinearTransform);
+
+        renderer->AddActor(d->actor);
+        renderer->SetBackground(0., 0., 0.);
+        }
+
       break;
       }
     case 1:
       {
+      d->VTKRenderView->hide();
+      d->RxLabel->hide();
+      d->RxSpinBox->hide();
+      d->RyLabel->hide();
+      d->RySpinBox->hide();
+      d->RzLabel->hide();
+      d->RzSpinBox->hide();
       d->KLabel->show();
       d->KSpinBox->show();
+      d->SigmaYLabel->show();
+      d->DoubleSpinBoxY->show();
+      d->SigmaZLabel->show();
+      d->DoubleSpinBoxZ->show();
+      d->AccuracyLabel->show();
+      d->AccuracySpinBox->show();
+
       d->KSpinBox->setValue(d->parametersNode->GetK());
       d->TimeStepLabel->show();
       d->TimeStepSpinBox->show();
@@ -511,29 +645,14 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("Horizontal Conduntance:");
       d->SigmaYLabel->setText("Vertical Conduntance:");
       d->SigmaZLabel->setText("Depth Conduntance:");
-      d->DoubleSpinBoxX->setMinimum(0);
-      d->DoubleSpinBoxY->setMinimum(0);
-      d->DoubleSpinBoxZ->setMinimum(0);
       d->DoubleSpinBoxX->setMaximum(10);
-      d->DoubleSpinBoxY->setMaximum(10);
-      d->DoubleSpinBoxZ->setMaximum(10);
       d->DoubleSpinBoxX->setSingleStep(0.5);
-      d->DoubleSpinBoxY->setSingleStep(0.5);
-      d->DoubleSpinBoxZ->setSingleStep(0.5);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
       if (d->DoubleSpinBoxX->decimals() != 2)
         {
         d->DoubleSpinBoxX->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxY->decimals() != 2)
-        {
-        d->DoubleSpinBoxY->setDecimals(2);
-        }
-      if (d->DoubleSpinBoxZ->decimals() != 2)
-        {
-        d->DoubleSpinBoxZ->setDecimals(2);
         }
       d->AccuracyLabel->setText("Iterations:");
       d->AccuracySpinBox->setMaximum(30);
@@ -542,35 +661,31 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       }
     case 2:
       {
-      d->SigmaXLabel->setText("Horizontal Wavelet level:");
-      d->SigmaYLabel->setText("Vertical Wavelet level:");
-      d->SigmaZLabel->setText("Depth Wavelet level:");
-      d->DoubleSpinBoxX->setMinimum(0);
-      d->DoubleSpinBoxY->setMinimum(0);
-      d->DoubleSpinBoxZ->setMinimum(0);
+      d->SigmaYLabel->hide();
+      d->DoubleSpinBoxY->hide();
+      d->SigmaZLabel->hide();
+      d->DoubleSpinBoxZ->hide();
+      d->AccuracySpinBox->hide();
+      d->AccuracyLabel->hide();
+      d->VTKRenderView->hide();
+      d->RxLabel->hide();
+      d->RxSpinBox->hide();
+      d->RyLabel->hide();
+      d->RySpinBox->hide();
+      d->RzLabel->hide();
+      d->RzSpinBox->hide();
+      d->KLabel->hide();
+      d->KSpinBox->hide();
+      d->TimeStepLabel->hide();
+      d->TimeStepSpinBox->hide();
+      d->SigmaXLabel->setText("Wavelet level:");
       d->DoubleSpinBoxX->setSingleStep(1);
-      d->DoubleSpinBoxY->setSingleStep(1);
-      d->DoubleSpinBoxZ->setSingleStep(1);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
-      d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
       d->DoubleSpinBoxX->setMaximum(5);
-      d->DoubleSpinBoxY->setMaximum(5);
-      d->DoubleSpinBoxZ->setMaximum(5);
       if (d->DoubleSpinBoxX->decimals() != 0)
         {
         d->DoubleSpinBoxX->setDecimals(0);
         }
-      if (d->DoubleSpinBoxY->decimals() != 0)
-        {
-        d->DoubleSpinBoxY->setDecimals(0);
-        }
-      if (d->DoubleSpinBoxZ->decimals() != 0)
-        {
-        d->DoubleSpinBoxZ->setDecimals(0);
-        }
-      d->AccuracySpinBox->hide();
-      d->AccuracyLabel->hide();
       break;
       }
     }
@@ -646,8 +761,6 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
   if (index == 2)
     {
     d->parametersNode->SetParameterX(3);
-    d->parametersNode->SetParameterY(3);
-    d->parametersNode->SetParameterZ(3);
     }
 
   d->parametersNode->SetFilter(index);
@@ -680,6 +793,45 @@ void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onRxChanged(double value)
+{
+  Q_D(qSlicerSmoothingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->SetRx(value);
+  d->parametersNode->SetGaussianKernels();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onRyChanged(double value)
+{
+  Q_D(qSlicerSmoothingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->SetRy(value);
+  d->parametersNode->SetGaussianKernels();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onRzChanged(double value)
+{
+  Q_D(qSlicerSmoothingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->SetRz(value);
+  d->parametersNode->SetGaussianKernels();
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
 {
   Q_D(qSlicerSmoothingModuleWidget);
@@ -689,7 +841,7 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     }
 
   d->parametersNode->SetParameterX(value);
-  d->parametersNode->SetGaussianKernelX();
+  d->parametersNode->SetGaussianKernels();
 }
 
 //-----------------------------------------------------------------------------
@@ -702,7 +854,7 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     }
 
   d->parametersNode->SetParameterY(value);
-  d->parametersNode->SetGaussianKernelY();
+  d->parametersNode->SetGaussianKernels();
 }
 
 //-----------------------------------------------------------------------------
@@ -715,7 +867,7 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     }
 
   d->parametersNode->SetParameterZ(value);
-  d->parametersNode->SetGaussianKernelZ();
+  d->parametersNode->SetGaussianKernels();
 }
 
 //-----------------------------------------------------------------------------
@@ -727,7 +879,7 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
     return;
     }
 
-  d->parametersNode->SetAccuracy((int) value);
+  d->parametersNode->SetAccuracy(value);
   d->parametersNode->SetGaussianKernels();
 }
 

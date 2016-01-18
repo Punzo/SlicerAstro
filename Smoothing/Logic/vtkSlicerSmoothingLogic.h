@@ -33,9 +33,10 @@ protected:
   vtkSlicerSmoothingLogic();
   virtual ~vtkSlicerSmoothingLogic();
 
-  int GaussianCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
   int GradientCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
-  int WaveletLiftingCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int WaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
 
 private:
   vtkSlicerSmoothingLogic(const vtkSlicerSmoothingLogic&); // Not implemented

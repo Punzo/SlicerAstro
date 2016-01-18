@@ -1,8 +1,5 @@
 project(SlicerAstroLibs)
 
-# Enable this option to avoid unnecessary re-compilation associated with command line module
-set(GENERATECLP_USE_MD5 ON)
-
 # --------------------------------------------------------------------------
 #                      ----] W A R N I N G [----
 # --------------------------------------------------------------------------
@@ -24,14 +21,11 @@ set(dirs vtkFits
 foreach(dir ${dirs})
   message(STATUS "Configuring library: ${dir}")
   string(REPLACE "/" "" dir_noslash ${dir})
-  if(dir_noslash MATCHES "Widgets$")
-    set(dir_noslash "qMRML${dir_noslash}")
-  endif()
   set(${dir_noslash}_INSTALL_BIN_DIR ${CMAKE_CURRENT_BINARY_DIR}/../lib/Slicer-${Slicer_VERSION_MAJOR}.${Slicer_VERSION_MINOR})
   set(${dir_noslash}_INSTALL_LIB_DIR ${CMAKE_CURRENT_BINARY_DIR}/../lib/Slicer-${Slicer_VERSION_MAJOR}.${Slicer_VERSION_MINOR})
   set(${dir_noslash}_INSTALL_SHARE_DIR ${CMAKE_CURRENT_BINARY_DIR}/../share/Slicer-${Slicer_VERSION_MAJOR}.${Slicer_VERSION_MINOR}/${dir_noslash})
   set(${dir_noslash}_INSTALL_NO_DEVELOPMENT ${Slicer_INSTALL_NO_DEVELOPMENT})
-  set(${dir_noslash}_EXPORT_FILE ${CMAKE_CURRENT_BINARY_DIR}/../../SlicerAstroTargets.cmake)
+  set(${dir_noslash}_EXPORT_FILE ${CMAKE_CURRENT_BINARY_DIR}/../SlicerAstroTargets.cmake)
   add_subdirectory(${dir})
 endforeach()
 
@@ -41,9 +35,6 @@ endforeach()
 set(include_dirs)
 foreach(dir ${dirs})
   string(REPLACE "/" "" dir_noslash ${dir})
-  #if(dir_noslash MATCHES "Widgets$")
-  #  set(dir_noslash "qMRML${dir_noslash}")
-  #endif()
   list(APPEND include_dirs ${${dir_noslash}_INCLUDE_DIRS})
 endforeach()
 

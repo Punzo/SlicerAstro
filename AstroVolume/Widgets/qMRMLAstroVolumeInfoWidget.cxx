@@ -397,13 +397,9 @@ void qMRMLAstroVolumeInfoWidget::setNumberOfScalars(int number)
     {
     return;
     }
-#if (VTK_MAJOR_VERSION <= 5)
-  imageData->SetNumberOfScalarComponents(number);
-#else
   vtkNew<vtkTrivialProducer> tp;
   tp->SetOutput(imageData);
   vtkInformation* outInfo = tp->GetOutputInformation(0);
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo,
       vtkImageData::GetScalarType(outInfo), number);
-#endif
 }

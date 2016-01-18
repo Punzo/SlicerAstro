@@ -244,9 +244,6 @@ void qSlicerScalarVolumeDisplayWidget::updateTransferFunction()
     return;
     }
   double range[2] = {0,255};
-#if (VTK_MAJOR_VERSION <= 5)
-  imageData->GetScalarRange(range);
-#else
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
   if (displayNode)
@@ -257,7 +254,6 @@ void qSlicerScalarVolumeDisplayWidget::updateTransferFunction()
     {
     imageData->GetScalarRange(range);
     }
-#endif
   // AdjustRange call will take out points that are outside of the new
   // range, but it needs the points to be there in order to work, so call
   // RemoveAllPoints after it's done

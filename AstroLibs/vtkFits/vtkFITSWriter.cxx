@@ -121,10 +121,6 @@ void vtkFITSWriter::WriteData()
     }
 
     // Fill in image information.
-#if (VTK_MAJOR_VERSION <= 5)
-  this->GetInput()->UpdateInformation();
-#else
-#endif
 
   vtkImageData *input = this->GetInput();
   vtkDataArray *array;

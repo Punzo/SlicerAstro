@@ -46,6 +46,9 @@ protected slots:
   void onParameterYChanged(double value);
   void onParameterZChanged(double value);
   void onAccuracyChanged(double value);
+  void onRxChanged(double value);
+  void onRyChanged(double value);
+  void onRzChanged(double value);
   void onApply();
   void onComputationStarted();
   void onComputationCancelled();

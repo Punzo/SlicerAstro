@@ -1242,18 +1242,14 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   vtkMRMLAstroVolumeDisplayNode *node =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(anode);
 
-#if VTK_MAJOR_VERSION > 5
   this->UpdateImageDataPipeline();
-#endif
 
   if (!node)
     {
     return;
     }
 
-#if VTK_MAJOR_VERSION > 5
   this->SetInputImageDataConnection(node->GetInputImageDataConnection());
-#endif
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
 

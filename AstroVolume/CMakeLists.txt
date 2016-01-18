@@ -7,6 +7,9 @@ string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)
 add_subdirectory(Widgets)
+# All the MRML nodes are in AstroVolume modoule.
+# AstroVolume module is required by all the others module.
+# aanother solution can be to shift all the MRML to AstroLibs folder
 add_subdirectory(MRML)
 
 #-----------------------------------------------------------------------------

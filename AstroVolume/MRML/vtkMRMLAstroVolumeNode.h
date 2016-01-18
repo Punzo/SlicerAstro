@@ -14,6 +14,7 @@
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLAstroVolumeDisplayNode;
+class vtkMRMLSmoothingParametersNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode

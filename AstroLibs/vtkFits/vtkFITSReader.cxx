@@ -298,38 +298,26 @@ void vtkFITSReader::ExecuteInformation()
     {
     case 8:
       this->SetDataType( VTK_FLOAT );
-#if (VTK_MAJOR_VERSION > 5)
       this->SetDataScalarType( VTK_FLOAT );
-#endif
     case 16:
       this->SetDataType( VTK_FLOAT );
-#if (VTK_MAJOR_VERSION > 5)
       this->SetDataScalarType( VTK_FLOAT );
-#endif
       break;
     case 32:
       this->SetDataType( VTK_FLOAT );
-#if (VTK_MAJOR_VERSION > 5)
       this->SetDataScalarType( VTK_FLOAT );
-#endif
       break;
     case -32:
       this->SetDataType( VTK_FLOAT );
-#if (VTK_MAJOR_VERSION > 5)
       this->SetDataScalarType( VTK_FLOAT );
-#endif
       break;
     case 64:
       this->SetDataType( VTK_DOUBLE );
-#if (VTK_MAJOR_VERSION > 5)
       this->SetDataScalarType( VTK_DOUBLE );
-#endif
       break;
     case -64:
       this->SetDataType( VTK_DOUBLE );
-#if (VTK_MAJOR_VERSION > 5)
       this->SetDataScalarType( VTK_DOUBLE );
-#endif
       break;
     default:
       vtkErrorMacro("Could not allocate data type.");
@@ -587,19 +575,19 @@ bool vtkFITSReader::AllocateHeader()
    if(HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
      {
      vtkWarningMacro("The fits header is missing the BMAJ keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.BMAJ"] = "";
+     HeaderKeyValue["SlicerAstro.BMAJ"] = "-1.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
      {
      vtkWarningMacro("The fits header is missing the BMIN keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.BMIN"] = "";
+     HeaderKeyValue["SlicerAstro.BMIN"] = "-1.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
      {
      vtkWarningMacro("The fits header is missing the BPA keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.BPA"] = "";
+     HeaderKeyValue["SlicerAstro.BPA"] = "0.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.DATAMAX") == 0)
@@ -716,11 +704,7 @@ void vtkFITSReader::AllocateWCS(){
 }
 
 //----------------------------------------------------------------------------
-#if (VTK_MAJOR_VERSION <= 5)
-vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out) {
-#else
 vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo){
-#endif
   vtkImageData *res = vtkImageData::SafeDownCast(out);
   if (!res)
     {
@@ -730,23 +714,14 @@ vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformati
 
   this->ExecuteInformation();
 
-#if (VTK_MAJOR_VERSION <= 5)
-  res->SetExtent(res->GetUpdateExtent());
-  this->AllocatePointData(res);
-#else
   res->SetExtent(this->GetUpdateExtent());
   this->AllocatePointData(res, outInfo);
-#endif
 
   return res;
 }
 
 //----------------------------------------------------------------------------
-#if (VTK_MAJOR_VERSION <= 5)
-void vtkFITSReader::AllocatePointData(vtkImageData *out) {
-#else
 void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo) {
-#endif
 
   vtkDataArray *pd = NULL;
   int Extent[6];
@@ -788,12 +763,8 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
       vtkErrorMacro("Could not allocate data type.");
       return;
     }
-#if (VTK_MAJOR_VERSION <= 5)
-  out->SetScalarType(this->DataType);
-#else
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo,
     this->DataType, this->GetNumberOfComponents());
-#endif
   pd->SetNumberOfComponents(this->GetNumberOfComponents());
 
   // allocate enough memors
@@ -803,12 +774,8 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
 
 
   out->GetPointData()->SetScalars(pd);
-#if (VTK_MAJOR_VERSION <= 5)
-  out->SetNumberOfScalarComponents(this->GetNumberOfComponents());
-#else
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo,
          this->DataType, this->GetNumberOfComponents());
-#endif
 
   pd->Delete();
 }
@@ -818,17 +785,10 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
 //----------------------------------------------------------------------------
 // This function reads a data from a file.  The datas extent/axes
 // are assumed to be the same as the file extent/order.
-#if (VTK_MAJOR_VERSION <= 5)
-void vtkFITSReader::ExecuteData(vtkDataObject *output)
-{
-  output->SetUpdateExtentToWholeExtent();
-  vtkImageData *data = this->(output);
-#else
 void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo)
 {
   this->SetUpdateExtentToWholeExtent();
   vtkImageData *data = this->AllocateOutputData(output, outInfo);
-#endif
 
   if (this->GetFileName() == NULL)
     {

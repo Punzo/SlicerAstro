@@ -4,11 +4,14 @@
 #include "vtkMRML.h"
 #include "vtkMRMLScene.h"
 #include "vtkMRMLNode.h"
-#include "vtkSlicerSmoothingModuleMRMLExport.h"
-#include "vtkDoubleArray.h"
+
+#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+
+class vtkDoubleArray;
+class vtkMatrix3x3;
 
 /// \ingroup Slicer_QtModules_Smoothing
-class VTK_SLICER_SMOOTHING_MODULE_MRML_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
+class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
 {
   public:
 
@@ -53,6 +56,15 @@ class VTK_SLICER_SMOOTHING_MODULE_MRML_EXPORT vtkMRMLSmoothingParametersNode : p
   vtkSetMacro(Accuracy,int);
   vtkGetMacro(Accuracy,int);
 
+  vtkSetMacro(Rx,int);
+  vtkGetMacro(Rx,int);
+
+  vtkSetMacro(Ry,int);
+  vtkGetMacro(Ry,int);
+
+  vtkSetMacro(Rz,int);
+  vtkGetMacro(Rz,int);
+
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 
@@ -71,16 +83,25 @@ class VTK_SLICER_SMOOTHING_MODULE_MRML_EXPORT vtkMRMLSmoothingParametersNode : p
   vtkSetMacro(ParameterZ,double);
   vtkGetMacro(ParameterZ,double);
 
+  vtkSetMacro(KernelLengthX,int);
+  vtkGetMacro(KernelLengthX,int);
 
-  vtkDoubleArray* GetGaussianKernelX();
-  vtkDoubleArray* GetGaussianKernelY();
-  vtkDoubleArray* GetGaussianKernelZ();
+  vtkSetMacro(KernelLengthY,int);
+  vtkGetMacro(KernelLengthY,int);
+
+  vtkSetMacro(KernelLengthZ,int);
+  vtkGetMacro(KernelLengthZ,int);
+
+  void SetGaussianKernels();
 
   void SetGaussianKernelX();
   void SetGaussianKernelY();
   void SetGaussianKernelZ();
-
-  void SetGaussianKernels();
+  void SetGaussianKernel3D();
+  vtkDoubleArray* GetGaussianKernelX();
+  vtkDoubleArray* GetGaussianKernelY();
+  vtkDoubleArray* GetGaussianKernelZ();
+  vtkDoubleArray* GetGaussianKernel3D();
 
 protected:
   vtkMRMLSmoothingParametersNode();
@@ -102,6 +123,10 @@ protected:
   int Accuracy;
   int Status;
 
+  int Rx;
+  int Ry;
+  int Rz;
+
   double K;
   double TimeStep;
 
@@ -109,9 +134,16 @@ protected:
   double ParameterY;
   double ParameterZ;
 
+  int KernelLengthX;
+  int KernelLengthY;
+  int KernelLengthZ;
+
+  vtkSmartPointer<vtkDoubleArray> gaussianKernel3D;
   vtkSmartPointer<vtkDoubleArray> gaussianKernelX;
   vtkSmartPointer<vtkDoubleArray> gaussianKernelY;
   vtkSmartPointer<vtkDoubleArray> gaussianKernelZ;
+
+  double DegToRad;
 };
 
 #endif

@@ -31,7 +31,9 @@ set(module_mrml_SRCS
     vtkMRMLAstroLabelMapVolumeNode.cxx
     vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
-    vtkMRMLAstroLabelMapVolumeDisplayNode.h)
+    vtkMRMLAstroLabelMapVolumeDisplayNode.h
+    vtkMRMLSmoothingParametersNode.cxx
+    vtkMRMLSmoothingParametersNode.h)
 
 # The header '${module_mrml_name}Export.h' will be automatically configured.
 set(module_mrml_export_directive "VTK_MRML_ASTRO_EXPORT")

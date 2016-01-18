@@ -116,7 +116,15 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
     {
     case 0:
       {
-      success = this->GaussianCPUFilter(pnode);
+        if (pnode->GetParameterX() == pnode->GetParameterY() &&
+            pnode->GetParameterY() == pnode->GetParameterZ())
+          {
+          success = this->IsotropicGaussianCPUFilter(pnode);
+          }
+        else
+          {
+          success = this->AnisotropicGaussianCPUFilter(pnode);
+          }
       break;
       }
     case 1:
@@ -126,18 +134,17 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
       }
     case 2:
       {
-      success = this->WaveletLiftingCPUFilter(pnode);
+      success = this->WaveletThresholdingCPUFilter(pnode);
       break;
       }
     }
   return success;
 }
 
-//----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
-{
-  pnode->SetStatus(1);
 
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+{
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -151,11 +158,189 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
-  const int ix = (int) (pnode->GetGaussianKernelX()->GetNumberOfTuples());
+  int Xmax = (int) (pnode->GetKernelLengthX() - 1) / 2.;
+  int Ymax = (int) (pnode->GetKernelLengthY() - 1) / 2.;
+  int Zmax = (int) (pnode->GetKernelLengthZ() - 1) / 2.;
+  const int numKernelSlice = pnode->GetKernelLengthX() * pnode->GetKernelLengthY();
+  float *outFPixel = NULL;
+  float *tempFPixel = NULL;
+  double *outDPixel = NULL;
+  double *tempDPixel = NULL;
+  int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    default:
+      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      return 0;
+    }
+
+  double *GaussKernel = static_cast<double*> (pnode->GetGaussianKernel3D()->GetVoidPointer(0));
+
+  bool cancel = false;
+  int status = 0;
+  int numProcs = omp_get_num_procs();
+  omp_set_num_threads(numProcs);
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+  #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel, status)
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    int stat = pnode->GetStatus();
+
+    if (stat == -1 && omp_get_thread_num() == 0)
+      {
+      cancel = true;
+      }
+
+    #pragma omp flush (cancel)
+    if (!cancel)
+      {
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(outFPixel + elemCnt) = 0.;
+          break;
+        case VTK_DOUBLE:
+          *(outDPixel + elemCnt) = 0.;
+          break;
+        }
+
+      for (int k = -Zmax; k <= Zmax; k++)
+        {
+        for (int j = -Ymax; j <= Ymax; j++)
+          {
+          for (int i = -Xmax; i <= Xmax; i++)
+            {
+            int posData = elemCnt + i;
+            int ref = (int) floor(elemCnt / dims[0]);
+            ref *= dims[0];
+            if(posData < ref)
+              {
+              continue;
+              }
+            if(posData >= ref + dims[0])
+              {
+              break;
+              }
+
+            posData += j * dims[0];
+            ref = (int) floor(elemCnt / numSlice);
+            ref *= numSlice;
+            if(posData < ref)
+              {
+              continue;
+              }
+            if(posData >= ref + numSlice)
+              {
+              break;
+              }
+
+            posData += k * numSlice;
+            if(posData < 0)
+              {
+              continue;
+              }
+            if(posData >= numElements)
+              {
+              break;
+              }
+
+            int posKernel = (k + Zmax) * numKernelSlice
+                          + (j + Ymax) * pnode->GetKernelLengthX() + (i + Xmax);
+
+            switch (DataType)
+              {
+              case VTK_FLOAT:
+                *(outFPixel + elemCnt) += *(tempFPixel + posData) * *(GaussKernel + posKernel);
+                break;
+              case VTK_DOUBLE:
+                *(outDPixel + elemCnt) += *(tempDPixel + posData) * *(GaussKernel + posKernel);
+                break;
+              }
+            }
+          }
+        }
+      if (omp_get_thread_num() == 0)
+        {
+        if(elemCnt / (numElements / (numProcs * 100)) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        }
+      }
+    }
+
+  outFPixel = NULL;
+  tempFPixel = NULL;
+  outDPixel = NULL;
+  tempDPixel = NULL;
+
+  delete outFPixel;
+  delete tempFPixel;
+  delete outDPixel;
+  delete tempDPixel;
+
+  if (cancel)
+    {
+    this->Internal->tempVolumeData->Initialize();
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttribute();
+  this->Internal->tempVolumeData->Initialize();
+  pnode->SetStatus(0);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+
+}
+
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+{
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  this->Internal->tempVolumeData->Initialize();
+  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+  this->Internal->tempVolumeData->Modified();
+  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
+
+  int *dims = outputVolume->GetImageData()->GetDimensions();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  const int numSlice = dims[0] * dims[1];
+  const int ix = (int) (pnode->GetKernelLengthX());
   const int ix2 = (int) - ((ix - 1)/ 2);
-  const int iy = (int) (pnode->GetGaussianKernelY()->GetNumberOfTuples());
+  const int iy = (int) (pnode->GetKernelLengthY());
   const int iy2 = (int) - ((iy - 1)/ 2);
-  const int iz = (int) (pnode->GetGaussianKernelZ()->GetNumberOfTuples());
+  const int iz = (int) (pnode->GetKernelLengthZ());
   const int iz2 = (int) - ((iz - 1)/ 2);
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
@@ -189,6 +374,8 @@ int vtkSlicerSmoothingLogic::GaussianCPUFilter(vtkMRMLSmoothingParametersNode* p
   long mtime, seconds, useconds;
 
   gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
 
   if (pnode->GetParameterX() > 0.001)
     {
@@ -630,87 +817,143 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::WaveletLiftingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerSmoothingLogic::WaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
- /* vtkMRMLAstroVolumeNode *outputVolume =
+  vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  vtkSmartPointer<vtkImageData> tempVolumeData = vtkImageData::New();
-  tempVolumeData->DeepCopy(outputVolume->GetImageData());
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  const int numSlice = dims[0] * dims[1];
   float *outFPixel = NULL;
-  float *tempFPixel = NULL;
   double *outDPixel = NULL;
-  double *tempDPixel = NULL;
   int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
       outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempFPixel = static_cast<float*> (tempVolumeData->GetScalarPointer(0,0,0));
       break;
     case VTK_DOUBLE:
       outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempDPixel = static_cast<double*> (tempVolumeData->GetScalarPointer(0,0,0));
       break;
     default:
       vtkErrorMacro("Attempt to allocate scalars of type not allowed");
       return 0;
     }
+
   bool cancel = false;
 
-  omp_set_num_threads(omp_get_num_procs());
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
 
   pnode->SetStatus(1);
-  for (int i = 1; i <= pnode->GetAccuracy(); i++)
+
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + 2)
     {
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, tempFPixel, outDPixel, tempDPixel, cancel)
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    int stat = pnode->GetStatus();
+
+    if (stat == -1 && omp_get_thread_num() == 0)
       {
-      int status = pnode->GetStatus();
+      cancel = true;
+      }
 
-      if (status == -1 && omp_get_thread_num() == 0)
-        {
-        cancel = true;
-        }
+    if (!cancel)
+      {
+      int ii = elemCnt + 1;
+      *(outFPixel + ii) -= (*(outFPixel + elemCnt));
+      *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
+      }
+    }
 
-      #pragma omp flush (cancel)
-      if (!cancel)
+  pnode->SetStatus(33);
+
+  int m = 0;
+  for (int elemCnt = 0; elemCnt < numElements - dims[0]; elemCnt = elemCnt + 2)
+    {
+    int stat = pnode->GetStatus();
+
+    if (stat == -1 && omp_get_thread_num() == 0)
+      {
+      cancel = true;
+      }
+
+    if (!cancel)
+      {
+
+      int ii = elemCnt + dims[0];
+      *(outFPixel + ii) -= (*(outFPixel + elemCnt));
+      *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
+       m++;
+       if(m == dims[0] * 0.5)
+         {
+         elemCnt += dims[0] * 2;
+         m = 0;
+         }
+       }
+     }
+
+  pnode->SetStatus(66);
+
+  m = 0;
+  int l = 0;
+  for (int elemCnt = 0; elemCnt < numElements - numSlice; elemCnt = elemCnt + 2)
+    {
+    int stat = pnode->GetStatus();
+
+    if (stat == -1 && omp_get_thread_num() == 0)
+      {
+      cancel = true;
+      }
+
+    if (!cancel)
+      {
+      int ii = elemCnt + numSlice;
+      *(outFPixel + ii) -= (*(outFPixel + elemCnt));
+      *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
+      m++;
+      if (m == dims[0] * 0.5)
         {
-        switch (DataType)
+        l++;
+        elemCnt += dims[0] * 2;
+        m = 0;
+        if (l == dims[1] * 0.5)
           {
-          case VTK_FLOAT:
-
-            break;
-          case VTK_DOUBLE:
-            break;
+          elemCnt += numSlice * 2;
+          l = 0;
           }
-
         }
       }
+    }
 
-    if (cancel)
-      {
-      pnode->SetStatus(0);
-      return 0;
-      }
-    else
-      {
-      pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
-      }
 
-    outputVolume->GetImageData()->DeepCopy(tempVolumeData);
+  outFPixel = NULL;
+  outDPixel = NULL;
+
+  delete outFPixel;
+  delete outDPixel;
+
+  if (cancel)
+    {
+    pnode->SetStatus(0);
+    return 0;
     }
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttribute();
-  pnode->SetStatus(0);*/
+  pnode->SetStatus(0);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
 
   return 1;
 }
-
-//add Wavelet Thresholding
