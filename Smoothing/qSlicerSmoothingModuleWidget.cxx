@@ -73,7 +73,6 @@ public:
   vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
   vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
   vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
-  vtkSmartPointer<vtkMatrix4x4> RotMatrix;
   vtkSmartPointer<vtkMatrixToLinearTransform> matrixToLinearTransform;
   vtkSmartPointer<vtkPolyDataMapper> mapper;
   vtkSmartPointer<vtkActor> actor;
@@ -94,8 +93,6 @@ qSlicerSmoothingModuleWidgetPrivate::qSlicerSmoothingModuleWidgetPrivate(qSlicer
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
   this->transformationMatrix->Identity();
-  this->RotMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
-  this->RotMatrix->Identity();
   this->matrixToLinearTransform = vtkSmartPointer<vtkMatrixToLinearTransform>::New();
   this->mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
   this->actor = vtkSmartPointer<vtkActor>::New();
