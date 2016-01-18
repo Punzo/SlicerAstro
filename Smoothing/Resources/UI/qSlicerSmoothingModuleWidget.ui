@@ -421,7 +421,10 @@
        </widget>
       </item>
       <item row="11" column="1">
-       <widget class="ctkVTKRenderView" name="VTKRenderView">
+       <widget class="ctkVTKRenderView" name="GaussianKernelView">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
         <property name="sizePolicy">
          <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
           <horstretch>0</horstretch>
@@ -1107,6 +1110,22 @@
     <hint type="destinationlabel">
      <x>318</x>
      <y>387</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>GaussianKernelView</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>662</y>
     </hint>
    </hints>
   </connection>

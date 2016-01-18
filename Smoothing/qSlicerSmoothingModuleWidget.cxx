@@ -17,6 +17,7 @@
 #include <vtkCamera.h>
 #include <vtkProperty.h>
 #include <vtkMatrix4x4.h>
+#include <vtkImageData.h>
 
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
@@ -51,7 +52,7 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
-
+#include <vtkMRMLCameraNode.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_Smoothing
@@ -184,7 +185,7 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   KSpinBox->hide();
   TimeStepLabel->hide();
   TimeStepSpinBox->hide();
-  vtkCamera* camera = VTKRenderView->activeCamera();
+  vtkCamera* camera = GaussianKernelView->activeCamera();
   double eyePosition[3];
   eyePosition[0] = 0.;
   eyePosition[1] = 0.;
@@ -527,7 +528,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       if (d->parametersNode->GetParameterX() == d->parametersNode->GetParameterY() &&
          d->parametersNode->GetParameterY() == d->parametersNode->GetParameterZ())
         {
-        d->VTKRenderView->hide();
+        d->GaussianKernelView->hide();
         d->RxLabel->hide();
         d->RxSpinBox->hide();
         d->RyLabel->hide();
@@ -537,7 +538,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         }
       else
         {
-        d->VTKRenderView->show();
+        d->GaussianKernelView->show();
         d->RxLabel->show();
         d->RxSpinBox->show();
         d->RyLabel->show();
@@ -553,8 +554,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->RySpinBox->setValue(Ry);
         d->RzSpinBox->setValue(Rz);
 
-        d->VTKRenderView->show();
-        vtkRenderer* renderer = d->VTKRenderView->renderer();
+        d->GaussianKernelView->show();
+        vtkRenderer* renderer = d->GaussianKernelView->renderer();
 
         vtkActorCollection* col = renderer->GetActors();
         col->InitTraversal();
@@ -616,13 +617,41 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
 
         renderer->AddActor(d->actor);
         renderer->SetBackground(0., 0., 0.);
+
+        vtkCamera* camera = d->GaussianKernelView->activeCamera();
+
+        vtkCollection *coll = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
+        vtkMRMLCameraNode *cameraNodeOne =
+          vtkMRMLCameraNode::SafeDownCast(coll->GetItemAsObject(0));
+        if (cameraNodeOne)
+          {
+          double Origin[3];
+          cameraNodeOne->GetPosition(Origin);
+          Origin[0] /= 15.;
+          Origin[1] /= 15.;
+          Origin[2] /= 15.;
+          double temp = Origin[1];
+          Origin[1] = -Origin[2];
+          Origin[2] = temp;
+          camera->SetPosition(Origin);
+          cameraNodeOne->GetFocalPoint(Origin);
+          camera->SetFocalPoint(Origin);
+          cameraNodeOne->GetViewUp(Origin);
+          temp = Origin[1];
+          Origin[1] = -Origin[2];
+          Origin[2] = temp;
+          camera->SetViewUp(Origin);
+          }
+        coll->RemoveAllItems();
+        coll->Delete();
+
         }
 
       break;
       }
     case 1:
       {
-      d->VTKRenderView->hide();
+      d->GaussianKernelView->hide();
       d->RxLabel->hide();
       d->RxSpinBox->hide();
       d->RyLabel->hide();
@@ -667,7 +696,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxZ->hide();
       d->AccuracySpinBox->hide();
       d->AccuracyLabel->hide();
-      d->VTKRenderView->hide();
+      d->GaussianKernelView->hide();
       d->RxLabel->hide();
       d->RxSpinBox->hide();
       d->RyLabel->hide();
@@ -738,8 +767,7 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     return;
     }
 
-  int wasModifying;
-  wasModifying = d->parametersNode->StartModify();
+  int wasModifying = d->parametersNode->StartModify();
 
   if (index == 0)
     {
@@ -800,9 +828,10 @@ void qSlicerSmoothingModuleWidget::onRxChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetRx(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -813,9 +842,10 @@ void qSlicerSmoothingModuleWidget::onRyChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetRy(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -826,9 +856,10 @@ void qSlicerSmoothingModuleWidget::onRzChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetRz(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -839,9 +870,10 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetParameterX(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -852,9 +884,10 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetParameterY(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -865,9 +898,10 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetParameterZ(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -878,9 +912,10 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetAccuracy(value);
   d->parametersNode->SetGaussianKernels();
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------

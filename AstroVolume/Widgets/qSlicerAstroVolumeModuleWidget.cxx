@@ -513,10 +513,18 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     double Origin[3];
     volumeOne->GetOrigin(Origin);
     int* dims = volumeOne->GetImageData()->GetDimensions();
-    Origin[0] += dims[0] / 2.;
-    Origin[1] -= dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    Origin[2] += dims[1] / 2.;
+    Origin[0] = 0.;
+    Origin[1] = -(dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]));
+    Origin[2] = 0.;
     cameraNodeOne->SetPosition(Origin);
+    Origin[0] = 0.;
+    Origin[1] = 0.;
+    Origin[2] = 1.;
+    cameraNodeOne->SetViewUp(Origin);
+    Origin[0] = 0.;
+    Origin[1] = 0.;
+    Origin[2] = 0.;
+    cameraNodeOne->SetFocalPoint(Origin);
     }
   vtkMRMLCameraNode *cameraNodeTwo =
     vtkMRMLCameraNode::SafeDownCast(col->GetItemAsObject(1));
@@ -525,16 +533,27 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     double Origin[3];
     volumeTwo->GetOrigin(Origin);
     int* dims = volumeTwo->GetImageData()->GetDimensions();
-    Origin[0] += dims[0] / 2.;
-    Origin[1] -= dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    Origin[2] += dims[1] / 2.;
+    Origin[0] = 0.;
+    Origin[1] = -(dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]));
+    Origin[2] = 0.;
     cameraNodeTwo->SetPosition(Origin);
+    Origin[0] = 0.;
+    Origin[1] = 0.;
+    Origin[2] = 1.;
+    cameraNodeTwo->SetViewUp(Origin);
+    Origin[0] = 0.;
+    Origin[1] = 0.;
+    Origin[2] = 0.;
+    cameraNodeTwo->SetFocalPoint(Origin);
     }
 
   for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
     }
+
+  col->RemoveAllItems();
+  col->Delete();
 
   volumeOne->SetDisplayVisibility(1);
   volumeTwo->SetDisplayVisibility(1);
