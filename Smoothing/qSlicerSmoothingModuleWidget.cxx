@@ -73,6 +73,7 @@ public:
   vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
   vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
   vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
+  vtkSmartPointer<vtkMatrix4x4> RotMatrix;
   vtkSmartPointer<vtkMatrixToLinearTransform> matrixToLinearTransform;
   vtkSmartPointer<vtkPolyDataMapper> mapper;
   vtkSmartPointer<vtkActor> actor;
@@ -93,6 +94,8 @@ qSlicerSmoothingModuleWidgetPrivate::qSlicerSmoothingModuleWidgetPrivate(qSlicer
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
   this->transformationMatrix->Identity();
+  this->RotMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
+  this->RotMatrix->Identity();
   this->matrixToLinearTransform = vtkSmartPointer<vtkMatrixToLinearTransform>::New();
   this->mapper = vtkSmartPointer<vtkPolyDataMapper>::New();
   this->actor = vtkSmartPointer<vtkActor>::New();
@@ -587,10 +590,16 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->parametricFunctionSource->Update();
 
         //Configuration of the rotation
+
+        Rx *= -1.;
+        Ry *= -1.;
+        Rz *= -1.;
+
         Rx *= d->DegToRad;
         Ry *= d->DegToRad;
         Rz *= d->DegToRad;
         d->transformationMatrix->Identity();
+        d->RotMatrix->Identity();
         double cx = cos(Rx);
         double sx = sin(Rx);
         double cy = cos(Ry);
@@ -630,16 +639,24 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
           Origin[0] /= 15.;
           Origin[1] /= 15.;
           Origin[2] /= 15.;
+          //Ry(90)
           double temp = Origin[1];
           Origin[1] = -Origin[2];
           Origin[2] = temp;
+          //Rz(-180)
+          Origin[0] *= -1;
+          Origin[1] *= -1;
           camera->SetPosition(Origin);
           cameraNodeOne->GetFocalPoint(Origin);
           camera->SetFocalPoint(Origin);
           cameraNodeOne->GetViewUp(Origin);
+          //Ry(90)
           temp = Origin[1];
           Origin[1] = -Origin[2];
           Origin[2] = temp;
+          //Rz(-180)
+          Origin[0] *= -1;
+          Origin[1] *= -1;
           camera->SetViewUp(Origin);
           }
         coll->RemoveAllItems();
