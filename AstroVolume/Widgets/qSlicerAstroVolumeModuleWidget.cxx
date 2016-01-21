@@ -514,7 +514,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeOne->GetOrigin(Origin);
     int* dims = volumeOne->GetImageData()->GetDimensions();
     Origin[0] = 0.;
-    Origin[1] = -(dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]));
+    Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
     Origin[2] = 0.;
     cameraNodeOne->SetPosition(Origin);
     Origin[0] = 0.;
@@ -534,7 +534,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeTwo->GetOrigin(Origin);
     int* dims = volumeTwo->GetImageData()->GetDimensions();
     Origin[0] = 0.;
-    Origin[1] = -(dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]));
+    Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
     Origin[2] = 0.;
     cameraNodeTwo->SetPosition(Origin);
     Origin[0] = 0.;

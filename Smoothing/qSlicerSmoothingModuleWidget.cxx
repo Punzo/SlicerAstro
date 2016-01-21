@@ -588,15 +588,14 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
 
         //Configuration of the rotation
 
-        Rx *= -1.;
-        Ry *= -1.;
-        Rz *= -1.;
+        Rx *= -1;
+        Ry *= -1;
+        Rz *= -1;
 
         Rx *= d->DegToRad;
         Ry *= d->DegToRad;
         Rz *= d->DegToRad;
         d->transformationMatrix->Identity();
-        d->RotMatrix->Identity();
         double cx = cos(Rx);
         double sx = sin(Rx);
         double cy = cos(Ry);
@@ -660,8 +659,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         coll->Delete();
 
         }
-
-      break;
+        break;
       }
     case 1:
       {
