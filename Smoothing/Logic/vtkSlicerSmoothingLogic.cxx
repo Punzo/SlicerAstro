@@ -116,8 +116,8 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
     {
     case 0:
       {
-        if (pnode->GetParameterX() == pnode->GetParameterY() &&
-            pnode->GetParameterY() == pnode->GetParameterZ())
+        if ((pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
+            (pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
           {
           success = this->IsotropicGaussianCPUFilter(pnode);
           }
@@ -852,6 +852,12 @@ int vtkSlicerSmoothingLogic::WaveletThresholdingCPUFilter(vtkMRMLSmoothingParame
   gettimeofday(&start, NULL);
 
   pnode->SetStatus(1);
+
+  //rewrite:
+  //first of all split: even in the first half, odd in the other (optmized memory access)
+  //update: calculate the odd
+  //predict: calculate the even
+  //to e understanded is if the update and predict can be done in the same cicle
 
   for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + 2)
     {

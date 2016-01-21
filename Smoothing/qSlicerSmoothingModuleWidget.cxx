@@ -525,8 +525,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
 
-      if (d->parametersNode->GetParameterX() == d->parametersNode->GetParameterY() &&
-         d->parametersNode->GetParameterY() == d->parametersNode->GetParameterZ())
+      if ((d->parametersNode->GetParameterX() - d->parametersNode->GetParameterY()) < 0.001 &&
+         (d->parametersNode->GetParameterY() - d->parametersNode->GetParameterZ()) < 0.001)
         {
         d->GaussianKernelView->hide();
         d->RxLabel->hide();
