@@ -116,8 +116,8 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
     {
     case 0:
       {
-        if ((pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
-            (pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
+        if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
+            fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
           {
           success = this->IsotropicGaussianCPUFilter(pnode);
           }
