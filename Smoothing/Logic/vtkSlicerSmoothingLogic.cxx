@@ -134,7 +134,12 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
       }
     case 2:
       {
-      success = this->WaveletThresholdingCPUFilter(pnode);
+      success = this->HaarWaveletThresholdingCPUFilter(pnode);
+      break;
+      }
+    case 3:
+      {
+      success = this->GallWaveletThresholdingCPUFilter(pnode);
       break;
       }
     }
@@ -166,7 +171,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   float *tempFPixel = NULL;
   double *outDPixel = NULL;
   double *tempDPixel = NULL;
-  int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -346,7 +351,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   float *tempFPixel = NULL;
   double *outDPixel = NULL;
   double *tempDPixel = NULL;
-  int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -817,19 +822,24 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::WaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+  // This method use Wavelet Lifting (Haar Wavelet):
+  // 1) It applys a forward trasform to level l;
+  // 2) It thresholdds the coefficients;
+  // 3) It applys an inverse trasform restoring the full resolution image;
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  const int numSlice = dims[0] * dims[1];
+  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  int numSlice = dims[0] * dims[1];
   float *outFPixel = NULL;
   double *outDPixel = NULL;
-  int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -843,7 +853,12 @@ int vtkSlicerSmoothingLogic::WaveletThresholdingCPUFilter(vtkMRMLSmoothingParame
       return 0;
     }
 
-  bool cancel = false;
+  double sigma = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  double delta = pnode->GetParameterX() * sigma;
+
+  bool reduceX = false;
+  bool reduceY = false;
+  bool reduceZ = false;
 
   struct timeval start, end;
 
@@ -853,101 +868,592 @@ int vtkSlicerSmoothingLogic::WaveletThresholdingCPUFilter(vtkMRMLSmoothingParame
 
   pnode->SetStatus(1);
 
-  //rewrite:
-  //first of all split: even in the first half, odd in the other (optmized memory access)
-  //update: calculate the odd
-  //predict: calculate the even
-  //to e understanded is if the update and predict can be done in the same cicle
+  int oldDims [3] = {dims[0], dims[1], dims[2]};
+  int oldNumElements = numElements;
 
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + 2)
+  int maxLevel = pow(2, pnode->GetAccuracy());
+
+  while ((dims[0] % maxLevel) > 0.)
     {
-    int stat = pnode->GetStatus();
-
-    if (stat == -1 && omp_get_thread_num() == 0)
-      {
-      cancel = true;
-      }
-
-    if (!cancel)
-      {
-      int ii = elemCnt + 1;
-      *(outFPixel + ii) -= (*(outFPixel + elemCnt));
-      *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
-      }
+    dims[0]++;
+    reduceX = true;
     }
 
-  pnode->SetStatus(33);
-
-  int m = 0;
-  for (int elemCnt = 0; elemCnt < numElements - dims[0]; elemCnt = elemCnt + 2)
+  while ((dims[1] % maxLevel) > 0.)
     {
-    int stat = pnode->GetStatus();
+    dims[1]++;
+    reduceY = true;
+    }
 
-    if (stat == -1 && omp_get_thread_num() == 0)
+  while ((dims[2] % maxLevel) > 0.)
+    {
+    dims[2]++;
+    reduceZ = true;
+    }
+
+  if (reduceX || reduceY || reduceZ)
+    {
+    numElements = dims[0] * dims[1] * dims[2] * numComponents;
+    numSlice = dims[0] * dims[1];
+    int tempNumElements = dims[0] * dims[1] * oldDims[2];
+    int tempNumSlice = dims[0] * oldDims[1];
+
+    this->Internal->tempVolumeData->Initialize();
+    this->Internal->tempVolumeData->SetDimensions(dims);
+    float *tempFPixel = NULL;
+    double *tempDPixel = NULL;
+    switch (DataType)
       {
-      cancel = true;
+      case VTK_FLOAT:
+        this->Internal->tempVolumeData->AllocateScalars(VTK_FLOAT,1);
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        this->Internal->tempVolumeData->AllocateScalars(VTK_DOUBLE,1);
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
       }
 
-    if (!cancel)
+    int ii = 0;
+
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
 
-      int ii = elemCnt + dims[0];
-      *(outFPixel + ii) -= (*(outFPixel + elemCnt));
-      *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
-       m++;
-       if(m == dims[0] * 0.5)
-         {
-         elemCnt += dims[0] * 2;
-         m = 0;
-         }
-       }
-     }
-
-  pnode->SetStatus(66);
-
-  m = 0;
-  int l = 0;
-  for (int elemCnt = 0; elemCnt < numElements - numSlice; elemCnt = elemCnt + 2)
-    {
-    int stat = pnode->GetStatus();
-
-    if (stat == -1 && omp_get_thread_num() == 0)
-      {
-      cancel = true;
-      }
-
-    if (!cancel)
-      {
-      int ii = elemCnt + numSlice;
-      *(outFPixel + ii) -= (*(outFPixel + elemCnt));
-      *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
-      m++;
-      if (m == dims[0] * 0.5)
+      if(elemCnt >= tempNumElements)
         {
-        l++;
-        elemCnt += dims[0] * 2;
-        m = 0;
-        if (l == dims[1] * 0.5)
+        switch (DataType)
           {
-          elemCnt += numSlice * 2;
-          l = 0;
+          case VTK_FLOAT:
+            *(tempFPixel + elemCnt) = 0.;
+            break;
+          case VTK_DOUBLE:
+            *(tempDPixel + elemCnt) = 0.;
+            break;
           }
+        continue;
+        }
+
+      int ref =  (int) floor(elemCnt / numSlice);
+      ref *= numSlice;
+      ref = elemCnt - ref;
+      if (ref >= tempNumSlice)
+        {
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(tempFPixel + elemCnt) = 0.;
+            break;
+          case VTK_DOUBLE:
+            *(tempDPixel + elemCnt) = 0.;
+            break;
+          }
+        continue;
+        }
+
+      ref = (int) floor(elemCnt / dims[0]);
+      ref *= dims[0];
+      ref = elemCnt - ref;
+      if (ref >= oldDims[0])
+        {
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(tempFPixel + elemCnt) = 0.;
+            break;
+          case VTK_DOUBLE:
+            *(tempDPixel + elemCnt) = 0.;
+            break;
+          }
+        continue;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(tempFPixel + elemCnt) = *(outFPixel + ii);
+          break;
+        case VTK_DOUBLE:
+          *(tempDPixel + elemCnt) = *(outDPixel + ii);
+          break;
+        }
+
+      ii++;
+
+      }
+    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
+    dims = outputVolume->GetImageData()->GetDimensions();
+
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+        break;
+      default:
+        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+        return 0;
+      }
+
+    tempFPixel = NULL;
+    tempDPixel = NULL;
+
+    delete tempFPixel;
+    delete tempDPixel;
+
+    this->Internal->tempVolumeData->Initialize();
+    }
+
+  numElements = dims[0] * dims[1] * oldDims[2] * numComponents;
+
+  // Forward Transform to level l:
+  for (int l = 1; l <= pnode->GetAccuracy(); l++)
+    {
+    if (pnode->GetStatus() == -1)
+      {
+      break;
+      }
+    pnode->SetStatus((int) l * 100 / (pnode->GetAccuracy() * 2));
+
+    int inc = pow(2, l);
+    int inc2 = (int) inc / 2;;
+    int inc3 = (inc * dims[0]) - dims[0];
+    int inc4 = inc2 * dims[0];
+    int inc5 = (inc * numSlice) - numSlice;
+    int inc6 = inc2 * numSlice;
+
+    // Along X
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int ii = elemCnt + inc2;
+
+      if(ii > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Predict step
+          *(outFPixel + ii) -= (*(outFPixel + elemCnt));
+          // Update step
+          *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
+          break;
+        case VTK_DOUBLE:
+          // Predict step
+          *(outDPixel + ii) -= (*(outDPixel + elemCnt));
+          // Update step
+          *(outDPixel + elemCnt) += 0.5 * *(outDPixel + ii);
+          break;
+        }
+      }
+
+    // Along Y
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int ii = elemCnt + inc4;
+      int res1 = elemCnt + inc2;
+      int res2 = ii + inc2;
+
+      if(res2 > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Predict step
+          *(outFPixel + ii) -= (*(outFPixel + elemCnt));
+          // Update step
+          *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
+          // Predict step for residuals
+          *(outFPixel + res2) -= (*(outFPixel + res1));
+          // Update step for residuals
+          *(outFPixel + res1) += 0.5 * *(outFPixel + res2);
+          break;
+        case VTK_DOUBLE:
+          // Predict step
+          *(outDPixel + ii) -= (*(outDPixel + elemCnt));
+          // Update step
+          *(outDPixel + elemCnt) += 0.5 * *(outDPixel + ii);
+          // Predict step for residuals
+          *(outDPixel + res2) -= (*(outDPixel + res1));
+          // Update step for residuals
+          *(outDPixel + res1) += 0.5 * *(outDPixel + res2);
+          break;
+        }
+      }
+
+    // Along Z
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int slice = (int) floor(elemCnt / numSlice);
+      if ((slice % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc5;
+        }
+      int ii = elemCnt + inc6;
+      int a1 = elemCnt + inc2;
+      int b1 = ii + inc2;
+      int a2 = elemCnt + dims[0];
+      int b2 = ii + dims[0];
+      int a3 = a2 + inc2;
+      int b3 = b2 + inc2;
+
+      if(b3 > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Predict step
+          *(outFPixel + ii) -= (*(outFPixel + elemCnt));
+          // Update step
+          *(outFPixel + elemCnt) += 0.5 * *(outFPixel + ii);
+          // Predict step
+          *(outFPixel + b1) -= (*(outFPixel + a1));
+          // Update step
+          *(outFPixel + a1) += 0.5 * *(outFPixel + b1);
+          // Predict step
+          *(outFPixel + b2) -= (*(outFPixel + a2));
+          // Update step
+          *(outFPixel + a2) += 0.5 * *(outFPixel + b2);
+          // Predict step
+          *(outFPixel + b3) -= (*(outFPixel + a3));
+          // Update step
+          *(outFPixel + a3) += 0.5 * *(outFPixel + b3);
+          break;
+        case VTK_DOUBLE:
+          // Predict step
+          *(outDPixel + ii) -= (*(outDPixel + elemCnt));
+          // Update step
+          *(outDPixel + elemCnt) += 0.5 * *(outDPixel + ii);
+          // Predict step
+          *(outDPixel + b1) -= (*(outDPixel + a1));
+          // Update step
+          *(outDPixel + a1) += 0.5 * *(outDPixel + b1);
+          // Predict step
+          *(outDPixel + b2) -= (*(outDPixel + a2));
+          // Update step
+          *(outDPixel + a2) += 0.5 * *(outDPixel + b2);
+          // Predict step
+          *(outDPixel + b3) -= (*(outDPixel + a3));
+          // Update step
+          *(outDPixel + a3) += 0.5 * *(outDPixel + b3);
+          break;
         }
       }
     }
 
+  // Inverse Trasform
+  int m = 0;
+  for (int l = pnode->GetAccuracy(); l >= 1; l--)
+    {
+    if (pnode->GetStatus() == -1)
+      {
+      break;
+      }
+    m++;
+    pnode->SetStatus((int) m * 100 / pnode->GetAccuracy());
+
+    int inc = pow(2, l);
+    int inc2 = (int) inc / 2;
+    int inc3 = (inc * dims[0]) - dims[0];
+    int inc4 = inc2 * dims[0];
+    int inc5 = (inc * numSlice) - numSlice;
+    int inc6 = inc2 * numSlice;
+
+    // Along Z
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int slice = (int) floor(elemCnt / numSlice);
+      if ((slice % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc5;
+        }
+      int ii = elemCnt + inc6;
+      int a1 = elemCnt + inc2;
+      int b1 = ii + inc2;
+      int a2 = elemCnt + dims[0];
+      int b2 = ii + dims[0];
+      int a3 = a2 + inc2;
+      int b3 = b2 + inc2;
+
+      if(b3 > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Thresholding
+          if (fabs(*(outFPixel + ii)) < delta)
+            {
+            *(outFPixel + ii) = 0.;
+            }
+          if (fabs(*(outFPixel + b1)) < delta)
+            {
+            *(outFPixel + b1) = 0.;
+            }
+          if (fabs(*(outFPixel + b2)) < delta)
+            {
+            *(outFPixel + b2) = 0.;
+            }
+          if (fabs(*(outFPixel + b3)) < delta)
+            {
+            *(outFPixel + b3) = 0.;
+            }
+          // Update step
+          *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
+          // Predict step
+          *(outFPixel + ii) += (*(outFPixel + elemCnt));
+          // Update step
+          *(outFPixel + a1) -= 0.5 * *(outFPixel + b1);
+          // Predict step
+          *(outFPixel + b1) += (*(outFPixel + a1));
+          // Update step
+          *(outFPixel + a2) -= 0.5 * *(outFPixel + b2);
+          // Predict step
+          *(outFPixel + b2) += (*(outFPixel + a2));
+          // Update step
+          *(outFPixel + a3) -= 0.5 * *(outFPixel + b3);
+          // Predict step
+          *(outFPixel + b3) += (*(outFPixel + a3));
+          break;
+        case VTK_DOUBLE:
+          // Thresholding
+          if (fabs(*(outDPixel + ii)) < delta)
+            {
+            *(outDPixel + ii) = 0.;
+            }
+          if (fabs(*(outDPixel + b1)) < delta)
+            {
+            *(outDPixel + b1) = 0.;
+            }
+          if (fabs(*(outDPixel + b2)) < delta)
+            {
+            *(outDPixel + b2) = 0.;
+            }
+          if (fabs(*(outDPixel + b3)) < delta)
+            {
+            *(outDPixel + 3) = 0.;
+            }
+          // Update step
+          *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
+          // Predict step
+          *(outDPixel + ii) += (*(outDPixel + elemCnt));
+          // Update step
+          *(outDPixel + a1) -= 0.5 * *(outDPixel + b1);
+          // Predict step
+          *(outDPixel + b1) += (*(outDPixel + a1));
+          // Update step
+          *(outDPixel + a2) -= 0.5 * *(outDPixel + b2);
+          // Predict step
+          *(outDPixel + b2) += (*(outDPixel + a2));
+          // Update step
+          *(outDPixel + a3) -= 0.5 * *(outDPixel + b3);
+          // Predict step
+          *(outDPixel + b3) += (*(outDPixel + a3));
+          break;
+        }
+      }
+
+    // Along Y
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int ii = elemCnt + inc4;
+      int res1 = elemCnt + inc2;
+      int res2 = ii + inc2;
+
+      if(res2 > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Thresholding
+          if (fabs(*(outFPixel + ii)) < delta)
+            {
+            *(outFPixel + ii) = 0.;
+            }
+          if (fabs(*(outFPixel + res2)) < delta)
+            {
+            *(outFPixel + res2) = 0.;
+            }
+          // Update step
+          *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
+          // Predict step
+          *(outFPixel + ii) += (*(outFPixel + elemCnt));
+          // Update step for residuals
+          *(outFPixel + res1) -= 0.5 * *(outFPixel + res2);
+          // Predict step for residuals
+          *(outFPixel + res2) += (*(outFPixel + res1));
+          break;
+        case VTK_DOUBLE:
+          // Thresholding
+          if (fabs(*(outDPixel + ii)) < delta)
+            {
+            *(outDPixel + ii) = 0.;
+            }
+          if (fabs(*(outDPixel + res2)) < delta)
+            {
+            *(outDPixel + res2) = 0.;
+            }
+          // Update step
+          *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
+          // Predict step
+          *(outDPixel + ii) += (*(outDPixel + elemCnt));
+          // Update step for residuals
+          *(outDPixel + res1) -= 0.5 * *(outDPixel + res2);
+          // Predict step for residuals
+          *(outDPixel + res2) += (*(outDPixel + res1));
+          break;
+        }
+      }
+
+    // Along X
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int ii = elemCnt + inc2;
+
+      if(ii > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Thresholding
+          if (fabs(*(outFPixel + ii)) < delta)
+            {
+            *(outFPixel + ii) = 0.;
+            }
+          // Update step
+          *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
+          // Predict step
+          *(outFPixel + ii) += (*(outFPixel + elemCnt));
+          break;
+        case VTK_DOUBLE:
+          // Thresholding
+          if (fabs(*(outDPixel + ii)) < delta)
+            {
+            *(outDPixel + ii) = 0.;
+            }
+          // Update step
+          *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
+          // Predict step
+          *(outDPixel + ii) += (*(outDPixel + elemCnt));
+          break;
+        }
+      }
+    }
+
+  if (reduceX || reduceY || reduceZ)
+    {
+    int ii = 0;
+
+    int diffDims [3] = {dims[0] - oldDims[0],
+                        dims[1] - oldDims[1],
+                        dims[2] - oldDims[2]};
+    int tempNumRow = oldDims[0] - 1;
+    int tempNumSlice = (dims[0] * oldDims[1]);
+    for (int elemCnt = 0; elemCnt < oldNumElements; elemCnt++)
+      {
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(outFPixel + elemCnt) = *(outFPixel + elemCnt + ii);
+          break;
+        case VTK_DOUBLE:
+          *(outDPixel + elemCnt) = *(outDPixel + elemCnt + ii);
+          break;
+        }
+
+      int ref =  (int) floor((elemCnt + ii) / numSlice);
+      ref *= numSlice;
+      ref = elemCnt + ii - ref;
+      if (ref == tempNumSlice)
+        {
+        ii += (diffDims[1] * dims[0]);
+        }
+
+      ref = (int) floor((elemCnt + ii) / dims[0]);
+      ref *= dims[0];
+      ref = elemCnt + ii - ref;
+      if (ref == tempNumRow)
+        {
+        ii += diffDims[0];
+        }
+
+      }
+    outputVolume->GetImageData()->SetDimensions(oldDims);
+    }
 
   outFPixel = NULL;
   outDPixel = NULL;
 
   delete outFPixel;
   delete outDPixel;
-
-  if (cancel)
-    {
-    pnode->SetStatus(0);
-    return 0;
-    }
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttribute();
@@ -963,3 +1469,896 @@ int vtkSlicerSmoothingLogic::WaveletThresholdingCPUFilter(vtkMRMLSmoothingParame
 
   return 1;
 }
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+{
+  // This method use Wavelet Lifting (Le Gall (5,3) Wavelet):
+  // 1) It applys a forward trasform to level l;
+  // 2) It thresholdds the coefficients;
+  // 3) It applys an inverse trasform restoring the full resolution image;
+
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  int *dims = outputVolume->GetImageData()->GetDimensions();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  int numSlice = dims[0] * dims[1];
+  float *outFPixel = NULL;
+  double *outDPixel = NULL;
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      break;
+    default:
+      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      return 0;
+    }
+
+  double sigma = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  double delta = pnode->GetParameterX() * sigma;
+
+  bool reduceX = false;
+  bool reduceY = false;
+  bool reduceZ = false;
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+
+  int oldDims [3] = {dims[0], dims[1], dims[2]};
+  int oldNumElements = numElements;
+
+  int maxLevel = pow(2, pnode->GetAccuracy());
+
+  while ((dims[0] % maxLevel) > 0.)
+    {
+    dims[0]++;
+    reduceX = true;
+    }
+
+  while ((dims[1] % maxLevel) > 0.)
+    {
+    dims[1]++;
+    reduceY = true;
+    }
+
+  while ((dims[2] % maxLevel) > 0.)
+    {
+    dims[2]++;
+    reduceZ = true;
+    }
+
+  numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  numSlice = dims[0] * dims[1];
+  int tempNumElements = dims[0] * dims[1] * oldDims[2];
+  int tempNumSlice = dims[0] * oldDims[1];
+
+  this->Internal->tempVolumeData->Initialize();
+  this->Internal->tempVolumeData->SetDimensions(dims);
+  float *tempFPixel = NULL;
+  double *tempDPixel = NULL;
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      this->Internal->tempVolumeData->AllocateScalars(VTK_FLOAT,1);
+      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      this->Internal->tempVolumeData->AllocateScalars(VTK_DOUBLE,1);
+      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    }
+
+  int ii = 0;
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+
+    if(elemCnt >= tempNumElements)
+      {
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(tempFPixel + elemCnt) = 0.;
+          break;
+        case VTK_DOUBLE:
+          *(tempDPixel + elemCnt) = 0.;
+          break;
+        }
+      continue;
+      }
+
+    int ref =  (int) floor(elemCnt / numSlice);
+    ref *= numSlice;
+    ref = elemCnt - ref;
+    if (ref >= tempNumSlice)
+      {
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(tempFPixel + elemCnt) = 0.;
+          break;
+        case VTK_DOUBLE:
+          *(tempDPixel + elemCnt) = 0.;
+          break;
+        }
+      continue;
+      }
+    ref = (int) floor(elemCnt / dims[0]);
+    ref *= dims[0];
+    ref = elemCnt - ref;
+    if (ref >= oldDims[0])
+      {
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(tempFPixel + elemCnt) = 0.;
+          break;
+        case VTK_DOUBLE:
+          *(tempDPixel + elemCnt) = 0.;
+          break;
+        }
+      continue;
+      }
+
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        *(tempFPixel + elemCnt) = *(outFPixel + ii);
+        break;
+      case VTK_DOUBLE:
+        *(tempDPixel + elemCnt) = *(outDPixel + ii);
+        break;
+      }
+
+    ii++;
+
+    }
+    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
+    dims = outputVolume->GetImageData()->GetDimensions();
+
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+        break;
+      default:
+        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+        return 0;
+      }
+
+  numElements = dims[0] * dims[1] * oldDims[2] * numComponents;
+
+  // Forward Transform to level l:
+  for (int l = 1; l <= pnode->GetAccuracy(); l++)
+    {
+    if (pnode->GetStatus() == -1)
+      {
+      break;
+      }
+    pnode->SetStatus((int) l * 100 / (pnode->GetAccuracy() * 2));
+
+    int inc = pow(2, l);
+    int inc2 = (int) inc / 2;;
+    int inc3 = (inc * dims[0]) - dims[0];
+    int inc4 = inc2 * dims[0];
+    int inc5 = (inc * numSlice) - numSlice;
+    int inc6 = inc2 * numSlice;
+
+    // Along X
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+
+      int a = elemCnt + inc2;
+      int b = a + inc2;
+      int c = elemCnt - inc2;
+
+      if (c < 0)
+        {
+        continue;
+        }
+
+      if(b > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Predict
+          *(outFPixel + a) -= 0.5 * (*(tempFPixel + elemCnt) + *(tempFPixel + b));
+          // Update
+          *(outFPixel + elemCnt) += 0.25 * (*(tempFPixel + c) + *(outFPixel + a));
+          break;
+        case VTK_DOUBLE:
+          // Predict
+          *(outDPixel + a) -= 0.5 * (*(tempDPixel + elemCnt) + *(tempDPixel + b));
+          // Update
+          *(outDPixel + elemCnt) += 0.25 * (*(tempDPixel + c) + *(outDPixel + a));
+          break;
+        }
+      }
+
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      }
+
+
+    // Along Y
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+
+      int a = elemCnt + inc4;
+      int b = a + inc4;
+      int c = elemCnt - inc4;
+
+      int res = elemCnt + inc2;
+      int resa = res + inc4;
+      int resb = resa + inc4;
+      int resc = res - inc4;
+
+      if (c < 0)
+        {
+        continue;
+        }
+
+      if(resb > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Predict
+          *(outFPixel + a) -= 0.5 * (*(tempFPixel + elemCnt) + *(tempFPixel + b));
+          // Update
+          *(outFPixel + elemCnt) += 0.25 * (*(tempFPixel + c) + *(outFPixel + a));
+          // Predict residuals
+          *(outFPixel + resa) -= 0.5 * (*(tempFPixel + res) + *(tempFPixel + resb));
+          // Update residuals
+          *(outFPixel + res) += 0.25 * (*(tempFPixel + resc) + *(outFPixel + resa));
+          break;
+        case VTK_DOUBLE:
+          // Predict
+          *(outDPixel + a) -= 0.5 * (*(tempDPixel + elemCnt) + *(tempDPixel + b));
+          // Update
+          *(outDPixel + elemCnt) += 0.25 * (*(tempDPixel + c) + *(outDPixel + a));
+          // Predict residuals
+          *(outDPixel + resa) -= 0.5 * (*(tempDPixel + res) + *(tempDPixel + resb));
+          // Update residuals
+          *(outDPixel + res) += 0.25 * (*(tempDPixel + resc) + *(outDPixel + resa));
+          break;
+        }
+      }
+
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      }
+
+    // Along Z
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int slice = (int) floor(elemCnt / numSlice);
+      if ((slice % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc5;
+        }
+      int a = elemCnt + inc6;
+      int b = a + inc6;
+      int c = elemCnt - inc6;
+
+      int e1 = elemCnt + inc2;
+      int a1 = a + inc2;
+      int b1 = b + inc2;
+      int c1 = c + inc2;
+
+      int e2 = elemCnt + dims[0];
+      int a2 = a + dims[0];
+      int b2 = b + dims[0];
+      int c2 = c + dims[0];
+
+      int e3 = e2 + inc2;
+      int a3 = a2 + inc2;
+      int b3 = b2 + inc2;
+      int c3 = c2 + inc2;
+
+      if (c < 0)
+        {
+        continue;
+        }
+
+      if(b3 > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Predict
+          *(outFPixel + a) -= 0.5 * (*(tempFPixel + elemCnt) + *(tempFPixel + b));
+          // Update
+          *(outFPixel + elemCnt) += 0.25 * (*(tempFPixel + c) + *(outFPixel + a));
+          // Predict
+          *(outFPixel + a1) -= 0.5 * (*(tempFPixel + e1) + *(tempFPixel + b1));
+          // Update
+          *(outFPixel + e1) += 0.25 * (*(tempFPixel + c1) + *(outFPixel + a1));
+          // Predict
+          *(outFPixel + a2) -= 0.5 * (*(tempFPixel + e2) + *(tempFPixel + b2));
+          // Update
+          *(outFPixel + e2) += 0.25 * (*(tempFPixel + c2) + *(outFPixel + a2));
+          // Predict
+          *(outFPixel + a3) -= 0.5 * (*(tempFPixel + e3) + *(tempFPixel + b3));
+          // Update
+          *(outFPixel + e3) += 0.25 * (*(tempFPixel + c3) + *(outFPixel + a3));
+          break;
+        case VTK_DOUBLE:
+          // Predict
+          *(outDPixel + a) -= 0.5 * (*(tempDPixel + elemCnt) + *(tempDPixel + b));
+          // Update
+          *(outDPixel + elemCnt) += 0.25 * (*(tempDPixel + c) + *(outDPixel + a));
+          // Predict
+          *(outDPixel + a1) -= 0.5 * (*(tempDPixel + e1) + *(tempDPixel + b1));
+          // Update
+          *(outDPixel + e1) += 0.25 * (*(tempDPixel + c1) + *(outDPixel + a1));
+          // Predict
+          *(outDPixel + a2) -= 0.5 * (*(tempDPixel + e2) + *(tempDPixel + b2));
+          // Update
+          *(outDPixel + e2) += 0.25 * (*(tempDPixel + c2) + *(outDPixel + a2));
+          // Predict
+          *(outDPixel + a3) -= 0.5 * (*(tempDPixel + e3) + *(tempDPixel + b3));
+          // Update
+          *(outDPixel + e3) += 0.25 * (*(tempDPixel + c3) + *(outDPixel + a3));
+          break;
+        }
+      }
+
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      }
+
+    }
+
+  // Inverse Trasform
+  int m = 0;
+  for (int l = pnode->GetAccuracy(); l >= 1; l--)
+    {
+    if (pnode->GetStatus() == -1)
+      {
+      break;
+      }
+    m++;
+    pnode->SetStatus((int) m * 100 / pnode->GetAccuracy());
+
+    int inc = pow(2, l);
+    int inc2 = (int) inc / 2;
+    int inc3 = (inc * dims[0]) - dims[0];
+    int inc4 = inc2 * dims[0];
+    int inc5 = (inc * numSlice) - numSlice;
+    int inc6 = inc2 * numSlice;
+
+    // Along Z
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int slice = (int) floor(elemCnt / numSlice);
+      if ((slice % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc5;
+        }
+      int a = elemCnt + inc6;
+      int b = a + inc6;
+      int c = elemCnt - inc6;
+
+      int e1 = elemCnt + inc2;
+      int a1 = a + inc2;
+      int b1 = b + inc2;
+      int c1 = c + inc2;
+
+      int e2 = elemCnt + dims[0];
+      int a2 = a + dims[0];
+      int b2 = b + dims[0];
+      int c2 = c + dims[0];
+
+      int e3 = e2 + inc2;
+      int a3 = a2 + inc2;
+      int b3 = b2 + inc2;
+      int c3 = c2 + inc2;
+
+      if (c < 0)
+        {
+        continue;
+        }
+
+      if(b3 > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Thresholding
+          if (fabs(*(tempFPixel + a)) < delta)
+            {
+            *(tempFPixel + a) = 0.;
+            }
+          if (fabs(*(tempFPixel + b)) < delta)
+            {
+            *(tempFPixel + b) = 0.;
+            }
+          if (fabs(*(tempFPixel + c)) < delta)
+            {
+            *(tempFPixel + c) = 0.;
+            }
+          if (fabs(*(tempFPixel + a1)) < delta)
+            {
+            *(tempFPixel + a1) = 0.;
+            }
+          if (fabs(*(tempFPixel + b1)) < delta)
+            {
+            *(tempFPixel + b1) = 0.;
+            }
+          if (fabs(*(tempFPixel + c1)) < delta)
+            {
+            *(tempFPixel + c1) = 0.;
+            }
+          if (fabs(*(tempFPixel + a2)) < delta)
+            {
+            *(tempFPixel + a2) = 0.;
+            }
+          if (fabs(*(tempFPixel + b2)) < delta)
+            {
+            *(tempFPixel + b2) = 0.;
+            }
+          if (fabs(*(tempFPixel + c2)) < delta)
+            {
+            *(tempFPixel + c2) = 0.;
+            }
+          if (fabs(*(tempFPixel + a3)) < delta)
+            {
+            *(tempFPixel + a3) = 0.;
+            }
+          if (fabs(*(tempFPixel + b3)) < delta)
+            {
+            *(tempFPixel + b3) = 0.;
+            }
+          if (fabs(*(tempFPixel + c3)) < delta)
+            {
+            *(tempFPixel + c3) = 0.;
+            }
+          // Update
+          *(outFPixel + elemCnt) -= 0.25 * (*(tempFPixel + c) + *(tempFPixel + a));
+          // Predict
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + *(tempFPixel + b));
+          // Update
+          *(outFPixel + e1) -= 0.25 * (*(tempFPixel + c1) + *(tempFPixel + a1));
+          // Predict
+          *(outFPixel + a1) += 0.5 * (*(outFPixel + e1) + *(tempFPixel + b1));
+          // Update
+          *(outFPixel + e2) -= 0.25 * (*(tempFPixel + c2) + *(tempFPixel + a2));
+          // Predict
+          *(outFPixel + a2) += 0.5 * (*(outFPixel + e2) + *(tempFPixel + b2));
+          // Update
+          *(outFPixel + e3) -= 0.25 * (*(tempFPixel + c3) + *(tempFPixel + a3));
+          // Predict
+          *(outFPixel + a3) += 0.5 * (*(outFPixel + e3) + *(tempFPixel + b3));
+          break;
+        case VTK_DOUBLE:
+          // Thresholding
+          if (fabs(*(tempDPixel + a)) < delta)
+            {
+            *(tempDPixel + a) = 0.;
+            }
+          if (fabs(*(tempDPixel + b)) < delta)
+            {
+            *(tempDPixel + b) = 0.;
+            }
+          if (fabs(*(tempDPixel + c)) < delta)
+            {
+            *(tempDPixel + c) = 0.;
+            }
+          if (fabs(*(tempDPixel + a1)) < delta)
+            {
+            *(tempDPixel + a1) = 0.;
+            }
+          if (fabs(*(tempDPixel + b1)) < delta)
+            {
+            *(tempDPixel + b1) = 0.;
+            }
+          if (fabs(*(tempDPixel + c1)) < delta)
+            {
+            *(tempDPixel + c1) = 0.;
+            }
+          if (fabs(*(tempDPixel + a2)) < delta)
+            {
+            *(tempDPixel + a2) = 0.;
+            }
+          if (fabs(*(tempDPixel + b2)) < delta)
+            {
+            *(tempDPixel + b2) = 0.;
+            }
+          if (fabs(*(tempDPixel + c2)) < delta)
+            {
+            *(tempDPixel + c2) = 0.;
+            }
+          if (fabs(*(tempDPixel + a3)) < delta)
+            {
+            *(tempDPixel + a3) = 0.;
+            }
+          if (fabs(*(tempDPixel + b3)) < delta)
+            {
+            *(tempDPixel + b3) = 0.;
+            }
+          if (fabs(*(tempDPixel + c3)) < delta)
+            {
+            *(tempDPixel + c3) = 0.;
+            }
+          // Update
+          *(outDPixel + elemCnt) -= 0.25 * (*(tempDPixel + c) + *(tempDPixel + a));
+          // Predict
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + *(tempDPixel + b));
+          // Update
+          *(outDPixel + e1) -= 0.25 * (*(tempDPixel + c1) + *(tempDPixel + a1));
+          // Predict
+          *(outDPixel + a1) += 0.5 * (*(outDPixel + e1) + *(tempDPixel + b1));
+          // Update
+          *(outDPixel + e2) -= 0.25 * (*(tempDPixel + c2) + *(tempDPixel + a2));
+          // Predict
+          *(outDPixel + a2) += 0.5 * (*(outDPixel + e2) + *(tempDPixel + b2));
+          // Update
+          *(outDPixel + e3) -= 0.25 * (*(tempDPixel + c3) + *(tempDPixel + a3));
+          // Predict
+          *(outDPixel + a3) += 0.5 * (*(outDPixel + e3) + *(tempDPixel + b3));
+          break;
+        }
+      }
+
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      }
+
+    // Along Y
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+      int row = (int) floor(elemCnt / dims[0]);
+
+      if ((row % inc) > 0.)
+        {
+        elemCnt = elemCnt + inc3;
+        }
+      int a = elemCnt + inc4;
+      int b = a + inc4;
+      int c = elemCnt - inc4;
+
+      int res = elemCnt + inc2;
+      int resa = res + inc4;
+      int resb = resa + inc4;
+      int resc = res - inc4;
+
+      if (c < 0)
+        {
+        continue;
+        }
+
+      if(resb > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Thresholding
+          if (fabs(*(tempFPixel + a)) < delta)
+            {
+            *(tempFPixel + a) = 0.;
+            }
+          if (fabs(*(outFPixel + c)) < delta)
+            {
+            *(tempFPixel + c) = 0.;
+            }
+          if (fabs(*(tempFPixel + b)) < delta)
+            {
+            *(tempFPixel + b) = 0.;
+            }
+          if (fabs(*(tempFPixel + resa)) < delta)
+            {
+            *(tempFPixel + resa) = 0.;
+            }
+          if (fabs(*(tempFPixel + resb)) < delta)
+            {
+            *(tempFPixel + resb) = 0.;
+            }
+          if (fabs(*(outFPixel + c)) < delta)
+            {
+            *(tempFPixel + resc) = 0.;
+            }
+          // Update
+          *(outFPixel + elemCnt) -= 0.25 * (*(tempFPixel + c) + *(tempFPixel + a));
+          // Predict
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + *(tempFPixel + b));
+          // Update residuals
+          *(outFPixel + res) -= 0.25 * (*(tempFPixel + resc) + *(tempFPixel + resa));
+          // Predict residuals
+          *(outFPixel + resa) += 0.5 * (*(outFPixel + res) + *(tempFPixel + resb));
+          break;
+        case VTK_DOUBLE:
+          // Thresholding
+          if (fabs(*(tempDPixel + a)) < delta)
+            {
+            *(tempDPixel + a) = 0.;
+            }
+          if (fabs(*(outFPixel + c)) < delta)
+            {
+            *(tempDPixel + c) = 0.;
+            }
+          if (fabs(*(tempDPixel + b)) < delta)
+            {
+            *(tempDPixel + b) = 0.;
+            }
+          if (fabs(*(tempDPixel + resa)) < delta)
+            {
+            *(tempDPixel + resa) = 0.;
+            }
+          if (fabs(*(tempDPixel + resb)) < delta)
+            {
+            *(tempDPixel + resb) = 0.;
+            }
+          if (fabs(*(outFPixel + c)) < delta)
+            {
+            *(tempDPixel + resc) = 0.;
+            }
+          // Update
+          *(outDPixel + elemCnt) -= 0.25 * (*(tempDPixel + c) + *(tempDPixel + a));
+          // Predict
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + *(tempDPixel + b));
+          // Update residuals
+          *(outDPixel + res) -= 0.25 * (*(tempDPixel + resc) + *(tempDPixel + resa));
+          // Predict residuals
+          *(outDPixel + resa) += 0.5 * (*(outDPixel + res) + *(tempDPixel + resb));
+          break;
+        }
+      }
+
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      }
+
+    // Along X
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
+      {
+      if (pnode->GetStatus() == -1)
+        {
+        break;
+        }
+
+      int a = elemCnt + inc2;
+      int b = a + inc2;
+      int c = elemCnt - inc2;
+
+      if (c < 0)
+        {
+        continue;
+        }
+      if(b > numElements)
+        {
+        break;
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          // Thresholding
+          if (fabs(*(tempFPixel + a)) < delta)
+            {
+            *(tempFPixel + a) = 0.;
+            }
+          if (fabs(*(tempFPixel + b)) < delta)
+            {
+            *(tempFPixel + b) = 0.;
+            }
+          if (fabs(*(tempFPixel + c)) < delta)
+            {
+            *(tempFPixel + c) = 0.;
+            }
+          // Update
+          *(outFPixel + elemCnt) -= 0.25 * (*(tempFPixel + c) + *(tempFPixel + a));
+          // Predict
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + *(tempFPixel + b));
+
+          break;
+        case VTK_DOUBLE:
+          // Thresholding
+          if (fabs(*(tempDPixel + a)) < delta)
+            {
+            *(tempDPixel + a) = 0.;
+            }
+          if (fabs(*(tempDPixel + b)) < delta)
+            {
+            *(tempDPixel + b) = 0.;
+            }
+          if (fabs(*(tempDPixel + c)) < delta)
+            {
+            *(tempDPixel + c) = 0.;
+            }
+          // Update
+          *(outDPixel + elemCnt) -= 0.25 * (*(tempDPixel + c) + *(tempDPixel + a));
+          // Predict
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + *(tempDPixel + b));
+          break;
+        }
+      }
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      }
+    }
+
+  if (reduceX || reduceY || reduceZ)
+    {
+    int ii = 0;
+
+    int diffDims [3] = {dims[0] - oldDims[0],
+                        dims[1] - oldDims[1],
+                        dims[2] - oldDims[2]};
+    int tempNumRow = oldDims[0] - 1;
+    int tempNumSlice = (dims[0] * oldDims[1]);
+    for (int elemCnt = 0; elemCnt < oldNumElements; elemCnt++)
+      {
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(outFPixel + elemCnt) = *(outFPixel + elemCnt + ii);
+          break;
+        case VTK_DOUBLE:
+          *(outDPixel + elemCnt) = *(outDPixel + elemCnt + ii);
+          break;
+        }
+
+      int ref =  (int) floor((elemCnt + ii) / numSlice);
+      ref *= numSlice;
+      ref = elemCnt + ii - ref;
+      if (ref == tempNumSlice)
+        {
+        ii += (diffDims[1] * dims[0]);
+        }
+
+      ref = (int) floor((elemCnt + ii) / dims[0]);
+      ref *= dims[0];
+      ref = elemCnt + ii - ref;
+      if (ref == tempNumRow)
+        {
+        ii += diffDims[0];
+        }
+
+      }
+    outputVolume->GetImageData()->SetDimensions(oldDims);
+    }
+
+  outFPixel = NULL;
+  outDPixel = NULL;
+
+  delete outFPixel;
+  delete outDPixel;
+
+  tempFPixel = NULL;
+  tempDPixel = NULL;
+
+  delete tempFPixel;
+  delete tempDPixel;
+
+  this->Internal->tempVolumeData->Initialize();
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttribute();
+  pnode->SetStatus(0);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+}
+

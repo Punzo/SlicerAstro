@@ -494,6 +494,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
 
   d->FilterComboBox->setCurrentIndex(d->parametersNode->GetFilter());
+  d->AccuracyLabel->show();
+  d->AccuracySpinBox->show();
 
   switch (d->parametersNode->GetFilter())
     {
@@ -503,8 +505,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->KSpinBox->hide();
       d->TimeStepLabel->hide();
       d->TimeStepSpinBox->hide();
-      d->AccuracyLabel->show();
-      d->AccuracySpinBox->show();
       d->SigmaYLabel->show();
       d->DoubleSpinBoxY->show();
       d->SigmaZLabel->show();
@@ -512,15 +512,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("SigmaX:");
       d->SigmaYLabel->setText("SigmaY:");
       d->SigmaZLabel->setText("SigmaZ:");
-      d->DoubleSpinBoxX->setMaximum(10);
-      d->DoubleSpinBoxX->setSingleStep(0.5);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
-      if (d->DoubleSpinBoxX->decimals() != 2)
-        {
-        d->DoubleSpinBoxX->setDecimals(2);
-        }
       d->AccuracyLabel->setText("Kernel Accuracy:");
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
@@ -676,8 +670,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxY->show();
       d->SigmaZLabel->show();
       d->DoubleSpinBoxZ->show();
-      d->AccuracyLabel->show();
-      d->AccuracySpinBox->show();
 
       d->KSpinBox->setValue(d->parametersNode->GetK());
       d->TimeStepLabel->show();
@@ -686,15 +678,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaXLabel->setText("Horizontal Conduntance:");
       d->SigmaYLabel->setText("Vertical Conduntance:");
       d->SigmaZLabel->setText("Depth Conduntance:");
-      d->DoubleSpinBoxX->setMaximum(10);
-      d->DoubleSpinBoxX->setSingleStep(0.5);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
-      if (d->DoubleSpinBoxX->decimals() != 2)
-        {
-        d->DoubleSpinBoxX->setDecimals(2);
-        }
       d->AccuracyLabel->setText("Iterations:");
       d->AccuracySpinBox->setMaximum(30);
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -706,8 +692,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->DoubleSpinBoxY->hide();
       d->SigmaZLabel->hide();
       d->DoubleSpinBoxZ->hide();
-      d->AccuracySpinBox->hide();
-      d->AccuracyLabel->hide();
       d->GaussianKernelView->hide();
       d->RxLabel->hide();
       d->RxSpinBox->hide();
@@ -719,14 +703,35 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->KSpinBox->hide();
       d->TimeStepLabel->hide();
       d->TimeStepSpinBox->hide();
-      d->SigmaXLabel->setText("Wavelet level:");
-      d->DoubleSpinBoxX->setSingleStep(1);
+      d->SigmaXLabel->setText("Threshold level:");
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxX->setMaximum(5);
-      if (d->DoubleSpinBoxX->decimals() != 0)
-        {
-        d->DoubleSpinBoxX->setDecimals(0);
-        }
+      d->AccuracyLabel->setText("Wavelet level:");
+      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
+      d->AccuracySpinBox->setMaximum(5);
+      break;
+      }
+    case 3:
+      {
+      d->SigmaYLabel->hide();
+      d->DoubleSpinBoxY->hide();
+      d->SigmaZLabel->hide();
+      d->DoubleSpinBoxZ->hide();
+      d->GaussianKernelView->hide();
+      d->RxLabel->hide();
+      d->RxSpinBox->hide();
+      d->RyLabel->hide();
+      d->RySpinBox->hide();
+      d->RzLabel->hide();
+      d->RzSpinBox->hide();
+      d->KLabel->hide();
+      d->KSpinBox->hide();
+      d->TimeStepLabel->hide();
+      d->TimeStepSpinBox->hide();
+      d->SigmaXLabel->setText("Threshold level:");
+      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+      d->AccuracyLabel->setText("Wavelet level:");
+      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
+      d->AccuracySpinBox->setMaximum(5);
       break;
       }
     }
@@ -800,7 +805,14 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   if (index == 2)
     {
-    d->parametersNode->SetParameterX(3);
+    d->parametersNode->SetAccuracy(2);
+    d->parametersNode->SetParameterX(1.5);
+    }
+
+  if (index == 3)
+    {
+    d->parametersNode->SetAccuracy(2);
+    d->parametersNode->SetParameterX(4);
     }
 
   d->parametersNode->SetFilter(index);
@@ -975,7 +987,12 @@ void qSlicerSmoothingModuleWidget::onApply()
       }
     case 2:
       {
-      outSS<<"Wavelet Lifting";
+      outSS<<"Haar_Wavelet_Thresholding";
+      break;
+      }
+    case 3:
+      {
+      outSS<<"Gall_Wavelet_Thresholding";
       break;
       }
     }

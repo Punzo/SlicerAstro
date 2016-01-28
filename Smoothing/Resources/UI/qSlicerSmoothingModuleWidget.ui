@@ -232,7 +232,12 @@
         </item>
         <item>
          <property name="text">
-          <string>Wavelet Thresholding</string>
+          <string>Haar Wavelet Thresholding</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Gall Wavelet Thresholding</string>
          </property>
         </item>
        </widget>
