@@ -965,6 +965,15 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
 
+  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
+  // Check Input volume
+  if (n != 3)
+    {
+    qCritical() << "filtering techniques are available only" <<
+                  "for datacube with dimensionality 3 (NAXIS = 3).";
+    return;
+    }
+
   inputVolume->SetDisplayVisibility(0);
 
   vtkMRMLAstroVolumeNode *outputVolume =

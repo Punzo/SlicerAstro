@@ -79,6 +79,31 @@ qSlicerAstroVolumeModuleWidgetPrivate::~qSlicerAstroVolumeModuleWidgetPrivate()
 {
 }
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
+} // end namespace
+
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidget* q)
 {
@@ -231,24 +256,6 @@ qSlicerAstroVolumeModuleWidget::~qSlicerAstroVolumeModuleWidget()
 {
 }
 
-namespace
-{
-//----------------------------------------------------------------------------
-template <typename T> T StringToNumber(const char* num)
-{
-  std::stringstream ss;
-  ss << num;
-  T result;
-  return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-}
-
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
@@ -333,7 +340,16 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
         vtkMRMLAstroVolumeNode::SafeDownCast(node);
       if (astroVolumeNode)
         {
-        d->DisplayCollapsibleButton_2->setEnabled(true);
+        int n = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
+        // Check Input volume dimensionality
+        if (n != 3)
+          {
+          d->DisplayCollapsibleButton_2->setEnabled(false);
+          }
+        else
+          {
+          d->DisplayCollapsibleButton_2->setEnabled(true);
+          }
         // set it to be active in the slice windows
         vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
         vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();

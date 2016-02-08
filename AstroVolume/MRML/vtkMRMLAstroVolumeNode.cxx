@@ -61,13 +61,6 @@ int StringToInt(const char* str)
 {
   return StringToNumber<int>(str);
 }
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -122,7 +115,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 //---------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
 {
-  //We calculate the noise as the RMS of the negative part of 3 slices from the 3rd.
+  //We calculate the noise as the RMS of the negative part of 6 slices of the datacube.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   float *outFPixel = NULL;
@@ -141,8 +134,24 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
     }
   double sum = 0., noise1 = 0., noise2 = 0, noise = 0.;
   int cont = 0;
-  int lowBoundary = dims[0] * dims[1] * 2;
-  int highBoundary = dims[0] * dims[1] * 4;
+  int lowBoundary;
+  int highBoundary;
+
+  if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 3)
+    {
+    lowBoundary = dims[0] * dims[1] * 2;
+    highBoundary = dims[0] * dims[1] * 4;
+    }
+  else if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 2)
+    {
+    lowBoundary = dims[0] * 2;
+    highBoundary = dims[0] * 4;
+    }
+  else
+    {
+    lowBoundary = 2;
+    highBoundary = 4;
+    }
 
   switch (DataType)
     {
@@ -186,8 +195,21 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
       break;
     }
 
-  lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
-  highBoundary = dims[0] * dims[1] * (dims[2] - 2);
+  if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 3)
+    {
+    lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
+    highBoundary = dims[0] * dims[1] * (dims[2] - 2);
+    }
+  else if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 2)
+    {
+    lowBoundary = dims[0] * (dims[1] - 4);
+    highBoundary = dims[0] * (dims[1] - 2);
+    }
+  else
+    {
+    lowBoundary = dims[0] - 4;
+    highBoundary = dims[0] - 2;
+    }
 
   sum = 0.;
   cont = 0;

@@ -333,7 +333,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->UpdateRangeAttributes();
       }
-
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
       {
       volNode->UpdateNoiseAttribute();
