@@ -123,7 +123,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
 
   ///
   /// Given a coordinate of the volume and unit node,
-  /// create a string (for DAtaProve display)
+  /// create a string (for DataProve display)
   /// if special formatting is required
   virtual const char* GetDisplayStringFromValue(const double world,
                                                 vtkMRMLUnitNode *node);

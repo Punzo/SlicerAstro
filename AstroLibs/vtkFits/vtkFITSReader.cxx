@@ -345,6 +345,11 @@ void vtkFITSReader::ExecuteInformation()
   double theta3 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.) ? 0. : M_PI;
   theta1 += M_PI/2.;
 
+  if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) < 0.)
+    {
+    theta3 += M_PI;
+    }
+
   this->RasToIjkMatrix->SetElement(0, 0, cos(theta2) * cos(theta3));
   this->RasToIjkMatrix->SetElement(0, 1, 0.);
   this->RasToIjkMatrix->SetElement(0, 2, 0.);

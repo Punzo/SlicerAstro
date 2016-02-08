@@ -1358,7 +1358,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
     value = DoubleToString(displayValue) + node->GetSuffix() + " ";
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
-    displayValueString = DoubleToString(intpart);
+    displayValueString = DoubleToString(fabs(intpart));
     if(intpart < 10.)
       {
        displayValueString = " " + displayValueString;
@@ -1366,7 +1366,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
     value = value + displayValueString + "\x27 ";
     displayValueString = "";
     strstream.precision(node->GetPrecision());
-    strstream << fractpart;
+    strstream << fabs(fractpart);
     strstream >> displayValueString;
     if(fractpart < 10.)
       {
@@ -1445,7 +1445,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
       fractpart = 0.;
       intpart += 1.;
       }
-    displayValueString = DoubleToString(intpart);
+    displayValueString = DoubleToString(fabs(intpart));
     if(intpart < 10.)
       {
        displayValueString = " " + displayValueString;
@@ -1453,7 +1453,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
     value = value + displayValueString + "\x27 ";
     displayValueString = "";
     strstream.precision(0);
-    strstream << fractpart;
+    strstream << fabs(fractpart);
     strstream >> displayValueString;
     if(fractpart < 10.)
       {
