@@ -26,6 +26,25 @@ vtkMRMLAstroLabelMapVolumeNode::~vtkMRMLAstroLabelMapVolumeNode()
 {
 }
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> std::string NumberToString(T V)
+{
+  std::string stringValue;
+  std::stringstream strstream;
+  strstream << V;
+  strstream >> stringValue;
+  return stringValue;
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
+}
+}//end namespace
+
 //----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeNode::PrintSelf(ostream &os, vtkIndent indent)
 {
@@ -87,5 +106,16 @@ vtkMRMLStorageNode *vtkMRMLAstroLabelMapVolumeNode::CreateDefaultStorageNode()
 vtkMRMLAstroLabelMapVolumeDisplayNode *vtkMRMLAstroLabelMapVolumeNode::GetAstroLabelMapVolumeDisplayNode()
 {
   return vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(this->GetDisplayNode());
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
+{
+  this->GetImageData()->Modified();
+  this->GetImageData()->GetPointData()->GetScalars()->Modified();
+  double range[2];
+  this->GetImageData()->GetScalarRange(range);
+  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
+  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
 }
 

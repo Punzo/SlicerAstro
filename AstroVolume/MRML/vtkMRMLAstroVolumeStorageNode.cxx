@@ -280,21 +280,14 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     }
 
-  // rescaling flux and calculating max, min and noise
-  if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-       !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0.") ||
-       !strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U.") ||
-       !strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
+  // rescaling flux
+  if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
     {
     vtkImageData *imageData = reader->GetOutput();
     int vtkType = reader->GetDataType();
     int *dims = imageData->GetDimensions();
     const int numComponents = imageData->GetNumberOfScalarComponents();
-    double noise1 = 0., noise2 = 0, noise = 0.;
-    double range[2];
     const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-    int lowBoundary = dims[0] * dims[1] * 2;
-    int highBoundary = dims[0] * dims[1] * 4;
     switch (vtkType)
       {
       case VTK_DOUBLE:
@@ -308,69 +301,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
             *(dPixel+elemCnt) *= 0.005;
             }
           }
-
-        if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
-          {
-          double sum = 0.;
-          int cont = 0;
-          for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
-            {
-            if(*(dPixel+elemCnt) < 0.)
-              {
-              sum += *(dPixel+elemCnt);
-              cont++;
-              }
-            }
-          sum /= cont;
-          for( int elemCnt = lowBoundary; elemCnt < highBoundary; elemCnt++)
-            {
-            if(*(dPixel+elemCnt) < 0.)
-              {
-              noise1 += (*(dPixel+elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
-              }
-            }
-          noise1 = sqrt(noise1 / cont);
-
-          lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
-          highBoundary = dims[0] * dims[1] * (dims[2] - 2);
-
-          sum = 0.;
-          cont = 0;
-
-          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-            {
-            if(*(dPixel + elemCnt) < 0.)
-              {
-              sum += *(dPixel + elemCnt);
-              cont++;
-              }
-            }
-          sum /= cont;
-          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-            {
-            if(*(dPixel + elemCnt) < 0.)
-              {
-              noise2 += (*(dPixel + elemCnt) - sum) * (*(dPixel+elemCnt) - sum);
-              }
-            }
-          noise2 = sqrt(noise2 / cont);
-
-          if ((noise1 - noise2) > 0.3)
-            {
-            if (noise1 < noise2)
-              {
-              noise = noise1;
-              }
-            else
-              {
-              noise = noise2;
-              }
-            }
-          else
-            {
-            noise = (noise1 + noise2) / 2.;
-            }
-          }
         break;
       case VTK_FLOAT:
         float *fPixel;
@@ -382,102 +312,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
             *(fPixel+elemCnt) *= 0.005;
             }
           }
-
-        if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
-          {
-          double sum = 0.;
-          int cont = 0;
-          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-            {
-            if(*(fPixel+elemCnt) < 0.)
-              {
-              sum += *(fPixel+elemCnt);
-              cont++;
-              }
-            }
-          sum /= cont;
-          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-            {
-            if(*(fPixel+elemCnt) < 0.)
-              {
-              noise1 += (*(fPixel+elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
-              }
-            }
-          noise1 = sqrt(noise1 / cont);
-
-          lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
-          highBoundary = dims[0] * dims[1] * (dims[2] - 2);
-
-          sum = 0.;
-          cont = 0;
-
-          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-            {
-            if(*(fPixel + elemCnt) < 0.)
-              {
-              sum += *(fPixel + elemCnt);
-              cont++;
-              }
-            }
-          sum /= cont;
-          for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-            {
-            if(*(fPixel + elemCnt) < 0.)
-              {
-              noise2 += (*(fPixel + elemCnt) - sum) * (*(fPixel+elemCnt) - sum);
-              }
-            }
-          noise2 = sqrt(noise2 / cont);
-
-          if ((noise1 - noise2) > 0.3)
-            {
-            if (noise1 < noise2)
-              {
-              noise = noise1;
-              }
-            else
-              {
-              noise = noise2;
-              }
-            }
-          else
-            {
-            noise = (noise1 + noise2) / 2.;
-            }
-          }
         break;
       default:
         vtkErrorMacro("Could not get the data pointer. DataType not allowed.");
         return 0;
-      }
-    if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
-      {
-      if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-             !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
-        {
-        imageData->GetScalarRange(range);
-        volNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
-        volNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
-        }
-      if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
-        {
-        volNode->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
-        }
-      }
-    else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
-      {
-      if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-             !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
-        {
-        imageData->GetScalarRange(range);
-        volNode->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
-        volNode->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
-        }
-      if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
-        {
-        noise = 1.;
-        labvolNode->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
-        }
       }
     }
 
@@ -489,12 +327,34 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
-  volNode->SetImageDataConnection(ici->GetOutputPort());
+    volNode->SetImageDataConnection(ici->GetOutputPort());
+    if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
+           !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
+      {
+      volNode->UpdateRangeAttributes();
+      }
+
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
+      {
+      volNode->UpdateNoiseAttribute();
+      }
     }
   else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
     {
-  labvolNode->SetImageDataConnection(ici->GetOutputPort());
+    labvolNode->SetImageDataConnection(ici->GetOutputPort());
+    if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
+           !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
+      {
+      labvolNode->UpdateRangeAttributes();
+      }
+
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
+      {
+      double noise = 1.;
+      labvolNode->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
+      }
     }
+
   return 1;
 }
 

@@ -236,7 +236,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
 
   if ((noise1 - noise2) > 0.3)
     {
-    if (noise1 < noise2)
+    if (noise1 > noise2)
       {
       noise = noise1;
       }

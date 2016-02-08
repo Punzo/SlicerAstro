@@ -54,6 +54,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
   /// Get AstroVolume display node
   virtual vtkMRMLAstroLabelMapVolumeDisplayNode* GetAstroLabelMapVolumeDisplayNode();
 
+  ///
+  /// Update Max and Min Attributes
+  virtual void UpdateRangeAttributes();
+
 protected:
   vtkMRMLAstroLabelMapVolumeNode();
   ~vtkMRMLAstroLabelMapVolumeNode();
