@@ -1014,7 +1014,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
       {
       break;
       }
-    pnode->SetStatus((int) l * 100 / (pnode->GetAccuracy() * 2));
+    pnode->SetStatus((int) l * 50 / pnode->GetAccuracy());
 
     int inc = pow(2, l);
     int inc2 = (int) inc / 2;;
@@ -1176,7 +1176,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
     }
 
   // Inverse Trasform
-  int m = 0;
+  int m = pnode->GetAccuracy();
   for (int l = pnode->GetAccuracy(); l >= 1; l--)
     {
     if (pnode->GetStatus() == -1)
@@ -1184,7 +1184,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
       break;
       }
     m++;
-    pnode->SetStatus((int) m * 100 / pnode->GetAccuracy());
+    pnode->SetStatus((int) m * 50 / pnode->GetAccuracy());
 
     int inc = pow(2, l);
     int inc2 = (int) inc / 2;
@@ -1650,7 +1650,7 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
       {
       break;
       }
-    pnode->SetStatus((int) l * 100 / (pnode->GetAccuracy() * 2));
+    pnode->SetStatus((int) l * 50 / pnode->GetAccuracy());
 
     int inc = pow(2, l);
     int inc2 = (int) inc / 2;;
@@ -1882,7 +1882,7 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
     }
 
   // Inverse Trasform
-  int m = 0;
+  int m = pnode->GetAccuracy();
   for (int l = pnode->GetAccuracy(); l >= 1; l--)
     {
     if (pnode->GetStatus() == -1)
@@ -1890,7 +1890,7 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
       break;
       }
     m++;
-    pnode->SetStatus((int) m * 100 / pnode->GetAccuracy());
+    pnode->SetStatus((int) m * 50 / pnode->GetAccuracy());
 
     int inc = pow(2, l);
     int inc2 = (int) inc / 2;
