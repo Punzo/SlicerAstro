@@ -12,19 +12,30 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * 6) introduction of the SAMP protocol to enable interoperability with Topcat, and other VO tools and catalogs.
 </div>
 
-<h3> Progress:  </h3>
-* 1) FITS reader and AstroVolume done;
-* 1) WCS included in AstroVolume.
-* 1) Added AstroLabelMapVolume (WCS compatible).
-* 1) Generalization of qSlicerUnits.
-* 1) Slicer dataProbe moduile overrided with AstroDataProbe one.
-* 1) First desing of the AstroVolume interface done.
-* 1) Added WCS axis in the 2-D views. 
+<h3> Progress (1):  </h3>
+* FITS reader and AstroVolume done;
+* WCS included in AstroVolume.
+* Added AstroLabelMapVolume (WCS compatible).
+* Generalization of qSlicerUnits.
+* Slicer dataProbe moduile overrided with AstroDataProbe one.
+* First desing of the AstroVolume interface done.
+* Added WCS axis in the 2-D views. 
 </div>
 
-<h3> To Do list for point 1) </h3>
-* 1) SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
+<h3> To Do list (1) </h3>
+* SliceViewNode factorization: coordinates and units on the slice widget and setting the names of the planes.
 </div>
+
+<h3> Progress (3):  </h3>
+* module created;
+* interface designed;
+* Logic methods implemented on CPU;
+</div>
+
+<h3> To Do list (3) </h3>
+* imlement Logic method on GPU (OpenGL).
+</div>
+
 
 <h3> General NOTE  </h3>
 * Editor and LabelStatistics for the moment are not fully compatible with child class of ScalarVolume and LabelVolume. However let's wait the release of the segmentation class and editor from SlicerRT.
