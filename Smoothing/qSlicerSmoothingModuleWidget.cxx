@@ -513,7 +513,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaYLabel->setText("SigmaY:");
       d->SigmaZLabel->setText("SigmaZ:");
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxX->setMaximum(10);
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
       d->AccuracyLabel->setText("Kernel Accuracy:");
@@ -680,7 +679,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->SigmaYLabel->setText("Vertical Conduntance:");
       d->SigmaZLabel->setText("Depth Conduntance:");
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxX->setMaximum(10);
       d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
       d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
       d->AccuracyLabel->setText("Iterations:");
@@ -707,7 +705,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->TimeStepSpinBox->hide();
       d->SigmaXLabel->setText("Threshold level:");
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxX->setMaximum(10);
       d->AccuracyLabel->setText("Wavelet level:");
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
       d->AccuracySpinBox->setMaximum(5);
@@ -731,7 +728,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
       d->TimeStepLabel->hide();
       d->TimeStepSpinBox->hide();
       d->SigmaXLabel->setText("Threshold level:");
-      d->DoubleSpinBoxX->setMaximum(50);
       d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
       d->AccuracyLabel->setText("Wavelet level:");
       d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -816,7 +812,7 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
   if (index == 3)
     {
     d->parametersNode->SetAccuracy(2);
-    d->parametersNode->SetParameterX(10);
+    d->parametersNode->SetParameterX(4);
     }
 
   d->parametersNode->SetFilter(index);

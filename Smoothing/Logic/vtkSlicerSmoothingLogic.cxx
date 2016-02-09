@@ -1950,137 +1950,199 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
         {
         case VTK_FLOAT:
           // Thresholding
-          if (fabs(*(tempFPixel + a)) < delta)
+          float tempA, tempA1, tempA2, tempA3;
+          float tempB, tempB1, tempB2, tempB3;
+          float tempC, tempC1, tempC2, tempC3;
+          tempA = *(tempFPixel + a);
+          tempA1 = *(tempFPixel + a1);
+          tempA2 = *(tempFPixel + a2);
+          tempA3 = *(tempFPixel + a3);
+          tempB = *(tempFPixel + b);
+          tempB1 = *(tempFPixel + b1);
+          tempB2 = *(tempFPixel + b2);
+          tempB3 = *(tempFPixel + b3);
+          tempC = *(tempFPixel + c);
+          tempC1 = *(tempFPixel + c1);
+          tempC2 = *(tempFPixel + c2);
+          tempC3 = *(tempFPixel + c3);
+          if (fabs(tempA) < delta)
             {
-            *(tempFPixel + a) = 0.;
+            tempA = 0.;
             }
-          if (fabs(*(tempFPixel + b)) < delta)
+          if (fabs(tempB) < delta)
             {
-            *(tempFPixel + b) = 0.;
+            tempB = 0.;
             }
-          if (fabs(*(tempFPixel + c)) < delta)
+          if (fabs(tempC) < delta)
             {
-            *(tempFPixel + c) = 0.;
+            tempC = 0.;
             }
-          if (fabs(*(tempFPixel + a1)) < delta)
+          if (fabs(tempA1) < delta)
             {
-            *(tempFPixel + a1) = 0.;
+            tempA1 = 0.;
             }
-          if (fabs(*(tempFPixel + b1)) < delta)
+          if (fabs(tempB1) < delta)
             {
-            *(tempFPixel + b1) = 0.;
+            tempB1 = 0.;
             }
-          if (fabs(*(tempFPixel + c1)) < delta)
+          if (fabs(tempC1) < delta)
             {
-            *(tempFPixel + c1) = 0.;
+            tempC1 = 0.;
             }
-          if (fabs(*(tempFPixel + a2)) < delta)
+          if (fabs(tempA2) < delta)
             {
-            *(tempFPixel + a2) = 0.;
+            tempA2 = 0.;
             }
-          if (fabs(*(tempFPixel + b2)) < delta)
+          if (fabs(tempB2) < delta)
             {
-            *(tempFPixel + b2) = 0.;
+            tempB2 = 0.;
             }
-          if (fabs(*(tempFPixel + c2)) < delta)
+          if (fabs(tempC2) < delta)
             {
-            *(tempFPixel + c2) = 0.;
+            tempC2 = 0.;
             }
-          if (fabs(*(tempFPixel + a3)) < delta)
+          if (fabs(tempA3) < delta)
             {
-            *(tempFPixel + a3) = 0.;
+            tempA3 = 0.;
             }
-          if (fabs(*(tempFPixel + b3)) < delta)
+          if (fabs(tempB3) < delta)
             {
-            *(tempFPixel + b3) = 0.;
+            tempB3 = 0.;
             }
-          if (fabs(*(tempFPixel + c3)) < delta)
+          if (fabs(tempC3) < delta)
             {
-            *(tempFPixel + c3) = 0.;
+            tempC3 = 0.;
+            }
+          if (fabs(*(outFPixel + elemCnt)) < delta)
+            {
+            *(outFPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outFPixel + e1)) < delta)
+            {
+            *(outFPixel + e1) = 0.;
+            }
+          if (fabs(*(outFPixel + e2)) < delta)
+            {
+            *(outFPixel + e2) = 0.;
+            }
+          if (fabs(*(outFPixel + e3)) < delta)
+            {
+            *(outFPixel + e3) = 0.;
             }
           // Update
-          *(outFPixel + elemCnt) -= 0.25 * (*(tempFPixel + c) + *(tempFPixel + a));
+          *(outFPixel + elemCnt) -= 0.25 * (tempC + tempA);
           // Predict
-          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + *(tempFPixel + b));
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + tempB);
           // Update
-          *(outFPixel + e1) -= 0.25 * (*(tempFPixel + c1) + *(tempFPixel + a1));
+          *(outFPixel + e1) -= 0.25 * (tempC1 + tempA1);
           // Predict
-          *(outFPixel + a1) += 0.5 * (*(outFPixel + e1) + *(tempFPixel + b1));
+          *(outFPixel + a1) += 0.5 * (*(outFPixel + e1) + tempB1);
           // Update
-          *(outFPixel + e2) -= 0.25 * (*(tempFPixel + c2) + *(tempFPixel + a2));
+          *(outFPixel + e2) -= 0.25 * (tempC2 + tempA2);
           // Predict
-          *(outFPixel + a2) += 0.5 * (*(outFPixel + e2) + *(tempFPixel + b2));
+          *(outFPixel + a2) += 0.5 * (*(outFPixel + e2) + tempB2);
           // Update
-          *(outFPixel + e3) -= 0.25 * (*(tempFPixel + c3) + *(tempFPixel + a3));
+          *(outFPixel + e3) -= 0.25 * (tempC3 + tempA3);
           // Predict
-          *(outFPixel + a3) += 0.5 * (*(outFPixel + e3) + *(tempFPixel + b3));
+          *(outFPixel + a3) += 0.5 * (*(outFPixel + e3) + tempB3);
           break;
         case VTK_DOUBLE:
           // Thresholding
-          if (fabs(*(tempDPixel + a)) < delta)
+          double tempDA, tempDA1, tempDA2, tempDA3;
+          double tempDB, tempDB1, tempDB2, tempDB3;
+          double tempDC, tempDC1, tempDC2, tempDC3;
+          tempDA = *(tempDPixel + a);
+          tempDA1 = *(tempDPixel + a1);
+          tempDA2 = *(tempDPixel + a2);
+          tempDA3 = *(tempDPixel + a3);
+          tempDB = *(tempDPixel + b);
+          tempDB1 = *(tempDPixel + b1);
+          tempDB2 = *(tempDPixel + b2);
+          tempDB3 = *(tempDPixel + b3);
+          tempDC = *(tempDPixel + c);
+          tempDC1 = *(tempDPixel + c1);
+          tempDC2 = *(tempDPixel + c2);
+          tempDC3 = *(tempDPixel + c3);
+          if (fabs(tempDA) < delta)
             {
-            *(tempDPixel + a) = 0.;
+            tempDA = 0.;
             }
-          if (fabs(*(tempDPixel + b)) < delta)
+          if (fabs(tempDB) < delta)
             {
-            *(tempDPixel + b) = 0.;
+            tempDB = 0.;
             }
-          if (fabs(*(tempDPixel + c)) < delta)
+          if (fabs(tempDC) < delta)
             {
-            *(tempDPixel + c) = 0.;
+            tempDC = 0.;
             }
-          if (fabs(*(tempDPixel + a1)) < delta)
+          if (fabs(tempDA1) < delta)
             {
-            *(tempDPixel + a1) = 0.;
+            tempDA1 = 0.;
             }
-          if (fabs(*(tempDPixel + b1)) < delta)
+          if (fabs(tempDB1) < delta)
             {
-            *(tempDPixel + b1) = 0.;
+            tempDB1 = 0.;
             }
-          if (fabs(*(tempDPixel + c1)) < delta)
+          if (fabs(tempDC1) < delta)
             {
-            *(tempDPixel + c1) = 0.;
+            tempDC1 = 0.;
             }
-          if (fabs(*(tempDPixel + a2)) < delta)
+          if (fabs(tempDA2) < delta)
             {
-            *(tempDPixel + a2) = 0.;
+            tempDA2 = 0.;
             }
-          if (fabs(*(tempDPixel + b2)) < delta)
+          if (fabs(tempDB2) < delta)
             {
-            *(tempDPixel + b2) = 0.;
+            tempDB2 = 0.;
             }
-          if (fabs(*(tempDPixel + c2)) < delta)
+          if (fabs(tempDC2) < delta)
             {
-            *(tempDPixel + c2) = 0.;
+            tempDC2 = 0.;
             }
-          if (fabs(*(tempDPixel + a3)) < delta)
+          if (fabs(tempDA3) < delta)
             {
-            *(tempDPixel + a3) = 0.;
+            tempDA3 = 0.;
             }
-          if (fabs(*(tempDPixel + b3)) < delta)
+          if (fabs(tempDB3) < delta)
             {
-            *(tempDPixel + b3) = 0.;
+            tempDB3 = 0.;
             }
-          if (fabs(*(tempDPixel + c3)) < delta)
+          if (fabs(tempDC3) < delta)
             {
-            *(tempDPixel + c3) = 0.;
+            tempDC3 = 0.;
+            }
+          if (fabs(*(outDPixel + elemCnt)) < delta)
+            {
+            *(outDPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outDPixel + e1)) < delta)
+            {
+            *(outDPixel + e1) = 0.;
+            }
+          if (fabs(*(outDPixel + e2)) < delta)
+            {
+            *(outDPixel + e2) = 0.;
+            }
+          if (fabs(*(outDPixel + e3)) < delta)
+            {
+            *(outDPixel + e3) = 0.;
             }
           // Update
-          *(outDPixel + elemCnt) -= 0.25 * (*(tempDPixel + c) + *(tempDPixel + a));
+          *(outDPixel + elemCnt) -= 0.25 * (tempDC + tempDA);
           // Predict
-          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + *(tempDPixel + b));
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + tempDB);
           // Update
-          *(outDPixel + e1) -= 0.25 * (*(tempDPixel + c1) + *(tempDPixel + a1));
+          *(outDPixel + e1) -= 0.25 * (tempDC1 + tempDA1);
           // Predict
-          *(outDPixel + a1) += 0.5 * (*(outDPixel + e1) + *(tempDPixel + b1));
+          *(outDPixel + a1) += 0.5 * (*(outDPixel + e1) + tempDB1);
           // Update
-          *(outDPixel + e2) -= 0.25 * (*(tempDPixel + c2) + *(tempDPixel + a2));
+          *(outDPixel + e2) -= 0.25 * (tempDC2 + tempDA2);
           // Predict
-          *(outDPixel + a2) += 0.5 * (*(outDPixel + e2) + *(tempDPixel + b2));
+          *(outDPixel + a2) += 0.5 * (*(outDPixel + e2) + tempDB2);
           // Update
-          *(outDPixel + e3) -= 0.25 * (*(tempDPixel + c3) + *(tempDPixel + a3));
+          *(outDPixel + e3) -= 0.25 * (tempDC3 + tempDA3);
           // Predict
-          *(outDPixel + a3) += 0.5 * (*(outDPixel + e3) + *(tempDPixel + b3));
+          *(outDPixel + a3) += 0.5 * (*(outDPixel + e3) + tempDB3);
           break;
         }
       }
@@ -2133,73 +2195,107 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
         {
         case VTK_FLOAT:
           // Thresholding
-          if (fabs(*(tempFPixel + a)) < delta)
+          float tempA, tempResA;
+          float tempB, tempResB;
+          float tempC, tempResC;
+          tempA = *(tempFPixel + a);
+          tempResA = *(tempFPixel + resa);
+          tempB = *(tempFPixel + b);
+          tempResB = *(tempFPixel + resb);
+          tempC = *(tempFPixel + c);
+          tempResC = *(tempFPixel + resc);
+          if (fabs(tempA) < delta)
             {
-            *(tempFPixel + a) = 0.;
+            tempA = 0.;
             }
-          if (fabs(*(outFPixel + c)) < delta)
+          if (fabs(tempC) < delta)
             {
-            *(tempFPixel + c) = 0.;
+            tempC = 0.;
             }
-          if (fabs(*(tempFPixel + b)) < delta)
+          if (fabs(tempB) < delta)
             {
-            *(tempFPixel + b) = 0.;
+            tempB = 0.;
             }
-          if (fabs(*(tempFPixel + resa)) < delta)
+          if (fabs(tempResA) < delta)
             {
-            *(tempFPixel + resa) = 0.;
+            tempResA = 0.;
             }
-          if (fabs(*(tempFPixel + resb)) < delta)
+          if (fabs(tempResB) < delta)
             {
-            *(tempFPixel + resb) = 0.;
+            tempResB = 0.;
             }
-          if (fabs(*(outFPixel + c)) < delta)
+          if (fabs(tempResC) < delta)
             {
-            *(tempFPixel + resc) = 0.;
+            tempResC = 0.;
+            }
+          if (fabs(*(outFPixel + elemCnt)) < delta)
+            {
+            *(outFPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outFPixel + res)) < delta)
+            {
+            *(outFPixel + res) = 0.;
             }
           // Update
-          *(outFPixel + elemCnt) -= 0.25 * (*(tempFPixel + c) + *(tempFPixel + a));
+          *(outFPixel + elemCnt) -= 0.25 * (tempC + tempA);
           // Predict
-          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + *(tempFPixel + b));
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + tempB);
           // Update residuals
-          *(outFPixel + res) -= 0.25 * (*(tempFPixel + resc) + *(tempFPixel + resa));
+          *(outFPixel + res) -= 0.25 * (tempResC + tempResA);
           // Predict residuals
-          *(outFPixel + resa) += 0.5 * (*(outFPixel + res) + *(tempFPixel + resb));
+          *(outFPixel + resa) += 0.5 * (*(outFPixel + res) + tempResB);
           break;
         case VTK_DOUBLE:
           // Thresholding
-          if (fabs(*(tempDPixel + a)) < delta)
+          double tempDA, tempResDA;
+          double tempDB, tempResDB;
+          double tempDC, tempResDC;
+          tempDA = *(tempDPixel + a);
+          tempResDA = *(tempDPixel + resa);
+          tempDB = *(tempDPixel + b);
+          tempResDB = *(tempDPixel + resb);
+          tempDC = *(tempDPixel + c);
+          tempResDC = *(tempDPixel + resc);
+          if (fabs(tempDA) < delta)
             {
-            *(tempDPixel + a) = 0.;
+            tempDA = 0.;
             }
-          if (fabs(*(outFPixel + c)) < delta)
+          if (fabs(tempDC) < delta)
             {
-            *(tempDPixel + c) = 0.;
+            tempDC = 0.;
             }
-          if (fabs(*(tempDPixel + b)) < delta)
+          if (fabs(tempDB) < delta)
             {
-            *(tempDPixel + b) = 0.;
+            tempDB = 0.;
             }
-          if (fabs(*(tempDPixel + resa)) < delta)
+          if (fabs(tempResDA) < delta)
             {
-            *(tempDPixel + resa) = 0.;
+            tempResDA = 0.;
             }
-          if (fabs(*(tempDPixel + resb)) < delta)
+          if (fabs(tempResDB) < delta)
             {
-            *(tempDPixel + resb) = 0.;
+            tempResDB = 0.;
             }
-          if (fabs(*(outFPixel + c)) < delta)
+          if (fabs(tempResDC) < delta)
             {
-            *(tempDPixel + resc) = 0.;
+            tempResDC = 0.;
+            }
+          if (fabs(*(outDPixel + elemCnt)) < delta)
+            {
+            *(outDPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outDPixel + res)) < delta)
+            {
+            *(outDPixel + res) = 0.;
             }
           // Update
-          *(outDPixel + elemCnt) -= 0.25 * (*(tempDPixel + c) + *(tempDPixel + a));
+          *(outDPixel + elemCnt) -= 0.25 * (tempDC + tempDA);
           // Predict
-          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + *(tempDPixel + b));
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + tempDB);
           // Update residuals
-          *(outDPixel + res) -= 0.25 * (*(tempDPixel + resc) + *(tempDPixel + resa));
+          *(outDPixel + res) -= 0.25 * (tempResDC + tempResDA);
           // Predict residuals
-          *(outDPixel + resa) += 0.5 * (*(outDPixel + res) + *(tempDPixel + resb));
+          *(outDPixel + resa) += 0.5 * (*(outDPixel + res) + tempResDB);
           break;
         }
       }
@@ -2240,42 +2336,57 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
         {
         case VTK_FLOAT:
           // Thresholding
-          if (fabs(*(tempFPixel + a)) < delta)
+          float tempA, tempB, tempC;
+          tempA = *(tempFPixel + a);
+          tempB = *(tempFPixel + b);
+          tempC = *(tempFPixel + c);
+          if (fabs(tempA) < delta)
             {
-            *(tempFPixel + a) = 0.;
+            tempA = 0.;
             }
-          if (fabs(*(tempFPixel + b)) < delta)
+          if (fabs(tempB) < delta)
             {
-            *(tempFPixel + b) = 0.;
+            tempB = 0.;
             }
-          if (fabs(*(tempFPixel + c)) < delta)
+          if (fabs(tempC) < delta)
             {
-            *(tempFPixel + c) = 0.;
+            tempC = 0.;
+            }
+          if (fabs(*(outFPixel + elemCnt)) < delta)
+            {
+            *(outFPixel + elemCnt) = 0.;
             }
           // Update
-          *(outFPixel + elemCnt) -= 0.25 * (*(tempFPixel + c) + *(tempFPixel + a));
+          *(outFPixel + elemCnt) -= 0.25 * (tempC + tempA);
           // Predict
-          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + *(tempFPixel + b));
-
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + tempB);
           break;
         case VTK_DOUBLE:
           // Thresholding
-          if (fabs(*(tempDPixel + a)) < delta)
+          double tempDA, tempDB, tempDC;
+          tempDA = *(tempDPixel + a);
+          tempDB = *(tempDPixel + b);
+          tempDC = *(tempDPixel + c);
+          if (fabs(tempDA) < delta)
             {
-            *(tempDPixel + a) = 0.;
+            tempDA = 0.;
             }
-          if (fabs(*(tempDPixel + b)) < delta)
+          if (fabs(tempDB) < delta)
             {
-            *(tempDPixel + b) = 0.;
+            tempDB = 0.;
             }
-          if (fabs(*(tempDPixel + c)) < delta)
+          if (fabs(tempDC) < delta)
             {
-            *(tempDPixel + c) = 0.;
+            tempDC = 0.;
+            }
+          if (fabs(*(outDPixel + elemCnt)) < delta)
+            {
+            *(outDPixel + elemCnt) = 0.;
             }
           // Update
-          *(outDPixel + elemCnt) -= 0.25 * (*(tempDPixel + c) + *(tempDPixel + a));
+          *(outDPixel + elemCnt) -= 0.25 * (tempDC + tempDA);
           // Predict
-          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + *(tempDPixel + b));
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + tempDB);
           break;
         }
       }

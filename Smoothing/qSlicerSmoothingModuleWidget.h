@@ -25,6 +25,9 @@ public:
   /// Get vtkMRMLSmoothingParametersNode
   Q_INVOKABLE vtkMRMLSmoothingParametersNode* mrmlSmoothingParametersNode()const;
 
+public slots:
+  void onApply();
+
 protected:
   QScopedPointer<qSlicerSmoothingModuleWidgetPrivate> d_ptr;
 
@@ -49,7 +52,6 @@ protected slots:
   void onRxChanged(double value);
   void onRyChanged(double value);
   void onRzChanged(double value);
-  void onApply();
   void onComputationStarted();
   void onComputationCancelled();
   void onComputationFinished();
