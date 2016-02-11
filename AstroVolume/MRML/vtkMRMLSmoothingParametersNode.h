@@ -37,6 +37,14 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
   // Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() {return "SmoothingParameters";};
 
+  vtkSetMacro(ParameterX,double);
+  vtkGetMacro(ParameterX,double);
+
+  vtkSetMacro(ParameterY,double);
+  vtkGetMacro(ParameterY,double);
+
+  vtkSetMacro(ParameterZ,double);
+  vtkGetMacro(ParameterZ,double);
 
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
@@ -73,15 +81,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
 
   vtkSetMacro(TimeStep,double);
   vtkGetMacro(TimeStep,double);
-
-  vtkSetMacro(ParameterX,double);
-  vtkGetMacro(ParameterX,double);
-
-  vtkSetMacro(ParameterY,double);
-  vtkGetMacro(ParameterY,double);
-
-  vtkSetMacro(ParameterZ,double);
-  vtkGetMacro(ParameterZ,double);
 
   vtkSetMacro(KernelLengthX,int);
   vtkGetMacro(KernelLengthX,int);

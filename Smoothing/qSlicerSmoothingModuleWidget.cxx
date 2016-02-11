@@ -786,6 +786,27 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   int wasModifying = d->parametersNode->StartModify();
 
+
+  if (d->parametersNode->GetGaussianKernel3D())
+    {
+    d->parametersNode->GetGaussianKernel3D()->Initialize();
+    }
+
+  if (d->parametersNode->GetGaussianKernelX())
+    {
+    d->parametersNode->GetGaussianKernelX()->Initialize();
+    }
+
+  if (d->parametersNode->GetGaussianKernelY())
+    {
+    d->parametersNode->GetGaussianKernelY()->Initialize();
+    }
+
+  if (d->parametersNode->GetGaussianKernelZ())
+    {
+    d->parametersNode->GetGaussianKernelZ()->Initialize();
+    }
+
   if (index == 0)
     {
     d->parametersNode->SetAccuracy(3);

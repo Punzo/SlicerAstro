@@ -530,26 +530,6 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
     return;
     }
 
-  if (this->gaussianKernel3D)
-    {
-    this->gaussianKernel3D->Initialize();
-    }
-
-  if (this->gaussianKernelX)
-    {
-    this->gaussianKernelX->Initialize();
-    }
-
-  if (this->gaussianKernelY)
-    {
-    this->gaussianKernelY->Initialize();
-    }
-
-  if (this->gaussianKernelZ)
-    {
-    this->gaussianKernelZ->Initialize();
-    }
-
   if(fabs(this->ParameterX - this->ParameterY) < 0.001 &&
      fabs(this->ParameterY - this->ParameterZ) < 0.001)
     {
