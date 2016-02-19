@@ -813,15 +813,20 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     d->parametersNode->SetParameterX(1.5);
     d->parametersNode->SetParameterY(1.5);
     d->parametersNode->SetParameterZ(1.5);
+    d->parametersNode->SetRx(0);
+    d->parametersNode->SetRy(0);
+    d->parametersNode->SetRz(0);
     d->parametersNode->SetGaussianKernels();
     }
 
   if (index == 1)
     {
-    d->parametersNode->SetAccuracy(10);
-    d->parametersNode->SetParameterX(4);
-    d->parametersNode->SetParameterY(4);
-    d->parametersNode->SetParameterZ(4);
+    d->parametersNode->SetAccuracy(20);
+    d->parametersNode->SetTimeStep(0.0325);
+    d->parametersNode->SetK(1.5);
+    d->parametersNode->SetParameterX(5);
+    d->parametersNode->SetParameterY(5);
+    d->parametersNode->SetParameterZ(5);
     }
 
   if (index == 2)
@@ -1001,8 +1006,11 @@ void qSlicerSmoothingModuleWidget::onApply()
   outSS << inputVolume->GetName() << "_Filtered_" <<
     d->parametersNode->GetMode() << "_";
 
-  //in case of Automatic here the filter and parameters has to be setted
-  //for the moment Automatic mode is not implemented
+  if(!strcmp(d->parametersNode->GetMode(), "Automatic"))
+    {
+    this->onCurrentFilterChanged(1);
+    }
+
   switch (d->parametersNode->GetFilter())
     {
     case 0:
@@ -1074,10 +1082,6 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
     vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
 
-    //when Autoran will be implemented here should be checked how to improve perfomance.
-    //P.S.: before autoran it will be needed to implement the filters on GPU (OpneGL).
-    //Autoran implementation: will be a checkable box and if is true
-    //onMRMLSmoothingParametersNodeModified will call Apply.
     selectionNode->SetReferenceActiveVolumeID(d->parametersNode->GetOutputVolumeNodeID());
     selectionNode->SetReferenceSecondaryVolumeID(inputVolume->GetID());
 
