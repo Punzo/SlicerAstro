@@ -439,17 +439,17 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
-                                               double SpaceCoordinates[3])
+void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[4],
+                                               double SpaceCoordinates[4])
 {
   if (this->Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[3], theta[1];
+      double phi[1], imgcrd[4], theta[1];
       int stati[1];
 
-      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 3, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
+      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
         {
         vtkWarningMacro("wcsp2s ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<
@@ -461,16 +461,16 @@ void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3], double ijk[3])
+void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[4], double ijk[4])
 {
   if (this->Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[3], theta[1];
+      double phi[1], imgcrd[4], theta[1];
       int stati[1];
 
-      if ((this->WCSStatus = wcss2p(this->WCS, 1, 3, SpaceCoordinates, phi, theta, imgcrd, ijk, stati)))
+      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinates, phi, theta, imgcrd, ijk, stati)))
         {
         vtkWarningMacro("wcss2p ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<

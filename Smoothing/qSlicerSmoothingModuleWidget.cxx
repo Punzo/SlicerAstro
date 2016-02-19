@@ -1068,8 +1068,7 @@ void qSlicerSmoothingModuleWidget::onApply()
         {
         outputVolume->RemoveNthDisplayNodeID(i);
         }
-      }
-
+      } 
     }
   else
     {

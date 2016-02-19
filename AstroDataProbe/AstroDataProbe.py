@@ -26,7 +26,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     worldX = "0"
     worldY = "0"
     worldZ = "0"
-    world = [0., 0., 0.]
+    world = [0., 0., 0., 0.]
 
     CoordinateSystemName = "IJK"
 
@@ -42,6 +42,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         displayNode = volumeNode.GetDisplayNode()
         if displayNode:
           CoordinateSystemName = displayNode.GetSpace()
+          ijkFloat = ijkFloat + (0,)
           displayNode.GetReferenceSpace(ijkFloat, world)
           worldX = displayNode.GetDisplayStringFromValueX(world[0])
           worldY = displayNode.GetDisplayStringFromValueY(world[1])
@@ -147,9 +148,9 @@ def  makeAstroRuler(self, sliceNode):
               numberOfPointsVertical = [0]
               numberOfPointsVertical[0] = (int) (viewHeight / 100.) + 1
 
-              worldA = [0., 0., 0.]
-              worldB = [0., 0., 0.]
-              worldC = [0., 0., 0.]
+              worldA = [0., 0., 0., 0.]
+              worldB = [0., 0., 0., 0.]
+              worldC = [0., 0., 0., 0.]
               world = []
               xyzDisplay = []
               axisCoord = [0., 0.]
@@ -157,12 +158,15 @@ def  makeAstroRuler(self, sliceNode):
 
               xyz = [0, 0, 0]
               ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+              ijkFloat = ijkFloat + (0,)
               displayNode.GetReferenceSpace(ijkFloat, worldA)
               xyz = [viewWidth, 0, 0]
               ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+              ijkFloat = ijkFloat + (0,)
               displayNode.GetReferenceSpace(ijkFloat, worldB)
               xyz = [0, viewHeight, 0]
               ijkFloat = xyToIJK.TransformDoublePoint(xyz)
+              ijkFloat = ijkFloat + (0,)
               displayNode.GetReferenceSpace(ijkFloat, worldC)
 
               # calculate the wcsSteps for the two axes
@@ -190,41 +194,53 @@ def  makeAstroRuler(self, sliceNode):
 
                 i8 = i * 8
                 if(sliceNode.GetOrientationString() == "Sagittal"):
-                  world.append([worldA[0], worldA[1], axisCoord[0] + wcsStep[0] * i])
+                  world.append([worldA[0], worldA[1], axisCoord[0] + wcsStep[0] * i, 0.])
                 if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
-                  world.append([axisCoord[0] + wcsStep[0] * i, worldA[1], worldA[2]])
+                  world.append([axisCoord[0] + wcsStep[0] * i, worldA[1], worldA[2], 0.])
+                ijkm = [0., 0., 0., 0,]
                 ijk = [0., 0., 0.]
-                displayNode.GetIJKSpace(world[i], ijk)
+                displayNode.GetIJKSpace(world[i], ijkm)
                 xyToIJK.Inverse()
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 xyzDisplay.append(xyz)
                 pts.InsertPoint(i8, [xyz[0], 2, 0])
                 pts.InsertPoint(i8 + 1, [xyz[0], 12, 0])
                 if(sliceNode.GetOrientationString() == "Sagittal"):
                   displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[0] \
-                            + (wcsStep[0] * i + wcsStep[0] / 4.)], ijk)
+                            + (wcsStep[0] * i + wcsStep[0] / 4.), 0.], ijkm)
                 if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
                     displayNode.GetIJKSpace([axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.), \
-                                            worldA[1], worldA[2]], ijk)
+                                            worldA[1], worldA[2], 0.], ijkm)
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 pts.InsertPoint(i8 + 2, [xyz[0], 2, 0])
                 pts.InsertPoint(i8 + 3, [xyz[0], 7, 0])
                 if(sliceNode.GetOrientationString() == "Sagittal"):
                   displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[0] \
-                            + (wcsStep[0] * i + wcsStep[0] / 2.)], ijk)
+                            + (wcsStep[0] * i + wcsStep[0] / 2.), 0.], ijkm)
                 if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
                   displayNode.GetIJKSpace([axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.), \
-                                           worldA[1], worldA[2]], ijk)
-
+                                           worldA[1], worldA[2], 0.], ijkm)
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 pts.InsertPoint(i8 + 4, [xyz[0], 2, 0])
                 pts.InsertPoint(i8 + 5, [xyz[0], 7, 0])
                 if(sliceNode.GetOrientationString() == "Sagittal"):
                   displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[0] \
-                            + (wcsStep[0] * i + wcsStep[0] * 3. / 4.)], ijk)
+                            + (wcsStep[0] * i + wcsStep[0] * 3. / 4.), 0.], ijkm)
                 if(sliceNode.GetOrientationString() == "Coronal" or sliceNode.GetOrientationString() == "Axial"):
                   displayNode.GetIJKSpace([axisCoord[0] + (wcsStep[0] * i + wcsStep[0] *3. / 4.), \
-                                           worldA[1], worldA[2]], ijk)
+                                           worldA[1], worldA[2], 0.], ijkm)
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 pts.InsertPoint(i8 + 6, [xyz[0], 2, 0])
                 pts.InsertPoint(i8 + 7, [xyz[0], 7, 0])
@@ -238,40 +254,53 @@ def  makeAstroRuler(self, sliceNode):
                 i8 = i * 8
                 ii = i - numberOfPointsHorizontal[0]
                 if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
-                  world.append([worldA[0], axisCoord[1] + wcsStep[1] * ii, worldA[2]])
+                  world.append([worldA[0], axisCoord[1] + wcsStep[1] * ii, worldA[2], 0.])
                 if(sliceNode.GetOrientationString() == "Axial"):
-                  world.append([worldA[0], worldA[1], axisCoord[1] + wcsStep[1] * ii])
+                  world.append([worldA[0], worldA[1], axisCoord[1] + wcsStep[1] * ii, 0.])
+                ijkm = [0., 0., 0., 0.]
                 ijk = [0., 0., 0.]
-                displayNode.GetIJKSpace(world[i], ijk)
+                displayNode.GetIJKSpace(world[i], ijkm)
                 xyToIJK.Inverse()
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
-                xyzDisplay.append(xyz)
+                xyzDisplay.append(xyz)  
                 pts.InsertPoint(i8, [2, xyz[1], 0])
                 pts.InsertPoint(i8 + 1, [12, xyz[1], 0])
                 if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
                   displayNode.GetIJKSpace([worldA[0], axisCoord[1] \
-                            + (wcsStep[1] * ii + wcsStep[1] / 4.), worldA[2]], ijk)
+                            + (wcsStep[1] * ii + wcsStep[1] / 4.), worldA[2], 0.], ijkm)
                 if(sliceNode.GetOrientationString() == "Axial"):
                   displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[1] \
-                            + (wcsStep[1] * ii + wcsStep[1] / 4.)], ijk)
+                            + (wcsStep[1] * ii + wcsStep[1] / 4.), 0.], ijkm)
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 pts.InsertPoint(i8 + 2, [2, xyz[1], 0])
                 pts.InsertPoint(i8 + 3, [7, xyz[1], 0])
                 if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
                   displayNode.GetIJKSpace([worldA[0], axisCoord[1] \
-                            + (wcsStep[1] * ii + wcsStep[1] / 2.), worldA[2]], ijk)
+                            + (wcsStep[1] * ii + wcsStep[1] / 2.), worldA[2], 0.], ijkm)
                 if(sliceNode.GetOrientationString() == "Axial"):
                   displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[1] \
-                            + (wcsStep[1] * ii + wcsStep[1] / 2.)], ijk)
+                            + (wcsStep[1] * ii + wcsStep[1] / 2.), 0.], ijkm)
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 pts.InsertPoint(i8 + 4, [2, xyz[1], 0])
                 pts.InsertPoint(i8 + 5, [7, xyz[1], 0])
                 if(sliceNode.GetOrientationString() == "Sagittal" or sliceNode.GetOrientationString() == "Coronal"):
                   displayNode.GetIJKSpace([worldA[0], axisCoord[1] \
-                            + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.), worldA[2]], ijk)
+                            + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.), worldA[2], 0.], ijkm)
                 if(sliceNode.GetOrientationString() == "Axial"):
                   displayNode.GetIJKSpace([worldA[0], worldA[1], axisCoord[1] \
-                            + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.)], ijk)
+                            + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.), 0.], ijkm)
+                ijk[0] = ijkm[0]
+                ijk[1] = ijkm[1]
+                ijk[2] = ijkm[2]
                 xyz = xyToIJK.TransformDoublePoint(ijk)
                 pts.InsertPoint(i8 + 6, [2, xyz[1], 0])
                 pts.InsertPoint(i8 + 7, [7, xyz[1], 0])
