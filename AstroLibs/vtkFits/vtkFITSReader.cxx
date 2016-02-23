@@ -345,7 +345,8 @@ void vtkFITSReader::ExecuteInformation()
   double theta3 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.) ? 0. : M_PI;
   theta1 += M_PI/2.;
 
-  if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) < 0.)
+  if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) < 0. &&
+      StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.)
     {
     theta3 += M_PI;
     }
