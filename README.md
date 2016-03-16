@@ -29,13 +29,9 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 <h3> Progress (3):  </h3>
 * module created;
 * interface designed;
-* Logic methods implemented on CPU;
+* Logic methods implemented on CPU (OpenMP);
+* Logic methods implemented on GPU (OpenGL);
 </div>
-
-<h3> To Do list (3) </h3>
-* imlement Logic method on GPU (OpenGL).
-</div>
-
 
 <h3> General NOTE  </h3>
 * Editor and LabelStatistics for the moment are not fully compatible with child class of ScalarVolume and LabelVolume. However let's wait the release of the segmentation class and editor from SlicerRT.
