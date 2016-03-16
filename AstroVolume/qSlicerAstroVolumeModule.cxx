@@ -118,7 +118,9 @@ QString qSlicerAstroVolumeModule::acknowledgementText()const
     "</tr></table></center>"
     "This work was supported by ERC grant nr. 29153Fikl and the Slicer "
     "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
-    "</a> for details.<br>");
+    "</a> for details.<br>"
+    "Special thanks to Steve Pieper (Isomics), Jean-Christophe Fillion-Robin (Kitware)"
+    "and Andras Lasso (PerkLab, Queen's).");
   return acknowledgement;
 }
 

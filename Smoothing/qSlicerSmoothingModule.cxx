@@ -52,15 +52,17 @@ qSlicerSmoothingModule::~qSlicerSmoothingModule()
 QString qSlicerSmoothingModule::helpText()const
 {
   return "Smoothing module filters a Volume using several techniques. "
-         "The algorithms are optmized for Astronomical Neutral Hydoren (HI) data";
+         "The algorithms are optmized for Astronomical Neutral Hydoren (HI) data.";
 }
 
 //-----------------------------------------------------------------------------
 QString qSlicerSmoothingModule::acknowledgementText()const
 {
-  return "This module was developed by Davide Punzo "
+  return "This module was developed by Davide Punzo. "
          "This work was supported by ERC grant nr. 291531, "
-         "and Slicer community.";
+         "and Slicer community."
+         "Special thanks to Steve Pieper (Isomics) for support"
+         "regarding the GPU (OpenGL) implementation of the filters";
 }
 
 //-----------------------------------------------------------------------------
