@@ -54,6 +54,8 @@
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
 
+#define SigmatoFWHM 2.3548200450309493
+
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_Smoothing
 class qSlicerSmoothingModuleWidgetPrivate: public Ui_qSlicerSmoothingModuleWidget
@@ -177,6 +179,13 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   QObject::connect(CancelButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
+  QObject::connect(HardwareComboBox, SIGNAL(currentIndexChanged(int)),
+                   q, SLOT(onHardwareChanged(int)));
+
+  QObject::connect(LinkCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onLinkChanged(bool)));
+
+
   progressBar->hide();
   progressBar->setMinimum(0);
   progressBar->setMaximum(100);
@@ -233,6 +242,12 @@ template <typename T> T StringToNumber(const char* num)
 int StringToInt(const char* str)
 {
   return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -471,14 +486,16 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
 
   char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
-  vtkMRMLNode *inputVolumeNode = this->mrmlScene()->GetNodeByID(inputVolumeNodeID);
+  vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
   if (inputVolumeNode)
     {
     d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
     }
 
   char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
-  vtkMRMLNode *outputVolumeNode = this->mrmlScene()->GetNodeByID(outputVolumeNodeID);
+  vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
   if (outputVolumeNode)
     {
     d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
@@ -494,34 +511,25 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     }
 
   d->FilterComboBox->setCurrentIndex(d->parametersNode->GetFilter());
-  d->AccuracyLabel->show();
-  d->AccuracySpinBox->show();
+  d->HardwareComboBox->setCurrentIndex(d->parametersNode->GetHardware());
 
-  switch (d->parametersNode->GetFilter())
+  int status = d->parametersNode->GetStatus();
+
+  if(status == 0)
     {
-    case 0:
+    switch (d->parametersNode->GetFilter())
       {
-      d->KLabel->hide();
-      d->KSpinBox->hide();
-      d->TimeStepLabel->hide();
-      d->TimeStepSpinBox->hide();
-      d->SigmaYLabel->show();
-      d->DoubleSpinBoxY->show();
-      d->SigmaZLabel->show();
-      d->DoubleSpinBoxZ->show();
-      d->SigmaXLabel->setText("SigmaX:");
-      d->SigmaYLabel->setText("SigmaY:");
-      d->SigmaZLabel->setText("SigmaZ:");
-      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
-      d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
-      d->AccuracyLabel->setText("Kernel Accuracy:");
-      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
-      d->AccuracySpinBox->setMaximum(5);
-
-      if (fabs(d->parametersNode->GetParameterX() - d->parametersNode->GetParameterY()) < 0.001 &&
-         fabs(d->parametersNode->GetParameterY() - d->parametersNode->GetParameterZ()) < 0.001)
+      case 0:
         {
+        d->AccuracyLabel->hide();
+        d->AccuracySpinBox->hide();
+        d->AccuracyValueLabel->hide();
+        d->HardwareLabel->show();
+        d->HardwareComboBox->show();
+        d->KLabel->hide();
+        d->KSpinBox->hide();
+        d->TimeStepLabel->hide();
+        d->TimeStepSpinBox->hide();
         d->GaussianKernelView->hide();
         d->RxLabel->hide();
         d->RxSpinBox->hide();
@@ -529,214 +537,408 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->RySpinBox->hide();
         d->RzLabel->hide();
         d->RzSpinBox->hide();
-        }
-      else
-        {
-        d->GaussianKernelView->show();
-        d->RxLabel->show();
-        d->RxSpinBox->show();
-        d->RyLabel->show();
-        d->RySpinBox->show();
-        d->RzLabel->show();
-        d->RzSpinBox->show();
-
-        double Rx = d->parametersNode->GetRx();
-        double Ry = d->parametersNode->GetRy();
-        double Rz = d->parametersNode->GetRz();
-
-        d->RxSpinBox->setValue(Rx);
-        d->RySpinBox->setValue(Ry);
-        d->RzSpinBox->setValue(Rz);
-
-        d->GaussianKernelView->show();
-        vtkRenderer* renderer = d->GaussianKernelView->renderer();
-
-        vtkActorCollection* col = renderer->GetActors();
-        col->InitTraversal();
-        for (int i = 0; i < col->GetNumberOfItems(); i++)
-          {
-          renderer->RemoveActor(col->GetNextActor());
-          }
-
-        //Definition and transformation of the vtkEllipsoid
-        double RadiusX = d->parametersNode->GetParameterX();
-        if(RadiusX < 0.01)
-          {
-          RadiusX = 0.01;
-          }
-        double RadiusY = d->parametersNode->GetParameterY();
-        if(RadiusY < 0.01)
-          {
-          RadiusY = 0.01;
-          }
-        double RadiusZ = d->parametersNode->GetParameterZ();
-        if(RadiusZ < 0.01)
-          {
-          RadiusZ = 0.01;
-          }
-        d->parametricVTKEllipsoid->SetXRadius(RadiusX);
-        d->parametricVTKEllipsoid->SetYRadius(RadiusY);
-        d->parametricVTKEllipsoid->SetZRadius(RadiusZ);
-        d->parametricFunctionSource->SetParametricFunction(d->parametricVTKEllipsoid);
-        d->parametricFunctionSource->Update();
-
-        //Configuration of the rotation
-
-        Rx *= -1;
-        Ry *= -1;
-        Rz *= -1;
-
-        Rx *= d->DegToRad;
-        Ry *= d->DegToRad;
-        Rz *= d->DegToRad;
-        d->transformationMatrix->Identity();
-        double cx = cos(Rx);
-        double sx = sin(Rx);
-        double cy = cos(Ry);
-        double sy = sin(Ry);
-        double cz = cos(Rz);
-        double sz = sin(Rz);
-        d->transformationMatrix->SetElement(0, 0, cy * cz);
-        d->transformationMatrix->SetElement(0, 1, -cy * sz);
-        d->transformationMatrix->SetElement(0, 2, sy);
-        d->transformationMatrix->SetElement(1, 0, cz * sx * sy + cx * sz);
-        d->transformationMatrix->SetElement(1, 1, cx * cz - sx * sy * sz);
-        d->transformationMatrix->SetElement(1, 2, -cy * sx);
-        d->transformationMatrix->SetElement(2, 0, -cx * cz * sy + sx * sz);
-        d->transformationMatrix->SetElement(2, 1, cz * sx + cx * sy * sz);
-        d->transformationMatrix->SetElement(2, 2, cx * cy);
-
-        d->matrixToLinearTransform->SetInput(d->transformationMatrix);
-        d->matrixToLinearTransform->Update();
-
-        d->mapper->SetInputConnection(d->parametricFunctionSource->GetOutputPort());
-        d->actor->SetMapper(d->mapper);
-        d->actor->GetProperty()->SetColor(0.0, 1.0, 1.0);
-        d->actor->SetUserTransform(d->matrixToLinearTransform);
-
-        renderer->AddActor(d->actor);
-        renderer->SetBackground(0., 0., 0.);
-
-        vtkCamera* camera = d->GaussianKernelView->activeCamera();
-
-        vtkCollection *coll = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
-        vtkMRMLCameraNode *cameraNodeOne =
-          vtkMRMLCameraNode::SafeDownCast(coll->GetItemAsObject(0));
-        if (cameraNodeOne)
-          {
-          double Origin[3];
-          cameraNodeOne->GetPosition(Origin);
-          Origin[0] /= 15.;
-          Origin[1] /= 15.;
-          Origin[2] /= 15.;
-          //Ry(90)
-          double temp = Origin[1];
-          Origin[1] = -Origin[2];
-          Origin[2] = temp;
-          //Rz(-180)
-          Origin[0] *= -1;
-          Origin[1] *= -1;
-          camera->SetPosition(Origin);
-          cameraNodeOne->GetFocalPoint(Origin);
-          camera->SetFocalPoint(Origin);
-          cameraNodeOne->GetViewUp(Origin);
-          //Ry(90)
-          temp = Origin[1];
-          Origin[1] = -Origin[2];
-          Origin[2] = temp;
-          //Rz(-180)
-          Origin[0] *= -1;
-          Origin[1] *= -1;
-          camera->SetViewUp(Origin);
-          }
-        coll->RemoveAllItems();
-        coll->Delete();
-
-        }
+        d->LinkCheckBox->show();
+        d->LinkLabel->show();
+        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters N_X, N_Y and N_Z");
+        d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
+        d->CDELT1Label->show();
+        d->CDELT1LabelValue->show();
+        d->CDELT2Label->show();
+        d->CDELT2LabelValue->show();
+        d->CDELT3Label->show();
+        d->CDELT3LabelValue->show();
+        d->SigmaYLabel->show();
+        d->DoubleSpinBoxY->show();
+        d->SigmaZLabel->show();
+        d->DoubleSpinBoxZ->show();
+        double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
+        d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                     ->GetDisplayStringFromValueX(cdelt1));
+        double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
+        d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                     ->GetDisplayStringFromValueY(cdelt2));
+        double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
+        d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                     ->GetDisplayStringFromValueZ(cdelt3));
+        d->SigmaXLabel->setText("N_X:");
+        d->SigmaYLabel->setText("N_Y:");
+        d->SigmaZLabel->setText("N_Z:");
+        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction");
+        d->DoubleSpinBoxX->setSingleStep(2);
+        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        d->DoubleSpinBoxY->setToolTip("Number of pixel of the Box kernel in the Y direction");
+        d->DoubleSpinBoxY->setSingleStep(2);
+        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction");
+        d->DoubleSpinBoxZ->setSingleStep(2);
         break;
-      }
-    case 1:
-      {
-      d->GaussianKernelView->hide();
-      d->RxLabel->hide();
-      d->RxSpinBox->hide();
-      d->RyLabel->hide();
-      d->RySpinBox->hide();
-      d->RzLabel->hide();
-      d->RzSpinBox->hide();
-      d->KLabel->show();
-      d->KSpinBox->show();
-      d->SigmaYLabel->show();
-      d->DoubleSpinBoxY->show();
-      d->SigmaZLabel->show();
-      d->DoubleSpinBoxZ->show();
+        }
+      case 1:
+        {
+        d->AccuracyLabel->show();
+        d->AccuracySpinBox->show();
+        d->AccuracyValueLabel->show();
+        d->HardwareLabel->show();
+        d->HardwareComboBox->show();
+        d->KLabel->hide();
+        d->KSpinBox->hide();
+        d->TimeStepLabel->hide();
+        d->TimeStepSpinBox->hide();
+        d->LinkCheckBox->show();
+        d->LinkLabel->show();
+        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters FWHM_X, FWHM_Y and FWHM_Z");
+        d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
+        d->CDELT1Label->show();
+        d->CDELT1LabelValue->show();
+        d->CDELT2Label->show();
+        d->CDELT2LabelValue->show();
+        d->CDELT3Label->show();
+        d->CDELT3LabelValue->show();
+        d->SigmaYLabel->show();
+        d->DoubleSpinBoxY->show();
+        d->SigmaZLabel->show();
+        d->DoubleSpinBoxZ->show();
+        double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
+        d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                     ->GetDisplayStringFromValueX(cdelt1));
+        double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
+        d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                     ->GetDisplayStringFromValueY(cdelt2));
+        double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
+        d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                     ->GetDisplayStringFromValueZ(cdelt3));
+        d->SigmaXLabel->setText("FWHM_X:");
+        d->SigmaYLabel->setText("FWHM_Y:");
+        d->SigmaZLabel->setText("FWHM_Z:");
+        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction");
+        d->DoubleSpinBoxX->setSingleStep(1);
+        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction");
+        d->DoubleSpinBoxY->setSingleStep(1);
+        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction");
+        d->DoubleSpinBoxZ->setSingleStep(1);
+        d->AccuracyLabel->setText("Kernel Accuracy:");
+        d->AccuracySpinBox->setSingleStep(1);
+        d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
+        d->AccuracySpinBox->setMaximum(5);
+        d->AccuracySpinBox->setToolTip("Set the accuracy of the Gaussian Kernel in sigma units");
+        switch (d->parametersNode->GetAccuracy())
+          {
+          case 1:
+            {
+            d->AccuracyValueLabel->setText("       68.27%");
+            break;
+            }
+          case 2:
+            {
+            d->AccuracyValueLabel->setText("       95.45%");
+            break;
+            }
+          case 3:
+            {
+            d->AccuracyValueLabel->setText("       99.73%");
+            break;
+            }
+          case 4:
+            {
+            d->AccuracyValueLabel->setText("      99.994%");
+            break;
+            }
+          case 5:
+            {
+            d->AccuracyValueLabel->setText("     99.99994%");
+            break;
+            }
+          }
 
-      d->KSpinBox->setValue(d->parametersNode->GetK());
-      d->TimeStepLabel->show();
-      d->TimeStepSpinBox->show();
-      d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
-      d->SigmaXLabel->setText("Horizontal Conduntance:");
-      d->SigmaYLabel->setText("Vertical Conduntance:");
-      d->SigmaZLabel->setText("Depth Conduntance:");
-      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
-      d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
-      d->AccuracyLabel->setText("Iterations:");
-      d->AccuracySpinBox->setMaximum(30);
-      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
-      break;
-      }
-    case 2:
-      {
-      d->SigmaYLabel->hide();
-      d->DoubleSpinBoxY->hide();
-      d->SigmaZLabel->hide();
-      d->DoubleSpinBoxZ->hide();
-      d->GaussianKernelView->hide();
-      d->RxLabel->hide();
-      d->RxSpinBox->hide();
-      d->RyLabel->hide();
-      d->RySpinBox->hide();
-      d->RzLabel->hide();
-      d->RzSpinBox->hide();
-      d->KLabel->hide();
-      d->KSpinBox->hide();
-      d->TimeStepLabel->hide();
-      d->TimeStepSpinBox->hide();
-      d->SigmaXLabel->setText("Threshold level:");
-      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->AccuracyLabel->setText("Wavelet level:");
-      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
-      d->AccuracySpinBox->setMaximum(5);
-      break;
-      }
-    case 3:
-      {
-      d->SigmaYLabel->hide();
-      d->DoubleSpinBoxY->hide();
-      d->SigmaZLabel->hide();
-      d->DoubleSpinBoxZ->hide();
-      d->GaussianKernelView->hide();
-      d->RxLabel->hide();
-      d->RxSpinBox->hide();
-      d->RyLabel->hide();
-      d->RySpinBox->hide();
-      d->RzLabel->hide();
-      d->RzSpinBox->hide();
-      d->KLabel->hide();
-      d->KSpinBox->hide();
-      d->TimeStepLabel->hide();
-      d->TimeStepSpinBox->hide();
-      d->SigmaXLabel->setText("Threshold level:");
-      d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-      d->AccuracyLabel->setText("Wavelet level:");
-      d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
-      d->AccuracySpinBox->setMaximum(5);
-      break;
+
+        if (fabs(d->parametersNode->GetParameterX() - d->parametersNode->GetParameterY()) < 0.001 &&
+           fabs(d->parametersNode->GetParameterY() - d->parametersNode->GetParameterZ()) < 0.001)
+          {
+          d->GaussianKernelView->hide();
+          d->RxLabel->hide();
+          d->RxSpinBox->hide();
+          d->RyLabel->hide();
+          d->RySpinBox->hide();
+          d->RzLabel->hide();
+          d->RzSpinBox->hide();
+          }
+        else
+          {
+          d->GaussianKernelView->show();
+          d->RxLabel->show();
+          d->RxSpinBox->show();
+          d->RyLabel->show();
+          d->RySpinBox->show();
+          d->RzLabel->show();
+          d->RzSpinBox->show();
+
+          double Rx = d->parametersNode->GetRx();
+          double Ry = d->parametersNode->GetRy();
+          double Rz = d->parametersNode->GetRz();
+
+          d->RxSpinBox->setValue(Rx);
+          d->RySpinBox->setValue(Ry);
+          d->RzSpinBox->setValue(Rz);
+
+          d->GaussianKernelView->show();
+          vtkRenderer* renderer = d->GaussianKernelView->renderer();
+
+          vtkActorCollection* col = renderer->GetActors();
+          col->InitTraversal();
+          for (int i = 0; i < col->GetNumberOfItems(); i++)
+            {
+            renderer->RemoveActor(col->GetNextActor());
+            }
+
+          //Definition and transformation of the vtkEllipsoid
+          double RadiusX = d->parametersNode->GetParameterX() / SigmatoFWHM;
+          if(RadiusX < 0.01)
+            {
+            RadiusX = 0.01;
+            }
+          double RadiusY = d->parametersNode->GetParameterY() / SigmatoFWHM;
+          if(RadiusY < 0.01)
+            {
+            RadiusY = 0.01;
+            }
+          double RadiusZ = d->parametersNode->GetParameterZ() / SigmatoFWHM;
+          if(RadiusZ < 0.01)
+            {
+            RadiusZ = 0.01;
+            }
+          d->parametricVTKEllipsoid->SetXRadius(RadiusX);
+          d->parametricVTKEllipsoid->SetYRadius(RadiusY);
+          d->parametricVTKEllipsoid->SetZRadius(RadiusZ);
+          d->parametricFunctionSource->SetParametricFunction(d->parametricVTKEllipsoid);
+          d->parametricFunctionSource->Update();
+
+          //Configuration of the rotation
+
+          Rx *= -1;
+          Ry *= -1;
+          Rz *= -1;
+
+          Rx *= d->DegToRad;
+          Ry *= d->DegToRad;
+          Rz *= d->DegToRad;
+          d->transformationMatrix->Identity();
+          double cx = cos(Rx);
+          double sx = sin(Rx);
+          double cy = cos(Ry);
+          double sy = sin(Ry);
+          double cz = cos(Rz);
+          double sz = sin(Rz);
+          d->transformationMatrix->SetElement(0, 0, cy * cz);
+          d->transformationMatrix->SetElement(0, 1, -cy * sz);
+          d->transformationMatrix->SetElement(0, 2, sy);
+          d->transformationMatrix->SetElement(1, 0, cz * sx * sy + cx * sz);
+          d->transformationMatrix->SetElement(1, 1, cx * cz - sx * sy * sz);
+          d->transformationMatrix->SetElement(1, 2, -cy * sx);
+          d->transformationMatrix->SetElement(2, 0, -cx * cz * sy + sx * sz);
+          d->transformationMatrix->SetElement(2, 1, cz * sx + cx * sy * sz);
+          d->transformationMatrix->SetElement(2, 2, cx * cy);
+
+          d->matrixToLinearTransform->SetInput(d->transformationMatrix);
+          d->matrixToLinearTransform->Update();
+
+          d->mapper->SetInputConnection(d->parametricFunctionSource->GetOutputPort());
+          d->actor->SetMapper(d->mapper);
+          d->actor->GetProperty()->SetColor(0.0, 1.0, 1.0);
+          d->actor->SetUserTransform(d->matrixToLinearTransform);
+
+          renderer->AddActor(d->actor);
+          renderer->SetBackground(0., 0., 0.);
+
+          vtkCamera* camera = d->GaussianKernelView->activeCamera();
+
+          vtkCollection *coll = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
+          vtkMRMLCameraNode *cameraNodeOne =
+            vtkMRMLCameraNode::SafeDownCast(coll->GetItemAsObject(0));
+          if (cameraNodeOne)
+            {
+            double Origin[3];
+            cameraNodeOne->GetPosition(Origin);
+            Origin[0] /= 15.;
+            Origin[1] /= 15.;
+            Origin[2] /= 15.;
+            //Ry(90)
+            double temp = Origin[1];
+            Origin[1] = -Origin[2];
+            Origin[2] = temp;
+            //Rz(-180)
+            Origin[0] *= -1;
+            Origin[1] *= -1;
+            camera->SetPosition(Origin);
+            cameraNodeOne->GetFocalPoint(Origin);
+            camera->SetFocalPoint(Origin);
+            cameraNodeOne->GetViewUp(Origin);
+            //Ry(90)
+            temp = Origin[1];
+            Origin[1] = -Origin[2];
+            Origin[2] = temp;
+            //Rz(-180)
+            Origin[0] *= -1;
+            Origin[1] *= -1;
+            camera->SetViewUp(Origin);
+            }
+          coll->RemoveAllItems();
+          coll->Delete();
+          }
+        break;
+        }
+      case 2:
+        {
+        d->AccuracyLabel->show();
+        d->AccuracySpinBox->show();
+        d->AccuracyValueLabel->hide();
+        d->HardwareLabel->show();
+        d->HardwareComboBox->show();
+        d->GaussianKernelView->hide();
+        d->RxLabel->hide();
+        d->RxSpinBox->hide();
+        d->RyLabel->hide();
+        d->RySpinBox->hide();
+        d->RzLabel->hide();
+        d->RzSpinBox->hide();
+        d->CDELT1Label->hide();
+        d->CDELT1LabelValue->hide();
+        d->CDELT2Label->hide();
+        d->CDELT2LabelValue->hide();
+        d->CDELT3Label->hide();
+        d->CDELT3LabelValue->hide();
+
+        d->LinkCheckBox->show();
+        d->LinkLabel->show();
+        d->LinkCheckBox->setToolTip("Click to link / unlink the conductivity parameters");
+        d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
+        d->KLabel->show();
+        d->KSpinBox->show();
+        d->SigmaYLabel->show();
+        d->DoubleSpinBoxY->show();
+        d->SigmaZLabel->show();
+        d->DoubleSpinBoxZ->show();
+
+        d->KSpinBox->setValue(d->parametersNode->GetK());
+        d->TimeStepLabel->show();
+        d->TimeStepSpinBox->show();
+        d->SigmaXLabel->setText("Horizontal Conduntance:");
+        d->SigmaYLabel->setText("Vertical Conduntance:");
+        d->SigmaZLabel->setText("Depth Conduntance:");
+        d->DoubleSpinBoxX->setToolTip("");
+        d->DoubleSpinBoxY->setToolTip("");
+        d->DoubleSpinBoxZ->setToolTip("");
+        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setSingleStep(1);
+        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        d->DoubleSpinBoxY->setSingleStep(1);
+        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        d->DoubleSpinBoxZ->setSingleStep(1);
+        d->AccuracyLabel->setText("Iterations:");
+        d->AccuracySpinBox->setMaximum(30);
+        d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
+        d->AccuracySpinBox->setToolTip("");
+        if (d->parametersNode->GetHardware())
+          {
+          d->AccuracySpinBox->setSingleStep(2);
+          d->TimeStepSpinBox->setMaximum(0.625);
+          d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
+          }
+        else
+          {
+          d->AccuracySpinBox->setSingleStep(1);
+          d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
+          d->TimeStepSpinBox->setMaximum(0.0625);
+          }
+        break;
+        }
+      case 3:
+        {
+        d->AccuracyLabel->show();
+        d->AccuracySpinBox->show();
+        d->AccuracyValueLabel->hide();
+        d->HardwareLabel->hide();
+        d->HardwareComboBox->hide();
+        d->SigmaYLabel->hide();
+        d->DoubleSpinBoxY->hide();
+        d->SigmaZLabel->hide();
+        d->DoubleSpinBoxZ->hide();
+        d->LinkCheckBox->hide();
+        d->LinkLabel->hide();
+        d->CDELT1Label->hide();
+        d->CDELT1LabelValue->hide();
+        d->CDELT2Label->hide();
+        d->CDELT2LabelValue->hide();
+        d->CDELT3Label->hide();
+        d->CDELT3LabelValue->hide();
+        d->GaussianKernelView->hide();
+        d->RxLabel->hide();
+        d->RxSpinBox->hide();
+        d->RyLabel->hide();
+        d->RySpinBox->hide();
+        d->RzLabel->hide();
+        d->RzSpinBox->hide();
+        d->KLabel->hide();
+        d->KSpinBox->hide();
+        d->TimeStepLabel->hide();
+        d->TimeStepSpinBox->hide();
+        d->SigmaXLabel->setText("Threshold level:");
+        d->DoubleSpinBoxX->setToolTip("");
+        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setSingleStep(1);
+        d->AccuracyLabel->setText("Wavelet level:");
+        d->AccuracySpinBox->setSingleStep(1);
+        d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
+        d->AccuracySpinBox->setMaximum(5);
+        d->AccuracySpinBox->setToolTip("");
+        break;
+        }
+      case 4:
+        {
+        d->AccuracyLabel->show();
+        d->AccuracySpinBox->show();
+        d->AccuracyValueLabel->hide();
+        d->HardwareLabel->hide();
+        d->HardwareComboBox->hide();
+        d->SigmaYLabel->hide();
+        d->DoubleSpinBoxY->hide();
+        d->SigmaZLabel->hide();
+        d->DoubleSpinBoxZ->hide();
+        d->LinkCheckBox->hide();
+        d->LinkLabel->hide();
+        d->CDELT1Label->hide();
+        d->CDELT1LabelValue->hide();
+        d->CDELT2Label->hide();
+        d->CDELT2LabelValue->hide();
+        d->CDELT3Label->hide();
+        d->CDELT3LabelValue->hide();
+        d->GaussianKernelView->hide();
+        d->RxLabel->hide();
+        d->RxSpinBox->hide();
+        d->RyLabel->hide();
+        d->RySpinBox->hide();
+        d->RzLabel->hide();
+        d->RzSpinBox->hide();
+        d->KLabel->hide();
+        d->KSpinBox->hide();
+        d->TimeStepLabel->hide();
+        d->TimeStepSpinBox->hide();
+        d->SigmaXLabel->setText("Threshold level:");
+        d->DoubleSpinBoxX->setToolTip("");
+        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setSingleStep(1);
+        d->AccuracyLabel->setText("Wavelet level:");
+        d->AccuracySpinBox->setSingleStep(1);
+        d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
+        d->AccuracySpinBox->setMaximum(5);
+        d->AccuracySpinBox->setToolTip("");
+        break;
+        }
       }
     }
-
-  int status = d->parametersNode->GetStatus();
 
   if(status == 0)
     {
@@ -765,6 +967,8 @@ void qSlicerSmoothingModuleWidget::onModeChanged()
     return;
     }
 
+  int wasModifying = d->parametersNode->StartModify();
+
   if (d->ManualModeRadioButton->isChecked())
     {
     d->parametersNode->SetMode("Manual");
@@ -772,7 +976,17 @@ void qSlicerSmoothingModuleWidget::onModeChanged()
   if (d->AutomaticModeRadioButton->isChecked())
     {
     d->parametersNode->SetMode("Automatic");
+    d->parametersNode->SetHardware(0);
+    d->parametersNode->SetFilter(2);
+    d->parametersNode->SetAccuracy(20);
+    d->parametersNode->SetTimeStep(0.0325);
+    d->parametersNode->SetK(1.5);
+    d->parametersNode->SetParameterX(5);
+    d->parametersNode->SetParameterY(5);
+    d->parametersNode->SetParameterZ(5);
     }
+
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -786,57 +1000,53 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   int wasModifying = d->parametersNode->StartModify();
 
-
-  if (d->parametersNode->GetGaussianKernel3D())
-    {
-    d->parametersNode->GetGaussianKernel3D()->Initialize();
-    }
-
-  if (d->parametersNode->GetGaussianKernelX())
-    {
-    d->parametersNode->GetGaussianKernelX()->Initialize();
-    }
-
-  if (d->parametersNode->GetGaussianKernelY())
-    {
-    d->parametersNode->GetGaussianKernelY()->Initialize();
-    }
-
-  if (d->parametersNode->GetGaussianKernelZ())
-    {
-    d->parametersNode->GetGaussianKernelZ()->Initialize();
-    }
-
   if (index == 0)
     {
+    d->parametersNode->SetParameterX(4);
+    d->parametersNode->SetParameterY(4);
+    d->parametersNode->SetParameterZ(4);
+    }
+
+  if (index == 1)
+    {
     d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetParameterX(1.5);
-    d->parametersNode->SetParameterY(1.5);
-    d->parametersNode->SetParameterZ(1.5);
+    d->parametersNode->SetParameterX(3);
+    d->parametersNode->SetParameterY(3);
+    d->parametersNode->SetParameterZ(3);
     d->parametersNode->SetRx(0);
     d->parametersNode->SetRy(0);
     d->parametersNode->SetRz(0);
     d->parametersNode->SetGaussianKernels();
     }
 
-  if (index == 1)
+  if (index == 2)
     {
-    d->parametersNode->SetAccuracy(20);
-    d->parametersNode->SetTimeStep(0.0325);
+    if (d->parametersNode->GetHardware())
+      {
+      d->parametersNode->SetAccuracy(19);
+      d->parametersNode->SetTimeStep(0.325);
+      }
+    else
+      {
+      d->parametersNode->SetTimeStep(0.0325);
+      d->parametersNode->SetAccuracy(20);
+      }
     d->parametersNode->SetK(1.5);
     d->parametersNode->SetParameterX(5);
     d->parametersNode->SetParameterY(5);
     d->parametersNode->SetParameterZ(5);
     }
 
-  if (index == 2)
+  if (index == 3)
     {
+    d->parametersNode->SetHardware(0);
     d->parametersNode->SetAccuracy(2);
     d->parametersNode->SetParameterX(1.5);
     }
 
-  if (index == 3)
+  if (index == 4)
     {
+    d->parametersNode->SetHardware(0);
     d->parametersNode->SetAccuracy(2);
     d->parametersNode->SetParameterX(4);
     }
@@ -922,6 +1132,11 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     }
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetParameterX(value);
+  if (d->parametersNode->GetLink())
+    {
+    d->parametersNode->SetParameterY(value);
+    d->parametersNode->SetParameterZ(value);
+    }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 }
@@ -936,6 +1151,11 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     }
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetParameterY(value);
+  if (d->parametersNode->GetLink())
+    {
+    d->parametersNode->SetParameterX(value);
+    d->parametersNode->SetParameterZ(value);
+    }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 }
@@ -950,6 +1170,11 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     }
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetParameterZ(value);
+  if (d->parametersNode->GetLink())
+    {
+    d->parametersNode->SetParameterX(value);
+    d->parametersNode->SetParameterY(value);
+    }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 }
@@ -1006,29 +1231,29 @@ void qSlicerSmoothingModuleWidget::onApply()
   outSS << inputVolume->GetName() << "_Filtered_" <<
     d->parametersNode->GetMode() << "_";
 
-  if(!strcmp(d->parametersNode->GetMode(), "Automatic"))
-    {
-    this->onCurrentFilterChanged(1);
-    }
-
   switch (d->parametersNode->GetFilter())
     {
     case 0:
       {
-      outSS<<"Gaussian";
+      outSS<<"Box";
       break;
       }
     case 1:
       {
-      outSS<<"Gradient";
+      outSS<<"Gaussian";
       break;
       }
     case 2:
       {
-      outSS<<"Haar_Wavelet_Thresholding";
+      outSS<<"Gradient";
       break;
       }
     case 3:
+      {
+      outSS<<"Haar_Wavelet_Thresholding";
+      break;
+      }
+    case 4:
       {
       outSS<<"Gall_Wavelet_Thresholding";
       break;
@@ -1076,6 +1301,12 @@ void qSlicerSmoothingModuleWidget::onApply()
     d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
     }
 
+  d->transformationMatrix->Identity();
+  inputVolume->GetRASToIJKMatrix(d->transformationMatrix);
+  outputVolume->SetRASToIJKMatrix(d->transformationMatrix);
+  outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
+  d->transformationMatrix->Identity();
+
   if (logic->Apply(d->parametersNode))
     {
     vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
@@ -1104,7 +1335,6 @@ void qSlicerSmoothingModuleWidget::onApply()
 void qSlicerSmoothingModuleWidget::onComputationFinished()
 {
   Q_D(qSlicerSmoothingModuleWidget);
-
   d->CancelButton->hide();
   d->progressBar->hide();
   d->ApplyButton->show();
@@ -1114,7 +1344,6 @@ void qSlicerSmoothingModuleWidget::onComputationFinished()
 void qSlicerSmoothingModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerSmoothingModuleWidget);
-
   d->parametersNode->SetStatus(-1);
 }
 
@@ -1124,6 +1353,40 @@ void qSlicerSmoothingModuleWidget::updateProgress(int value)
   Q_D(qSlicerSmoothingModuleWidget);
   d->progressBar->setValue(value);
 }
+
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
+{
+ Q_D(qSlicerSmoothingModuleWidget);
+
+ int wasModifying = d->parametersNode->StartModify();
+
+ d->parametersNode->SetHardware(index);
+ int filter = d->parametersNode->GetFilter();
+
+ if (filter == 2)
+   {
+   if (index)
+     {
+     d->parametersNode->SetTimeStep(0.325);
+     d->parametersNode->SetAccuracy(19);
+     }
+   else
+     {
+     d->parametersNode->SetTimeStep(0.0325);
+     d->parametersNode->SetAccuracy(20);
+     }
+   }
+ d->parametersNode->EndModify(wasModifying);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onLinkChanged(bool index)
+{
+ Q_D(qSlicerSmoothingModuleWidget);
+ d->parametersNode->SetLink(index);
+}
+
 
 //-----------------------------------------------------------------------------
 void qSlicerSmoothingModuleWidget::onComputationStarted()

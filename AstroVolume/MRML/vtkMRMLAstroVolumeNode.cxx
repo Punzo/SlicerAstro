@@ -113,7 +113,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 }
 
 //---------------------------------------------------------------------------
-void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
+void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
 {
   //We calculate the noise as the std of 6 slices of the datacube.
   int *dims = this->GetImageData()->GetDimensions();
@@ -132,7 +132,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
       vtkErrorMacro("Attempt to allocate scalars of type not allowed");
       return;
     }
-  double sum = 0., noise1 = 0., noise2 = 0, noise = 0.;
+  double sum = 0., noise1 = 0., noise2 = 0, noise = 0., mean1 = 0., mean2 = 0., mean = 0.;
   int lowBoundary;
   int highBoundary;
 
@@ -182,6 +182,8 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
       break;
     }
 
+  mean1 = sum;
+
   if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 3)
     {
     lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
@@ -228,7 +230,9 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
       break;
     }
 
-  if ((noise1 - noise2) > 0.3)
+  mean2 = sum;
+
+  if ((noise1 / noise2) > 0.3)
     {
     if (noise1 > noise2)
       {
@@ -241,10 +245,27 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttribute()
     }
   else
     {
-    noise = (noise1 + noise2) / 2.;
+    noise = (noise1 + noise2) * 0.5;
     }
 
-  this->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
+  if ((mean1 / mean2) > 0.3)
+    {
+    if (mean1 > mean2)
+      {
+      mean = mean1;
+      }
+    else
+      {
+      mean = mean2;
+      }
+    }
+  else
+    {
+    mean = (mean1 + mean2) * 0.5;
+    }
+
+  this->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());\
+  this->SetAttribute("SlicerAstro.NOISEMEAN", DoubleToString(mean).c_str());
   outFPixel = NULL;
   outDPixel = NULL;
   delete outFPixel;

@@ -17,6 +17,10 @@ set(${KIT}_INCLUDE_DIRECTORIES
 set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.cxx
   vtkSlicer${MODULE_NAME}Logic.h
+  vtkOpenGLTextureImage.h
+  vtkOpenGLTextureImage.cxx
+  vtkOpenGLShaderComputation.h
+  vtkOpenGLShaderComputation.cxx
   )
 
 set(${KIT}_TARGET_LIBRARIES

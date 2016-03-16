@@ -13,6 +13,8 @@
 // STD includes
 #include <math.h>
 
+#define SigmatoFWHM 2.3548200450309493
+
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLSmoothingParametersNode);
 
@@ -27,28 +29,25 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->OutputSerial = 1;
   this->SetMode("Automatic");
   this->SetStatus(0);
-  this->SetFilter(0);
-  this->SetAccuracy(3);
+  this->SetFilter(2);
+  this->SetHardware(0);
+  this->SetLink(true);
+  this->SetAccuracy(20);
   this->SetTimeStep(0.0325);
   this->SetK(2);
-  this->SetParameterX(1.5);
-  this->SetParameterY(1.5);
-  this->SetParameterZ(1.5);
+  this->SetParameterX(5);
+  this->SetParameterY(5);
+  this->SetParameterZ(5);
   this->SetRx(0);
   this->SetRy(0);
   this->SetRz(0);
   this->gaussianKernel3D = vtkSmartPointer<vtkDoubleArray>::New();
   this->gaussianKernel3D->SetNumberOfComponents(1);
-  this->gaussianKernelX = vtkSmartPointer<vtkDoubleArray>::New();
-  this->gaussianKernelX->SetNumberOfComponents(1);
-  this->gaussianKernelY = vtkSmartPointer<vtkDoubleArray>::New();
-  this->gaussianKernelY->SetNumberOfComponents(1);
-  this->gaussianKernelZ = vtkSmartPointer<vtkDoubleArray>::New();
-  this->gaussianKernelZ->SetNumberOfComponents(1);
+  this->gaussianKernel1D = vtkSmartPointer<vtkDoubleArray>::New();
+  this->gaussianKernel1D->SetNumberOfComponents(1);
   this->SetKernelLengthX(0);
   this->SetKernelLengthY(0);
   this->SetKernelLengthZ(0);
-  this->SetGaussianKernels();
   this->DegToRad = atan(1.) / 45.;
 }
 
@@ -137,6 +136,18 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "Filter"))
       {
       this->Filter = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Hardware"))
+      {
+      this->Hardware = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Link"))
+      {
+      this->Link = StringToInt(attValue);
       continue;
       }
 
@@ -245,6 +256,8 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
 
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
   of << indent << " Filter=\"" << this->Filter << "\"";
+  of << indent << " Hardware=\"" << this->Hardware << "\"";
+  of << indent << " Link=\"" << this->Link << "\"";
   of << indent << " Rx=\"" << this->Rx << "\"";
   of << indent << " Ry=\"" << this->Ry << "\"";
   of << indent << " Rz=\"" << this->Rz << "\"";
@@ -275,6 +288,8 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetMode(node->GetMode());
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetFilter(node->GetFilter());
+  this->SetHardware(node->GetHardware());
+  this->SetLink(node->GetLink());
   this->SetRx(node->GetRx());
   this->SetRy(node->GetRy());
   this->SetRz(node->GetRz());
@@ -294,21 +309,9 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-vtkDoubleArray *vtkMRMLSmoothingParametersNode::GetGaussianKernelX()
+vtkDoubleArray *vtkMRMLSmoothingParametersNode::GetGaussianKernel1D()
 {
-  return this->gaussianKernelX;
-}
-
-//----------------------------------------------------------------------------
-vtkDoubleArray *vtkMRMLSmoothingParametersNode::GetGaussianKernelY()
-{
-  return this->gaussianKernelY;
-}
-
-//----------------------------------------------------------------------------
-vtkDoubleArray *vtkMRMLSmoothingParametersNode::GetGaussianKernelZ()
-{
-  return this->gaussianKernelZ;
+  return this->gaussianKernel1D;
 }
 
 //----------------------------------------------------------------------------
@@ -336,24 +339,26 @@ inline double gauss3D(double x, double sigmax,
 
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernelX()
+void vtkMRMLSmoothingParametersNode::SetGaussianKernel1D()
 {
-  if(this->GetFilter() != 0)
+  if(this->GetFilter() != 1)
     {
     return;
     }
 
-  if (this->gaussianKernelX)
+  if (this->gaussianKernel1D)
     {
-    int nItems = (int) (this->GetParameterX() * this->GetAccuracy() * 2 + 1);
+    int nItems = (int) ((this->GetParameterX() / SigmatoFWHM)  * this->GetAccuracy() * 2 + 1);
     if (nItems % 2 == 0)
       {
       nItems++;
       }
     this->SetKernelLengthX(nItems);
-    this->gaussianKernelX->SetNumberOfTuples(nItems);
+    this->SetKernelLengthY(nItems);
+    this->SetKernelLengthZ(nItems);
+    this->gaussianKernel1D->SetNumberOfTuples(nItems);
 
-    double sigmax = this->GetParameterX();
+    double sigmax = this->GetParameterX() / SigmatoFWHM;
     if(sigmax < 0.001)
       {
       sigmax = 0.001;
@@ -364,75 +369,7 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernelX()
       {
       double x = i - midpoint;
       double gx = gauss1D(x, sigmax);
-      this->gaussianKernelX->SetComponent(i, 0, gx);
-      }
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernelY()
-{
-  if(this->GetFilter() != 0)
-    {
-    return;
-    }
-
-  if (this->gaussianKernelY)
-    {
-    int nItems = (int) (this->GetParameterY() * this->GetAccuracy() * 2 + 1);
-    if (nItems % 2 == 0)
-      {
-      nItems++;
-      }
-    this->SetKernelLengthY(nItems);
-    this->gaussianKernelY->SetNumberOfTuples(nItems);
-
-    double sigmay = this->GetParameterY();
-    if(sigmay < 0.001)
-      {
-      sigmay = 0.001;
-      }
-
-    double midpoint = (nItems - 1) / 2.;
-    for (int i = 0; i < nItems; i++)
-      {
-      double y = i - midpoint;
-      double gy = gauss1D(y, sigmay);
-      this->gaussianKernelY->SetComponent(i, 0, gy);
-      }
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernelZ()
-{
-  if(this->GetFilter() != 0)
-    {
-    return;
-    }
-
-  if (this->gaussianKernelZ)
-    {
-    int nItems = (int) (this->GetParameterZ() * this->GetAccuracy() * 2 + 1);
-    if (nItems % 2 == 0)
-      {
-      nItems++;
-      }
-    this->SetKernelLengthZ(nItems);
-    this->gaussianKernelZ->SetNumberOfTuples(nItems);
-
-    double sigmaz = this->GetParameterZ();
-    if(sigmaz < 0.001)
-      {
-      sigmaz = 0.001;
-      }
-
-    double midpoint = (nItems - 1) / 2.;
-    for (int i = 0; i < nItems; i++)
-      {
-      double z = i - midpoint;
-      double gz = gauss1D(z, sigmaz);
-      this->gaussianKernelZ->SetComponent(i, 0, gz);
+      this->gaussianKernel1D->SetComponent(i, 0, gx);
       }
     }
 }
@@ -440,26 +377,26 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernelZ()
 //----------------------------------------------------------------------------
 void vtkMRMLSmoothingParametersNode::SetGaussianKernel3D()
 {
-  if(this->GetFilter() != 0)
+  if(this->GetFilter() != 1)
     {
     return;
     }
 
   if (this->gaussianKernel3D)
     { 
-    int nItemsX = (int) (this->GetParameterX() * this->GetAccuracy() * 2 + 1);
+    int nItemsX = (int) ((this->GetParameterX() / SigmatoFWHM) * this->GetAccuracy() * 2 + 1);
     if (nItemsX % 2 == 0)
       {
       nItemsX++;
       }
     this->SetKernelLengthX(nItemsX);
-    int nItemsY = (int) (this->GetParameterY() * this->GetAccuracy() * 2 + 1);
+    int nItemsY = (int) ((this->GetParameterY() / SigmatoFWHM) * this->GetAccuracy() * 2 + 1);
     if (nItemsY % 2 == 0)
       {
       nItemsY++;
       }
     this->SetKernelLengthY(nItemsY);
-    int nItemsZ = (int) (this->GetParameterZ() * this->GetAccuracy() * 2 + 1);
+    int nItemsZ = (int) ((this->GetParameterZ() / SigmatoFWHM) * this->GetAccuracy() * 2 + 1);
     if (nItemsZ % 2 == 0)
       {
       nItemsZ++;
@@ -485,17 +422,17 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernel3D()
     int Ymax = (int) (nItemsY - 1) / 2.;
     int Zmax = (int) (nItemsZ - 1) / 2.;
 
-    double sigmax = this->GetParameterX();
+    double sigmax = this->GetParameterX() / SigmatoFWHM;
     if(sigmax < 0.001)
       {
       sigmax = 0.001;
       }
-    double sigmay = this->GetParameterY();
+    double sigmay = this->GetParameterY() / SigmatoFWHM;
     if(sigmay < 0.001)
       {
       sigmay = 0.001;
       }
-    double sigmaz = this->GetParameterZ();
+    double sigmaz = this->GetParameterZ() / SigmatoFWHM;
     if(sigmaz < 0.001)
       {
       sigmaz = 0.001;
@@ -525,17 +462,20 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernel3D()
 //----------------------------------------------------------------------------
 void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
 {
-  if(this->GetFilter() != 0)
+  if (this->gaussianKernel3D)
     {
-    return;
+    this->gaussianKernel3D->Initialize();
+    }
+
+  if (this->gaussianKernel1D)
+    {
+    this->gaussianKernel1D->Initialize();
     }
 
   if(fabs(this->ParameterX - this->ParameterY) < 0.001 &&
      fabs(this->ParameterY - this->ParameterZ) < 0.001)
     {
-    this->SetGaussianKernelX();
-    this->SetGaussianKernelY();
-    this->SetGaussianKernelZ();
+    this->SetGaussianKernel1D();
     }
   else
     {
@@ -552,58 +492,93 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
   os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
   os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
   os << "OutputSerial: " << this->OutputSerial << "\n";
-  os << "Filter: " << this->Filter << "\n";
-  os << "Rx: " << this->Rx << "\n";
-  os << "Ry: " << this->Ry << "\n";
-  os << "Rz: " << this->Rz << "\n";
   os << "Status: " << this->Status << "\n";
-  os << "Accuracy: " << this->Accuracy << "\n";
-  os << "TimeStep: " << this->TimeStep << "\n";
-  os << "K: " << this->K << "\n";
+
+  switch (this->Filter)
+    {
+    case 0:
+      {
+      os << "Filter: Box\n";
+      break;
+      }
+    case 1:
+      {
+      os << "Filter: Gaussian\n";
+      break;
+      }
+    case 2:
+      {
+      os << "Filter: Intensity driven Gradient\n";
+      break;
+      }
+    case 3:
+      {
+      os << "Filter: Haar Wavelet Thresholding\n";
+      break;
+      }
+    case 4:
+      {
+      os << "Filter: Le Gall Wavelet Thresholding\n";
+      break;
+      }
+    }
+
+  switch (this->Hardware)
+    {
+    case 0:
+      {
+      os << "Hardware: CPU\n";
+      break;
+      }
+    case 1:
+      {
+      os << "Hardware: GPU\n";
+      break;
+      }
+    }
+
   os << "ParameterX: " << this->ParameterX << "\n";
-  os << "ParameterY: " << this->ParameterY << "\n";
-  os << "ParameterZ: " << this->ParameterZ << "\n";
-  os << "KernelLengthX: " << this->KernelLengthX << "\n";
-  os << "KernelLengthY: " << this->KernelLengthY << "\n";
-  os << "KernelLengthZ: " << this->KernelLengthZ << "\n";
-
-  if (this->gaussianKernelX)
+  if (this->Filter < 3)
     {
-    int nItems = this->gaussianKernelX->GetNumberOfTuples();
-    if(nItems > 0)
-      {
-      os << indent << "GaussianKernelX: ";
-      for (int i = 0; i < nItems; i++)
-        {
-        os << indent << this->gaussianKernelX->GetComponent(i, 0) << " " << indent;
-        }
-      os << indent << "\n";
-      }
+    os << "ParameterY: " << this->ParameterY << "\n";
+    os << "ParameterZ: " << this->ParameterZ << "\n";
+    os << "Link: " << this->Link << "\n";
     }
 
-  if (this->gaussianKernelY)
+  if (this->Filter < 2)
     {
-    int nItems = this->gaussianKernelY->GetNumberOfTuples();
-    if(nItems > 0)
-      {
-      os << indent << "GaussianKernelY: ";
-      for (int i = 0; i < nItems; i++)
-        {
-        os << indent << this->gaussianKernelY->GetComponent(i, 0) << " " << indent;
-        }
-      os << indent << "\n";
-      }
+    os << "KernelLengthX: " << this->KernelLengthX << "\n";
+    os << "KernelLengthY: " << this->KernelLengthY << "\n";
+    os << "KernelLengthZ: " << this->KernelLengthZ << "\n";
     }
 
-  if (this->gaussianKernelZ)
+  if (this->Filter == 1)
     {
-    int nItems = this->gaussianKernelZ->GetNumberOfTuples();
+    os << "Rx: " << this->Rx << "\n";
+    os << "Ry: " << this->Ry << "\n";
+    os << "Rz: " << this->Rz << "\n";
+    }
+
+  if (this->Filter != 0)
+    {
+    os << "Accuracy: " << this->Accuracy << "\n";
+    }
+
+  if (this->Filter == 2)
+    {
+    os << "TimeStep: " << this->TimeStep << "\n";
+    os << "K: " << this->K << "\n";
+    }
+
+  if (this->gaussianKernel1D)
+    {
+    int nItems = this->gaussianKernel1D->GetNumberOfTuples();
     if(nItems > 0)
       {
-      os << indent << "GaussianKernelZ: ";
+      os << indent << "GaussianKernel1D: ";
       for (int i = 0; i < nItems; i++)
         {
-        os << indent << this->gaussianKernelZ->GetComponent(i, 0) << " " << indent;
+        os << indent << this->gaussianKernel1D->GetComponent(i, 0) << " " << indent;
         }
       os << indent << "\n";
       }

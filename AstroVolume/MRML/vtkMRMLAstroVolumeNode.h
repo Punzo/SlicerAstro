@@ -61,7 +61,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   ///
   /// Update Noise Attribute
-   virtual void UpdateNoiseAttribute();
+   virtual void UpdateNoiseAttributes();
 
 protected:
   vtkMRMLAstroVolumeNode();

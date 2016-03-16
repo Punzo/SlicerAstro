@@ -33,9 +33,21 @@ protected:
   vtkSlicerSmoothingLogic();
   virtual ~vtkSlicerSmoothingLogic();
 
+  int AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+
+  int AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+
   int AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
   int IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+
+  int AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int IsotropicGaussianGPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+
   int GradientCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+  int GradientGPUFilter(vtkMRMLSmoothingParametersNode *pnode);
+
   int HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
   int GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
 

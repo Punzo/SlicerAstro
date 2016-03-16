@@ -335,7 +335,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
       {
-      volNode->UpdateNoiseAttribute();
+      volNode->UpdateNoiseAttributes();
       }
     }
   else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )

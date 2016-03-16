@@ -617,6 +617,11 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.NOISE"] = "0.";
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.NOISEMEAN") == 0)
+     {
+     HeaderKeyValue["SlicerAstro.NOISEMEAN"] = "0.";
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.RESTFREQ") == 0)
      {
      if (!(HeaderKeyValue.count("SlicerAstro.FREQ0") == 0))

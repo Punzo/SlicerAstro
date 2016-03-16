@@ -15,6 +15,8 @@
 #include <vtkVersion.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
+#include <vtkImageExtractComponents.h>
+#include <vtkImageShiftScale.h>
 
 // STD includes
 #include <cassert>
@@ -23,8 +25,15 @@
 // OpenMP includes
 #include <omp.h>
 
+// vtkOpenGL includes
+#include <vtkOpenGLShaderComputation.h>
+#include <vtkOpenGLTextureImage.h>
+
 #include <iostream>
 #include <sys/time.h>
+
+#define SigmatoFWHM 2.3548200450309493
+
 //----------------------------------------------------------------------------
 class vtkSlicerSmoothingLogic::vtkInternal
 {
@@ -33,6 +42,11 @@ public:
 
   vtkSlicerAstroVolumeLogic* AstroVolumeLogic;
   vtkSmartPointer<vtkImageData> tempVolumeData;
+  vtkSmartPointer<vtkOpenGLShaderComputation> shaderComputation;
+  vtkSmartPointer<vtkOpenGLTextureImage> iterationVolumeTexture;
+  vtkSmartPointer<vtkOpenGLTextureImage> outputVolumeTexture;
+  vtkSmartPointer<vtkImageExtractComponents> extractComponents;
+  vtkSmartPointer<vtkImageShiftScale> shiftScale;
 };
 
 //----------------------------------------------------------------------------
@@ -40,6 +54,11 @@ vtkSlicerSmoothingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = 0;
   tempVolumeData = vtkImageData::New();
+  shaderComputation = vtkOpenGLShaderComputation::New();
+  iterationVolumeTexture = vtkOpenGLTextureImage::New();
+  outputVolumeTexture = vtkOpenGLTextureImage::New();
+  extractComponents = vtkImageExtractComponents::New();
+  shiftScale = vtkImageShiftScale::New();
 }
 
 //----------------------------------------------------------------------------
@@ -116,28 +135,78 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
     {
     case 0:
       {
+      if (!(pnode->GetHardware()))
+        {
         if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
             fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
           {
-          success = this->IsotropicGaussianCPUFilter(pnode);
+          success = this->IsotropicBoxCPUFilter(pnode);
           }
         else
           {
-          success = this->AnisotropicGaussianCPUFilter(pnode);
+          success = this->AnisotropicBoxCPUFilter(pnode);
           }
+        }
+      else
+        {
+        if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
+            fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
+          {
+          success = this->IsotropicBoxGPUFilter(pnode);
+          }
+        else
+          {
+          success = this->AnisotropicBoxGPUFilter(pnode);
+          }
+        }
       break;
       }
     case 1:
       {
-      success = this->GradientCPUFilter(pnode);
+        if (!(pnode->GetHardware()))
+          {
+          if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
+              fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
+            {
+            success = this->IsotropicGaussianCPUFilter(pnode);
+            }
+          else
+            {
+            success = this->AnisotropicGaussianCPUFilter(pnode);
+            }
+          }
+        else
+          {
+          if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
+              fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
+            {
+            success = this->IsotropicGaussianGPUFilter(pnode);
+            }
+          else
+            {
+            success = this->AnisotropicGaussianGPUFilter(pnode);
+            }
+          }
       break;
       }
     case 2:
       {
-      success = this->HaarWaveletThresholdingCPUFilter(pnode);
+      if (!(pnode->GetHardware()))
+        {
+        success = this->GradientCPUFilter(pnode);
+        }
+      else
+        {
+        success = this->GradientGPUFilter(pnode);
+        }
       break;
       }
     case 3:
+      {
+      success = this->HaarWaveletThresholdingCPUFilter(pnode);
+      break;
+      }
+    case 4:
       {
       success = this->GallWaveletThresholdingCPUFilter(pnode);
       break;
@@ -146,6 +215,999 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
   return success;
 }
 
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+{
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  this->Internal->tempVolumeData->Initialize();
+  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+  this->Internal->tempVolumeData->Modified();
+  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
+
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  const int numSlice = dims[0] * dims[1];
+  int nItemsX = pnode->GetParameterX();
+  if (nItemsX % 2 == 0)
+    {
+    nItemsX++;
+    }
+  const int Xmax = (int) ((nItemsX - 1) / 2.);
+  int nItemsY = pnode->GetParameterY();
+  if (nItemsY % 2 == 0)
+    {
+    nItemsY++;
+    }
+  const int Ymax = (int) ((nItemsY - 1) / 2.);
+  int nItemsZ = pnode->GetParameterZ();
+  if (nItemsZ % 2 == 0)
+    {
+    nItemsZ++;
+    }
+  const int Zmax = (int) ((nItemsY - 1) / 2.);
+  const int cont = nItemsX * nItemsY * nItemsZ;
+  float *outFPixel = NULL;
+  float *tempFPixel = NULL;
+  double *outDPixel = NULL;
+  double *tempDPixel = NULL;
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    default:
+      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      return 0;
+    }
+
+  bool cancel = false;
+  int status = 0;
+  int numProcs = omp_get_num_procs();
+  omp_set_num_threads(numProcs);
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+  #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel, status)
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    int stat = pnode->GetStatus();
+
+    if (stat == -1 && omp_get_thread_num() == 0)
+      {
+      cancel = true;
+      }
+
+    #pragma omp flush (cancel)
+    if (!cancel)
+      {
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(outFPixel + elemCnt) = 0.;
+          break;
+        case VTK_DOUBLE:
+          *(outDPixel + elemCnt) = 0.;
+          break;
+        }
+
+      for (int k = -Zmax; k <= Zmax; k++)
+        {
+        for (int j = -Ymax; j <= Ymax; j++)
+          {
+          for (int i = -Xmax; i <= Xmax; i++)
+            {
+            int posData = elemCnt + i;
+
+            int ref = (int) floor(elemCnt / dims[0]);
+            ref *= dims[0];
+            if(posData < ref)
+              {
+              continue;
+              }
+            if(posData >= ref + dims[0])
+              {
+              break;
+              }
+
+            posData += j * dims[0];
+            ref = (int) floor(elemCnt / numSlice);
+            ref *= numSlice;
+            if(posData < ref)
+              {
+              continue;
+              }
+            if(posData >= ref + numSlice)
+              {
+              break;
+              }
+
+            posData += k * numSlice;
+            if(posData < 0)
+              {
+              continue;
+              }
+            if(posData >= numElements)
+              {
+              break;
+              }
+
+            switch (DataType)
+              {
+              case VTK_FLOAT:
+                *(outFPixel + elemCnt) += *(tempFPixel + posData);
+                break;
+              case VTK_DOUBLE:
+                *(outDPixel + elemCnt) += *(tempDPixel + posData);
+                break;
+              }
+            }
+          }
+        }
+
+      switch (DataType)
+        {
+        case VTK_FLOAT:
+          *(outFPixel + elemCnt) /= cont;
+          break;
+        case VTK_DOUBLE:
+          *(outDPixel + elemCnt) /= cont;
+          break;
+        }
+
+      if (omp_get_thread_num() == 0)
+        {
+        if(elemCnt / (numElements / (numProcs * 100)) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        }
+      }
+    }
+
+  outFPixel = NULL;
+  tempFPixel = NULL;
+  outDPixel = NULL;
+  tempDPixel = NULL;
+
+  delete outFPixel;
+  delete tempFPixel;
+  delete outDPixel;
+  delete tempDPixel;
+
+  if (cancel)
+    {
+    this->Internal->tempVolumeData->Initialize();
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+  this->Internal->tempVolumeData->Initialize();
+  pnode->SetStatus(0);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+}
+
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+{
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  this->Internal->tempVolumeData->Initialize();
+  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+  this->Internal->tempVolumeData->Modified();
+  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
+
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  const int numSlice = dims[0] * dims[1];
+  int nItems = (pnode->GetParameterX());
+  if (nItems % 2 == 0)
+    {
+    nItems++;
+    }
+  const int is = (int) ((nItems - 1) / 2);
+
+  float *outFPixel = NULL;
+  float *tempFPixel = NULL;
+  double *outDPixel = NULL;
+  double *tempDPixel = NULL;
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+      break;
+    default:
+      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      return 0;
+    }
+
+  bool cancel = false;
+
+  omp_set_num_threads(omp_get_num_procs());
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+
+  if (pnode->GetParameterX() > 0.001)
+    {
+    pnode->SetStatus(10);
+    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+      {
+      int status = pnode->GetStatus();
+
+      if (status == -1 && omp_get_thread_num() == 0)
+        {
+        cancel = true;
+        }
+
+      #pragma omp flush (cancel)
+      if (!cancel)
+        {
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(outFPixel + elemCnt) = 0.;
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elemCnt) = 0.;
+            break;
+          }
+
+        for (int i = -is; i <= is; i++)
+          {
+          int ii = elemCnt + i;
+          int ref = (int) floor(elemCnt / dims[0]);
+          ref *= dims[0];
+          if(ii < ref)
+            {
+            continue;
+            }
+          if(ii >= ref + dims[0])
+            {
+            break;
+            }
+          switch (DataType)
+            {
+            case VTK_FLOAT:
+              *(outFPixel + elemCnt) += *(tempFPixel + ii);
+              break;
+            case VTK_DOUBLE:
+              *(outDPixel + elemCnt) += *(tempDPixel + ii);
+              break;
+            }
+          }
+
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(outFPixel + elemCnt) /= nItems;
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elemCnt) /= nItems;
+            break;
+          }
+        }
+      }
+    }
+
+  if (cancel)
+    {
+    outFPixel = NULL;
+    tempFPixel = NULL;
+    outDPixel = NULL;
+    tempDPixel = NULL;
+
+    delete outFPixel;
+    delete tempFPixel;
+    delete outDPixel;
+    delete tempDPixel;
+    this->Internal->tempVolumeData->Initialize();
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (pnode->GetParameterY() > 0.001)
+    {
+    pnode->SetStatus(40);
+    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+      {
+      int status = pnode->GetStatus();
+
+      if (status == -1 && omp_get_thread_num() == 0)
+        {
+        cancel = true;
+        }
+
+      #pragma omp flush (cancel)
+      if (!cancel)
+        {
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(tempFPixel + elemCnt) = 0.;
+            break;
+          case VTK_DOUBLE:
+            *(tempDPixel + elemCnt) = 0.;
+            break;
+          }
+
+        for (int i = -is; i <= is; i++)
+          {
+          int ii = elemCnt + (i * dims[0]);
+          int ref = (int) floor(elemCnt / numSlice);
+          ref *= numSlice;
+          if(ii < ref)
+            {
+            continue;
+            }
+          if(ii >= ref + numSlice)
+            {
+            break;
+            }
+          switch (DataType)
+            {
+            case VTK_FLOAT:
+              *(tempFPixel + elemCnt) += *(outFPixel + ii);
+              break;
+            case VTK_DOUBLE:
+              *(tempDPixel + elemCnt) += *(outDPixel + ii);
+              break;
+            }
+          }
+
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(tempFPixel + elemCnt) /= nItems;
+            break;
+          case VTK_DOUBLE:
+            *(tempDPixel + elemCnt) /= nItems;
+            break;
+          }
+        }
+      }
+    }
+  else
+    {
+    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+    this->Internal->tempVolumeData->Modified();
+    this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
+
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      case VTK_DOUBLE:
+        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+        break;
+      default:
+        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+        return 0;
+      }
+    }
+
+  if (cancel)
+    {
+    outFPixel = NULL;
+    tempFPixel = NULL;
+    outDPixel = NULL;
+    tempDPixel = NULL;
+
+    delete outFPixel;
+    delete tempFPixel;
+    delete outDPixel;
+    delete tempDPixel;
+    this->Internal->tempVolumeData->Initialize();
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (pnode->GetParameterZ() > 0.001)
+    {
+    pnode->SetStatus(70);
+    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+      {
+      int status = pnode->GetStatus();
+
+      if (status == -1 && omp_get_thread_num() == 0)
+        {
+        cancel = true;
+        }
+
+      #pragma omp flush (cancel)
+      if (!cancel)
+        {
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(outFPixel + elemCnt) = 0.;
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elemCnt) = 0.;
+            break;
+          }
+
+        for (int i = -is; i <= is; i++)
+          {
+          int ii = elemCnt + (i * numSlice);
+          if(ii < 0)
+            {
+            continue;
+            }
+          if(ii >= numElements)
+            {
+            break;
+            }
+          switch (DataType)
+            {
+            case VTK_FLOAT:
+              *(outFPixel + elemCnt) += *(tempFPixel + ii);
+              break;
+            case VTK_DOUBLE:
+              *(outDPixel + elemCnt) += *(tempDPixel + ii);
+              break;
+            }
+          }
+
+        switch (DataType)
+          {
+          case VTK_FLOAT:
+            *(outFPixel + elemCnt) /= nItems;
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elemCnt) /= nItems;
+            break;
+          }
+        }
+      }
+    }
+  else
+    {
+    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
+    }
+
+  outFPixel = NULL;
+  tempFPixel = NULL;
+  outDPixel = NULL;
+  tempDPixel = NULL;
+
+  delete outFPixel;
+  delete tempFPixel;
+  delete outDPixel;
+  delete tempDPixel;
+
+  this->Internal->tempVolumeData->Initialize();
+  pnode->SetStatus(0);
+
+  if (cancel)
+    {
+    return 0;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+{
+
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
+  const double spacingX = 1. / dims[0];
+  const double spacingY = 1. / dims[1];
+  const double spacingZ = 1. / dims[2];
+
+  int nItemsX = (pnode->GetParameterX());
+  if (nItemsX % 2 == 0)
+    {
+    nItemsX++;
+    }
+  const int LengthKernelX = (int) (nItemsX - 1) / 2;
+  int nItemsY = (pnode->GetParameterY());
+  if (nItemsY % 2 == 0)
+    {
+    nItemsY++;
+    }
+  const int LengthKernelY = (int) (nItemsY - 1) / 2;
+  int nItemsZ = (pnode->GetParameterZ());
+  if (nItemsZ % 2 == 0)
+    {
+    nItemsZ++;
+    }
+  const int LengthKernelZ = (int) (nItemsZ - 1) / 2;
+
+  int cont = nItemsX * nItemsY * nItemsZ;
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+
+  // set the shaders
+  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+
+  this->Internal->iterationVolumeTexture->SetInterpolate(1);
+  this->Internal->outputVolumeTexture->SetInterpolate(1);
+
+  // set the ImageData in the VolumeTextures
+  /* since the OpenGL texture will be floats in the range 0 to 1,
+  all negative values will get clamped to zero.
+  Also if the sample values aren't evenly spread through
+  the zero-to-one space we may run into numerical issues.
+  So rescale the data to the
+  to fit in the full range of the a 16 bit short.
+  (any vtkImageData scalar type should work with this approach,
+  of course there will approximation error)*/
+
+  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
+  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  this->Internal->shiftScale->SetShift(-range[0]);
+  double scale = 1. / (range[1] - range[0]);
+  this->Internal->shiftScale->SetScale(scale);
+  this->Internal->shiftScale->Update();
+
+  this->Internal->iterationVolumeTexture->SetImageData
+      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+
+  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
+  this->Internal->iterationVolumeTexture->Activate(0);
+  this->Internal->outputVolumeTexture->Activate(1);
+  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
+  this->Internal->shaderComputation->AcquireResultRenderbuffer();
+
+  // set the kernels
+  std::string header = "#version 120\n";
+  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
+  header += "  {\n";
+  header += "  return samplePoint;\n";
+  header += "  }\n";
+  header += "uniform sampler3D\n";
+  header += "textureUnit0,\n";
+  header += "textureUnit1;\n";
+
+  std::string vertexShaderTemplate = "#version 120\n";
+  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
+  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
+  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  vertexShaderTemplate +=  "void main() ";
+  vertexShaderTemplate +=  "  {\n";
+  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
+  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
+  vertexShaderTemplate +=  "  }\n";
+
+  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
+
+  std::string fragmentShaderTemplate = "uniform float slice;\n";
+  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  fragmentShaderTemplate +=  "void main()\n";
+  fragmentShaderTemplate +=  "{\n";
+  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+  fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
+  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+  fragmentShaderTemplate +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
+  fragmentShaderTemplate +=      "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
+  fragmentShaderTemplate +=        "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
+  fragmentShaderTemplate +=          "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ);\n";
+  fragmentShaderTemplate +=          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+  fragmentShaderTemplate +=          "smooth += sample1;\n";
+  fragmentShaderTemplate +=        "}\n";
+  fragmentShaderTemplate +=      "}\n";
+  fragmentShaderTemplate +=    "}\n";
+  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / %d), 1.);\n";
+  fragmentShaderTemplate +=  "}\n";
+
+  int nBuffer = 2000;
+  char buffer [nBuffer];
+  bool cancel = false;
+
+  int textureUnit = 0;
+  sprintf(buffer,
+          fragmentShaderTemplate.c_str(),
+          textureUnit,
+          LengthKernelX,
+          LengthKernelX,
+          LengthKernelY,
+          LengthKernelY,
+          LengthKernelZ,
+          LengthKernelZ,
+          spacingX,
+          spacingY,
+          spacingZ,
+          textureUnit,
+          cont);
+
+  std::string shaders = header + buffer;
+  this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+
+  int status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->iterationVolumeTexture->Activate(0);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(100);
+
+  // get the output
+  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
+
+  // porting back the range to the original one
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) /= scale;
+    *(fPixel+elemCnt) += range[0];
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(0);
+
+  this->Internal->outputVolumeTexture->SetImageData(NULL);
+  this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+{
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  int *dims = outputVolume->GetImageData()->GetDimensions();
+
+  const double spacingX = 1. / dims[0];
+  const double spacingY = 1. / dims[1];
+  const double spacingZ = 1. / dims[2];
+
+  int nItems = (pnode->GetParameterX());
+  if (nItems % 2 == 0)
+    {
+    nItems++;
+    }
+  const int LengthKernel = (int) (nItems - 1) / 2;
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+
+  // set the shaders
+  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+
+  this->Internal->iterationVolumeTexture->SetInterpolate(1);
+  this->Internal->outputVolumeTexture->SetInterpolate(1);
+
+  // set the ImageData in the VolumeTextures
+  /* since the OpenGL texture will be floats in the range 0 to 1,
+  all negative values will get clamped to zero.
+  Also if the sample values aren't evenly spread through
+  the zero-to-one space we may run into numerical issues.
+  So rescale the data to the
+  to fit in the full range of the a 16 bit short.
+  (any vtkImageData scalar type should work with this approach,
+  of course there will approximation error)*/
+
+  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
+  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  this->Internal->shiftScale->SetShift(-range[0]);
+  double scale = 1. / (range[1] - range[0]);
+  this->Internal->shiftScale->SetScale(scale);
+  this->Internal->shiftScale->Update();
+
+  this->Internal->iterationVolumeTexture->SetImageData
+      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+
+  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
+  this->Internal->iterationVolumeTexture->Activate(0);
+  this->Internal->outputVolumeTexture->Activate(1);
+  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
+  this->Internal->shaderComputation->AcquireResultRenderbuffer();
+
+  // set the kernels
+  std::string header = "#version 120\n";
+  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
+  header += "  {\n";
+  header += "  return samplePoint;\n";
+  header += "  }\n";
+  header += "uniform sampler3D\n";
+  header += "textureUnit0,\n";
+  header += "textureUnit1;\n";
+
+  std::string vertexShaderTemplate = "#version 120\n";
+  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
+  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
+  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  vertexShaderTemplate +=  "void main() ";
+  vertexShaderTemplate +=  "  {\n";
+  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
+  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
+  vertexShaderTemplate +=  "  }\n";
+
+  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
+
+  std::string fragmentShaderTemplate = "uniform float slice;\n";
+  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  fragmentShaderTemplate +=  "void main()\n";
+  fragmentShaderTemplate +=  "{\n";
+  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+  fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
+  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+  fragmentShaderTemplate +=    "for (int offset = -%d; offset <= %d; offset++){\n";
+  fragmentShaderTemplate +=      "vec3 offset1 = vec3(%4.16f * offset, %4.16f * offset, %4.16f * offset);\n";
+  fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+  fragmentShaderTemplate +=      "smooth += sample1;\n";
+  fragmentShaderTemplate +=    "}\n";
+  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / %d), 1.);\n";
+  fragmentShaderTemplate +=  "}\n";
+
+  int nBuffer = 2000;
+  char buffer [nBuffer];
+  bool cancel = false;
+
+  int status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+
+    int textureUnit = 0;
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernel,
+            LengthKernel,
+            spacingX,
+            0.,
+            0.,
+            textureUnit,
+            nItems);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->iterationVolumeTexture->Activate(0);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(40);
+
+  status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+
+    int textureUnit = 1;
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernel,
+            LengthKernel,
+            0.,
+            spacingY,
+            0.,
+            textureUnit,
+            nItems);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->iterationVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->outputVolumeTexture->Activate(1);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(70);
+
+  status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+
+    int textureUnit = 0;
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernel,
+            LengthKernel,
+            0.,
+            0.,
+            spacingZ,
+            textureUnit,
+            nItems);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->iterationVolumeTexture->Activate(0);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(100);
+
+  // get the output
+  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
+
+  // porting backthe range to the original one
+
+  double shift = range[0];
+
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) /= scale;
+    *(fPixel+elemCnt) += shift;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(0);
+
+  this->Internal->outputVolumeTexture->SetImageData(NULL);
+  this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+}
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
@@ -159,13 +1221,13 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   this->Internal->tempVolumeData->Modified();
   this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
 
-  int *dims = outputVolume->GetImageData()->GetDimensions();
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
-  int Xmax = (int) (pnode->GetKernelLengthX() - 1) / 2.;
-  int Ymax = (int) (pnode->GetKernelLengthY() - 1) / 2.;
-  int Zmax = (int) (pnode->GetKernelLengthZ() - 1) / 2.;
+  const int Xmax = (int) (pnode->GetKernelLengthX() - 1) / 2.;
+  const int Ymax = (int) (pnode->GetKernelLengthY() - 1) / 2.;
+  const int Zmax = (int) (pnode->GetKernelLengthZ() - 1) / 2.;
   const int numKernelSlice = pnode->GetKernelLengthX() * pnode->GetKernelLengthY();
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
@@ -308,7 +1370,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
     }
 
   outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttribute();
+  outputVolume->UpdateNoiseAttributes();
   this->Internal->tempVolumeData->Initialize();
   pnode->SetStatus(0);
 
@@ -321,9 +1383,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   cout<<"tempo : "<<mtime<<endl;
 
   return 1;
-
 }
-
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
@@ -337,16 +1397,12 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   this->Internal->tempVolumeData->Modified();
   this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
 
-  int *dims = outputVolume->GetImageData()->GetDimensions();
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
-  const int ix = (int) (pnode->GetKernelLengthX());
-  const int ix2 = (int) - ((ix - 1)/ 2);
-  const int iy = (int) (pnode->GetKernelLengthY());
-  const int iy2 = (int) - ((iy - 1)/ 2);
-  const int iz = (int) (pnode->GetKernelLengthZ());
-  const int iz2 = (int) - ((iz - 1)/ 2);
+  const int is = (int) (pnode->GetKernelLengthX());
+  const int is2 = (int) - ((is - 1)/ 2);
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
   double *outDPixel = NULL;
@@ -367,9 +1423,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
       return 0;
     }
 
-  double *GaussKernelX = static_cast<double*> (pnode->GetGaussianKernelX()->GetVoidPointer(0));
-  double *GaussKernelY = static_cast<double*> (pnode->GetGaussianKernelY()->GetVoidPointer(0));
-  double *GaussKernelZ = static_cast<double*> (pnode->GetGaussianKernelZ()->GetVoidPointer(0));
+  double *GaussKernel1D = static_cast<double*> (pnode->GetGaussianKernel1D()->GetVoidPointer(0));
   bool cancel = false;
 
   omp_set_num_threads(omp_get_num_procs());
@@ -408,9 +1462,9 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
             break;
           }
 
-        for (int i = 0; i < ix; i++)
+        for (int i = 0; i <= is; i++)
           {
-          int ii = elemCnt + i + ix2;
+          int ii = elemCnt + i + is2;
           int ref = (int) floor(elemCnt / dims[0]);
           ref *= dims[0];
           if(ii < ref)
@@ -424,10 +1478,10 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) += *(tempFPixel + ii) * *(GaussKernelX + i);
+              *(outFPixel + elemCnt) += *(tempFPixel + ii) * *(GaussKernel1D + i);
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) += *(tempDPixel + ii) * *(GaussKernelX + i);
+              *(outDPixel + elemCnt) += *(tempDPixel + ii) * *(GaussKernel1D + i);
               break;
             }
           }
@@ -476,9 +1530,9 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
             *(tempDPixel + elemCnt) = 0.;
             break;
           }
-        for (int i = 0; i < iy; i++)
+        for (int i = 0; i <= is; i++)
           {
-          int ii = elemCnt + ((i + iy2) * dims[0]);
+          int ii = elemCnt + ((i + is2) * dims[0]);
           int ref = (int) floor(elemCnt / numSlice);
           ref *= numSlice;
           if(ii < ref)
@@ -492,10 +1546,10 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(tempFPixel + elemCnt) += *(outFPixel + ii) * *(GaussKernelY + i);
+              *(tempFPixel + elemCnt) += *(outFPixel + ii) * *(GaussKernel1D + i);
               break;
             case VTK_DOUBLE:
-              *(tempDPixel + elemCnt) += *(outDPixel + ii) * *(GaussKernelY + i);
+              *(tempDPixel + elemCnt) += *(outDPixel + ii) * *(GaussKernel1D + i);
               break;
             }
           }
@@ -563,9 +1617,9 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
             *(outDPixel + elemCnt) = 0.;
             break;
           }
-        for (int i = 0; i < iz; i++)
+        for (int i = 0; i <= is; i++)
           {
-          int ii = elemCnt + ((i + iz2) * numSlice);
+          int ii = elemCnt + ((i + is2) * numSlice);
           if(ii < 0)
             {
             continue;
@@ -577,10 +1631,10 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) += *(tempFPixel + ii) * *(GaussKernelZ + i);
+              *(outFPixel + elemCnt) += *(tempFPixel + ii) * *(GaussKernel1D + i);
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) += *(tempDPixel + ii) * *(GaussKernelZ + i);
+              *(outDPixel + elemCnt) += *(tempDPixel + ii) * *(GaussKernel1D + i);
               break;
             }
           }
@@ -602,17 +1656,285 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   delete outDPixel;
   delete tempDPixel;
 
+  this->Internal->tempVolumeData->Initialize();
+  pnode->SetStatus(0);
+
   if (cancel)
     {
-    this->Internal->tempVolumeData->Initialize();
-    pnode->SetStatus(0);
     return 0;
     }
 
   outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttribute();
-  this->Internal->tempVolumeData->Initialize();
+  outputVolume->UpdateNoiseAttributes();
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+{
+
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
+  const double spacingX = 1. / dims[0];
+  const double spacingY = 1. / dims[1];
+  const double spacingZ = 1. / dims[2];
+
+  const int LengthKernelX = (int) (pnode->GetKernelLengthX() - 1) / 2;
+  const int LengthKernelY = (int) (pnode->GetKernelLengthY() - 1) / 2;
+  const int LengthKernelZ = (int) (pnode->GetKernelLengthZ() - 1) / 2;
+
+  const double sigmaX = pnode->GetParameterX() / SigmatoFWHM;
+  const double sigmaX2 = 2 * sigmaX * sigmaX;
+  const double sigmaY = pnode->GetParameterY() / SigmatoFWHM;
+  const double sigmaY2 = 2 * sigmaY * sigmaY;
+  const double sigmaZ = pnode->GetParameterZ() / SigmatoFWHM;
+  const double sigmaZ2 = 2 * sigmaZ * sigmaZ;
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+
+  // set the shaders
+  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+
+  this->Internal->iterationVolumeTexture->SetInterpolate(1);
+  this->Internal->outputVolumeTexture->SetInterpolate(1);
+
+  // set the ImageData in the VolumeTextures
+  /* since the OpenGL texture will be floats in the range 0 to 1,
+  all negative values will get clamped to zero.
+  Also if the sample values aren't evenly spread through
+  the zero-to-one space we may run into numerical issues.
+  So rescale the data to the
+  to fit in the full range of the a 16 bit short.
+  (any vtkImageData scalar type should work with this approach,
+  of course there will approximation error)*/
+
+  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
+  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  this->Internal->shiftScale->SetShift(-range[0]);
+  double scale = 1. / (range[1] - range[0]);
+  this->Internal->shiftScale->SetScale(scale);
+  this->Internal->shiftScale->Update();
+
+  this->Internal->iterationVolumeTexture->SetImageData
+      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+
+  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
+  this->Internal->iterationVolumeTexture->Activate(0);
+  this->Internal->outputVolumeTexture->Activate(1);
+  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
+  this->Internal->shaderComputation->AcquireResultRenderbuffer();
+
+  // set the kernels
+  std::string header = "#version 120\n";
+  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
+  header += "  {\n";
+  header += "  return samplePoint;\n";
+  header += "  }\n";
+  header += "uniform sampler3D\n";
+  header += "textureUnit0,\n";
+  header += "textureUnit1;\n";
+
+  std::string vertexShaderTemplate = "#version 120\n";
+  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
+  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
+  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  vertexShaderTemplate +=  "void main() ";
+  vertexShaderTemplate +=  "  {\n";
+  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
+  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
+  vertexShaderTemplate +=  "  }\n";
+
+  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
+
+  std::string fragmentShaderTemplate = "uniform float slice;\n";
+  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  fragmentShaderTemplate +=  "void main()\n";
+  fragmentShaderTemplate +=  "{\n";
+  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+  fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
+  fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
+  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+  fragmentShaderTemplate +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
+  fragmentShaderTemplate +=      "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
+  fragmentShaderTemplate +=        "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
+  fragmentShaderTemplate +=          "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ);\n";
+  fragmentShaderTemplate +=          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+  fragmentShaderTemplate +=          "float expA = offsetX * offsetX / %4.16f;\n";
+  fragmentShaderTemplate +=          "float expB = offsetY * offsetY / %4.16f;\n";
+  fragmentShaderTemplate +=          "float expC = offsetZ * offsetZ / %4.16f;\n";
+  fragmentShaderTemplate +=          "float kernel = exp(-(expA + expB + expC));\n";
+  fragmentShaderTemplate +=          "smooth += sample1 * kernel;\n";
+  fragmentShaderTemplate +=          "sum += kernel;\n";
+  fragmentShaderTemplate +=        "}\n";
+  fragmentShaderTemplate +=      "}\n";
+  fragmentShaderTemplate +=    "}\n";
+  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
+  fragmentShaderTemplate +=  "}\n";
+
+  std::string fragmentShaderTemplateWithRotation = "uniform float slice;\n";
+  fragmentShaderTemplateWithRotation +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  fragmentShaderTemplateWithRotation +=  "void main()\n";
+  fragmentShaderTemplateWithRotation +=  "{\n";
+  fragmentShaderTemplateWithRotation +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+  fragmentShaderTemplateWithRotation +=    "vec4 smooth = vec4(0.);\n";
+  fragmentShaderTemplateWithRotation +=    "vec4 sum = vec4(0.);\n";
+  fragmentShaderTemplateWithRotation +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+  fragmentShaderTemplateWithRotation +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
+  fragmentShaderTemplateWithRotation +=      "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
+  fragmentShaderTemplateWithRotation +=        "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
+  fragmentShaderTemplateWithRotation +=          "float x = offsetX * %4.16f * %4.16f - offsetY * %4.16f * %4.16f + offsetZ * %4.16f;\n";
+  fragmentShaderTemplateWithRotation +=          "float y = offsetX * (%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
+                                                 "offsetY * (%4.16f * %4.16f - %4.16f * %4.16f * %4.16f) - offsetZ * %4.16f * %4.16f;\n";
+  fragmentShaderTemplateWithRotation +=          "float z = offsetX * (-%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
+                                                 "offsetY * (%4.16f * %4.16f + %4.16f * %4.16f * %4.16f) + offsetZ * %4.16f * %4.16f;\n";
+  fragmentShaderTemplateWithRotation +=          "vec3 offset1 = vec3(%4.16f * x, %4.16f * y, %4.16f * z);\n";
+  fragmentShaderTemplateWithRotation +=          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+  fragmentShaderTemplateWithRotation +=          "float expA = x * x / %4.16f;\n";
+  fragmentShaderTemplateWithRotation +=          "float expB = y * y / %4.16f;\n";
+  fragmentShaderTemplateWithRotation +=          "float expC = z * z / %4.16f;\n";
+  fragmentShaderTemplateWithRotation +=          "float kernel = exp(-(expA + expB + expC));\n";
+  fragmentShaderTemplateWithRotation +=          "smooth += sample1 * kernel;\n";
+  fragmentShaderTemplateWithRotation +=          "sum += kernel;\n";
+  fragmentShaderTemplateWithRotation +=        "}\n";
+  fragmentShaderTemplateWithRotation +=      "}\n";
+  fragmentShaderTemplateWithRotation +=    "}\n";
+  fragmentShaderTemplateWithRotation +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
+  fragmentShaderTemplateWithRotation +=  "}\n";
+
+  int nBuffer = 2000;
+  char buffer [nBuffer];
+  bool cancel = false;
+
+  int textureUnit = 0;
+
+  if (pnode->GetRx() < 0.001 && pnode->GetRy() < 0.001 && pnode->GetRz() < 0.001)
+    {
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernelX,
+            LengthKernelX,
+            LengthKernelY,
+            LengthKernelY,
+            LengthKernelZ,
+            LengthKernelZ,
+            spacingX,
+            spacingY,
+            spacingZ,
+            textureUnit,
+            sigmaX2,
+            sigmaY2,
+            sigmaZ2);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    }
+  else
+    {
+
+    double rx = pnode->GetRx() * atan(1.) / 45.;
+    double ry = pnode->GetRy() * atan(1.) / 45.;
+    double rz = pnode->GetRz() * atan(1.) / 45.;
+
+    double cx = cos(rx);
+    double sx = sin(rx);
+    double cy = cos(ry);
+    double sy = sin(ry);
+    double cz = cos(rz);
+    double sz = sin(rz);
+    sprintf(buffer,
+            fragmentShaderTemplateWithRotation.c_str(),
+            textureUnit,
+            LengthKernelX,
+            LengthKernelX,
+            LengthKernelY,
+            LengthKernelY,
+            LengthKernelZ,
+            LengthKernelZ,
+            cy, cz, cy, sz, sy,
+            cz, sx, sy, cx, sz, cx, cz, sx, sy, sz, cy, sx,
+            cx, cz, sy, sx, sz, cz, sx, cx, sy, sz, cx, cy,
+            spacingX,
+            spacingY,
+            spacingZ,
+            textureUnit,
+            sigmaX2,
+            sigmaY2,
+            sigmaZ2);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    }
+
+  int status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->iterationVolumeTexture->Activate(0);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(100);
+
+  // get the output
+  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
+
+  // porting back the range to the original one
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) /= scale;
+    *(fPixel+elemCnt) += range[0];
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+
   pnode->SetStatus(0);
+
+  this->Internal->outputVolumeTexture->SetImageData(NULL);
+  this->Internal->iterationVolumeTexture->SetImageData(NULL);
 
   gettimeofday(&end, NULL);
 
@@ -623,9 +1945,301 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   cout<<"tempo : "<<mtime<<endl;
 
   return 1;
-
 }
 
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+{
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  const int *dims = outputVolume->GetImageData()->GetDimensions();
+  double spacingX = 1. / dims[0];
+  double spacingY = 1. / dims[1];
+  double spacingZ = 1. / dims[2];
+
+  const int LengthKernel = (int) (pnode->GetKernelLengthX() - 1) / 2;
+  const double sigma = pnode->GetParameterX() / SigmatoFWHM;
+  const double sigma2 = 2 * sigma * sigma;
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+
+  // set the shaders
+  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+
+  this->Internal->iterationVolumeTexture->SetInterpolate(1);
+  this->Internal->outputVolumeTexture->SetInterpolate(1);
+
+  // set the ImageData in the VolumeTextures
+  /* since the OpenGL texture will be floats in the range 0 to 1,
+  all negative values will get clamped to zero.
+  Also if the sample values aren't evenly spread through
+  the zero-to-one space we may run into numerical issues.
+  So rescale the data to the
+  to fit in the full range of the a 16 bit short.
+  (any vtkImageData scalar type should work with this approach,
+  of course there will approximation error)*/
+
+  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
+  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  this->Internal->shiftScale->SetShift(-range[0]);
+  double scale = 1. / (range[1] - range[0]);
+  this->Internal->shiftScale->SetScale(scale);
+  this->Internal->shiftScale->Update();
+
+  this->Internal->iterationVolumeTexture->SetImageData
+      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+
+  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
+  this->Internal->iterationVolumeTexture->Activate(0);
+  this->Internal->outputVolumeTexture->Activate(1);
+  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
+  this->Internal->shaderComputation->AcquireResultRenderbuffer();
+
+  // set the kernels
+  std::string header = "#version 120\n";
+  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
+  header += "  {\n";
+  header += "  return samplePoint;\n";
+  header += "  }\n";
+  header += "uniform sampler3D\n";
+  header += "textureUnit0,\n";
+  header += "textureUnit1;\n";
+
+  std::string vertexShaderTemplate = "#version 120\n";
+  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
+  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
+  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  vertexShaderTemplate +=  "void main() ";
+  vertexShaderTemplate +=  "  {\n";
+  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
+  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
+  vertexShaderTemplate +=  "  }\n";
+
+  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
+
+  int nBuffer = 2000;
+  char buffer [nBuffer];
+  bool cancel = false;
+
+  int status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+
+    std::string fragmentShaderTemplate = "uniform float slice;\n";
+    fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+    fragmentShaderTemplate +=  "void main()\n";
+    fragmentShaderTemplate +=  "{\n";
+    fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+    fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
+    fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
+    fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+    fragmentShaderTemplate +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
+    fragmentShaderTemplate +=      "vec3 offset1 = vec3(%4.16f * offsetX, 0., 0.);\n";
+    fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+    fragmentShaderTemplate +=      "float kernel = exp(-(offsetX * offsetX) / %4.16f);\n";
+    fragmentShaderTemplate +=      "smooth += sample1 * kernel;\n";
+    fragmentShaderTemplate +=      "sum += kernel;\n";
+    fragmentShaderTemplate +=    "}\n";
+    fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
+    fragmentShaderTemplate +=  "}\n";
+
+    int textureUnit = 0;
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernel,
+            LengthKernel,
+            spacingX,
+            textureUnit,
+            sigma2);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->iterationVolumeTexture->Activate(0);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(40);
+
+  status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+
+    std::string fragmentShaderTemplate = "uniform float slice;\n";
+    fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+    fragmentShaderTemplate +=  "void main()\n";
+    fragmentShaderTemplate +=  "{\n";
+    fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+    fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
+    fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
+    fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+    fragmentShaderTemplate +=    "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
+    fragmentShaderTemplate +=      "vec3 offset1 = vec3(0., %4.16f * offsetY, 0.);\n";
+    fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+    fragmentShaderTemplate +=      "float kernel = exp(-(offsetY * offsetY) / %4.16f);\n";
+    fragmentShaderTemplate +=      "smooth += sample1 * kernel;\n";
+    fragmentShaderTemplate +=      "sum += kernel;\n";
+    fragmentShaderTemplate +=    "}\n";
+    fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
+    fragmentShaderTemplate +=  "}\n";
+
+    int textureUnit = 1;
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernel,
+            LengthKernel,
+            spacingY,
+            textureUnit,
+            sigma2);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->iterationVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->outputVolumeTexture->Activate(1);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(70);
+
+  status = pnode->GetStatus();
+
+  if (status == -1)
+    {
+    cancel = true;
+    }
+
+  if(!cancel)
+    {
+
+    std::string fragmentShaderTemplate = "uniform float slice;\n";
+    fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+    fragmentShaderTemplate +=  "void main()\n";
+    fragmentShaderTemplate +=  "{\n";
+    fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+    fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
+    fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
+    fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+    fragmentShaderTemplate +=    "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
+    fragmentShaderTemplate +=      "vec3 offset1 = vec3(0., 0., %4.16f * offsetZ);\n";
+    fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
+    fragmentShaderTemplate +=      "float kernel = exp(-(offsetZ * offsetZ) / %4.16f);\n";
+    fragmentShaderTemplate +=      "smooth += sample1 * kernel;\n";
+    fragmentShaderTemplate +=      "sum += kernel;\n";
+    fragmentShaderTemplate +=    "}\n";
+    fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
+    fragmentShaderTemplate +=  "}\n";
+
+    int textureUnit = 0;
+    sprintf(buffer,
+            fragmentShaderTemplate.c_str(),
+            textureUnit,
+            LengthKernel,
+            LengthKernel,
+            spacingZ,
+            textureUnit,
+            sigma2);
+
+    std::string shaders = header + buffer;
+    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+    for (int slice = 0; slice < dims[2]; slice++)
+      {
+      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+      this->Internal->iterationVolumeTexture->Activate(0);
+      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+      }
+    }
+  else
+    {
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  pnode->SetStatus(100);
+
+  // get the output
+  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
+
+  // porting backthe range to the original one
+
+  double shift = range[0];
+
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) /= scale;
+    *(fPixel+elemCnt) += shift;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(0);
+
+  this->Internal->outputVolumeTexture->SetImageData(NULL);
+  this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+}
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
@@ -734,7 +2348,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
           {
           case VTK_FLOAT:
             Pixel2 = *(outFPixel + elemCnt) * *(outFPixel + elemCnt);
-            norm = 1 + (Pixel2 / noise2);
+            norm = 1. + (Pixel2 / noise2);
             cX = ((*(outFPixel + x1) - *(outFPixel + elemCnt)) +
                   (*(outFPixel + x2) - *(outFPixel + elemCnt))) * pnode->GetParameterX();
             cY = ((*(outFPixel + y1) - *(outFPixel + elemCnt)) +
@@ -747,7 +2361,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
             break;
           case VTK_DOUBLE:
             Pixel2 = *(outDPixel + elemCnt) * *(outDPixel + elemCnt);
-            norm = 1 + (Pixel2 / noise2);
+            norm = 1. + (Pixel2 / noise2);
             cX = ((*(outDPixel + x1) - *(outDPixel + elemCnt)) +
                   (*(outDPixel + x2) - *(outDPixel + elemCnt))) * pnode->GetParameterX();
             cY = ((*(outDPixel + y1) - *(outDPixel + elemCnt)) +
@@ -782,7 +2396,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
 
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
     outputVolume->UpdateRangeAttributes();
-    outputVolume->UpdateNoiseAttribute();
+    outputVolume->UpdateNoiseAttributes();
 
     switch (DataType)
       {
@@ -809,6 +2423,225 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   delete tempDPixel;
 
   pnode->SetStatus(0);
+
+  gettimeofday(&end, NULL);
+
+  seconds  = end.tv_sec  - start.tv_sec;
+  useconds = end.tv_usec - start.tv_usec;
+
+  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  cout<<"tempo : "<<mtime<<endl;
+
+  return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+{
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  struct timeval start, end;
+
+  long mtime, seconds, useconds;
+
+  gettimeofday(&start, NULL);
+
+  pnode->SetStatus(1);
+  int *dims = outputVolume->GetImageData()->GetDimensions();
+  double spacingX = 1. / dims[0];
+  double spacingY = 1. / dims[1];
+  double spacingZ = 1. / dims[2];
+
+  // set the shaders
+  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
+
+  this->Internal->iterationVolumeTexture->SetInterpolate(1);
+  this->Internal->outputVolumeTexture->SetInterpolate(1);
+
+  // set the ImageData in the VolumeTextures
+  /* since the OpenGL texture will be floats in the range 0 to 1,
+  all negative values will get clamped to zero.
+  Also if the sample values aren't evenly spread through
+  the zero-to-one space we may run into numerical issues.
+  So rescale the data to the
+  to fit in the full range of the a 16 bit short.
+  (any vtkImageData scalar type should work with this approach,
+  of course there will approximation error)*/
+
+  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
+  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
+  double range[2];
+  outputVolume->GetImageData()->GetScalarRange(range);
+  this->Internal->shiftScale->SetShift(-range[0]);
+  double scale = 1. / (range[1] - range[0]);
+  this->Internal->shiftScale->SetScale(scale);
+  this->Internal->shiftScale->Update();
+  this->Internal->iterationVolumeTexture->SetImageData
+      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
+  this->Internal->iterationVolumeTexture->Activate(0);
+  this->Internal->outputVolumeTexture->Activate(1);
+  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
+  this->Internal->shaderComputation->AcquireResultRenderbuffer();
+
+
+  //set Intensity-Driven normalization
+  double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  noise *= scale;
+  double norm = noise * noise * pnode->GetK() * pnode->GetK();
+
+  // set the kernels
+  std::string header = "#version 120\n";
+  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
+  header += "  {\n";
+  header += "  return samplePoint;\n";
+  header += "  }\n";
+  header += "uniform sampler3D\n";
+  header += "textureUnit0,\n";
+  header += "textureUnit1;\n";
+
+  std::string vertexShaderTemplate = "#version 120\n";
+  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
+  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
+  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  vertexShaderTemplate +=  "void main() ";
+  vertexShaderTemplate +=  "  {\n";
+  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
+  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
+  vertexShaderTemplate +=  "  }\n";
+
+  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
+
+  std::string fragmentShaderTemplate = "uniform float slice;\n";
+  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+  fragmentShaderTemplate +=  "void main()\n";
+  fragmentShaderTemplate +=  "{\n";
+  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+  fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
+  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
+  fragmentShaderTemplate +=    "vec4 sample2 = sample * sample;\n";
+  fragmentShaderTemplate +=    "vec4 norm = 1. + (sample2 / %4.16f);\n";
+  fragmentShaderTemplate +=    "vec3 offsetA1 = %4.16f * vec3(-1., 0., 0.);\n";
+  fragmentShaderTemplate +=    "vec3 offsetB1 = %4.16f * vec3(+1., 0., 0.);\n";
+  fragmentShaderTemplate +=    "vec4 sampleA1 = texture3D(textureUnit%d, samplePoint + offsetA1);\n";
+  fragmentShaderTemplate +=    "vec4 sampleB1 = texture3D(textureUnit%d, samplePoint + offsetB1);\n";
+  fragmentShaderTemplate +=    "sum += ((sampleA1 - sample) + (sampleB1 - sample)) * %4.16f;\n";
+  fragmentShaderTemplate +=    "vec3 offsetA2 = %4.16f * vec3(0., -1., 0.);\n";
+  fragmentShaderTemplate +=    "vec3 offsetB2 = %4.16f * vec3(0., +1., 0.);\n";
+  fragmentShaderTemplate +=    "vec4 sampleA2 = texture3D(textureUnit%d, samplePoint + offsetA2);\n";
+  fragmentShaderTemplate +=    "vec4 sampleB2 = texture3D(textureUnit%d, samplePoint + offsetB2);\n";
+  fragmentShaderTemplate +=    "sum += ((sampleA2 - sample) + (sampleB2 - sample)) * %4.16f;\n";
+  fragmentShaderTemplate +=    "vec3 offsetA3 = %4.16f * vec3(0., 0., -1.);\n";
+  fragmentShaderTemplate +=    "vec3 offsetB3 = %4.16f * vec3(0., 0., +1.);\n";
+  fragmentShaderTemplate +=    "vec4 sampleA3 = texture3D(textureUnit%d, samplePoint + offsetA3);\n";
+  fragmentShaderTemplate +=    "vec4 sampleB3 = texture3D(textureUnit%d, samplePoint + offsetB3);\n";
+  fragmentShaderTemplate +=    "sum += ((sampleA3 - sample) + (sampleB3 - sample)) * %4.16f;\n";
+  fragmentShaderTemplate +=    "vec4 smooth = sample + (%4.16f * sum / norm);\n";
+  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth), 1.);\n";
+  fragmentShaderTemplate +=  "}\n";
+
+  int nBuffer = 2000;
+  char buffer [nBuffer];
+  bool cancel = false;
+
+  //starting the computing
+  int iterations = pnode->GetAccuracy();
+  if (!(iterations % 2))
+    {
+    iterations++;
+    }
+
+  for (int i = 1; i <= iterations; i++)
+    {
+    int status = pnode->GetStatus();
+
+    if (status == -1)
+      {
+      cancel = true;
+      }
+
+    if(!cancel)
+      {
+
+      int textureUnit = 1 - (i%2);
+      sprintf(buffer,
+              fragmentShaderTemplate.c_str(),
+              textureUnit,
+              norm,
+              spacingX,
+              spacingX,
+              textureUnit,
+              textureUnit,
+              pnode->GetParameterX(),
+              spacingY,
+              spacingY,
+              textureUnit,
+              textureUnit,
+              pnode->GetParameterY(),
+              spacingZ,
+              spacingZ,
+              textureUnit,
+              textureUnit,
+              pnode->GetParameterZ(),
+              pnode->GetTimeStep());
+
+      std::string shaders = header + buffer;
+      this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
+      for (int slice = 0; slice < dims[2]; slice++)
+        {
+        if (!(textureUnit))
+          {
+          this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
+          this->Internal->iterationVolumeTexture->Activate(0);
+          this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+          }
+        else
+          {
+          this->Internal->iterationVolumeTexture->AttachAsDrawTarget(0, slice);
+          this->Internal->outputVolumeTexture->Activate(1);
+          this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
+          }
+        }
+      }
+    else
+      {
+      this->Internal->outputVolumeTexture->SetImageData(NULL);
+      this->Internal->iterationVolumeTexture->SetImageData(NULL);
+      pnode->SetStatus(0);
+      return 0;
+      }
+
+    pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
+    }
+
+  // get the output
+  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
+
+  // porting backthe range to the original one
+
+  double shift = range[0];
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) /= scale;
+    *(fPixel+elemCnt) += shift;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(0);
+
+  this->Internal->outputVolumeTexture->SetImageData(NULL);
+  this->Internal->iterationVolumeTexture->SetImageData(NULL);
 
   gettimeofday(&end, NULL);
 
@@ -1456,7 +3289,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
   delete outDPixel;
 
   outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttribute();
+  outputVolume->UpdateNoiseAttributes();
   pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);
@@ -2459,7 +4292,7 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
   this->Internal->tempVolumeData->Initialize();
 
   outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttribute();
+  outputVolume->UpdateNoiseAttributes();
   pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);

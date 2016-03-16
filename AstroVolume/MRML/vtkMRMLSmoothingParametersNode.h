@@ -61,6 +61,12 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
   vtkSetMacro(Filter,int);
   vtkGetMacro(Filter,int);
 
+  vtkSetMacro(Hardware,int);
+  vtkGetMacro(Hardware,int);
+
+  vtkSetMacro(Link,bool);
+  vtkGetMacro(Link,bool);
+
   vtkSetMacro(Accuracy,int);
   vtkGetMacro(Accuracy,int);
 
@@ -93,13 +99,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
 
   void SetGaussianKernels();
 
-  void SetGaussianKernelX();
-  void SetGaussianKernelY();
-  void SetGaussianKernelZ();
+  void SetGaussianKernel1D();
   void SetGaussianKernel3D();
-  vtkDoubleArray* GetGaussianKernelX();
-  vtkDoubleArray* GetGaussianKernelY();
-  vtkDoubleArray* GetGaussianKernelZ();
+  vtkDoubleArray* GetGaussianKernel1D();
   vtkDoubleArray* GetGaussianKernel3D();
 
 protected:
@@ -119,6 +121,11 @@ protected:
   /// 1: Adaptive
   /// 2: Wavelet Lifting
   int Filter;
+
+  int Hardware;
+
+  bool Link;
+
   int Accuracy;
   int Status;
 
@@ -138,9 +145,7 @@ protected:
   int KernelLengthZ;
 
   vtkSmartPointer<vtkDoubleArray> gaussianKernel3D;
-  vtkSmartPointer<vtkDoubleArray> gaussianKernelX;
-  vtkSmartPointer<vtkDoubleArray> gaussianKernelY;
-  vtkSmartPointer<vtkDoubleArray> gaussianKernelZ;
+  vtkSmartPointer<vtkDoubleArray> gaussianKernel1D;
 
   double DegToRad;
 };

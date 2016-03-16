@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>569</width>
-    <height>915</height>
+    <width>494</width>
+    <height>1002</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -59,6 +59,12 @@
     <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
      <property name="enabled">
       <bool>true</bool>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
      </property>
      <property name="text">
       <string>Nodes</string>
@@ -169,6 +175,467 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="FilterLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Filter:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="ctkComboBox" name="FilterComboBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="editable">
+         <bool>false</bool>
+        </property>
+        <property name="currentIndex">
+         <number>0</number>
+        </property>
+        <item>
+         <property name="text">
+          <string>Box</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Gaussian</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Intensity-Driven Gradient </string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Haar Wavelet Thresholding</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>Le Gall Wavelet Thresholding</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="HardwareLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Hardware:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <widget class="QComboBox" name="HardwareComboBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <item>
+         <property name="text">
+          <string>CPU</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>GPU</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item row="4" column="0">
+       <widget class="QLabel" name="LinkLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Lock:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="4" column="1">
+       <widget class="QCheckBox" name="LinkCheckBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Click to link / unlink the parameters FWHM_X, FWHM_Y and FWHM_Z</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="CDELT1Label">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>CDELT1:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="5" column="1">
+       <widget class="QLabel" name="CDELT1LabelValue">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>0.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="SigmaXLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>FWHM_X:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxX">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Full width at half maximum in pixel</string>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="singleStep">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>0.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>3.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="CDELT2Label">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>CDELT2:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="QLabel" name="CDELT2LabelValue">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>0.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="0">
+       <widget class="QLabel" name="SigmaYLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>FWHM_Y:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxY">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Full width at half maximum in pixel</string>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="singleStep">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>0.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>3.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="0">
+       <widget class="QLabel" name="CDELT3Label">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>CDELT3:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="9" column="1">
+       <widget class="QLabel" name="CDELT3LabelValue">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>0.</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="0">
+       <widget class="QLabel" name="SigmaZLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>FWHM_Z:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="10" column="1">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxZ">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Full width at half maximum in pixel</string>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="singleStep">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>0.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>3.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="0">
+       <widget class="QLabel" name="RxLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>R_X:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="11" column="1">
+       <widget class="ctkSliderWidget" name="RxSpinBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>First Eulerian angle for rotating the Guassian kernel</string>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="singleStep">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>45.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>360.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="0">
+       <widget class="QLabel" name="RyLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>R_Y:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="12" column="1">
+       <widget class="ctkSliderWidget" name="RySpinBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Second Eulerian angle for rotating the Guassian kernel</string>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="singleStep">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>45.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>360.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="0">
+       <widget class="QLabel" name="RzLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>R_Z:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="13" column="1">
+       <widget class="ctkSliderWidget" name="RzSpinBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Third Eulerian angle for rotating the Guassian kernel</string>
+        </property>
+        <property name="decimals">
+         <number>0</number>
+        </property>
+        <property name="singleStep">
+         <double>20.000000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>45.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>360.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="0">
+       <widget class="QLabel" name="KLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>K:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="14" column="1">
+       <widget class="ctkSliderWidget" name="KSpinBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="singleStep">
+         <double>0.500000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>0.500000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>10.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>2.000000000000000</double>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="0">
+       <widget class="QLabel" name="TimeStepLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>TimeStep:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="15" column="1">
+       <widget class="ctkSliderWidget" name="TimeStepSpinBox">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="decimals">
+         <number>4</number>
+        </property>
+        <property name="singleStep">
+         <double>0.003000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>0.002500000000000</double>
+        </property>
+        <property name="maximum">
+         <double>0.062500000000000</double>
+        </property>
+        <property name="value">
+         <double>0.032500000000000</double>
+        </property>
+        <property name="tracking">
+         <bool>true</bool>
+        </property>
+        <property name="spinBoxVisible">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item row="16" column="0">
+       <widget class="QLabel" name="AccuracyLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Accuracy:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="18" column="1">
+       <widget class="ctkVTKRenderView" name="GaussianKernelView">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_5">
         <property name="spacing">
@@ -202,328 +669,56 @@
         </item>
        </layout>
       </item>
-      <item row="1" column="0">
-       <widget class="QLabel" name="FilterLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Filter:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="1" column="1">
-       <widget class="ctkComboBox" name="FilterComboBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="editable">
-         <bool>false</bool>
-        </property>
-        <item>
-         <property name="text">
-          <string>Gaussian</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>Intensity-Driven Gradient </string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>Haar Wavelet Thresholding</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>Gall Wavelet Thresholding</string>
-         </property>
-        </item>
-       </widget>
-      </item>
-      <item row="2" column="0">
-       <widget class="QLabel" name="SigmaXLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>SigmaX:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="2" column="1">
-       <widget class="ctkSliderWidget" name="DoubleSpinBoxX">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="singleStep">
-         <double>0.500000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>0.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>10.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>1.500000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
-       <widget class="QLabel" name="SigmaYLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>SigmaY:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="1">
-       <widget class="ctkSliderWidget" name="DoubleSpinBoxY">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="singleStep">
-         <double>0.500000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>0.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>10.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>1.500000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QLabel" name="SigmaZLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>SigmaZ:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="4" column="1">
-       <widget class="ctkSliderWidget" name="DoubleSpinBoxZ">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="singleStep">
-         <double>0.500000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>0.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>10.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>1.500000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="0">
-       <widget class="QLabel" name="AccuracyLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Accuracy:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="10" column="1">
-       <widget class="ctkSliderWidget" name="AccuracySpinBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="decimals">
+      <item row="16" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_6">
+        <property name="leftMargin">
          <number>0</number>
         </property>
-        <property name="minimum">
-         <double>1.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>5.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>3.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="0">
-       <widget class="QLabel" name="KLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>K:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
-       <widget class="ctkSliderWidget" name="KSpinBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="singleStep">
-         <double>0.500000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>0.500000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>10.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>2.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="0">
-       <widget class="QLabel" name="TimeStepLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>TimeStep:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="1">
-       <widget class="ctkSliderWidget" name="TimeStepSpinBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="decimals">
-         <number>4</number>
-        </property>
-        <property name="singleStep">
-         <double>0.003000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>0.002500000000000</double>
-        </property>
-        <property name="maximum">
-         <double>0.062500000000000</double>
-        </property>
-        <property name="value">
-         <double>0.032500000000000</double>
-        </property>
-        <property name="tracking">
-         <bool>true</bool>
-        </property>
-        <property name="spinBoxVisible">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item row="11" column="1">
-       <widget class="ctkVTKRenderView" name="GaussianKernelView">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="RxLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Rx:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="RyLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Ry:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="RzLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="text">
-         <string>Rz:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="ctkSliderWidget" name="RxSpinBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="decimals">
+        <property name="topMargin">
          <number>0</number>
         </property>
-        <property name="singleStep">
-         <double>20.000000000000000</double>
-        </property>
-        <property name="pageStep">
-         <double>45.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>360.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="ctkSliderWidget" name="RySpinBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="decimals">
-         <number>0</number>
-        </property>
-        <property name="singleStep">
-         <double>20.000000000000000</double>
-        </property>
-        <property name="pageStep">
-         <double>45.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>360.000000000000000</double>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="1">
-       <widget class="ctkSliderWidget" name="RzSpinBox">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="decimals">
-         <number>0</number>
-        </property>
-        <property name="singleStep">
-         <double>20.000000000000000</double>
-        </property>
-        <property name="pageStep">
-         <double>45.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>360.000000000000000</double>
-        </property>
-       </widget>
+        <item>
+         <widget class="ctkSliderWidget" name="AccuracySpinBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="decimals">
+           <number>0</number>
+          </property>
+          <property name="minimum">
+           <double>1.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>5.000000000000000</double>
+          </property>
+          <property name="value">
+           <double>3.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="AccuracyValueLabel">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>100</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>100</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>          99%</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>
@@ -737,198 +932,6 @@
   <connection>
    <sender>InputVolumeNodeSelector</sender>
    <signal>currentNodeChanged(bool)</signal>
-   <receiver>AutomaticModeRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>15</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>170</x>
-     <y>145</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ManualModeRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>15</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>FilterLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>25</x>
-     <y>175</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>FilterComboBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>296</x>
-     <y>177</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>SigmaXLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>45</x>
-     <y>213</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>SigmaYLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>226</x>
-     <y>213</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>SigmaZLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>407</x>
-     <y>213</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>DoubleSpinBoxX</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>440</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>312</x>
-     <y>212</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>DoubleSpinBoxY</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>440</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>312</x>
-     <y>247</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>DoubleSpinBoxZ</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>440</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>312</x>
-     <y>282</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>AccuracyLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>441</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>33</x>
-     <y>315</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>AccuracySpinBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>441</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>315</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
    <receiver>CancelButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -961,7 +964,23 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>KLabel</receiver>
+   <receiver>DoubleSpinBoxY</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>440</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>312</x>
+     <y>247</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>TimeStepSpinBox</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -969,8 +988,152 @@
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>61</x>
-     <y>350</y>
+     <x>318</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>LinkCheckBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>248</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>CDELT3LabelValue</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>358</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>GaussianKernelView</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>662</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>FilterLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>25</x>
+     <y>175</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AccuracySpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>315</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RzSpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>387</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>LinkLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>52</x>
+     <y>246</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>HardwareComboBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>177</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaYLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>226</x>
+     <y>213</y>
     </hint>
    </hints>
   </connection>
@@ -1009,7 +1172,7 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>TimeStepSpinBox</receiver>
+   <receiver>CDELT1Label</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1017,15 +1180,15 @@
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>318</x>
-     <y>317</y>
+     <x>44</x>
+     <y>246</y>
     </hint>
    </hints>
   </connection>
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>RxLabel</receiver>
+   <receiver>HardwareLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1033,15 +1196,15 @@
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>57</x>
-     <y>315</y>
+     <x>37</x>
+     <y>175</y>
     </hint>
    </hints>
   </connection>
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>RxSpinBox</receiver>
+   <receiver>KLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1049,23 +1212,7 @@
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>318</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RyLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>58</x>
+     <x>61</x>
      <y>350</y>
     </hint>
    </hints>
@@ -1089,6 +1236,230 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
+   <receiver>CDELT1LabelValue</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>246</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DoubleSpinBoxZ</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>440</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>312</x>
+     <y>282</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaXLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>45</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>CDELT2Label</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>44</x>
+     <y>302</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>CDELT2LabelValue</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>302</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>CDELT3Label</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>44</x>
+     <y>358</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DoubleSpinBoxX</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>440</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>312</x>
+     <y>212</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaZLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>407</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ManualModeRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AccuracyLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>33</x>
+     <y>315</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RxLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>57</x>
+     <y>315</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RyLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>58</x>
+     <y>350</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RxSpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>FilterComboBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>296</x>
+     <y>177</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
    <receiver>RzLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -1103,34 +1474,34 @@
    </hints>
   </connection>
   <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RzSpinBox</receiver>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>AutomaticModeRadioButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
+     <x>320</x>
+     <y>15</y>
     </hint>
     <hint type="destinationlabel">
-     <x>318</x>
-     <y>387</y>
+     <x>170</x>
+     <y>145</y>
     </hint>
    </hints>
   </connection>
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>GaussianKernelView</receiver>
+   <receiver>AccuracyValueLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>443</x>
+     <x>387</x>
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>318</x>
-     <y>662</y>
+     <x>436</x>
+     <y>623</y>
     </hint>
    </hints>
   </connection>
