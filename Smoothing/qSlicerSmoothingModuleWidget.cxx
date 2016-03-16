@@ -1005,6 +1005,9 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     d->parametersNode->SetParameterX(4);
     d->parametersNode->SetParameterY(4);
     d->parametersNode->SetParameterZ(4);
+    d->parametersNode->SetKernelLengthX(4);
+    d->parametersNode->SetKernelLengthY(4);
+    d->parametersNode->SetKernelLengthZ(4);
     }
 
   if (index == 1)
@@ -1137,6 +1140,10 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     d->parametersNode->SetParameterY(value);
     d->parametersNode->SetParameterZ(value);
     }
+  if (d->parametersNode->GetFilter() == 0)
+    {
+    d->parametersNode->SetKernelLengthX(value);
+    }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 }
@@ -1156,6 +1163,10 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     d->parametersNode->SetParameterX(value);
     d->parametersNode->SetParameterZ(value);
     }
+  if (d->parametersNode->GetFilter() == 0)
+    {
+    d->parametersNode->SetKernelLengthY(value);
+    }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 }
@@ -1174,6 +1185,10 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     {
     d->parametersNode->SetParameterX(value);
     d->parametersNode->SetParameterY(value);
+    }
+  if (d->parametersNode->GetFilter() == 0)
+    {
+    d->parametersNode->SetKernelLengthZ(value);
     }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
