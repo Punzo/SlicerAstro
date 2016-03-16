@@ -61,8 +61,8 @@ QString qSlicerSmoothingModule::acknowledgementText()const
   return "This module was developed by Davide Punzo. "
          "This work was supported by ERC grant nr. 291531, "
          "and Slicer community."
-         "Special thanks to Steve Pieper (Isomics) for support"
-         "regarding the GPU (OpenGL) implementation of the filters";
+         " Special thanks to Steve Pieper (Isomics) for support"
+         " regarding the GPU (OpenGL) implementation of the filters";
 }
 
 //-----------------------------------------------------------------------------
