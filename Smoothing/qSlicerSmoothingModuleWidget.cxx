@@ -539,7 +539,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->RzSpinBox->hide();
         d->LinkCheckBox->show();
         d->LinkLabel->show();
-        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters N_X, N_Y and N_Z");
+        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters N<sub>X</sub>"
+                                    ", N<sub>Y</sub> and N<sub>Z</sub>");
         d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
         d->CDELT1Label->show();
         d->CDELT1LabelValue->show();
@@ -560,9 +561,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
         d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
                                      ->GetDisplayStringFromValueZ(cdelt3));
-        d->SigmaXLabel->setText("N_X:");
-        d->SigmaYLabel->setText("N_Y:");
-        d->SigmaZLabel->setText("N_Z:");
+        d->SigmaXLabel->setText("N<sub>X</sub>:");
+        d->SigmaYLabel->setText("N<sub>Y</sub>:");
+        d->SigmaZLabel->setText("N<sub>Z</sub>:");
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction");
         d->DoubleSpinBoxX->setSingleStep(2);
@@ -587,7 +588,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->TimeStepSpinBox->hide();
         d->LinkCheckBox->show();
         d->LinkLabel->show();
-        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters FWHM_X, FWHM_Y and FWHM_Z");
+        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters"
+                                    " FWHM<sub>X</sub>, FWHM<sub>Y</sub> and FWHM<sub>Z</sub>");
         d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
         d->CDELT1Label->show();
         d->CDELT1LabelValue->show();
@@ -608,9 +610,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
         d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
                                      ->GetDisplayStringFromValueZ(cdelt3));
-        d->SigmaXLabel->setText("FWHM_X:");
-        d->SigmaYLabel->setText("FWHM_Y:");
-        d->SigmaZLabel->setText("FWHM_Z:");
+        d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
+        d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
+        d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction");
         d->DoubleSpinBoxX->setSingleStep(1);
