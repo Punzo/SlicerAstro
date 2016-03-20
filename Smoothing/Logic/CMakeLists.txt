@@ -17,14 +17,13 @@ set(${KIT}_INCLUDE_DIRECTORIES
 set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.cxx
   vtkSlicer${MODULE_NAME}Logic.h
-  vtkOpenGLTextureImage.h
-  vtkOpenGLTextureImage.cxx
-  vtkOpenGLShaderComputation.h
-  vtkOpenGLShaderComputation.cxx
+  vtkOpenGLAstroTextureImage.h
+  vtkOpenGLAstroTextureImage.cxx
+  vtkOpenGLAstroShaderComputation.h
+  vtkOpenGLAstroShaderComputation.cxx
   )
 
 set(${KIT}_TARGET_LIBRARIES
-  ${ITK_LIBRARIES}
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
   )

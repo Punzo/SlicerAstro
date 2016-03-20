@@ -26,8 +26,8 @@
 #include <omp.h>
 
 // vtkOpenGL includes
-#include <vtkOpenGLShaderComputation.h>
-#include <vtkOpenGLTextureImage.h>
+#include <vtkOpenGLAstroShaderComputation.h>
+#include <vtkOpenGLAstroTextureImage.h>
 
 #include <iostream>
 #include <sys/time.h>
@@ -42,9 +42,9 @@ public:
 
   vtkSlicerAstroVolumeLogic* AstroVolumeLogic;
   vtkSmartPointer<vtkImageData> tempVolumeData;
-  vtkSmartPointer<vtkOpenGLShaderComputation> shaderComputation;
-  vtkSmartPointer<vtkOpenGLTextureImage> iterationVolumeTexture;
-  vtkSmartPointer<vtkOpenGLTextureImage> outputVolumeTexture;
+  vtkSmartPointer<vtkOpenGLAstroShaderComputation> shaderComputation;
+  vtkSmartPointer<vtkOpenGLAstroTextureImage> iterationVolumeTexture;
+  vtkSmartPointer<vtkOpenGLAstroTextureImage> outputVolumeTexture;
   vtkSmartPointer<vtkImageExtractComponents> extractComponents;
   vtkSmartPointer<vtkImageShiftScale> shiftScale;
 };
@@ -54,9 +54,9 @@ vtkSlicerSmoothingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = 0;
   tempVolumeData = vtkImageData::New();
-  shaderComputation = vtkOpenGLShaderComputation::New();
-  iterationVolumeTexture = vtkOpenGLTextureImage::New();
-  outputVolumeTexture = vtkOpenGLTextureImage::New();
+  shaderComputation = vtkOpenGLAstroShaderComputation::New();
+  iterationVolumeTexture = vtkOpenGLAstroTextureImage::New();
+  outputVolumeTexture = vtkOpenGLAstroTextureImage::New();
   extractComponents = vtkImageExtractComponents::New();
   shiftScale = vtkImageShiftScale::New();
 }
@@ -408,7 +408,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -738,7 +738,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
   return 1;
 }
 
@@ -939,7 +939,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -1204,7 +1204,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -1380,7 +1380,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -1673,7 +1673,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
   return 1;
 }
 
@@ -1942,7 +1942,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -2236,7 +2236,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -2430,7 +2430,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -2490,6 +2490,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
 
   //set Intensity-Driven normalization
   double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  //I still think that this is wrong!!!!
   noise *= scale;
   double norm = noise * noise * pnode->GetK() * pnode->GetK();
 
@@ -2649,7 +2650,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -3298,7 +3299,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }
@@ -4301,7 +4302,7 @@ int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("tempo : "<<mtime<<endl);
+  vtkDebugMacro("time : "<<mtime<<endl);
 
   return 1;
 }

@@ -17,29 +17,31 @@
 // to support volume rendering and computation when used with
 // the vtkOpenGLShaderComputation class.
 
-#ifndef __vtkOpenGLTextureImage_h
-#define __vtkOpenGLTextureImage_h
+#ifndef __vtkOpenGLAstroTextureImage_h
+#define __vtkOpenGLAstroTextureImage_h
 
-#include "vtkOpenGLShaderComputation.h"
+#include "vtkOpenGLAstroShaderComputation.h"
 
 #include "vtkImageData.h"
 
 #include "vtkAddon.h"
 
+#include "vtkSlicerSmoothingModuleLogicExport.h"
 
-class VTK_ADDON_EXPORT vtkOpenGLTextureImage : public vtkObject
+/// \ingroup Slicer_QtModules_Smoothing
+class VTK_SLICER_SMOOTHING_MODULE_LOGIC_EXPORT vtkOpenGLAstroTextureImage : public vtkObject
 {
 protected:
 
 public:
-  static vtkOpenGLTextureImage *New();
-  vtkTypeMacro(vtkOpenGLTextureImage,vtkObject);
+  static vtkOpenGLAstroTextureImage *New();
+  vtkTypeMacro(vtkOpenGLAstroTextureImage,vtkObject);
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
   // The ShaderComputation used to manage the OpenGL context and shaders
-  vtkGetObjectMacro(ShaderComputation, vtkOpenGLShaderComputation);
-  vtkSetObjectMacro(ShaderComputation, vtkOpenGLShaderComputation);
+  vtkGetObjectMacro(ShaderComputation, vtkOpenGLAstroShaderComputation);
+  vtkSetObjectMacro(ShaderComputation, vtkOpenGLAstroShaderComputation);
 
   // Description:
   // The image data that corresponds to the texture.
@@ -108,14 +110,14 @@ public:
   // TODO: options for min and mag filter, wrapping...
 
 protected:
-  vtkOpenGLTextureImage();
-  ~vtkOpenGLTextureImage();
+  vtkOpenGLAstroTextureImage();
+  ~vtkOpenGLAstroTextureImage();
 
 private:
-  vtkOpenGLTextureImage(const vtkOpenGLTextureImage&);  // Not implemented.
-  void operator=(const vtkOpenGLTextureImage&);  // Not implemented.
+  vtkOpenGLAstroTextureImage(const vtkOpenGLAstroTextureImage&);  // Not implemented.
+  void operator=(const vtkOpenGLAstroTextureImage&);  // Not implemented.
 
-  vtkOpenGLShaderComputation *ShaderComputation;
+  vtkOpenGLAstroShaderComputation *ShaderComputation;
   vtkImageData *ImageData;
   vtkTypeUInt32 TextureName;
   int Interpolate;

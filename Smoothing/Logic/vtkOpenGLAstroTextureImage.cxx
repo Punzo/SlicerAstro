@@ -8,7 +8,7 @@
      the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
      PURPOSE.  See the above copyright notice for more information.
 =========================================================================*/
-#include "vtkOpenGLTextureImage.h"
+#include "vtkOpenGLAstroTextureImage.h"
 
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
@@ -28,10 +28,10 @@
 #include <math.h>
 
 //----------------------------------------------------------------------------
-vtkStandardNewMacro(vtkOpenGLTextureImage);
+vtkStandardNewMacro(vtkOpenGLAstroTextureImage);
 
 //----------------------------------------------------------------------------
-vtkOpenGLTextureImage::vtkOpenGLTextureImage()
+vtkOpenGLAstroTextureImage::vtkOpenGLAstroTextureImage()
 {
   this->ShaderComputation = NULL;
   this->ImageData = NULL;
@@ -41,7 +41,7 @@ vtkOpenGLTextureImage::vtkOpenGLTextureImage()
 }
 
 //----------------------------------------------------------------------------
-vtkOpenGLTextureImage::~vtkOpenGLTextureImage()
+vtkOpenGLAstroTextureImage::~vtkOpenGLAstroTextureImage()
 {
   this->SetShaderComputation(NULL);
   this->SetImageData(NULL);
@@ -82,7 +82,7 @@ static GLenum vtkScalarTypeToGLType(int vtk_scalar_type)
 //----------------------------------------------------------------------------
 // Reload the texture if needed
 //
-bool vtkOpenGLTextureImage::UpdateTexture()
+bool vtkOpenGLAstroTextureImage::UpdateTexture()
 {
   if (this->ImageData->GetMTime() > this->TextureMTime)
     {
@@ -159,7 +159,7 @@ bool vtkOpenGLTextureImage::UpdateTexture()
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLTextureImage::Activate(vtkTypeUInt32 unit)
+void vtkOpenGLAstroTextureImage::Activate(vtkTypeUInt32 unit)
 {
 
   vtkOpenGLCheckErrorMacro("before activating");
@@ -197,7 +197,7 @@ void vtkOpenGLTextureImage::Activate(vtkTypeUInt32 unit)
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLTextureImage::AttachAsDrawTarget(int attachmentIndex, int layer, int attachment)
+void vtkOpenGLAstroTextureImage::AttachAsDrawTarget(int attachmentIndex, int layer, int attachment)
 {
   vtkOpenGLCheckErrorMacro("before attaching");
 
@@ -254,7 +254,7 @@ void vtkOpenGLTextureImage::AttachAsDrawTarget(int attachmentIndex, int layer, i
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLTextureImage::ReadBack()
+void vtkOpenGLAstroTextureImage::ReadBack()
 {
 
   vtkOpenGLCheckErrorMacro("before getting");
@@ -302,7 +302,7 @@ void vtkOpenGLTextureImage::ReadBack()
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLTextureImage::PrintSelf(ostream& os, vtkIndent indent)
+void vtkOpenGLAstroTextureImage::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
 

@@ -13,8 +13,8 @@
 // vtkOpenGLShaderComputation is a way to perform GPU computations on vtk data.
 // vtkOpenGLShaderComputation interfaces to the OpenGL rendering library.
 
-#ifndef __vtkOpenGLShaderComputation_h
-#define __vtkOpenGLShaderComputation_h
+#ifndef __vtkOpenGLAstroShaderComputation_h
+#define __vtkOpenGLAstroShaderComputation_h
 
 #include "vtkImageData.h"
 #include "vtkRenderWindow.h"
@@ -23,14 +23,16 @@ class vtkImageData;
 
 #include "vtkAddon.h"
 
+#include "vtkSlicerSmoothingModuleLogicExport.h"
 
-class VTK_ADDON_EXPORT vtkOpenGLShaderComputation : public vtkObject
+/// \ingroup Slicer_QtModules_Smoothing
+class VTK_SLICER_SMOOTHING_MODULE_LOGIC_EXPORT vtkOpenGLAstroShaderComputation : public vtkObject
 {
 protected:
 
 public:
-  static vtkOpenGLShaderComputation *New();
-  vtkTypeMacro(vtkOpenGLShaderComputation,vtkObject);
+  static vtkOpenGLAstroShaderComputation *New();
+  vtkTypeMacro(vtkOpenGLAstroShaderComputation,vtkObject);
   virtual void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
@@ -84,12 +86,12 @@ public:
   vtkGetMacro(Initialized, bool);
 
 protected:
-  vtkOpenGLShaderComputation();
-  ~vtkOpenGLShaderComputation();
+  vtkOpenGLAstroShaderComputation();
+  ~vtkOpenGLAstroShaderComputation();
 
 private:
-  vtkOpenGLShaderComputation(const vtkOpenGLShaderComputation&);  // Not implemented.
-  void operator=(const vtkOpenGLShaderComputation&);  // Not implemented.
+  vtkOpenGLAstroShaderComputation(const vtkOpenGLAstroShaderComputation&);  // Not implemented.
+  void operator=(const vtkOpenGLAstroShaderComputation&);  // Not implemented.
 
   bool Initialized;
   char *VertexShaderSource;

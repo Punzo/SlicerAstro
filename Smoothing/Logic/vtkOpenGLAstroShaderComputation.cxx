@@ -12,7 +12,7 @@
      PURPOSE.  See the above copyright notice for more information.
 
 =========================================================================*/
-#include "vtkOpenGLShaderComputation.h"
+#include "vtkOpenGLAstroShaderComputation.h"
 
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
@@ -28,10 +28,10 @@
 #include <math.h>
 
 //----------------------------------------------------------------------------
-vtkStandardNewMacro(vtkOpenGLShaderComputation);
+vtkStandardNewMacro(vtkOpenGLAstroShaderComputation);
 
 //----------------------------------------------------------------------------
-vtkOpenGLShaderComputation::vtkOpenGLShaderComputation()
+vtkOpenGLAstroShaderComputation::vtkOpenGLAstroShaderComputation()
 {
   this->Initialized = false;
   this->VertexShaderSource = NULL;
@@ -46,7 +46,7 @@ vtkOpenGLShaderComputation::vtkOpenGLShaderComputation()
 }
 
 //----------------------------------------------------------------------------
-vtkOpenGLShaderComputation::~vtkOpenGLShaderComputation()
+vtkOpenGLAstroShaderComputation::~vtkOpenGLAstroShaderComputation()
 {
   //Bind 0, which means render to back buffer, as a result, this->FramebufferID is unbound
   vtkgl::BindFramebuffer(vtkgl::FRAMEBUFFER, 0);
@@ -71,7 +71,7 @@ vtkOpenGLShaderComputation::~vtkOpenGLShaderComputation()
 // Create a shader object, load the shader source, and
 // compile the shader.
 //
-static GLuint CompileShader ( vtkOpenGLShaderComputation *self, GLenum type, const char *shaderSource )
+static GLuint CompileShader ( vtkOpenGLAstroShaderComputation *self, GLenum type, const char *shaderSource )
 {
   vtkOpenGLClearErrorMacro();
 
@@ -130,7 +130,7 @@ static GLuint CompileShader ( vtkOpenGLShaderComputation *self, GLenum type, con
 //----------------------------------------------------------------------------
 // Rebuild the shader program if needed
 //
-bool vtkOpenGLShaderComputation::UpdateProgram()
+bool vtkOpenGLAstroShaderComputation::UpdateProgram()
 {
   vtkOpenGLClearErrorMacro();
   GLuint vertexShader;
@@ -204,7 +204,7 @@ bool vtkOpenGLShaderComputation::UpdateProgram()
 }
 
 //-----------------------------------------------------------------------------
-void vtkOpenGLShaderComputation::Initialize(vtkRenderWindow *renderWindow)
+void vtkOpenGLAstroShaderComputation::Initialize(vtkRenderWindow *renderWindow)
 {
   if (this->Initialized)
     {
@@ -234,7 +234,7 @@ void vtkOpenGLShaderComputation::Initialize(vtkRenderWindow *renderWindow)
 
 
 //-----------------------------------------------------------------------------
-bool vtkOpenGLShaderComputation::AcquireResultRenderbuffer()
+bool vtkOpenGLAstroShaderComputation::AcquireResultRenderbuffer()
 {
   //
   // adapted from
@@ -323,7 +323,7 @@ bool vtkOpenGLShaderComputation::AcquireResultRenderbuffer()
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLShaderComputation::ReleaseResultRenderbuffer()
+void vtkOpenGLAstroShaderComputation::ReleaseResultRenderbuffer()
 {
   vtkOpenGLClearErrorMacro();
   //Delete temp resources
@@ -341,7 +341,7 @@ void vtkOpenGLShaderComputation::ReleaseResultRenderbuffer()
 //----------------------------------------------------------------------------
 // Perform the computation
 //
-void vtkOpenGLShaderComputation::Compute(float slice)
+void vtkOpenGLAstroShaderComputation::Compute(float slice)
 {
   // bail out early if we aren't configured corretly
   if (this->VertexShaderSource == NULL || this->FragmentShaderSource == NULL)
@@ -461,7 +461,7 @@ void vtkOpenGLShaderComputation::Compute(float slice)
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLShaderComputation::ReadResult()
+void vtkOpenGLAstroShaderComputation::ReadResult()
 {
   vtkOpenGLClearErrorMacro();
   // check and set up the result area
@@ -492,7 +492,7 @@ void vtkOpenGLShaderComputation::ReadResult()
 }
 
 //----------------------------------------------------------------------------
-void vtkOpenGLShaderComputation::PrintSelf(ostream& os, vtkIndent indent)
+void vtkOpenGLAstroShaderComputation::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
   os << indent << "Initialized: " << this->Initialized << "\n";
