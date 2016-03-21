@@ -408,7 +408,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -738,7 +738,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
   return 1;
 }
 
@@ -953,7 +953,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -1237,7 +1237,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -1413,7 +1413,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -1706,7 +1706,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
   return 1;
 }
 
@@ -1989,7 +1989,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -2302,7 +2302,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -2516,7 +2516,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  cout<<"time : "<<mtime<<endl;
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -2837,7 +2837,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  cout<<"time : "<<mtime<<endl;
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -3543,7 +3543,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
@@ -4546,7 +4546,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  vtkDebugMacro(<<"time : "<<mtime<<endl);
 
   return 1;
 }
