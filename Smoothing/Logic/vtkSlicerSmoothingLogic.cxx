@@ -208,7 +208,7 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
       }
     case 4:
       {
-      success = this->GallWaveletThresholdingCPUFilter(pnode);
+      success = this->LeGallWaveletThresholdingCPUFilter(pnode);
       break;
       }
     }
@@ -793,25 +793,23 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 
   // set the ImageData in the VolumeTextures
   /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.
-  Also if the sample values aren't evenly spread through
-  the zero-to-one space we may run into numerical issues.
-  So rescale the data to the
-  to fit in the full range of the a 16 bit short.
-  (any vtkImageData scalar type should work with this approach,
-  of course there will approximation error)*/
+  all negative values will get clamped to zero.*/
 
-  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
-  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
   double range[2];
   outputVolume->GetImageData()->GetScalarRange(range);
-  this->Internal->shiftScale->SetShift(-range[0]);
   double scale = 1. / (range[1] - range[0]);
-  this->Internal->shiftScale->SetScale(scale);
-  this->Internal->shiftScale->Update();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-  this->Internal->iterationVolumeTexture->SetImageData
-      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) -= range[0];
+    *(fPixel+elemCnt) *= scale;
+    }
+
+  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
 
   this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
   this->Internal->iterationVolumeTexture->Activate(0);
@@ -901,8 +899,24 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (cancel)
+    {
+    fPixel = NULL;
+    delete fPixel;
+
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -914,9 +928,6 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
   // porting back the range to the original one
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
   fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
@@ -928,10 +939,13 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
 
-  pnode->SetStatus(0);
+  fPixel = NULL;
+  delete fPixel;
 
   this->Internal->outputVolumeTexture->SetImageData(NULL);
   this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);
 
@@ -981,25 +995,23 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 
   // set the ImageData in the VolumeTextures
   /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.
-  Also if the sample values aren't evenly spread through
-  the zero-to-one space we may run into numerical issues.
-  So rescale the data to the
-  to fit in the full range of the a 16 bit short.
-  (any vtkImageData scalar type should work with this approach,
-  of course there will approximation error)*/
+  all negative values will get clamped to zero.*/
 
-  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
-  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
   double range[2];
   outputVolume->GetImageData()->GetScalarRange(range);
-  this->Internal->shiftScale->SetShift(-range[0]);
   double scale = 1. / (range[1] - range[0]);
-  this->Internal->shiftScale->SetScale(scale);
-  this->Internal->shiftScale->Update();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-  this->Internal->iterationVolumeTexture->SetImageData
-      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) -= range[0];
+    *(fPixel+elemCnt) *= scale;
+    }
+
+  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
 
   this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
   this->Internal->iterationVolumeTexture->Activate(0);
@@ -1081,8 +1093,12 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -1122,8 +1138,12 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -1163,8 +1183,24 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (cancel)
+    {
+    fPixel = NULL;
+    delete fPixel;
+
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -1176,27 +1212,24 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
   // porting backthe range to the original one
-
-  double shift = range[0];
-
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
   fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += shift;
+    *(fPixel+elemCnt) += range[0];
     }
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
 
-  pnode->SetStatus(0);
+  fPixel = NULL;
+  delete fPixel;
 
   this->Internal->outputVolumeTexture->SetImageData(NULL);
   this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);
 
@@ -1718,25 +1751,23 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 
   // set the ImageData in the VolumeTextures
   /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.
-  Also if the sample values aren't evenly spread through
-  the zero-to-one space we may run into numerical issues.
-  So rescale the data to the
-  to fit in the full range of the a 16 bit short.
-  (any vtkImageData scalar type should work with this approach,
-  of course there will approximation error)*/
+  all negative values will get clamped to zero.*/
 
-  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
-  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
   double range[2];
   outputVolume->GetImageData()->GetScalarRange(range);
-  this->Internal->shiftScale->SetShift(-range[0]);
   double scale = 1. / (range[1] - range[0]);
-  this->Internal->shiftScale->SetScale(scale);
-  this->Internal->shiftScale->Update();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-  this->Internal->iterationVolumeTexture->SetImageData
-      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) -= range[0];
+    *(fPixel+elemCnt) *= scale;
+    }
+
+  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
 
   this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
   this->Internal->iterationVolumeTexture->Activate(0);
@@ -1904,8 +1935,24 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (cancel)
+    {
+    fPixel = NULL;
+    delete fPixel;
+
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -1917,9 +1964,6 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
   // porting back the range to the original one
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
   fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
@@ -1931,10 +1975,13 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
 
-  pnode->SetStatus(0);
+  fPixel = NULL;
+  delete fPixel;
 
   this->Internal->outputVolumeTexture->SetImageData(NULL);
   this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);
 
@@ -1980,25 +2027,23 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
   // set the ImageData in the VolumeTextures
   /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.
-  Also if the sample values aren't evenly spread through
-  the zero-to-one space we may run into numerical issues.
-  So rescale the data to the
-  to fit in the full range of the a 16 bit short.
-  (any vtkImageData scalar type should work with this approach,
-  of course there will approximation error)*/
+  all negative values will get clamped to zero.*/
 
-  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
-  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
   double range[2];
   outputVolume->GetImageData()->GetScalarRange(range);
-  this->Internal->shiftScale->SetShift(-range[0]);
   double scale = 1. / (range[1] - range[0]);
-  this->Internal->shiftScale->SetScale(scale);
-  this->Internal->shiftScale->Update();
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-  this->Internal->iterationVolumeTexture->SetImageData
-      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(fPixel+elemCnt) -= range[0];
+    *(fPixel+elemCnt) *= scale;
+    }
+
+  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
 
   this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
   this->Internal->iterationVolumeTexture->Activate(0);
@@ -2081,8 +2126,12 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -2138,8 +2187,12 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -2195,8 +2248,24 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     }
   else
     {
+    fPixel = NULL;
+    delete fPixel;
+
     this->Internal->outputVolumeTexture->SetImageData(NULL);
     this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+    pnode->SetStatus(0);
+    return 0;
+    }
+
+  if (cancel)
+    {
+    fPixel = NULL;
+    delete fPixel;
+
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
     pnode->SetStatus(0);
     return 0;
     }
@@ -2208,27 +2277,24 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
   // porting backthe range to the original one
-
-  double shift = range[0];
-
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
   fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += shift;
+    *(fPixel+elemCnt) += range[0];
     }
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
 
-  pnode->SetStatus(0);
+  fPixel = NULL;
+  delete fPixel;
 
   this->Internal->outputVolumeTexture->SetImageData(NULL);
   this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);
 
@@ -2240,6 +2306,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
   return 1;
 }
+
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
@@ -2395,6 +2462,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
     pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
 
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
+
     outputVolume->UpdateRangeAttributes();
     outputVolume->UpdateNoiseAttributes();
 
@@ -2411,6 +2479,24 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
         return 0;
       }
     }
+
+  double noiseMean = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISEMEAN"));
+
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        *(outFPixel+elemCnt) -= noiseMean;
+        break;
+      case VTK_DOUBLE:
+        *(outDPixel+elemCnt) -= noiseMean;
+        break;
+      }
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -2430,9 +2516,36 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  cout<<"time : "<<mtime<<endl;
 
   return 1;
+}
+
+typedef struct float4 {
+    float x;
+    float y;
+    float z;
+    float w;
+} float4;
+
+//----------------------------------------------------------------------------
+inline float4 EncodeFloatRGBA(float v) {
+  float4 enc;
+  float intpart;
+  enc.x = modff(16777216. * v, &intpart);
+  enc.y = modff(65536. * v, &intpart);
+  enc.z = modff(256. * v, &intpart);
+  enc.w = modff(v, &intpart);
+  float frac = 1./256.;
+  enc.y -= enc.x * frac;
+  enc.z -= enc.y * frac;
+  enc.w -= enc.z * frac;
+  return enc;
+}
+
+//----------------------------------------------------------------------------
+inline float DecodeFloatRGBA(float4 v) {
+  return v.x / 16777216. + v.y / 65536. + v.z / 256. + v.w;
 }
 
 //----------------------------------------------------------------------------
@@ -2462,35 +2575,54 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   this->Internal->outputVolumeTexture->SetInterpolate(1);
 
   // set the ImageData in the VolumeTextures
-  /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.
-  Also if the sample values aren't evenly spread through
-  the zero-to-one space we may run into numerical issues.
-  So rescale the data to the
-  to fit in the full range of the a 16 bit short.
-  (any vtkImageData scalar type should work with this approach,
-  of course there will approximation error)*/
+  // since the OpenGL texture will be floats in the range 0 to 1,
+  // all negative values will get clamped to zero.
 
-  this->Internal->shiftScale->SetInputData(outputVolume->GetImageData());
-  this->Internal->shiftScale->SetOutputScalarTypeToFloat();
+  this->Internal->tempVolumeData->SetDimensions(dims);
+  this->Internal->tempVolumeData->AllocateScalars(VTK_FLOAT, 4);
+
+  //create a 4 componet vtkImageData with the value packed
+  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  float *fPixel;
+  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+  float *fPixelTemp;
+  fPixelTemp =  static_cast<float*>(this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
+
   double range[2];
   outputVolume->GetImageData()->GetScalarRange(range);
-  this->Internal->shiftScale->SetShift(-range[0]);
   double scale = 1. / (range[1] - range[0]);
-  this->Internal->shiftScale->SetScale(scale);
-  this->Internal->shiftScale->Update();
-  this->Internal->iterationVolumeTexture->SetImageData
-      (vtkImageData::SafeDownCast(this->Internal->shiftScale->GetOutputDataObject(0)));
-  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
+
+  omp_set_num_threads(omp_get_num_procs());
+  #pragma omp parallel for schedule(static) shared(fPixelTemp, fPixel)
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    int i = elemCnt * 4;
+    int i2 = i + 1;
+    int i3 = i + 2;
+    int i4 = i + 3;
+
+    *(fPixel+elemCnt) -= range[0];
+    *(fPixel+elemCnt) *= scale;
+
+    float4 value = EncodeFloatRGBA(*(fPixel+elemCnt));
+
+    *(fPixelTemp+i) = value.x;
+    *(fPixelTemp+i2) = value.y;
+    *(fPixelTemp+i3) = value.z;
+    *(fPixelTemp+i4) = value.w;
+    }
+
+  this->Internal->iterationVolumeTexture->SetImageData(this->Internal->tempVolumeData);
+  this->Internal->outputVolumeTexture->SetImageData(this->Internal->tempVolumeData);
   this->Internal->iterationVolumeTexture->Activate(0);
   this->Internal->outputVolumeTexture->Activate(1);
-  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
+  this->Internal->shaderComputation->SetResultImageData(this->Internal->tempVolumeData);
   this->Internal->shaderComputation->AcquireResultRenderbuffer();
 
 
   //set Intensity-Driven normalization
   double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
-  //I still think that this is wrong!!!!
   noise *= scale;
   double norm = noise * noise * pnode->GetK() * pnode->GetK();
 
@@ -2517,32 +2649,49 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
 
   std::string fragmentShaderTemplate = "uniform float slice;\n";
-  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  fragmentShaderTemplate +=  "void main()\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-  fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
-  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-  fragmentShaderTemplate +=    "vec4 sample2 = sample * sample;\n";
-  fragmentShaderTemplate +=    "vec4 norm = 1. + (sample2 / %4.16f);\n";
-  fragmentShaderTemplate +=    "vec3 offsetA1 = %4.16f * vec3(-1., 0., 0.);\n";
-  fragmentShaderTemplate +=    "vec3 offsetB1 = %4.16f * vec3(+1., 0., 0.);\n";
-  fragmentShaderTemplate +=    "vec4 sampleA1 = texture3D(textureUnit%d, samplePoint + offsetA1);\n";
-  fragmentShaderTemplate +=    "vec4 sampleB1 = texture3D(textureUnit%d, samplePoint + offsetB1);\n";
-  fragmentShaderTemplate +=    "sum += ((sampleA1 - sample) + (sampleB1 - sample)) * %4.16f;\n";
-  fragmentShaderTemplate +=    "vec3 offsetA2 = %4.16f * vec3(0., -1., 0.);\n";
-  fragmentShaderTemplate +=    "vec3 offsetB2 = %4.16f * vec3(0., +1., 0.);\n";
-  fragmentShaderTemplate +=    "vec4 sampleA2 = texture3D(textureUnit%d, samplePoint + offsetA2);\n";
-  fragmentShaderTemplate +=    "vec4 sampleB2 = texture3D(textureUnit%d, samplePoint + offsetB2);\n";
-  fragmentShaderTemplate +=    "sum += ((sampleA2 - sample) + (sampleB2 - sample)) * %4.16f;\n";
-  fragmentShaderTemplate +=    "vec3 offsetA3 = %4.16f * vec3(0., 0., -1.);\n";
-  fragmentShaderTemplate +=    "vec3 offsetB3 = %4.16f * vec3(0., 0., +1.);\n";
-  fragmentShaderTemplate +=    "vec4 sampleA3 = texture3D(textureUnit%d, samplePoint + offsetA3);\n";
-  fragmentShaderTemplate +=    "vec4 sampleB3 = texture3D(textureUnit%d, samplePoint + offsetB3);\n";
-  fragmentShaderTemplate +=    "sum += ((sampleA3 - sample) + (sampleB3 - sample)) * %4.16f;\n";
-  fragmentShaderTemplate +=    "vec4 smooth = sample + (%4.16f * sum / norm);\n";
-  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth), 1.);\n";
-  fragmentShaderTemplate +=  "}\n";
+   fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
+   fragmentShaderTemplate +=  "vec4 pack_float(const in float value)\n";
+   fragmentShaderTemplate +=  "{\n";
+   fragmentShaderTemplate +=    "const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n";
+   fragmentShaderTemplate +=    "const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n";
+   fragmentShaderTemplate +=    "vec4 res = fract(value * bit_shift);\n";
+   fragmentShaderTemplate +=    "res -= res.xxyz * bit_mask;\n";
+   fragmentShaderTemplate +=    "return res;\n";
+   fragmentShaderTemplate +=  "}\n";
+
+   fragmentShaderTemplate +=  "float unpack_float(const in vec4 rgba_value)\n";
+   fragmentShaderTemplate +=  "{\n";
+   fragmentShaderTemplate +=    "const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n";
+   fragmentShaderTemplate +=    "float value = dot(rgba_value, bit_shift);\n";
+   fragmentShaderTemplate +=    "return value;\n";
+   fragmentShaderTemplate +=  "}\n";
+
+   fragmentShaderTemplate +=  "void main()\n";
+   fragmentShaderTemplate +=  "{\n";
+   fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
+   fragmentShaderTemplate +=    "float sum = 0.;\n";
+   fragmentShaderTemplate +=    "float sample = unpack_float(texture3D(textureUnit%d, samplePoint));\n";
+   fragmentShaderTemplate +=    "float sample2 = sample * sample;\n";
+   fragmentShaderTemplate +=    "float norm = 1. + (sample2 / %4.16f);\n";
+   fragmentShaderTemplate +=    "vec3 offsetA1 = %4.16f * vec3(-1., 0., 0.);\n";
+   fragmentShaderTemplate +=    "vec3 offsetB1 = %4.16f * vec3(+1., 0., 0.);\n";
+   fragmentShaderTemplate +=    "float sampleA1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA1));\n";
+   fragmentShaderTemplate +=    "float sampleB1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB1));\n";
+   fragmentShaderTemplate +=    "sum += ((sampleA1 - sample) + (sampleB1 - sample)) * %4.16f;\n";
+   fragmentShaderTemplate +=    "vec3 offsetA2 = %4.16f * vec3(0., -1., 0.);\n";
+   fragmentShaderTemplate +=    "vec3 offsetB2 = %4.16f * vec3(0., +1., 0.);\n";
+   fragmentShaderTemplate +=    "float sampleA2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA2));\n";
+   fragmentShaderTemplate +=    "float sampleB2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB2));\n";
+   fragmentShaderTemplate +=    "sum += ((sampleA2 - sample) + (sampleB2 - sample)) * %4.16f;\n";
+   fragmentShaderTemplate +=    "vec3 offsetA3 = %4.16f * vec3(0., 0., -1.);\n";
+   fragmentShaderTemplate +=    "vec3 offsetB3 = %4.16f * vec3(0., 0., +1.);\n";
+   fragmentShaderTemplate +=    "float sampleA3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA3));\n";
+   fragmentShaderTemplate +=    "float sampleB3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB3));\n";
+   fragmentShaderTemplate +=    "sum += ((sampleA3 - sample) + (sampleB3 - sample)) * %4.16f;\n";
+   fragmentShaderTemplate +=    "float smooth = sample + (%4.16f * sum / norm);\n";
+   fragmentShaderTemplate +=    "gl_FragColor = pack_float(smooth);\n";
+   fragmentShaderTemplate +=  "}\n";
+
 
   int nBuffer = 2000;
   char buffer [nBuffer];
@@ -2618,31 +2767,69 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
     pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
     }
 
+  if (cancel)
+    {
+    fPixel = NULL;
+    fPixelTemp = NULL;
+
+    delete fPixel;
+    delete fPixelTemp;
+
+    this->Internal->outputVolumeTexture->SetImageData(NULL);
+    this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+    this->Internal->tempVolumeData->Initialize();
+
+    pnode->SetStatus(0);
+
+    return 0;
+    }
+
   // get the output
   this->Internal->outputVolumeTexture->ReadBack();
-  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
+  fPixelTemp = static_cast<float*>(this->Internal->outputVolumeTexture->GetImageData()->GetScalarPointer(0,0,0));
+  fPixel =  static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-  // porting backthe range to the original one
+  #pragma omp parallel for schedule(static) shared(fPixelTemp, fPixel)
+  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    int i = elemCnt * 4;
+    int i2 = i + 1;
+    int i3 = i + 2;
+    int i4 = i + 3;
 
-  double shift = range[0];
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
+    float4 value4;
+    value4.x = *(fPixelTemp+i);
+    value4.y = *(fPixelTemp+i2);
+    value4.z = *(fPixelTemp+i3);
+    value4.w = *(fPixelTemp+i4);
+    float value = DecodeFloatRGBA(value4);
+    *(fPixel+elemCnt) = value / scale;
+    }
+
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->UpdateNoiseAttributes();
+  double noiseMean = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISEMEAN"));
 
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
-    *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += shift;
+    *(fPixel+elemCnt) -= noiseMean;
     }
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
 
-  pnode->SetStatus(0);
-
   this->Internal->outputVolumeTexture->SetImageData(NULL);
   this->Internal->iterationVolumeTexture->SetImageData(NULL);
+
+  fPixel = NULL;
+  fPixelTemp = NULL;
+  delete fPixel;
+  delete fPixelTemp;
+
+  this->Internal->tempVolumeData->Initialize();
+
+  pnode->SetStatus(0);
 
   gettimeofday(&end, NULL);
 
@@ -2650,7 +2837,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("time : "<<mtime<<endl);
+  cout<<"time : "<<mtime<<endl;
 
   return 1;
 }
@@ -3078,6 +3265,22 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + b3) = 0.;
             }
+          if (fabs(*(outFPixel + elemCnt)) < delta)
+            {
+            *(outFPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outFPixel + a1)) < delta)
+            {
+            *(outFPixel + a1) = 0.;
+            }
+          if (fabs(*(outFPixel + a2)) < delta)
+            {
+            *(outFPixel + a2) = 0.;
+            }
+          if (fabs(*(outFPixel + a3)) < delta)
+            {
+            *(outFPixel + a3) = 0.;
+            }
           // Update step
           *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
           // Predict step
@@ -3111,7 +3314,23 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             }
           if (fabs(*(outDPixel + b3)) < delta)
             {
-            *(outDPixel + 3) = 0.;
+            *(outDPixel + b3) = 0.;
+            }
+          if (fabs(*(outDPixel + elemCnt)) < delta)
+            {
+            *(outDPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outDPixel + a1)) < delta)
+            {
+            *(outDPixel + a1) = 0.;
+            }
+          if (fabs(*(outDPixel + a2)) < delta)
+            {
+            *(outDPixel + a2) = 0.;
+            }
+          if (fabs(*(outDPixel + a3)) < delta)
+            {
+            *(outDPixel + a3) = 0.;
             }
           // Update step
           *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
@@ -3168,6 +3387,15 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + res2) = 0.;
             }
+          if (fabs(*(outFPixel + elemCnt)) < delta)
+            {
+            *(outFPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outFPixel + res1)) < delta)
+            {
+            *(outFPixel + res1) = 0.;
+            }
+
           // Update step
           *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
           // Predict step
@@ -3186,6 +3414,14 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
           if (fabs(*(outDPixel + res2)) < delta)
             {
             *(outDPixel + res2) = 0.;
+            }
+          if (fabs(*(outDPixel + elemCnt)) < delta)
+            {
+            *(outDPixel + elemCnt) = 0.;
+            }
+          if (fabs(*(outDPixel + res1)) < delta)
+            {
+            *(outDPixel + res1) = 0.;
             }
           // Update step
           *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
@@ -3221,6 +3457,10 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + ii) = 0.;
             }
+          if (fabs(*(outFPixel + elemCnt)) < delta)
+            {
+            *(outFPixel + elemCnt) = 0.;
+            }
           // Update step
           *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
           // Predict step
@@ -3231,6 +3471,10 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
           if (fabs(*(outDPixel + ii)) < delta)
             {
             *(outDPixel + ii) = 0.;
+            }
+          if (fabs(*(outDPixel + elemCnt)) < delta)
+            {
+            *(outDPixel + elemCnt) = 0.;
             }
           // Update step
           *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
@@ -3305,7 +3549,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::GallWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
   // This method use Wavelet Lifting (Le Gall (5,3) Wavelet):
   // 1) It applys a forward trasform to level l;
