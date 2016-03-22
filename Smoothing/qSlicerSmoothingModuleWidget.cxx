@@ -827,9 +827,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->KSpinBox->setValue(d->parametersNode->GetK());
         d->TimeStepLabel->show();
         d->TimeStepSpinBox->show();
-        d->SigmaXLabel->setText("Horizontal Conduntance:");
-        d->SigmaYLabel->setText("Vertical Conduntance:");
-        d->SigmaZLabel->setText("Depth Conduntance:");
+        d->SigmaXLabel->setText("Horizontal Conductance:");
+        d->SigmaYLabel->setText("Vertical Conductance:");
+        d->SigmaZLabel->setText("Depth Conductance:");
         d->DoubleSpinBoxX->setToolTip("");
         d->DoubleSpinBoxY->setToolTip("");
         d->DoubleSpinBoxZ->setToolTip("");
