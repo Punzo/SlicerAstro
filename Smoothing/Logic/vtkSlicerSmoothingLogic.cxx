@@ -225,6 +225,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
+  //ofstream //outputFile("./tableAniBoxCPU.txt", ios::out | ios::app);
+
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
   this->Internal->tempVolumeData->Modified();
@@ -275,7 +277,16 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
 
   bool cancel = false;
   int status = 0;
-  int numProcs = omp_get_num_procs();
+  int numProcs = 0;
+  if (pnode->GetCores() == 0)
+    {
+    numProcs = omp_get_num_procs();
+    }
+  else
+    {
+    numProcs = pnode->GetCores();
+    }
+
   omp_set_num_threads(numProcs);
 
   struct timeval start, end;
@@ -391,6 +402,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Box Filter (CPU) Kernel Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -423,7 +435,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) <<mtime<<endl;
+  //outputFile.close();
   return 1;
 }
 
@@ -434,6 +447,8 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableIsoBoxCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -473,7 +488,17 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
 
   bool cancel = false;
 
-  omp_set_num_threads(omp_get_num_procs());
+  int numProcs = 0;
+  if (pnode->GetCores() == 0)
+    {
+    numProcs = omp_get_num_procs();
+    }
+  else
+    {
+    numProcs = pnode->GetCores();
+    }
+
+  omp_set_num_threads(numProcs);
 
   struct timeval start, end;
 
@@ -557,8 +582,10 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
     delete tempFPixel;
     delete outDPixel;
     delete tempDPixel;
+
     this->Internal->tempVolumeData->Initialize();
     pnode->SetStatus(0);
+
     return 0;
     }
 
@@ -655,8 +682,10 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
     delete tempFPixel;
     delete outDPixel;
     delete tempDPixel;
+
     this->Internal->tempVolumeData->Initialize();
     pnode->SetStatus(0);
+
     return 0;
     }
 
@@ -732,6 +761,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Box Filter (CPU) Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -764,6 +794,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
 }
@@ -775,6 +806,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableAniBoxGPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const double spacingX = 1. / dims[0];
@@ -844,45 +877,45 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   this->Internal->shaderComputation->AcquireResultRenderbuffer();
 
   // set the kernels
-  std::string header = "#version 120\n";
-  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
-  header += "  {\n";
-  header += "  return samplePoint;\n";
-  header += "  }\n";
-  header += "uniform sampler3D\n";
-  header += "textureUnit0,\n";
-  header += "textureUnit1;\n";
+  std::string header = "#version 120 \n"
+     "vec3 transformPoint(const in vec3 samplePoint) \n"
+     "  { \n"
+     "  return samplePoint; \n"
+     "  } \n"
+     "uniform sampler3D \n"
+     "textureUnit0, \n"
+     "textureUnit1;\n";
 
-  std::string vertexShaderTemplate = "#version 120\n";
-  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
-  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
-  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  vertexShaderTemplate +=  "void main() ";
-  vertexShaderTemplate +=  "  {\n";
-  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
-  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
-  vertexShaderTemplate +=  "  }\n";
+  std::string vertexShaderTemplate = "#version 120 \n"
+      "attribute vec3 vertexAttribute; \n"
+      "attribute vec2 textureCoordinateAttribute; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "  { \n"
+      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
+      "  gl_Position = vec4(vertexAttribute, 1.); \n"
+      "  }\n";
 
   this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
 
-  std::string fragmentShaderTemplate = "uniform float slice;\n";
-  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  fragmentShaderTemplate +=  "void main()\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-  fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
-  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-  fragmentShaderTemplate +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
-  fragmentShaderTemplate +=      "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
-  fragmentShaderTemplate +=        "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
-  fragmentShaderTemplate +=          "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ);\n";
-  fragmentShaderTemplate +=          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-  fragmentShaderTemplate +=          "smooth += sample1;\n";
-  fragmentShaderTemplate +=        "}\n";
-  fragmentShaderTemplate +=      "}\n";
-  fragmentShaderTemplate +=    "}\n";
-  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / %d), 1.);\n";
-  fragmentShaderTemplate +=  "}\n";
+  std::string fragmentShaderTemplate = "uniform float slice; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "{ \n"
+        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+        "vec4 smooth = vec4(0.); \n"
+        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+        "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
+          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
+            "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
+              "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ); \n"
+              "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+              "smooth += sample1; \n"
+            "} \n"
+          "} \n"
+        "} \n"
+        "gl_FragColor = vec4(vec3(smooth / %d), 1.); \n"
+      "}\n";
 
   int nBuffer = 2000;
   char buffer [nBuffer];
@@ -915,6 +948,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Box Filter (GPU, OpenGL) Benchmark "<< endl;
   qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
 
   gettimeofday(&start, NULL);
 
@@ -953,7 +987,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime << " | ";
   if (cancel)
     {
     fPixel = NULL;
@@ -979,7 +1013,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime << " | ";
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
   // porting back the range to the original one
@@ -1000,7 +1034,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime << " | ";
   gettimeofday(&start, NULL);
 
   outputVolume->UpdateRangeAttributes();
@@ -1013,7 +1047,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime <<endl;
   fPixel = NULL;
   delete fPixel;
 
@@ -1031,6 +1065,8 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableIsoBoxGPU.txt", ios::out | ios::app);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
 
@@ -1087,41 +1123,41 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
   this->Internal->shaderComputation->AcquireResultRenderbuffer();
 
   // set the kernels
-  std::string header = "#version 120\n";
-  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
-  header += "  {\n";
-  header += "  return samplePoint;\n";
-  header += "  }\n";
-  header += "uniform sampler3D\n";
-  header += "textureUnit0,\n";
-  header += "textureUnit1;\n";
+  std::string header = "#version 120 \n"
+     "vec3 transformPoint(const in vec3 samplePoint) \n"
+     "  { \n"
+     "  return samplePoint; \n"
+     "  } \n"
+     "uniform sampler3D \n"
+     "textureUnit0, \n"
+     "textureUnit1;\n";
 
-  std::string vertexShaderTemplate = "#version 120\n";
-  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
-  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
-  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  vertexShaderTemplate +=  "void main() ";
-  vertexShaderTemplate +=  "  {\n";
-  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
-  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
-  vertexShaderTemplate +=  "  }\n";
+  std::string vertexShaderTemplate = "#version 120 \n"
+      "attribute vec3 vertexAttribute; \n"
+      "attribute vec2 textureCoordinateAttribute; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "  { \n"
+      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
+      "  gl_Position = vec4(vertexAttribute, 1.); \n"
+      "  }\n";
 
   this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
 
-  std::string fragmentShaderTemplate = "uniform float slice;\n";
-  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  fragmentShaderTemplate +=  "void main()\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-  fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
-  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-  fragmentShaderTemplate +=    "for (int offset = -%d; offset <= %d; offset++){\n";
-  fragmentShaderTemplate +=      "vec3 offset1 = vec3(%4.16f * offset, %4.16f * offset, %4.16f * offset);\n";
-  fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-  fragmentShaderTemplate +=      "smooth += sample1;\n";
-  fragmentShaderTemplate +=    "}\n";
-  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / %d), 1.);\n";
-  fragmentShaderTemplate +=  "}\n";
+  std::string fragmentShaderTemplate = "uniform float slice; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "{ \n"
+        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+        "vec4 smooth = vec4(0.); \n"
+        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+        "for (int offset = -%d; offset <= %d; offset++){ \n"
+          "vec3 offset1 = vec3(%4.16f * offset, %4.16f * offset, %4.16f * offset); \n"
+          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+          "smooth += sample1; \n"
+        "} \n"
+        "gl_FragColor = vec4(vec3(smooth / %d), 1.); \n"
+      "}\n";
 
   int nBuffer = 2000;
   char buffer [nBuffer];
@@ -1160,6 +1196,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
     qDebug()<<"Box Filter (GPU, OpenGL) Benchmark "<<endl;
     qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
+    //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
     mtime = 0.;
 
     gettimeofday(&start, NULL);
@@ -1288,6 +1325,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 
     mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
     qDebug()<<"Kernel Time"<<mtime<<" ms "<<endl;
+    //outputFile << setprecision(5) << mtime << " | ";
     }
   else
     {
@@ -1327,6 +1365,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
@@ -1348,6 +1387,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   gettimeofday(&start, NULL);
 
@@ -1361,6 +1401,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime <<endl;
 
   fPixel = NULL;
   delete fPixel;
@@ -1379,6 +1420,8 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableAniGaussCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -1417,7 +1460,16 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
 
   bool cancel = false;
   int status = 0;
-  int numProcs = omp_get_num_procs();
+  int numProcs = 0;
+  if (pnode->GetCores() == 0)
+    {
+    numProcs = omp_get_num_procs();
+    }
+  else
+    {
+    numProcs = pnode->GetCores();
+    }
+
   omp_set_num_threads(numProcs);
 
   struct timeval start, end;
@@ -1523,7 +1575,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
   outFPixel = NULL;
   tempFPixel = NULL;
   outDPixel = NULL;
@@ -1555,7 +1607,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-
+//outputFile << setprecision(5) << mtime <<endl;
   return 1;
 }
 
@@ -1565,6 +1617,8 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableIsoGaussCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -1600,8 +1654,17 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   double *GaussKernel1D = static_cast<double*> (pnode->GetGaussianKernel1D()->GetVoidPointer(0));
   bool cancel = false;
 
-  omp_set_num_threads(omp_get_num_procs());
+  int numProcs = 0;
+  if (pnode->GetCores() == 0)
+    {
+    numProcs = omp_get_num_procs();
+    }
+  else
+    {
+    numProcs = pnode->GetCores();
+    }
 
+  omp_set_num_threads(numProcs);
   struct timeval start, end;
 
   long mtime, seconds, useconds;
@@ -1674,8 +1737,10 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
     delete tempFPixel;
     delete outDPixel;
     delete tempDPixel;
+
     this->Internal->tempVolumeData->Initialize();
     pnode->SetStatus(0);
+
     return 0;
     }
 
@@ -1761,8 +1826,10 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
     delete tempFPixel;
     delete outDPixel;
     delete tempDPixel;
+
     this->Internal->tempVolumeData->Initialize();
     pnode->SetStatus(0);
+
     return 0;
     }
 
@@ -1827,7 +1894,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
   outFPixel = NULL;
   tempFPixel = NULL;
   outDPixel = NULL;
@@ -1859,6 +1926,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
 }
@@ -1870,6 +1938,8 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableAniGaussGPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const double spacingX = 1. / dims[0];
@@ -1929,81 +1999,81 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   this->Internal->shaderComputation->AcquireResultRenderbuffer();
 
   // set the kernels
-  std::string header = "#version 120\n";
-  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
-  header += "  {\n";
-  header += "  return samplePoint;\n";
-  header += "  }\n";
-  header += "uniform sampler3D\n";
-  header += "textureUnit0,\n";
-  header += "textureUnit1;\n";
+  std::string header = "#version 120 \n"
+     "vec3 transformPoint(const in vec3 samplePoint) \n"
+     "  { \n"
+     "  return samplePoint; \n"
+     "  } \n"
+     "uniform sampler3D \n"
+     "textureUnit0, \n"
+     "textureUnit1;\n";
 
-  std::string vertexShaderTemplate = "#version 120\n";
-  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
-  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
-  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  vertexShaderTemplate +=  "void main() ";
-  vertexShaderTemplate +=  "  {\n";
-  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
-  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
-  vertexShaderTemplate +=  "  }\n";
+  std::string vertexShaderTemplate = "#version 120 \n"
+      "attribute vec3 vertexAttribute; \n"
+      "attribute vec2 textureCoordinateAttribute; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "  { \n"
+      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
+      "  gl_Position = vec4(vertexAttribute, 1.); \n"
+      "  }\n";
 
   this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
 
-  std::string fragmentShaderTemplate = "uniform float slice;\n";
-  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  fragmentShaderTemplate +=  "void main()\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-  fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
-  fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
-  fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-  fragmentShaderTemplate +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
-  fragmentShaderTemplate +=      "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
-  fragmentShaderTemplate +=        "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
-  fragmentShaderTemplate +=          "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ);\n";
-  fragmentShaderTemplate +=          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-  fragmentShaderTemplate +=          "float expA = offsetX * offsetX / %4.16f;\n";
-  fragmentShaderTemplate +=          "float expB = offsetY * offsetY / %4.16f;\n";
-  fragmentShaderTemplate +=          "float expC = offsetZ * offsetZ / %4.16f;\n";
-  fragmentShaderTemplate +=          "float kernel = exp(-(expA + expB + expC));\n";
-  fragmentShaderTemplate +=          "smooth += sample1 * kernel;\n";
-  fragmentShaderTemplate +=          "sum += kernel;\n";
-  fragmentShaderTemplate +=        "}\n";
-  fragmentShaderTemplate +=      "}\n";
-  fragmentShaderTemplate +=    "}\n";
-  fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
-  fragmentShaderTemplate +=  "}\n";
+  std::string fragmentShaderTemplate = "uniform float slice; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "{ \n"
+        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+        "vec4 smooth = vec4(0.); \n"
+        "vec4 sum = vec4(0.); \n"
+        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+        "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
+          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
+            "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
+              "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ); \n"
+              "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+              "float expA = offsetX * offsetX / %4.16f; \n"
+              "float expB = offsetY * offsetY / %4.16f; \n"
+              "float expC = offsetZ * offsetZ / %4.16f; \n"
+              "float kernel = exp(-(expA + expB + expC)); \n"
+              "smooth += sample1 * kernel; \n"
+              "sum += kernel; \n"
+            "} \n"
+          "} \n"
+        "} \n"
+        "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
+      "}\n";
 
-  std::string fragmentShaderTemplateWithRotation = "uniform float slice;\n";
-  fragmentShaderTemplateWithRotation +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  fragmentShaderTemplateWithRotation +=  "void main()\n";
-  fragmentShaderTemplateWithRotation +=  "{\n";
-  fragmentShaderTemplateWithRotation +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-  fragmentShaderTemplateWithRotation +=    "vec4 smooth = vec4(0.);\n";
-  fragmentShaderTemplateWithRotation +=    "vec4 sum = vec4(0.);\n";
-  fragmentShaderTemplateWithRotation +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-  fragmentShaderTemplateWithRotation +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
-  fragmentShaderTemplateWithRotation +=      "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
-  fragmentShaderTemplateWithRotation +=        "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
-  fragmentShaderTemplateWithRotation +=          "float x = offsetX * %4.16f * %4.16f - offsetY * %4.16f * %4.16f + offsetZ * %4.16f;\n";
-  fragmentShaderTemplateWithRotation +=          "float y = offsetX * (%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
-                                                 "offsetY * (%4.16f * %4.16f - %4.16f * %4.16f * %4.16f) - offsetZ * %4.16f * %4.16f;\n";
-  fragmentShaderTemplateWithRotation +=          "float z = offsetX * (-%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
-                                                 "offsetY * (%4.16f * %4.16f + %4.16f * %4.16f * %4.16f) + offsetZ * %4.16f * %4.16f;\n";
-  fragmentShaderTemplateWithRotation +=          "vec3 offset1 = vec3(%4.16f * x, %4.16f * y, %4.16f * z);\n";
-  fragmentShaderTemplateWithRotation +=          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-  fragmentShaderTemplateWithRotation +=          "float expA = x * x / %4.16f;\n";
-  fragmentShaderTemplateWithRotation +=          "float expB = y * y / %4.16f;\n";
-  fragmentShaderTemplateWithRotation +=          "float expC = z * z / %4.16f;\n";
-  fragmentShaderTemplateWithRotation +=          "float kernel = exp(-(expA + expB + expC));\n";
-  fragmentShaderTemplateWithRotation +=          "smooth += sample1 * kernel;\n";
-  fragmentShaderTemplateWithRotation +=          "sum += kernel;\n";
-  fragmentShaderTemplateWithRotation +=        "}\n";
-  fragmentShaderTemplateWithRotation +=      "}\n";
-  fragmentShaderTemplateWithRotation +=    "}\n";
-  fragmentShaderTemplateWithRotation +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
-  fragmentShaderTemplateWithRotation +=  "}\n";
+  std::string fragmentShaderTemplateWithRotation = "uniform float slice; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "{ \n"
+        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+        "vec4 smooth = vec4(0.); \n"
+        "vec4 sum = vec4(0.); \n"
+        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+        "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
+          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
+            "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
+              "float x = offsetX * %4.16f * %4.16f - offsetY * %4.16f * %4.16f + offsetZ * %4.16f; \n"
+              "float y = offsetX * (%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
+                                                 "offsetY * (%4.16f * %4.16f - %4.16f * %4.16f * %4.16f) - offsetZ * %4.16f * %4.16f; \n"
+              "float z = offsetX * (-%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
+                                                 "offsetY * (%4.16f * %4.16f + %4.16f * %4.16f * %4.16f) + offsetZ * %4.16f * %4.16f; \n"
+              "vec3 offset1 = vec3(%4.16f * x, %4.16f * y, %4.16f * z); \n"
+              "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+              "float expA = x * x / %4.16f; \n"
+              "float expB = y * y / %4.16f; \n"
+              "float expC = z * z / %4.16f; \n"
+              "float kernel = exp(-(expA + expB + expC)); \n"
+              "smooth += sample1 * kernel; \n"
+              "sum += kernel; \n"
+            "} \n"
+          "} \n"
+        "} \n"
+        "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
+      "}\n";
 
   int nBuffer = 2000;
   char buffer [nBuffer];
@@ -2085,6 +2155,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Gaussian Filter (GPU, OpenGL) Benchmark "<< endl;
   qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
 
   if(!cancel)
     {
@@ -2103,6 +2174,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 
     mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
     qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
+    //outputFile << setprecision(5) << mtime << " | ";
     }
   else
     {
@@ -2142,6 +2214,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
@@ -2163,6 +2236,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   gettimeofday(&start, NULL);
 
@@ -2176,6 +2250,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime <<endl;
 
   fPixel = NULL;
   delete fPixel;
@@ -2194,6 +2269,8 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableIsoGaussGPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   double spacingX = 1. / dims[0];
@@ -2246,24 +2323,24 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   this->Internal->shaderComputation->AcquireResultRenderbuffer();
 
   // set the kernels
-  std::string header = "#version 120\n";
-  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
-  header += "  {\n";
-  header += "  return samplePoint;\n";
-  header += "  }\n";
-  header += "uniform sampler3D\n";
-  header += "textureUnit0,\n";
-  header += "textureUnit1;\n";
+  std::string header = "#version 120 \n"
+     "vec3 transformPoint(const in vec3 samplePoint) \n"
+     "  { \n"
+     "  return samplePoint; \n"
+     "  } \n"
+     "uniform sampler3D \n"
+     "textureUnit0, \n"
+     "textureUnit1;\n";
 
-  std::string vertexShaderTemplate = "#version 120\n";
-  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
-  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
-  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  vertexShaderTemplate +=  "void main() ";
-  vertexShaderTemplate +=  "  {\n";
-  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
-  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
-  vertexShaderTemplate +=  "  }\n";
+  std::string vertexShaderTemplate = "#version 120 \n"
+      "attribute vec3 vertexAttribute; \n"
+      "attribute vec2 textureCoordinateAttribute; \n"
+      "varying vec3 interpolatedTextureCoordinate; \n"
+      "void main() \n"
+      "  { \n"
+      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
+      "  gl_Position = vec4(vertexAttribute, 1.); \n"
+      "  }\n";
 
   this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
 
@@ -2281,23 +2358,23 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   if(!cancel)
     {
 
-    std::string fragmentShaderTemplate = "uniform float slice;\n";
-    fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-    fragmentShaderTemplate +=  "void main()\n";
-    fragmentShaderTemplate +=  "{\n";
-    fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-    fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
-    fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
-    fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-    fragmentShaderTemplate +=    "for (int offsetX = -%d; offsetX <= %d; offsetX++){\n";
-    fragmentShaderTemplate +=      "vec3 offset1 = vec3(%4.16f * offsetX, 0., 0.);\n";
-    fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-    fragmentShaderTemplate +=      "float kernel = exp(-(offsetX * offsetX) / %4.16f);\n";
-    fragmentShaderTemplate +=      "smooth += sample1 * kernel;\n";
-    fragmentShaderTemplate +=      "sum += kernel;\n";
-    fragmentShaderTemplate +=    "}\n";
-    fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
-    fragmentShaderTemplate +=  "}\n";
+    std::string fragmentShaderTemplate = "uniform float slice; \n"
+        "varying vec3 interpolatedTextureCoordinate; \n"
+        "void main() \n"
+        "{ \n"
+          "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+          "vec4 smooth = vec4(0.); \n"
+          "vec4 sum = vec4(0.); \n"
+          "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+          "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
+            "vec3 offset1 = vec3(%4.16f * offsetX, 0., 0.); \n"
+            "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+            "float kernel = exp(-(offsetX * offsetX) / %4.16f); \n"
+            "smooth += sample1 * kernel; \n"
+            "sum += kernel; \n"
+          "} \n"
+          "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
+        "}\n";
 
     int textureUnit = 0;
     sprintf(buffer,
@@ -2320,6 +2397,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
     qDebug()<<"Gaussian Filter (GPU, OpenGL) Benchmark "<<endl;
     qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
+    //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
 
     gettimeofday(&start, NULL);
     mtime = 0.;
@@ -2361,23 +2439,23 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   if(!cancel)
     {
 
-    std::string fragmentShaderTemplate = "uniform float slice;\n";
-    fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-    fragmentShaderTemplate +=  "void main()\n";
-    fragmentShaderTemplate +=  "{\n";
-    fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-    fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
-    fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
-    fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-    fragmentShaderTemplate +=    "for (int offsetY = -%d; offsetY <= %d; offsetY++){\n";
-    fragmentShaderTemplate +=      "vec3 offset1 = vec3(0., %4.16f * offsetY, 0.);\n";
-    fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-    fragmentShaderTemplate +=      "float kernel = exp(-(offsetY * offsetY) / %4.16f);\n";
-    fragmentShaderTemplate +=      "smooth += sample1 * kernel;\n";
-    fragmentShaderTemplate +=      "sum += kernel;\n";
-    fragmentShaderTemplate +=    "}\n";
-    fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
-    fragmentShaderTemplate +=  "}\n";
+    std::string fragmentShaderTemplate = "uniform float slice; \n"
+        "varying vec3 interpolatedTextureCoordinate; \n"
+        "void main() \n"
+        "{ \n"
+          "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+          "vec4 smooth = vec4(0.); \n"
+          "vec4 sum = vec4(0.); \n"
+          "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
+            "vec3 offset1 = vec3(0., %4.16f * offsetY, 0.); \n"
+            "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+            "float kernel = exp(-(offsetY * offsetY) / %4.16f); \n"
+            "smooth += sample1 * kernel; \n"
+            "sum += kernel; \n"
+          "} \n"
+          "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
+        "}\n";
 
     int textureUnit = 1;
     sprintf(buffer,
@@ -2429,23 +2507,23 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
   if(!cancel)
     {
 
-    std::string fragmentShaderTemplate = "uniform float slice;\n";
-    fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-    fragmentShaderTemplate +=  "void main()\n";
-    fragmentShaderTemplate +=  "{\n";
-    fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-    fragmentShaderTemplate +=    "vec4 smooth = vec4(0.);\n";
-    fragmentShaderTemplate +=    "vec4 sum = vec4(0.);\n";
-    fragmentShaderTemplate +=    "vec4 sample = texture3D(textureUnit%d, samplePoint);\n";
-    fragmentShaderTemplate +=    "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){\n";
-    fragmentShaderTemplate +=      "vec3 offset1 = vec3(0., 0., %4.16f * offsetZ);\n";
-    fragmentShaderTemplate +=      "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1);\n";
-    fragmentShaderTemplate +=      "float kernel = exp(-(offsetZ * offsetZ) / %4.16f);\n";
-    fragmentShaderTemplate +=      "smooth += sample1 * kernel;\n";
-    fragmentShaderTemplate +=      "sum += kernel;\n";
-    fragmentShaderTemplate +=    "}\n";
-    fragmentShaderTemplate +=    "gl_FragColor = vec4(vec3(smooth / sum), 1.);\n";
-    fragmentShaderTemplate +=  "}\n";
+    std::string fragmentShaderTemplate = "uniform float slice; \n"
+        "varying vec3 interpolatedTextureCoordinate; \n"
+        "void main() \n"
+        "{ \n"
+          "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
+          "vec4 smooth = vec4(0.); \n"
+          "vec4 sum = vec4(0.); \n"
+          "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
+          "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
+            "vec3 offset1 = vec3(0., 0., %4.16f * offsetZ); \n"
+            "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
+            "float kernel = exp(-(offsetZ * offsetZ) / %4.16f); \n"
+            "smooth += sample1 * kernel; \n"
+            "sum += kernel; \n"
+          "} \n"
+          "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
+        "}\n";
 
     int textureUnit = 0;
     sprintf(buffer,
@@ -2474,6 +2552,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
     mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
     qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
+    //outputFile << setprecision(5) << mtime << " | ";
     }
   else
     {
@@ -2513,6 +2592,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
 
@@ -2534,7 +2614,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime << " | ";
   gettimeofday(&start, NULL);
 
   outputVolume->UpdateRangeAttributes();
@@ -2547,7 +2627,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime <<endl;
   fPixel = NULL;
   delete fPixel;
 
@@ -2566,6 +2646,8 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableGradientCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -2599,7 +2681,16 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
     }
   bool cancel = false;
 
-  omp_set_num_threads(omp_get_num_procs());
+  int numProcs = 0;
+  if (pnode->GetCores() == 0)
+    {
+    numProcs = omp_get_num_procs();
+    }
+  else
+    {
+    numProcs = pnode->GetCores();
+    }
+  omp_set_num_threads(numProcs);
 
   struct timeval start, end;
 
@@ -2713,7 +2804,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
       return 0;
       }
 
-    pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
+    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
 
     switch (DataType)
       {
@@ -2727,9 +2818,10 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
         vtkErrorMacro("Attempt to allocate scalars of type not allowed");
         return 0;
       }
+
+    pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
     }
 
-  outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
 
   gettimeofday(&end, NULL);
 
@@ -2738,7 +2830,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
   gettimeofday(&start, NULL);
 
   outputVolume->UpdateRangeAttributes();
@@ -2770,6 +2862,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime <<endl;
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -2782,7 +2875,6 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   delete tempDPixel;
 
   this->Internal->tempVolumeData->Initialize();
-
   pnode->SetStatus(0);
 
   return 1;
@@ -2821,6 +2913,8 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableGradientGPU.txt", ios::out | ios::app);
 
   struct timeval start, end;
 
@@ -2894,70 +2988,70 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   double norm = noise * noise * pnode->GetK() * pnode->GetK();
 
   // set the kernels
-  std::string header = "#version 120\n";
-  header += "vec3 transformPoint(const in vec3 samplePoint)\n";
-  header += "  {\n";
-  header += "  return samplePoint;\n";
-  header += "  }\n";
-  header += "uniform sampler3D\n";
-  header += "textureUnit0,\n";
-  header += "textureUnit1;\n";
+  std::string header = "#version 120 \n"
+     "vec3 transformPoint(const in vec3 samplePoint) \n"
+     "  { \n"
+     "  return samplePoint; \n"
+     "  } \n"
+     "uniform sampler3D \n"
+     "textureUnit0, \n"
+     "textureUnit1;\n";
 
-  std::string vertexShaderTemplate = "#version 120\n";
-  vertexShaderTemplate +=  "attribute vec3 vertexAttribute;\n";
-  vertexShaderTemplate +=  "attribute vec2 textureCoordinateAttribute;\n";
-  vertexShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  vertexShaderTemplate +=  "void main() ";
-  vertexShaderTemplate +=  "  {\n";
-  vertexShaderTemplate +=  "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n";
-  vertexShaderTemplate +=  "  gl_Position = vec4(vertexAttribute, 1.);\n";
-  vertexShaderTemplate +=  "  }\n";
+  std::string vertexShaderTemplate = "#version 120\n"
+      "attribute vec3 vertexAttribute;\n"
+      "attribute vec2 textureCoordinateAttribute;\n"
+      "varying vec3 interpolatedTextureCoordinate;\n"
+      "void main() \n"
+      "  {\n"
+      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n"
+      "  gl_Position = vec4(vertexAttribute, 1.);\n"
+      "  }\n";
 
   this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
 
-  std::string fragmentShaderTemplate = "uniform float slice;\n";
-  fragmentShaderTemplate +=  "varying vec3 interpolatedTextureCoordinate;\n";
-  fragmentShaderTemplate +=  "vec4 pack_float(const in float value)\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n";
-  fragmentShaderTemplate +=    "const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n";
-  fragmentShaderTemplate +=    "vec4 res = fract(value * bit_shift);\n";
-  fragmentShaderTemplate +=    "res -= res.xxyz * bit_mask;\n";
-  fragmentShaderTemplate +=    "return res;\n";
-  fragmentShaderTemplate +=  "}\n";
+  std::string fragmentShaderTemplate = "uniform float slice;\n"
+    "varying vec3 interpolatedTextureCoordinate;\n"
+    "vec4 pack_float(const in float value)\n"
+    "{\n"
+       "const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n"
+       "const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n"
+       "vec4 res = fract(value * bit_shift);\n"
+       "res -= res.xxyz * bit_mask;\n"
+       "return res;\n"
+     "}\n"
 
-  fragmentShaderTemplate +=  "float unpack_float(const in vec4 rgba_value)\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n";
-  fragmentShaderTemplate +=    "float value = dot(rgba_value, bit_shift);\n";
-  fragmentShaderTemplate +=    "return value;\n";
-  fragmentShaderTemplate +=  "}\n";
+     "float unpack_float(const in vec4 rgba_value)\n"
+     "{\n"
+       "const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n"
+       "float value = dot(rgba_value, bit_shift);\n"
+       "return value;\n"
+     "}\n"
 
-  fragmentShaderTemplate +=  "void main()\n";
-  fragmentShaderTemplate +=  "{\n";
-  fragmentShaderTemplate +=    "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n";
-  fragmentShaderTemplate +=    "float sum = 0.;\n";
-  fragmentShaderTemplate +=    "float sample = unpack_float(texture3D(textureUnit%d, samplePoint));\n";
-  fragmentShaderTemplate +=    "float sample2 = sample * sample;\n";
-  fragmentShaderTemplate +=    "float norm = 1. + (sample2 / %4.16f);\n";
-  fragmentShaderTemplate +=    "vec3 offsetA1 = %4.16f * vec3(-1., 0., 0.);\n";
-  fragmentShaderTemplate +=    "vec3 offsetB1 = %4.16f * vec3(+1., 0., 0.);\n";
-  fragmentShaderTemplate +=    "float sampleA1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA1));\n";
-  fragmentShaderTemplate +=    "float sampleB1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB1));\n";
-  fragmentShaderTemplate +=    "sum += ((sampleA1 - sample) + (sampleB1 - sample)) * %4.16f;\n";
-  fragmentShaderTemplate +=    "vec3 offsetA2 = %4.16f * vec3(0., -1., 0.);\n";
-  fragmentShaderTemplate +=    "vec3 offsetB2 = %4.16f * vec3(0., +1., 0.);\n";
-  fragmentShaderTemplate +=    "float sampleA2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA2));\n";
-  fragmentShaderTemplate +=    "float sampleB2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB2));\n";
-  fragmentShaderTemplate +=    "sum += ((sampleA2 - sample) + (sampleB2 - sample)) * %4.16f;\n";
-  fragmentShaderTemplate +=    "vec3 offsetA3 = %4.16f * vec3(0., 0., -1.);\n";
-  fragmentShaderTemplate +=    "vec3 offsetB3 = %4.16f * vec3(0., 0., +1.);\n";
-  fragmentShaderTemplate +=    "float sampleA3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA3));\n";
-  fragmentShaderTemplate +=    "float sampleB3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB3));\n";
-  fragmentShaderTemplate +=    "sum += ((sampleA3 - sample) + (sampleB3 - sample)) * %4.16f;\n";
-  fragmentShaderTemplate +=    "float smooth = sample + (%4.16f * sum / norm);\n";
-  fragmentShaderTemplate +=    "gl_FragColor = pack_float(smooth);\n";
-  fragmentShaderTemplate +=  "}\n";
+     "void main()\n"
+     "{\n"
+       "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n"
+       "float sum = 0.;\n"
+       "float sample = unpack_float(texture3D(textureUnit%d, samplePoint));\n"
+       "float sample2 = sample * sample;\n"
+       "float norm = 1. + (sample2 / %4.16f);\n"
+       "vec3 offsetA1 = %4.16f * vec3(-1., 0., 0.);\n"
+       "vec3 offsetB1 = %4.16f * vec3(+1., 0., 0.);\n"
+       "float sampleA1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA1));\n"
+       "float sampleB1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB1));\n"
+       "sum += ((sampleA1 - sample) + (sampleB1 - sample)) * %4.16f;\n"
+       "vec3 offsetA2 = %4.16f * vec3(0., -1., 0.);\n"
+       "vec3 offsetB2 = %4.16f * vec3(0., +1., 0.);\n"
+       "float sampleA2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA2));\n"
+       "float sampleB2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB2));\n"
+       "sum += ((sampleA2 - sample) + (sampleB2 - sample)) * %4.16f;\n"
+       "vec3 offsetA3 = %4.16f * vec3(0., 0., -1.);\n"
+       "vec3 offsetB3 = %4.16f * vec3(0., 0., +1.);\n"
+       "float sampleA3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA3));\n"
+       "float sampleB3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB3));\n"
+       "sum += ((sampleA3 - sample) + (sampleB3 - sample)) * %4.16f;\n"
+       "float smooth = sample + (%4.16f * sum / norm);\n"
+       "gl_FragColor = pack_float(smooth);\n"
+     "}\n";
 
 
   gettimeofday(&end, NULL);
@@ -2968,6 +3062,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Intensity-Driven Gradient Filter (GPU, OpenGL) Benchmark "<<endl;
   qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
   mtime = 0.;
 
   int nBuffer = 2000;
@@ -3055,6 +3150,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
     }
 
   qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   if (cancel)
     {
@@ -3086,6 +3182,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   gettimeofday(&start, NULL);
   fPixelTemp = static_cast<float*>(this->Internal->outputVolumeTexture->GetImageData()->GetScalarPointer(0,0,0));
@@ -3124,6 +3221,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime << " | ";
 
   gettimeofday(&start, NULL);
 
@@ -3137,6 +3235,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  //outputFile << setprecision(5) << mtime <<endl;
 
   this->Internal->outputVolumeTexture->SetImageData(NULL);
   this->Internal->iterationVolumeTexture->SetImageData(NULL);
@@ -3164,6 +3263,8 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableHaarCPU.txt", ios::out | ios::app);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -3845,7 +3946,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Haar Wavelet Lifting Thresholding Filter Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << numElements << " | "<< 1 << " | " << mtime << " | ";
   outFPixel = NULL;
   outDPixel = NULL;
 
@@ -3864,7 +3965,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime <<endl;
   pnode->SetStatus(0);
 
   return 1;
@@ -3881,6 +3982,8 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  //ofstream //outputFile("./tableGallCPU.txt", ios::out | ios::app);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -4851,7 +4954,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Le Gall Wavelet Lifting Thresholding Filter Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << numElements << " | "<< 1 << " | " << mtime << " | ";
   outFPixel = NULL;
   outDPixel = NULL;
 
@@ -4878,7 +4981,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-
+  //outputFile << setprecision(5) << mtime <<endl;
   pnode->SetStatus(0);
 
   return 1;

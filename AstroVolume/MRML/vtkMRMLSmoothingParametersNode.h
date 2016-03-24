@@ -64,6 +64,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
   vtkSetMacro(Hardware,int);
   vtkGetMacro(Hardware,int);
 
+  vtkSetMacro(Cores,int);
+  vtkGetMacro(Cores,int);
+
   vtkSetMacro(Link,bool);
   vtkGetMacro(Link,bool);
 
@@ -123,6 +126,8 @@ protected:
   int Filter;
 
   int Hardware;
+
+  int Cores;
 
   bool Link;
 

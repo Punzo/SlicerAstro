@@ -31,6 +31,7 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->SetStatus(0);
   this->SetFilter(2);
   this->SetHardware(0);
+  this->SetCores(0);
   this->SetLink(true);
   this->SetAccuracy(20);
   this->SetTimeStep(0.0325);
@@ -142,6 +143,12 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "Hardware"))
       {
       this->Hardware = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Cores"))
+      {
+      this->Cores = StringToInt(attValue);
       continue;
       }
 
@@ -257,6 +264,7 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
   of << indent << " Filter=\"" << this->Filter << "\"";
   of << indent << " Hardware=\"" << this->Hardware << "\"";
+  of << indent << " Cores=\"" << this->Cores << "\"";
   of << indent << " Link=\"" << this->Link << "\"";
   of << indent << " Rx=\"" << this->Rx << "\"";
   of << indent << " Ry=\"" << this->Ry << "\"";
@@ -289,6 +297,7 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetFilter(node->GetFilter());
   this->SetHardware(node->GetHardware());
+  this->SetCores(node->GetCores());
   this->SetLink(node->GetLink());
   this->SetRx(node->GetRx());
   this->SetRy(node->GetRy());
@@ -528,6 +537,10 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
     case 0:
       {
       os << "Hardware: CPU\n";
+      if (this->Cores != 0)
+        {
+        os << "Number of cores: "<< this->Cores<< "\n";
+        }
       break;
       }
     case 1:
@@ -537,6 +550,7 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
       }
     }
 
+  os << "ParameterX: " << this->ParameterX << "\n";
   os << "ParameterX: " << this->ParameterX << "\n";
   if (this->Filter < 3)
     {

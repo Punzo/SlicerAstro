@@ -675,7 +675,6 @@ void vtkFITSReader::AllocateWCS(){
                     ": \n"<<WCS->err->msg<<"\n");
     }
 
-
   if (NWCS > 1)
     {
     vtkErrorMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")

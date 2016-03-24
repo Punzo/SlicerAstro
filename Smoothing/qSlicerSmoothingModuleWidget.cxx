@@ -888,7 +888,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->TimeStepLabel->hide();
         d->TimeStepSpinBox->hide();
         d->SigmaXLabel->setText("Threshold level:");
-        d->DoubleSpinBoxX->setToolTip("");
+        d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
+                                      " for the rms and then applied in"
+                                      " the Wavelet domain.");
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setSingleStep(1);
         d->AccuracyLabel->setText("Wavelet level:");
@@ -931,8 +933,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->SigmaXLabel->setText("Threshold level:");
         d->DoubleSpinBoxX->setToolTip("");
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-        d->DoubleSpinBoxX->setSingleStep(1);
-        d->AccuracyLabel->setText("Wavelet level:");
+        d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
+                                      " for the rms and then applied in"
+                                      " the Wavelet domain.");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
         d->AccuracySpinBox->setMaximum(5);
