@@ -720,10 +720,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
 
           //Configuration of the rotation
 
-          Rx *= -1;
-          Ry *= -1;
-          Rz *= -1;
-
           Rx *= d->DegToRad;
           Ry *= d->DegToRad;
           Rz *= d->DegToRad;
@@ -735,13 +731,13 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
           double cz = cos(Rz);
           double sz = sin(Rz);
           d->transformationMatrix->SetElement(0, 0, cy * cz);
-          d->transformationMatrix->SetElement(0, 1, -cy * sz);
-          d->transformationMatrix->SetElement(0, 2, sy);
-          d->transformationMatrix->SetElement(1, 0, cz * sx * sy + cx * sz);
+          d->transformationMatrix->SetElement(1, 0, -cy * sz);
+          d->transformationMatrix->SetElement(2, 0, sy);
+          d->transformationMatrix->SetElement(0, 1, cz * sx * sy + cx * sz);
           d->transformationMatrix->SetElement(1, 1, cx * cz - sx * sy * sz);
-          d->transformationMatrix->SetElement(1, 2, -cy * sx);
-          d->transformationMatrix->SetElement(2, 0, -cx * cz * sy + sx * sz);
-          d->transformationMatrix->SetElement(2, 1, cz * sx + cx * sy * sz);
+          d->transformationMatrix->SetElement(2, 1, -cy * sx);
+          d->transformationMatrix->SetElement(0, 2, -cx * cz * sy + sx * sz);
+          d->transformationMatrix->SetElement(1, 2, cz * sx + cx * sy * sz);
           d->transformationMatrix->SetElement(2, 2, cx * cy);
 
           d->matrixToLinearTransform->SetInput(d->transformationMatrix);

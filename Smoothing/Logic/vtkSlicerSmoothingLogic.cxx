@@ -225,7 +225,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableAniBoxCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableAniBoxCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -448,7 +448,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableIsoBoxCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableIsoBoxCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -807,7 +807,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableAniBoxGPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableAniBoxGPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const double spacingX = 1. / dims[0];
@@ -1066,7 +1066,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableIsoBoxGPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableIsoBoxGPU.txt", ios::out | ios::app);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
 
@@ -1421,7 +1421,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableAniGaussCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableAniGaussCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -1618,7 +1618,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableIsoGaussCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableIsoGaussCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -1939,7 +1939,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableAniGaussGPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableAniGaussGPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const double spacingX = 1. / dims[0];
@@ -2058,10 +2058,10 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
             "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
               "float x = offsetX * %4.16f * %4.16f - offsetY * %4.16f * %4.16f + offsetZ * %4.16f; \n"
               "float y = offsetX * (%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
-                                                 "offsetY * (%4.16f * %4.16f - %4.16f * %4.16f * %4.16f) - offsetZ * %4.16f * %4.16f; \n"
+                         "offsetY * (%4.16f * %4.16f - %4.16f * %4.16f * %4.16f) - offsetZ * %4.16f * %4.16f; \n"
               "float z = offsetX * (-%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
-                                                 "offsetY * (%4.16f * %4.16f + %4.16f * %4.16f * %4.16f) + offsetZ * %4.16f * %4.16f; \n"
-              "vec3 offset1 = vec3(%4.16f * x, %4.16f * y, %4.16f * z); \n"
+                         "offsetY * (%4.16f * %4.16f + %4.16f * %4.16f * %4.16f) + offsetZ * %4.16f * %4.16f; \n"
+              "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ); \n"
               "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
               "float expA = x * x / %4.16f; \n"
               "float expB = y * y / %4.16f; \n"
@@ -2105,7 +2105,6 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
     }
   else
     {
-
     double rx = pnode->GetRx() * atan(1.) / 45.;
     double ry = pnode->GetRy() * atan(1.) / 45.;
     double rz = pnode->GetRz() * atan(1.) / 45.;
@@ -2270,7 +2269,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableIsoGaussGPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableIsoGaussGPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   double spacingX = 1. / dims[0];
@@ -2647,7 +2646,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableGradientCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableGradientCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -2914,7 +2913,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableGradientGPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableGradientGPU.txt", ios::out | ios::app);
 
   struct timeval start, end;
 
@@ -3264,7 +3263,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableHaarCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableHaarCPU.txt", ios::out | ios::app);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -3983,7 +3982,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  //ofstream outputFile("./tableGallCPU.txt", ios::out | ios::app);
+  // ofstream outputFile("./tableGallCPU.txt", ios::out | ios::app);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
