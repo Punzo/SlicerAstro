@@ -551,7 +551,6 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
     }
 
   os << "ParameterX: " << this->ParameterX << "\n";
-  os << "ParameterX: " << this->ParameterX << "\n";
   if (this->Filter < 3)
     {
     os << "ParameterY: " << this->ParameterY << "\n";
