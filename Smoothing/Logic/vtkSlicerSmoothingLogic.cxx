@@ -15,8 +15,6 @@
 #include <vtkVersion.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
-#include <vtkImageExtractComponents.h>
-#include <vtkImageShiftScale.h>
 
 // STD includes
 #include <cassert>
@@ -48,8 +46,6 @@ public:
   vtkSmartPointer<vtkOpenGLAstroShaderComputation> shaderComputation;
   vtkSmartPointer<vtkOpenGLAstroTextureImage> iterationVolumeTexture;
   vtkSmartPointer<vtkOpenGLAstroTextureImage> outputVolumeTexture;
-  vtkSmartPointer<vtkImageExtractComponents> extractComponents;
-  vtkSmartPointer<vtkImageShiftScale> shiftScale;
 };
 
 //----------------------------------------------------------------------------
@@ -60,8 +56,6 @@ vtkSlicerSmoothingLogic::vtkInternal::vtkInternal()
   shaderComputation = vtkOpenGLAstroShaderComputation::New();
   iterationVolumeTexture = vtkOpenGLAstroTextureImage::New();
   outputVolumeTexture = vtkOpenGLAstroTextureImage::New();
-  extractComponents = vtkImageExtractComponents::New();
-  shiftScale = vtkImageShiftScale::New();
 }
 
 //----------------------------------------------------------------------------
@@ -940,6 +934,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
   std::string shaders = header + buffer;
   this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
 
+  pnode->SetStatus(30);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -1000,7 +996,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
     return 0;
     }
 
-  pnode->SetStatus(100);
+  pnode->SetStatus(60);
 
   gettimeofday(&start, NULL);
 
@@ -1027,6 +1023,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
     *(fPixel+elemCnt) += range[0];
     }
 
+  pnode->SetStatus(80);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -1039,6 +1037,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
 
@@ -1163,6 +1163,8 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
   char buffer [nBuffer];
   bool cancel = false;
 
+  pnode->SetStatus(30);
+
   int status = pnode->GetStatus();
 
   if (status == -1)
@@ -1282,7 +1284,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     return 0;
     }
 
-  pnode->SetStatus(70);
+  pnode->SetStatus(50);
 
   status = pnode->GetStatus();
 
@@ -1351,7 +1353,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     return 0;
     }
 
-  pnode->SetStatus(100);
+  pnode->SetStatus(60);
 
   // get the output
   gettimeofday(&start, NULL);
@@ -1380,6 +1382,8 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
     *(fPixel+elemCnt) += range[0];
     }
 
+  pnode->SetStatus(80);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -1393,6 +1397,8 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
 
@@ -2146,6 +2152,8 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
     cancel = true;
     }
 
+  pnode->SetStatus(30);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -2199,7 +2207,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
     return 0;
     }
 
-  pnode->SetStatus(100);
+  pnode->SetStatus(60);
 
   // get the output
   gettimeofday(&start, NULL);
@@ -2228,6 +2236,8 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
     *(fPixel+elemCnt) += range[0];
     }
 
+  pnode->SetStatus(80);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -2241,6 +2251,8 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
 
@@ -2388,6 +2400,8 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     std::string shaders = header + buffer;
     this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
 
+    pnode->SetStatus(30);
+
     gettimeofday(&end, NULL);
 
     seconds  = end.tv_sec  - start.tv_sec;
@@ -2494,7 +2508,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     return 0;
     }
 
-  pnode->SetStatus(70);
+  pnode->SetStatus(50);
 
   status = pnode->GetStatus();
 
@@ -2577,7 +2591,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     return 0;
     }
 
-  pnode->SetStatus(100);
+  pnode->SetStatus(60);
 
   // get the output
   gettimeofday(&start, NULL);
@@ -2606,6 +2620,8 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
     *(fPixel+elemCnt) += range[0];
     }
 
+  pnode->SetStatus(80);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -2618,6 +2634,8 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
 
@@ -3053,6 +3071,8 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
      "}\n";
 
 
+  pnode->SetStatus(30);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -3145,7 +3165,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
       return 0;
       }
 
-    pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
+    pnode->SetStatus((int) 30 + (i * 10 / pnode->GetAccuracy()));
     }
 
   qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
@@ -3173,6 +3193,8 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   gettimeofday(&start, NULL);
 
   this->Internal->outputVolumeTexture->ReadBack();
+
+  pnode->SetStatus(60);
 
   gettimeofday(&end, NULL);
 
@@ -3213,6 +3235,8 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
     *(fPixel+elemCnt) -= noiseMean;
     }
 
+  pnode->SetStatus(80);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -3226,6 +3250,8 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
 

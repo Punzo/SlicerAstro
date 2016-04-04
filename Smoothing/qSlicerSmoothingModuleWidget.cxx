@@ -1003,12 +1003,12 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   if (index == 0)
     {
-    d->parametersNode->SetParameterX(4);
-    d->parametersNode->SetParameterY(4);
-    d->parametersNode->SetParameterZ(4);
-    d->parametersNode->SetKernelLengthX(4);
-    d->parametersNode->SetKernelLengthY(4);
-    d->parametersNode->SetKernelLengthZ(4);
+    d->parametersNode->SetParameterX(5);
+    d->parametersNode->SetParameterY(5);
+    d->parametersNode->SetParameterZ(5);
+    d->parametersNode->SetKernelLengthX(5);
+    d->parametersNode->SetKernelLengthY(5);
+    d->parametersNode->SetKernelLengthZ(5);
     }
 
   if (index == 1)
