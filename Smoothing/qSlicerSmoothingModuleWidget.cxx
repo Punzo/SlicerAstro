@@ -933,6 +933,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
                                       " for the rms and then applied in"
                                       " the Wavelet domain.");
         d->AccuracySpinBox->setSingleStep(1);
+        d->AccuracyLabel->setText("Wavelet level:");
+        d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
         d->AccuracySpinBox->setMaximum(5);
         d->AccuracySpinBox->setToolTip("");
