@@ -564,15 +564,15 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->SigmaXLabel->setText("N<sub>X</sub>:");
         d->SigmaYLabel->setText("N<sub>Y</sub>:");
         d->SigmaZLabel->setText("N<sub>Z</sub>:");
+        d->DoubleSpinBoxX->setSingleStep(2);
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction");
-        d->DoubleSpinBoxX->setSingleStep(2);
+        d->DoubleSpinBoxY->setSingleStep(2);
         d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
         d->DoubleSpinBoxY->setToolTip("Number of pixel of the Box kernel in the Y direction");
-        d->DoubleSpinBoxY->setSingleStep(2);
+        d->DoubleSpinBoxZ->setSingleStep(2);
         d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
         d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction");
-        d->DoubleSpinBoxZ->setSingleStep(2);
         break;
         }
       case 1:
@@ -613,15 +613,15 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
         d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
+        d->DoubleSpinBoxX->setSingleStep(1);
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction");
-        d->DoubleSpinBoxX->setSingleStep(1);
+        d->DoubleSpinBoxY->setSingleStep(1);
         d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
         d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction");
-        d->DoubleSpinBoxY->setSingleStep(1);
+        d->DoubleSpinBoxZ->setSingleStep(1);
         d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
         d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction");
-        d->DoubleSpinBoxZ->setSingleStep(1);
         d->AccuracyLabel->setText("Kernel Accuracy:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -829,12 +829,12 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxX->setToolTip("");
         d->DoubleSpinBoxY->setToolTip("");
         d->DoubleSpinBoxZ->setToolTip("");
-        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setSingleStep(1);
-        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxY->setSingleStep(1);
-        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
         d->DoubleSpinBoxZ->setSingleStep(1);
+        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
         d->AccuracyLabel->setText("Iterations:");
         d->AccuracySpinBox->setMaximum(30);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -884,11 +884,11 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->TimeStepLabel->hide();
         d->TimeStepSpinBox->hide();
         d->SigmaXLabel->setText("Threshold level:");
+        d->DoubleSpinBoxX->setSingleStep(1);
         d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
                                       " for the rms and then applied in"
                                       " the Wavelet domain.");
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-        d->DoubleSpinBoxX->setSingleStep(1);
         d->AccuracyLabel->setText("Wavelet level:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -928,11 +928,11 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->TimeStepSpinBox->hide();
         d->SigmaXLabel->setText("Threshold level:");
         d->DoubleSpinBoxX->setToolTip("");
+        d->DoubleSpinBoxX->setSingleStep(1);
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
         d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
                                       " for the rms and then applied in"
                                       " the Wavelet domain.");
-        d->AccuracySpinBox->setSingleStep(1);
         d->AccuracyLabel->setText("Wavelet level:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -1047,7 +1047,7 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     {
     d->parametersNode->SetHardware(0);
     d->parametersNode->SetAccuracy(2);
-    d->parametersNode->SetParameterX(1.5);
+    d->parametersNode->SetParameterX(2);
     }
 
   if (index == 4)
@@ -1246,8 +1246,7 @@ void qSlicerSmoothingModuleWidget::onApply()
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
   std::ostringstream outSS;
-  outSS << inputVolume->GetName() << "_Filtered_" <<
-    d->parametersNode->GetMode() << "_";
+  outSS << inputVolume->GetName() << "_Filtered_";
 
   switch (d->parametersNode->GetFilter())
     {
