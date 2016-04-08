@@ -69,6 +69,9 @@ public:
                                               const char *name,
                                               bool cloneImageData=true);
 
+  /// Update the units nodes to the metadata stored in the active volume
+  void updateUnitsNodes(vtkMRMLAstroVolumeNode *astroVolumeNode);
+
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
@@ -86,7 +89,6 @@ protected:
 
 private:
 
-  bool UnitInit;
   vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&); // Not implemented
   void operator=(const vtkSlicerAstroVolumeLogic&);               // Not implemented
 

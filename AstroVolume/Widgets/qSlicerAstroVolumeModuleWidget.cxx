@@ -786,11 +786,17 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
     }
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
 
-  vtkMRMLNode *activeVolumeNode = this->mrmlScene()->GetNodeByID(activeVolumeNodeID);
+  vtkMRMLAstroVolumeNode *activeVolumeNode =
+      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
   if(activeVolumeNode)
     {
     this->setMRMLVolumeNode(activeVolumeNode);
     }
+
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+
+  astroVolumeLogic->updateUnitsNodes(activeVolumeNode);
 
 }
 

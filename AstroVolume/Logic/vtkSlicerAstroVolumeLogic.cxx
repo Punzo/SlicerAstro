@@ -44,7 +44,6 @@ vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 {
-  this->UnitInit = false;
   this->PresetsScene = 0;
 }
 
@@ -181,38 +180,41 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         }
       }
 
-    if(!UnitInit)
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+    if (selectionNode)
       {
-      vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-        this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
-      if (selectionNode)
+      vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+      unitNode1->SetMaximumValue(max);
+      unitNode1->SetMinimumValue(min);
+      unitNode1->SetDisplayCoefficient(1.);
+      std::string temp = " ";
+      if(max < 0.001)
         {
-        vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
-        unitNode1->SetMaximumValue(max);
-        unitNode1->SetMinimumValue(min);
-        unitNode1->SetDisplayCoefficient(1.);
-        std::string temp = " ";
-        if(max < 0.001)
+        temp += "\xB5";
+        unitNode1->SetDisplayCoefficient(1000000.);
+        }
+      else
+        {
+        if(max < 1.)
           {
-          temp += "\xB5";
-          unitNode1->SetDisplayCoefficient(1000000.);
+          temp += "m";
+          unitNode1->SetDisplayCoefficient(1000.);
           }
-        else
-          {
-          if(max < 1.)
-            {
-            temp += "m";
-            unitNode1->SetDisplayCoefficient(1000.);
-            }
-          }
+        }
 
-        temp += "Jy/beam";
-        unitNode1->SetPrecision(6);
-        unitNode1->SetPrefix("");
-        unitNode1->SetSuffix(temp.c_str());
-        unitNode1->SetAttribute("DisplayHint","");
-        selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+      temp += "Jy/beam";
+      unitNode1->SetPrecision(6);
+      unitNode1->SetPrefix("");
+      unitNode1->SetSuffix(temp.c_str());
+      unitNode1->SetAttribute("DisplayHint","");
+      selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
 
+      vtkMRMLAstroVolumeNode *astroVolumeNode =
+          vtkMRMLAstroVolumeNode::SafeDownCast(node);
+
+      if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
+        {
         vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
         unitNode2->SetMaximumValue(360.);
         unitNode2->SetMinimumValue(-180.);
@@ -222,25 +224,29 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode2->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
         unitNode2->SetPrecision(3);
         selectionNode->SetUnitNodeID("length", unitNode2->GetID());
-
-        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
-        unitNode3->SetDisplayCoefficient(0.001);
-        unitNode3->SetPrefix("");
-        unitNode3->SetPrecision(3);
-        unitNode3->SetSuffix("km/s");
-        unitNode3->SetAttribute("DisplayHint","");
-        selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
-
-        vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
-        unitNode4->SetDisplayCoefficient(0.000001);
-        unitNode4->SetPrefix("");
-        unitNode4->SetPrecision(2);
-        unitNode4->SetSuffix("MHz");
-        unitNode4->SetAttribute("DisplayHint","");
-        selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
-
-        UnitInit = true;
         }
+      else
+        {
+        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
+        }
+
+      vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
+
+      unitNode3->SetDisplayCoefficient(0.001);
+      unitNode3->SetSuffix("km/s");
+      unitNode3->SetPrefix("");
+      unitNode3->SetPrecision(3);
+      unitNode3->SetAttribute("DisplayHint","");
+      selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
+
+      vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
+      unitNode4->SetDisplayCoefficient(0.000001);
+      unitNode4->SetPrefix("");
+      unitNode4->SetPrecision(2);
+      unitNode4->SetSuffix("MHz");
+      unitNode4->SetAttribute("DisplayHint","");
+      selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
+
       }
     }
 }
@@ -407,6 +413,49 @@ vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
   return this->PresetsScene;
 }
 
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLAstroVolumeNode *astroVolumeNode)
+{
+  if (!astroVolumeNode)
+    {
+    return;
+    }
+
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+    double max = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+    double min = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+    unitNode1->SetMaximumValue(max);
+    unitNode1->SetMinimumValue(min);
+    unitNode1->SetDisplayCoefficient(1.);
+    std::string temp = " ";
+    if(max < 0.001)
+      {
+      temp += "\xB5";
+      unitNode1->SetDisplayCoefficient(1000000.);
+      }
+    else
+      {
+      if(max < 1.)
+        {
+        temp += "m";
+        unitNode1->SetDisplayCoefficient(1000.);
+        }
+      }
+
+    temp += "Jy/beam";
+    unitNode1->SetPrecision(6);
+    unitNode1->SetPrefix("");
+    unitNode1->SetSuffix(temp.c_str());
+    unitNode1->SetAttribute("DisplayHint","");
+    selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+    }
+
+}
+
 bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node)
 {
   if (node && (node->IsA("vtkMRMLAstroVolumeNode") ||
@@ -435,8 +484,8 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
            compositeOpacity->RemoveAllPoints();
            compositeOpacity->AddPoint(min, 0.);
            compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise3, 0.1);
-           compositeOpacity->AddPoint(max, 0.1);
+           compositeOpacity->AddPoint(noise3, 0.2);
+           compositeOpacity->AddPoint(max, 0.2);
 
            vtkColorTransferFunction *color =
                volumePropertyNode->GetColor();
@@ -458,8 +507,8 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
            compositeOpacity->RemoveAllPoints();
            compositeOpacity->AddPoint(min, 0.);
            compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise3, 0.3);
-           compositeOpacity->AddPoint(max, 0.3);
+           compositeOpacity->AddPoint(noise3, 0.4);
+           compositeOpacity->AddPoint(max, 0.4);
 
            vtkColorTransferFunction *color =
                volumePropertyNode->GetColor();
@@ -481,8 +530,8 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
            compositeOpacity->RemoveAllPoints();
            compositeOpacity->AddPoint(min, 0.);
            compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise3, 0.6);
-           compositeOpacity->AddPoint(max, 0.6);
+           compositeOpacity->AddPoint(noise3, 0.7);
+           compositeOpacity->AddPoint(max, 0.7);
 
            vtkColorTransferFunction *color =
                volumePropertyNode->GetColor();
@@ -504,7 +553,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
            compositeOpacity->RemoveAllPoints();
            compositeOpacity->AddPoint(min, 0.);
            compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise3, 0.3, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.6, 0.5, 0.2);
            compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
            compositeOpacity->AddPoint(max, 0.);
 
@@ -528,10 +577,10 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
            compositeOpacity->RemoveAllPoints();
            compositeOpacity->AddPoint(min, 0.);
            compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise3, 0.3, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.4, 0.5, 0.2);
            compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
            compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise7, 0.6, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise7, 0.7, 0.5, 0.2);
            compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
            compositeOpacity->AddPoint(max, 0.);
 
@@ -556,13 +605,13 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
            compositeOpacity->RemoveAllPoints();
            compositeOpacity->AddPoint(min, 0.);
            compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise3, 0.2, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise3, 0.4, 0.5, 0.2);
            compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
            compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise7, 0.4, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise7, 0.5, 0.5, 0.2);
            compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
            compositeOpacity->AddPoint(noise15 - (noise15 / 5.), 0., 0.5, 0.2);
-           compositeOpacity->AddPoint(noise15, 0.6, 0.5, 0.2);
+           compositeOpacity->AddPoint(noise15, 0.7, 0.5, 0.2);
            compositeOpacity->AddPoint(noise15 + (noise15 / 5.), 0., 0.5, 0.);
            compositeOpacity->AddPoint(max, 0.);
 
