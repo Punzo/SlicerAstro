@@ -264,7 +264,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     mean = (mean1 + mean2) * 0.5;
     }
 
-  this->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());\
+  this->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());\
   this->SetAttribute("SlicerAstro.NOISEMEAN", DoubleToString(mean).c_str());
   outFPixel = NULL;
   outDPixel = NULL;

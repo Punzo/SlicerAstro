@@ -580,25 +580,25 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BUNIT keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the BUNIT keyword.");
      HeaderKeyValue["SlicerAstro.BUNIT"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BMAJ keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the BMAJ keyword.");
      HeaderKeyValue["SlicerAstro.BMAJ"] = "-1.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BMIN keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the BMIN keyword.");
      HeaderKeyValue["SlicerAstro.BMIN"] = "-1.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BPA keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the BPA keyword.");
      HeaderKeyValue["SlicerAstro.BPA"] = "0.";
      }
 
@@ -612,9 +612,15 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
-   if(HeaderKeyValue.count("SlicerAstro.NOISE") == 0)
+   if(!(HeaderKeyValue.count("SlicerAstro.NOISE") == 0))
      {
-     HeaderKeyValue["SlicerAstro.NOISE"] = "0.";
+     HeaderKeyValue["SlicerAstro.RMS"] = HeaderKeyValue.at("SlicerAstro.NOISE");
+     HeaderKeyValue.erase("SlicerAstro.NOISE");
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.RMS") == 0)
+     {
+     HeaderKeyValue["SlicerAstro.RMS"] = "0.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.NOISEMEAN") == 0)

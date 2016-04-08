@@ -2675,7 +2675,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
-  const double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  const double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMS"));
   const double noise2 = noise * noise * pnode->GetK() * pnode->GetK();
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
@@ -3000,7 +3000,7 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
 
 
   //set Intensity-Driven normalization
-  double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMS"));
   noise *= scale;
   double norm = noise * noise * pnode->GetK() * pnode->GetK();
 
@@ -3310,7 +3310,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
       return 0;
     }
 
-  double sigma = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  double sigma = StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMS"));
   double delta = pnode->GetParameterX() * sigma;
 
   bool reduceX = false;
@@ -4029,7 +4029,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
       return 0;
     }
 
-  double sigma = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISE"));
+  double sigma = StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMS"));
   double delta = pnode->GetParameterX() * sigma;
 
   bool reduceX = false;

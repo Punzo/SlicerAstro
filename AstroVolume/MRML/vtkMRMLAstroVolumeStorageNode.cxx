@@ -333,7 +333,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->UpdateRangeAttributes();
       }
-    if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.RMS"), "0."))
       {
       volNode->UpdateNoiseAttributes();
       }
@@ -347,10 +347,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       labvolNode->UpdateRangeAttributes();
       }
 
-    if (!strcmp(reader->GetHeaderValue("SlicerAstro.NOISE"), "0."))
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.RMS"), "0."))
       {
       double noise = 1.;
-      labvolNode->SetAttribute("SlicerAstro.NOISE", DoubleToString(noise).c_str());
+      labvolNode->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
       }
     }
 
