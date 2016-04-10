@@ -4215,13 +4215,13 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Predict
           *(outFPixel + a) -= 0.5 * (*(tempFPixel + elemCnt) + *(tempFPixel + b));
           // Update
-          *(outFPixel + elemCnt) += 0.25 * (*(tempFPixel + c) + *(outFPixel + a));
+          *(outFPixel + elemCnt) += 0.25 * (*(outFPixel + c) + *(outFPixel + a));
           break;
         case VTK_DOUBLE:
           // Predict
           *(outDPixel + a) -= 0.5 * (*(tempDPixel + elemCnt) + *(tempDPixel + b));
           // Update
-          *(outDPixel + elemCnt) += 0.25 * (*(tempDPixel + c) + *(outDPixel + a));
+          *(outDPixel + elemCnt) += 0.25 * (*(outDPixel + c) + *(outDPixel + a));
           break;
         }
       }
@@ -4277,21 +4277,21 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Predict
           *(outFPixel + a) -= 0.5 * (*(tempFPixel + elemCnt) + *(tempFPixel + b));
           // Update
-          *(outFPixel + elemCnt) += 0.25 * (*(tempFPixel + c) + *(outFPixel + a));
+          *(outFPixel + elemCnt) += 0.25 * (*(outFPixel + c) + *(outFPixel + a));
           // Predict residuals
           *(outFPixel + resa) -= 0.5 * (*(tempFPixel + res) + *(tempFPixel + resb));
           // Update residuals
-          *(outFPixel + res) += 0.25 * (*(tempFPixel + resc) + *(outFPixel + resa));
+          *(outFPixel + res) += 0.25 * (*(outFPixel + resc) + *(outFPixel + resa));
           break;
         case VTK_DOUBLE:
           // Predict
           *(outDPixel + a) -= 0.5 * (*(tempDPixel + elemCnt) + *(tempDPixel + b));
           // Update
-          *(outDPixel + elemCnt) += 0.25 * (*(tempDPixel + c) + *(outDPixel + a));
+          *(outDPixel + elemCnt) += 0.25 * (*(outDPixel + c) + *(outDPixel + a));
           // Predict residuals
           *(outDPixel + resa) -= 0.5 * (*(tempDPixel + res) + *(tempDPixel + resb));
           // Update residuals
-          *(outDPixel + res) += 0.25 * (*(tempDPixel + resc) + *(outDPixel + resa));
+          *(outDPixel + res) += 0.25 * (*(outDPixel + resc) + *(outDPixel + resa));
           break;
         }
       }
@@ -4360,37 +4360,37 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Predict
           *(outFPixel + a) -= 0.5 * (*(tempFPixel + elemCnt) + *(tempFPixel + b));
           // Update
-          *(outFPixel + elemCnt) += 0.25 * (*(tempFPixel + c) + *(outFPixel + a));
+          *(outFPixel + elemCnt) += 0.25 * (*(outFPixel + c) + *(outFPixel + a));
           // Predict
           *(outFPixel + a1) -= 0.5 * (*(tempFPixel + e1) + *(tempFPixel + b1));
           // Update
-          *(outFPixel + e1) += 0.25 * (*(tempFPixel + c1) + *(outFPixel + a1));
+          *(outFPixel + e1) += 0.25 * (*(outFPixel + c1) + *(outFPixel + a1));
           // Predict
           *(outFPixel + a2) -= 0.5 * (*(tempFPixel + e2) + *(tempFPixel + b2));
           // Update
-          *(outFPixel + e2) += 0.25 * (*(tempFPixel + c2) + *(outFPixel + a2));
+          *(outFPixel + e2) += 0.25 * (*(outFPixel + c2) + *(outFPixel + a2));
           // Predict
           *(outFPixel + a3) -= 0.5 * (*(tempFPixel + e3) + *(tempFPixel + b3));
           // Update
-          *(outFPixel + e3) += 0.25 * (*(tempFPixel + c3) + *(outFPixel + a3));
+          *(outFPixel + e3) += 0.25 * (*(outFPixel + c3) + *(outFPixel + a3));
           break;
         case VTK_DOUBLE:
           // Predict
           *(outDPixel + a) -= 0.5 * (*(tempDPixel + elemCnt) + *(tempDPixel + b));
           // Update
-          *(outDPixel + elemCnt) += 0.25 * (*(tempDPixel + c) + *(outDPixel + a));
+          *(outDPixel + elemCnt) += 0.25 * (*(outDPixel + c) + *(outDPixel + a));
           // Predict
           *(outDPixel + a1) -= 0.5 * (*(tempDPixel + e1) + *(tempDPixel + b1));
           // Update
-          *(outDPixel + e1) += 0.25 * (*(tempDPixel + c1) + *(outDPixel + a1));
+          *(outDPixel + e1) += 0.25 * (*(outDPixel + c1) + *(outDPixel + a1));
           // Predict
           *(outDPixel + a2) -= 0.5 * (*(tempDPixel + e2) + *(tempDPixel + b2));
           // Update
-          *(outDPixel + e2) += 0.25 * (*(tempDPixel + c2) + *(outDPixel + a2));
+          *(outDPixel + e2) += 0.25 * (*(outDPixel + c2) + *(outDPixel + a2));
           // Predict
           *(outDPixel + a3) -= 0.5 * (*(tempDPixel + e3) + *(tempDPixel + b3));
           // Update
-          *(outDPixel + e3) += 0.25 * (*(tempDPixel + c3) + *(outDPixel + a3));
+          *(outDPixel + e3) += 0.25 * (*(outDPixel + c3) + *(outDPixel + a3));
           break;
         }
       }
@@ -4559,19 +4559,19 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Update
           *(outFPixel + elemCnt) -= 0.25 * (tempC + tempA);
           // Predict
-          *(outFPixel + a) += 0.5 * (*(tempFPixel + elemCnt) + tempB);
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + tempB);
           // Update
           *(outFPixel + e1) -= 0.25 * (tempC1 + tempA1);
           // Predict
-          *(outFPixel + a1) += 0.5 * (*(tempFPixel + e1) + tempB1);
+          *(outFPixel + a1) += 0.5 * (*(outFPixel + e1) + tempB1);
           // Update
           *(outFPixel + e2) -= 0.25 * (tempC2 + tempA2);
           // Predict
-          *(outFPixel + a2) += 0.5 * (*(tempFPixel + e2) + tempB2);
+          *(outFPixel + a2) += 0.5 * (*(outFPixel + e2) + tempB2);
           // Update
           *(outFPixel + e3) -= 0.25 * (tempC3 + tempA3);
           // Predict
-          *(outFPixel + a3) += 0.5 * (*(tempFPixel + e3) + tempB3);
+          *(outFPixel + a3) += 0.5 * (*(outFPixel + e3) + tempB3);
           break;
         case VTK_DOUBLE:
           // Thresholding
@@ -4657,19 +4657,19 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Update
           *(outDPixel + elemCnt) -= 0.25 * (tempDC + tempDA);
           // Predict
-          *(outDPixel + a) += 0.5 * (*(tempDPixel + elemCnt) + tempDB);
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + tempDB);
           // Update
           *(outDPixel + e1) -= 0.25 * (tempDC1 + tempDA1);
           // Predict
-          *(outDPixel + a1) += 0.5 * (*(tempDPixel + e1) + tempDB1);
+          *(outDPixel + a1) += 0.5 * (*(outDPixel + e1) + tempDB1);
           // Update
           *(outDPixel + e2) -= 0.25 * (tempDC2 + tempDA2);
           // Predict
-          *(outDPixel + a2) += 0.5 * (*(tempDPixel + e2) + tempDB2);
+          *(outDPixel + a2) += 0.5 * (*(outDPixel + e2) + tempDB2);
           // Update
           *(outDPixel + e3) -= 0.25 * (tempDC3 + tempDA3);
           // Predict
-          *(outDPixel + a3) += 0.5 * (*(tempDPixel + e3) + tempDB3);
+          *(outDPixel + a3) += 0.5 * (*(outDPixel + e3) + tempDB3);
           break;
         }
       }
@@ -4766,11 +4766,11 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Update
           *(outFPixel + elemCnt) -= 0.25 * (tempC + tempA);
           // Predict
-          *(outFPixel + a) += 0.5 * (*(tempFPixel + elemCnt) + tempB);
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + tempB);
           // Update residuals
           *(outFPixel + res) -= 0.25 * (tempResC + tempResA);
           // Predict residuals
-          *(outFPixel + resa) += 0.5 * (*(tempFPixel + res) + tempResB);
+          *(outFPixel + resa) += 0.5 * (*(outFPixel + res) + tempResB);
           break;
         case VTK_DOUBLE:
           // Thresholding
@@ -4818,11 +4818,11 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Update
           *(outDPixel + elemCnt) -= 0.25 * (tempDC + tempDA);
           // Predict
-          *(outDPixel + a) += 0.5 * (*(tempDPixel + elemCnt) + tempDB);
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + tempDB);
           // Update residuals
           *(outDPixel + res) -= 0.25 * (tempResDC + tempResDA);
           // Predict residuals
-          *(outDPixel + resa) += 0.5 * (*(tempDPixel + res) + tempResDB);
+          *(outDPixel + resa) += 0.5 * (*(outDPixel + res) + tempResDB);
           break;
         }
       }
@@ -4886,7 +4886,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Update
           *(outFPixel + elemCnt) -= 0.25 * (tempC + tempA);
           // Predict
-          *(outFPixel + a) += 0.5 * (*(tempFPixel + elemCnt) + tempB);
+          *(outFPixel + a) += 0.5 * (*(outFPixel + elemCnt) + tempB);
           break;
         case VTK_DOUBLE:
           // Thresholding
@@ -4913,7 +4913,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           // Update
           *(outDPixel + elemCnt) -= 0.25 * (tempDC + tempDA);
           // Predict
-          *(outDPixel + a) += 0.5 * (*(tempDPixel + elemCnt) + tempDB);
+          *(outDPixel + a) += 0.5 * (*(outDPixel + elemCnt) + tempDB);
           break;
         }
       }
