@@ -3644,11 +3644,13 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
     pnode->SetStatus((int) m * 50 / pnode->GetAccuracy());
 
     int inc = pow(2, l);
-    int inc2 = (int) inc / 2;
-    int inc3 = (inc * dims[0]) - dims[0];
-    int inc4 = inc2 * dims[0];
-    int inc5 = (inc * numSlice) - numSlice;
-    int inc6 = inc2 * numSlice;
+    const int inc2 = (int) inc / 2;
+    const int inc3 = (inc * dims[0]) - dims[0];
+    const int inc4 = inc2 * dims[0];
+    const int inc5 = (inc * numSlice) - numSlice;
+    const int inc6 = inc2 * numSlice;
+
+    delta /= 2.;
 
     // Along Z
     for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
@@ -3689,17 +3691,33 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + ii) = 0.;
             }
+          else
+            {
+            *(outFPixel + ii) -= delta;
+            }
           if (fabs(*(outFPixel + b1)) < delta)
             {
             *(outFPixel + b1) = 0.;
+            }
+          else
+            {
+            *(outFPixel + b1) -= delta;
             }
           if (fabs(*(outFPixel + b2)) < delta)
             {
             *(outFPixel + b2) = 0.;
             }
+          else
+            {
+            *(outFPixel + b2) -= delta;
+            }
           if (fabs(*(outFPixel + b3)) < delta)
             {
             *(outFPixel + b3) = 0.;
+            }
+          else
+            {
+            *(outFPixel + b3) -= delta;
             }
           if (fabs(*(outFPixel + elemCnt)) < delta)
             {
@@ -3740,17 +3758,33 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outDPixel + ii) = 0.;
             }
+          else
+            {
+            *(outDPixel + ii) -= delta;
+            }
           if (fabs(*(outDPixel + b1)) < delta)
             {
             *(outDPixel + b1) = 0.;
+            }
+          else
+            {
+            *(outDPixel + b1) -= delta;
             }
           if (fabs(*(outDPixel + b2)) < delta)
             {
             *(outDPixel + b2) = 0.;
             }
+          else
+            {
+            *(outDPixel + b2) -= delta;
+            }
           if (fabs(*(outDPixel + b3)) < delta)
             {
             *(outDPixel + b3) = 0.;
+            }
+          else
+            {
+            *(outDPixel + b3) -= delta;
             }
           if (fabs(*(outDPixel + elemCnt)) < delta)
             {
@@ -3819,9 +3853,17 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + ii) = 0.;
             }
+          else
+            {
+            *(outFPixel + ii) -= delta;
+            }
           if (fabs(*(outFPixel + res2)) < delta)
             {
             *(outFPixel + res2) = 0.;
+            }
+          else
+            {
+            *(outFPixel + res2) -= delta;
             }
           if (fabs(*(outFPixel + elemCnt)) < delta)
             {
@@ -3831,7 +3873,6 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + res1) = 0.;
             }
-
           // Update step
           *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
           // Predict step
@@ -3847,9 +3888,17 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outDPixel + ii) = 0.;
             }
+          else
+            {
+            *(outDPixel + ii) -= delta;
+            }
           if (fabs(*(outDPixel + res2)) < delta)
             {
             *(outDPixel + res2) = 0.;
+            }
+          else
+            {
+            *(outDPixel + res2) -= delta;
             }
           if (fabs(*(outDPixel + elemCnt)) < delta)
             {
@@ -3893,9 +3942,13 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outFPixel + ii) = 0.;
             }
+          else
+            {
+            *(outFPixel + ii) -= delta;
+            }
           if (fabs(*(outFPixel + elemCnt)) < delta)
             {
-            *(outFPixel + elemCnt) = 0.;
+              *(outFPixel + elemCnt) = 0.;
             }
           // Update step
           *(outFPixel + elemCnt) -= 0.5 * *(outFPixel + ii);
@@ -3908,9 +3961,13 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
             {
             *(outDPixel + ii) = 0.;
             }
+          else
+            {
+            *(outDPixel + ii) -= delta;
+            }
           if (fabs(*(outDPixel + elemCnt)) < delta)
             {
-            *(outDPixel + elemCnt) = 0.;
+              *(outDPixel + elemCnt) = 0.;
             }
           // Update step
           *(outDPixel + elemCnt) -= 0.5 * *(outDPixel + ii);
@@ -4416,6 +4473,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
       {
       break;
       }
+
     m++;
     pnode->SetStatus((int) m * 50 / pnode->GetAccuracy());
 
@@ -4425,6 +4483,8 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
     int inc4 = inc2 * dims[0];
     int inc5 = (inc * numSlice) - numSlice;
     int inc6 = inc2 * numSlice;
+
+    delta /= 2.;
 
     // Along Z
     for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
@@ -4496,6 +4556,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempA = 0.;
             }
+          else
+            {
+            tempA -= delta;
+            }
           if (fabs(tempB) < delta)
             {
             tempB = 0.;
@@ -4504,9 +4568,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempC = 0.;
             }
+          else
+            {
+            tempC -= delta;
+            }
           if (fabs(tempA1) < delta)
             {
             tempA1 = 0.;
+            }
+          else
+            {
+            tempA1 -= delta;
             }
           if (fabs(tempB1) < delta)
             {
@@ -4516,9 +4588,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempC1 = 0.;
             }
+          else
+            {
+            tempC1 -= delta;
+            }
           if (fabs(tempA2) < delta)
             {
             tempA2 = 0.;
+            }
+          else
+            {
+            tempA2 -= delta;
             }
           if (fabs(tempB2) < delta)
             {
@@ -4528,9 +4608,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempC2 = 0.;
             }
+          else
+            {
+            tempC2 -= delta;
+            }
           if (fabs(tempA3) < delta)
             {
             tempA3 = 0.;
+            }
+          else
+            {
+            tempA3 -= delta;
             }
           if (fabs(tempB3) < delta)
             {
@@ -4539,6 +4627,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           if (fabs(tempC3) < delta)
             {
             tempC3 = 0.;
+            }
+          else
+            {
+            tempC3 -= delta;
             }
           if (fabs(*(outFPixel + elemCnt)) < delta)
             {
@@ -4594,6 +4686,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempDA = 0.;
             }
+          else
+            {
+            tempDA -= delta;
+            }
           if (fabs(tempDB) < delta)
             {
             tempDB = 0.;
@@ -4602,9 +4698,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempDC = 0.;
             }
+          else
+            {
+            tempDC -= delta;
+            }
           if (fabs(tempDA1) < delta)
             {
             tempDA1 = 0.;
+            }
+          else
+            {
+            tempDA1 -= delta;
             }
           if (fabs(tempDB1) < delta)
             {
@@ -4614,9 +4718,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempDC1 = 0.;
             }
+          else
+            {
+            tempDC1 -= delta;
+            }
           if (fabs(tempDA2) < delta)
             {
             tempDA2 = 0.;
+            }
+          else
+            {
+            tempDA2 -= delta;
             }
           if (fabs(tempDB2) < delta)
             {
@@ -4626,9 +4738,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempDC2 = 0.;
             }
+          else
+            {
+            tempDC2 -= delta;
+            }
           if (fabs(tempDA3) < delta)
             {
             tempDA3 = 0.;
+            }
+          else
+            {
+            tempDA3 -= delta;
             }
           if (fabs(tempDB3) < delta)
             {
@@ -4637,6 +4757,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           if (fabs(tempDC3) < delta)
             {
             tempDC3 = 0.;
+            }
+          else
+            {
+            tempDC3 -= delta;
             }
           if (fabs(*(outDPixel + elemCnt)) < delta)
             {
@@ -4735,9 +4859,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempA = 0.;
             }
+          else
+            {
+            tempA -= delta;
+            }
           if (fabs(tempC) < delta)
             {
             tempC = 0.;
+            }
+          else
+            {
+            tempC -= delta;
             }
           if (fabs(tempB) < delta)
             {
@@ -4747,6 +4879,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempResA = 0.;
             }
+          else
+            {
+            tempResA -= delta;
+            }
           if (fabs(tempResB) < delta)
             {
             tempResB = 0.;
@@ -4754,6 +4890,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           if (fabs(tempResC) < delta)
             {
             tempResC = 0.;
+            }
+          else
+            {
+            tempResC -= delta;
             }
           if (fabs(*(outFPixel + elemCnt)) < delta)
             {
@@ -4787,9 +4927,17 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempDA = 0.;
             }
+          else
+            {
+            tempDA -= delta;
+            }
           if (fabs(tempDC) < delta)
             {
             tempDC = 0.;
+            }
+          else
+            {
+            tempDC -= delta;
             }
           if (fabs(tempDB) < delta)
             {
@@ -4799,6 +4947,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempResDA = 0.;
             }
+          else
+            {
+            tempResDA -= delta;
+            }
           if (fabs(tempResDB) < delta)
             {
             tempResDB = 0.;
@@ -4806,6 +4958,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           if (fabs(tempResDC) < delta)
             {
             tempResDC = 0.;
+            }
+          else
+            {
+            tempResDC -= delta;
             }
           if (fabs(*(outDPixel + elemCnt)) < delta)
             {
@@ -4871,6 +5027,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempA = 0.;
             }
+          else
+            {
+            tempA -= delta;
+            }
           if (fabs(tempB) < delta)
             {
             tempB = 0.;
@@ -4878,6 +5038,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           if (fabs(tempC) < delta)
             {
             tempC = 0.;
+            }
+          else
+            {
+            tempC -= delta;
             }
           if (fabs(*(outFPixel + elemCnt)) < delta)
             {
@@ -4898,6 +5062,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
             {
             tempDA = 0.;
             }
+          else
+            {
+            tempDA -= delta;
+            }
           if (fabs(tempDB) < delta)
             {
             tempDB = 0.;
@@ -4905,6 +5073,10 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
           if (fabs(tempDC) < delta)
             {
             tempDC = 0.;
+            }
+          else
+            {
+            tempDC -= delta;
             }
           if (fabs(*(outDPixel + elemCnt)) < delta)
             {
