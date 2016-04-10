@@ -3650,7 +3650,7 @@ int vtkSlicerSmoothingLogic::HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingPa
     const int inc5 = (inc * numSlice) - numSlice;
     const int inc6 = inc2 * numSlice;
 
-    delta /= 2.;
+    delta /= 2.0;
 
     // Along Z
     for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
@@ -4484,7 +4484,7 @@ int vtkSlicerSmoothingLogic::LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothing
     int inc5 = (inc * numSlice) - numSlice;
     int inc6 = inc2 * numSlice;
 
-    delta /= 2.;
+    delta /= 1.5;
 
     // Along Z
     for (int elemCnt = 0; elemCnt < numElements; elemCnt = elemCnt + inc)
