@@ -573,6 +573,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxZ->setSingleStep(2);
         d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
         d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction");
+        d->DoubleSpinBoxX->setMaximum(10);
+        d->DoubleSpinBoxY->setMaximum(10);
+        d->DoubleSpinBoxZ->setMaximum(10);
         break;
         }
       case 1:
@@ -622,6 +625,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxZ->setSingleStep(1);
         d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
         d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction");
+        d->DoubleSpinBoxX->setMaximum(10);
+        d->DoubleSpinBoxY->setMaximum(10);
+        d->DoubleSpinBoxZ->setMaximum(10);
         d->AccuracyLabel->setText("Kernel Accuracy:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -835,6 +841,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
         d->DoubleSpinBoxZ->setSingleStep(1);
         d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        d->DoubleSpinBoxX->setMaximum(10);
+        d->DoubleSpinBoxY->setMaximum(10);
+        d->DoubleSpinBoxZ->setMaximum(10);
         d->AccuracyLabel->setText("Iterations:");
         d->AccuracySpinBox->setMaximum(30);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -889,6 +898,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
                                       " for the rms and then applied in"
                                       " the Wavelet domain.");
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setMaximum(20);
         d->AccuracyLabel->setText("Wavelet level:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
@@ -930,6 +940,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxX->setToolTip("");
         d->DoubleSpinBoxX->setSingleStep(1);
         d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        d->DoubleSpinBoxX->setMaximum(20);
         d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
                                       " for the rms and then applied in"
                                       " the Wavelet domain.");
