@@ -1054,7 +1054,7 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     {
     d->parametersNode->SetHardware(0);
     d->parametersNode->SetAccuracy(2);
-    d->parametersNode->SetParameterX(3);
+    d->parametersNode->SetParameterX(4);
     }
 
   d->parametersNode->SetFilter(index);
