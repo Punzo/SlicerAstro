@@ -48,9 +48,6 @@ protected:
   int GradientCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
   int GradientGPUFilter(vtkMRMLSmoothingParametersNode *pnode);
 
-  int HaarWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
-  int LeGallWaveletThresholdingCPUFilter(vtkMRMLSmoothingParametersNode *pnode);
-
 private:
   vtkSlicerSmoothingLogic(const vtkSlicerSmoothingLogic&); // Not implemented
   void operator=(const vtkSlicerSmoothingLogic&);           // Not implemented

@@ -862,95 +862,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
           }
         break;
         }
-      case 3:
-        {
-        d->AccuracyLabel->show();
-        d->AccuracySpinBox->show();
-        d->AccuracyValueLabel->hide();
-        d->HardwareLabel->hide();
-        d->HardwareComboBox->hide();
-        d->SigmaYLabel->hide();
-        d->DoubleSpinBoxY->hide();
-        d->SigmaZLabel->hide();
-        d->DoubleSpinBoxZ->hide();
-        d->LinkCheckBox->hide();
-        d->LinkLabel->hide();
-        d->CDELT1Label->hide();
-        d->CDELT1LabelValue->hide();
-        d->CDELT2Label->hide();
-        d->CDELT2LabelValue->hide();
-        d->CDELT3Label->hide();
-        d->CDELT3LabelValue->hide();
-        d->GaussianKernelView->hide();
-        d->RxLabel->hide();
-        d->RxSpinBox->hide();
-        d->RyLabel->hide();
-        d->RySpinBox->hide();
-        d->RzLabel->hide();
-        d->RzSpinBox->hide();
-        d->KLabel->hide();
-        d->KSpinBox->hide();
-        d->TimeStepLabel->hide();
-        d->TimeStepSpinBox->hide();
-        d->SigmaXLabel->setText("Threshold level:");
-        d->DoubleSpinBoxX->setSingleStep(1);
-        d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
-                                      " for the rms and then applied in"
-                                      " the Wavelet domain.");
-        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-        d->DoubleSpinBoxX->setMaximum(20);
-        d->AccuracyLabel->setText("Wavelet level:");
-        d->AccuracySpinBox->setSingleStep(1);
-        d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
-        d->AccuracySpinBox->setMaximum(5);
-        d->AccuracySpinBox->setToolTip("");
-        break;
-        }
-      case 4:
-        {
-        d->AccuracyLabel->show();
-        d->AccuracySpinBox->show();
-        d->AccuracyValueLabel->hide();
-        d->HardwareLabel->hide();
-        d->HardwareComboBox->hide();
-        d->SigmaYLabel->hide();
-        d->DoubleSpinBoxY->hide();
-        d->SigmaZLabel->hide();
-        d->DoubleSpinBoxZ->hide();
-        d->LinkCheckBox->hide();
-        d->LinkLabel->hide();
-        d->CDELT1Label->hide();
-        d->CDELT1LabelValue->hide();
-        d->CDELT2Label->hide();
-        d->CDELT2LabelValue->hide();
-        d->CDELT3Label->hide();
-        d->CDELT3LabelValue->hide();
-        d->GaussianKernelView->hide();
-        d->RxLabel->hide();
-        d->RxSpinBox->hide();
-        d->RyLabel->hide();
-        d->RySpinBox->hide();
-        d->RzLabel->hide();
-        d->RzSpinBox->hide();
-        d->KLabel->hide();
-        d->KSpinBox->hide();
-        d->TimeStepLabel->hide();
-        d->TimeStepSpinBox->hide();
-        d->SigmaXLabel->setText("Threshold level:");
-        d->DoubleSpinBoxX->setToolTip("");
-        d->DoubleSpinBoxX->setSingleStep(1);
-        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
-        d->DoubleSpinBoxX->setMaximum(20);
-        d->DoubleSpinBoxX->setToolTip("The threshold level is moltiplied"
-                                      " for the rms and then applied in"
-                                      " the Wavelet domain.");
-        d->AccuracyLabel->setText("Wavelet level:");
-        d->AccuracySpinBox->setSingleStep(1);
-        d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
-        d->AccuracySpinBox->setMaximum(5);
-        d->AccuracySpinBox->setToolTip("");
-        break;
-        }
       }
     }
 
@@ -1052,20 +963,6 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     d->parametersNode->SetParameterX(5);
     d->parametersNode->SetParameterY(5);
     d->parametersNode->SetParameterZ(5);
-    }
-
-  if (index == 3)
-    {
-    d->parametersNode->SetHardware(0);
-    d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetParameterX(3);
-    }
-
-  if (index == 4)
-    {
-    d->parametersNode->SetHardware(0);
-    d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetParameterX(3);
     }
 
   d->parametersNode->SetFilter(index);

@@ -211,16 +211,6 @@
           <string>Intensity-Driven Gradient </string>
          </property>
         </item>
-        <item>
-         <property name="text">
-          <string>Haar Wavelet Thresholding</string>
-         </property>
-        </item>
-        <item>
-         <property name="text">
-          <string>Le Gall Wavelet Thresholding</string>
-         </property>
-        </item>
        </widget>
       </item>
       <item row="3" column="0">
