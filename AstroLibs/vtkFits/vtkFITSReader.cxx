@@ -477,24 +477,6 @@ bool vtkFITSReader::AllocateHeader()
        temp.erase(temp.size()-1);
      }
 
-   if(HeaderKeyValue.count("SlicerAstro.CUNIT1") == 0)
-     {
-     vtkWarningMacro("The fits header is missing the CUNIT1 keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.CUNIT1"] = "";
-     }
-
-   if(HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0)
-     {
-     vtkWarningMacro("The fits header is missing the CUNIT2 keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.CUNIT2"] = "";
-     }
-
-   if(HeaderKeyValue.count("SlicerAstro.CUNIT3") == 0)
-     {
-     vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.CUNIT3"] = "";
-     }
-
    if(HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
      vtkWarningMacro("The fits header is missing the CDELT1 keyword. Odd behaviors may show up!");
@@ -566,6 +548,34 @@ bool vtkFITSReader::AllocateHeader()
      vtkWarningMacro("The fits header is missing the CTYPE3 keyword. Odd behaviors may show up!");
      HeaderKeyValue["SlicerAstro.CTYPE3"] = "";
      }
+
+   if(HeaderKeyValue.count("SlicerAstro.CUNIT1") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CUNIT1 keyword. Assuming degree!");
+     HeaderKeyValue["SlicerAstro.CUNIT1"] = "DEGREE";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CUNIT2 keyword. Assuming degree!");
+     HeaderKeyValue["SlicerAstro.CUNIT2"] = "DEGREE";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.CUNIT3") == 0)
+     {
+     std::string ctype3 = HeaderKeyValue.at("SlicerAstro.CTYPE3");
+     if(!(ctype3.compare(0,4,"FREQ")))
+       {
+       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming Hz!");
+       HeaderKeyValue["SlicerAstro.CUNIT3"] = "Hz";
+       }
+     else if (!(ctype3.compare(0,4,"VELO")))
+       {
+       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming km/s!");
+       HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
+       }
+     }
+
 
    if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
      {
