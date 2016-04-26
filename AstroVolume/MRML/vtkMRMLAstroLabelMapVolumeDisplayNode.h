@@ -73,13 +73,13 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
 
   ///
   ///Get WCSCoordinates
-  virtual void GetReferenceSpace(const double ijk[3],
-                                 double SpaceCoordinates[3]);
+  virtual void GetReferenceSpace(const double ijk[4],
+                                 double SpaceCoordinates[4]);
 
   ///
   /// Get IJK Coordinates from WCS
-  virtual void GetIJKSpace(const double SpaceCoordinates[3],
-                                 double ijk[3]);
+  virtual void GetIJKSpace(const double SpaceCoordinates[4],
+                                 double ijk[4]);
 
   ///
   /// Get the first tick for the display of axes at given unitNode in WCS units
@@ -128,7 +128,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   /// Given a coordinate of the volume and unit node,
   /// create a string (for DAtaProve display)
   /// if special formatting is required
-  virtual const char* GetDisplayStringFromValue(const double world,
+  virtual std::string GetDisplayStringFromValue(const double world,
                                                 vtkMRMLUnitNode *node);
 
   ///
@@ -136,9 +136,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   /// \param world
   /// \return Given a coordinate of the volume, create a string if special formatting is required
   ///
-  virtual const char *GetDisplayStringFromValueX(const double world);
-  virtual const char *GetDisplayStringFromValueY(const double world);
-  virtual const char *GetDisplayStringFromValueZ(const double world);
+  virtual std::string GetDisplayStringFromValueX(const double world);
+  virtual std::string GetDisplayStringFromValueY(const double world);
+  virtual std::string GetDisplayStringFromValueZ(const double world);
 
   ///
   /// \brief GetAxisDisplayStringFromValue, same as GetDisplayStringFromValue but for display on axis
@@ -146,11 +146,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   /// \param node
   /// \return string to display
   ///
-  virtual const char *GetAxisDisplayStringFromValue(const double world, vtkMRMLUnitNode *node);
+  virtual std::string GetAxisDisplayStringFromValue(const double world, vtkMRMLUnitNode *node);
 
-  virtual const char *GetAxisDisplayStringFromValueX(const double world);
-  virtual const char *GetAxisDisplayStringFromValueY(const double world);
-  virtual const char *GetAxisDisplayStringFromValueZ(const double world);
+  virtual std::string GetAxisDisplayStringFromValueX(const double world);
+  virtual std::string GetAxisDisplayStringFromValueY(const double world);
+  virtual std::string GetAxisDisplayStringFromValueZ(const double world);
 
 protected:
   char* Space;

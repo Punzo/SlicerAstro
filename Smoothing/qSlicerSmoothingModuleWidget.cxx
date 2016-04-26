@@ -554,13 +554,13 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxZ->show();
         double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
         d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueX(cdelt1));
+                                     ->GetDisplayStringFromValueX(cdelt1).c_str());
         double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
         d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueY(cdelt2));
+                                     ->GetDisplayStringFromValueY(cdelt2).c_str());
         double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
         d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueZ(cdelt3));
+                                     ->GetDisplayStringFromValueZ(cdelt3).c_str());
         d->SigmaXLabel->setText("N<sub>X</sub>:");
         d->SigmaYLabel->setText("N<sub>Y</sub>:");
         d->SigmaZLabel->setText("N<sub>Z</sub>:");
@@ -606,13 +606,13 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxZ->show();
         double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
         d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueX(cdelt1));
+                                     ->GetDisplayStringFromValueX(cdelt1).c_str());
         double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
         d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueY(cdelt2));
+                                     ->GetDisplayStringFromValueY(cdelt2).c_str());
         double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
         d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueZ(cdelt3));
+                                     ->GetDisplayStringFromValueZ(cdelt3).c_str());
         d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
         d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
@@ -628,6 +628,13 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxX->setMaximum(10);
         d->DoubleSpinBoxY->setMaximum(10);
         d->DoubleSpinBoxZ->setMaximum(10);
+        QString theta = QChar(0x98, 0x03);
+        d->RxLabel->setText(theta + "<sub>X</sub>:");
+        d->RyLabel->setText(theta + "<sub>Y</sub>:");
+        d->RzLabel->setText(theta + "<sub>Z</sub>:");
+        d->RxSpinBox->setToolTip("Euler angle of the rotation with respect to the x axis");
+        d->RySpinBox->setToolTip("Euler angle of the rotation with respect to the y axis");
+        d->RzSpinBox->setToolTip("Euler angle of the rotation with respect to the z axis");
         d->AccuracyLabel->setText("Kernel Accuracy:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());

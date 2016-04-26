@@ -476,11 +476,11 @@ class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
       funcType = type(dataProbeInstance.infoWidget.generateIJKPixelValueDescription)
       dataProbeInstance.infoWidget.generateIJKPixelValueDescription = funcType(generateIJKPixelValueDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
 
-      funcType = type(dataProbeInstance.infoWidget.sliceAnnotations.makeRuler)
-      dataProbeInstance.infoWidget.sliceAnnotations.makeRuler = funcType(makeAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
+      #funcType = type(dataProbeInstance.infoWidget.sliceAnnotations.makeRuler)
+      #dataProbeInstance.infoWidget.sliceAnnotations.makeRuler = funcType(makeAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
 
-      uncType = type(dataProbeInstance.infoWidget.sliceAnnotations.updateRuler)
-      dataProbeInstance.infoWidget.sliceAnnotations.updateRuler = funcType(updateAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
+      #funcType = type(dataProbeInstance.infoWidget.sliceAnnotations.updateRuler)
+      #dataProbeInstance.infoWidget.sliceAnnotations.updateRuler = funcType(updateAstroRuler, dataProbeInstance.infoWidget.sliceAnnotations, DataProbeInfoWidget)
 
 class AstroDataProbeTest(ScriptedLoadableModuleTest):
 

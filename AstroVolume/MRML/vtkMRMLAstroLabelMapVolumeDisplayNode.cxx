@@ -435,17 +435,17 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
-                                               double SpaceCoordinates[3])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[4],
+                                               double SpaceCoordinates[4])
 {
   if (this->Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[3], theta[1];
+      double phi[1], imgcrd[4], theta[1];
       int stati[1];
 
-      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 3, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
+      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
         {
         vtkWarningMacro("wcsp2s ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<
@@ -457,16 +457,16 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3], double ijk[3])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[4], double ijk[4])
 {
   if (this->Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[3], theta[1];
+      double phi[1], imgcrd[4], theta[1];
       int stati[1];
 
-      if ((this->WCSStatus = wcss2p(this->WCS, 1, 3, SpaceCoordinates, phi, theta, imgcrd, ijk, stati)))
+      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinates, phi, theta, imgcrd, ijk, stati)))
         {
         vtkWarningMacro("wcss2p ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<
@@ -1321,7 +1321,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 }
 
 //----------------------------------------------------------------------------
-const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)
@@ -1363,7 +1363,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
 }
 
 //----------------------------------------------------------------------------
-const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1376,7 +1376,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(co
 }
 
 //----------------------------------------------------------------------------
-const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1389,7 +1389,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(co
 }
 
 //----------------------------------------------------------------------------
-const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1403,7 +1403,7 @@ const char *vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(co
 
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)
@@ -1450,7 +1450,7 @@ const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueX(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueX(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1463,7 +1463,7 @@ const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueY(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueY(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1476,7 +1476,7 @@ const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueZ(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueZ(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));

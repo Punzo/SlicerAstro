@@ -1338,7 +1338,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)
@@ -1374,13 +1374,13 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
       }
 
     value = value + displayValueString + "\x22";
-    return value.c_str();
+    return value;
     }
   return node->GetDisplayStringFromValue(world);
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1393,7 +1393,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const doub
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1406,7 +1406,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const doub
 }
 
 //----------------------------------------------------------------------------
-const char *vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1419,7 +1419,7 @@ const char *vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const doub
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world,
+std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world,
                                                                          vtkMRMLUnitNode *node)
 {
   std::string value = "";
@@ -1467,7 +1467,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueX(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueX(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1480,7 +1480,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueX(const 
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueY(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueY(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
@@ -1493,7 +1493,7 @@ const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueY(const 
 }
 
 //----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueZ(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValueZ(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));

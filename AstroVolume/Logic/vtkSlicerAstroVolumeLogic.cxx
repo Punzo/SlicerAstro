@@ -110,7 +110,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     return;
     }
 
-  if (node->IsA("vtkMRMLAstroVolumeNode") || node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
+  if (node->IsA("vtkMRMLAstroVolumeNode"))
     {
 
     vtkSmartPointer<vtkCollection> listAstroVolumes = vtkSmartPointer<vtkCollection>::Take(
@@ -147,33 +147,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
                         <<"It may results in odd behaviours."<<endl);
           }
         if(astroVolumeDisplayNode->GetWCSStatus() == 0)
-          {
-          WCS = true;
-          }
-        }
-      }
-
-    vtkSmartPointer<vtkCollection> listAstroLabelMapVolumes = vtkSmartPointer<vtkCollection>::Take(
-        this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroLabelMapVolumeNode"));
-    for(int i = 0; i < listAstroLabelMapVolumes->GetNumberOfItems(); i++)
-      {
-      vtkMRMLAstroLabelMapVolumeNode* astroLabelMapVolumeNode =
-          vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-          (listAstroLabelMapVolumes->GetItemAsObject(i));
-      if (astroLabelMapVolumeNode)
-        {
-        vtkMRMLAstroLabelMapVolumeDisplayNode* astroLabelMapVolumeDisplayNode =
-              astroLabelMapVolumeNode->GetAstroLabelMapVolumeDisplayNode();
-        if(!astroLabelMapVolumeDisplayNode)
-          {
-          continue;
-          }
-        if(astroLabelMapVolumeDisplayNode->GetWCSStatus() != 0 && WCS)
-          {
-          vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
-                        <<"It may results in odd behaviours."<<endl);
-          }
-        if(astroLabelMapVolumeDisplayNode->GetWCSStatus() == 0)
           {
           WCS = true;
           }
@@ -229,7 +202,44 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         {
         vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
         }
+      }
+   }
 
+  if (node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
+    {
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+    if (selectionNode)
+      {
+      vtkMRMLAstroLabelMapVolumeNode *astroLabelMapVolumeNode =
+          vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+
+      if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
+        {
+        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
+        unitNode2->SetMaximumValue(360.);
+        unitNode2->SetMinimumValue(-180.);
+        unitNode2->SetDisplayCoefficient(1.);
+        unitNode2->SetPrefix("");
+        unitNode2->SetSuffix("\xB0");
+        unitNode2->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
+        unitNode2->SetPrecision(3);
+        selectionNode->SetUnitNodeID("length", unitNode2->GetID());
+        }
+      else
+        {
+        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
+        }
+      }
+    }
+
+  if (node->IsA("vtkMRMLAstroVolumeNode") ||
+      node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
+    {
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+      this->GetMRMLScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+    if (selectionNode)
+      {
       vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
 
       unitNode3->SetDisplayCoefficient(0.001);
@@ -414,9 +424,14 @@ vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLAstroVolumeNode *astroVolumeNode)
+void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
 {
   if (!astroVolumeNode)
+    {
+    return;
+    }
+
+  if (!(astroVolumeNode->IsA("vtkMRMLAstroVolumeNode")))
     {
     return;
     }

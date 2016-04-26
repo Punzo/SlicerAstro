@@ -369,9 +369,14 @@ void qSlicerAstroVolumeModuleWidget::resetOffset(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if(!node)
+    {
+    return;
+    }
+
   double width = 0.;
-  if (node && (node->IsA("vtkMRMLAstroVolumeNode") ||
-               node->IsA("vtkMRMLAstroLabelMapVolumeNode")))
+  if (node->IsA("vtkMRMLAstroVolumeNode") ||
+      node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     width = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) -
         StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
@@ -786,8 +791,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
     }
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
 
-  vtkMRMLAstroVolumeNode *activeVolumeNode =
-      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
+  vtkMRMLNode *activeVolumeNode =
+      vtkMRMLNode::SafeDownCast(this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
   if(activeVolumeNode)
     {
     this->setMRMLVolumeNode(activeVolumeNode);

@@ -13,8 +13,8 @@
 #include "qSlicerVolumesModuleWidgetsExport.h"
 
 class vtkMRMLNode;
-class vtkMRMLLabelMapVolumeDisplayNode;
-class vtkMRMLScalarVolumeNode;
+class vtkMRMLAstroLabelMapVolumeNode;
+class vtkMRMLAstroLabelMapVolumeDisplayNode;
 class qSlicerLabelMapVolumeDisplayWidgetPrivate;
 
 /// \ingroup Slicer_QtModules_Volumes
@@ -28,15 +28,15 @@ public:
   explicit qSlicerLabelMapVolumeDisplayWidget(QWidget* parent);
   virtual ~qSlicerLabelMapVolumeDisplayWidget();
 
-  vtkMRMLScalarVolumeNode* volumeNode()const;
-  vtkMRMLLabelMapVolumeDisplayNode* volumeDisplayNode()const;
+  vtkMRMLAstroLabelMapVolumeNode* volumeNode()const;
+  vtkMRMLAstroLabelMapVolumeDisplayNode* volumeDisplayNode()const;
 
   int sliceIntersectionThickness()const;
 
 public slots:
 
   /// Set the MRML node of interest
-  void setMRMLVolumeNode(vtkMRMLScalarVolumeNode* volumeNode);
+  void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLNode* node);
 
   void setColorNode(vtkMRMLNode* colorNode);

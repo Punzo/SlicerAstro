@@ -125,7 +125,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   /// Given a coordinate of the volume and unit node,
   /// create a string (for DataProve display)
   /// if special formatting is required
-  virtual const char* GetDisplayStringFromValue(const double world,
+  virtual std::string GetDisplayStringFromValue(const double world,
                                                 vtkMRMLUnitNode *node);
 
   ///
@@ -134,9 +134,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   /// \return Given a coordinate of the volume,
   /// create a string if special formatting is required
 
-  virtual const char *GetDisplayStringFromValueX(const double world);
-  virtual const char *GetDisplayStringFromValueY(const double world);
-  virtual const char *GetDisplayStringFromValueZ(const double world);
+  virtual std::string GetDisplayStringFromValueX(const double world);
+  virtual std::string GetDisplayStringFromValueY(const double world);
+  virtual std::string GetDisplayStringFromValueZ(const double world);
 
 
   ///
@@ -145,12 +145,12 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   /// \param world
   /// \param node
   /// \return string to display
-  virtual const char *GetAxisDisplayStringFromValue(const double world,
+  virtual std::string GetAxisDisplayStringFromValue(const double world,
                                                     vtkMRMLUnitNode *node);
 
-  virtual const char *GetAxisDisplayStringFromValueX(const double world);
-  virtual const char *GetAxisDisplayStringFromValueY(const double world);
-  virtual const char *GetAxisDisplayStringFromValueZ(const double world);
+  virtual std::string GetAxisDisplayStringFromValueX(const double world);
+  virtual std::string GetAxisDisplayStringFromValueY(const double world);
+  virtual std::string GetAxisDisplayStringFromValueZ(const double world);
 
 protected:
   char* Space;

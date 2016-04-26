@@ -70,7 +70,7 @@ public:
                                               bool cloneImageData=true);
 
   /// Update the units nodes to the metadata stored in the active volume
-  void updateUnitsNodes(vtkMRMLAstroVolumeNode *astroVolumeNode);
+  void updateUnitsNodes(vtkMRMLNode *astroVolumeNode);
 
 protected:
   vtkSlicerAstroVolumeLogic();

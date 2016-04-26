@@ -242,6 +242,45 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       vtkWarningMacro("The flux unit of Volume "<<volNode->GetName()<<
                       " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
       }
+
+    // rescaling flux
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+      {
+      vtkImageData *imageData = reader->GetOutput();
+      int vtkType = reader->GetDataType();
+      int *dims = imageData->GetDimensions();
+      const int numComponents = imageData->GetNumberOfScalarComponents();
+      const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+      switch (vtkType)
+        {
+        case VTK_DOUBLE:
+          double *dPixel;
+          dPixel = static_cast<double*>(imageData->GetScalarPointer(0,0,0));
+
+          if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+            {
+            for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+              {
+              *(dPixel+elemCnt) *= 0.005;
+              }
+            }
+          break;
+        case VTK_FLOAT:
+          float *fPixel;
+          fPixel = static_cast<float*>(imageData->GetScalarPointer(0,0,0));
+          if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+            {
+            for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+              {
+              *(fPixel+elemCnt) *= 0.005;
+              }
+            }
+          break;
+        default:
+          vtkErrorMacro("Could not get the data pointer. DataType not allowed.");
+          return 0;
+        }
+      }
     }
   else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
     {
@@ -272,50 +311,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       labdisNode->SetSpaceQuantity(2,"frequency");
       }
-    if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), ""))
       {
-      labvolNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
-      vtkWarningMacro("The flux unit of Volume "<<labvolNode->GetName()<<
-                      " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
-      }
-    }
-
-  // rescaling flux
-  if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
-    {
-    vtkImageData *imageData = reader->GetOutput();
-    int vtkType = reader->GetDataType();
-    int *dims = imageData->GetDimensions();
-    const int numComponents = imageData->GetNumberOfScalarComponents();
-    const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-    switch (vtkType)
-      {
-      case VTK_DOUBLE:
-        double *dPixel;
-        dPixel = static_cast<double*>(imageData->GetScalarPointer(0,0,0));
-
-        if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
-          {
-          for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-            {
-            *(dPixel+elemCnt) *= 0.005;
-            }
-          }
-        break;
-      case VTK_FLOAT:
-        float *fPixel;
-        fPixel = static_cast<float*>(imageData->GetScalarPointer(0,0,0));
-        if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
-          {
-          for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-            {
-            *(fPixel+elemCnt) *= 0.005;
-            }
-          }
-        break;
-      default:
-        vtkErrorMacro("Could not get the data pointer. DataType not allowed.");
-        return 0;
+      labvolNode->SetAttribute("SlicerAstro.BUNIT", "");
       }
     }
 
