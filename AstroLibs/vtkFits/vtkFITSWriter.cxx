@@ -2,13 +2,13 @@
 #include<cstdlib>
 
 // vtkASTRO includes
-#include "vtkFITSWriter.h"
+#include <vtkFITSWriter.h>
 
 // VTK includes
-#include "vtkImageData.h"
-#include "vtkPointData.h"
-#include "vtkObjectFactory.h"
-#include "vtkInformation.h"
+#include <vtkImageData.h>
+#include <vtkPointData.h>
+#include <vtkObjectFactory.h>
+#include <vtkInformation.h>
 #include <vtkVersion.h>
 
 // STD includes

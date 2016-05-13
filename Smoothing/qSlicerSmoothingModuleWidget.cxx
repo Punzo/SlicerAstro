@@ -760,6 +760,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
           d->actor->SetMapper(d->mapper);
           d->actor->GetProperty()->SetColor(0.0, 1.0, 1.0);
           d->actor->SetUserTransform(d->matrixToLinearTransform);
+          d->actor->PickableOff();
+          d->actor->DragableOff();
 
           renderer->AddActor(d->actor);
           renderer->SetBackground(0., 0., 0.);

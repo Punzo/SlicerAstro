@@ -1,12 +1,12 @@
-#include "qSlicerLabelMapVolumeDisplayWidget.h"
-#include "ui_qSlicerLabelMapVolumeDisplayWidget.h"
-
 // Qt includes
 
+#include <qSlicerLabelMapVolumeDisplayWidget.h>
+#include <ui_qSlicerLabelMapVolumeDisplayWidget.h>
+
 // MRML includes
-#include "vtkMRMLColorNode.h"
-#include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
-#include "vtkMRMLAstroLabelMapVolumeNode.h"
+#include <vtkMRMLColorNode.h>
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 
 // VTK includes
 

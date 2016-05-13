@@ -8,13 +8,11 @@
 
 // VTK includes
 #include <vtkImageData.h>
-#include <vtkImageClip.h>
+#include <vtkPointData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkSmartPointer.h>
 #include <vtkVersion.h>
-#include <vtkImageData.h>
-#include <vtkPointData.h>
 
 // STD includes
 #include <cassert>

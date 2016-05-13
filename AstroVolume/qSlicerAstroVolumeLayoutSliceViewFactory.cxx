@@ -3,9 +3,6 @@
 
 // Qt includes
 #include <QApplication>
-#include <QLabel>
-#include <QTimer>
-#include <QVBoxLayout>
 #include <QWidget>
 
 // VTK includes
@@ -14,10 +11,10 @@
 #include <vtkObjectFactory.h>
 
 // Slicer includes
-#include "qMRMLLayoutManager.h"
-#include "qMRMLLayoutManager_p.h"
-#include "qMRMLSliceControllerWidget.h"
-#include "qMRMLSliceWidget.h"
+#include <qMRMLLayoutManager.h>
+#include <qMRMLLayoutManager_p.h>
+#include <qMRMLSliceControllerWidget.h>
+#include <qMRMLSliceWidget.h>
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>

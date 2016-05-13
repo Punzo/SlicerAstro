@@ -2,26 +2,13 @@
 #include <algorithm>
 
 // vtkASTRO includes
-#include "vtkFITSReader.h"
+#include <vtkFITSReader.h>
 
 // VTK includes
-#include "vtkBitArray.h"
-#include "vtkCharArray.h"
-#include "vtkDoubleArray.h"
-#include "vtkFloatArray.h"
-#include "vtkImageData.h"
-#include <vtkInformation.h>
-#include <vtkInformationVector.h>
-#include "vtkIntArray.h"
-#include "vtkLongArray.h"
-#include "vtkMath.h"
-#include "vtkObjectFactory.h"
-#include "vtkShortArray.h"
-#include <vtkStreamingDemandDrivenPipeline.h>
-#include "vtkUnsignedCharArray.h"
-#include "vtkUnsignedShortArray.h"
-#include "vtkUnsignedIntArray.h"
-#include "vtkUnsignedLongArray.h"
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkImageData.h>
+#include <vtkObjectFactory.h>
 #include <vtksys/SystemTools.hxx>
 
 // STD includes

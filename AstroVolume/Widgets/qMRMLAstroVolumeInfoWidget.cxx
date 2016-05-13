@@ -16,10 +16,10 @@
 #include <qSlicerLayoutManager.h>
 
 // qMRML includes
-#include "qMRMLAstroVolumeInfoWidget.h"
-#include "qMRMLCoordinatesWidget.h"
-#include "qMRMLSliceWidget.h"
-#include "qMRMLSliceControllerWidget.h"
+#include <qMRMLAstroVolumeInfoWidget.h>
+#include <qMRMLCoordinatesWidget.h>
+#include <qMRMLSliceWidget.h>
+#include <qMRMLSliceControllerWidget.h>
 
 // MRML includes
 #include <vtkMRMLLabelMapVolumeDisplayNode.h>

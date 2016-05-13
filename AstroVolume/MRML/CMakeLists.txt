@@ -12,9 +12,9 @@ set(module_mrml_include_directory
   ${WCSLIB_INCLUDE_DIR}
   ${CFITSIO_INCLUDE_DIR}
   ${vtkFits_INCLUDE_DIRS}
+  ${Slicer_Base_INCLUDE_DIRS}
   )
 include_directories(BEFORE ${module_mrml_include_directory})
-
 
 # --------------------------------------------------------------------------
 # Sources
@@ -26,19 +26,22 @@ set(module_mrml_SRCS
     vtkMRMLAstroVolumeDisplayNode.h
     vtkMRMLAstroVolumeStorageNode.cxx
     vtkMRMLAstroVolumeStorageNode.h
-    vtkMRMLAstroSliceNode.h
-    vtkMRMLAstroSliceNode.cxx
+    #vtkMRMLAstroSliceNode.h
+    #vtkMRMLAstroSliceNode.cxx
     vtkMRMLAstroLabelMapVolumeNode.cxx
     vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
     vtkMRMLAstroLabelMapVolumeDisplayNode.h
     vtkMRMLSmoothingParametersNode.cxx
-    vtkMRMLSmoothingParametersNode.h)
+    vtkMRMLSmoothingParametersNode.h
+    vtkMRMLAstroTwoDAxesDisplayableManager.cxx
+    vtkMRMLAstroTwoDAxesDisplayableManager.h)
 
 # The header '${module_mrml_name}Export.h' will be automatically configured.
 set(module_mrml_export_directive "VTK_MRML_ASTRO_EXPORT")
 
 set(module_mrml_target_libraries
+  ${Slicer_GUI_LIBRARY}
   ${MRML_LIBRARIES}
   vtkFits
   )

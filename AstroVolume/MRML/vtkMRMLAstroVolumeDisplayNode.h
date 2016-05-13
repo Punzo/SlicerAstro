@@ -70,13 +70,18 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
 
   ///
   /// Get WCS Coordinates from IJK
-  virtual void GetReferenceSpace(const double ijk[4],
-                                 double SpaceCoordinates[4]);
+  virtual void GetReferenceSpace(const double ijk[3],
+                                 double SpaceCoordinates[3]);
 
   ///
   /// Get IJK Coordinates from WCS
-  virtual void GetIJKSpace(const double SpaceCoordinates[4],
-                                 double ijk[4]);
+  virtual void GetIJKSpace(const double SpaceCoordinates[3],
+                                 double ijk[3]);
+
+  ///
+  /// Get IJK Coordinates from WCS
+  virtual void GetIJKSpace(std::vector<double> SpaceCoordinates,
+                                 double ijk[3]);
 
   ///
   /// Get the first tick for the display of axes at given unitNode in WCS units

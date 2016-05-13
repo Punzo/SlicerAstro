@@ -2,13 +2,12 @@
 #include <vtkCommand.h>
 #include <vtkObjectFactory.h>
 #include <vtkDoubleArray.h>
-#include <vtkMatrix3x3.h>
 
 // MRML includes
-#include "vtkMRMLVolumeNode.h"
+#include <vtkMRMLVolumeNode.h>
 
 // CropModuleMRML includes
-#include "vtkMRMLSmoothingParametersNode.h"
+#include <vtkMRMLSmoothingParametersNode.h>
 
 // STD includes
 #include <math.h>
