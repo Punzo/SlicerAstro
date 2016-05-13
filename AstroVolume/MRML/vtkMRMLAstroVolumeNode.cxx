@@ -3,18 +3,16 @@
 #include <math.h>
 
 // VTK includes
-#include <vtkCommand.h>
-#include <vtkDoubleArray.h>
 #include <vtkObjectFactory.h>
 #include <vtkImageData.h>
 #include <vtkPointData.h>
 
 // MRML includes
-#include "vtkMRMLVolumeNode.h"
-#include "vtkMRMLAstroVolumeNode.h"
-#include "vtkMRMLAstroVolumeDisplayNode.h"
-#include "vtkMRMLAstroVolumeStorageNode.h"
-#include "vtkMRMLSmoothingParametersNode.h"
+#include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLSmoothingParametersNode.h>
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);

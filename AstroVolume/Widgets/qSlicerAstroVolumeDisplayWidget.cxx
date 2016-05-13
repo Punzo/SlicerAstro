@@ -1,9 +1,9 @@
 // QT includes
 
 // SlicerQT includes
-#include "qSlicerLabelMapVolumeDisplayWidget.h"
-#include "qSlicerScalarVolumeDisplayWidget.h"
-#include "qSlicerAstroVolumeDisplayWidget.h"
+#include <qSlicerLabelMapVolumeDisplayWidget.h>
+#include <qSlicerScalarVolumeDisplayWidget.h>
+#include <qSlicerAstroVolumeDisplayWidget.h>
 
 // MRML includes
 #include <vtkMRMLVolumeNode.h>

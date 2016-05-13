@@ -6,9 +6,9 @@
 #include <ctkUtils.h>
 
 // AstroVolume includes
-#include "qSlicerIOOptions_p.h"
-#include "qSlicerAstroVolumeIOOptionsWidget.h"
-#include "ui_qSlicerAstroVolumeIOOptionsWidget.h"
+#include <qSlicerIOOptions_p.h>
+#include <qSlicerAstroVolumeIOOptionsWidget.h>
+#include <ui_qSlicerAstroVolumeIOOptionsWidget.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume

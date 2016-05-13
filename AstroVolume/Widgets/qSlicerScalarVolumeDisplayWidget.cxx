@@ -14,12 +14,12 @@
 #include <ctkRangeWidget.h>
 
 // MRML includes
-#include "vtkMRMLColorNode.h"
-#include "vtkMRMLAstroVolumeDisplayNode.h"
-#include "vtkMRMLAstroVolumeNode.h"
-#include "vtkMRMLScene.h"
-#include "vtkMRMLUnitNode.h"
-#include "vtkMRMLSelectionNode.h"
+#include <vtkMRMLColorNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLSelectionNode.h>
 
 // VTK includes
 #include <vtkAlgorithm.h>

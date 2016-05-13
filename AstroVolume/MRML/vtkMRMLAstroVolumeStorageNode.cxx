@@ -1,11 +1,11 @@
 // MRML includes
-#include "vtkMRMLAstroVolumeStorageNode.h"
-#include "vtkMRMLScene.h"
-#include "vtkMRMLVolumeNode.h"
-#include "vtkMRMLAstroVolumeNode.h"
-#include "vtkMRMLAstroVolumeDisplayNode.h"
-#include "vtkMRMLAstroLabelMapVolumeNode.h"
-#include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
+#include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 
 //vtkFits includes
 #include <vtkFITSReader.h>
@@ -16,8 +16,6 @@
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
-#include <vtkStringArray.h>
-#include <vtkVersion.h>
 #include <vtkType.h>
 
 //----------------------------------------------------------------------------

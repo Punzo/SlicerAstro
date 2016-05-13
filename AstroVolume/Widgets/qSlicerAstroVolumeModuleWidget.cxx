@@ -9,10 +9,9 @@
 #include <vtkImageData.h>
 
 // qMRMLWidgets include
-#include "qMRMLAstroVolumeInfoWidget.h"
-#include "qMRMLThreeDWidget.h"
-#include "qMRMLThreeDViewControllerWidget.h"
-#include "ctkAxesWidget.h"
+#include <qMRMLAstroVolumeInfoWidget.h>
+#include <qMRMLThreeDWidget.h>
+#include <qMRMLThreeDViewControllerWidget.h>
 
 // SlicerQt includes
 #include <qSlicerCoreApplication.h>
@@ -21,27 +20,26 @@
 #include <qSlicerApplication.h>
 #include <qSlicerLayoutManager.h>
 #include <qSlicerAbstractCoreModule.h>
-#include "qSlicerAstroVolumeModuleWidget.h"
-#include "ui_qSlicerAstroVolumeModuleWidget.h"
-#include "qSlicerPresetComboBox.h"
-#include "qSlicerPresetComboBox_p.h"
-#include "qSlicerVolumeRenderingModuleWidget.h"
+#include <qSlicerAstroVolumeModuleWidget.h>
+#include <ui_qSlicerAstroVolumeModuleWidget.h>
+#include <qSlicerPresetComboBox.h>
+#include <qSlicerPresetComboBox_p.h>
+#include <qSlicerVolumeRenderingModuleWidget.h>
 
 // MRML includes
-#include "vtkMRMLAnnotationROINode.h"
-#include "vtkMRMLScene.h"
-#include "vtkMRMLScalarVolumeNode.h"
-#include "vtkMRMLViewNode.h"
-#include "vtkMRMLVolumeRenderingDisplayNode.h"
-#include "vtkMRMLSelectionNode.h"
-#include "vtkMRMLAstroVolumeNode.h"
-#include "vtkMRMLAstroLabelMapVolumeNode.h"
-#include "vtkMRMLLayoutNode.h"
-#include "vtkMRMLCameraNode.h"
+#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLViewNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
+#include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLLayoutNode.h>
+#include <vtkMRMLCameraNode.h>
 
 // logic includes
-#include "vtkSlicerVolumeRenderingLogic.h"
-#include "vtkSlicerAstroVolumeLogic.h"
+#include <vtkSlicerVolumeRenderingLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkMRMLLayoutLogic.h>
 
 //-----------------------------------------------------------------------------

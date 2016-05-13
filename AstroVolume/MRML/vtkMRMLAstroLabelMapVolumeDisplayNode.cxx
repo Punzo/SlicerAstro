@@ -1,16 +1,15 @@
 
 //MRML includes
-#include "vtkMRMLAstroLabelMapVolumeDisplayNode.h"
-#include "vtkMRMLScene.h"
-#include "vtkMRMLVolumeNode.h"
-#include "vtkMRMLUnitNode.h"
-#include "vtkMRMLSelectionNode.h"
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLSelectionNode.h>
 
 // VTK includes
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
-#include <vtkVersion.h>
 #include <vtkStringArray.h>
 #include <vtkMRMLColorNode.h>
 #include <vtkNew.h>
@@ -435,48 +434,80 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[4],
-                                               double SpaceCoordinates[4])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
+                                               double SpaceCoordinates[3])
 {
   if (this->Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[4], theta[1];
+      double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
       int stati[1];
 
-      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijk, imgcrd, phi, theta, SpaceCoordinates, stati)))
+      std::copy(ijk, ijk + 3, ijkm);
+
+      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
         {
         vtkWarningMacro("wcsp2s ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
         }
+
+      std::copy(SpaceCoordinatesM, SpaceCoordinatesM + 3, SpaceCoordinates);
       }
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[4], double ijk[4])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3], double ijk[3])
 {
   if (this->Space != NULL)
     {
     if (!strcmp(Space, "WCS"))
       {
-      double phi[1], imgcrd[4], theta[1];
+      double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
       int stati[1];
 
-      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinates, phi, theta, imgcrd, ijk, stati)))
+      std::copy(SpaceCoordinates, SpaceCoordinates + 3, SpaceCoordinatesM);
+
+      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
         {
         vtkWarningMacro("wcss2p ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
         }
+      std::copy(ijkm, ijkm + 3, ijk);
       }
     }
 }
 
+//----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates, double ijk[3])
+{
+  if (this->Space != NULL)
+    {
+    if (!strcmp(Space, "WCS"))
+      {
+      double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
+      int stati[1];
+
+      SpaceCoordinatesM[0] = SpaceCoordinates[0];
+      SpaceCoordinatesM[1] = SpaceCoordinates[1];
+      SpaceCoordinatesM[2] = SpaceCoordinates[2];
+
+      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
+        {
+        vtkWarningMacro("wcss2p ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+                        "Message from "<<WCS->err->function<<
+                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                        ": \n"<<WCS->err->msg<<"\n");
+        }
+      std::copy(ijkm, ijkm + 3, ijk);
+      }
+    }
+}
 
 //----------------------------------------------------------------------------
 double vtkMRMLAstroLabelMapVolumeDisplayNode::GetFirstWcsTickAxis(const double worldA,

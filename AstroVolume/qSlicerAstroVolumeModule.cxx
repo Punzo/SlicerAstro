@@ -7,6 +7,7 @@
 #include <vtkCollection.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
+#include <vtkInstantiator.h>
 
 //CTK includes
 #include <ctkVTKVolumePropertyWidget.h>
@@ -33,17 +34,22 @@
 #include <qMRMLLayoutManager.h>
 #include <qMRMLLayoutManager_p.h>
 #include <qMRMLVolumeThresholdWidget.h>
+#include <qMRMLSliceWidget.h>
 #include <qSlicerVolumeRenderingModuleWidget.h>
-#include "qSlicerPresetComboBox.h"
+#include <qSlicerPresetComboBox.h>
+#include <qMRMLSliceView.h>
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 
 // AstroVolume QtModule includes
-#include "qSlicerAstroVolumeReader.h"
-#include "qSlicerAstroVolumeModule.h"
-#include "qSlicerAstroVolumeModuleWidget.h"
-#include "qSlicerAstroVolumeLayoutSliceViewFactory.h"
+#include <qSlicerAstroVolumeReader.h>
+#include <qSlicerAstroVolumeModule.h>
+#include <qSlicerAstroVolumeModuleWidget.h>
+#include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
+
+// AstroVolume MRML includes
+#include <vtkMRMLAstroTwoDAxesDisplayableManager.h>
 
 // MRML includes
 #include <vtkMRMLScene.h>
@@ -51,8 +57,13 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLViewNode.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLSliceViewDisplayableManagerFactory.h>
+
+vtkInstantiatorNewMacro(vtkMRMLAstroTwoDAxesDisplayableManager)
 
 //-----------------------------------------------------------------------------
 Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
@@ -169,9 +180,9 @@ void qSlicerAstroVolumeModule::setup()
   qSlicerAbstractCoreModule* volumes = d->app->moduleManager()->module("Volumes");
   if (volumes)
     {
-    vtkSlicerVolumesLogic* volumesLogic =
+    vtkSmartPointer<vtkSlicerVolumesLogic> volumesLogic =
       vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
-    vtkSlicerAstroVolumeLogic* logic =
+    vtkSmartPointer<vtkSlicerAstroVolumeLogic> logic =
       vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
     if (volumesLogic && logic)
       {
@@ -193,11 +204,11 @@ void qSlicerAstroVolumeModule::setup()
   //modify precision in VolumeRenderingWidgets
   d->volumeRendering = d->app->moduleManager()->module("VolumeRendering");
 
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+  vtkSmartPointer<vtkMRMLSelectionNode> selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
     this->mrmlScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
   if(selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
+    vtkSmartPointer<vtkMRMLUnitNode> unitNode = selectionNode->GetUnitNode("intensity");
     this->qvtkConnect(unitNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLUnitModified(vtkObject*)));
     this->onMRMLUnitModified(unitNode);
@@ -214,7 +225,7 @@ void qSlicerAstroVolumeModule::setup()
         (QString("PresetsNodeComboBox"));
     PresetsNodeComboBox->setEnabled(false);
     }
-
+  /*
   //set the Slice Factory
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
@@ -225,7 +236,20 @@ void qSlicerAstroVolumeModule::setup()
   astroSliceViewFactory->setSliceLogics(mrmlSliceViewFactory->sliceLogics());
 
   d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
-  d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
+  d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);*/
+
+  //unregister RulerDisplayableManager
+  vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
+    UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+  vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
+    UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+
+  //register AstroTwoDAxesDisplayableManager
+  vtkInstantiator::RegisterInstantiator("vtkMRMLAstroTwoDAxesDisplayableManager",
+                                        vtkInstantiatorvtkMRMLAstroTwoDAxesDisplayableManagerNew);
+
+  vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
+    RegisterDisplayableManager("vtkMRMLAstroTwoDAxesDisplayableManager");
 }
 
 //-----------------------------------------------------------------------------
@@ -237,7 +261,7 @@ void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
     return;
     }
 
-  vtkMRMLUnitNode* unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
+  vtkSmartPointer<vtkMRMLUnitNode> unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
 
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
