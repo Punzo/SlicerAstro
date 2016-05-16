@@ -268,8 +268,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
   if (this->mrmlScene())
     {
-    vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
-        (this->mrmlScene()->GetNodesByClass("vtkMRMLSelectionNode"));
+    vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLSelectionNode");
     unsigned int numNodes = col->GetNumberOfItems();
     for (unsigned int n = 0; n < numNodes; n++)
       {
@@ -471,8 +470,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
 
-  vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::
-      Take(this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
+  vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode");
   unsigned int numViewNodes = col->GetNumberOfItems();
 
   int n = volumeOne->GetNumberOfDisplayNodes();
@@ -740,8 +738,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
     return;
     }
 
-  vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLVolumeRenderingDisplayNode"));
+  vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLVolumeRenderingDisplayNode");
   unsigned int numNodes = col->GetNumberOfItems();
   for (unsigned int n = 0; n < numNodes; n++)
     {
