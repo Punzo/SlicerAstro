@@ -205,7 +205,7 @@ void qSlicerAstroVolumeModule::setup()
   d->volumeRendering = d->app->moduleManager()->module("VolumeRendering");
 
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-    this->mrmlScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+    this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if(selectionNode)
     {
     vtkSmartPointer<vtkMRMLUnitNode> unitNode = selectionNode->GetUnitNode("intensity");

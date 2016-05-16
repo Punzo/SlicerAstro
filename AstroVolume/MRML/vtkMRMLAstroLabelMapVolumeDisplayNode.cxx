@@ -540,7 +540,7 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetFirstWcsTickAxisX(const double 
                                                                    const double wcsStep)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
@@ -555,7 +555,7 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetFirstWcsTickAxisY(const double 
                                                                    const double wcsStep)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
@@ -570,7 +570,7 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetFirstWcsTickAxisZ(const double 
                                                                    const double wcsStep)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
@@ -701,7 +701,7 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxisX(const double w
                                                                   int* numberOfPoints)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
@@ -715,7 +715,7 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxisY(const double w
                                                                   int* numberOfPoints)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
@@ -729,7 +729,7 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxisZ(const double w
                                                                   int* numberOfPoints)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
@@ -1397,7 +1397,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
@@ -1410,7 +1410,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(co
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
@@ -1423,7 +1423,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(co
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
@@ -1484,7 +1484,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueX(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
@@ -1497,7 +1497,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueY(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
@@ -1510,7 +1510,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValueZ(const double world)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNthNodeByClass(0, "vtkMRMLSelectionNode"));
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
