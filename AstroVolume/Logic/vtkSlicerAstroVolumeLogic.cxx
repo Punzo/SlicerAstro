@@ -145,7 +145,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     double min = std::numeric_limits<double>::max(), max = -std::numeric_limits<double>::max();
     for(int i = 0; i < listAstroVolumes->GetNumberOfItems(); i++)
       {
-      vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode =
+      vtkMRMLAstroVolumeNode* astroVolumeNode =
           vtkMRMLAstroVolumeNode::SafeDownCast
           (listAstroVolumes->GetItemAsObject(i));
       if (astroVolumeNode)
@@ -160,7 +160,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
           {
           max = maxt;
           }
-        vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> astroVolumeDisplayNode =
+        vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
              astroVolumeNode->GetAstroVolumeDisplayNode();
         if(!astroVolumeDisplayNode)
           {
@@ -178,7 +178,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         }
       }
 
-    vtkSmartPointer<vtkMRMLSelectionNode> selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
       this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
     if (selectionNode)
       {
@@ -208,12 +208,12 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       unitNode1->SetAttribute("DisplayHint","");
       selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
 
-      vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode =
+      vtkMRMLAstroVolumeNode* astroVolumeNode =
           vtkMRMLAstroVolumeNode::SafeDownCast(node);
 
       if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
         {
-        vtkSmartPointer<vtkMRMLUnitNode> unitNode2 = selectionNode->GetUnitNode("length");
+        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
         unitNode2->SetMaximumValue(360.);
         unitNode2->SetMinimumValue(-180.);
         unitNode2->SetDisplayCoefficient(1.);
@@ -232,16 +232,16 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 
   if (node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
-    vtkSmartPointer<vtkMRMLSelectionNode> selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
       this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
     if (selectionNode)
       {
-      vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelMapVolumeNode =
+      vtkMRMLAstroLabelMapVolumeNode* astroLabelMapVolumeNode =
           vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
 
       if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
         {
-        vtkSmartPointer<vtkMRMLUnitNode> unitNode2 = selectionNode->GetUnitNode("length");
+        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
         unitNode2->SetMaximumValue(360.);
         unitNode2->SetMinimumValue(-180.);
         unitNode2->SetDisplayCoefficient(1.);
@@ -261,11 +261,11 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   if (node->IsA("vtkMRMLAstroVolumeNode") ||
       node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
-    vtkSmartPointer<vtkMRMLSelectionNode> selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
       this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
     if (selectionNode)
       {
-      vtkSmartPointer<vtkMRMLUnitNode> unitNode3 = selectionNode->GetUnitNode("velocity");
+      vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
 
       unitNode3->SetDisplayCoefficient(0.001);
       unitNode3->SetSuffix("km/s");
@@ -274,7 +274,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       unitNode3->SetAttribute("DisplayHint","");
       selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
 
-      vtkSmartPointer<vtkMRMLUnitNode> unitNode4 = selectionNode->GetUnitNode("frequency");
+      vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
       unitNode4->SetDisplayCoefficient(0.000001);
       unitNode4->SetPrefix("");
       unitNode4->SetPrecision(2);
@@ -290,9 +290,8 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 
     for(int i = 0; i < viewNodes->GetNumberOfItems(); i++)
       {
-      vtkSmartPointer<vtkMRMLViewNode> viewNode =
-          vtkMRMLViewNode::SafeDownCast
-          (viewNodes->GetItemAsObject(i));
+      vtkMRMLViewNode* viewNode =
+          vtkMRMLViewNode::SafeDownCast(viewNodes->GetItemAsObject(i));
 
       viewNode->SetAxisLabel(0,"W");
       viewNode->SetAxisLabel(1,"E");
@@ -307,9 +306,8 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 
     for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
       {
-      vtkSmartPointer<vtkMRMLSliceNode> sliceNode =
-          vtkMRMLSliceNode::SafeDownCast
-          (sliceNodes->GetItemAsObject(i));
+      vtkMRMLSliceNode* sliceNode =
+          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
 
       sliceNode->SetAxisLabel(0,"W");
       sliceNode->SetAxisLabel(1,"E");

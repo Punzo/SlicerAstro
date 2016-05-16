@@ -180,9 +180,9 @@ void qSlicerAstroVolumeModule::setup()
   qSlicerAbstractCoreModule* volumes = d->app->moduleManager()->module("Volumes");
   if (volumes)
     {
-    vtkSmartPointer<vtkSlicerVolumesLogic> volumesLogic =
+    vtkSlicerVolumesLogic* volumesLogic =
       vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
-    vtkSmartPointer<vtkSlicerAstroVolumeLogic> logic =
+    vtkSlicerAstroVolumeLogic* logic =
       vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
     if (volumesLogic && logic)
       {
@@ -204,11 +204,11 @@ void qSlicerAstroVolumeModule::setup()
   //modify precision in VolumeRenderingWidgets
   d->volumeRendering = d->app->moduleManager()->module("VolumeRendering");
 
-  vtkSmartPointer<vtkMRMLSelectionNode> selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
     this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if(selectionNode)
     {
-    vtkSmartPointer<vtkMRMLUnitNode> unitNode = selectionNode->GetUnitNode("intensity");
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
     this->qvtkConnect(unitNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLUnitModified(vtkObject*)));
     this->onMRMLUnitModified(unitNode);
@@ -261,7 +261,7 @@ void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
     return;
     }
 
-  vtkSmartPointer<vtkMRMLUnitNode> unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
+  vtkMRMLUnitNode* unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
 
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>

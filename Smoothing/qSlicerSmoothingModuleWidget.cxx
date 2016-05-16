@@ -283,7 +283,8 @@ void qSlicerSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
   if (this->mrmlScene())
     {
-    vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLSelectionNode");
+    vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLSelectionNode"));
     unsigned int numNodes = col->GetNumberOfItems();
     for (unsigned int n = 0; n < numNodes; n++)
       {
@@ -768,7 +769,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
 
           vtkCamera* camera = d->GaussianKernelView->activeCamera();
 
-          vtkCollection *coll = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
+          vtkSmartPointer<vtkCollection> coll = vtkSmartPointer<vtkCollection>::Take
+              (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
           vtkMRMLCameraNode *cameraNodeOne =
             vtkMRMLCameraNode::SafeDownCast(coll->GetItemAsObject(0));
           if (cameraNodeOne)

@@ -210,12 +210,11 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   this->twoDAxesPoints->Squeeze();
   this->twoDAxesCellArray->Initialize();
   this->twoDAxesCellArray->Squeeze();
-  vtkSmartPointer<vtkActor2DCollection> actors =
-      this->MarkerRenderer->GetActors2D();
+  vtkActor2DCollection* actors = this->MarkerRenderer->GetActors2D() ;
   actors->InitTraversal();
   for (int i = 0; i < actors->GetNumberOfItems(); i++)
     {
-    vtkSmartPointer<vtkActor2D> actor2D = actors->GetNextActor2D();
+    vtkActor2D* actor2D = actors->GetNextActor2D();
     if (actor2D->IsA("vtkTextActor"))
       {
       this->MarkerRenderer->RemoveViewProp(actor2D);
@@ -264,7 +263,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   // get the Logics
   this->app = qSlicerApplication::application();
 
-  vtkSmartPointer<vtkMRMLSliceLogic> sliceLogic =
+  vtkMRMLSliceLogic* sliceLogic =
     this->app->applicationLogic()->GetSliceLogic(sliceNode);
 
   bool hasDisplay = FALSE;
@@ -282,11 +281,11 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
   for(int i = 0; i < this->col->GetNumberOfItems(); i++)
     {
-    vtkSmartPointer<vtkMRMLSliceLayerLogic> sliceLayerLogic =
+    vtkMRMLSliceLayerLogic* sliceLayerLogic =
       vtkMRMLSliceLayerLogic::SafeDownCast
         (this->col->GetItemAsObject(i));
 
-    vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> displayNode =
+    vtkMRMLAstroVolumeDisplayNode* displayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast
         (sliceLayerLogic->GetVolumeDisplayNode());
 
@@ -303,7 +302,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         sliceNode->UpdateMatrices();
         sliceLayerLogic->UpdateTransforms();
 
-        vtkSmartPointer<vtkGeneralTransform> xyToIJK =
+        vtkGeneralTransform* xyToIJK =
           sliceLayerLogic->GetXYToIJKTransform();
 
         int numberOfPointsHorizontal = (int) (viewWidthPixel / 120.) + 1;
@@ -647,7 +646,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             coord = displayNode->GetAxisDisplayStringFromValueX(world[i][0]);
             }
           vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
-          vtkSmartPointer<vtkTextProperty> textProperty = textActorHorizontal->GetTextProperty();
+          vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
           textProperty->SetFontSize(fontSize);
           textProperty->SetFontFamilyToArial();
           textActorHorizontal->SetInput(coord.c_str());
@@ -674,7 +673,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
             }
           vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
-          vtkSmartPointer<vtkTextProperty> textProperty = textActorVertical->GetTextProperty();
+          vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
           textProperty->SetFontSize(fontSize);
           textProperty->SetFontFamilyToArial();
           textActorVertical->SetInput(coord.c_str());
