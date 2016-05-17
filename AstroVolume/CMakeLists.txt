@@ -33,14 +33,14 @@ set(MODULE_SRCS
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}Reader.cxx
   qSlicer${MODULE_NAME}Reader.h
-  #qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
-  #qSlicer${MODULE_NAME}LayoutSliceViewFactory.cxx
+  qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
+  qSlicer${MODULE_NAME}LayoutSliceViewFactory.cxx
   )
 
 set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}Reader.h
-  #qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
+  qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
   )
 
 set(MODULE_UI_SRCS

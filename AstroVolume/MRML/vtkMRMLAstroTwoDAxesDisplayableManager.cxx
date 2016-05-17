@@ -266,7 +266,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   vtkMRMLSliceLogic* sliceLogic =
     this->app->applicationLogic()->GetSliceLogic(sliceNode);
 
-  bool hasDisplay = FALSE;
+  bool hasDisplay = false;
 
   if (!sliceLogic)
     {
@@ -279,7 +279,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   this->col->AddItem(sliceLogic->GetForegroundLayer());
   this->col->AddItem(sliceLogic->GetLabelLayer());
 
-  for(int i = 0; i < this->col->GetNumberOfItems(); i++)
+  for (int i = 0; i < this->col->GetNumberOfItems(); i++)
     {
     vtkMRMLSliceLayerLogic* sliceLayerLogic =
       vtkMRMLSliceLayerLogic::SafeDownCast
@@ -295,7 +295,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       }
     else
       {
-      hasDisplay = TRUE;
+      hasDisplay = true;
       if (!strcmp(displayNode->GetSpace(), "WCS"))
         {
 
@@ -684,6 +684,12 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         world.clear();
         xyzDisplay.clear();
         temp.clear();
+        }
+      else
+        {
+        vtkErrorWithObjectMacro(this->External,
+                                "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
+                                " failed: display node has no valid WCS.");
         }
       break;
       }

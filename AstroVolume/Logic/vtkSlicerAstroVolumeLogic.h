@@ -82,10 +82,11 @@ protected:
   virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene);
   virtual void UpdateFromMRMLScene();
   virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
-  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
+
 
   bool LoadPresets(vtkMRMLScene* scene);
   vtkMRMLScene* PresetsScene;
+  bool Init;
 
 private:
 

@@ -30,6 +30,9 @@ public slots:
   /// \note Orientation could be either "XY", "XZ", "ZY" or "Reformat".
   void setSliceOrientation(const QString& orientation);
 
+  /// Set the display of the WCS coordinate on the slice.
+  void setWCSDisplay();
+
 protected:
   qMRMLSliceAstroControllerWidget(qMRMLSliceAstroControllerWidgetPrivate* pimpl, QWidget* parent = 0);
 

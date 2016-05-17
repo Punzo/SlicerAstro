@@ -225,7 +225,11 @@ void qSlicerAstroVolumeModule::setup()
         (QString("PresetsNodeComboBox"));
     PresetsNodeComboBox->setEnabled(false);
     }
-  /*
+
+  vtkMRMLSliceNode::SetAxialOrientationDisplayString("XZ");
+  vtkMRMLSliceNode::SetSagittalOrientationDisplayString("ZY");
+  vtkMRMLSliceNode::SetCoronalOrientationDisplayString("XY");
+
   //set the Slice Factory
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
@@ -236,7 +240,7 @@ void qSlicerAstroVolumeModule::setup()
   astroSliceViewFactory->setSliceLogics(mrmlSliceViewFactory->sliceLogics());
 
   d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
-  d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);*/
+  d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
 
   //unregister RulerDisplayableManager
   vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->

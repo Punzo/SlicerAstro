@@ -92,7 +92,6 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   // Events that use the default priority.  Don't care the order they
   // are triggered
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
-  events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
 
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
 
@@ -317,17 +316,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       sliceNode->SetAxisLabel(5,"N");
       }
     }
-}
-
-//---------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeRemoved(vtkMRMLNode* node)
-{
-
-  if (!node)
-    {
-    return;
-    }
-
 }
 
 namespace

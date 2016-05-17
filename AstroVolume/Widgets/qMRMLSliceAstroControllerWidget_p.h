@@ -20,6 +20,15 @@
 #include "qMRMLSliceAstroControllerWidget.h"
 #include "qMRMLSliceControllerWidget_p.h"
 
+// Qt includes
+#include <QLabel>
+
+// vtk includes
+#include <vtkCollection.h>
+#include <vtkSmartPointer.h>
+
+class qSlicerApplication;
+
 //-----------------------------------------------------------------------------
 class qMRMLSliceAstroControllerWidgetPrivate
   : public qMRMLSliceControllerWidgetPrivate
@@ -28,6 +37,10 @@ class qMRMLSliceAstroControllerWidgetPrivate
   QVTK_OBJECT
   Q_DECLARE_PUBLIC(qMRMLSliceAstroControllerWidget);
 
+public slots:
+  /// Update widget state using the associated MRML slice node
+  void updateWidgetFromMRMLSliceNode();
+
 public:
   typedef qMRMLSliceControllerWidgetPrivate Superclass;
   qMRMLSliceAstroControllerWidgetPrivate(qMRMLSliceAstroControllerWidget& object);
@@ -35,6 +48,9 @@ public:
 
   virtual void init();
 
+  QLabel*     WCSDisplay;
+  qSlicerApplication* app;
+  vtkSmartPointer<vtkCollection> col;
 };
 
 #endif

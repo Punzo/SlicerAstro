@@ -56,28 +56,28 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
 
     if CoordinateSystemName == "WCS":
       if printVel:
-        return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} ({velKey}) {orient: >8s}" \
+        return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} ({velKey}) {orient: >4s}" \
                .format(layoutName=sliceNode.GetLayoutName(),
                sys = CoordinateSystemName,
                worldX=worldX,
                worldY=worldY,
                worldZ=worldZ,
                velKey = velKey,
-               orient=sliceNode.GetOrientationString(),
+               orient=sliceNode.GetOrientationDisplayString(),
                )
       else:
-        return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >8s}" \
+        return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
                 .format(layoutName=sliceNode.GetLayoutName(),
                 sys = CoordinateSystemName,
                 worldX=worldX,
                 worldY=worldY,
                 worldZ=worldZ,
-                orient=sliceNode.GetOrientationString(),
+                orient=sliceNode.GetOrientationDisplayString(),
                 )
     else:
-      return "  {layoutName: <8s} AstroDataProbe could not find WCS coordinates in View: {orient: >8s}" \
+      return "  {layoutName: <8s} AstroDataProbe could not find WCS coordinates in View: {orient: >4s}" \
         .format(layoutName=sliceNode.GetLayoutName(),
-                orient=sliceNode.GetOrientationString(),
+                orient=sliceNode.GetOrientationDisplayString(),
                 )
 
 

@@ -28,12 +28,12 @@ set(${KIT}_SRCS
   qSlicerAstroVolumeDisplayWidget.h
   qMRMLAstroVolumeInfoWidget.cxx
   qMRMLAstroVolumeInfoWidget.h
-  #qMRMLSliceAstroControllerWidget.cxx
-  #qMRMLSliceAstroControllerWidget.h
-  #qMRMLSliceAstroControllerWidget_p.h
-  #qMRMLSliceAstroWidget.cxx
-  #qMRMLSliceAstroWidget.h
-  #qMRMLSliceAstroWidget_p.h
+  qMRMLSliceAstroControllerWidget.cxx
+  qMRMLSliceAstroControllerWidget.h
+  qMRMLSliceAstroControllerWidget_p.h
+  qMRMLSliceAstroWidget.cxx
+  qMRMLSliceAstroWidget.h
+  qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_MOC_SRCS
@@ -43,10 +43,10 @@ set(${KIT}_MOC_SRCS
   qSlicerScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.h
   qMRMLAstroVolumeInfoWidget.h
-  #qMRMLSliceAstroControllerWidget.h
-  #qMRMLSliceAstroControllerWidget_p.h
-  #qMRMLSliceAstroWidget.h
-  #qMRMLSliceAstroWidget_p.h
+  qMRMLSliceAstroControllerWidget.h
+  qMRMLSliceAstroControllerWidget_p.h
+  qMRMLSliceAstroWidget.h
+  qMRMLSliceAstroWidget_p.h
   )
 
 set(${KIT}_UI_SRCS
@@ -54,7 +54,7 @@ set(${KIT}_UI_SRCS
   Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
   Resources/UI/qSlicerLabelMapVolumeDisplayWidget.ui
   Resources/UI/qSlicerScalarVolumeDisplayWidget.ui
-  Resources/UI/qMRMLSliceAstroControllerWidget.ui
+  #Resources/UI/qMRMLSliceAstroControllerWidget.ui
   )
 
 set(${KIT}_RESOURCES

@@ -13,8 +13,8 @@
 // Slicer includes
 #include <qMRMLLayoutManager.h>
 #include <qMRMLLayoutManager_p.h>
-#include <qMRMLSliceControllerWidget.h>
-#include <qMRMLSliceWidget.h>
+#include <qMRMLSliceAstroControllerWidget.h>
+#include <qMRMLSliceAstroWidget.h>
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
@@ -49,7 +49,7 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   // there is a unique slice widget per node
   Q_ASSERT(!this->viewWidget(viewNode));
 
-  qMRMLSliceWidget * sliceWidget = new qMRMLSliceWidget(this->layoutManager()->viewport());
+  qMRMLSliceAstroWidget * sliceWidget = new qMRMLSliceAstroWidget(this->layoutManager()->viewport());
   sliceWidget->sliceController()->setControllerButtonGroup(this->SliceControllerButtonGroup);
   QString sliceLayoutName(viewNode->GetLayoutName());
   QString sliceViewLabel(viewNode->GetLayoutLabel());
@@ -72,8 +72,8 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
 
 void qSlicerAstroVolumeLayoutSliceViewFactory::deleteView(vtkMRMLAbstractViewNode *viewNode)
 {
-  qMRMLSliceWidget* sliceWidget =
-    qobject_cast<qMRMLSliceWidget*>(this->viewWidget(viewNode));
+  qMRMLSliceAstroWidget* sliceWidget =
+    qobject_cast<qMRMLSliceAstroWidget*>(this->viewWidget(viewNode));
   if (sliceWidget)
     {
     this->sliceLogics()->RemoveItem(sliceWidget->sliceLogic());
