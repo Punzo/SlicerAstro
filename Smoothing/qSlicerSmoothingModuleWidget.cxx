@@ -1287,6 +1287,18 @@ void qSlicerSmoothingModuleWidget::onApply()
   serial++;
   d->parametersNode->SetOutputSerial(serial);
 
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+
+  vtkMRMLAstroVolumeNode *secondaryVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(selectionNode->GetSecondaryVolumeID()));
+
+  if (secondaryVolume && d->parametersNode->GetAutoApply())
+    {
+    scene->RemoveNode(secondaryVolume);
+    }
+
   // check Output volume
   if (!strcmp(inputVolume->GetID(), outputVolume->GetID()) ||
      (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
@@ -1331,9 +1343,6 @@ void qSlicerSmoothingModuleWidget::onApply()
 
   if (logic->Apply(d->parametersNode))
     {
-    vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-    vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-
     selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
     // this should be not needed. However, without it seems that
     // the connection with the Rendering Display is broken.
