@@ -26,7 +26,7 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->SpaceQuantities = vtkStringArray::New();
   this->SpaceQuantities->SetName("Tokens");
   this->SpaceQuantities->SetNumberOfValues(3);
-  this->SpaceQuantities->SetValue(0, "length");
+  this->SpaceQuantities->SetValue(0, "time");
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
   this->Space = 0;
@@ -614,7 +614,8 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
 
       if (found != std::string::npos)
         {
-        if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds")
+        if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+            !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
            && step < 0.6 && step > 0.095)
           {
           if(i > 6)
@@ -634,7 +635,8 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
             displayValueString.replace(found, found+1, "08333333333333333333333");
             }
           }
-        else if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds")
+        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
                 && step < 0.095 && step > 0.0045)
           {
           if(i > 4)
@@ -650,7 +652,8 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
             displayValueString.replace(found, found+1, "1666666666666666666666");
             }
           }
-        else if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds")
+        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
                 && step < 0.0045)
           {
           if(i > 5)
@@ -1355,7 +1358,8 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 
     for(int i = 0; i < numberOfComponents; i++)
       {
-      double component = this->GetVolumeNode()->GetImageData()->GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
+      double component = this->GetVolumeNode()->GetImageData()->
+          GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
       pixel += unitNode->GetDisplayStringFromValue(component);
       pixel += ",";
       }
@@ -1366,7 +1370,8 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world,
+                                                                     vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)
@@ -1374,7 +1379,20 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
     return value.c_str();
     }
 
-  if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+  std::string firstPrefix;
+  std::string secondPrefix;
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+    {
+    firstPrefix = "\x27 ";
+    secondPrefix = "\x22";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    firstPrefix = "m ";
+    secondPrefix = "s";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+      !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
     double fractpart, intpart, displayValue;
     std::string displayValueString;
@@ -1383,7 +1401,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
 
     fractpart = modf(world, &intpart);
     displayValue = node->GetDisplayValueFromValue(intpart);
-    value = DoubleToString(displayValue) + node->GetSuffix() + " ";
+    value = IntToString((int) displayValue) + node->GetSuffix() + " ";
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
     displayValueString = DoubleToString(fabs(intpart));
@@ -1391,7 +1409,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
       {
        displayValueString = " " + displayValueString;
       }
-    value = value + displayValueString + "\x27 ";
+    value = value + displayValueString + firstPrefix;
     displayValueString = "";
     strstream.precision(node->GetPrecision());
     strstream << fabs(fractpart);
@@ -1401,7 +1419,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
       displayValueString = " " + displayValueString;
       }
 
-    value = value + displayValueString + "\x22";
+    value = value + displayValueString + secondPrefix;
     return value;
     }
   return node->GetDisplayStringFromValue(world);
@@ -1456,7 +1474,23 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
     return value.c_str();
     }
 
-  if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+  std::string firstPrefix;
+  std::string secondPrefix;
+  std::string thirdPrefix;
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+    {
+    firstPrefix = "\u00B0 ";
+    secondPrefix = "\x27 ";
+    thirdPrefix = "\x22";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    firstPrefix = "h ";
+    secondPrefix = "m ";
+    thirdPrefix = "s";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+      !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
     double fractpart, intpart, displayValue;
     std::string displayValueString;
@@ -1465,7 +1499,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
 
     fractpart = modf(world, &intpart);
     displayValue = node->GetDisplayValueFromValue(intpart);
-    value = DoubleToString(displayValue) + "\u00B0" + " ";
+    value = IntToString((int) displayValue) + firstPrefix;
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
     if(fractpart > 59.999)
@@ -1478,7 +1512,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
       {
        displayValueString = " " + displayValueString;
       }
-    value = value + displayValueString + "\x27 ";
+    value = value + displayValueString + secondPrefix;
     displayValueString = "";
     strstream.precision(0);
     strstream << fabs(fractpart);
@@ -1488,7 +1522,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetAxisDisplayStringFromValue(const d
       displayValueString = " " + displayValueString;
       }
 
-    value = value + displayValueString + "\x22";
+    value = value + displayValueString + thirdPrefix;
     return value.c_str();
     }
   return node->GetDisplayStringFromValue(world);

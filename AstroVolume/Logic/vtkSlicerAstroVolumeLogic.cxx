@@ -23,6 +23,8 @@
 #include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLViewNode.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLSliceViewDisplayableManagerFactory.h>
 
 //VTK includes
 #include <vtkObjectFactory.h>
@@ -33,7 +35,6 @@
 #include <vtkImageData.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkPointData.h>
-
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -118,6 +119,10 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     viewNode->SetAxisLabel(3,"z");
     viewNode->SetAxisLabel(4,"S");
     viewNode->SetAxisLabel(5,"N");
+
+    //unregister RulerDisplayableManager
+    vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
+      UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
     }
 
   if (node->IsA("vtkMRMLSliceNode"))
@@ -131,6 +136,10 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     sliceNode->SetAxisLabel(3,"z");
     sliceNode->SetAxisLabel(4,"S");
     sliceNode->SetAxisLabel(5,"N");
+
+    //unregister RulerDisplayableManager
+    vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
+      UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
     }
 
   //check WCS and update unit nodes
@@ -210,10 +219,10 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       vtkMRMLAstroVolumeNode* astroVolumeNode =
           vtkMRMLAstroVolumeNode::SafeDownCast(node);
 
-      if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
+      if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT2"), "DEGREE"))
         {
         vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
-        unitNode2->SetMaximumValue(360.);
+        unitNode2->SetMaximumValue(180.);
         unitNode2->SetMinimumValue(-180.);
         unitNode2->SetDisplayCoefficient(1.);
         unitNode2->SetPrefix("");
@@ -221,6 +230,23 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode2->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
         unitNode2->SetPrecision(3);
         selectionNode->SetUnitNodeID("length", unitNode2->GetID());
+        }
+      else
+        {
+        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
+        }
+
+      if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
+        {
+        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("time");
+        unitNode3->SetMaximumValue(360);
+        unitNode3->SetMinimumValue(0);
+        unitNode3->SetDisplayCoefficient(0.066666666666667);
+        unitNode3->SetPrefix("");
+        unitNode3->SetSuffix("h");
+        unitNode3->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
+        unitNode3->SetPrecision(3);
+        selectionNode->SetUnitNodeID("time", unitNode3->GetID());
         }
       else
         {
@@ -238,10 +264,10 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       vtkMRMLAstroLabelMapVolumeNode* astroLabelMapVolumeNode =
           vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
 
-      if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
+      if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT2"), "DEGREE"))
         {
         vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
-        unitNode2->SetMaximumValue(360.);
+        unitNode2->SetMaximumValue(180.);
         unitNode2->SetMinimumValue(-180.);
         unitNode2->SetDisplayCoefficient(1.);
         unitNode2->SetPrefix("");
@@ -249,6 +275,23 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         unitNode2->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
         unitNode2->SetPrecision(3);
         selectionNode->SetUnitNodeID("length", unitNode2->GetID());
+        }
+      else
+        {
+        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
+        }
+
+      if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
+        {
+        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("time");
+        unitNode3->SetMaximumValue(360);
+        unitNode3->SetMinimumValue(0);
+        unitNode3->SetDisplayCoefficient(0.066666666666667);
+        unitNode3->SetPrefix("");
+        unitNode3->SetSuffix("h");
+        unitNode3->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
+        unitNode3->SetPrecision(3);
+        selectionNode->SetUnitNodeID("time", unitNode3->GetID());
         }
       else
         {
@@ -264,22 +307,22 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
     if (selectionNode)
       {
-      vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("velocity");
+      vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("velocity");
 
-      unitNode3->SetDisplayCoefficient(0.001);
-      unitNode3->SetSuffix("km/s");
-      unitNode3->SetPrefix("");
-      unitNode3->SetPrecision(3);
-      unitNode3->SetAttribute("DisplayHint","");
-      selectionNode->SetUnitNodeID("velocity", unitNode3->GetID());
-
-      vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("frequency");
-      unitNode4->SetDisplayCoefficient(0.000001);
+      unitNode4->SetDisplayCoefficient(0.001);
+      unitNode4->SetSuffix("km/s");
       unitNode4->SetPrefix("");
-      unitNode4->SetPrecision(2);
-      unitNode4->SetSuffix("MHz");
+      unitNode4->SetPrecision(3);
       unitNode4->SetAttribute("DisplayHint","");
-      selectionNode->SetUnitNodeID("frequency", unitNode4->GetID());
+      selectionNode->SetUnitNodeID("velocity", unitNode4->GetID());
+
+      vtkMRMLUnitNode* unitNode5 = selectionNode->GetUnitNode("frequency");
+      unitNode5->SetDisplayCoefficient(0.000001);
+      unitNode5->SetPrefix("");
+      unitNode5->SetPrecision(2);
+      unitNode5->SetSuffix("MHz");
+      unitNode5->SetAttribute("DisplayHint","");
+      selectionNode->SetUnitNodeID("frequency", unitNode5->GetID());
 
       }
 

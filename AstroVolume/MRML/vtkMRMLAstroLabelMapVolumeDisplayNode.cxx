@@ -27,7 +27,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::vtkMRMLAstroLabelMapVolumeDisplayNode()
   this->SpaceQuantities = vtkStringArray::New();
   this->SpaceQuantities->SetName("Tokens");
   this->SpaceQuantities->SetNumberOfValues(3);
-  this->SpaceQuantities->SetValue(0, "length");
+  this->SpaceQuantities->SetValue(0, "time");
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
   this->Space = 0;
@@ -614,7 +614,8 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
 
       if (found != std::string::npos)
         {
-        if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds")
+        if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+            !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
            && step < 0.6 && step > 0.095)
           {
           if(i > 6)
@@ -634,7 +635,8 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
             displayValueString.replace(found, found+1, "08333333333333333333333");
             }
           }
-        else if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds")
+        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
                 && step < 0.095 && step > 0.0045)
           {
           if(i > 4)
@@ -650,7 +652,8 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
             displayValueString.replace(found, found+1, "1666666666666666666666");
             }
           }
-        else if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds")
+        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
                 && step < 0.0045)
           {
           if(i > 5)
@@ -1340,7 +1343,8 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
       }
     }
   std::string labelValue = "Unknown";
-  int labelIndex = int(this->GetVolumeNode()->GetImageData()->GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0));
+  int labelIndex = int(this->GetVolumeNode()->GetImageData()->
+                       GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0));
   vtkMRMLColorNode *colornode = this->GetColorNode();
   if(colornode)
     {
@@ -1352,7 +1356,8 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world,
+                                                                             vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)
@@ -1360,7 +1365,20 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     return value.c_str();
     }
 
-  if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+  std::string firstPrefix;
+  std::string secondPrefix;
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+    {
+    firstPrefix = "\x27 ";
+    secondPrefix = "\x22";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    firstPrefix = "m ";
+    secondPrefix = "s";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+      !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
     double fractpart, intpart, displayValue;
     std::string displayValueString;
@@ -1369,7 +1387,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
 
     fractpart = modf(world, &intpart);
     displayValue = node->GetDisplayValueFromValue(intpart);
-    value = DoubleToString(displayValue) + node->GetSuffix() + " ";
+    value = IntToString((int) displayValue) + node->GetSuffix() + " ";
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
     displayValueString = DoubleToString(fabs(intpart));
@@ -1377,7 +1395,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
       {
        displayValueString = " " + displayValueString;
       }
-    value = value + displayValueString +"\x27 ";
+    value = value + displayValueString + firstPrefix;
     displayValueString = "";
     strstream.precision(node->GetPrecision());
     strstream << fabs(fractpart);
@@ -1387,7 +1405,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
       displayValueString = " " + displayValueString;
       }
 
-    value = value + displayValueString + "\x22";
+    value = value + displayValueString + secondPrefix;
     return value.c_str();
     }
   return node->GetDisplayStringFromValue(world);
@@ -1442,7 +1460,23 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
     return value.c_str();
     }
 
-  if(!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+  std::string firstPrefix;
+  std::string secondPrefix;
+  std::string thirdPrefix;
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+    {
+    firstPrefix = "\u00B0 ";
+    secondPrefix = "\x27 ";
+    thirdPrefix = "\x22";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    firstPrefix = "h ";
+    secondPrefix = "m ";
+    thirdPrefix = "s";
+    }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+      !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
     double fractpart, intpart, displayValue;
     std::string displayValueString;
@@ -1451,7 +1485,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
 
     fractpart = modf(world, &intpart);
     displayValue = node->GetDisplayValueFromValue(intpart);
-    value = DoubleToString(displayValue) + "\u00B0" + " ";
+    value = IntToString((int) displayValue) + firstPrefix;
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
     if(fractpart > 59.999)
@@ -1464,7 +1498,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
       {
        displayValueString = " " + displayValueString;
       }
-    value = value + displayValueString + "\x27 ";
+    value = value + displayValueString + secondPrefix;
     displayValueString = "";
     strstream.precision(0);
     strstream << fabs(fractpart);
@@ -1474,7 +1508,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
       displayValueString = " " + displayValueString;
       }
 
-    value = value + displayValueString + "\x22";
+    value = value + displayValueString + thirdPrefix;
     return value.c_str();
     }
   return node->GetDisplayStringFromValue(world);
