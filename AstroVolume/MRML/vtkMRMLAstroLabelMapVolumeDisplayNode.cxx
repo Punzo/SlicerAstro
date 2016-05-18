@@ -1385,9 +1385,9 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     std::stringstream strstream;
     strstream.setf(ios::fixed,ios::floatfield);
 
-    fractpart = modf(world, &intpart);
-    displayValue = node->GetDisplayValueFromValue(intpart);
-    value = IntToString((int) displayValue) + node->GetSuffix() + " ";
+    displayValue = node->GetDisplayValueFromValue(world);
+    fractpart = modf(displayValue, &intpart);
+    value = DoubleToString(intpart) + node->GetSuffix() + " ";
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
     displayValueString = DoubleToString(fabs(intpart));
@@ -1483,9 +1483,9 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue
     std::stringstream strstream;
     strstream.setf(ios::fixed,ios::floatfield);
 
-    fractpart = modf(world, &intpart);
-    displayValue = node->GetDisplayValueFromValue(intpart);
-    value = IntToString((int) displayValue) + firstPrefix;
+    displayValue = node->GetDisplayValueFromValue(world);
+    fractpart = modf(displayValue, &intpart);
+    value = DoubleToString(intpart) + node->GetSuffix() + " ";
 
     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
     if(fractpart > 59.999)
