@@ -729,7 +729,7 @@
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QCheckBox" name="AutoApplyCheckBox">
+      <widget class="QCheckBox" name="AutoRunCheckBox">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -740,7 +740,7 @@
         </sizepolicy>
        </property>
        <property name="text">
-        <string>AutoApply</string>
+        <string>AutoRun</string>
        </property>
        <property name="checked">
         <bool>false</bool>
@@ -1517,7 +1517,7 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>AutoApplyCheckBox</receiver>
+   <receiver>AutoRunCheckBox</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">

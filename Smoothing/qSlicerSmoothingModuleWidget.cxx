@@ -186,8 +186,8 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   QObject::connect(LinkCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onLinkChanged(bool)));
 
-  QObject::connect(AutoApplyCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onAutoApplyChanged(bool)));
+  QObject::connect(AutoRunCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onAutoRunChanged(bool)));
 
 
   progressBar->hide();
@@ -517,7 +517,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
   d->FilterComboBox->setCurrentIndex(d->parametersNode->GetFilter());
   d->HardwareComboBox->setCurrentIndex(d->parametersNode->GetHardware());
 
-  d->AutoApplyCheckBox->setChecked(d->parametersNode->GetAutoApply());
+  d->AutoRunCheckBox->setChecked(d->parametersNode->GetAutoRun());
   d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
 
   int status = d->parametersNode->GetStatus();
@@ -931,7 +931,7 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   int wasModifying = d->parametersNode->StartModify();
 
-  d->parametersNode->SetAutoApply(false);
+  d->parametersNode->SetAutoRun(false);
 
   if (index == 0)
     {
@@ -989,11 +989,11 @@ void qSlicerSmoothingModuleWidget::onKChanged(double value)
 
   d->parametersNode->SetK(value);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1010,11 +1010,11 @@ void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
 
   d->parametersNode->SetTimeStep(value);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1033,11 +1033,11 @@ void qSlicerSmoothingModuleWidget::onRxChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1056,11 +1056,11 @@ void qSlicerSmoothingModuleWidget::onRyChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1079,11 +1079,11 @@ void qSlicerSmoothingModuleWidget::onRzChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1111,11 +1111,11 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1143,13 +1143,13 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() &&
+  if (d->parametersNode->GetAutoRun() &&
       !d->parametersNode->GetLink() &&
       d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() &&
+  else if (d->parametersNode->GetAutoRun() &&
            !d->parametersNode->GetLink() &&
            d->parametersNode->GetStatus() > 0)
     {
@@ -1179,13 +1179,13 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() &&
+  if (d->parametersNode->GetAutoRun() &&
       !d->parametersNode->GetLink() &&
       d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() &&
+  else if (d->parametersNode->GetAutoRun() &&
            !d->parametersNode->GetLink() &&
            d->parametersNode->GetStatus() > 0)
     {
@@ -1206,11 +1206,11 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
     {
     this->onComputationCancelled();
     }
@@ -1294,7 +1294,7 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(selectionNode->GetSecondaryVolumeID()));
 
-  if (secondaryVolume && d->parametersNode->GetAutoApply())
+  if (secondaryVolume && d->parametersNode->GetAutoRun())
     {
     scene->RemoveNode(secondaryVolume);
     }
@@ -1358,6 +1358,7 @@ void qSlicerSmoothingModuleWidget::onApply()
     //let's see to make overlayed contours also the 2-D.
     //The editor now can do only a threshold of one volume.
     //In pricinple we can also create an editor effect specific for this.
+    //At the moment, we can add a label volume with 1 for I > 3 sigma in the filtered.
 
     }
   else
@@ -1397,7 +1398,7 @@ void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
 
  int wasModifying = d->parametersNode->StartModify();
 
- d->parametersNode->SetAutoApply(false);
+ d->parametersNode->SetAutoRun(false);
  d->parametersNode->SetHardware(index);
  int filter = d->parametersNode->GetFilter();
 
@@ -1426,10 +1427,10 @@ void qSlicerSmoothingModuleWidget::onLinkChanged(bool value)
 
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onAutoApplyChanged(bool value)
+void qSlicerSmoothingModuleWidget::onAutoRunChanged(bool value)
 {
  Q_D(qSlicerSmoothingModuleWidget);
- d->parametersNode->SetAutoApply(value);
+ d->parametersNode->SetAutoRun(value);
 }
 //-----------------------------------------------------------------------------
 void qSlicerSmoothingModuleWidget::onComputationStarted()

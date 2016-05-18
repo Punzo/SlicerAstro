@@ -32,7 +32,7 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->SetHardware(0);
   this->SetCores(0);
   this->SetLink(true);
-  this->SetAutoApply(false);
+  this->SetAutoRun(false);
   this->SetAccuracy(20);
   this->SetTimeStep(0.0325);
   this->SetK(2);
@@ -158,9 +158,9 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "AutoApply"))
+    if (!strcmp(attName, "AutoRun"))
       {
-      this->AutoApply = StringToInt(attValue);
+      this->AutoRun = StringToInt(attValue);
       continue;
       }
 
@@ -272,7 +272,7 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " Hardware=\"" << this->Hardware << "\"";
   of << indent << " Cores=\"" << this->Cores << "\"";
   of << indent << " Link=\"" << this->Link << "\"";
-  of << indent << " AutoApply=\"" << this->AutoApply << "\"";
+  of << indent << " AutoRun=\"" << this->AutoRun << "\"";
   of << indent << " Rx=\"" << this->Rx << "\"";
   of << indent << " Ry=\"" << this->Ry << "\"";
   of << indent << " Rz=\"" << this->Rz << "\"";
@@ -306,7 +306,7 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetHardware(node->GetHardware());
   this->SetCores(node->GetCores());
   this->SetLink(node->GetLink());
-  this->SetAutoApply(node->GetAutoApply());
+  this->SetAutoRun(node->GetAutoRun());
   this->SetRx(node->GetRx());
   this->SetRy(node->GetRy());
   this->SetRz(node->GetRz());
@@ -558,7 +558,7 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
       }
     }
 
-  os << "AutoApply: " << this->AutoApply << "\n";
+  os << "AutoRun: " << this->AutoRun << "\n";
 
   os << "ParameterX: " << this->ParameterX << "\n";
   if (this->Filter < 3)
