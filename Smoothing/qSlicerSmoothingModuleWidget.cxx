@@ -1,6 +1,7 @@
 // Qt includes
 #include <QDebug>
 #include <QMessageBox>
+#include <QTime>
 
 // CTK includes
 #include <ctkFlowLayout.h>
@@ -184,6 +185,9 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
 
   QObject::connect(LinkCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onLinkChanged(bool)));
+
+  QObject::connect(AutoApplyCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onAutoApplyChanged(bool)));
 
 
   progressBar->hide();
@@ -513,6 +517,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
   d->FilterComboBox->setCurrentIndex(d->parametersNode->GetFilter());
   d->HardwareComboBox->setCurrentIndex(d->parametersNode->GetHardware());
 
+  d->AutoApplyCheckBox->setChecked(d->parametersNode->GetAutoApply());
+  d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
+
   int status = d->parametersNode->GetStatus();
 
   if(status == 0)
@@ -537,11 +544,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->RySpinBox->hide();
         d->RzLabel->hide();
         d->RzSpinBox->hide();
-        d->LinkCheckBox->show();
-        d->LinkLabel->show();
         d->LinkCheckBox->setToolTip("Click to link / unlink the parameters N<sub>X</sub>"
                                     ", N<sub>Y</sub> and N<sub>Z</sub>");
-        d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
         d->CDELT1Label->show();
         d->CDELT1LabelValue->show();
         d->CDELT2Label->show();
@@ -589,11 +593,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->KSpinBox->hide();
         d->TimeStepLabel->hide();
         d->TimeStepSpinBox->hide();
-        d->LinkCheckBox->show();
-        d->LinkLabel->show();
         d->LinkCheckBox->setToolTip("Click to link / unlink the parameters"
                                     " FWHM<sub>X</sub>, FWHM<sub>Y</sub> and FWHM<sub>Z</sub>");
-        d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
         d->CDELT1Label->show();
         d->CDELT1LabelValue->show();
         d->CDELT2Label->show();
@@ -823,11 +824,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->CDELT2LabelValue->hide();
         d->CDELT3Label->hide();
         d->CDELT3LabelValue->hide();
-
-        d->LinkCheckBox->show();
-        d->LinkLabel->show();
         d->LinkCheckBox->setToolTip("Click to link / unlink the conductivity parameters");
-        d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
         d->KLabel->show();
         d->KSpinBox->show();
         d->SigmaYLabel->show();
@@ -934,6 +931,8 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   int wasModifying = d->parametersNode->StartModify();
 
+  d->parametersNode->SetAutoApply(false);
+
   if (index == 0)
     {
     d->parametersNode->SetParameterX(5);
@@ -989,6 +988,15 @@ void qSlicerSmoothingModuleWidget::onKChanged(double value)
     }
 
   d->parametersNode->SetK(value);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1001,6 +1009,15 @@ void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
     }
 
   d->parametersNode->SetTimeStep(value);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1015,6 +1032,15 @@ void qSlicerSmoothingModuleWidget::onRxChanged(double value)
   d->parametersNode->SetRx(value);
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1029,6 +1055,15 @@ void qSlicerSmoothingModuleWidget::onRyChanged(double value)
   d->parametersNode->SetRy(value);
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1043,6 +1078,15 @@ void qSlicerSmoothingModuleWidget::onRzChanged(double value)
   d->parametersNode->SetRz(value);
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1066,6 +1110,15 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1089,6 +1142,19 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() &&
+      !d->parametersNode->GetLink() &&
+      d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() &&
+           !d->parametersNode->GetLink() &&
+           d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1112,6 +1178,19 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     }
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() &&
+      !d->parametersNode->GetLink() &&
+      d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() &&
+           !d->parametersNode->GetLink() &&
+           d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1126,6 +1205,15 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
   d->parametersNode->SetAccuracy(value);
   d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
+
+  if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() == 0)
+    {
+    this->onApply();
+    }
+  else if (d->parametersNode->GetAutoApply() && d->parametersNode->GetStatus() > 0)
+    {
+    this->onComputationCancelled();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1246,17 +1334,22 @@ void qSlicerSmoothingModuleWidget::onApply()
     vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
     vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
 
-    selectionNode->SetReferenceActiveVolumeID(d->parametersNode->GetOutputVolumeNodeID());
-    selectionNode->SetReferenceSecondaryVolumeID(inputVolume->GetID());
+    selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
+    // this should be not needed. However, without it seems that
+    // the connection with the Rendering Display is broken.
 
+    d->astroVolumeWidget->setComparative3DViews
+        (inputVolume->GetID(), outputVolume->GetID());
+
+    selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
+    selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
     appLogic->PropagateVolumeSelection();
+
     //when SliceRT will release the segmentation
     //let's see to make overlayed contours also the 2-D.
     //The editor now can do only a threshold of one volume.
     //In pricinple we can also create an editor effect specific for this.
 
-    d->astroVolumeWidget->setComparative3DViews
-        (inputVolume->GetID(), d->parametersNode->GetOutputVolumeNodeID());
     }
   else
     {
@@ -1295,6 +1388,7 @@ void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
 
  int wasModifying = d->parametersNode->StartModify();
 
+ d->parametersNode->SetAutoApply(false);
  d->parametersNode->SetHardware(index);
  int filter = d->parametersNode->GetFilter();
 
@@ -1315,13 +1409,19 @@ void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onLinkChanged(bool index)
+void qSlicerSmoothingModuleWidget::onLinkChanged(bool value)
 {
  Q_D(qSlicerSmoothingModuleWidget);
- d->parametersNode->SetLink(index);
+ d->parametersNode->SetLink(value);
 }
 
 
+//-----------------------------------------------------------------------------
+void qSlicerSmoothingModuleWidget::onAutoApplyChanged(bool value)
+{
+ Q_D(qSlicerSmoothingModuleWidget);
+ d->parametersNode->SetAutoApply(value);
+}
 //-----------------------------------------------------------------------------
 void qSlicerSmoothingModuleWidget::onComputationStarted()
 {

@@ -240,7 +240,7 @@
         </item>
        </widget>
       </item>
-      <item row="4" column="0">
+      <item row="5" column="0">
        <widget class="QLabel" name="LinkLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -250,7 +250,7 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
+      <item row="5" column="1">
        <widget class="QCheckBox" name="LinkCheckBox">
         <property name="enabled">
          <bool>false</bool>
@@ -266,7 +266,7 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
+      <item row="6" column="0">
        <widget class="QLabel" name="CDELT1Label">
         <property name="enabled">
          <bool>false</bool>
@@ -276,7 +276,7 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="1">
+      <item row="6" column="1">
        <widget class="QLabel" name="CDELT1LabelValue">
         <property name="enabled">
          <bool>false</bool>
@@ -286,7 +286,7 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="0">
+      <item row="7" column="0">
        <widget class="QLabel" name="SigmaXLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -296,7 +296,7 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="7" column="1">
        <widget class="ctkSliderWidget" name="DoubleSpinBoxX">
         <property name="enabled">
          <bool>false</bool>
@@ -324,7 +324,7 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="0">
+      <item row="8" column="0">
        <widget class="QLabel" name="CDELT2Label">
         <property name="enabled">
          <bool>false</bool>
@@ -334,7 +334,7 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
+      <item row="8" column="1">
        <widget class="QLabel" name="CDELT2LabelValue">
         <property name="enabled">
          <bool>false</bool>
@@ -344,7 +344,7 @@
         </property>
        </widget>
       </item>
-      <item row="8" column="0">
+      <item row="9" column="0">
        <widget class="QLabel" name="SigmaYLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -354,7 +354,7 @@
         </property>
        </widget>
       </item>
-      <item row="8" column="1">
+      <item row="9" column="1">
        <widget class="ctkSliderWidget" name="DoubleSpinBoxY">
         <property name="enabled">
          <bool>false</bool>
@@ -382,7 +382,7 @@
         </property>
        </widget>
       </item>
-      <item row="9" column="0">
+      <item row="10" column="0">
        <widget class="QLabel" name="CDELT3Label">
         <property name="enabled">
          <bool>false</bool>
@@ -392,7 +392,7 @@
         </property>
        </widget>
       </item>
-      <item row="9" column="1">
+      <item row="10" column="1">
        <widget class="QLabel" name="CDELT3LabelValue">
         <property name="enabled">
          <bool>false</bool>
@@ -402,7 +402,7 @@
         </property>
        </widget>
       </item>
-      <item row="10" column="0">
+      <item row="11" column="0">
        <widget class="QLabel" name="SigmaZLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -412,7 +412,7 @@
         </property>
        </widget>
       </item>
-      <item row="10" column="1">
+      <item row="11" column="1">
        <widget class="ctkSliderWidget" name="DoubleSpinBoxZ">
         <property name="enabled">
          <bool>false</bool>
@@ -440,7 +440,7 @@
         </property>
        </widget>
       </item>
-      <item row="11" column="0">
+      <item row="12" column="0">
        <widget class="QLabel" name="RxLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -450,7 +450,7 @@
         </property>
        </widget>
       </item>
-      <item row="11" column="1">
+      <item row="12" column="1">
        <widget class="ctkSliderWidget" name="RxSpinBox">
         <property name="enabled">
          <bool>false</bool>
@@ -472,7 +472,7 @@
         </property>
        </widget>
       </item>
-      <item row="12" column="0">
+      <item row="13" column="0">
        <widget class="QLabel" name="RyLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -482,7 +482,7 @@
         </property>
        </widget>
       </item>
-      <item row="12" column="1">
+      <item row="13" column="1">
        <widget class="ctkSliderWidget" name="RySpinBox">
         <property name="enabled">
          <bool>false</bool>
@@ -504,7 +504,7 @@
         </property>
        </widget>
       </item>
-      <item row="13" column="0">
+      <item row="14" column="0">
        <widget class="QLabel" name="RzLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -514,7 +514,7 @@
         </property>
        </widget>
       </item>
-      <item row="13" column="1">
+      <item row="14" column="1">
        <widget class="ctkSliderWidget" name="RzSpinBox">
         <property name="enabled">
          <bool>false</bool>
@@ -536,7 +536,7 @@
         </property>
        </widget>
       </item>
-      <item row="14" column="0">
+      <item row="15" column="0">
        <widget class="QLabel" name="KLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -546,7 +546,7 @@
         </property>
        </widget>
       </item>
-      <item row="14" column="1">
+      <item row="15" column="1">
        <widget class="ctkSliderWidget" name="KSpinBox">
         <property name="enabled">
          <bool>false</bool>
@@ -565,7 +565,7 @@
         </property>
        </widget>
       </item>
-      <item row="15" column="0">
+      <item row="16" column="0">
        <widget class="QLabel" name="TimeStepLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -575,7 +575,7 @@
         </property>
        </widget>
       </item>
-      <item row="15" column="1">
+      <item row="16" column="1">
        <widget class="ctkSliderWidget" name="TimeStepSpinBox">
         <property name="enabled">
          <bool>false</bool>
@@ -603,7 +603,7 @@
         </property>
        </widget>
       </item>
-      <item row="16" column="0">
+      <item row="17" column="0">
        <widget class="QLabel" name="AccuracyLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -613,7 +613,7 @@
         </property>
        </widget>
       </item>
-      <item row="18" column="1">
+      <item row="19" column="1">
        <widget class="ctkVTKRenderView" name="GaussianKernelView">
         <property name="enabled">
          <bool>false</bool>
@@ -659,7 +659,7 @@
         </item>
        </layout>
       </item>
-      <item row="16" column="1">
+      <item row="17" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_6">
         <property name="leftMargin">
          <number>0</number>
@@ -728,6 +728,25 @@
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QCheckBox" name="AutoApplyCheckBox">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="text">
+        <string>AutoApply</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
      <item>
       <widget class="QPushButton" name="ApplyButton">
        <property name="enabled">
@@ -1492,6 +1511,22 @@
     <hint type="destinationlabel">
      <x>436</x>
      <y>623</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AutoApplyCheckBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>387</x>
+     <y>144</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>46</x>
+     <y>985</y>
     </hint>
    </hints>
   </connection>

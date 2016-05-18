@@ -70,6 +70,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
   vtkSetMacro(Link,bool);
   vtkGetMacro(Link,bool);
 
+  vtkSetMacro(AutoApply,bool);
+  vtkGetMacro(AutoApply,bool);
+
   vtkSetMacro(Accuracy,int);
   vtkGetMacro(Accuracy,int);
 
@@ -130,6 +133,7 @@ protected:
   int Cores;
 
   bool Link;
+  bool AutoApply;
 
   int Accuracy;
   int Status;

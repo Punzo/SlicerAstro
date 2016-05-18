@@ -57,7 +57,8 @@ protected slots:
   void onComputationFinished();
   void updateProgress(int value);
   void onHardwareChanged(int index);
-  void onLinkChanged(bool index);
+  void onLinkChanged(bool value);
+  void onAutoApplyChanged(bool value);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerSmoothingModuleWidget);
