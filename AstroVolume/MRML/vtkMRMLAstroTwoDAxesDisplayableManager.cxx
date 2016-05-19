@@ -618,7 +618,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           break;
         case vtkMRMLAbstractViewNode::RulerTypeThick:
           this->twoDAxesActor->GetProperty()->SetLineWidth(3);
-          fontSize = 24;
+          fontSize = 18;
           break;
         default:
           break;
