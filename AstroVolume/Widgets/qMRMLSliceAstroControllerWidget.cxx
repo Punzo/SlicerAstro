@@ -70,10 +70,10 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
 
   this->Superclass::init();
 
-  this->SliceOrientationSelector->setItemText(0, "XY");
+  /*this->SliceOrientationSelector->setItemText(0, "XY");
   this->SliceOrientationSelector->setItemText(1, "XZ");
   this->SliceOrientationSelector->setItemText(2, "ZY");
-  this->SliceOrientationSelector->setItemText(3, "Reformat");
+  this->SliceOrientationSelector->setItemText(3, "Reformat");*/
 
   this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0, QApplication::UnicodeUTF8));
   qMRMLOrientation axialOrientation = {qMRMLSliceControllerWidget::tr("S: "), qMRMLSliceControllerWidget::tr("S <-----> N")};
@@ -97,8 +97,34 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   this->col = vtkSmartPointer<vtkCollection>::New();
 }
 
+//---------------------------------------------------------------------------
+void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSliceNode* newSliceNode)
+{
+  Q_Q(qMRMLSliceAstroControllerWidget);
+
+  if (newSliceNode == this->MRMLSliceNode)
+    {
+    return;
+    }
+
+  this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(updateWidgetFromMRMLSliceNode()));
+
+  this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(updateCoordinateWidgetFromMRMLSliceNode()));
+
+  this->MRMLSliceNode = newSliceNode;
+
+  // Update widget state given the new slice node
+  this->updateWidgetFromMRMLSliceNode();
+  this->updateCoordinateWidgetFromMRMLSliceNode();
+
+  // Enable/disable widget
+  q->setDisabled(newSliceNode == 0);
+}
+
 // --------------------------------------------------------------------------
-void qMRMLSliceAstroControllerWidgetPrivate::updateWidgetFromMRMLSliceNode()
+void qMRMLSliceAstroControllerWidgetPrivate::updateCoordinateWidgetFromMRMLSliceNode()
 {
   Q_Q(qMRMLSliceAstroControllerWidget);
 
@@ -107,155 +133,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateWidgetFromMRMLSliceNode()
     return;
     }
 
-  std::string orient = this->MRMLSliceNode->GetOrientationString();
-  std::string sysOrient = this->MRMLSliceNode->GetOrientationDisplayString();
-
-  if(!orient.compare("Axial"))
-    {
-    this->SliceOffsetSlider->setToolTip(qMRMLSliceControllerWidget::tr("S <-----> N"));
-    this->WCSDisplay->setToolTip("Declination Coordinate");
-    }
-  if(!orient.compare("Coronal"))
-    {
-    this->SliceOffsetSlider->setToolTip(qMRMLSliceControllerWidget::tr("z <-----> Z"));
-    this->WCSDisplay->setToolTip("Frequency/velocity Coordinate");
-    }
-  if(!orient.compare("Sagittal"))
-    {
-    this->SliceOffsetSlider->setToolTip(qMRMLSliceControllerWidget::tr("E <-----> W"));
-    this->WCSDisplay->setToolTip("Right Ascension Coordinate");
-    }
-  if(!orient.compare("Reformat"))
-    {
-    this->SliceOffsetSlider->setToolTip(qMRMLSliceControllerWidget::tr("Oblique"));
-    }
-
   q->setWCSDisplay();
-
-
-  bool wasBlocked;
-
-  // Update abbreviated slice view name
-  this->ViewLabel->setText(this->MRMLSliceNode->GetLayoutLabel());
-
-  // Update orientation selector state
-  int index = this->SliceOrientationSelector->findText(
-      QString::fromStdString(sysOrient));
-  Q_ASSERT(index>=0 && index <=4);
-
-  // We block the signal to avoid calling setSliceOrientation from the MRMLNode
-  wasBlocked = this->SliceOrientationSelector->blockSignals(true);
-  this->SliceOrientationSelector->setCurrentIndex(index);
-  this->SliceOrientationSelector->blockSignals(wasBlocked);
-
-  // Update slice visibility toggle
-  this->actionShow_in_3D->setChecked(this->MRMLSliceNode->GetSliceVisible());
-  this->actionLockNormalToCamera->setChecked(
-    this->MRMLSliceNode->GetWidgetNormalLockedToCamera());
-
-  // Label Outline
-  bool showOutline = this->MRMLSliceNode->GetUseLabelOutline();
-  this->actionLabelMapOutline->setChecked(showOutline);
-  this->actionLabelMapOutline->setText(showOutline ?
-    tr("Hide label volume outlines") : tr("Show label volume outlines"));
-  // Reformat
-  bool showReformat = this->MRMLSliceNode->GetWidgetVisible();
-  this->actionShow_reformat_widget->setChecked(showReformat);
-  this->actionShow_reformat_widget->setText(
-    showReformat ? tr("Hide reformat widget"): tr("Show reformat widget"));
-  // Slice spacing mode
-  this->SliceSpacingButton->setIcon(
-    this->MRMLSliceNode->GetSliceSpacingMode() == vtkMRMLSliceNode::AutomaticSliceSpacingMode ?
-      QIcon(":/Icons/SlicerAutomaticSliceSpacing.png") :
-      QIcon(":/Icons/SlicerManualSliceSpacing.png"));
-  this->actionSliceSpacingModeAutomatic->setChecked(
-    this->MRMLSliceNode->GetSliceSpacingMode() == vtkMRMLSliceNode::AutomaticSliceSpacingMode);
-  // Prescribed slice spacing
-  double spacing[3] = {0.0, 0.0, 0.0};
-  this->MRMLSliceNode->GetPrescribedSliceSpacing(spacing);
-  this->SliceSpacingSpinBox->setValue(spacing[2]);
-  // Field of view
-  double fov[3]  = {0.0, 0.0, 0.0};
-  this->MRMLSliceNode->GetFieldOfView(fov);
-  wasBlocked = this->SliceFOVSpinBox->blockSignals(true);
-  this->SliceFOVSpinBox->setValue(fov[0] < fov[1] ? fov[0] : fov[1]);
-  this->SliceFOVSpinBox->blockSignals(wasBlocked);
-  // Lightbox
-  int rows = this->MRMLSliceNode->GetLayoutGridRows();
-  int columns = this->MRMLSliceNode->GetLayoutGridColumns();
-  this->actionLightbox1x1_view->setChecked(rows == 1 && columns == 1);
-  this->actionLightbox1x2_view->setChecked(rows == 1 && columns == 2);
-  this->actionLightbox1x3_view->setChecked(rows == 1 && columns == 3);
-  this->actionLightbox1x4_view->setChecked(rows == 1 && columns == 4);
-  this->actionLightbox1x6_view->setChecked(rows == 1 && columns == 6);
-  this->actionLightbox1x8_view->setChecked(rows == 1 && columns == 8);
-  this->actionLightbox2x2_view->setChecked(rows == 2 && columns == 2);
-  this->actionLightbox3x3_view->setChecked(rows == 3 && columns == 3);
-  this->actionLightbox6x6_view->setChecked(rows == 6 && columns == 6);
-
-  this->actionSliceModelModeVolumes->setChecked(this->MRMLSliceNode->GetSliceResolutionMode() ==
-                                                vtkMRMLSliceNode::SliceResolutionMatchVolumes);
-  this->actionSliceModelMode2D->setChecked(this->MRMLSliceNode->GetSliceResolutionMode() ==
-                                                vtkMRMLSliceNode::SliceResolutionMatch2DView);
-  this->actionSliceModelMode2D_Volumes->setChecked(this->MRMLSliceNode->GetSliceResolutionMode() ==
-                                                vtkMRMLSliceNode::SliceFOVMatch2DViewSpacingMatchVolumes);
-  this->actionSliceModelModeVolumes_2D->setChecked(this->MRMLSliceNode->GetSliceResolutionMode() ==
-                                                vtkMRMLSliceNode::SliceFOVMatchVolumesSpacingMatch2DView);
-  //this->actionSliceModelModeCustom->setChecked(this->MRMLSliceNode->GetSliceResolutionMode() ==
-  //                                              vtkMRMLSliceNode::SliceResolutionCustom);
-
-  double UVWExtents[] = {256,256,256};
-  double UVWOrigin[] = {0,0,0};
-  int UVWDimensions[] = {256,256,256};
-
-  this->MRMLSliceNode->GetUVWExtents(UVWExtents);
-  this->MRMLSliceNode->GetUVWOrigin(UVWOrigin);
-  this->MRMLSliceNode->GetUVWDimensions(UVWDimensions);
-
-  wasBlocked = this->SliceModelFOVXSpinBox->blockSignals(true);
-  this->SliceModelFOVXSpinBox->setValue(UVWExtents[0]);
-  this->SliceModelFOVXSpinBox->blockSignals(wasBlocked);
-
-  wasBlocked = this->SliceModelFOVYSpinBox->blockSignals(true);
-  this->SliceModelFOVYSpinBox->setValue(UVWExtents[1]);
-  this->SliceModelFOVYSpinBox->blockSignals(wasBlocked);
-
-  wasBlocked = this->SliceModelDimensionXSpinBox->blockSignals(true);
-  this->SliceModelDimensionXSpinBox->setValue(UVWDimensions[0]);
-  this->SliceModelDimensionXSpinBox->blockSignals(wasBlocked);
-
-  wasBlocked = this->SliceModelDimensionYSpinBox->blockSignals(true);
-  this->SliceModelDimensionYSpinBox->setValue(UVWDimensions[1]);
-  this->SliceModelDimensionYSpinBox->blockSignals(wasBlocked);
-
-  wasBlocked = this->SliceModelOriginXSpinBox->blockSignals(true);
-  this->SliceModelOriginXSpinBox->setValue(UVWOrigin[0]);
-  this->SliceModelOriginXSpinBox->blockSignals(wasBlocked);
-
-  wasBlocked = this->SliceModelOriginYSpinBox->blockSignals(true);
-  this->SliceModelOriginYSpinBox->setValue(UVWOrigin[1]);
-  this->SliceModelOriginYSpinBox->blockSignals(wasBlocked);
-
-  // OrientationMarker (check the selected option)
-  QAction* action = qobject_cast<QAction*>(this->OrientationMarkerTypesMapper->mapping(this->MRMLSliceNode->GetOrientationMarkerType()));
-  if (action)
-    {
-    action->setChecked(true);
-    }
-  action = qobject_cast<QAction*>(this->OrientationMarkerSizesMapper->mapping(this->MRMLSliceNode->GetOrientationMarkerSize()));
-  if (action)
-    {
-    action->setChecked(true);
-    }
-
-  // Ruler (check the selected option)
-  action = qobject_cast<QAction*>(this->RulerTypesMapper->mapping(this->MRMLSliceNode->GetRulerType()));
-  if (action)
-    {
-    action->setChecked(true);
-    }
-
-
 }
 
 // --------------------------------------------------------------------------
@@ -387,6 +265,7 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 
 }
 
+/*
 void qMRMLSliceAstroControllerWidget::setSliceOrientation(const QString &orientation)
 {
   Q_D(qMRMLSliceAstroControllerWidget);
@@ -425,3 +304,4 @@ void qMRMLSliceAstroControllerWidget::setSliceOrientation(const QString &orienta
   d->SliceLogic->EndSliceNodeInteraction();
 }
 
+*/

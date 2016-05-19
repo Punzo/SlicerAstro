@@ -44,56 +44,49 @@ void qMRMLSliceAstroWidgetPrivate::init()
 
   this->Superclass::init();
 
-  verticalLayout_2->removeWidget(SliceController);
-  verticalLayout_2->removeWidget(frame);
+  this->verticalLayout_2->removeWidget(this->SliceController);
+  this->verticalLayout_2->removeWidget(this->frame);
 
-  SliceController1 = new qMRMLSliceAstroControllerWidget(q);
-  SliceController1->setObjectName(QString::fromUtf8("SliceController"));
-  verticalLayout_2->addWidget(SliceController1);
-  frame = new QFrame(q);
-  frame->setObjectName(QString::fromUtf8("frame"));
-  frame->setFrameShadow(QFrame::Raised);
-  verticalLayout = new QVBoxLayout(frame);
-  verticalLayout->setSpacing(0);
-  verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
-  verticalLayout->setContentsMargins(0, 0, 0, 0);
-  SliceView = new qMRMLSliceView(frame);
-  SliceView->setObjectName(QString::fromUtf8("SliceView"));
-  SliceView->setProperty("renderEnabled", QVariant(true));
+  delete this->SliceController;
+  delete this->frame;
 
-  verticalLayout->addWidget(SliceView);
+  this->SliceController = new qMRMLSliceAstroControllerWidget(q);
+  this->SliceController->setObjectName(QString::fromUtf8("SliceController"));
+  this->verticalLayout_2->addWidget(this->SliceController);
+  this->frame = new QFrame(q);
+  this->frame->setObjectName(QString::fromUtf8("frame"));
+  this->frame->setFrameShadow(QFrame::Raised);
+  this->verticalLayout = new QVBoxLayout(this->frame);
+  this->verticalLayout->setSpacing(0);
+  this->verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
+  this->verticalLayout->setContentsMargins(0, 0, 0, 0);
+  this->SliceView = new qMRMLSliceView(this->frame);
+  this->SliceView->setObjectName(QString::fromUtf8("SliceView"));
+  this->SliceView->setProperty("renderEnabled", QVariant(true));
 
-  verticalLayout_2->addWidget(frame);
+  this->verticalLayout->addWidget(this->SliceView);
 
-  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)), SliceController1, SLOT(setMRMLScene(vtkMRMLScene*)));
-  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)), SliceView, SLOT(setMRMLScene(vtkMRMLScene*)));
+  this->verticalLayout_2->addWidget(this->frame);
+
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->SliceController, SLOT(setMRMLScene(vtkMRMLScene*)));
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->SliceView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   QMetaObject::connectSlotsByName(q);
 
   this->SliceView->sliceViewInteractorStyle()
-    ->SetSliceLogic(this->SliceController1->sliceLogic());
+    ->SetSliceLogic(this->SliceController->sliceLogic());
+
 
   connect(this->SliceView, SIGNAL(resized(QSize)),
-          this->SliceController1, SLOT(setSliceViewSize(QSize)));
+          this->SliceController, SLOT(setSliceViewSize(QSize)));
 
-#if (VTK_MAJOR_VERSION <= 5)
-  connect(this->SliceController1, SIGNAL(imageDataChanged(vtkImageData*)),
-          this, SLOT(setImageData(vtkImageData*)));
-#else
-  connect(this->SliceController1, SIGNAL(imageDataConnectionChanged(vtkAlgorithmOutput*)),
+  connect(this->SliceController, SIGNAL(imageDataConnectionChanged(vtkAlgorithmOutput*)),
           this, SLOT(setImageDataConnection(vtkAlgorithmOutput*)));
-#endif
-  connect(this->SliceController1, SIGNAL(renderRequested()),
-          this->SliceView, SLOT(scheduleRender()), Qt::QueuedConnection);
-}
 
-// --------------------------------------------------------------------------
-void qMRMLSliceAstroWidgetPrivate::endProcessing()
-{
-  // When a scene is closed, we need to reconfigure the SliceNode to
-  // the size of the widget.
-  QRect rect = this->SliceView->geometry();
-  this->SliceController1->setSliceViewSize(QSize(rect.width(), rect.height()));
+  connect(this->SliceController, SIGNAL(renderRequested()),
+          this->SliceView, SLOT(scheduleRender()), Qt::QueuedConnection);
 }
 
 // --------------------------------------------------------------------------
@@ -117,154 +110,3 @@ qMRMLSliceAstroWidget::qMRMLSliceAstroWidget(qMRMLSliceAstroWidgetPrivate *pimpl
 qMRMLSliceAstroWidget::~qMRMLSliceAstroWidget()
 {
 }
-
-// --------------------------------------------------------------------------
-qMRMLSliceAstroControllerWidget* qMRMLSliceAstroWidget::sliceController()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1;
-}
-
-//---------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::setMRMLSliceNode(vtkMRMLSliceNode* newSliceNode)
-{
-  Q_D(qMRMLSliceAstroWidget);
-
-  d->SliceView->setMRMLSliceNode(newSliceNode);
-  d->SliceController1->setMRMLSliceNode(newSliceNode);
-}
-
-//---------------------------------------------------------------------------
-vtkMRMLSliceCompositeNode* qMRMLSliceAstroWidget::mrmlSliceCompositeNode()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->mrmlSliceCompositeNode();
-}
-
-//---------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::setSliceViewName(const QString& newSliceViewName)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setSliceViewName(newSliceViewName);
-
-  // QColor sliceViewColor =
-  //   qMRMLSliceController1Widget::sliceViewColor(newSliceViewName);
-
-//Don't apply the color of the slice to the highlight box
-//  double highlightedBoxColor[3];
-//  highlightedBoxColor[0] = sliceViewColor.redF();
-//  highlightedBoxColor[1] = sliceViewColor.greenF();
-//  highlightedBoxColor[2] = sliceViewColor.blueF();
-//  // Set the color associated with the highlightedBox
-//  d->SliceView->setHighlightedBoxColor(highlightedBoxColor);
-}
-
-//---------------------------------------------------------------------------
-QString qMRMLSliceAstroWidget::sliceViewName()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->sliceViewName();
-}
-
-//---------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::setSliceViewLabel(const QString& newSliceViewLabel)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setSliceViewLabel(newSliceViewLabel);
-}
-
-//---------------------------------------------------------------------------
-QString qMRMLSliceAstroWidget::sliceViewLabel()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->sliceViewLabel();
-}
-
-//---------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::setSliceViewColor(const QColor& newSliceViewColor)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setSliceViewColor(newSliceViewColor);
-}
-
-//---------------------------------------------------------------------------
-QColor qMRMLSliceAstroWidget::sliceViewColor()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->sliceViewColor();
-}
-
-//---------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::setSliceOrientation(const QString& orientation)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setSliceOrientation(orientation);
-}
-
-//---------------------------------------------------------------------------
-QString qMRMLSliceAstroWidget::sliceOrientation()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->sliceOrientation();
-}
-
-//---------------------------------------------------------------------------
-#if (VTK_MAJOR_VERSION <= 5)
-void qMRMLSliceAstroWidget::setImageData(vtkImageData* newImageData)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setImageData(newImageData);
-}
-#else
-void qMRMLSliceAstroWidget::setImageDataConnection(vtkAlgorithmOutput* newImageDataConnection)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setImageDataConnection(newImageDataConnection);
-}
-#endif
-
-//---------------------------------------------------------------------------
-#if (VTK_MAJOR_VERSION <= 5)
-vtkImageData* qMRMLSliceAstroWidget::imageData() const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->imageData();
-}
-#else
-vtkAlgorithmOutput* qMRMLSliceAstroWidget::imageDataConnection() const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->imageDataConnection();
-}
-#endif
-
-//---------------------------------------------------------------------------
-vtkMRMLSliceNode* qMRMLSliceAstroWidget::mrmlSliceNode()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->mrmlSliceNode();
-}
-
-//---------------------------------------------------------------------------
-vtkMRMLSliceLogic* qMRMLSliceAstroWidget::sliceLogic()const
-{
-  Q_D(const qMRMLSliceAstroWidget);
-  return d->SliceController1->sliceLogic();
-}
-
-// --------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::fitSliceToBackground()
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->fitSliceToBackground();
-}
-
-
-// --------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::setSliceLogics(vtkCollection* logics)
-{
-  Q_D(qMRMLSliceAstroWidget);
-  d->SliceController1->setSliceLogics(logics);
-}
-
-

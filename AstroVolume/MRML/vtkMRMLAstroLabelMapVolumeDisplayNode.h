@@ -88,24 +88,24 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
 
   ///
   /// Get the first tick for the display of axes at given unitNode in WCS units
-  double GetFirstWcsTickAxis(const double worldA, const double worldB,
+  virtual double GetFirstWcsTickAxis(const double worldA, const double worldB,
                              const double wcsStep, vtkMRMLUnitNode *node);
 
   ///
   /// Get the first tick for the display of the axis X in WCS units
-  double GetFirstWcsTickAxisX(const double worldA, const double worldB, const double wcsStep);
+  virtual double GetFirstWcsTickAxisX(const double worldA, const double worldB, const double wcsStep);
 
   ///
   /// Get the first tick for the display of the axis Y in WCS units
-  double GetFirstWcsTickAxisY(const double worldA, const double worldB, const double wcsStep);
+  virtual double GetFirstWcsTickAxisY(const double worldA, const double worldB, const double wcsStep);
 
   ///
   /// Get the first tick for the display of the axis Z in WCS units
-  double GetFirstWcsTickAxisZ(const double worldA, const double worldB, const double wcsStep);
+  virtual double GetFirstWcsTickAxisZ(const double worldA, const double worldB, const double wcsStep);
 
   ///
   /// Get the ticks step for the display of axes at given unitNode in WCS units
-  double GetWcsTickStepAxis(const double wcsLength,
+  virtual double GetWcsTickStepAxis(const double wcsLength,
                              int *numberOfPoints,
                              vtkMRMLUnitNode *node);
 

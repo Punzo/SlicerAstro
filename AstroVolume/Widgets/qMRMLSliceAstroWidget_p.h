@@ -38,12 +38,6 @@ public:
   virtual ~qMRMLSliceAstroWidgetPrivate();
 
   void init();
-
-  qMRMLSliceAstroControllerWidget* SliceController1;
-
-public slots:
-  void endProcessing();
-
 };
 
 #endif

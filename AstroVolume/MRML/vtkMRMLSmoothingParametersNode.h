@@ -123,9 +123,9 @@ protected:
   int OutputSerial;
 
   /// Filter method
-  /// 0: Gaussian
-  /// 1: Adaptive
-  /// 2: Wavelet Lifting
+  /// 0: Box
+  /// 1: Gaussian
+  /// 2: Intensity-driven gradient
   int Filter;
 
   int Hardware;

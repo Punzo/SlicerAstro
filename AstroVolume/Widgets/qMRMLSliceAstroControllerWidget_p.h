@@ -39,7 +39,10 @@ class qMRMLSliceAstroControllerWidgetPrivate
 
 public slots:
   /// Update widget state using the associated MRML slice node
-  void updateWidgetFromMRMLSliceNode();
+  void updateCoordinateWidgetFromMRMLSliceNode();
+
+protected:
+  void setMRMLSliceNodeInternal(vtkMRMLSliceNode* sliceNode);
 
 public:
   typedef qMRMLSliceControllerWidgetPrivate Superclass;
