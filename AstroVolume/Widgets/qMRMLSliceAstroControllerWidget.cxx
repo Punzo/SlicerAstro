@@ -208,12 +208,13 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 
         double offset = this->mrmlSliceNode()->GetSliceOffset();
         double world [] = {0., 0., 0.};
+        int extent[6];
         double ijk [] = {0., 0., 0.};
-        astroVolume->GetOrigin(world);
+        astroVolume->GetImageData()->GetExtent(extent);
 
-        ijk[0] = fabs(world[0]);
-        ijk[1] = fabs(world[2]);
-        ijk[2] = fabs(world[1]);
+        ijk[0] = extent[1] / 2;
+        ijk[1] = extent[5] / 2;
+        ijk[2] = extent[3] / 2;
 
         std::string orientation = this->mrmlSliceNode()->GetOrientationString();
 

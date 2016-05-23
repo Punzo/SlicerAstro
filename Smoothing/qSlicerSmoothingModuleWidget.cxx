@@ -1,7 +1,7 @@
 // Qt includes
 #include <QDebug>
 #include <QMessageBox>
-#include <QTime>
+#include <QTimer>
 
 // CTK includes
 #include <ctkFlowLayout.h>
@@ -285,35 +285,10 @@ void qSlicerSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (this->mrmlScene())
-    {
-    vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLSelectionNode");
-    unsigned int numNodes = col->GetNumberOfItems();
-    for (unsigned int n = 0; n < numNodes; n++)
-      {
-      vtkMRMLSelectionNode *selectionNodeIter =
-          vtkMRMLSelectionNode::SafeDownCast(col->GetItemAsObject(n));
-      if (selectionNodeIter)
-        {
-        // is this the display node?
-        if (selectionNode->GetID() && selectionNodeIter->GetID() &&
-            strcmp(selectionNode->GetID(), selectionNodeIter->GetID()) == 0)
-          {
-          // don't disconnect
-          // qDebug() << "\tskipping disconnecting " << node->GetID();
-          continue;
-          }
-        this->qvtkDisconnect(selectionNodeIter, vtkCommand::ModifiedEvent,
-                           this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-        }
-      }
-    col->RemoveAllItems();
-    col->Delete();
 
-    this->qvtkConnect(selectionNode, vtkCommand::ModifiedEvent,
+  this->qvtkReconnect(selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
 
-    }
 
   this->initializeParameterNode(scene);
 
@@ -489,6 +464,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
     return;
     }
 
+  int status = d->parametersNode->GetStatus();
+
   char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
@@ -520,10 +497,8 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
   d->AutoRunCheckBox->setChecked(d->parametersNode->GetAutoRun());
   d->LinkCheckBox->setChecked(d->parametersNode->GetLink());
 
-  int status = d->parametersNode->GetStatus();
-
   if(status == 0)
-    {
+    {  
     switch (d->parametersNode->GetFilter())
       {
       case 0:
@@ -569,13 +544,40 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->SigmaYLabel->setText("N<sub>Y</sub>:");
         d->SigmaZLabel->setText("N<sub>Z</sub>:");
         d->DoubleSpinBoxX->setSingleStep(2);
-        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxX->blockSignals(true);
+          d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+          d->DoubleSpinBoxX->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+          }
         d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction");
         d->DoubleSpinBoxY->setSingleStep(2);
-        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxY->blockSignals(true);
+          d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+          d->DoubleSpinBoxY->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+          }
         d->DoubleSpinBoxY->setToolTip("Number of pixel of the Box kernel in the Y direction");
         d->DoubleSpinBoxZ->setSingleStep(2);
-        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxZ->blockSignals(true);
+          d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+          d->DoubleSpinBoxZ->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+          }
         d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction");
         d->DoubleSpinBoxX->setMaximum(10);
         d->DoubleSpinBoxY->setMaximum(10);
@@ -618,13 +620,40 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
         d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
         d->DoubleSpinBoxX->setSingleStep(1);
-        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxX->blockSignals(true);
+          d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+          d->DoubleSpinBoxX->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+          }
         d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction");
         d->DoubleSpinBoxY->setSingleStep(1);
-        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxY->blockSignals(true);
+          d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+          d->DoubleSpinBoxY->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+          }
         d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction");
         d->DoubleSpinBoxZ->setSingleStep(1);
-        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxZ->blockSignals(true);
+          d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+          d->DoubleSpinBoxZ->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+          }
         d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction");
         d->DoubleSpinBoxX->setMaximum(10);
         d->DoubleSpinBoxY->setMaximum(10);
@@ -669,7 +698,6 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
             break;
             }
           }
-
 
         if (fabs(d->parametersNode->GetParameterX() - d->parametersNode->GetParameterY()) < 0.001 &&
            fabs(d->parametersNode->GetParameterY() - d->parametersNode->GetParameterZ()) < 0.001)
@@ -842,11 +870,38 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->DoubleSpinBoxY->setToolTip("");
         d->DoubleSpinBoxZ->setToolTip("");
         d->DoubleSpinBoxX->setSingleStep(1);
-        d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxX->blockSignals(true);
+          d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+          d->DoubleSpinBoxX->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
+          }
         d->DoubleSpinBoxY->setSingleStep(1);
-        d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxY->blockSignals(true);
+          d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+          d->DoubleSpinBoxY->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
+          }
         d->DoubleSpinBoxZ->setSingleStep(1);
-        d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+        if(d->parametersNode->GetLink())
+          {
+          d->DoubleSpinBoxZ->blockSignals(true);
+          d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+          d->DoubleSpinBoxZ->blockSignals(false);
+          }
+        else
+          {
+          d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
+          }
         d->DoubleSpinBoxX->setMaximum(10);
         d->DoubleSpinBoxY->setMaximum(10);
         d->DoubleSpinBoxZ->setMaximum(10);
@@ -858,17 +913,20 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
           {
           d->AccuracySpinBox->setSingleStep(2);
           d->TimeStepSpinBox->setMaximum(0.625);
+          d->TimeStepSpinBox->setSingleStep(0.03);
           d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
           }
         else
           {
           d->AccuracySpinBox->setSingleStep(1);
           d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
+          d->TimeStepSpinBox->setSingleStep(0.003);
           d->TimeStepSpinBox->setMaximum(0.0625);
           }
         break;
         }
       }
+    d->parametersNode->SetGaussianKernels();
     }
 
   if(status == 0)
@@ -952,7 +1010,6 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
     d->parametersNode->SetRx(0);
     d->parametersNode->SetRy(0);
     d->parametersNode->SetRz(0);
-    d->parametersNode->SetGaussianKernels();
     }
 
   if (index == 2)
@@ -986,16 +1043,17 @@ void qSlicerSmoothingModuleWidget::onKChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetK(value);
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
+  d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1007,16 +1065,17 @@ void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
     {
     return;
     }
-
+  int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetTimeStep(value);
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
+  d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1030,16 +1089,15 @@ void qSlicerSmoothingModuleWidget::onRxChanged(double value)
     }
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetRx(value);
-  d->parametersNode->SetGaussianKernels();
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
   d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1053,16 +1111,15 @@ void qSlicerSmoothingModuleWidget::onRyChanged(double value)
     }
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetRy(value);
-  d->parametersNode->SetGaussianKernels();
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
   d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1076,16 +1133,15 @@ void qSlicerSmoothingModuleWidget::onRzChanged(double value)
     }
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetRz(value);
-  d->parametersNode->SetGaussianKernels();
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
   d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1103,21 +1159,25 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
     {
     d->parametersNode->SetParameterY(value);
     d->parametersNode->SetParameterZ(value);
+    if (d->parametersNode->GetFilter() == 0)
+      {
+      d->parametersNode->SetKernelLengthY(value);
+      d->parametersNode->SetKernelLengthZ(value);
+      }
     }
   if (d->parametersNode->GetFilter() == 0)
     {
     d->parametersNode->SetKernelLengthX(value);
     }
-  d->parametersNode->SetGaussianKernels();
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
   d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1135,25 +1195,25 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
     {
     d->parametersNode->SetParameterX(value);
     d->parametersNode->SetParameterZ(value);
+    if (d->parametersNode->GetFilter() == 0)
+      {
+      d->parametersNode->SetKernelLengthX(value);
+      d->parametersNode->SetKernelLengthZ(value);
+      }
     }
   if (d->parametersNode->GetFilter() == 0)
     {
     d->parametersNode->SetKernelLengthY(value);
+    } 
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
     }
-  d->parametersNode->SetGaussianKernels();
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoRun() &&
-      !d->parametersNode->GetLink() &&
-      d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() &&
-           !d->parametersNode->GetLink() &&
-           d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1171,26 +1231,27 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
     {
     d->parametersNode->SetParameterX(value);
     d->parametersNode->SetParameterY(value);
+    if (d->parametersNode->GetFilter() == 0)
+      {
+      d->parametersNode->SetKernelLengthX(value);
+      d->parametersNode->SetKernelLengthY(value);
+      }
     }
   if (d->parametersNode->GetFilter() == 0)
     {
     d->parametersNode->SetKernelLengthZ(value);
     }
-  d->parametersNode->SetGaussianKernels();
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
   d->parametersNode->EndModify(wasModifying);
 
-  if (d->parametersNode->GetAutoRun() &&
-      !d->parametersNode->GetLink() &&
-      d->parametersNode->GetStatus() == 0)
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
     }
-  else if (d->parametersNode->GetAutoRun() &&
-           !d->parametersNode->GetLink() &&
-           d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
-    }
+
 }
 
 //-----------------------------------------------------------------------------
@@ -1201,18 +1262,18 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
     {
     return;
     }
+
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetAccuracy(value);
-  d->parametersNode->SetGaussianKernels();
+  if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 1)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
   d->parametersNode->EndModify(wasModifying);
 
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
-    }
-  else if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() > 0)
-    {
-    this->onComputationCancelled();
     }
 }
 
@@ -1268,16 +1329,6 @@ void qSlicerSmoothingModuleWidget::onApply()
     case 2:
       {
       outSS<<"Gradient";
-      break;
-      }
-    case 3:
-      {
-      outSS<<"Haar_Wavelet_Thresholding";
-      break;
-      }
-    case 4:
-      {
-      outSS<<"Gall_Wavelet_Thresholding";
       break;
       }
     }
@@ -1398,7 +1449,6 @@ void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
 
  int wasModifying = d->parametersNode->StartModify();
 
- d->parametersNode->SetAutoRun(false);
  d->parametersNode->SetHardware(index);
  int filter = d->parametersNode->GetFilter();
 
@@ -1425,13 +1475,13 @@ void qSlicerSmoothingModuleWidget::onLinkChanged(bool value)
  d->parametersNode->SetLink(value);
 }
 
-
 //-----------------------------------------------------------------------------
 void qSlicerSmoothingModuleWidget::onAutoRunChanged(bool value)
 {
  Q_D(qSlicerSmoothingModuleWidget);
  d->parametersNode->SetAutoRun(value);
 }
+
 //-----------------------------------------------------------------------------
 void qSlicerSmoothingModuleWidget::onComputationStarted()
 {
