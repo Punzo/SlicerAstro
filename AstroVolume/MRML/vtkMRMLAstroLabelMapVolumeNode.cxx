@@ -1,17 +1,17 @@
 #include <string>
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLScene.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLScene.h>
 
 // VTK includes
-#include <vtkVolume.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
+#include <vtkVolume.h>
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroLabelMapVolumeNode);

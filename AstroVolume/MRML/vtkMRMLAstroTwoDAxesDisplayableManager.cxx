@@ -3,18 +3,20 @@
 
 // MRML includes
 #include <vtkMRMLAbstractViewNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLLogic.h>
+#include <vtkMRMLSliceLayerLogic.h>
+#include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLViewNode.h>
-#include <vtkMRMLSliceLogic.h>
-#include <vtkMRMLSliceLayerLogic.h>
-#include <vtkMRMLAstroVolumeDisplayNode.h>
 
 // VTK includes
-#include <vtkActor2DCollection.h>
 #include <vtkActor2D.h>
+#include <vtkActor2DCollection.h>
 #include <vtkAxisActor2D.h>
 #include <vtkCamera.h>
+#include <vtkCellArray.h>
+#include <vtkGeneralTransform.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -25,13 +27,11 @@
 #include <vtkRenderWindow.h>
 #include <vtkSmartPointer.h>
 #include <vtkPoints.h>
+#include <vtkPolyDataMapper2D.h>
 #include <vtkLine.h>
+#include <vtksys/SystemTools.hxx>
 #include <vtkTextActor.h>
 #include <vtkTextProperty.h>
-#include <vtksys/SystemTools.hxx>
-#include <vtkCellArray.h>
-#include <vtkGeneralTransform.h>
-#include <vtkPolyDataMapper2D.h>
 
 // STD includes
 #include <sstream>
@@ -327,7 +327,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         displayNode->GetReferenceSpace(ijk, worldC);
 
         // calculate the wcsSteps for the two axes
-        if (!strcmp(sliceNode->GetOrientationString(), "Sagittal"))
+        if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
           {
           wcsStep[0] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), &numberOfPointsHorizontal);
           axisCoord[0] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0]);
@@ -335,7 +335,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
           }
 
-        if (!strcmp(sliceNode->GetOrientationString(), "Coronal"))
+        if (!strcmp(sliceNode->GetOrientationString(), "XY"))
           {
           wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
           axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
@@ -343,7 +343,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
           }
 
-        if (!strcmp(sliceNode->GetOrientationString(), "Axial"))
+        if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
           {
           wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
           axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
@@ -356,7 +356,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         for (int i = 0; i < numberOfPointsHorizontal; i++)
           {
           int i8 = i * 8;
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
             {
             temp.clear();
             temp.push_back(worldA[0]);
@@ -365,8 +365,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             world.push_back(temp);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Coronal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             temp.clear();
             temp.push_back(axisCoord[0] + wcsStep[0] * i);
@@ -386,7 +386,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           this->twoDAxesPoints->InsertPoint(i8, xyz[0], 2, 0);
           this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], 12, 0);
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
             {
             xyz[0] = worldA[0];
             xyz[1] = worldA[1];
@@ -394,8 +394,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             displayNode->GetIJKSpace(xyz, ijk);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Coronal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
             xyz[1] = worldA[1];
@@ -407,7 +407,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], 2, 0);
           this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], 7, 0);
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
             {
             xyz[0] = worldA[0];
             xyz[1] = worldA[1];
@@ -415,8 +415,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             displayNode->GetIJKSpace(xyz, ijk);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Coronal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
             xyz[1] = worldA[1];
@@ -428,7 +428,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], 2, 0);
           this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], 7, 0);
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
             {
             xyz[0] = worldA[0];
             xyz[1] = worldA[1];
@@ -436,8 +436,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             displayNode->GetIJKSpace(xyz, ijk);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Coronal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] *3. / 4.);
             xyz[1] = worldA[1];
@@ -460,8 +460,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           int ii = i - numberOfPointsHorizontal;
           int i8 = i * 8;
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Coronal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XY"))
             {
             temp.clear();
             temp.push_back(worldA[0]);
@@ -470,7 +470,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             world.push_back(temp);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             temp.clear();
             temp.push_back(worldA[0]);
@@ -491,8 +491,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           this->twoDAxesPoints->InsertPoint(i8, 2, xyz[1], 0);
           this->twoDAxesPoints->InsertPoint(i8 + 1, 12, xyz[1], 0);
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Coronal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XY"))
             {
             xyz[0] = worldA[0];
             xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
@@ -500,7 +500,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             displayNode->GetIJKSpace(xyz, ijk);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             xyz[0] = worldA[0];
             xyz[1] = worldA[1];
@@ -512,8 +512,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           this->twoDAxesPoints->InsertPoint(i8 + 2, 2, xyz[1], 0);
           this->twoDAxesPoints->InsertPoint(i8 + 3, 7, xyz[1], 0);
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Coronal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XY"))
             {
             xyz[0] = worldA[0];
             xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
@@ -521,7 +521,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             displayNode->GetIJKSpace(xyz, ijk);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             xyz[0] = worldA[0];
             xyz[1] = worldA[1];
@@ -533,8 +533,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           this->twoDAxesPoints->InsertPoint(i8 + 4, 2, xyz[1], 0);
           this->twoDAxesPoints->InsertPoint(i8 + 5, 7, xyz[1], 0);
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Coronal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XY"))
             {
             xyz[0] = worldA[0];
             xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
@@ -542,7 +542,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             displayNode->GetIJKSpace(xyz, ijk);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             xyz[0] = worldA[0];
             xyz[1] = worldA[1];
@@ -635,13 +635,13 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             continue;
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
             {
             coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Coronal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             coord = displayNode->GetAxisDisplayStringFromValueX(world[i][0]);
             }
@@ -662,13 +662,13 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             continue;
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Sagittal") ||
-              !strcmp(sliceNode->GetOrientationString(), "Coronal"))
+          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+              !strcmp(sliceNode->GetOrientationString(), "XY"))
             {
             coord = displayNode->GetAxisDisplayStringFromValueY(world[i][1]);
             }
 
-          if (!strcmp(sliceNode->GetOrientationString(), "Axial"))
+          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
             {
             coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
             }

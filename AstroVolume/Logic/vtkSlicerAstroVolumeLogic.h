@@ -15,11 +15,11 @@
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
-class vtkSlicerVolumesLogic;
-class vtkMRMLVolumeNode;
-class vtkSlicerUnitsLogic;
-class vtkMRMLSliceCompositeNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLVolumeNode;
+class vtkMRMLSliceCompositeNode;
+class vtkSlicerUnitsLogic;
+class vtkSlicerVolumesLogic;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerModuleLogic
@@ -82,7 +82,6 @@ protected:
   virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene);
   virtual void UpdateFromMRMLScene();
   virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
-
 
   bool LoadPresets(vtkMRMLScene* scene);
   vtkMRMLScene* PresetsScene;

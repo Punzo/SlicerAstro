@@ -26,10 +26,6 @@ public:
 
 public slots:
 
-  /// Set slice orientation.
-  /// \note Orientation could be either "XY", "XZ", "ZY" or "Reformat".
-  //void setSliceOrientation(const QString& orientation);
-
   /// Set the display of the WCS coordinate on the slice.
   void setWCSDisplay();
 

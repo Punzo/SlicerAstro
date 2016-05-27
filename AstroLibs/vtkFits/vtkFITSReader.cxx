@@ -8,7 +8,9 @@
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkMatrix4x4.h>
 #include <vtkObjectFactory.h>
+#include <vtkPointData.h>
 #include <vtksys/SystemTools.hxx>
 
 // STD includes
@@ -421,7 +423,7 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.NAXIS") == 0)
      {
-     vtkErrorMacro("The fits header is missing the NAXIS keyword. It is not possible to load the datacube!");
+     vtkErrorMacro("The fits header is missing the NAXIS keyword. It is not possible to load the datacube.");
      return false;
      }
 
@@ -438,7 +440,7 @@ bool vtkFITSReader::AllocateHeader()
      else
        {
        vtkErrorMacro("Datacube with polarization (NAXIS=4 and NAXIS4>1) at the moment are not supported."<<
-                     "If you want to visulize such kind of datacube in 3-D: please, contact me."<<
+                     "If you want to visulize such kind of datacube: please, contact me."<<
                      "Davide Punzo, punzodavide@hotmail.it");
        }
      }
@@ -458,7 +460,7 @@ bool vtkFITSReader::AllocateHeader()
      if(HeaderKeyValue.count(temp.c_str()) == 0)
        {
        vtkErrorMacro("The fits header is missing the NAXIS" << ii <<
-                       " keyword. It is not possible to load the datacube!");
+                       " keyword. It is not possible to load the datacube.");
        return false;
        }
        temp.erase(temp.size()-1);
@@ -466,85 +468,85 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CDELT1 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CDELT1 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CDELT1"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CDELT2 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CDELT2 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CDELT2"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CDELT3 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CDELT3 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CDELT3"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CRPIX1 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CRPIX1 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CRPIX1"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CRPIX2 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CRPIX2 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CRPIX2"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CRPIX3 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CRPIX3 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CRPIX3"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL1") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CRVAL1 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CRVAL1 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CRVAL1"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL2") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CRVAL2 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CRVAL2 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CRVAL2"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL3") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CRVAL3 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CRVAL3 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CRVAL3"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE1") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CTYPE1 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CTYPE1 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CTYPE1"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE2") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CTYPE2 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CTYPE2 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CTYPE2"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE3") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CTYPE3 keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the CTYPE3 keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.CTYPE3"] = "";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CUNIT1") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CUNIT1 keyword. Assuming degree!");
+     vtkWarningMacro("The fits header is missing the CUNIT1 keyword. Assuming degree.");
      HeaderKeyValue["SlicerAstro.CUNIT1"] = "DEGREE";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CUNIT2 keyword. Assuming degree!");
+     vtkWarningMacro("The fits header is missing the CUNIT2 keyword. Assuming degree.");
      HeaderKeyValue["SlicerAstro.CUNIT2"] = "DEGREE";
      }
 
@@ -553,12 +555,12 @@ bool vtkFITSReader::AllocateHeader()
      std::string ctype3 = HeaderKeyValue.at("SlicerAstro.CTYPE3");
      if(!(ctype3.compare(0,4,"FREQ")))
        {
-       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming Hz!");
+       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming Hz.");
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "Hz";
        }
      else if (!(ctype3.compare(0,4,"VELO")))
        {
-       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming km/s!");
+       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming km/s.");
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
        }
      }
@@ -566,8 +568,8 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BITPIX keyword. Using in default 64 (double). Odd behaviors may show up!");
-     HeaderKeyValue["SlicerAstro.BITPIX"] = "64";
+     vtkWarningMacro("The fits header is missing the BITPIX keyword. Using in default 32 (float).");
+     HeaderKeyValue["SlicerAstro.BITPIX"] = "32";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BTYPE") == 0)
@@ -640,7 +642,7 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.DATE-OBS") == 0)
      {
-     vtkWarningMacro("The fits header is missing the DATE-OBS keyword. Odd behaviors may show up!");
+     vtkWarningMacro("The fits header is missing the DATE-OBS keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
 
      if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
@@ -680,7 +682,7 @@ void vtkFITSReader::AllocateWCS(){
 
   if (NWCS > 1)
     {
-    vtkErrorMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume!")
+    vtkErrorMacro("The volume has more than one WCS, SlicerAstro assume only one WCS per volume.")
     }
 
   if ((WCSStatus = wcsfixi(7, 0, WCS, stat, info)))
@@ -717,7 +719,7 @@ void vtkFITSReader::AllocateWCS(){
     {
     vtkWarningMacro("WCSlib failed to create WCSstruct."<< "\n"<<
                     "World coordinates will not be displayed. "<< "\n"<<
-                    "In addition, odd behaviors may show up!"<< "\n");
+                    "In addition, odd behaviors may show up."<< "\n");
     }
     free(header);
 }
@@ -749,7 +751,7 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
   // if the scalar type has not been set then we have a problem
   if (this->DataType == VTK_VOID)
     {
-    vtkErrorMacro("Attempt to allocate scalars before scalar type was set!.");
+    vtkErrorMacro("Attempt to allocate scalars before scalar type was set.");
     return;
     }
 

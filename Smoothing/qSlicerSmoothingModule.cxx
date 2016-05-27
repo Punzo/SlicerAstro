@@ -6,9 +6,10 @@
 #include <qSlicerCoreApplication.h>
 #include <qSlicerModuleManager.h>
 
-// Smoothing Logic includes
-#include <vtkSlicerSmoothingLogic.h>
+// Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerSmoothingLogic.h>
+
 
 // Smoothing includes
 #include "qSlicerSmoothingModule.h"

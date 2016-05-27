@@ -6,16 +6,16 @@
 
 // MRML includes
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLUnitNode.h>
-#include <vtkMRMLScene.h>
+#include <vtkMRMLVolumeNode.h>
 
 // VTK includes
-#include <vtkMRMLVolumeNode.h>
 #include <vtkImageData.h>
+#include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkStringArray.h>
-#include <vtkNew.h>
 
 //------------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeDisplayNode);

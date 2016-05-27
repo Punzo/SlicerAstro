@@ -5,17 +5,15 @@
 #include "qSlicerAstroVolumeIOOptionsWidget.h"
 #include "qSlicerAstroVolumeReader.h"
 
-// Slicer includes
-#include <vtkSlicerVolumesLogic.h>
-#include <vtkSlicerAstroVolumeLogic.h>
-
 // Logic includes
 #include <vtkSlicerApplicationLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerVolumesLogic.h>
 
 // MRML includes
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLAstroVolumeNode.h>
 
 // VTK includes
 #include <vtkSmartPointer.h>

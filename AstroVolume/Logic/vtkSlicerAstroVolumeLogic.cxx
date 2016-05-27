@@ -9,32 +9,34 @@
 #include <vtkSlicerAstroVolumeLogic.h>
 
 // MRML nodes includes
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
-#include <vtkCacheManager.h>
-#include <vtkMRMLScene.h>
+#include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLNode.h>
-#include <vtkMRMLVolumeNode.h>
-#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLVolumePropertyNode.h>
-#include <vtkMRMLViewNode.h>
 #include <vtkMRMLSliceNode.h>
-#include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
+#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLViewNode.h>
+#include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLVolumePropertyNode.h>
 
 //VTK includes
-#include <vtkObjectFactory.h>
-#include <vtkNew.h>
+#include <vtkCacheManager.h>
 #include <vtkCollection.h>
-#include <vtkSmartPointer.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkImageData.h>
+#include <vtkNew.h>
+#include <vtkObjectFactory.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkPointData.h>
+#include <vtkSmartPointer.h>
+
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -113,12 +115,17 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     vtkMRMLViewNode *viewNode =
       vtkMRMLViewNode::SafeDownCast(node);
 
+    viewNode->DisableModifiedEventOn();
+
+    //setting Axes Labels
     viewNode->SetAxisLabel(0,"W");
     viewNode->SetAxisLabel(1,"E");
     viewNode->SetAxisLabel(2,"Z");
     viewNode->SetAxisLabel(3,"z");
     viewNode->SetAxisLabel(4,"S");
     viewNode->SetAxisLabel(5,"N");
+
+    viewNode->DisableModifiedEventOff();
 
     //unregister RulerDisplayableManager
     vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
@@ -130,12 +137,17 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     vtkMRMLSliceNode *sliceNode =
       vtkMRMLSliceNode::SafeDownCast(node);
 
+    sliceNode->DisableModifiedEventOn();
+
+    // setting Axes Labels
     sliceNode->SetAxisLabel(0,"W");
     sliceNode->SetAxisLabel(1,"E");
     sliceNode->SetAxisLabel(2,"Z");
     sliceNode->SetAxisLabel(3,"z");
     sliceNode->SetAxisLabel(4,"S");
     sliceNode->SetAxisLabel(5,"N");
+
+    sliceNode->DisableModifiedEventOff();
 
     //unregister RulerDisplayableManager
     vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
@@ -327,37 +339,61 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       }
 
     // change axes label names
-    vtkSmartPointer<vtkCollection> viewNodes = vtkSmartPointer<vtkCollection>::Take(
-        this->GetMRMLScene()->GetNodesByClass("vtkMRMLViewNode"));
+    vtkSmartPointer<vtkCollection> viewNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->GetMRMLScene()->GetNodesByClass("vtkMRMLViewNode"));
 
     for(int i = 0; i < viewNodes->GetNumberOfItems(); i++)
       {
       vtkMRMLViewNode* viewNode =
           vtkMRMLViewNode::SafeDownCast(viewNodes->GetItemAsObject(i));
+      if (viewNode)
+        {
+        viewNode->DisableModifiedEventOn();
 
-      viewNode->SetAxisLabel(0,"W");
-      viewNode->SetAxisLabel(1,"E");
-      viewNode->SetAxisLabel(2,"Z");
-      viewNode->SetAxisLabel(3,"z");
-      viewNode->SetAxisLabel(4,"S");
-      viewNode->SetAxisLabel(5,"N");
+        viewNode->SetAxisLabel(0,"W");
+        viewNode->SetAxisLabel(1,"E");
+        viewNode->SetAxisLabel(2,"Z");
+        viewNode->SetAxisLabel(3,"z");
+        viewNode->SetAxisLabel(4,"S");
+        viewNode->SetAxisLabel(5,"N");
+
+        viewNode->DisableModifiedEventOff();
+        }
       }
 
-    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take(
-        this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
+    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
 
     for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
       {
       vtkMRMLSliceNode* sliceNode =
           vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+      if (sliceNode)
+        {
+        sliceNode->DisableModifiedEventOn();
 
-      sliceNode->SetAxisLabel(0,"W");
-      sliceNode->SetAxisLabel(1,"E");
-      sliceNode->SetAxisLabel(2,"Z");
-      sliceNode->SetAxisLabel(3,"z");
-      sliceNode->SetAxisLabel(4,"S");
-      sliceNode->SetAxisLabel(5,"N");
+        sliceNode->SetAxisLabel(0,"W");
+        sliceNode->SetAxisLabel(1,"E");
+        sliceNode->SetAxisLabel(2,"Z");
+        sliceNode->SetAxisLabel(3,"z");
+        sliceNode->SetAxisLabel(4,"S");
+        sliceNode->SetAxisLabel(5,"N");
+
+        sliceNode->DisableModifiedEventOff();
+        }
       }
+
+    vtkMRMLSliceNode* sliceNodeRed = vtkMRMLSliceNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+    sliceNodeRed->SetOrientation("XY");
+
+    vtkMRMLSliceNode* sliceNodeYellow = vtkMRMLSliceNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+    sliceNodeYellow->SetOrientation("XZ");
+
+    vtkMRMLSliceNode* sliceNodeGreen = vtkMRMLSliceNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+    sliceNodeGreen->SetOrientation("ZY");
     }
 }
 

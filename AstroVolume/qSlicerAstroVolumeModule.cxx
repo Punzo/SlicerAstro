@@ -1,67 +1,66 @@
 // Qt includes
-#include <QtPlugin>
 #include <QApplication>
 #include <QDoubleSpinBox>
+#include <QtPlugin>
 
 //VTK includes
 #include <vtkCollection.h>
+#include <vtkInstantiator.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
-#include <vtkInstantiator.h>
 
 //CTK includes
-#include <ctkVTKVolumePropertyWidget.h>
-#include <ctkVTKScalarsToColorsWidget.h>
-#include <ctkRangeWidget.h>
 #include <ctkDoubleRangeSlider.h>
+#include <ctkRangeWidget.h>
+#include <ctkVTKScalarsToColorsWidget.h>
+#include <ctkVTKVolumePropertyWidget.h>
 
 // Slicer includes
+#include <vtkSlicerConfigure.h>
 #include <vtkSlicerVolumesLogic.h>
 #include <vtkSlicerUnitsLogic.h>
-#include <vtkMRMLSliceLogic.h>
 
 // SlicerQt includes
-#include <qSlicerCoreApplication.h>
-#include <qSlicerIOManager.h>
-#include <qSlicerModuleManager.h>
-#include <qSlicerNodeWriter.h>
-#include <qSlicerUtils.h>
-#include <qSlicerModuleManager.h>
-#include <qSlicerScriptedLoadableModuleWidget.h>
-#include <qSlicerApplication.h>
-#include <qSlicerLayoutManager.h>
-#include <vtkSlicerConfigure.h>
 #include <qMRMLLayoutManager.h>
 #include <qMRMLLayoutManager_p.h>
-#include <qMRMLVolumeThresholdWidget.h>
 #include <qMRMLSliceWidget.h>
-#include <qSlicerVolumeRenderingModuleWidget.h>
-#include <qSlicerPresetComboBox.h>
 #include <qMRMLSliceView.h>
+#include <qMRMLVolumeThresholdWidget.h>
+#include <qSlicerApplication.h>
+#include <qSlicerCoreApplication.h>
+#include <qSlicerIOManager.h>
+#include <qSlicerLayoutManager.h>
+#include <qSlicerModuleManager.h>
+#include <qSlicerNodeWriter.h>
+#include <qSlicerPresetComboBox.h>
+#include <qSlicerScriptedLoadableModuleWidget.h>
+#include <qSlicerUtils.h>
+#include <qSlicerVolumeRenderingModuleWidget.h>
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 
 // AstroVolume QtModule includes
-#include <qSlicerAstroVolumeReader.h>
+#include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
 #include <qSlicerAstroVolumeModule.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
-#include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
+#include <qSlicerAstroVolumeReader.h>
 
 // AstroVolume MRML includes
 #include <vtkMRMLAstroTwoDAxesDisplayableManager.h>
 
 // MRML includes
-#include <vtkMRMLScene.h>
 #include <vtkMRMLApplicationLogic.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
-#include <vtkMRMLSliceNode.h>
-#include <vtkMRMLViewNode.h>
-#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLSliceLogic.h>
+#include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
+#include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLViewNode.h>
 
 vtkInstantiatorNewMacro(vtkMRMLAstroTwoDAxesDisplayableManager)
 
@@ -226,7 +225,45 @@ void qSlicerAstroVolumeModule::setup()
     PresetsNodeComboBox->setEnabled(false);
     }
 
-  //set the Slice Factory
+  // set Slice Default Node
+  vtkMRMLSliceNode* defaultNode = vtkMRMLSliceNode::SafeDownCast
+      (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
+  if (!defaultNode)
+    {
+    defaultNode = vtkMRMLSliceNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLSliceNode"));
+    defaultNode->RenameSliceOrientationPreset("Axial", "XZ");
+    defaultNode->RenameSliceOrientationPreset("Sagittal", "ZY");
+    defaultNode->RenameSliceOrientationPreset("Coronal", "XY");
+    this->mrmlScene()->AddDefaultNode(defaultNode);
+    defaultNode->Delete(); // scene owns it now
+    }
+  else
+    {
+    defaultNode->RenameSliceOrientationPreset("Axial", "XZ");
+    defaultNode->RenameSliceOrientationPreset("Sagittal", "ZY");
+    defaultNode->RenameSliceOrientationPreset("Coronal", "XY");
+    }
+
+  // modify SliceNodes already allocated
+  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+
+  for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+    {
+    vtkMRMLSliceNode* sliceNode =
+        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+    if (sliceNode)
+      {
+      sliceNode->DisableModifiedEventOn();
+      sliceNode->RenameSliceOrientationPreset("Axial", "XZ");
+      sliceNode->RenameSliceOrientationPreset("Sagittal", "ZY");
+      sliceNode->RenameSliceOrientationPreset("Coronal", "XY");
+      sliceNode->DisableModifiedEventOff();
+      }
+    }
+
+  // set the Slice Factory
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
     d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
@@ -238,13 +275,49 @@ void qSlicerAstroVolumeModule::setup()
   d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
   d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
 
-  //unregister RulerDisplayableManager
+  // modify orietation in default Layouts
+  vtkMRMLLayoutNode* layoutNode =  vtkMRMLLayoutNode::SafeDownCast(
+    this->mrmlScene()->GetSingletonNode("vtkMRMLLayoutNode","vtkMRMLLayoutNode"));
+  if(layoutNode)
+    {
+    std::vector<std::string> oldOrietation;
+    oldOrietation.push_back("Coronal");
+    oldOrietation.push_back("Axial");
+    oldOrietation.push_back("Sagittal");
+    std::vector<std::string> newOrietation;
+    newOrietation.push_back("XY");
+    newOrietation.push_back("XZ");
+    newOrietation.push_back("ZY");
+    for(int i = 1 ; i < 36; i++)
+      {
+      if (i == 5 || i == 11 || i == 13 || i == 18 || i == 20)
+        {
+        continue;
+        }
+
+      std::string layoutDescription = layoutNode->GetLayoutDescription(i);
+      std::vector<std::string>::const_iterator it;
+      std::vector<std::string>::const_iterator jt;
+      for(it = oldOrietation.begin(), jt = newOrietation.begin(); it != oldOrietation.end() && jt != newOrietation.end(); ++it, ++jt)
+        {
+        size_t found = layoutDescription.find(*it);
+        while (found!=std::string::npos)
+          {
+          layoutDescription.replace(found, it->size(), *jt);
+          found = layoutDescription.find(*it);
+          }
+        }
+      layoutNode->SetLayoutDescription(i, layoutDescription.c_str());
+      }
+    }
+
+  // unregister RulerDisplayableManager
   vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
     UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
 
-  //register AstroTwoDAxesDisplayableManager
+  // register AstroTwoDAxesDisplayableManager
   vtkInstantiator::RegisterInstantiator("vtkMRMLAstroTwoDAxesDisplayableManager",
                                         vtkInstantiatorvtkMRMLAstroTwoDAxesDisplayableManagerNew);
 

@@ -1,16 +1,16 @@
-// SmoothingLogic includes
-#include "vtkSlicerSmoothingLogic.h"
+// Logic includes
 #include "vtkSlicerAstroVolumeLogic.h"
+#include "vtkSlicerSmoothingLogic.h"
 
 // MRML includes
-#include <vtkMRMLSmoothingParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLSmoothingParametersNode.h>
 
 // VTK includes
 #include <vtkImageData.h>
-#include <vtkPointData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
+#include <vtkPointData.h>
 #include <vtkSmartPointer.h>
 #include <vtkVersion.h>
 

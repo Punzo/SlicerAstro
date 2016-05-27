@@ -1,22 +1,24 @@
 // MRML includes
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLVolumeNode.h>
-#include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 
 //vtkFits includes
 #include <vtkFITSReader.h>
 #include <vtkFITSWriter.h>
 
 // VTK includes
+#include <vtkDataSetAttributes.h>
 #include <vtkImageChangeInformation.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkType.h>
+
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeStorageNode);

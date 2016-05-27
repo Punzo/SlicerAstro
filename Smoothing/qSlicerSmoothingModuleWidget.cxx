@@ -7,18 +7,18 @@
 #include <ctkFlowLayout.h>
 
 // VTK includes
-#include <vtkNew.h>
-#include <vtkPolyDataMapper.h>
 #include <vtkActor.h>
 #include <vtkActorCollection.h>
-#include <vtkRenderer.h>
+#include <vtkCamera.h>
+#include <vtkImageData.h>
+#include <vtkMatrix4x4.h>
+#include <vtkMatrixToLinearTransform.h>
+#include <vtkNew.h>
 #include <vtkParametricEllipsoid.h>
 #include <vtkParametricFunctionSource.h>
-#include <vtkMatrixToLinearTransform.h>
-#include <vtkCamera.h>
+#include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
-#include <vtkMatrix4x4.h>
-#include <vtkImageData.h>
+#include <vtkRenderer.h>
 
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
@@ -27,33 +27,31 @@
 #include "qSlicerSmoothingModuleWidget.h"
 #include "ui_qSlicerSmoothingModuleWidget.h"
 
-// Smoothing Logic includes
-#include <vtkSlicerSmoothingLogic.h>
-
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerSmoothingLogic.h>
 
 // qMRML includes
+#include <qSlicerAbstractCoreModule.h>
+#include <qSlicerApplication.h>
+#include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerCoreApplication.h>
+#include <qSlicerLayoutManager.h>
 #include <qSlicerModuleManager.h>
 #include <qSlicerUtils.h>
-#include <qSlicerApplication.h>
-#include <qSlicerLayoutManager.h>
-#include <qSlicerAbstractCoreModule.h>
-#include <qSlicerAstroVolumeModuleWidget.h>
 #include "qSlicerVolumeRenderingModuleWidget.h"
 
 // MRMLLogic includes
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLSmoothingParametersNode.h>
-#include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLVolumeRenderingDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
+#include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLSmoothingParametersNode.h>
+#include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 #define SigmatoFWHM 2.3548200450309493
 

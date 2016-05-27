@@ -6,14 +6,14 @@
 #include <QMenu>
 #include <QPushButton>
 #include <QSpinBox>
-#include <QWidgetAction>
 #include <QString>
+#include <QWidgetAction>
 
 // CTK includes
 #include <ctkDoubleSlider.h>
+#include <ctkDoubleSpinBox.h>
 #include <ctkPopupWidget.h>
 #include <ctkSignalMapper.h>
-#include <ctkDoubleSpinBox.h>
 
 // qMRML includes
 #include "qMRMLColors.h"
@@ -33,10 +33,10 @@
 #include <vtkMRMLSliceNode.h>
 
 // AstroMRML includes
-#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 
 // VTK includes
 #include <vtkNew.h>
@@ -70,20 +70,15 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
 
   this->Superclass::init();
 
-  /*this->SliceOrientationSelector->setItemText(0, "XY");
-  this->SliceOrientationSelector->setItemText(1, "XZ");
-  this->SliceOrientationSelector->setItemText(2, "ZY");
-  this->SliceOrientationSelector->setItemText(3, "Reformat");*/
-
   this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0, QApplication::UnicodeUTF8));
-  qMRMLOrientation axialOrientation = {qMRMLSliceControllerWidget::tr("S: "), qMRMLSliceControllerWidget::tr("S <-----> N")};
-  qMRMLOrientation sagittalOrientation = {qMRMLSliceControllerWidget::tr("R: "), qMRMLSliceControllerWidget::tr("E <-----> W")};
-  qMRMLOrientation coronalOrientation = {qMRMLSliceControllerWidget::tr("A: "), qMRMLSliceControllerWidget::tr("z <-----> Z")};
+  qMRMLOrientation XZOrientation = {qMRMLSliceControllerWidget::tr("S: "), qMRMLSliceControllerWidget::tr("S <-----> N")};
+  qMRMLOrientation ZYOrientation = {qMRMLSliceControllerWidget::tr("R: "), qMRMLSliceControllerWidget::tr("E <-----> W")};
+  qMRMLOrientation XYOrientation = {qMRMLSliceControllerWidget::tr("A: "), qMRMLSliceControllerWidget::tr("z <-----> Z")};
   qMRMLOrientation obliqueOrientation = {qMRMLSliceControllerWidget::tr(""), qMRMLSliceControllerWidget::tr("Oblique")};
 
-  this->SliceOrientationToDescription["Axial"] = axialOrientation;
-  this->SliceOrientationToDescription["Sagittal"] = sagittalOrientation;
-  this->SliceOrientationToDescription["Coronal"] = coronalOrientation;
+  this->SliceOrientationToDescription["XZ"] = XZOrientation;
+  this->SliceOrientationToDescription["ZY"] = ZYOrientation;
+  this->SliceOrientationToDescription["XY"] = XYOrientation;
   this->SliceOrientationToDescription["Reformat"] = obliqueOrientation;
 
   this->SliceOffsetSlider->setSpinBoxVisible(false);
@@ -109,7 +104,6 @@ void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSli
 
   this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(updateWidgetFromMRMLSliceNode()));
-
   this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(updateCoordinateWidgetFromMRMLSliceNode()));
 
@@ -118,7 +112,6 @@ void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSli
   // Update widget state given the new slice node
   this->updateWidgetFromMRMLSliceNode();
   this->updateCoordinateWidgetFromMRMLSliceNode();
-
   // Enable/disable widget
   q->setDisabled(newSliceNode == 0);
 }
@@ -175,11 +168,27 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
   if (!sliceLogic)
     {
     d->WCSDisplay->setText("");
+    return;
     }
 
-  d->col->AddItem(sliceLogic->GetBackgroundLayer());
-  d->col->AddItem(sliceLogic->GetForegroundLayer());
-  d->col->AddItem(sliceLogic->GetLabelLayer());
+  if (sliceLogic->GetBackgroundLayer())
+    {
+    d->col->AddItem(sliceLogic->GetBackgroundLayer());
+    }
+  if (sliceLogic->GetForegroundLayer())
+    {
+    d->col->AddItem(sliceLogic->GetForegroundLayer());
+    }
+  if (sliceLogic->GetLabelLayer())
+    {
+    d->col->AddItem(sliceLogic->GetLabelLayer());
+    }
+
+  if (d->col->GetNumberOfItems() == 0)
+    {
+    d->WCSDisplay->setText("");
+    return;
+    }
 
   for (int i = 0; i < d->col->GetNumberOfItems(); i++)
     {
@@ -218,19 +227,19 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 
         std::string orientation = this->mrmlSliceNode()->GetOrientationString();
 
-        if(!orientation.compare("Axial"))
+        if(!orientation.compare("XZ"))
           {
           ijk[1] += offset;
           }
-        if(!orientation.compare("Coronal"))
+        else if(!orientation.compare("XY"))
           {
           ijk[2] += offset;
           }
-        if(!orientation.compare("Sagittal"))
+        else if(!orientation.compare("ZY"))
           {
           ijk[0] -= offset;
           }
-        if(!orientation.compare("Reformat"))
+        else
           {
           d->WCSDisplay->setText("");
           break;
@@ -238,22 +247,21 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 
         displayNode->GetReferenceSpace(ijk, world);
 
-        if(!orientation.compare("Axial"))
+        if(!orientation.compare("XZ"))
           {
           d->WCSDisplay->setText((astroVolume->GetAstroVolumeDisplayNode()
                                  ->GetDisplayStringFromValueY(world[1])).c_str());
           }
-        if(!orientation.compare("Coronal"))
+        else if(!orientation.compare("XY"))
           {
           d->WCSDisplay->setText((astroVolume->GetAstroVolumeDisplayNode()
                                  ->GetDisplayStringFromValueZ(world[2])).c_str());
           }
-        if(!orientation.compare("Sagittal"))
+        else if(!orientation.compare("ZY"))
           {
           d->WCSDisplay->setText((astroVolume->GetAstroVolumeDisplayNode()
                                  ->GetDisplayStringFromValueX(world[0])).c_str());
           }
-
         }
       break;
       }
@@ -263,46 +271,4 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
       {
       d->WCSDisplay->setText("");
       }
-
 }
-
-/*
-void qMRMLSliceAstroControllerWidget::setSliceOrientation(const QString &orientation)
-{
-  Q_D(qMRMLSliceAstroControllerWidget);
-
-#ifndef QT_NO_DEBUG
-  QStringList expectedOrientation;
-  expectedOrientation << "XY" << "XZ" << "ZY" << "Reformat";
-  Q_ASSERT(expectedOrientation.contains(orientation));
-#endif
-
-  if (!d->MRMLSliceNode || !d->MRMLSliceCompositeNode)
-    {
-    return;
-    }
-
-  QString sysOrientation = "Reformat";
-
-  if(!orientation.compare("XY"))
-    {
-    sysOrientation = "Coronal";
-    }
-
-  if(!orientation.compare("XZ"))
-    {
-    sysOrientation = "Axial";
-    }
-
-  if(!orientation.compare("ZY"))
-    {
-    sysOrientation = "Sagittal";
-    }
-
-  d->SliceLogic->StartSliceNodeInteraction(vtkMRMLSliceNode::OrientationFlag);
-  d->MRMLSliceNode->SetOrientation(sysOrientation.toLatin1());
-  this->fitSliceToBackground();
-  d->SliceLogic->EndSliceNodeInteraction();
-}
-
-*/

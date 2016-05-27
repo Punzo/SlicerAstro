@@ -17,9 +17,9 @@
 #include <vtkMRMLScene.h>
 
 // VTK includes
+#include <vtkCollection.h>
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
-#include <vtkCollection.h>
 #include <vtkWeakPointer.h>
 
 

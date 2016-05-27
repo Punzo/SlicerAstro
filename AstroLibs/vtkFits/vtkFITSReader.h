@@ -1,16 +1,18 @@
 #ifndef __vtkFITSReader_h
 #define __vtkFITSReader_h
 
+// std includes
 #include <string>
 #include <map>
 #include <iostream>
+#include <vector>
 
 #include "vtkMedicalImageReader2.h"
 
-#include <vtkMatrix4x4.h>
-#include <vtkPointData.h>
-#include <vtkVersion.h>
+// vtk decleration
+class vtkMatrix4x4;
 
+// fits includes
 #include "fitsio.h"
 #include "wcslib.h"
 #include "getwcstab.h"

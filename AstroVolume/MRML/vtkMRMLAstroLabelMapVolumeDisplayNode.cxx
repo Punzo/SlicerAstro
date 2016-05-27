@@ -1,19 +1,17 @@
 
 //MRML includes
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLScene.h>
-#include <vtkMRMLVolumeNode.h>
-#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLColorNode.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLUnitNode.h>
+#include <vtkMRMLVolumeNode.h>
 
 // VTK includes
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkStringArray.h>
-#include <vtkMRMLColorNode.h>
-#include <vtkNew.h>
-#include <vtkObjectFactory.h>
 
 // STD includes
 #include <cassert>

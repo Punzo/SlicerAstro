@@ -54,7 +54,6 @@ set(${KIT}_UI_SRCS
   Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
   Resources/UI/qSlicerLabelMapVolumeDisplayWidget.ui
   Resources/UI/qSlicerScalarVolumeDisplayWidget.ui
-  #Resources/UI/qMRMLSliceAstroControllerWidget.ui
   )
 
 set(${KIT}_RESOURCES

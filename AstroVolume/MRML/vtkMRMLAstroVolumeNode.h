@@ -4,8 +4,8 @@
 
 // MRML includes
 #include <vtkMRML.h>
-#include <vtkMRMLScene.h>
 #include <vtkMRMLScalarVolumeNode.h>
+#include <vtkMRMLScene.h>
 
 // VTK includes
 #include <vtkDoubleArray.h>

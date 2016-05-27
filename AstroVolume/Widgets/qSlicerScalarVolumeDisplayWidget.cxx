@@ -4,22 +4,22 @@
 // Qt includes
 
 // CTK includes
-#include <ctkVTKColorTransferFunction.h>
+#include <ctkCollapsibleGroupBox.h>
+#include <ctkRangeWidget.h>
 #include <ctkTransferFunctionGradientItem.h>
 #include <ctkTransferFunctionScene.h>
 #include <ctkTransferFunctionBarsItem.h>
-#include <ctkVTKHistogram.h>
-#include <ctkCollapsibleGroupBox.h>
 #include <ctkTransferFunctionView.h>
-#include <ctkRangeWidget.h>
+#include <ctkVTKColorTransferFunction.h>
+#include <ctkVTKHistogram.h>
 
 // MRML includes
-#include <vtkMRMLColorNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLColorNode.h>
 #include <vtkMRMLScene.h>
-#include <vtkMRMLUnitNode.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLUnitNode.h>
 
 // VTK includes
 #include <vtkAlgorithm.h>
