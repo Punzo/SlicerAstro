@@ -38,8 +38,9 @@ class vtkSlicerSmoothingLogic::vtkInternal
 {
 public:
   vtkInternal();
+  ~vtkInternal();
 
-  vtkSlicerAstroVolumeLogic* AstroVolumeLogic;
+  vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
   vtkSmartPointer<vtkImageData> tempVolumeData;
   vtkSmartPointer<vtkOpenGLAstroShaderComputation> shaderComputation;
   vtkSmartPointer<vtkOpenGLAstroTextureImage> iterationVolumeTexture;
@@ -49,11 +50,16 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerSmoothingLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
-  tempVolumeData = vtkImageData::New();
-  shaderComputation = vtkOpenGLAstroShaderComputation::New();
-  iterationVolumeTexture = vtkOpenGLAstroTextureImage::New();
-  outputVolumeTexture = vtkOpenGLAstroTextureImage::New();
+  this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
+  this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
+  this->shaderComputation = vtkSmartPointer<vtkOpenGLAstroShaderComputation>::New();
+  this->iterationVolumeTexture = vtkSmartPointer<vtkOpenGLAstroTextureImage>::New();
+  this->outputVolumeTexture = vtkSmartPointer<vtkOpenGLAstroTextureImage>::New();
+}
+
+//---------------------------------------------------------------------------
+vtkSlicerSmoothingLogic::vtkInternal::~vtkInternal()
+{
 }
 
 //----------------------------------------------------------------------------

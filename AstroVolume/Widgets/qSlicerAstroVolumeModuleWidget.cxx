@@ -470,9 +470,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
 
-  vtkCollection *col = this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode");
-  unsigned int numViewNodes = col->GetNumberOfItems();
 
+  vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
+
+  unsigned int numViewNodes = col->GetNumberOfItems();
   int n = volumeOne->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
     {
@@ -524,14 +526,16 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       }
     }
 
-  col = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
-  unsigned int numCameraNodes = col->GetNumberOfItems();
+  vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
+
+  unsigned int numCameraNodes = col1->GetNumberOfItems();
   if (numCameraNodes < 2)
     {
     return;
     }
   vtkMRMLCameraNode *cameraNodeOne =
-    vtkMRMLCameraNode::SafeDownCast(col->GetItemAsObject(0));
+    vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(0));
   if (cameraNodeOne)
     {
     double Origin[3];
@@ -551,7 +555,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     cameraNodeOne->SetFocalPoint(Origin);
     }
   vtkMRMLCameraNode *cameraNodeTwo =
-    vtkMRMLCameraNode::SafeDownCast(col->GetItemAsObject(1));
+    vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(1));
   if (cameraNodeTwo)
     {
     double Origin[3];
@@ -575,9 +579,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
     }
-
-  col->RemoveAllItems();
-  col->Delete();
 
   volumeOne->SetDisplayVisibility(1);
   volumeTwo->SetDisplayVisibility(1);
