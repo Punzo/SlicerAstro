@@ -21,10 +21,10 @@ endif()
 
 if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
-  set(WCSLIB_DOWNLOAD_VERSION "5.8" CACHE STRING "Version of WCSlib source package to download")
-  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "5.8")
+  set(WCSLIB_DOWNLOAD_VERSION "5.15" CACHE STRING "Version of WCSlib source package to download")
+  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "5.15")
 
-  set(WCSlib_5.8_URL ftp://ftp.atnf.csiro.au/pub/software/wcslib/wcslib.tar.bz2) 
+  set(WCSlib_5.15_URL ftp://ftp.atnf.csiro.au/pub/software/wcslib/wcslib.tar.bz2) 
 
   if(NOT DEFINED WCSlib_${WCSLIB_DOWNLOAD_VERSION}_URL)
       message(FATAL_ERROR "There is no source version of WCSlib ${WCSLIB_DOWNLOAD_VERSION} available, contact the developers, please!")
@@ -40,8 +40,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
   #------------------------------------------------------------------------------
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    URL ${WCSlib_5.8_URL}
-    #URL_MD5 ""
+    URL ${WCSlib_5.15_URL}
+    URL_MD5 "84d688bbb2a949b172b444b37c0011e3"
     SOURCE_DIR ${proj}
     BUILD_IN_SOURCE 1
     CONFIGURE_COMMAND ./configure --with-cfitsiolib=_cfitsio_library --with-cfitsioinc=_cfitsio_include  --prefix=${EP_SOURCE_DIR} --exec-prefix=${EP_SOURCE_DIR} --without-pgplot
