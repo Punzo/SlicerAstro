@@ -8,7 +8,7 @@ set(EXTENSION_HOMEPAGE "https://github.com/Punzo/SlicerAstro/wiki")
 set(EXTENSION_CATEGORY "Astronomy")
 set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute)")
 set(EXTENSION_DESCRIPTION "Extension for enabling Astronomical (HI) visualization in Slicer")
-set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/597px-WEIN069a.png")
+set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/SlicerAstroIcon.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/Screenshoot.png")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated list or 'NA' if any
 set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
