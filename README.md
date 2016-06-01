@@ -11,8 +11,10 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * 5) introduction of the SAMP protocol to enable interoperability with Topcat, and other VO tools and catalogs.
 </div>
 
-Please check 
-https://github.com/Punzo/SlicerAstro/wiki
-https://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/SlicerAstro
-for more informatio regarding the project, its status and License.
+For more information regarding the project, its status and License, please check the following links: 
+</div>
+* https://github.com/Punzo/SlicerAstro/wiki
+* https://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/SlicerAstro
+</div>
+
 
