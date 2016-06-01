@@ -2,7 +2,6 @@
 #include <algorithm>
 
 // Slicer includes
-#include <vtkSlicerUnitsLogic.h>
 #include <vtkSlicerVolumesLogic.h>
 
 // AstroVolume includes

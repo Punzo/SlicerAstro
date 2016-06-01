@@ -17,8 +17,6 @@
 
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLVolumeNode;
-class vtkMRMLSliceCompositeNode;
-class vtkSlicerUnitsLogic;
 class vtkSlicerVolumesLogic;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
@@ -32,7 +30,7 @@ public:
 
   typedef vtkSlicerAstroVolumeLogic Self;
 
-  /// Register the factory that the MultiVolume needs to manage nrrd
+  /// Register the factory that the AstroVolume needs to manage fits
   /// file with the specified volumes logic
   void RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic);
 

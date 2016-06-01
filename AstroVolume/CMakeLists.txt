@@ -23,9 +23,9 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/Widgets
   ${CMAKE_CURRENT_SOURCE_DIR}/MRML
   ${CMAKE_CURRENT_BINARY_DIR}/MRML
-  ${WCSLIB_INCLUDE_DIR}
   ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
   ${Slicer_AstroLibs_INCLUDE_DIRS}
+  ${WCSLIB_INCLUDE_DIR}
   )
 
 set(MODULE_SRCS
@@ -48,8 +48,8 @@ set(MODULE_UI_SRCS
 
 set(MODULE_TARGET_LIBRARIES
   qSlicer${MODULE_NAME}ModuleWidgets
-  vtkSlicer${MODULE_NAME}ModuleLogic
   qSlicerVolumeRenderingModuleWidgets
+  vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicer${MODULE_NAME}ModuleMRML
   )
 
