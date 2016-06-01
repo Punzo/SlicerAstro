@@ -17,10 +17,10 @@ set(MODULE_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_EXPORT")
 set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/Logic
   ${CMAKE_CURRENT_BINARY_DIR}/Logic
-  ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
+  ${qSlicerAstroVolumeModule_INCLUDE_DIRS}
   ${qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS}
   ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
-  ${qSlicerAstroVolumeModule_INCLUDE_DIRS}
+  ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
   ${WCSLIB_INCLUDE_DIR}
   )
 
@@ -41,12 +41,11 @@ set(MODULE_UI_SRCS
   )
 
 set(MODULE_TARGET_LIBRARIES
-  vtkSlicerAstroVolumeModuleMRML
-  vtkSlicer${MODULE_NAME}ModuleLogic
-  vtkSlicerAstroVolumeModuleLogic
   qSlicerAstroVolumeModuleWidgets
   qSlicerVolumeRenderingModuleWidgets
-  qSlicerAstroVolumeModule
+  vtkSlicer${MODULE_NAME}ModuleLogic
+  vtkSlicerAstroVolumeModuleLogic
+  vtkSlicerAstroVolumeModuleMRML
   )
 
 set(MODULE_RESOURCES

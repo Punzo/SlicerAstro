@@ -35,10 +35,10 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Extension modules
-add_subdirectory(AstroLibs)
-add_subdirectory(AstroVolume)
 add_subdirectory(AstroDataProbe)
+add_subdirectory(AstroVolume)
 add_subdirectory(Smoothing)
+add_subdirectory(vtkFits)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
