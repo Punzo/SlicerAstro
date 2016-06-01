@@ -11,28 +11,8 @@ Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automate
 * 5) introduction of the SAMP protocol to enable interoperability with Topcat, and other VO tools and catalogs.
 </div>
 
-<h3> Progress (1):  </h3>
-* FITS reader and AstroVolume done;
-* WCS included in AstroVolume.
-* Added AstroLabelMapVolume (WCS compatible).
-* Generalization of qSlicerUnits.
-* Slicer dataProbe moduile overrided with AstroDataProbe one.
-* First desing of the AstroVolume interface done.
-* Added WCS axis in the 2-D views. 
-* Customization of 2-D and 3-D Views.
-</div>
-
-<h3> Progress (3):  </h3>
-* module created;
-* interface designed;
-* Logic methods implemented on CPU (OpenMP);
-* Logic methods implemented on GPU (OpenGL);
-</div>
-
-<h3> General NOTE  </h3>
-* at the moment the SlicerAstro is not aware of the CELLSCAL keyword
-* at the moment datacubes NAXIS>3 not supported (NAXIS=4 and NAXIS4=1 -> NAXIS=3)
-* at the moment SlicerAstro doesn't "align" label and foreground volume to the background. This means that, at the moment, the users should take care to load datacubes with same gridding and and same WCS.
-</div>
-
+Please check 
+https://github.com/Punzo/SlicerAstro/wiki
+https://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/SlicerAstro
+for more informatio regarding the project, its status and License.
 
