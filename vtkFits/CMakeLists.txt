@@ -8,22 +8,30 @@ project(vtkFits)
 # Fits
 #
 
-if (NOT CFITSIO_LIBRARIES)
-  find_library (CFITSIO_LIBRARIES cfitsio
-    PATHS ${CFITSIO_LIBRARY}
-    )
-endif()
+find_library(CFITSIO_LIBRARY cfitsio
+  PATHS ${CFITSIO_LIBRARY_DIR}
+  )
+set(CFITSIO_LIBRARIES ${CFITSIO_LIBRARY})
 
 #
 # WCS
 #
 
-if (NOT WCSLIB_LIBRARIES)
-  find_library (WCSLIB_LIBRARIES wcs
-    PATHS ${WCSLIB_LIBRARY}
-    )
-endif()
+find_library (WCSLIB_LIBRARY wcs
+  PATHS ${WCSLIB_LIBRARY_DIR}
+  )
+set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
 
+# Install libraries
+include(SlicerFunctionInstallLibrary)
+foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+  slicerInstallLibrary(FILE ${library}
+    DESTINATION ${Slicer_INSTALL_LIB_DIR}
+    COMPONENT Runtime
+    )
+endforeach()
+
+# --------------------------------------------------------------------------
 set(KIT ${PROJECT_NAME})
 
 # --------------------------------------------------------------------------
