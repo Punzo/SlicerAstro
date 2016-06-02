@@ -1,0 +1,18 @@
+@PACKAGE_INIT@
+
+set_and_check(CFITSIO_DIR "@PACKAGE_CFITSIO_DIR_CONFIG@")
+set_and_check(WCSLIB_DIR "@PACKAGE_WCSLIB_DIR_CONFIG@")
+set_and_check(SlicerAstro_SHARE_DIR "@PACKAGE_SHARE_DIR_CONFIG@")
+set_and_check(SlicerAstro_TARGETS "@PACKAGE_SHARE_DIR_CONFIG@/SlicerAstroTargets.cmake")
+
+@SlicerAstro_CONFIG_CODE@
+
+if(NOT SlicerAsrto_TARGETS_IMPORTED)
+  set(SlicerAstro_TARGETS_IMPORTED 2)
+  include(${SlicerAstro_TARGETS})
+endif()
+
+if(NOT SlicerAstro_FIND_QUIETLY)
+  message(STATUS "CFITISO_DIR set to ${CFITSIO_DIR}")
+  message(STATUS "WCSLIB_DIR set to ${WCSLIB_DIR}")
+endif()

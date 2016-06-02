@@ -1,22 +1,21 @@
 set(proj wcslib)
 
 # Set dependency list
-set(${proj}_DEPENDS cfitsio)
+set(${proj}_DEPENDENCIES "cfitsio")
 
 # Include dependent projects if any
-ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj)
+ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
 
 if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
-  unset(wcslib_DIR CACHE)
+  unset(WCSLIB_DIR CACHE)
   find_package(wcslib REQUIRED)
   set(WCSLIB_INCLUDE_DIR ${WCSLIB_INCLUDE_DIRS})
   set(WCSLIB_LIBRARY ${WCSLIB_LIBRARIES})
 endif()
 
-
 # Sanity checks
-if(DEFINED wcslib_DIR AND NOT EXISTS ${wcslib_DIR})
-  message(FATAL_ERROR "wcslib_DIR variable is defined but corresponds to nonexistent directory")
+if(DEFINED WCSLIB_DIR AND NOT EXISTS ${WCSLIB_DIR})
+  message(FATAL_ERROR "WCSLIB_DIR variable is defined but corresponds to nonexistent directory")
 endif()
 
 if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
@@ -31,6 +30,7 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
   endif()
 
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
+  set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
   include(ExternalProjectForNonCMakeProject)
 
   get_filename_component(_cfitsio_library ${CFITSIO_LIBRARY} PATH)
@@ -44,15 +44,15 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
     URL_MD5 "84d688bbb2a949b172b444b37c0011e3"
     SOURCE_DIR ${proj}
     BUILD_IN_SOURCE 1
-    CONFIGURE_COMMAND ./configure --with-cfitsiolib=_cfitsio_library --with-cfitsioinc=_cfitsio_include  --prefix=${EP_SOURCE_DIR} --exec-prefix=${EP_SOURCE_DIR} --without-pgplot
+    CONFIGURE_COMMAND ./configure --with-cfitsiolib=_cfitsio_library --with-cfitsioinc=_cfitsio_include  --prefix=${EP_BINARY_DIR} --exec-prefix=${EP_BINARY_DIR} --without-pgplot
     BUILD_COMMAND make
     INSTALL_COMMAND make install
     DEPENDS
       ${${proj}_DEPENDENCIES}
     )
-    set(${proj}_DIR ${EP_SOURCE_DIR})
-    set(WCSLIB_INCLUDE_DIR ${EP_SOURCE_DIR}/include/wcslib)
-    set(WCSLIB_LIBRARY ${EP_SOURCE_DIR}/lib)
+    set(WCSLIB_INCLUDE_DIR ${EP_BINARY_DIR}/include/wcslib)
+    set(WCSLIB_LIBRARY ${EP_BINARY_DIR}/lib)
+    set(WCSLIB_DIR ${EP_BINARY_DIR}/lib)
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
@@ -67,3 +67,5 @@ mark_as_superbuild(
 
 ExternalProject_Message(${proj} "WCSLIB_INCLUDE_DIR:${WCSLIB_INCLUDE_DIR}")
 ExternalProject_Message(${proj} "WCSLIB_LIBRARY:${WCSLIB_LIBRARY}")
+ExternalProject_Message(${proj} "WCSLIB_DIR:${WCSLIB_DIR}")
+mark_as_superbuild(WCSLIB_DIR:PATH)
