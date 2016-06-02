@@ -14,8 +14,8 @@ class vtkMatrix4x4;
 
 // fits includes
 #include "fitsio.h"
-#include "wcslib.h"
-#include "getwcstab.h"
+#include "wcslib/wcslib.h"
+#include "wcslib/getwcstab.h"
 
 #include "vtkFitsWin32Header.h"
 

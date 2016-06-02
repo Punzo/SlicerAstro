@@ -6,9 +6,6 @@
 
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
-// WCS includes
-#include "wcslib.h"
-
 class vtkMRMLAstroLabelMapVolumeDisplayNode;
 
 /// \brief MRML node for representing a label map volume.
