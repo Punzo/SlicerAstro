@@ -7,18 +7,17 @@ set(${proj}_DEPENDENCIES "")
 ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
 
 if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
-  unset(CFITSIO_DIR CACHE)
-  find_package(cfitsio REQUIRED)
-  set(CFITSIO_INCLUDE_DIR ${CFITSIO_INCLUDE_DIRS})
-  set(CFITSIO_LIBRARY ${CFITSIO_LIBRARIES})
+  message(FATAL_ERROR "Enabling ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj} is not supported !")
 endif()
 
 # Sanity checks
-if(DEFINED CFITSIO_DIR AND NOT EXISTS ${CFITSIO_DIR})
-  message(FATAL_ERROR "CFITSIO_DIR variable is defined but corresponds to nonexistent directory")
-endif()
+foreach(varname IN ITEMS CFITSIO_LIBRARY_DIR CFITSIO_INCLUDE_DIR)
+  if(DEFINED ${varname} AND NOT EXISTS ${${varname}})
+    message(FATAL_ERROR "${varname} variable is defined but corresponds to nonexistent directory")
+  endif()
+endforeach()
 
-if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
   if(NOT DEFINED git_protocol)
     set(git_protocol "git")
@@ -45,9 +44,8 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
     DEPENDS
       ${${proj}_DEPENDS}
     )
-    set(CFITSIO_INCLUDE_DIR ${EP_SOURCE_DIR})
-    set(CFITSIO_LIBRARY ${EP_BINARY_DIR})
-    set(CFITSIO_DIR ${${proj}_INSTALL_DIR})
+  set(CFITSIO_INCLUDE_DIR ${${proj}_INSTALL_DIR}/include)
+  set(CFITSIO_LIBRARY_DIR ${${proj}_INSTALL_DIR}/lib)
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
@@ -55,13 +53,11 @@ endif()
 
 mark_as_superbuild(
   VARS
-    CFITSIO_INCLUDE_DIR:${CFITSIO_INCLUDE_DIR}
-    CFITSIO_LIBRARY:${CFITSIO_LIBRARY}
+    CFITSIO_INCLUDE_DIR:PATH
+    CFITSIO_LIBRARY_DIR:PATH
   LABELS "FIND_PACKAGE"
   )
 
 ExternalProject_Message(${proj} "CFITSIO_INCLUDE_DIR:${CFITSIO_INCLUDE_DIR}")
-ExternalProject_Message(${proj} "CFITSIO_LIBRARY:${CFITSIO_LIBRARY}")
-ExternalProject_Message(${proj} "CFITSIO_DIR:${CFITSIO_DIR}")
-mark_as_superbuild(CFITSIO_DIR:PATH)
+ExternalProject_Message(${proj} "CFITSIO_LIBRARY_DIR:${CFITSIO_LIBRARY_DIR}")
 
