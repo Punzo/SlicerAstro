@@ -33,9 +33,6 @@ public:
   /// file with the specified volumes logic
   void RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic);
 
-  /// Write volume's image data to a specified file
-  int SaveArchetypeVolume (const char* filename, vtkMRMLVolumeNode *volumeNode);
-
   /// Return the scene containing the volume rendering presets.
   /// If there is no presets scene, a scene is created and presets are loaded
   /// into.

@@ -609,7 +609,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
         this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
         this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
-        int fontSize;
+        int fontSize = 12;
         switch (type)
         {
         case vtkMRMLAbstractViewNode::RulerTypeThin:
