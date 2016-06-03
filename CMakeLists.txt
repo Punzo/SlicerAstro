@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8.9)
+cmake_minimum_required(VERSION 3.4)
 
 project(SlicerAstro)
 
@@ -35,13 +35,12 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Extension modules
+add_subdirectory(vtkFits)
 add_subdirectory(AstroDataProbe)
 add_subdirectory(AstroVolume)
 add_subdirectory(Smoothing)
-add_subdirectory(vtkFits)
 ## NEXT_MODULE
 
 #-----------------------------------------------------------------------------
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
 include(${Slicer_EXTENSION_CPACK})
-

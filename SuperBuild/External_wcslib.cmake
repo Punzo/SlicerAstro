@@ -1,25 +1,23 @@
 set(proj wcslib)
 
 # Set dependency list
-set(${proj}_DEPENDS cfitsio)
+set(${proj}_DEPENDENCIES "cfitsio")
 
 # Include dependent projects if any
-ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj)
+ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
 
 if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
-  unset(wcslib_DIR CACHE)
-  find_package(wcslib REQUIRED)
-  set(WCSLIB_INCLUDE_DIR ${WCSLIB_INCLUDE_DIRS})
-  set(WCSLIB_LIBRARY ${WCSLIB_LIBRARIES})
+  message(FATAL_ERROR "Enabling ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj} is not supported !")
 endif()
-
 
 # Sanity checks
-if(DEFINED wcslib_DIR AND NOT EXISTS ${wcslib_DIR})
-  message(FATAL_ERROR "wcslib_DIR variable is defined but corresponds to nonexistent directory")
-endif()
+foreach(varname IN ITEMS WCSLIB_LIBRARY_DIR WCSLIB_INCLUDE_DIR)
+  if(DEFINED ${varname} AND NOT EXISTS ${${varname}})
+    message(FATAL_ERROR "${varname} variable is defined but corresponds to nonexistent directory")
+  endif()
+endforeach()
 
-if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
   set(WCSLIB_DOWNLOAD_VERSION "5.15" CACHE STRING "Version of WCSlib source package to download")
   set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "5.15")
@@ -30,12 +28,10 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
       message(FATAL_ERROR "There is no source version of WCSlib ${WCSLIB_DOWNLOAD_VERSION} available, contact the developers, please!")
   endif()
 
-  set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
-  include(ExternalProjectForNonCMakeProject)
+  set(EP_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
 
-  get_filename_component(_cfitsio_library ${CFITSIO_LIBRARY} PATH)
-  get_filename_component(_cfitsio_include ${CFITSIO_INCLUDE_DIR} PATH)
-
+  set(WCSLIB_INCLUDE_DIR "${EP_INSTALL_DIR}/include")
+  set(WCSLIB_LIBRARY_DIR "${EP_INSTALL_DIR}/lib")
 
   #------------------------------------------------------------------------------
   ExternalProject_Add(${proj}
@@ -44,15 +40,16 @@ if(NOT DEFINED ${proj}_DIR AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
     URL_MD5 "84d688bbb2a949b172b444b37c0011e3"
     SOURCE_DIR ${proj}
     BUILD_IN_SOURCE 1
-    CONFIGURE_COMMAND ./configure --with-cfitsiolib=_cfitsio_library --with-cfitsioinc=_cfitsio_include  --prefix=${EP_SOURCE_DIR} --exec-prefix=${EP_SOURCE_DIR} --without-pgplot
+    CONFIGURE_COMMAND ./configure
+      --with-cfitsiolib=${CFITSIO_LIBRARY_DIR}
+      --with-cfitsioinc=${CFITSIO_INCLUDE_DIR}
+      --prefix=${EP_INSTALL_DIR}
+      --without-pgplot
     BUILD_COMMAND make
     INSTALL_COMMAND make install
     DEPENDS
       ${${proj}_DEPENDENCIES}
     )
-    set(${proj}_DIR ${EP_SOURCE_DIR})
-    set(WCSLIB_INCLUDE_DIR ${EP_SOURCE_DIR}/include/wcslib)
-    set(WCSLIB_LIBRARY ${EP_SOURCE_DIR}/lib)
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
@@ -60,10 +57,9 @@ endif()
 
 mark_as_superbuild(
   VARS
-    WCSLIB_INCLUDE_DIR:${WCSLIB_INCLUDE_DIR}
-    WCSLIB_LIBRARY:${WCSLIB_LIBRARY}
-  LABELS "FIND_PACKAGE"
+    WCSLIB_INCLUDE_DIR:PATH
+    WCSLIB_LIBRARY_DIR:PATH
   )
 
 ExternalProject_Message(${proj} "WCSLIB_INCLUDE_DIR:${WCSLIB_INCLUDE_DIR}")
-ExternalProject_Message(${proj} "WCSLIB_LIBRARY:${WCSLIB_LIBRARY}")
+ExternalProject_Message(${proj} "WCSLIB_LIBRARY_DIR:${WCSLIB_LIBRARY_DIR}")

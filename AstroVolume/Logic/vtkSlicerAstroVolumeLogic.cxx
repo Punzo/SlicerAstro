@@ -595,6 +595,7 @@ void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
 
 }
 
+//---------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node)
 {
   if (node && (node->IsA("vtkMRMLAstroVolumeNode") ||
@@ -771,11 +772,11 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
           }
         }
       }
-    return 0;
+    return true;
     }
   else
     {
-    return 1;
+    return false;
     }
 }
 

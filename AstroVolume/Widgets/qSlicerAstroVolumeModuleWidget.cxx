@@ -404,7 +404,7 @@ void qSlicerAstroVolumeModuleWidget::SetPresets(vtkMRMLNode *node)
     vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
   vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
 
-  if(astroVolumeLogic->synchronizePresetsToVolumeNode(node))
+  if(!astroVolumeLogic->synchronizePresetsToVolumeNode(node))
     {
     qWarning() << "error encountered in adjusting the Color Function for the 3-D display.";
     }
