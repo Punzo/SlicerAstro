@@ -85,7 +85,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   this->WCSDisplay = new QLabel();
   this->WCSDisplay->setObjectName(QString::fromUtf8("WCSDisplay"));
   this->WCSDisplay->setEnabled(true);
-  this->WCSDisplay->setFixedWidth(110);
+  this->WCSDisplay->setFixedWidth(10);
   this->WCSDisplay->setText("");
   this->BarLayout->addWidget(this->WCSDisplay);
   this->app = 0;
@@ -158,9 +158,10 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 
   std::string orientation = this->mrmlSliceNode()->GetOrientation();
 
-  if (orientation.compare("Reformat"))
+  if (!orientation.compare("Reformat"))
     {
     d->WCSDisplay->setText("");
+    d->WCSDisplay->setFixedWidth(10);
     return;
     }
 
@@ -176,6 +177,7 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
   if (!sliceLogic)
     {
     d->WCSDisplay->setText("");
+    d->WCSDisplay->setFixedWidth(10);
     return;
     }
 
@@ -195,6 +197,7 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
   if (d->col->GetNumberOfItems() == 0)
     {
     d->WCSDisplay->setText("");
+    d->WCSDisplay->setFixedWidth(10);
     return;
     }
 
@@ -248,10 +251,12 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
         else
           {
           d->WCSDisplay->setText("");
+          d->WCSDisplay->setFixedWidth(10);
           break;
           }
 
         displayNode->GetReferenceSpace(ijk, world);
+        d->WCSDisplay->setFixedWidth(110);
 
         if(!orientation.compare("XZ"))
           {
@@ -276,5 +281,6 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
     if (!hasDisplay)
       {
       d->WCSDisplay->setText("");
+      d->WCSDisplay->setFixedWidth(10);
       }
 }
