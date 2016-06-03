@@ -10,7 +10,7 @@
 #include "vtkStringArray.h"
 
 // WCS includes
-#include "wcslib.h"
+#include "wcslib/wcslib.h"
 
 class vtkAlgorithmOutput;
 class vtkImageData;

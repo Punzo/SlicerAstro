@@ -83,13 +83,15 @@ SlicerMacroBuildModuleWidgets(
 #-----------------------------------------------------------------------------
 # create the share forlder and copy presets.xml
 
-set(directory ${CMAKE_CURRENT_BINARY_DIR}/../../share/Slicer-${Slicer_VERSION_MAJOR}.${Slicer_VERSION_MINOR}/qt-loadable-modules/${MODULE_NAME})
-add_custom_target(build-time-make-share-directory ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${directory})
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/../Resources/presets.xml
+  ${CMAKE_BINARY_DIR}/${Slicer_QTLOADABLEMODULES_SHARE_DIR}/${MODULE_NAME}/presets.xml
+  COPYONLY)
 
-set(sourcePresets ${CMAKE_CURRENT_SOURCE_DIR}/Resources/presets.xml)
-add_custom_target(build-time-copy-presets ALL
-    COMMAND ${CMAKE_COMMAND} -E copy ${sourcePresets} ${directory}/presets.xml)
+install(
+  FILES ${CMAKE_BINARY_DIR}/${Slicer_QTLOADABLEMODULES_SHARE_DIR}/${MODULE_NAME}/presets.xml
+  DESTINATION ${Slicer_INSTALL_QTLOADABLEMODULES_SHARE_DIR}/${MODULE_NAME}
+  COMPONENT Runtime)
 
 #-----------------------------------------------------------------------------
 if(BUILD_TESTING)
