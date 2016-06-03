@@ -156,6 +156,14 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 {
   Q_D(qMRMLSliceAstroControllerWidget);
 
+  std::string orientation = this->mrmlSliceNode()->GetOrientation();
+
+  if (orientation.compare("Reformat"))
+    {
+    d->WCSDisplay->setText("");
+    return;
+    }
+
   // get the Logics
   d->app = qSlicerApplication::application();
 
@@ -224,8 +232,6 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
         ijk[0] = extent[1] / 2;
         ijk[1] = extent[5] / 2;
         ijk[2] = extent[3] / 2;
-
-        std::string orientation = this->mrmlSliceNode()->GetOrientationString();
 
         if(!orientation.compare("XZ"))
           {
