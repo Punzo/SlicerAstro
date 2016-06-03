@@ -1360,8 +1360,8 @@ void qSlicerSmoothingModuleWidget::onApply()
 
     vtkSlicerSmoothingLogic* logic =
       vtkSlicerSmoothingLogic::SafeDownCast(this->logic());
-   outputVolume = logic->GetAstroVolumeLogic()->
-      CloneVolume(scene, inputVolume, outSS.str().c_str());
+   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
     outputVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());

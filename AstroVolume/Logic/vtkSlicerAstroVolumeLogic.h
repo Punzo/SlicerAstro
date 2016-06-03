@@ -8,7 +8,7 @@
 #define __vtkSlicerAstroVolumeLogic_h
 
 // Slicer includes
-#include <vtkSlicerModuleLogic.h>
+#include <vtkSlicerVolumesLogic.h>
 
 // STD includes
 #include <cstdlib>
@@ -17,15 +17,14 @@
 
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLVolumeNode;
-class vtkSlicerVolumesLogic;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
-  public vtkSlicerModuleLogic
+  public vtkSlicerVolumesLogic
 {
 public:
 
   static vtkSlicerAstroVolumeLogic *New();
-  vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerModuleLogic);
+  vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerVolumesLogic);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   typedef vtkSlicerAstroVolumeLogic Self;
@@ -49,23 +48,6 @@ public:
   /// \param volumeNode,
   /// \return succees
   bool synchronizePresetsToVolumeNode(vtkMRMLNode *node);
-
-  /// Create a deep copy of a \a volumeNode and add it to the current scene.
-  /// If cloneImageData is false then the volume node is created without image data.
-  /// \sa GetMRMLScene()
-  vtkMRMLAstroVolumeNode *CloneVolume(vtkMRMLVolumeNode *volumeNode, const char *name);
-
-  /// Create a empty copy of a \a volumeNode without imageData and add it to the current scene
-  /// \sa GetMRMLScene()
-  static vtkMRMLAstroVolumeNode *CloneVolumeWithoutImageData(vtkMRMLScene *scene,
-                                                              vtkMRMLVolumeNode *volumeNode,
-                                                              const char *name);
-
-  /// Create a deep copy of a \a volumeNode and add it to the \a scene
-  static vtkMRMLAstroVolumeNode *CloneVolume(vtkMRMLScene *scene,
-                                              vtkMRMLVolumeNode *volumeNode,
-                                              const char *name,
-                                              bool cloneImageData=true);
 
   /// Update the units nodes to the metadata stored in the active volume
   void updateUnitsNodes(vtkMRMLNode *astroVolumeNode);
