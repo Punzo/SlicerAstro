@@ -293,406 +293,404 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       {
       continue;
       }
-    else
+
+    hasDisplay = true;
+    if (strcmp(displayNode->GetSpace(), "WCS") != 0)
       {
-      hasDisplay = true;
-      if (!strcmp(displayNode->GetSpace(), "WCS"))
+      vtkWarningWithObjectMacro(this->External,
+                                "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
+                                " failed: display node has no valid WCS.");
+      }
+
+    sliceNode->UpdateMatrices();
+    sliceLayerLogic->UpdateTransforms();
+
+    vtkGeneralTransform* xyToIJK =
+        sliceLayerLogic->GetXYToIJKTransform();
+
+    int numberOfPointsHorizontal = (int) (viewWidthPixel / 120.) + 1;
+    int numberOfPointsVertical = (int) (viewHeightPixel / 100.) + 1;
+    double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.};
+    double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
+    double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
+    std::vector<std::vector<double> > world;
+    std::vector<std::vector<double> > xyzDisplay;
+
+    // calculate WCS coordinates of the view's corners
+    xyToIJK->TransformPoint(xyz, ijk);
+    displayNode->GetReferenceSpace(ijk, worldA);
+
+    xyz[0] = viewWidthPixel;
+    xyToIJK->TransformPoint(xyz, ijk);
+    displayNode->GetReferenceSpace(ijk, worldB);
+
+    xyz[0] = 0.;
+    xyz[1] = viewHeightPixel;
+    xyToIJK->TransformPoint(xyz, ijk);
+    displayNode->GetReferenceSpace(ijk, worldC);
+
+    // calculate the wcsSteps for the two axes
+    if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
+      {
+      wcsStep[0] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), &numberOfPointsHorizontal);
+      axisCoord[0] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0]);
+      wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
+      axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
+      }
+
+    if (!strcmp(sliceNode->GetOrientationString(), "XY"))
+      {
+      wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
+      axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
+      wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
+      axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
+      }
+
+    if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
+      {
+      wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
+      axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
+      wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
+      axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
+      }
+
+    // allocate point along the horizontal axes
+    std::vector<double> temp;
+    for (int i = 0; i < numberOfPointsHorizontal; i++)
+      {
+      int i8 = i * 8;
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
         {
-
-        sliceNode->UpdateMatrices();
-        sliceLayerLogic->UpdateTransforms();
-
-        vtkGeneralTransform* xyToIJK =
-          sliceLayerLogic->GetXYToIJKTransform();
-
-        int numberOfPointsHorizontal = (int) (viewWidthPixel / 120.) + 1;
-        int numberOfPointsVertical = (int) (viewHeightPixel / 100.) + 1;
-        double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.};
-        double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
-        double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
-        std::vector<std::vector<double> > world;
-        std::vector<std::vector<double> > xyzDisplay;
-
-        // calculate WCS coordinates of the view's corners
-        xyToIJK->TransformPoint(xyz, ijk);
-        displayNode->GetReferenceSpace(ijk, worldA);
-
-        xyz[0] = viewWidthPixel;
-        xyToIJK->TransformPoint(xyz, ijk);
-        displayNode->GetReferenceSpace(ijk, worldB);
-
-        xyz[0] = 0.;
-        xyz[1] = viewHeightPixel;
-        xyToIJK->TransformPoint(xyz, ijk);
-        displayNode->GetReferenceSpace(ijk, worldC);
-
-        // calculate the wcsSteps for the two axes
-        if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
-          {
-          wcsStep[0] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), &numberOfPointsHorizontal);
-          axisCoord[0] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0]);
-          wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
-          axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
-          }
-
-        if (!strcmp(sliceNode->GetOrientationString(), "XY"))
-          {
-          wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
-          axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
-          wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
-          axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
-          }
-
-        if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
-          {
-          wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
-          axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
-          wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
-          axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
-          }
-
-        // allocate point along the horizontal axes
-        std::vector<double> temp;
-        for (int i = 0; i < numberOfPointsHorizontal; i++)
-          {
-          int i8 = i * 8;
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
-            {
-            temp.clear();
-            temp.push_back(worldA[0]);
-            temp.push_back(worldA[1]);
-            temp.push_back(axisCoord[0] + wcsStep[0] * i);
-            world.push_back(temp);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            temp.clear();
-            temp.push_back(axisCoord[0] + wcsStep[0] * i);
-            temp.push_back(worldA[1]);
-            temp.push_back(worldA[2]);
-            world.push_back(temp);
-            }
-
-          displayNode->GetIJKSpace(world[i], ijk);
-          xyToIJK->Inverse();
-          xyToIJK->TransformPoint(ijk, xyz);
-          temp.clear();
-          temp.push_back(xyz[0]);
-          temp.push_back(xyz[1]);
-          temp.push_back(xyz[2]);
-          xyzDisplay.push_back(temp);
-          this->twoDAxesPoints->InsertPoint(i8, xyz[0], 2, 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], 12, 0);
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = worldA[1];
-            xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
-            xyz[1] = worldA[1];
-            xyz[2] = worldA[2];
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          xyToIJK->TransformPoint(ijk, xyz);
-          this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], 2, 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], 7, 0);
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = worldA[1];
-            xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
-            xyz[1] = worldA[1];
-            xyz[2] = worldA[2];
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          xyToIJK->TransformPoint(ijk, xyz);
-          this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], 2, 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], 7, 0);
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = worldA[1];
-            xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] *3. / 4.);
-            xyz[1] = worldA[1];
-            xyz[2] = worldA[2];
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          xyToIJK->TransformPoint(ijk, xyz);
-          this->twoDAxesPoints->InsertPoint(i8 + 6, xyz[0], 2, 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 7, xyz[0], 7, 0);
-
-          xyToIJK->Inverse();
-          }
-
-        int nTot = numberOfPointsVertical + numberOfPointsHorizontal;
-
-        // allocate point along the vertical axes
-        for (int i = numberOfPointsHorizontal; i < nTot; i++)
-          {
-          int ii = i - numberOfPointsHorizontal;
-          int i8 = i * 8;
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XY"))
-            {
-            temp.clear();
-            temp.push_back(worldA[0]);
-            temp.push_back(axisCoord[1] + wcsStep[1] * ii);
-            temp.push_back(worldA[2]);
-            world.push_back(temp);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            temp.clear();
-            temp.push_back(worldA[0]);
-            temp.push_back(worldA[1]);
-            temp.push_back(axisCoord[1] + wcsStep[1] * ii);
-            world.push_back(temp);
-            }
-
-          displayNode->GetIJKSpace(world[i], ijk);
-          xyToIJK->Inverse();
-          xyToIJK->TransformPoint(ijk, xyz);
-          temp.clear();
-          temp.push_back(xyz[0]);
-          temp.push_back(xyz[1]);
-          temp.push_back(xyz[2]);
-          xyzDisplay.push_back(temp);
-
-          this->twoDAxesPoints->InsertPoint(i8, 2, xyz[1], 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 1, 12, xyz[1], 0);
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XY"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
-            xyz[2] = worldA[2];
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = worldA[1];
-            xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          xyToIJK->TransformPoint(ijk, xyz);
-          this->twoDAxesPoints->InsertPoint(i8 + 2, 2, xyz[1], 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 3, 7, xyz[1], 0);
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XY"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
-            xyz[2] = worldA[2];
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = worldA[1];
-            xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          xyToIJK->TransformPoint(ijk, xyz);
-          this->twoDAxesPoints->InsertPoint(i8 + 4, 2, xyz[1], 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 5, 7, xyz[1], 0);
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XY"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
-            xyz[2] = worldA[2];
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            xyz[0] = worldA[0];
-            xyz[1] = worldA[1];
-            xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
-            displayNode->GetIJKSpace(xyz, ijk);
-            }
-
-          xyToIJK->TransformPoint(ijk, xyz);
-          this->twoDAxesPoints->InsertPoint(i8 + 6, 2, xyz[1], 0);
-          this->twoDAxesPoints->InsertPoint(i8 + 7, 7, xyz[1], 0);
-
-          xyToIJK->Inverse();
-          }
-
-        int n = this->twoDAxesPoints->GetNumberOfPoints();
-
-        // unify the points with lines
-        std::vector<vtkSmartPointer<vtkLine> > lines;
-        for (int i = 0; i < n - 1; i++)
-          {
-          vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
-          lines.push_back(line);
-          }
-
-        int nHori8 = numberOfPointsHorizontal * 8;
-        for (int i = 0; i < nHori8 - 1; i++)
-          {
-          if (i%2 == 0)
-            {
-            lines[i]->GetPointIds()->SetId(0, i);
-            lines[i]->GetPointIds()->SetId(1, i + 1);
-            }
-          else
-            {
-            lines[i]->GetPointIds()->SetId(0, i - 1);
-            lines[i]->GetPointIds()->SetId(1, i + 1);
-            }
-          }
-
-        int nVert8 = numberOfPointsVertical * 8;
-        int nTot8 = nHori8 + nVert8;
-        for (int i = nHori8; i < nTot8 - 1; i++)
-          {
-          if (i%2 == 0)
-            {
-            lines[i]->GetPointIds()->SetId(0, i);
-            lines[i]->GetPointIds()->SetId(1, i + 1);
-            }
-          else
-            {
-            lines[i]->GetPointIds()->SetId(0, i - 1);
-            lines[i]->GetPointIds()->SetId(1, i + 1);
-            }
-          }
-
-        // create the cellArray
-        for (int i = 0; i < n - 1; i++)
-          {
-          this->twoDAxesCellArray->InsertNextCell(lines[i]);
-          }
-
-        // setup the mapper and acrtor
-        this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
-        this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
-        this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
-        this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
-        int fontSize = 12;
-        switch (type)
-        {
-        case vtkMRMLAbstractViewNode::RulerTypeThin:
-          this->twoDAxesActor->GetProperty()->SetLineWidth(1);
-          fontSize = 12;
-          break;
-        case vtkMRMLAbstractViewNode::RulerTypeThick:
-          this->twoDAxesActor->GetProperty()->SetLineWidth(3);
-          fontSize = 18;
-          break;
-        default:
-          break;
-        }
-        this->MarkerRenderer->AddActor2D(this->twoDAxesActor);
-
-
-        std::string coord;
-        // allocate 2DTextActors for the horizontal axes
-        for (int i = 0; i < numberOfPointsHorizontal; i++)
-          {
-          if(xyzDisplay[i][0] < 50 || xyzDisplay[i][0] > viewWidthPixel - 50)
-            {
-            continue;
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
-            {
-            coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            coord = displayNode->GetAxisDisplayStringFromValueX(world[i][0]);
-            }
-          vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
-          vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
-          textProperty->SetFontSize(fontSize);
-          textProperty->SetFontFamilyToArial();
-          textActorHorizontal->SetInput(coord.c_str());
-          textActorHorizontal->SetDisplayPosition((int) (xyzDisplay[i][0]-40), 15);
-          this->MarkerRenderer->AddActor2D(textActorHorizontal);
-          }
-
-        // allocate 2DTextActors for the vertical axes
-        for (int i = numberOfPointsHorizontal; i < nTot; i++)
-          {
-          if(xyzDisplay[i][1] < 50 || xyzDisplay[i][1] > viewHeightPixel)
-            {
-            continue;
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
-              !strcmp(sliceNode->GetOrientationString(), "XY"))
-            {
-            coord = displayNode->GetAxisDisplayStringFromValueY(world[i][1]);
-            }
-
-          if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
-            {
-            coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
-            }
-          vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
-          vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
-          textProperty->SetFontSize(fontSize);
-          textProperty->SetFontFamilyToArial();
-          textActorVertical->SetInput(coord.c_str());
-          textActorVertical->SetDisplayPosition(20, (int) (xyzDisplay[i][1]-5));
-          this->MarkerRenderer->AddActor2D(textActorVertical);
-          }
-
-        world.clear();
-        xyzDisplay.clear();
         temp.clear();
+        temp.push_back(worldA[0]);
+        temp.push_back(worldA[1]);
+        temp.push_back(axisCoord[0] + wcsStep[0] * i);
+        world.push_back(temp);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        temp.clear();
+        temp.push_back(axisCoord[0] + wcsStep[0] * i);
+        temp.push_back(worldA[1]);
+        temp.push_back(worldA[2]);
+        world.push_back(temp);
+        }
+
+      displayNode->GetIJKSpace(world[i], ijk);
+      xyToIJK->Inverse();
+      xyToIJK->TransformPoint(ijk, xyz);
+      temp.clear();
+      temp.push_back(xyz[0]);
+      temp.push_back(xyz[1]);
+      temp.push_back(xyz[2]);
+      xyzDisplay.push_back(temp);
+      this->twoDAxesPoints->InsertPoint(i8, xyz[0], 2, 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], 12, 0);
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = worldA[1];
+        xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
+        xyz[1] = worldA[1];
+        xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      xyToIJK->TransformPoint(ijk, xyz);
+      this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], 2, 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], 7, 0);
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = worldA[1];
+        xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
+        xyz[1] = worldA[1];
+        xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      xyToIJK->TransformPoint(ijk, xyz);
+      this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], 2, 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], 7, 0);
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = worldA[1];
+        xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] *3. / 4.);
+        xyz[1] = worldA[1];
+        xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      xyToIJK->TransformPoint(ijk, xyz);
+      this->twoDAxesPoints->InsertPoint(i8 + 6, xyz[0], 2, 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 7, xyz[0], 7, 0);
+
+      xyToIJK->Inverse();
+      }
+
+    int nTot = numberOfPointsVertical + numberOfPointsHorizontal;
+
+    // allocate point along the vertical axes
+    for (int i = numberOfPointsHorizontal; i < nTot; i++)
+      {
+      int ii = i - numberOfPointsHorizontal;
+      int i8 = i * 8;
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XY"))
+        {
+        temp.clear();
+        temp.push_back(worldA[0]);
+        temp.push_back(axisCoord[1] + wcsStep[1] * ii);
+        temp.push_back(worldA[2]);
+        world.push_back(temp);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        temp.clear();
+        temp.push_back(worldA[0]);
+        temp.push_back(worldA[1]);
+        temp.push_back(axisCoord[1] + wcsStep[1] * ii);
+        world.push_back(temp);
+        }
+
+      displayNode->GetIJKSpace(world[i], ijk);
+      xyToIJK->Inverse();
+      xyToIJK->TransformPoint(ijk, xyz);
+      temp.clear();
+      temp.push_back(xyz[0]);
+      temp.push_back(xyz[1]);
+      temp.push_back(xyz[2]);
+      xyzDisplay.push_back(temp);
+
+      this->twoDAxesPoints->InsertPoint(i8, 2, xyz[1], 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 1, 12, xyz[1], 0);
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XY"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
+        xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = worldA[1];
+        xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      xyToIJK->TransformPoint(ijk, xyz);
+      this->twoDAxesPoints->InsertPoint(i8 + 2, 2, xyz[1], 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 3, 7, xyz[1], 0);
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XY"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
+        xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = worldA[1];
+        xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      xyToIJK->TransformPoint(ijk, xyz);
+      this->twoDAxesPoints->InsertPoint(i8 + 4, 2, xyz[1], 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 5, 7, xyz[1], 0);
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XY"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
+        xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        xyz[0] = worldA[0];
+        xyz[1] = worldA[1];
+        xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      xyToIJK->TransformPoint(ijk, xyz);
+      this->twoDAxesPoints->InsertPoint(i8 + 6, 2, xyz[1], 0);
+      this->twoDAxesPoints->InsertPoint(i8 + 7, 7, xyz[1], 0);
+
+      xyToIJK->Inverse();
+      }
+
+    int n = this->twoDAxesPoints->GetNumberOfPoints();
+
+    // unify the points with lines
+    std::vector<vtkSmartPointer<vtkLine> > lines;
+    for (int i = 0; i < n - 1; i++)
+      {
+      vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+      lines.push_back(line);
+      }
+
+    int nHori8 = numberOfPointsHorizontal * 8;
+    for (int i = 0; i < nHori8 - 1; i++)
+      {
+      if (i%2 == 0)
+        {
+        lines[i]->GetPointIds()->SetId(0, i);
+        lines[i]->GetPointIds()->SetId(1, i + 1);
         }
       else
         {
-        vtkErrorWithObjectMacro(this->External,
-                                "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
-                                " failed: display node has no valid WCS.");
+        lines[i]->GetPointIds()->SetId(0, i - 1);
+        lines[i]->GetPointIds()->SetId(1, i + 1);
         }
-      break;
       }
+
+    int nVert8 = numberOfPointsVertical * 8;
+    int nTot8 = nHori8 + nVert8;
+    for (int i = nHori8; i < nTot8 - 1; i++)
+      {
+      if (i%2 == 0)
+        {
+        lines[i]->GetPointIds()->SetId(0, i);
+        lines[i]->GetPointIds()->SetId(1, i + 1);
+        }
+      else
+        {
+        lines[i]->GetPointIds()->SetId(0, i - 1);
+        lines[i]->GetPointIds()->SetId(1, i + 1);
+        }
+      }
+
+    // create the cellArray
+    for (int i = 0; i < n - 1; i++)
+      {
+      this->twoDAxesCellArray->InsertNextCell(lines[i]);
+      }
+
+    // setup the mapper and acrtor
+    this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
+    this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
+    this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
+    this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
+    int fontSize = 12;
+    switch (type)
+      {
+      case vtkMRMLAbstractViewNode::RulerTypeThin:
+        this->twoDAxesActor->GetProperty()->SetLineWidth(1);
+        fontSize = 12;
+        break;
+      case vtkMRMLAbstractViewNode::RulerTypeThick:
+        this->twoDAxesActor->GetProperty()->SetLineWidth(3);
+        fontSize = 18;
+        break;
+      default:
+        break;
+      }
+    this->MarkerRenderer->AddActor2D(this->twoDAxesActor);
+
+
+    std::string coord;
+    // allocate 2DTextActors for the horizontal axes
+    for (int i = 0; i < numberOfPointsHorizontal; i++)
+      {
+      if(xyzDisplay[i][0] < 50 || xyzDisplay[i][0] > viewWidthPixel - 50)
+        {
+        continue;
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY"))
+        {
+        coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        coord = displayNode->GetAxisDisplayStringFromValueX(world[i][0]);
+        }
+
+      vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
+      vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
+      textProperty->SetFontSize(fontSize);
+      textProperty->SetFontFamilyToArial();
+      textActorHorizontal->SetInput(coord.c_str());
+      textActorHorizontal->SetDisplayPosition((int) (xyzDisplay[i][0]-40), 15);
+      this->MarkerRenderer->AddActor2D(textActorHorizontal);
+      }
+
+    // allocate 2DTextActors for the vertical axes
+    for (int i = numberOfPointsHorizontal; i < nTot; i++)
+      {
+      if(xyzDisplay[i][1] < 50 || xyzDisplay[i][1] > viewHeightPixel)
+        {
+        continue;
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "ZY") ||
+          !strcmp(sliceNode->GetOrientationString(), "XY"))
+        {
+        coord = displayNode->GetAxisDisplayStringFromValueY(world[i][1]);
+        }
+
+      if (!strcmp(sliceNode->GetOrientationString(), "XZ"))
+        {
+        coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
+        }
+
+      vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
+      vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
+      textProperty->SetFontSize(fontSize);
+      textProperty->SetFontFamilyToArial();
+      textActorVertical->SetInput(coord.c_str());
+      textActorVertical->SetDisplayPosition(20, (int) (xyzDisplay[i][1]-5));
+      this->MarkerRenderer->AddActor2D(textActorVertical);
+      }
+
+    world.clear();
+    xyzDisplay.clear();
+    temp.clear();
+
+    break;
     }
 
   if (!hasDisplay)
