@@ -131,7 +131,7 @@ void vtkSlicerSmoothingLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
 {
-  int success;
+  int success = 0;
   switch (pnode->GetFilter())
     {
     case 0:
