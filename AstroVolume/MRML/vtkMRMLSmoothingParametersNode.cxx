@@ -525,17 +525,7 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
       }
     case 2:
       {
-      os << "Filter: Intensity driven Gradient\n";
-      break;
-      }
-    case 3:
-      {
-      os << "Filter: Haar Wavelet Thresholding\n";
-      break;
-      }
-    case 4:
-      {
-      os << "Filter: Le Gall Wavelet Thresholding\n";
+      os << "Filter: Intensity Driven Gradient\n";
       break;
       }
     }
@@ -558,15 +548,27 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
       }
     }
 
-  os << "AutoRun: " << this->AutoRun << "\n";
+  if(this->AutoRun)
+    {
+    os << "AutoRun: Active\n";
+    }
+  else
+    {
+    os << "AutoRun: Inactive\n";
+    }
+
+  if(this->Link)
+    {
+    os << "Link: Active\n";
+    }
+  else
+    {
+    os << "Link: Inactive\n";
+    }
 
   os << "ParameterX: " << this->ParameterX << "\n";
-  if (this->Filter < 3)
-    {
-    os << "ParameterY: " << this->ParameterY << "\n";
-    os << "ParameterZ: " << this->ParameterZ << "\n";
-    os << "Link: " << this->Link << "\n";
-    }
+  os << "ParameterY: " << this->ParameterY << "\n";
+  os << "ParameterZ: " << this->ParameterZ << "\n";
 
   if (this->Filter < 2)
     {
@@ -577,9 +579,9 @@ void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
 
   if (this->Filter == 1)
     {
-    os << "Rx: " << this->Rx << "\n";
-    os << "Ry: " << this->Ry << "\n";
-    os << "Rz: " << this->Rz << "\n";
+    os << "Kernel rotation with respect to X: " << this->Rx << "\n";
+    os << "Kernel rotation with respect to Y: " << this->Ry << "\n";
+    os << "Kernel rotation with respect to Z: " << this->Rz << "\n";
     }
 
   if (this->Filter != 0)

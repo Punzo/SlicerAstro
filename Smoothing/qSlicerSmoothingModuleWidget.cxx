@@ -660,9 +660,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
         d->RxLabel->setText(theta + "<sub>X</sub>:");
         d->RyLabel->setText(theta + "<sub>Y</sub>:");
         d->RzLabel->setText(theta + "<sub>Z</sub>:");
-        d->RxSpinBox->setToolTip("Euler angle of the rotation with respect to the x axis");
-        d->RySpinBox->setToolTip("Euler angle of the rotation with respect to the y axis");
-        d->RzSpinBox->setToolTip("Euler angle of the rotation with respect to the z axis");
+        d->RxSpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the x axis");
+        d->RySpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the y axis");
+        d->RzSpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the z axis");
         d->AccuracyLabel->setText("Kernel Accuracy:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
