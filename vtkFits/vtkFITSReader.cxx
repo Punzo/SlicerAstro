@@ -674,10 +674,10 @@ void vtkFITSReader::AllocateWCS(){
 
   if ((WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &NWCS, &WCS)))
     {
-    vtkWarningMacro("wcspih ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("wcspih ERROR "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
     }
 
   if (NWCS > 1)
@@ -687,7 +687,10 @@ void vtkFITSReader::AllocateWCS(){
 
   if ((WCSStatus = wcsfixi(7, 0, WCS, stat, info)))
     {
-    vtkWarningMacro("wcsfix error: "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n");
+    vtkErrorMacro("wcsfix error: "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
     }
 
   std::string print = "wcsfix status returns: (";
@@ -701,25 +704,25 @@ void vtkFITSReader::AllocateWCS(){
 
   for (i = 0; i < NWCSFIX; i++) {
     if (info[i].status < -1 || 0 < info[i].status) {
-      vtkWarningMacro("wcsfix INFORMATIVE message from "<<info[i].function<<
-                      "at line "<<info[i].line_no<<" of file "<<info[i].file<<
-                      ": \n"<< info[i].msg<<"\n");
+      vtkErrorMacro("wcsfix INFORMATIVE message from "<<info[i].function<<
+                    "at line "<<info[i].line_no<<" of file "<<info[i].file<<
+                    ": \n"<< info[i].msg<<"\n");
     }
   }
 
   if ((WCSStatus = wcsset(WCS)))
     {
-    vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
     }
 
   if (WCSStatus!=0)
     {
-    vtkWarningMacro("WCSlib failed to create WCSstruct."<< "\n"<<
-                    "World coordinates will not be displayed. "<< "\n"<<
-                    "In addition, odd behaviors may show up."<< "\n");
+    vtkErrorMacro("WCSlib failed to create WCSstruct."<< "\n"<<
+                  "World coordinates will not be displayed. "<< "\n"<<
+                  "In addition, odd behaviors may show up."<< "\n");
     }
     free(header);
 }

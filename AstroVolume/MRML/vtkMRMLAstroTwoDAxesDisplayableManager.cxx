@@ -440,7 +440,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       if (!sliceNode->GetOrientation().compare("XY") ||
           !sliceNode->GetOrientation().compare("XZ"))
         {
-        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] *3. / 4.);
+        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
         xyz[1] = worldA[1];
         xyz[2] = worldA[2];
         displayNode->GetIJKSpace(xyz, ijk);
@@ -605,7 +605,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       this->twoDAxesCellArray->InsertNextCell(lines[i]);
       }
 
-    // setup the mapper and acrtor
+    // setup the mapper and actor
     this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
     this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
     this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);

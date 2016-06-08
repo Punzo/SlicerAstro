@@ -37,7 +37,7 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1,0,this->WCS)))
     {
-    vtkWarningMacro("wcsini ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+    vtkErrorMacro("wcsini ERROR "<<WCSStatus<<":\n"<<
                     "Message from "<<WCS->err->function<<
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
@@ -62,7 +62,7 @@ vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
     {
     if((this->WCSStatus = wcsfree(this->WCS)))
       {
-      vtkWarningMacro("wcsfree ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+      vtkErrorMacro("wcsfree ERROR "<<WCSStatus<<":\n"<<
                       "Message from "<<WCS->err->function<<
                       "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                       ": \n"<<WCS->err->msg<<"\n");
@@ -417,14 +417,14 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
     this->WCS->flag=-1;
     if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
       {
-      vtkWarningMacro("wcscopy ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+      vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
                       "Message from "<<WCS->err->function<<
                       "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                       ": \n"<<WCS->err->msg<<"\n");
       }
     if ((this->WCSStatus = wcsset (this->WCS)))
       {
-      vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+      vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
                       "Message from "<<WCS->err->function<<
                       "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                       ": \n"<<WCS->err->msg<<"\n");
@@ -448,7 +448,7 @@ void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
 
       if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
         {
-        vtkWarningMacro("wcsp2s ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+        vtkErrorMacro("wcsp2s ERROR "<<WCSStatus<<":\n"<<
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
@@ -473,7 +473,7 @@ void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
 
       if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
         {
-        vtkWarningMacro("wcss2p ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<": .\n"<<
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
@@ -499,7 +499,7 @@ void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordin
 
       if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
         {
-        vtkWarningMacro("wcss2p ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<":\n"<<
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
@@ -781,7 +781,7 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
   this->WCS->flag=-1;
   if((this->WCSStatus = wcsini(1, StringToInt(this->GetAttribute("SlicerAstro.NAXIS")), this->WCS)))
     {
-    vtkWarningMacro("wcsini ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+    vtkErrorMacro("wcsini ERROR "<<WCSStatus<<":\n"<<
                     "Message from "<<WCS->err->function<<
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
@@ -1278,7 +1278,7 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
                     "Message from "<<WCS->err->function<<
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
@@ -1314,7 +1314,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, node->WCS, this->WCS)))
     {
-    vtkWarningMacro("wcscopy ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+    vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
                     "Message from "<<WCS->err->function<<
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
@@ -1323,7 +1323,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkWarningMacro("wcsset ERROR "<<WCSStatus<<": "<<wcshdr_errmsg[WCSStatus]<<".\n"
+    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
                     "Message from "<<WCS->err->function<<
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
