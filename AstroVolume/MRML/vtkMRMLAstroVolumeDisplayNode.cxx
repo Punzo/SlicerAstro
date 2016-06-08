@@ -473,7 +473,7 @@ void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
 
       if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
         {
-        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<": .\n"<<
+        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<":\n"<<
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");

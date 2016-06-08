@@ -276,11 +276,15 @@ void vtkFITSReader::ExecuteInformation()
   // Push FITS header key/value pair data into std::map
   if(!this->AllocateHeader())
     {
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateFitsHeader.")
     return;
     }
 
   // Push FITS header into WCS struct
-  this->AllocateWCS();
+  if(!this->AllocateWCS())
+    {
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateWCS.")
+    }
 
   // Set type information
   switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
@@ -663,7 +667,7 @@ bool vtkFITSReader::AllocateHeader()
 }
 
 //----------------------------------------------------------------------------
-void vtkFITSReader::AllocateWCS(){
+bool vtkFITSReader::AllocateWCS(){
   char *header;
   int  i, nkeyrec, nreject, stat[NWCSFIX];
 
@@ -678,6 +682,7 @@ void vtkFITSReader::AllocateWCS(){
                   "Message from "<<WCS->err->function<<
                   "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                   ": \n"<<WCS->err->msg<<"\n");
+    return false;
     }
 
   if (NWCS > 1)
@@ -687,10 +692,7 @@ void vtkFITSReader::AllocateWCS(){
 
   if ((WCSStatus = wcsfixi(7, 0, WCS, stat, info)))
     {
-    vtkErrorMacro("wcsfix error: "<<WCSStatus<<":\n"<<
-                  "Message from "<<WCS->err->function<<
-                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                  ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("wcsfix error: "<<WCSStatus<<":\n");
     }
 
   std::string print = "wcsfix status returns: (";
@@ -702,13 +704,15 @@ void vtkFITSReader::AllocateWCS(){
 
   vtkDebugMacro(<<print);
 
-  for (i = 0; i < NWCSFIX; i++) {
-    if (info[i].status < -1 || 0 < info[i].status) {
+  for (i = 0; i < NWCSFIX; i++)
+    {
+    if (info[i].status < -1 || 0 < info[i].status)
+      {
       vtkErrorMacro("wcsfix INFORMATIVE message from "<<info[i].function<<
                     "at line "<<info[i].line_no<<" of file "<<info[i].file<<
                     ": \n"<< info[i].msg<<"\n");
+      }
     }
-  }
 
   if ((WCSStatus = wcsset(WCS)))
     {
@@ -721,10 +725,11 @@ void vtkFITSReader::AllocateWCS(){
   if (WCSStatus!=0)
     {
     vtkErrorMacro("WCSlib failed to create WCSstruct."<< "\n"<<
-                  "World coordinates will not be displayed. "<< "\n"<<
-                  "In addition, odd behaviors may show up."<< "\n");
+                  "World coordinates will not be displayed. "<< "\n");
+    return false;
     }
     free(header);
+    return true;
 }
 
 //----------------------------------------------------------------------------

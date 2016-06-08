@@ -32,7 +32,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::vtkMRMLAstroLabelMapVolumeDisplayNode()
   this->SetSpace("WCS");
   this->WCSStatus = 0;
   this->WCS = new struct wcsprm;
-  this->WCS->flag=-1;
+  this->WCS->flag = -1;
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1,0,this->WCS)))
     {

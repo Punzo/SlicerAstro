@@ -147,7 +147,7 @@ protected:
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo);
 
   bool AllocateHeader();
-  void AllocateWCS();
+  bool AllocateWCS();
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

@@ -271,6 +271,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     vtkErrorWithObjectMacro(this->External,
                             "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
                             " failed: sliceLogic node is invalid.");
+    this->ShowActors(false);
+    return;
     }
 
   this->col->AddItem(sliceLogic->GetBackgroundLayer());
@@ -292,13 +294,12 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       continue;
       }
 
-    hasDisplay = true;
     if (strcmp(displayNode->GetSpace(), "WCS") != 0)
       {
-      vtkWarningWithObjectMacro(this->External,
-                                "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
-                                " failed: display node has no valid WCS.");
+      continue;
       }
+
+    hasDisplay = true;
 
     sliceNode->UpdateMatrices();
     sliceLayerLogic->UpdateTransforms();
@@ -695,7 +696,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     {
     vtkErrorWithObjectMacro(this->External,
                             "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
-                            " failed: display node is invalid.");
+                            " failed: display nodes are invalid (no WCS found).");
+    this->ShowActors(false);
+    return;
     }
 
   this->ShowActors(true);
