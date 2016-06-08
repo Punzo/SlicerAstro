@@ -226,24 +226,18 @@ void qSlicerAstroVolumeModule::setup()
     }
 
   // set Slice Default Node
-  vtkMRMLSliceNode* defaultNode = vtkMRMLSliceNode::SafeDownCast
+  vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
       (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
   if (!defaultNode)
     {
-    defaultNode = vtkMRMLSliceNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLSliceNode"));
-    defaultNode->RenameSliceOrientationPreset("Axial", "XZ");
-    defaultNode->RenameSliceOrientationPreset("Sagittal", "ZY");
-    defaultNode->RenameSliceOrientationPreset("Coronal", "XY");
+    vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSliceNode");
+    defaultNode.TakeReference(foo);
     this->mrmlScene()->AddDefaultNode(defaultNode);
-    defaultNode->Delete(); // scene owns it now
     }
-  else
-    {
-    defaultNode->RenameSliceOrientationPreset("Axial", "XZ");
-    defaultNode->RenameSliceOrientationPreset("Sagittal", "ZY");
-    defaultNode->RenameSliceOrientationPreset("Coronal", "XY");
-    }
+  vtkMRMLSliceNode * defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
+  defaultSliceNode->RenameSliceOrientationPreset("Axial", "XZ");
+  defaultSliceNode->RenameSliceOrientationPreset("Sagittal", "ZY");
+  defaultSliceNode->RenameSliceOrientationPreset("Coronal", "XY");
 
   // modify SliceNodes already allocated
   vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
