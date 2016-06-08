@@ -562,7 +562,7 @@ bool vtkFITSReader::AllocateHeader()
        vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming Hz.");
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "Hz";
        }
-     else if (!(ctype3.compare(0,4,"VELO")))
+     else
        {
        vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming km/s.");
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
