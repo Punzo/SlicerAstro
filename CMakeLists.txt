@@ -36,7 +36,7 @@ endif()
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(vtkFits)
-add_subdirectory(AstroDataProbe)
+add_subdirectory(DataProbeAstro)
 add_subdirectory(AstroVolume)
 add_subdirectory(Smoothing)
 ## NEXT_MODULE

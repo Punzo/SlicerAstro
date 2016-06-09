@@ -126,7 +126,7 @@ QString qSlicerAstroVolumeModule::acknowledgementText()const
     "<center><table border=\"0\"><tr>"
     "<td><img src=\":://Logos/kapteyn.png\" alt\"Kapteyn Astronomical Institute\"></td>"
     "</tr></table></center>"
-    "This work was supported by ERC grant nr. 29153Fikl and the Slicer "
+    "This work was supported by ERC grant nr. 291531 and the Slicer "
     "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
     "</a> for details.<br>"
     "Special thanks to Steve Pieper (Isomics), Jean-Christophe Fillion-Robin (Kitware)"
