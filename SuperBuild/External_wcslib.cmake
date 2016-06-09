@@ -50,6 +50,7 @@ ExternalProject_Execute(${proj} \"configure\" sh ${EP_SOURCE_DIR}/configure
     --with-cfitsioinc=\"${CFITSIO_INCLUDE_DIR}\"
     --prefix=${EP_INSTALL_DIR}
     --without-pgplot
+    )
 ")
 
   #------------------------------------------------------------------------------
