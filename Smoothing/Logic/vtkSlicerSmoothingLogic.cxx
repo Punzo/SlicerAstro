@@ -1,6 +1,7 @@
 // Logic includes
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerSmoothingLogic.h"
+#include "vtkSlicerAstroConfigure.h"
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
@@ -19,7 +20,9 @@
 #include <iostream>
 
 // OpenMP includes
-#include <omp.h>
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+# include <omp.h>
+#endif
 
 // vtkOpenGL includes
 #include <vtkOpenGLAstroShaderComputation.h>
@@ -209,6 +212,7 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -426,12 +430,17 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   //outputFile << setprecision(5) <<mtime<<endl;
   //outputFile.close();
   return 1;
+#else
+  // XXX Output error
+  return 0;
+#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -785,6 +794,10 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
+#else
+  // XXX: Display error
+  return 0;
+#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 //----------------------------------------------------------------------------
@@ -1417,6 +1430,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1609,11 +1623,16 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
 //outputFile << setprecision(5) << mtime <<endl;
   return 1;
+#else
+  // XXX Display error
+  return 0;
+#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1929,6 +1948,10 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
+#else
+  // XXX Display error
+  return 0;
+#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 //----------------------------------------------------------------------------
@@ -2654,6 +2677,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -2889,6 +2913,10 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   pnode->SetStatus(0);
 
   return 1;
+#else
+  // XXX Display error
+  return 0;
+#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 typedef struct float4 {
@@ -2965,8 +2993,6 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   outputVolume->GetImageData()->GetScalarRange(range);
   double scale = 1. / (range[1] - range[0]);
 
-  omp_set_num_threads(omp_get_num_procs());
-  #pragma omp parallel for schedule(static) shared(fPixelTemp, fPixel)
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int i = elemCnt * 4;
@@ -3202,7 +3228,6 @@ int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *p
   fPixelTemp = static_cast<float*>(this->Internal->outputVolumeTexture->GetImageData()->GetScalarPointer(0,0,0));
   fPixel =  static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-  #pragma omp parallel for schedule(static) shared(fPixelTemp, fPixel)
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int i = elemCnt * 4;

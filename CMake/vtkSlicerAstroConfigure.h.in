@@ -1,0 +1,12 @@
+/*
+ * Here is where system computed values get stored.
+ * These values should only change when the target compile platform changes.
+ */
+
+#ifndef __vtkSlicerAstroConfigure_h
+#define __vtkSlicerAstroConfigure_h
+
+#cmakedefine VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
+#endif // __vtkSlicerAstroConfigure_h
+

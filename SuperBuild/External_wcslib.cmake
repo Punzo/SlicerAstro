@@ -28,23 +28,39 @@ if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${
       message(FATAL_ERROR "There is no source version of WCSlib ${WCSLIB_DOWNLOAD_VERSION} available, contact the developers, please!")
   endif()
 
+  include(ExternalProjectForNonCMakeProject)
+
+  # environment
+  set(_env_script ${CMAKE_BINARY_DIR}/${proj}_Env.cmake)
+  ExternalProject_Write_SetBuildEnv_Commands(${_env_script})
+
+  set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
 
   set(WCSLIB_INCLUDE_DIR "${EP_INSTALL_DIR}/include")
   set(WCSLIB_LIBRARY_DIR "${EP_INSTALL_DIR}/lib")
+
+  # configure step
+  set(_configure_script ${CMAKE_BINARY_DIR}/${proj}_configure_step.cmake)
+  file(WRITE ${_configure_script}
+"include(\"${_env_script}\")
+set(${proj}_WORKING_DIR \"${EP_SOURCE_DIR}\")
+ExternalProject_Execute(${proj} \"configure\" sh ${EP_SOURCE_DIR}/configure
+    --with-cfitsiolib=\"${CFITSIO_LIBRARY_DIR}\"
+    --with-cfitsioinc=\"${CFITSIO_INCLUDE_DIR}\"
+    --prefix=${EP_INSTALL_DIR}
+    --without-pgplot
+    )
+")
 
   #------------------------------------------------------------------------------
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     URL ${WCSlib_5.15_URL}
     URL_MD5 "84d688bbb2a949b172b444b37c0011e3"
-    SOURCE_DIR ${proj}
+    SOURCE_DIR ${EP_SOURCE_DIR}
     BUILD_IN_SOURCE 1
-    CONFIGURE_COMMAND ./configure
-      --with-cfitsiolib=${CFITSIO_LIBRARY_DIR}
-      --with-cfitsioinc=${CFITSIO_INCLUDE_DIR}
-      --prefix=${EP_INSTALL_DIR}
-      --without-pgplot
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -P ${_configure_script}
     BUILD_COMMAND make
     INSTALL_COMMAND make install
     DEPENDS
