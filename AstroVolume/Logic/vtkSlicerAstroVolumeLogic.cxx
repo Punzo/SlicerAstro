@@ -201,142 +201,36 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
     if (selectionNode)
       {
-      vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
-      unitNode1->SetMaximumValue(max);
-      unitNode1->SetMinimumValue(min);
-      unitNode1->SetDisplayCoefficient(1.);
+      vtkMRMLUnitNode* unitNodeIntensity = selectionNode->GetUnitNode("intensity");
+      unitNodeIntensity->SetMaximumValue(max);
+      unitNodeIntensity->SetMinimumValue(min);
+      unitNodeIntensity->SetDisplayCoefficient(1.);
       std::string temp = " ";
       if(max < 0.001)
         {
         temp += "\xB5";
-        unitNode1->SetDisplayCoefficient(1000000.);
+        unitNodeIntensity->SetDisplayCoefficient(1000000.);
         }
       else
         {
         if(max < 1.)
           {
           temp += "m";
-          unitNode1->SetDisplayCoefficient(1000.);
+          unitNodeIntensity->SetDisplayCoefficient(1000.);
           }
         }
 
       temp += "Jy/beam";
-      unitNode1->SetPrecision(6);
-      unitNode1->SetPrefix("");
-      unitNode1->SetSuffix(temp.c_str());
-      unitNode1->SetAttribute("DisplayHint","");
-      selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
-
-      vtkMRMLAstroVolumeNode* astroVolumeNode =
-          vtkMRMLAstroVolumeNode::SafeDownCast(node);
-
-      if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT2"), "DEGREE"))
-        {
-        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
-        unitNode2->SetMaximumValue(180.);
-        unitNode2->SetMinimumValue(-180.);
-        unitNode2->SetDisplayCoefficient(1.);
-        unitNode2->SetPrefix("");
-        unitNode2->SetSuffix("\xB0");
-        unitNode2->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
-        unitNode2->SetPrecision(3);
-        selectionNode->SetUnitNodeID("length", unitNode2->GetID());
-        }
-      else
-        {
-        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
-        }
-
-      if (!strcmp(astroVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
-        {
-        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("time");
-        unitNode3->SetMaximumValue(360);
-        unitNode3->SetMinimumValue(0);
-        unitNode3->SetDisplayCoefficient(0.066666666666667);
-        unitNode3->SetPrefix("");
-        unitNode3->SetSuffix("h");
-        unitNode3->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
-        unitNode3->SetPrecision(3);
-        selectionNode->SetUnitNodeID("time", unitNode3->GetID());
-        }
-      else
-        {
-        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
-        }
-      }
-   }
-
-  if (node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
-    {
-    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-      this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-    if (selectionNode)
-      {
-      vtkMRMLAstroLabelMapVolumeNode* astroLabelMapVolumeNode =
-          vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
-
-      if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT2"), "DEGREE"))
-        {
-        vtkMRMLUnitNode* unitNode2 = selectionNode->GetUnitNode("length");
-        unitNode2->SetMaximumValue(180.);
-        unitNode2->SetMinimumValue(-180.);
-        unitNode2->SetDisplayCoefficient(1.);
-        unitNode2->SetPrefix("");
-        unitNode2->SetSuffix("\xB0");
-        unitNode2->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
-        unitNode2->SetPrecision(3);
-        selectionNode->SetUnitNodeID("length", unitNode2->GetID());
-        }
-      else
-        {
-        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
-        }
-
-      if (!strcmp(astroLabelMapVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE"))
-        {
-        vtkMRMLUnitNode* unitNode3 = selectionNode->GetUnitNode("time");
-        unitNode3->SetMaximumValue(360);
-        unitNode3->SetMinimumValue(0);
-        unitNode3->SetDisplayCoefficient(0.066666666666667);
-        unitNode3->SetPrefix("");
-        unitNode3->SetSuffix("h");
-        unitNode3->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
-        unitNode3->SetPrecision(3);
-        selectionNode->SetUnitNodeID("time", unitNode3->GetID());
-        }
-      else
-        {
-        vtkWarningMacro("The loaded volume has not the spatial axes in degree.")
-        }
+      unitNodeIntensity->SetPrecision(6);
+      unitNodeIntensity->SetPrefix("");
+      unitNodeIntensity->SetSuffix(temp.c_str());
+      selectionNode->SetUnitNodeID("intensity", unitNodeIntensity->GetID());
       }
     }
 
   if (node->IsA("vtkMRMLAstroVolumeNode") ||
       node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
-    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-      this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-    if (selectionNode)
-      {
-      vtkMRMLUnitNode* unitNode4 = selectionNode->GetUnitNode("velocity");
-
-      unitNode4->SetDisplayCoefficient(0.001);
-      unitNode4->SetSuffix("km/s");
-      unitNode4->SetPrefix("");
-      unitNode4->SetPrecision(3);
-      unitNode4->SetAttribute("DisplayHint","");
-      selectionNode->SetUnitNodeID("velocity", unitNode4->GetID());
-
-      vtkMRMLUnitNode* unitNode5 = selectionNode->GetUnitNode("frequency");
-      unitNode5->SetDisplayCoefficient(0.000001);
-      unitNode5->SetPrefix("");
-      unitNode5->SetPrecision(2);
-      unitNode5->SetSuffix("MHz");
-      unitNode5->SetAttribute("DisplayHint","");
-      selectionNode->SetUnitNodeID("frequency", unitNode5->GetID());
-
-      }
-
     // change axes label names
     vtkSmartPointer<vtkCollection> viewNodes = vtkSmartPointer<vtkCollection>::Take
         (this->GetMRMLScene()->GetNodesByClass("vtkMRMLViewNode"));

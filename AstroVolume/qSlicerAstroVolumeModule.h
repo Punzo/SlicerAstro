@@ -50,7 +50,7 @@ protected:
 
  protected slots:
 
-  void onMRMLUnitModified(vtkObject* sender);
+  void onMRMLUnitNodeIntensityModified(vtkObject* sender);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModule);

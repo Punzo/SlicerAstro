@@ -207,10 +207,10 @@ void qSlicerAstroVolumeModule::setup()
     this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if(selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
-    this->qvtkConnect(unitNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLUnitModified(vtkObject*)));
-    this->onMRMLUnitModified(unitNode);
+    vtkMRMLUnitNode* unitNodeIntensity = selectionNode->GetUnitNode("intensity");
+    this->qvtkConnect(unitNodeIntensity, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLUnitNodeIntensityModified(vtkObject*)));
+    this->onMRMLUnitNodeIntensityModified(unitNodeIntensity);
     }
 
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
@@ -223,6 +223,46 @@ void qSlicerAstroVolumeModule::setup()
         volumeRenderingWidget->findChild<qSlicerPresetComboBox*>
         (QString("PresetsNodeComboBox"));
     PresetsNodeComboBox->setEnabled(false);
+    }
+
+  // modify velocity and frequancy nodes
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNodeLength = selectionNode->GetUnitNode("length");
+    unitNodeLength->SetMaximumValue(180.);
+    unitNodeLength->SetMinimumValue(-180.);
+    unitNodeLength->SetDisplayCoefficient(1.);
+    unitNodeLength->SetPrefix("");
+    unitNodeLength->SetSuffix("\xB0");
+    unitNodeLength->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
+    unitNodeLength->SetPrecision(3);
+    selectionNode->SetUnitNodeID("length", unitNodeLength->GetID());
+
+    vtkMRMLUnitNode* unitNodeTime = selectionNode->GetUnitNode("time");
+    unitNodeTime->SetMaximumValue(360);
+    unitNodeTime->SetMinimumValue(0);
+    unitNodeTime->SetDisplayCoefficient(0.066666666666667);
+    unitNodeTime->SetPrefix("");
+    unitNodeTime->SetSuffix("h");
+    unitNodeTime->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
+    unitNodeTime->SetPrecision(3);
+    selectionNode->SetUnitNodeID("time", unitNodeTime->GetID());
+
+    vtkMRMLUnitNode* unitNodeVelocity = selectionNode->GetUnitNode("velocity");
+    unitNodeVelocity->SetDisplayCoefficient(0.001);
+    unitNodeVelocity->SetSuffix("km/s");
+    unitNodeVelocity->SetPrefix("");
+    unitNodeVelocity->SetPrecision(3);
+    unitNodeVelocity->SetAttribute("DisplayHint","");
+    selectionNode->SetUnitNodeID("velocity", unitNodeVelocity->GetID());
+
+    vtkMRMLUnitNode* unitNodeFrequency = selectionNode->GetUnitNode("frequency");
+    unitNodeFrequency->SetDisplayCoefficient(0.000001);
+    unitNodeFrequency->SetPrefix("");
+    unitNodeFrequency->SetPrecision(2);
+    unitNodeFrequency->SetSuffix("MHz");
+    unitNodeFrequency->SetAttribute("DisplayHint","");
+    selectionNode->SetUnitNodeID("frequency", unitNodeFrequency->GetID());
     }
 
   // set Slice Default Node
@@ -320,7 +360,7 @@ void qSlicerAstroVolumeModule::setup()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroVolumeModule::onMRMLUnitModified(vtkObject* sender)
+void qSlicerAstroVolumeModule::onMRMLUnitNodeIntensityModified(vtkObject* sender)
 {
   Q_D(qSlicerAstroVolumeModule);
   if(!sender && d->volumeRendering)
