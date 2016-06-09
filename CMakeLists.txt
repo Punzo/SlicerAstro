@@ -16,6 +16,12 @@ set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
 set(SUPERBUILD_TOPLEVEL_PROJECT inner)
 
 #-----------------------------------------------------------------------------
+# Check operation system
+if(WIN32)
+  message(FATAL_ERROR "SlicerAstro is not available on windows platforms.")
+endif(WIN32)
+
+#-----------------------------------------------------------------------------
 # Extension dependencies
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
