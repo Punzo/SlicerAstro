@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Icons/Chat.png</file>
+        <file>Icons/SlicerAstroWelcome.png</file>
+        <file>HTML/stylesheet.css</file>
+        <file>HTML/AstroAbout.html</file>
+        <file>HTML/AstroOverview.html</file>
+        <file>HTML/AstroFeedback.html</file>
+        <file>Images/WelcomeCommunity.png</file>
+        <file>Images/SlicerLoadData-Original.png</file>
+        <file>Images/SlicerLoadVolume-Original.png</file>
+        <file>Images/SlicerWWW-Original.png</file>
+        <file>Images/SlicerAdvancedGear-Original.png</file>
+        <file>HTML/AstroAcknowledgment.html</file>
+        <file>Images/SlicerAstroIcon.png</file>
+    </qresource>
+</RCC>

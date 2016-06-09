@@ -21,7 +21,7 @@
 
 // OpenMP includes
 #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-# include <omp.h>
+#include <omp.h>
 #endif
 
 // vtkOpenGL includes
@@ -212,7 +212,13 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("Smoothing warning: AnisotropicBoxCPUFilter: "
+                  "this release of SlicerAstro has been built "
+                  "without OpenMP support. It may results taht "
+                  "the smoothing algorithm will show poor perfomrance.")
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -269,6 +275,8 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
 
   bool cancel = false;
   int status = 0;
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   int numProcs = 0;
   if (pnode->GetCores() == 0)
     {
@@ -280,6 +288,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
     }
 
   omp_set_num_threads(numProcs);
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   struct timeval start, end;
 
@@ -288,17 +297,25 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   gettimeofday(&start, NULL);
 
   pnode->SetStatus(1);
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel, status)
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int stat = pnode->GetStatus();
 
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     if (stat == -1 && omp_get_thread_num() == 0)
+    #else
+    if (stat == -1)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       {
       cancel = true;
       }
-
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp flush (cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     if (!cancel)
       {
       switch (DataType)
@@ -375,6 +392,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
           break;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (omp_get_thread_num() == 0)
         {
         if(elemCnt / (numElements / (numProcs * 100)) > status)
@@ -383,6 +401,13 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
           pnode->SetStatus(status);
           }
         }
+      #else
+      if(elemCnt / (numElements / 100) > status)
+        {
+        status += 10;
+        pnode->SetStatus(status);
+        }
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       }
     }
 
@@ -430,17 +455,19 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
   //outputFile << setprecision(5) <<mtime<<endl;
   //outputFile.close();
   return 1;
-#else
-  // XXX Output error
-  return 0;
-#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("Smoothing warning: IsotropicBoxCPUFilter: "
+                  "this release of SlicerAstro has been built "
+                  "without OpenMP support. It may results taht "
+                  "the smoothing algorithm will show poor perfomrance.")
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -485,6 +512,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
 
   bool cancel = false;
 
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   int numProcs = 0;
   if (pnode->GetCores() == 0)
     {
@@ -496,6 +524,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
     }
 
   omp_set_num_threads(numProcs);
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   struct timeval start, end;
 
@@ -508,17 +537,26 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   if (pnode->GetParameterX() > 0.001)
     {
     pnode->SetStatus(10);
+
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -589,17 +627,25 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   if (pnode->GetParameterY() > 0.001)
     {
     pnode->SetStatus(40);
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -689,17 +735,25 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   if (pnode->GetParameterZ() > 0.001)
     {
     pnode->SetStatus(70);
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -794,10 +848,6 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
   //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
-#else
-  // XXX: Display error
-  return 0;
-#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 //----------------------------------------------------------------------------
@@ -1430,7 +1480,13 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("Smoothing warning: AnisotropicGaussianCPUFilter: "
+                  "this release of SlicerAstro has been built "
+                  "without OpenMP support. It may results taht "
+                  "the smoothing algorithm will show poor perfomrance.")
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1474,6 +1530,8 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
 
   bool cancel = false;
   int status = 0;
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   int numProcs = 0;
   if (pnode->GetCores() == 0)
     {
@@ -1485,6 +1543,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
     }
 
   omp_set_num_threads(numProcs);
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   struct timeval start, end;
 
@@ -1493,17 +1552,26 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   gettimeofday(&start, NULL);
 
   pnode->SetStatus(1);
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel, status)
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int stat = pnode->GetStatus();
 
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     if (stat == -1 && omp_get_thread_num() == 0)
+    #else
+    if (stat == -1)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       {
       cancel = true;
       }
 
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp flush (cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     if (!cancel)
       {
       switch (DataType)
@@ -1571,6 +1639,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
             }
           }
         }
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (omp_get_thread_num() == 0)
         {
         if(elemCnt / (numElements / (numProcs * 100)) > status)
@@ -1579,6 +1648,13 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
           pnode->SetStatus(status);
           }
         }
+      #else
+      if(elemCnt / (numElements / 100) > status)
+        {
+        status += 10;
+        pnode->SetStatus(status);
+        }
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       }
     }
 
@@ -1623,16 +1699,17 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
 //outputFile << setprecision(5) << mtime <<endl;
   return 1;
-#else
-  // XXX Display error
-  return 0;
-#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("Smoothing warning: IsotropicGaussianCPUFilter: "
+                  "this release of SlicerAstro has been built "
+                  "without OpenMP support. It may results taht "
+                  "the smoothing algorithm will show poor perfomrance.")
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1673,6 +1750,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   double *GaussKernel1D = static_cast<double*> (pnode->GetGaussianKernel1D()->GetVoidPointer(0));
   bool cancel = false;
 
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   int numProcs = 0;
   if (pnode->GetCores() == 0)
     {
@@ -1684,6 +1762,8 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
     }
 
   omp_set_num_threads(numProcs);
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   struct timeval start, end;
 
   long mtime, seconds, useconds;
@@ -1695,17 +1775,26 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   if (pnode->GetParameterX() > 0.001)
     {
     pnode->SetStatus(10);
+
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -1766,17 +1855,26 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   if (pnode->GetParameterY() > 0.001)
     {
     pnode->SetStatus(40);
+
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -1855,17 +1953,26 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   if (pnode->GetParameterZ() > 0.001)
     {
     pnode->SetStatus(70);
+
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -1948,10 +2055,6 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
   //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
-#else
-  // XXX Display error
-  return 0;
-#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 //----------------------------------------------------------------------------
@@ -2677,7 +2780,13 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 //----------------------------------------------------------------------------
 int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
 {
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("Smoothing warning: GradientCPUFilter: "
+                  "this release of SlicerAstro has been built "
+                  "without OpenMP support. It may results taht "
+                  "the smoothing algorithm will show poor perfomrance.")
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -2716,6 +2825,7 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
     }
   bool cancel = false;
 
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   int numProcs = 0;
   if (pnode->GetCores() == 0)
     {
@@ -2725,7 +2835,9 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
     {
     numProcs = pnode->GetCores();
     }
+
   omp_set_num_threads(numProcs);
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   struct timeval start, end;
 
@@ -2737,17 +2849,26 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
 
   for (int i = 1; i <= pnode->GetAccuracy(); i++)
     {
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, tempFPixel, outDPixel, tempDPixel, cancel)
+
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (status == -1 && omp_get_thread_num() == 0)
+      #else
+      if (status == -1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         int x1 = elemCnt - 1;
@@ -2913,10 +3034,6 @@ int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* p
   pnode->SetStatus(0);
 
   return 1;
-#else
-  // XXX Display error
-  return 0;
-#endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 }
 
 typedef struct float4 {

@@ -139,6 +139,7 @@ QStringList qSlicerAstroVolumeModule::contributors()const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Davide Punzo (Kapteyn Astronomical Institute)");
+  moduleContributors << QString("Jean-Christophe Fillion-Robin (Kitware)");
   return moduleContributors;
 }
 
@@ -158,7 +159,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Data" << "Volumes" << "VolumeRendering";
+  moduleDependencies << "Data" << "Volumes" << "VolumeRendering" << "AstroWelcome";
   return moduleDependencies;
 }
 
@@ -169,6 +170,13 @@ void qSlicerAstroVolumeModule::setup()
   this->Superclass::setup();
 
   d->app = qSlicerApplication::application();
+
+  qSlicerLayoutManager * layoutManager = d->app->layoutManager();
+  if (layoutManager)
+    {
+    layoutManager->setCurrentModule("AstroWelcome");
+    }
+
   // Register the IO module for loading AstroVolumes as a variant of fits files
 
   if(d->app->mrmlScene())

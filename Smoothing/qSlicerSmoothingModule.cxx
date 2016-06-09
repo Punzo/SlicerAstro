@@ -71,6 +71,8 @@ QStringList qSlicerSmoothingModule::contributors()const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Davide Punzo (Kapteyn Astronomical Institute)");
+  moduleContributors << QString("Jean-Christophe Fillion-Robin (Kitware)");
+  moduleContributors << QString("Steve Pieper (Isomics)");
   return moduleContributors;
 }
 

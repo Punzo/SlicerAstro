@@ -411,8 +411,13 @@ bool vtkFITSReader::AllocateHeader()
      if (fits_parse_value(card, val, com, &ReadStatus)) break;
 
      std::string str(val);
-
-     std::replace(str.begin(), str.end(), 'D+', 'E+');
+     std::string temp = "D+";
+     size_t found = str.find(temp);
+     while (found!=std::string::npos)
+       {
+       str.replace(found, temp.size(), "E+");
+       found = str.find(temp);
+       }
 
      if (std::string::npos != str.find_first_of("'"))
        {
@@ -422,7 +427,6 @@ bool vtkFITSReader::AllocateHeader()
      str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
      std::string strkey1 = "SlicerAstro." + strkey;
      HeaderKeyValue[strkey1] = str;
-
      }
 
    if(HeaderKeyValue.count("SlicerAstro.NAXIS") == 0)
