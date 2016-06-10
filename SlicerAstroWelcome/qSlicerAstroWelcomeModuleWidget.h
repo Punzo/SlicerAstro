@@ -25,8 +25,10 @@ public:
 
 public slots:
 
+  void editApplicationSettings();
   bool loadNonDicomData();
   bool loadRemoteSampleData();
+  bool navigateToSlicerWelcom();
 
 protected:
   virtual void setup();

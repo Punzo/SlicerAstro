@@ -57,6 +57,7 @@ void qSlicerAstroWelcomeModuleWidgetPrivate::setupUi(qSlicerWidget* widget)
 
   this->Ui_qSlicerAstroWelcomeModuleWidget::setupUi(widget);
 
+  this->IconLabel->setPixmap(QPixmap(QString::fromUtf8(":/Images/SlicerAstroIcon.png")));
   // Create the button group ensuring that only one collabsibleWidgetButton will be open at a time
   ctkButtonGroup * group = new ctkButtonGroup(widget);
 
@@ -91,16 +92,30 @@ void qSlicerAstroWelcomeModuleWidgetPrivate::setupUi(qSlicerWidget* widget)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroWelcomeModuleWidget::loadSource(QWidget* widget)
+bool qSlicerAstroWelcomeModuleWidgetPrivate::selectModule(const QString& moduleName)
 {
-  // Lookup fitted browser
-  ctkFittedTextBrowser* fittedTextBrowser =
-      widget->findChild<ctkFittedTextBrowser*>();
-  Q_ASSERT(fittedTextBrowser);
-  if (fittedTextBrowser->source().isEmpty())
+  Q_Q(qSlicerAstroWelcomeModuleWidget);
+  qSlicerModuleManager * moduleManager = qSlicerCoreApplication::application()->moduleManager();
+  if (!moduleManager)
     {
-    fittedTextBrowser->setSource(widget->property("source").toString());
+    return false;
     }
+  qSlicerAbstractCoreModule * module = moduleManager->module(moduleName);
+  if(!module)
+    {
+    QMessageBox::warning(
+          q, q->tr("Raising %1 Module:").arg(moduleName),
+          q->tr("Unfortunately, this requested module is not available in this Slicer session."),
+          QMessageBox::Ok);
+    return false;
+    }
+  qSlicerLayoutManager * layoutManager = qSlicerApplication::application()->layoutManager();
+  if (!layoutManager)
+    {
+    return false;
+    }
+  layoutManager->setCurrentModule(moduleName);
+  return true;
 }
 
 //-----------------------------------------------------------------------------
@@ -128,10 +143,32 @@ void qSlicerAstroWelcomeModuleWidget::setup()
           this, SLOT (loadNonDicomData()));
   connect(d->LoadSampleDataButton, SIGNAL(clicked()),
           this, SLOT (loadRemoteSampleData()));
+  connect(d->EditApplicationSettingsButton, SIGNAL(clicked()),
+          this, SLOT (editApplicationSettings()));
+  connect(d->pushToSlicerWelcom, SIGNAL(clicked()),
+          this, SLOT (navigateToSlicerWelcom()));
 
   this->Superclass::setup();
-
   d->FeedbackCollapsibleWidget->setCollapsed(false);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroWelcomeModuleWidget::editApplicationSettings()
+{
+  qSlicerApplication::application()->settingsDialog()->exec();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroWelcomeModuleWidget::loadSource(QWidget* widget)
+{
+  // Lookup fitted browser
+  ctkFittedTextBrowser* fittedTextBrowser =
+      widget->findChild<ctkFittedTextBrowser*>();
+  Q_ASSERT(fittedTextBrowser);
+  if (fittedTextBrowser->source().isEmpty())
+    {
+    fittedTextBrowser->setSource(widget->property("source").toString());
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -150,7 +187,13 @@ bool qSlicerAstroWelcomeModuleWidget::loadNonDicomData()
 bool qSlicerAstroWelcomeModuleWidget::loadRemoteSampleData()
 {
   Q_D(qSlicerAstroWelcomeModuleWidget);
-  // implement a python module to load it
-  return true;
+  return d->selectModule("AstroSampleData");
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroWelcomeModuleWidget::navigateToSlicerWelcom()
+{
+  Q_D(qSlicerAstroWelcomeModuleWidget);
+  return d->selectModule("Welcome");
 }
 

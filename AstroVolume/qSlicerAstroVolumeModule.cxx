@@ -2,6 +2,7 @@
 #include <QApplication>
 #include <QDoubleSpinBox>
 #include <QtPlugin>
+#include <QSettings>
 
 //VTK includes
 #include <vtkCollection.h>
@@ -26,10 +27,12 @@
 #include <qMRMLSliceWidget.h>
 #include <qMRMLSliceView.h>
 #include <qMRMLVolumeThresholdWidget.h>
+#include <qSlicerAbstractModuleFactoryManager.h>
 #include <qSlicerApplication.h>
 #include <qSlicerCoreApplication.h>
 #include <qSlicerIOManager.h>
 #include <qSlicerLayoutManager.h>
+#include <qSlicerModuleFactoryManager.h>
 #include <qSlicerModuleManager.h>
 #include <qSlicerNodeWriter.h>
 #include <qSlicerPresetComboBox.h>
@@ -123,9 +126,6 @@ QString qSlicerAstroVolumeModule::helpText()const
 QString qSlicerAstroVolumeModule::acknowledgementText()const
 {
   QString acknowledgement = QString(
-    "<center><table border=\"0\"><tr>"
-    "<td><img src=\":://Logos/kapteyn.png\" alt\"Kapteyn Astronomical Institute\"></td>"
-    "</tr></table></center>"
     "This work was supported by ERC grant nr. 291531 and the Slicer "
     "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
     "</a> for details.<br>"
@@ -159,7 +159,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Data" << "Volumes" << "VolumeRendering" << "AstroWelcome";
+  moduleDependencies << "Data" << "Volumes" << "VolumeRendering";
   return moduleDependencies;
 }
 
@@ -171,14 +171,19 @@ void qSlicerAstroVolumeModule::setup()
 
   d->app = qSlicerApplication::application();
 
-  qSlicerLayoutManager * layoutManager = d->app->layoutManager();
-  if (layoutManager)
-    {
-    layoutManager->setCurrentModule("AstroWelcome");
-    }
+  // Setup AstroWelcome as HomeModule
+  cout<<d->app->settings()->value("Modules/HomeModule").toString().toStdString()<<endl;
+  d->app->settings()->setValue("Modules/HomeModule", "AstroWelcome");
+  cout<<d->app->settings()->value("Modules/HomeModule").toString().toStdString()<<endl;
+
+  /*// Setup modules to ignore
+  qSlicerCoreApplication * coreApp = qSlicerCoreApplication::application();
+  qSlicerAbstractModuleFactoryManager* factoryManager = coreApp->moduleManager()->factoryManager();
+  QStringList modulesNames;
+  modulesNames << "DICOM";
+  factoryManager->setModulesToIgnore(modulesNames);*/
 
   // Register the IO module for loading AstroVolumes as a variant of fits files
-
   if(d->app->mrmlScene())
     {
     this->setMRMLScene(d->app->mrmlScene());

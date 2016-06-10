@@ -19,10 +19,26 @@
      <property name="text">
       <string/>
      </property>
-     <property name="pixmap">
-      <pixmap>../Images/SlicerAstroIcon.png</pixmap>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
      </property>
     </widget>
+   </item>
+   <item>
+    <spacer name="verticalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::Fixed</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>30</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item>
     <widget class="QFrame" name="ButtonsFrame">
@@ -83,6 +99,52 @@
         <property name="iconSize">
          <size>
           <width>45</width>
+          <height>22</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="0">
+       <widget class="QPushButton" name="pushToSlicerWelcom">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="font">
+         <font>
+          <weight>75</weight>
+          <bold>true</bold>
+         </font>
+        </property>
+        <property name="text">
+         <string>       Tutorials</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../qSlicerAstroWelcomeModule.qrc">
+          <normaloff>:/Icons/SlicerWelcome.png</normaloff>:/Icons/SlicerWelcome.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>22</width>
+          <height>22</height>
+         </size>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="QPushButton" name="EditApplicationSettingsButton">
+        <property name="text">
+         <string>Customize Slicer</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../qSlicerAstroWelcomeModule.qrc">
+          <normaloff>:/Images/SlicerAdvancedGear-Original.png</normaloff>:/Images/SlicerAdvancedGear-Original.png</iconset>
+        </property>
+        <property name="iconSize">
+         <size>
+          <width>22</width>
           <height>22</height>
          </size>
         </property>
@@ -319,8 +381,6 @@
  </customwidgets>
  <resources>
   <include location="../qSlicerAstroWelcomeModule.qrc"/>
-  <include location="../../../../Slicer/Modules/Loadable/SlicerWelcome/Resources/qSlicerWelcomeModule.qrc"/>
-  <include location="../qSlicerWelcomeModule.qrc"/>
  </resources>
  <connections/>
 </ui>

@@ -5,6 +5,7 @@
 #include "qSlicerAstroWelcomeModule.h"
 #include "qSlicerAstroWelcomeModuleWidget.h"
 
+
 //-----------------------------------------------------------------------------
 Q_EXPORT_PLUGIN2(qSlicerAstroWelcomeModule, qSlicerAstroWelcomeModule);
 
@@ -30,7 +31,7 @@ qSlicerAstroWelcomeModule::~qSlicerAstroWelcomeModule()
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroWelcomeModule::categories()const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "Astronomy"<<"";
 }
 
 //-----------------------------------------------------------------------------

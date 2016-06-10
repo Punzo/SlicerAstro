@@ -73,6 +73,7 @@ if(UNIX)
   add_subdirectory(DataProbeAstro)
   add_subdirectory(AstroVolume)
   add_subdirectory(Smoothing)
+  add_subdirectory(AstroSampleData)
 endif(UNIX)
 
 ## NEXT_MODULE

@@ -9,6 +9,8 @@
         <file>Icons/Large/SlicerVolumes.png</file>
         <file>Icons/XLarge/SlicerVolumes.png</file>
         <file>Logos/kapteyn.png</file>
+        <file>Logos/ERC.png</file>
+        <file>Icons/XLarge/NGC2841.png</file>
     </qresource>
     <qresource prefix="/presets">
         <file alias="OneSurface">Icons/OneSurface.png</file>
