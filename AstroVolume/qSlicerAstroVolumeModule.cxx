@@ -171,18 +171,6 @@ void qSlicerAstroVolumeModule::setup()
 
   d->app = qSlicerApplication::application();
 
-  // Setup AstroWelcome as HomeModule
-  cout<<d->app->settings()->value("Modules/HomeModule").toString().toStdString()<<endl;
-  d->app->settings()->setValue("Modules/HomeModule", "AstroWelcome");
-  cout<<d->app->settings()->value("Modules/HomeModule").toString().toStdString()<<endl;
-
-  /*// Setup modules to ignore
-  qSlicerCoreApplication * coreApp = qSlicerCoreApplication::application();
-  qSlicerAbstractModuleFactoryManager* factoryManager = coreApp->moduleManager()->factoryManager();
-  QStringList modulesNames;
-  modulesNames << "DICOM";
-  factoryManager->setModulesToIgnore(modulesNames);*/
-
   // Register the IO module for loading AstroVolumes as a variant of fits files
   if(d->app->mrmlScene())
     {

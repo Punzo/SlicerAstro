@@ -31,7 +31,7 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
   this->SetFilter(2);
   this->SetHardware(0);
   this->SetCores(0);
-  this->SetLink(true);
+  this->SetLink(false);
   this->SetAutoRun(false);
   this->SetAccuracy(20);
   this->SetTimeStep(0.0325);

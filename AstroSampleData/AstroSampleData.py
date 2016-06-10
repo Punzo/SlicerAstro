@@ -254,7 +254,7 @@ class AstroSampleDataLogic:
 
   def loadVolume(self, uri, name):
     self.logMessage('<b>Requesting load</b> <i>%s</i> from %s...\n' % (name, uri))
-    success, volumeNode = slicer.util.loadVolume(uri, properties = {'name' : name}, returnNode=True)
+    success, volumeNode = slicer.util.loadVolume(uri, properties = {'name' : name, 'center' : True}, returnNode=True)
     if success:
       self.logMessage('<b>Load finished</b>\n')
       # since it was read from a temp directory remove the storage node
