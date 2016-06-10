@@ -800,30 +800,47 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
             vtkMRMLCameraNode::SafeDownCast(coll->GetItemAsObject(0));
           if (cameraNodeOne)
             {
-            double Origin[3];
-            cameraNodeOne->GetPosition(Origin);
-            Origin[0] /= 15.;
-            Origin[1] /= 15.;
-            Origin[2] /= 15.;
+            double VectorThree[3];
+            double temp;
+            cameraNodeOne->GetPosition(VectorThree);
             //Ry(90)
-            double temp = Origin[1];
-            Origin[1] = -Origin[2];
-            Origin[2] = temp;
+            temp = VectorThree[1];
+            VectorThree[1] = -VectorThree[2];
+            VectorThree[2] = temp;
             //Rz(-180)
-            Origin[0] *= -1;
-            Origin[1] *= -1;
-            camera->SetPosition(Origin);
-            cameraNodeOne->GetFocalPoint(Origin);
-            camera->SetFocalPoint(Origin);
-            cameraNodeOne->GetViewUp(Origin);
+            VectorThree[0] *= -1.;
+            VectorThree[1] *= -1.;
+            while(fabs(VectorThree[0]) > 50 || fabs(VectorThree[1]) > 50 || fabs(VectorThree[2]) > 50)
+              {
+              VectorThree[0] /= 4.;
+              VectorThree[1] /= 4.;
+              VectorThree[2] /= 4.;
+              }
+            camera->SetPosition(VectorThree);
+            cameraNodeOne->GetFocalPoint(VectorThree);
             //Ry(90)
-            temp = Origin[1];
-            Origin[1] = -Origin[2];
-            Origin[2] = temp;
+            temp = VectorThree[1];
+            VectorThree[1] = -VectorThree[2];
+            VectorThree[2] = temp;
             //Rz(-180)
-            Origin[0] *= -1;
-            Origin[1] *= -1;
-            camera->SetViewUp(Origin);
+            VectorThree[0] *= -1;
+            VectorThree[1] *= -1;
+            while(fabs(VectorThree[0]) > 5 || fabs(VectorThree[1]) > 5 || fabs(VectorThree[2]) > 5)
+              {
+              VectorThree[0] /= 2.;
+              VectorThree[1] /= 2.;
+              VectorThree[2] /= 2.;
+              }
+            camera->SetFocalPoint(VectorThree);
+            cameraNodeOne->GetViewUp(VectorThree);
+            //Ry(90)
+            temp = VectorThree[1];
+            VectorThree[1] = -VectorThree[2];
+            VectorThree[2] = temp;
+            //Rz(-180)
+            VectorThree[0] *= -1;
+            VectorThree[1] *= -1;
+            camera->SetViewUp(VectorThree);
             }
           coll->RemoveAllItems();
           coll->Delete();
