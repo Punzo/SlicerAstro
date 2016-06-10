@@ -742,16 +742,19 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
             {
             RadiusX = 0.01;
             }
+          RadiusX *= d->parametersNode->GetAccuracy();
           double RadiusY = d->parametersNode->GetParameterY() / SigmatoFWHM;
           if(RadiusY < 0.01)
             {
             RadiusY = 0.01;
             }
+          RadiusY *= d->parametersNode->GetAccuracy();
           double RadiusZ = d->parametersNode->GetParameterZ() / SigmatoFWHM;
           if(RadiusZ < 0.01)
             {
             RadiusZ = 0.01;
             }
+          RadiusZ *= d->parametersNode->GetAccuracy();
           d->parametricVTKEllipsoid->SetXRadius(RadiusX);
           d->parametricVTKEllipsoid->SetYRadius(RadiusY);
           d->parametricVTKEllipsoid->SetZRadius(RadiusZ);
@@ -801,7 +804,7 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
           if (cameraNodeOne)
             {
             double VectorThree[3];
-            double temp;
+            double temp, viewFactor, scaleFactor;
             cameraNodeOne->GetPosition(VectorThree);
             //Ry(90)
             temp = VectorThree[1];
@@ -810,11 +813,15 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
             //Rz(-180)
             VectorThree[0] *= -1.;
             VectorThree[1] *= -1.;
-            while(fabs(VectorThree[0]) > 50 || fabs(VectorThree[1]) > 50 || fabs(VectorThree[2]) > 50)
+            viewFactor = 200.;
+            scaleFactor = 4.;
+            while(fabs(VectorThree[0]) > viewFactor ||
+                  fabs(VectorThree[1]) > viewFactor ||
+                  fabs(VectorThree[2]) > viewFactor)
               {
-              VectorThree[0] /= 4.;
-              VectorThree[1] /= 4.;
-              VectorThree[2] /= 4.;
+              VectorThree[0] /= scaleFactor;
+              VectorThree[1] /= scaleFactor;
+              VectorThree[2] /= scaleFactor;
               }
             camera->SetPosition(VectorThree);
             cameraNodeOne->GetFocalPoint(VectorThree);
@@ -825,11 +832,15 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
             //Rz(-180)
             VectorThree[0] *= -1;
             VectorThree[1] *= -1;
-            while(fabs(VectorThree[0]) > 5 || fabs(VectorThree[1]) > 5 || fabs(VectorThree[2]) > 5)
+            viewFactor = 15.;
+            scaleFactor = 2.;
+            while(fabs(VectorThree[0]) > viewFactor ||
+                  fabs(VectorThree[1]) > viewFactor ||
+                  fabs(VectorThree[2]) > viewFactor)
               {
-              VectorThree[0] /= 2.;
-              VectorThree[1] /= 2.;
-              VectorThree[2] /= 2.;
+              VectorThree[0] /= scaleFactor;
+              VectorThree[1] /= scaleFactor;
+              VectorThree[2] /= scaleFactor;
               }
             camera->SetFocalPoint(VectorThree);
             cameraNodeOne->GetViewUp(VectorThree);
