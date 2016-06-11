@@ -12,11 +12,11 @@ from slicer.util import settingsValue
 from slicer.util import VTKObservationMixin
 
 
-class DataProbeAstro(ScriptedLoadableModule):
+class AstroDataProbe(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    parent.title = "DataProbeAstro"
+    parent.title = "AstroDataProbe"
     parent.categories = ["Quantification", "Astronomy"]
     parent.dependencies = ["DataProbe"]
     parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)."]
@@ -37,16 +37,16 @@ class DataProbeAstro(ScriptedLoadableModule):
     except IndexError:
       print("No Data Probe frame - cannot create DataProbe")
       return
-    DataProbeAstroLogic(parent)
+    AstroDataProbeLogic(parent)
 
 
-class DataProbeAstroWidget(ScriptedLoadableModuleWidget):
+class AstroDataProbeWidget(ScriptedLoadableModuleWidget):
 
   def setup(self):
     self.developerMode = False
     ScriptedLoadableModuleWidget.setup(self)
 
-class DataProbeAstroLogic(ScriptedLoadableModuleLogic):
+class AstroDataProbeLogic(ScriptedLoadableModuleLogic):
 
   def __init__(self, parent):
     ScriptedLoadableModuleLogic.__init__(self, parent)
@@ -64,7 +64,7 @@ class DataProbeAstroLogic(ScriptedLoadableModuleLogic):
     dataProbeInstance.infoWidget.generateIJKPixelValueDescription = funcType(generateIJKPixelValueDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
 
 
-class DataProbeAstroTest(ScriptedLoadableModuleTest):
+class AstroDataProbeTest(ScriptedLoadableModuleTest):
 
   def setUp(self):
     """ Do whatever is needed to reset the state - typically a scene clear will be enough.
@@ -132,7 +132,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
                 orient=sliceNode.GetOrientationString(),
                 )
     else:
-      return "  {layoutName: <8s} DataProbeAstro could not find WCS coordinates in View: {orient: >4s}" \
+      return "  {layoutName: <8s} AstroDataProbe could not find WCS coordinates in View: {orient: >4s}" \
         .format(layoutName=sliceNode.GetLayoutName(),
                 orient=sliceNode.GetOrientationString(),
                 )
