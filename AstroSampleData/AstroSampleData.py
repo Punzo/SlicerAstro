@@ -15,7 +15,11 @@ class AstroSampleData:
     parent.helpText = string.Template("""
     The SampleData module can be used to download data for working with in slicer.  Use of this module requires an active network connection.""")
     parent.acknowledgementText = """
-    This work was supported by ERC grant nr. 291531 and the Slicer Community.
+    This work was supported by ERC grant nr. 291531 and the Slicer Community. <br><br>
+    Data acknowledgement: <br>
+    WEIN069: Mpati Ramatsoku and Marc Verheijen (Kapteyn Astronomical Institute); <br>
+    NGC2403: THING survey; <br>
+    NGC3379 and NGC4111: ATLAS3D survey. <br>
     This file has been originally edited by Steve Pieper.
     """
     parent.icon = qt.QIcon(':Icons/XLarge/NGC2841.png')
