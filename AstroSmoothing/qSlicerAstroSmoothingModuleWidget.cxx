@@ -19,17 +19,18 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
 #include <vtkRenderer.h>
+#include <vtksys/SystemTools.hxx>
 
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 
-// Smoothing includes
-#include "qSlicerSmoothingModuleWidget.h"
-#include "ui_qSlicerSmoothingModuleWidget.h"
+// AstroSmoothing includes
+#include "qSlicerAstroSmoothingModuleWidget.h"
+#include "ui_qSlicerAstroSmoothingModuleWidget.h"
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerSmoothingLogic.h>
+#include <vtkSlicerAstroSmoothingLogic.h>
 
 // qMRML includes
 #include <qSlicerAbstractCoreModule.h>
@@ -49,28 +50,28 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLSmoothingParametersNode.h>
+#include <vtkMRMLAstroSmoothingParametersNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 #define SigmatoFWHM 2.3548200450309493
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_Smoothing
-class qSlicerSmoothingModuleWidgetPrivate: public Ui_qSlicerSmoothingModuleWidget
+/// \ingroup Slicer_QtModules_AstroSmoothing
+class qSlicerAstroSmoothingModuleWidgetPrivate: public Ui_qSlicerAstroSmoothingModuleWidget
 {
-  Q_DECLARE_PUBLIC(qSlicerSmoothingModuleWidget);
+  Q_DECLARE_PUBLIC(qSlicerAstroSmoothingModuleWidget);
 protected:
-  qSlicerSmoothingModuleWidget* const q_ptr;
+  qSlicerAstroSmoothingModuleWidget* const q_ptr;
 public:
 
-  qSlicerSmoothingModuleWidgetPrivate(qSlicerSmoothingModuleWidget& object);
-  ~qSlicerSmoothingModuleWidgetPrivate();
+  qSlicerAstroSmoothingModuleWidgetPrivate(qSlicerAstroSmoothingModuleWidget& object);
+  ~qSlicerAstroSmoothingModuleWidgetPrivate();
   void init();
 
-  vtkSlicerSmoothingLogic* logic() const;
+  vtkSlicerAstroSmoothingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
-  vtkMRMLSmoothingParametersNode* parametersNode;
+  vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode;
   vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
   vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
   vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
@@ -82,14 +83,14 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerSmoothingModuleWidgetPrivate methods
+// qSlicerAstroSmoothingModuleWidgetPrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModuleWidgetPrivate::qSlicerSmoothingModuleWidgetPrivate(qSlicerSmoothingModuleWidget& object)
+qSlicerAstroSmoothingModuleWidgetPrivate::qSlicerAstroSmoothingModuleWidgetPrivate(qSlicerAstroSmoothingModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = 0;
   this->astroVolumeWidget = 0;
+  this->parametersNode = vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode>::New();
   this->parametricVTKEllipsoid = vtkSmartPointer<vtkParametricEllipsoid>::New();
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
@@ -101,22 +102,25 @@ qSlicerSmoothingModuleWidgetPrivate::qSlicerSmoothingModuleWidgetPrivate(qSlicer
 }
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModuleWidgetPrivate::~qSlicerSmoothingModuleWidgetPrivate()
+qSlicerAstroSmoothingModuleWidgetPrivate::~qSlicerAstroSmoothingModuleWidgetPrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidgetPrivate::init()
+void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 {
-  Q_Q(qSlicerSmoothingModuleWidget);
+  Q_Q(qSlicerAstroSmoothingModuleWidget);
   this->setupUi(q);
   qSlicerApplication* app = qSlicerApplication::application();
       qSlicerAbstractCoreModule* astroVolume = app->moduleManager()->module("AstroVolume");
-  if (astroVolume)
+  if (!astroVolume)
     {
-    this->astroVolumeWidget = dynamic_cast<qSlicerAstroVolumeModuleWidget*>
-      (astroVolume->widgetRepresentation());
+    qCritical() << "qSlicerAstroSmoothingModuleWidgetPrivate::init(): could not find AstroVolume module.";
+    return;
     }
+
+  this->astroVolumeWidget = dynamic_cast<qSlicerAstroVolumeModuleWidget*>
+    (astroVolume->widgetRepresentation());
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    ParametersNodeComboBox, SLOT(setMRMLScene(vtkMRMLScene*)));
@@ -128,7 +132,7 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
                    OutputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setMRMLSmoothingParametersNode(vtkMRMLNode*)));
+                   q, SLOT(setMRMLAstroSmoothingParametersNode(vtkMRMLNode*)));
 
   QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
@@ -202,30 +206,29 @@ void qSlicerSmoothingModuleWidgetPrivate::init()
   eyePosition[1] = 0.;
   eyePosition[2] = 30;
   camera->SetPosition(eyePosition);
-
 }
 
 //-----------------------------------------------------------------------------
-vtkSlicerSmoothingLogic* qSlicerSmoothingModuleWidgetPrivate::logic() const
+vtkSlicerAstroSmoothingLogic* qSlicerAstroSmoothingModuleWidgetPrivate::logic() const
 {
-  Q_Q(const qSlicerSmoothingModuleWidget);
-  return vtkSlicerSmoothingLogic::SafeDownCast(q->logic());
+  Q_Q(const qSlicerAstroSmoothingModuleWidget);
+  return vtkSlicerAstroSmoothingLogic::SafeDownCast(q->logic());
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerSmoothingModuleWidget methods
+// qSlicerAstroSmoothingModuleWidget methods
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModuleWidget::qSlicerSmoothingModuleWidget(QWidget* _parent)
+qSlicerAstroSmoothingModuleWidget::qSlicerAstroSmoothingModuleWidget(QWidget* _parent)
   : Superclass( _parent )
-  , d_ptr( new qSlicerSmoothingModuleWidgetPrivate(*this) )
+  , d_ptr( new qSlicerAstroSmoothingModuleWidgetPrivate(*this) )
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   d->init();
 }
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModuleWidget::~qSlicerSmoothingModuleWidget()
+qSlicerAstroSmoothingModuleWidget::~qSlicerAstroSmoothingModuleWidget()
 {
 }
 
@@ -271,9 +274,9 @@ std::string IntToString(int Value)
 } // end namespace
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
+void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
   this->Superclass::setMRMLScene(scene);
   if (scene == NULL)
@@ -282,16 +285,23 @@ void qSlicerSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     }
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found.";
+    return;
+    }
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+  if (!selectionNode)
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : selectionNode not found.";
+    return;
+    }
 
   this->qvtkReconnect(selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
 
-
   this->initializeParameterNode(scene);
-
-  this->onMRMLSmoothingParametersNodeModified();
-
+  this->onMRMLAstroSmoothingParametersNodeModified();
   this->onOutputVolumeChanged(scene->GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
   // observe close event so can re-add a parameters node if necessary
@@ -306,49 +316,43 @@ void qSlicerSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onEndCloseEvent()
+void qSlicerAstroSmoothingModuleWidget::onEndCloseEvent()
 {
   this->initializeParameterNode(this->mrmlScene());
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::initializeParameterNode(vtkMRMLScene* scene)
+void qSlicerAstroSmoothingModuleWidget::initializeParameterNode(vtkMRMLScene* scene)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  if (!scene)
+  if (!scene || !d->parametersNode)
     {
     return;
     }
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found.";
+    return;
+    }
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  vtkMRMLSmoothingParametersNode *parametersNode = NULL;
-  unsigned int numNodes = scene->
-      GetNumberOfNodesByClass("vtkMRMLSmoothingParametersNode");
-  if(numNodes > 0)
+  if (!selectionNode)
     {
-    parametersNode = vtkMRMLSmoothingParametersNode::
-        SafeDownCast(scene->GetNthNodeByClass(0, "vtkMRMLSmoothingParametersNode"));
-    parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-    parametersNode->SetOutputVolumeNodeID(selectionNode->GetActiveVolumeID());
-    d->ParametersNodeComboBox->setCurrentNode(parametersNode);
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : selectionNode not found.";
+    return;
     }
-  else
-    {
-    parametersNode = vtkMRMLSmoothingParametersNode::New();
-    parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-    parametersNode->SetOutputVolumeNodeID(selectionNode->GetActiveVolumeID());
-    scene->AddNode(parametersNode);
-    d->ParametersNodeComboBox->setCurrentNode(parametersNode);
-    parametersNode->Delete();
-    }
+
+  d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
+  d->parametersNode->SetOutputVolumeNodeID(selectionNode->GetActiveVolumeID());
+  d->ParametersNodeComboBox->setCurrentNode(d->parametersNode);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender)
+void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
   if (!sender)
     {
@@ -364,14 +368,13 @@ void qSlicerSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender
     }
 
   unsigned int numNodes = this->mrmlScene()->
-      GetNumberOfNodesByClass("vtkMRMLSmoothingParametersNode");
+      GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
   if(numNodes == 0)
     {
-    vtkMRMLSmoothingParametersNode *parametersNode =
-        vtkMRMLSmoothingParametersNode::New();
+    vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode =
+        vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode>::New();
     this->mrmlScene()->AddNode(parametersNode);
-    d->parametersNode = parametersNode;
-    parametersNode->Delete();
+    d->ParametersNodeComboBox->setCurrentNode(parametersNode);
     }
 
   int wasModifying = d->parametersNode->StartModify();
@@ -382,31 +385,31 @@ void qSlicerSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender
 
 
 // --------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::setMRMLSmoothingParametersNode(vtkMRMLNode* mrmlNode)
+void qSlicerAstroSmoothingModuleWidget::setMRMLAstroSmoothingParametersNode(vtkMRMLNode* mrmlNode)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
   if (!mrmlNode)
     {
     return;
     }
 
-  vtkMRMLSmoothingParametersNode* smoothingParaNode =
-      vtkMRMLSmoothingParametersNode::SafeDownCast(mrmlNode);
+  vtkMRMLAstroSmoothingParametersNode* AstroSmoothingParaNode =
+      vtkMRMLAstroSmoothingParametersNode::SafeDownCast(mrmlNode);
 
-  this->qvtkReconnect(d->parametersNode, smoothingParaNode, vtkCommand::ModifiedEvent,
-                this, SLOT(onMRMLSmoothingParametersNodeModified()));
+  this->qvtkReconnect(d->parametersNode, AstroSmoothingParaNode, vtkCommand::ModifiedEvent,
+                this, SLOT(onMRMLAstroSmoothingParametersNodeModified()));
 
-  d->parametersNode = smoothingParaNode;
+  d->parametersNode = AstroSmoothingParaNode;
 
-  this->onMRMLSmoothingParametersNodeModified();
-  this->setEnabled(smoothingParaNode != 0);
+  this->onMRMLAstroSmoothingParametersNodeModified();
+  this->setEnabled(AstroSmoothingParaNode != 0);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
+void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -415,7 +418,6 @@ void qSlicerSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 
   if (mrmlNode)
     {
-
     d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
     if (this->mrmlScene() &&
         !this->mrmlScene()->IsClosing() &&
@@ -435,27 +437,29 @@ void qSlicerSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNode)
+void qSlicerAstroSmoothingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNode)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  if (d->parametersNode)
+  if (!d->parametersNode)
     {
-    if (mrmlNode)
-      {
-      d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
-      }
-    else
-      {
-      d->parametersNode->SetOutputVolumeNodeID(NULL);
-      }
+    return;
+    }
+
+  if (mrmlNode)
+    {
+    d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetOutputVolumeNodeID(NULL);
     }
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
+void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModified()
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -974,9 +978,9 @@ void qSlicerSmoothingModuleWidget::onMRMLSmoothingParametersNodeModified()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onModeChanged()
+void qSlicerAstroSmoothingModuleWidget::onModeChanged()
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1005,9 +1009,9 @@ void qSlicerSmoothingModuleWidget::onModeChanged()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
+void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1062,9 +1066,9 @@ void qSlicerSmoothingModuleWidget::onCurrentFilterChanged(int index)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onKChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onKChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1084,9 +1088,9 @@ void qSlicerSmoothingModuleWidget::onKChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onTimeStepChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1106,9 +1110,9 @@ void qSlicerSmoothingModuleWidget::onTimeStepChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onRxChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onRxChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1128,9 +1132,9 @@ void qSlicerSmoothingModuleWidget::onRxChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onRyChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onRyChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1150,9 +1154,9 @@ void qSlicerSmoothingModuleWidget::onRyChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onRzChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onRzChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1172,9 +1176,9 @@ void qSlicerSmoothingModuleWidget::onRzChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onParameterXChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1208,9 +1212,9 @@ void qSlicerSmoothingModuleWidget::onParameterXChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onParameterYChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1244,9 +1248,9 @@ void qSlicerSmoothingModuleWidget::onParameterYChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onParameterZChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1281,9 +1285,9 @@ void qSlicerSmoothingModuleWidget::onParameterZChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
+void qSlicerAstroSmoothingModuleWidget::onAccuracyChanged(double value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   if (!d->parametersNode)
     {
     return;
@@ -1304,10 +1308,10 @@ void qSlicerSmoothingModuleWidget::onAccuracyChanged(double value)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onApply()
+void qSlicerAstroSmoothingModuleWidget::onApply()
 {
-  Q_D(const qSlicerSmoothingModuleWidget);
-  vtkSlicerSmoothingLogic *logic = d->logic();
+  Q_D(const qSlicerAstroSmoothingModuleWidget);
+  vtkSlicerAstroSmoothingLogic *logic = d->logic();
 
   if (!d->parametersNode)
     {
@@ -1326,8 +1330,8 @@ void qSlicerSmoothingModuleWidget::onApply()
   // Check Input volume
   if (n != 3)
     {
-    qCritical() << "filtering techniques are available only" <<
-                  "for datacube with dimensionality 3 (NAXIS = 3).";
+    qWarning() <<"filtering techniques are available only"<<
+             "for datacube with dimensionality 3 (NAXIS = 3).";
     return;
     }
 
@@ -1386,8 +1390,8 @@ void qSlicerSmoothingModuleWidget::onApply()
       StringToInt(outputVolume->GetAttribute("SlicerAstro.NAXIS3"))))
     {
 
-    vtkSlicerSmoothingLogic* logic =
-      vtkSlicerSmoothingLogic::SafeDownCast(this->logic());
+    vtkSlicerAstroSmoothingLogic* logic =
+      vtkSlicerAstroSmoothingLogic::SafeDownCast(this->logic());
    outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
        (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
@@ -1446,32 +1450,32 @@ void qSlicerSmoothingModuleWidget::onApply()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onComputationFinished()
+void qSlicerAstroSmoothingModuleWidget::onComputationFinished()
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   d->CancelButton->hide();
   d->progressBar->hide();
   d->ApplyButton->show();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onComputationCancelled()
+void qSlicerAstroSmoothingModuleWidget::onComputationCancelled()
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   d->parametersNode->SetStatus(-1);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::updateProgress(int value)
+void qSlicerAstroSmoothingModuleWidget::updateProgress(int value)
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   d->progressBar->setValue(value);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
+void qSlicerAstroSmoothingModuleWidget::onHardwareChanged(int index)
 {
- Q_D(qSlicerSmoothingModuleWidget);
+ Q_D(qSlicerAstroSmoothingModuleWidget);
 
  int wasModifying = d->parametersNode->StartModify();
 
@@ -1495,33 +1499,33 @@ void qSlicerSmoothingModuleWidget::onHardwareChanged(int index)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onLinkChanged(bool value)
+void qSlicerAstroSmoothingModuleWidget::onLinkChanged(bool value)
 {
- Q_D(qSlicerSmoothingModuleWidget);
+ Q_D(qSlicerAstroSmoothingModuleWidget);
  d->parametersNode->SetLink(value);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onAutoRunChanged(bool value)
+void qSlicerAstroSmoothingModuleWidget::onAutoRunChanged(bool value)
 {
- Q_D(qSlicerSmoothingModuleWidget);
+ Q_D(qSlicerAstroSmoothingModuleWidget);
  d->parametersNode->SetAutoRun(value);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModuleWidget::onComputationStarted()
+void qSlicerAstroSmoothingModuleWidget::onComputationStarted()
 {
-  Q_D(qSlicerSmoothingModuleWidget);
+  Q_D(qSlicerAstroSmoothingModuleWidget);
   d->ApplyButton->hide();
   d->progressBar->show();
   d->CancelButton->show();
 }
 
 //---------------------------------------------------------------------------
-vtkMRMLSmoothingParametersNode* qSlicerSmoothingModuleWidget::
-mrmlSmoothingParametersNode()const
+vtkMRMLAstroSmoothingParametersNode* qSlicerAstroSmoothingModuleWidget::
+mrmlAstroSmoothingParametersNode()const
 {
-  Q_D(const qSlicerSmoothingModuleWidget);
+  Q_D(const qSlicerAstroSmoothingModuleWidget);
   return d->parametersNode;
 }
 

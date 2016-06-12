@@ -1,17 +1,17 @@
-#ifndef __qSlicerSmoothingModuleWidget_h
-#define __qSlicerSmoothingModuleWidget_h
+#ifndef __qSlicerAstroSmoothingModuleWidget_h
+#define __qSlicerAstroSmoothingModuleWidget_h
 
 // SlicerQt includes
 #include "qSlicerAbstractModuleWidget.h"
 
-#include "qSlicerSmoothingModuleExport.h"
+#include "qSlicerAstroSmoothingModuleExport.h"
 
-class qSlicerSmoothingModuleWidgetPrivate;
+class qSlicerAstroSmoothingModuleWidgetPrivate;
 class vtkMRMLNode;
-class vtkMRMLSmoothingParametersNode;
+class vtkMRMLAstroSmoothingParametersNode;
 
-/// \ingroup Slicer_QtModules_Smoothing
-class Q_SLICER_QTMODULES_SMOOTHING_EXPORT qSlicerSmoothingModuleWidget :
+/// \ingroup Slicer_QtModules_AstroSmoothing
+class Q_SLICER_QTMODULES_ASTROSMOOTHING_EXPORT qSlicerAstroSmoothingModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
@@ -19,17 +19,17 @@ class Q_SLICER_QTMODULES_SMOOTHING_EXPORT qSlicerSmoothingModuleWidget :
 public:
 
   typedef qSlicerAbstractModuleWidget Superclass;
-  qSlicerSmoothingModuleWidget(QWidget *parent=0);
-  virtual ~qSlicerSmoothingModuleWidget();
+  qSlicerAstroSmoothingModuleWidget(QWidget *parent=0);
+  virtual ~qSlicerAstroSmoothingModuleWidget();
 
-  /// Get vtkMRMLSmoothingParametersNode
-  Q_INVOKABLE vtkMRMLSmoothingParametersNode* mrmlSmoothingParametersNode()const;
+  /// Get vtkMRMLAstroSmoothingParametersNode
+  Q_INVOKABLE vtkMRMLAstroSmoothingParametersNode* mrmlAstroSmoothingParametersNode()const;
 
 public slots:
   void onApply();
 
 protected:
-  QScopedPointer<qSlicerSmoothingModuleWidgetPrivate> d_ptr;
+  QScopedPointer<qSlicerAstroSmoothingModuleWidgetPrivate> d_ptr;
 
   virtual void setMRMLScene(vtkMRMLScene*);
   void initializeParameterNode(vtkMRMLScene*);
@@ -37,8 +37,8 @@ protected:
 protected slots:
   void onInputVolumeChanged(vtkMRMLNode*);
   void onOutputVolumeChanged(vtkMRMLNode*);
-  void setMRMLSmoothingParametersNode(vtkMRMLNode*);
-  void onMRMLSmoothingParametersNodeModified();
+  void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
+  void onMRMLAstroSmoothingParametersNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onModeChanged();
   void onEndCloseEvent();
@@ -61,8 +61,8 @@ protected slots:
   void onAutoRunChanged(bool value);
 
 private:
-  Q_DECLARE_PRIVATE(qSlicerSmoothingModuleWidget);
-  Q_DISABLE_COPY(qSlicerSmoothingModuleWidget);
+  Q_DECLARE_PRIVATE(qSlicerAstroSmoothingModuleWidget);
+  Q_DISABLE_COPY(qSlicerAstroSmoothingModuleWidget);
 };
 
 #endif

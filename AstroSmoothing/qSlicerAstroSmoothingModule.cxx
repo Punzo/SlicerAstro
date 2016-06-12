@@ -8,56 +8,56 @@
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerSmoothingLogic.h>
+#include <vtkSlicerAstroSmoothingLogic.h>
 
 
-// Smoothing includes
-#include "qSlicerSmoothingModule.h"
-#include "qSlicerSmoothingModuleWidget.h"
-
-//-----------------------------------------------------------------------------
-Q_EXPORT_PLUGIN2(qSlicerSmoothingModule, qSlicerSmoothingModule);
+// AstroSmoothing includes
+#include "qSlicerAstroSmoothingModule.h"
+#include "qSlicerAstroSmoothingModuleWidget.h"
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_Smoothing
-class qSlicerSmoothingModulePrivate
+Q_EXPORT_PLUGIN2(qSlicerAstroSmoothingModule, qSlicerAstroSmoothingModule);
+
+//-----------------------------------------------------------------------------
+/// \ingroup Slicer_QtModules_AstroSmoothing
+class qSlicerAstroSmoothingModulePrivate
 {
 public:
-  qSlicerSmoothingModulePrivate();
+  qSlicerAstroSmoothingModulePrivate();
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerSmoothingModulePrivate methods
+// qSlicerAstroSmoothingModulePrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModulePrivate::qSlicerSmoothingModulePrivate()
+qSlicerAstroSmoothingModulePrivate::qSlicerAstroSmoothingModulePrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerSmoothingModule methods
+// qSlicerAstroSmoothingModule methods
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModule::qSlicerSmoothingModule(QObject* _parent)
+qSlicerAstroSmoothingModule::qSlicerAstroSmoothingModule(QObject* _parent)
   : Superclass(_parent)
-  , d_ptr(new qSlicerSmoothingModulePrivate)
+  , d_ptr(new qSlicerAstroSmoothingModulePrivate)
 {
 }
 
 //-----------------------------------------------------------------------------
-qSlicerSmoothingModule::~qSlicerSmoothingModule()
+qSlicerAstroSmoothingModule::~qSlicerAstroSmoothingModule()
 {
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerSmoothingModule::helpText()const
+QString qSlicerAstroSmoothingModule::helpText()const
 {
-  return "Smoothing module filters a Volume using several techniques. "
+  return "AstroSmoothing module filters a Volume using several techniques. "
          "The algorithms are optmized for Astronomical Neutral Hydoren (HI) data.";
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerSmoothingModule::acknowledgementText()const
+QString qSlicerAstroSmoothingModule::acknowledgementText()const
 {
   return "This module was developed by Davide Punzo. "
          "This work was supported by ERC grant nr. 291531, "
@@ -67,7 +67,7 @@ QString qSlicerSmoothingModule::acknowledgementText()const
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerSmoothingModule::contributors()const
+QStringList qSlicerAstroSmoothingModule::contributors()const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Davide Punzo (Kapteyn Astronomical Institute)");
@@ -77,53 +77,50 @@ QStringList qSlicerSmoothingModule::contributors()const
 }
 
 //-----------------------------------------------------------------------------
-QIcon qSlicerSmoothingModule::icon()const
+QIcon qSlicerAstroSmoothingModule::icon()const
 {
-  return QIcon(":/Icons/Smoothing.png");
+  return QIcon(":/Icons/AstroSmoothing.png");
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerSmoothingModule::categories()const
+QStringList qSlicerAstroSmoothingModule::categories()const
 {
   return QStringList() << "Astronomy" << "Filtering";
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerSmoothingModule::dependencies()const
+QStringList qSlicerAstroSmoothingModule::dependencies()const
 {
   return QStringList() << "AstroVolume";
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSmoothingModule::setup()
+void qSlicerAstroSmoothingModule::setup()
 {
   this->Superclass::setup();
-
-  vtkSlicerSmoothingLogic* smoothingLogic =
-    vtkSlicerSmoothingLogic::SafeDownCast(this->logic());
+  vtkSlicerAstroSmoothingLogic* AstroSmoothingLogic =
+    vtkSlicerAstroSmoothingLogic::SafeDownCast(this->logic());
 
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
-  if (astroVolumeModule)
+  if (!astroVolumeModule)
     {
-    vtkSlicerAstroVolumeLogic* astroVolumeLogic =
-      vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
-    smoothingLogic->SetAstroVolumeLogic(astroVolumeLogic);
+    qCritical() << "AstroVolume module is not found";
+    return;
     }
-  else
-    {
-    qWarning() << "AstroVolume module is not found";
-    }
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
+  AstroSmoothingLogic->SetAstroVolumeLogic(astroVolumeLogic);
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAbstractModuleRepresentation * qSlicerSmoothingModule::createWidgetRepresentation()
+qSlicerAbstractModuleRepresentation * qSlicerAstroSmoothingModule::createWidgetRepresentation()
 {
-  return new qSlicerSmoothingModuleWidget;
+  return new qSlicerAstroSmoothingModuleWidget;
 }
 
 //-----------------------------------------------------------------------------
-vtkMRMLAbstractLogic* qSlicerSmoothingModule::createLogic()
+vtkMRMLAbstractLogic* qSlicerAstroSmoothingModule::createLogic()
 {
-  return vtkSlicerSmoothingLogic::New();
+  return vtkSlicerAstroSmoothingLogic::New();
 }

@@ -70,10 +70,10 @@ endif()
 add_subdirectory(SlicerAstroWelcome)
 if(UNIX)
   add_subdirectory(vtkFits)
-  add_subdirectory(AstroDataProbe)
   add_subdirectory(AstroVolume)
-  add_subdirectory(Smoothing)
+  add_subdirectory(AstroSmoothing)
   add_subdirectory(AstroSampleData)
+  add_subdirectory(SlicerAstroDataProbe)
 endif(UNIX)
 
 ## NEXT_MODULE

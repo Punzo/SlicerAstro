@@ -1,15 +1,15 @@
-#ifndef __qSlicerSmoothingModule_h
-#define __qSlicerSmoothingModule_h
+#ifndef __qSlicerAstroSmoothingModule_h
+#define __qSlicerAstroSmoothingModule_h
 
 // SlicerQt includes
 #include "qSlicerLoadableModule.h"
 
-#include "qSlicerSmoothingModuleExport.h"
+#include "qSlicerAstroSmoothingModuleExport.h"
 
-class qSlicerSmoothingModulePrivate;
+class qSlicerAstroSmoothingModulePrivate;
 
-/// \ingroup Slicer_QtModules_Smoothing
-class Q_SLICER_QTMODULES_SMOOTHING_EXPORT qSlicerSmoothingModule :
+/// \ingroup Slicer_QtModules_AstroSmoothing
+class Q_SLICER_QTMODULES_ASTROSMOOTHING_EXPORT qSlicerAstroSmoothingModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT
@@ -18,8 +18,8 @@ class Q_SLICER_QTMODULES_SMOOTHING_EXPORT qSlicerSmoothingModule :
 public:
 
   typedef qSlicerLoadableModule Superclass;
-  explicit qSlicerSmoothingModule(QObject *parent=0);
-  virtual ~qSlicerSmoothingModule();
+  explicit qSlicerAstroSmoothingModule(QObject *parent=0);
+  virtual ~qSlicerAstroSmoothingModule();
 
   qSlicerGetTitleMacro(QTMODULE_TITLE);
 
@@ -44,11 +44,11 @@ protected:
   virtual vtkMRMLAbstractLogic* createLogic();
 
 protected:
-  QScopedPointer<qSlicerSmoothingModulePrivate> d_ptr;
+  QScopedPointer<qSlicerAstroSmoothingModulePrivate> d_ptr;
 
 private:
-  Q_DECLARE_PRIVATE(qSlicerSmoothingModule);
-  Q_DISABLE_COPY(qSlicerSmoothingModule);
+  Q_DECLARE_PRIVATE(qSlicerAstroSmoothingModule);
+  Q_DISABLE_COPY(qSlicerAstroSmoothingModule);
 
 };
 

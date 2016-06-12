@@ -26,10 +26,10 @@
 
 #include "vtkAddon.h"
 
-#include "vtkSlicerSmoothingModuleLogicExport.h"
+#include "vtkSlicerAstroSmoothingModuleLogicExport.h"
 
-/// \ingroup Slicer_QtModules_Smoothing
-class VTK_SLICER_SMOOTHING_MODULE_LOGIC_EXPORT vtkOpenGLAstroTextureImage : public vtkObject
+/// \ingroup Slicer_QtModules_AstroSmoothing
+class VTK_SLICER_ASTROSMOOTHING_MODULE_LOGIC_EXPORT vtkOpenGLAstroTextureImage : public vtkObject
 {
 protected:
 

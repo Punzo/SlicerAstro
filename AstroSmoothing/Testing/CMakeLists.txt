@@ -2,7 +2,7 @@ set(KIT qSlicer${MODULE_NAME}Module)
 
 #-----------------------------------------------------------------------------
 set(KIT_TEST_SRCS
-  vtkMRMLSmoothingParametersNodeTest1.cxx
+  vtkMRMLAstroSmoothingParametersNodeTest1.cxx
   )
 
 #-----------------------------------------------------------------------------
@@ -13,4 +13,4 @@ slicerMacroConfigureModuleCxxTestDriver(
   )
 
 #-----------------------------------------------------------------------------
-simple_test(vtkMRMLSmoothingParametersNodeTest1)
+simple_test(vtkMRMLAstroSmoothingParametersNodeTest1)

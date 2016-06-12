@@ -30,8 +30,8 @@ set(module_mrml_SRCS
     vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
     vtkMRMLAstroLabelMapVolumeDisplayNode.h
-    vtkMRMLSmoothingParametersNode.cxx
-    vtkMRMLSmoothingParametersNode.h
+    vtkMRMLAstroSmoothingParametersNode.cxx
+    vtkMRMLAstroSmoothingParametersNode.h
     vtkMRMLAstroTwoDAxesDisplayableManager.cxx
     vtkMRMLAstroTwoDAxesDisplayableManager.h)
 

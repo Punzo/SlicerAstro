@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-set(MODULE_NAME AstroDataProbe)
+set(MODULE_NAME SlicerAstroDataProbe)
 
 #-----------------------------------------------------------------------------
 set(MODULE_PYTHON_SCRIPTS

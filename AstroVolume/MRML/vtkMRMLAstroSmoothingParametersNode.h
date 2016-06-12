@@ -1,5 +1,5 @@
-#ifndef __vtkMRMLSmoothingParametersNode_h
-#define __vtkMRMLSmoothingParametersNode_h
+#ifndef __vtkMRMLAstroSmoothingParametersNode_h
+#define __vtkMRMLAstroSmoothingParametersNode_h
 
 #include "vtkMRML.h"
 #include "vtkMRMLScene.h"
@@ -8,15 +8,14 @@
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkDoubleArray;
-class vtkMatrix3x3;
 
-/// \ingroup Slicer_QtModules_Smoothing
-class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
+/// \ingroup Slicer_QtModules_AstroSmoothing
+class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRMLNode
 {
   public:
 
-  static vtkMRMLSmoothingParametersNode *New();
-  vtkTypeMacro(vtkMRMLSmoothingParametersNode,vtkMRMLNode);
+  static vtkMRMLAstroSmoothingParametersNode *New();
+  vtkTypeMacro(vtkMRMLAstroSmoothingParametersNode,vtkMRMLNode);
   void PrintSelf(ostream& os, vtkIndent indent);
 
   virtual vtkMRMLNode* CreateNodeInstance();
@@ -35,7 +34,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
 
   // Description:
   // Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() {return "SmoothingParameters";};
+  virtual const char* GetNodeTagName() {return "AstroSmoothingParameters";};
 
   vtkSetMacro(ParameterX,double);
   vtkGetMacro(ParameterX,double);
@@ -111,11 +110,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLSmoothingParametersNode : public vtkMRMLNode
   vtkDoubleArray* GetGaussianKernel3D();
 
 protected:
-  vtkMRMLSmoothingParametersNode();
-  ~vtkMRMLSmoothingParametersNode();
+  vtkMRMLAstroSmoothingParametersNode();
+  ~vtkMRMLAstroSmoothingParametersNode();
 
-  vtkMRMLSmoothingParametersNode(const vtkMRMLSmoothingParametersNode&);
-  void operator=(const vtkMRMLSmoothingParametersNode&);
+  vtkMRMLAstroSmoothingParametersNode(const vtkMRMLAstroSmoothingParametersNode&);
+  void operator=(const vtkMRMLAstroSmoothingParametersNode&);
 
   char *InputVolumeNodeID;
   char *OutputVolumeNodeID;

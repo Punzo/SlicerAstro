@@ -11,7 +11,6 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
-#include <vtkMRMLSmoothingParametersNode.h>
 #include <vtkMRMLVolumeNode.h>
 
 //----------------------------------------------------------------------------

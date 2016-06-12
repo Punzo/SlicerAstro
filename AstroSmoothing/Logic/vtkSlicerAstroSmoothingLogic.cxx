@@ -1,11 +1,11 @@
 // Logic includes
 #include "vtkSlicerAstroVolumeLogic.h"
-#include "vtkSlicerSmoothingLogic.h"
+#include "vtkSlicerAstroSmoothingLogic.h"
 #include "vtkSlicerAstroConfigure.h"
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLSmoothingParametersNode.h>
+#include <vtkMRMLAstroSmoothingParametersNode.h>
 
 // VTK includes
 #include <vtkImageData.h>
@@ -37,7 +37,7 @@
 #define SigmatoFWHM 2.3548200450309493
 
 //----------------------------------------------------------------------------
-class vtkSlicerSmoothingLogic::vtkInternal
+class vtkSlicerAstroSmoothingLogic::vtkInternal
 {
 public:
   vtkInternal();
@@ -51,7 +51,7 @@ public:
 };
 
 //----------------------------------------------------------------------------
-vtkSlicerSmoothingLogic::vtkInternal::vtkInternal()
+vtkSlicerAstroSmoothingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
   this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
@@ -61,33 +61,33 @@ vtkSlicerSmoothingLogic::vtkInternal::vtkInternal()
 }
 
 //---------------------------------------------------------------------------
-vtkSlicerSmoothingLogic::vtkInternal::~vtkInternal()
+vtkSlicerAstroSmoothingLogic::vtkInternal::~vtkInternal()
 {
 }
 
 //----------------------------------------------------------------------------
-vtkStandardNewMacro(vtkSlicerSmoothingLogic);
+vtkStandardNewMacro(vtkSlicerAstroSmoothingLogic);
 
 //----------------------------------------------------------------------------
-vtkSlicerSmoothingLogic::vtkSlicerSmoothingLogic()
+vtkSlicerAstroSmoothingLogic::vtkSlicerAstroSmoothingLogic()
 {
   this->Internal = new vtkInternal;
 }
 
 //----------------------------------------------------------------------------
-vtkSlicerSmoothingLogic::~vtkSlicerSmoothingLogic()
+vtkSlicerAstroSmoothingLogic::~vtkSlicerAstroSmoothingLogic()
 {
   delete this->Internal;
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerSmoothingLogic::SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic)
+void vtkSlicerAstroSmoothingLogic::SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic)
 {
   this->Internal->AstroVolumeLogic = logic;
 }
 
 //----------------------------------------------------------------------------
-vtkSlicerAstroVolumeLogic* vtkSlicerSmoothingLogic::GetAstroVolumeLogic()
+vtkSlicerAstroVolumeLogic* vtkSlicerAstroSmoothingLogic::GetAstroVolumeLogic()
 {
   return this->Internal->AstroVolumeLogic;
 }
@@ -112,27 +112,27 @@ double StringToDouble(const char* str)
 }// end namespace
 
 //----------------------------------------------------------------------------
-void vtkSlicerSmoothingLogic::PrintSelf(ostream& os, vtkIndent indent)
+void vtkSlicerAstroSmoothingLogic::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->vtkObject::PrintSelf(os, indent);
-  os << indent << "vtkSlicerSmoothingLogic:             " << this->GetClassName() << "\n";
+  os << indent << "vtkSlicerAstroSmoothingLogic:             " << this->GetClassName() << "\n";
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerSmoothingLogic::RegisterNodes()
+void vtkSlicerAstroSmoothingLogic::RegisterNodes()
 {
   if (!this->GetMRMLScene())
     {
     return;
     }
 
-  vtkMRMLSmoothingParametersNode* pNode = vtkMRMLSmoothingParametersNode::New();
+  vtkMRMLAstroSmoothingParametersNode* pNode = vtkMRMLAstroSmoothingParametersNode::New();
   this->GetMRMLScene()->RegisterNodeClass(pNode);
   pNode->Delete();
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
   int success = 0;
   switch (pnode->GetFilter())
@@ -210,13 +210,13 @@ int vtkSlicerSmoothingLogic::Apply(vtkMRMLSmoothingParametersNode* pnode)
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("Smoothing warning: AnisotropicBoxCPUFilter: "
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
                   "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results taht "
-                  "the smoothing algorithm will show poor perfomrance.")
+                  "without OpenMP support. It may results that "
+                  "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -459,13 +459,13 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLSmoothingParametersN
 
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("Smoothing warning: IsotropicBoxCPUFilter: "
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter "
                   "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results taht "
-                  "the smoothing algorithm will show poor perfomrance.")
+                  "without OpenMP support. It may results thst "
+                  "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -851,7 +851,7 @@ int vtkSlicerSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLSmoothingParametersNod
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
 {
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -1117,7 +1117,7 @@ int vtkSlicerSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLSmoothingParametersN
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
 {
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1478,13 +1478,13 @@ int vtkSlicerSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLSmoothingParametersNod
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("Smoothing warning: AnisotropicGaussianCPUFilter: "
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
                   "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results taht "
-                  "the smoothing algorithm will show poor perfomrance.")
+                  "without OpenMP support. It may results that "
+                  "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -1702,13 +1702,13 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLSmoothingParame
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("Smoothing warning: IsotropicGaussianCPUFilter: "
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
                   "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results taht "
-                  "the smoothing algorithm will show poor perfomrance.")
+                  "without OpenMP support. It may results that "
+                  "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -2058,7 +2058,7 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLSmoothingParamete
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
 {
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -2395,7 +2395,7 @@ int vtkSlicerSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLSmoothingParame
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
 {
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -2778,13 +2778,13 @@ int vtkSlicerSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLSmoothingParamete
 
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::GradientCPUFilter(vtkMRMLSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("Smoothing warning: GradientCPUFilter: "
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
                   "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results taht "
-                  "the smoothing algorithm will show poor perfomrance.")
+                  "without OpenMP support. It may results that "
+                  "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -3064,7 +3064,7 @@ inline float DecodeFloatRGBA(float4 v) {
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerSmoothingLogic::GradientGPUFilter(vtkMRMLSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
 {
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast

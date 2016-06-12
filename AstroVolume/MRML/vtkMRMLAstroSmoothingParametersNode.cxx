@@ -7,7 +7,7 @@
 #include <vtkMRMLVolumeNode.h>
 
 // CropModuleMRML includes
-#include <vtkMRMLSmoothingParametersNode.h>
+#include <vtkMRMLAstroSmoothingParametersNode.h>
 
 // STD includes
 #include <math.h>
@@ -15,10 +15,10 @@
 #define SigmatoFWHM 2.3548200450309493
 
 //----------------------------------------------------------------------------
-vtkMRMLNodeNewMacro(vtkMRMLSmoothingParametersNode);
+vtkMRMLNodeNewMacro(vtkMRMLAstroSmoothingParametersNode);
 
 //----------------------------------------------------------------------------
-vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
+vtkMRMLAstroSmoothingParametersNode::vtkMRMLAstroSmoothingParametersNode()
 {
   this->HideFromEditors = 1;
 
@@ -53,7 +53,7 @@ vtkMRMLSmoothingParametersNode::vtkMRMLSmoothingParametersNode()
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLSmoothingParametersNode::~vtkMRMLSmoothingParametersNode()
+vtkMRMLAstroSmoothingParametersNode::~vtkMRMLAstroSmoothingParametersNode()
 {
   if (this->InputVolumeNodeID)
     {
@@ -100,7 +100,7 @@ int StringToInt(const char* str)
 }// end namespace
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
+void vtkMRMLAstroSmoothingParametersNode::ReadXMLAttributes(const char** atts)
 {
   Superclass::ReadXMLAttributes(atts);
 
@@ -246,7 +246,7 @@ void vtkMRMLSmoothingParametersNode::ReadXMLAttributes(const char** atts)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
+void vtkMRMLAstroSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
 {
   Superclass::WriteXML(of, nIndent);
 
@@ -291,12 +291,12 @@ void vtkMRMLSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
 //----------------------------------------------------------------------------
 // Copy the node\"s attributes to this object.
 // Does NOT copy: ID, FilePrefix, Name, SliceID
-void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
+void vtkMRMLAstroSmoothingParametersNode::Copy(vtkMRMLNode *anode)
 {
   int disabledModify = this->StartModify();
   
   Superclass::Copy(anode);
-  vtkMRMLSmoothingParametersNode *node = vtkMRMLSmoothingParametersNode::SafeDownCast(anode);
+  vtkMRMLAstroSmoothingParametersNode *node = vtkMRMLAstroSmoothingParametersNode::SafeDownCast(anode);
 
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
@@ -326,13 +326,13 @@ void vtkMRMLSmoothingParametersNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-vtkDoubleArray *vtkMRMLSmoothingParametersNode::GetGaussianKernel1D()
+vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel1D()
 {
   return this->gaussianKernel1D;
 }
 
 //----------------------------------------------------------------------------
-vtkDoubleArray *vtkMRMLSmoothingParametersNode::GetGaussianKernel3D()
+vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel3D()
 {
   return this->gaussianKernel3D;
 }
@@ -356,7 +356,7 @@ inline double gauss3D(double x, double sigmax,
 
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernel1D()
+void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 {
   if(this->GetFilter() != 1)
     {
@@ -392,7 +392,7 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernel1D()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernel3D()
+void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
 {
   if(this->GetFilter() != 1)
     {
@@ -477,7 +477,7 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernel3D()
 
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
+void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernels()
 {
   if (this->gaussianKernel3D)
     {
@@ -501,7 +501,7 @@ void vtkMRMLSmoothingParametersNode::SetGaussianKernels()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
+void vtkMRMLAstroSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
 

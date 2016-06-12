@@ -172,28 +172,38 @@ void qSlicerAstroVolumeModule::setup()
   d->app = qSlicerApplication::application();
 
   // Register the IO module for loading AstroVolumes as a variant of fits files
-  if(d->app->mrmlScene())
+  if(!d->app->mrmlScene())
     {
-    this->setMRMLScene(d->app->mrmlScene());
+    qCritical() << "qSlicerAstroVolumeModule::setup() : mrmlScene not preset.";
+    return;
     }
 
+  this->setMRMLScene(d->app->mrmlScene());
+
   qSlicerAbstractCoreModule* volumes = d->app->moduleManager()->module("Volumes");
-  if (volumes)
+  if (!volumes)
     {
-    vtkSlicerVolumesLogic* volumesLogic =
-      vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
-    vtkSlicerAstroVolumeLogic* logic =
-      vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-    if (volumesLogic && logic)
-      {
-      logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
-      }
-    qSlicerCoreIOManager* ioManager = d->app->coreIOManager();
-    ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
-    ioManager->registerIO(new qSlicerNodeWriter(
-      "AstroVolume", QString("AstroVolumeFile"),
-      QStringList() << "vtkMRMLVolumeNode", true, this));
+    qCritical() << "qSlicerAstroVolumeModule::setup() : Volumes module not found.";
+    return;
     }
+
+  vtkSlicerVolumesLogic* volumesLogic =
+    vtkSlicerVolumesLogic::SafeDownCast(volumes->logic());
+  vtkSlicerAstroVolumeLogic* logic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (!volumesLogic || !logic)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : logics not found.";
+    return;
+    }
+
+  logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
+  qSlicerCoreIOManager* ioManager = d->app->coreIOManager();
+  ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
+  ioManager->registerIO(new qSlicerNodeWriter(
+    "AstroVolume", QString("AstroVolumeFile"),
+    QStringList() << "vtkMRMLVolumeNode", true, this));
+
 
   //removing Volumes action from mainWindow interface:
   //for the moment I just disable the widget creation,
@@ -206,65 +216,68 @@ void qSlicerAstroVolumeModule::setup()
 
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
     this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if(selectionNode)
+  if(!selectionNode)
     {
-    vtkMRMLUnitNode* unitNodeIntensity = selectionNode->GetUnitNode("intensity");
-    this->qvtkConnect(unitNodeIntensity, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLUnitNodeIntensityModified(vtkObject*)));
-    this->onMRMLUnitNodeIntensityModified(unitNodeIntensity);
+    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found.";
+    return;
     }
+
+  vtkMRMLUnitNode* unitNodeIntensity = selectionNode->GetUnitNode("intensity");
+  this->qvtkConnect(unitNodeIntensity, vtkCommand::ModifiedEvent,
+                    this, SLOT(onMRMLUnitNodeIntensityModified(vtkObject*)));
+  this->onMRMLUnitNodeIntensityModified(unitNodeIntensity);
 
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
          (d->volumeRendering->widgetRepresentation());
 
-  if(volumeRenderingWidget)
+  if(!volumeRenderingWidget)
     {
-    qSlicerPresetComboBox* PresetsNodeComboBox =
-        volumeRenderingWidget->findChild<qSlicerPresetComboBox*>
-        (QString("PresetsNodeComboBox"));
-    PresetsNodeComboBox->setEnabled(false);
+    qCritical() << "qSlicerAstroVolumeModule::setup() : VolumeReneringWidget not found.";
+    return;
     }
+
+  qSlicerPresetComboBox* PresetsNodeComboBox =
+      volumeRenderingWidget->findChild<qSlicerPresetComboBox*>
+      (QString("PresetsNodeComboBox"));
+  PresetsNodeComboBox->setEnabled(false);
 
   // modify velocity and frequancy nodes
-  if (selectionNode)
-    {
-    vtkMRMLUnitNode* unitNodeLength = selectionNode->GetUnitNode("length");
-    unitNodeLength->SetMaximumValue(180.);
-    unitNodeLength->SetMinimumValue(-180.);
-    unitNodeLength->SetDisplayCoefficient(1.);
-    unitNodeLength->SetPrefix("");
-    unitNodeLength->SetSuffix("\xB0");
-    unitNodeLength->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
-    unitNodeLength->SetPrecision(3);
-    selectionNode->SetUnitNodeID("length", unitNodeLength->GetID());
+  vtkMRMLUnitNode* unitNodeLength = selectionNode->GetUnitNode("length");
+  unitNodeLength->SetMaximumValue(180.);
+  unitNodeLength->SetMinimumValue(-180.);
+  unitNodeLength->SetDisplayCoefficient(1.);
+  unitNodeLength->SetPrefix("");
+  unitNodeLength->SetSuffix("\xB0");
+  unitNodeLength->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
+  unitNodeLength->SetPrecision(3);
+  selectionNode->SetUnitNodeID("length", unitNodeLength->GetID());
 
-    vtkMRMLUnitNode* unitNodeTime = selectionNode->GetUnitNode("time");
-    unitNodeTime->SetMaximumValue(360);
-    unitNodeTime->SetMinimumValue(0);
-    unitNodeTime->SetDisplayCoefficient(0.066666666666667);
-    unitNodeTime->SetPrefix("");
-    unitNodeTime->SetSuffix("h");
-    unitNodeTime->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
-    unitNodeTime->SetPrecision(3);
-    selectionNode->SetUnitNodeID("time", unitNodeTime->GetID());
+  vtkMRMLUnitNode* unitNodeTime = selectionNode->GetUnitNode("time");
+  unitNodeTime->SetMaximumValue(360);
+  unitNodeTime->SetMinimumValue(0);
+  unitNodeTime->SetDisplayCoefficient(0.066666666666667);
+  unitNodeTime->SetPrefix("");
+  unitNodeTime->SetSuffix("h");
+  unitNodeTime->SetAttribute("DisplayHint","hoursAsMinutesSeconds");
+  unitNodeTime->SetPrecision(3);
+  selectionNode->SetUnitNodeID("time", unitNodeTime->GetID());
 
-    vtkMRMLUnitNode* unitNodeVelocity = selectionNode->GetUnitNode("velocity");
-    unitNodeVelocity->SetDisplayCoefficient(0.001);
-    unitNodeVelocity->SetSuffix("km/s");
-    unitNodeVelocity->SetPrefix("");
-    unitNodeVelocity->SetPrecision(3);
-    unitNodeVelocity->SetAttribute("DisplayHint","");
-    selectionNode->SetUnitNodeID("velocity", unitNodeVelocity->GetID());
+  vtkMRMLUnitNode* unitNodeVelocity = selectionNode->GetUnitNode("velocity");
+  unitNodeVelocity->SetDisplayCoefficient(0.001);
+  unitNodeVelocity->SetSuffix("km/s");
+  unitNodeVelocity->SetPrefix("");
+  unitNodeVelocity->SetPrecision(3);
+  unitNodeVelocity->SetAttribute("DisplayHint","");
+  selectionNode->SetUnitNodeID("velocity", unitNodeVelocity->GetID());
 
-    vtkMRMLUnitNode* unitNodeFrequency = selectionNode->GetUnitNode("frequency");
-    unitNodeFrequency->SetDisplayCoefficient(0.000001);
-    unitNodeFrequency->SetPrefix("");
-    unitNodeFrequency->SetPrecision(2);
-    unitNodeFrequency->SetSuffix("MHz");
-    unitNodeFrequency->SetAttribute("DisplayHint","");
-    selectionNode->SetUnitNodeID("frequency", unitNodeFrequency->GetID());
-    }
+  vtkMRMLUnitNode* unitNodeFrequency = selectionNode->GetUnitNode("frequency");
+  unitNodeFrequency->SetDisplayCoefficient(0.000001);
+  unitNodeFrequency->SetPrefix("");
+  unitNodeFrequency->SetPrecision(2);
+  unitNodeFrequency->SetSuffix("MHz");
+  unitNodeFrequency->SetAttribute("DisplayHint","");
+  selectionNode->SetUnitNodeID("frequency", unitNodeFrequency->GetID());
 
   // set Slice Default Node
   vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
@@ -313,38 +326,42 @@ void qSlicerAstroVolumeModule::setup()
   // modify orietation in default Layouts
   vtkMRMLLayoutNode* layoutNode =  vtkMRMLLayoutNode::SafeDownCast(
     this->mrmlScene()->GetSingletonNode("vtkMRMLLayoutNode","vtkMRMLLayoutNode"));
-  if(layoutNode)
+  if(!layoutNode)
     {
-    std::vector<std::string> oldOrietation;
-    oldOrietation.push_back("Coronal");
-    oldOrietation.push_back("Axial");
-    oldOrietation.push_back("Sagittal");
-    std::vector<std::string> newOrietation;
-    newOrietation.push_back("XY");
-    newOrietation.push_back("XZ");
-    newOrietation.push_back("ZY");
-    for(int i = 1 ; i < 36; i++)
-      {
-      if (i == 5 || i == 11 || i == 13 || i == 18 || i == 20)
-        {
-        continue;
-        }
-
-      std::string layoutDescription = layoutNode->GetLayoutDescription(i);
-      std::vector<std::string>::const_iterator it;
-      std::vector<std::string>::const_iterator jt;
-      for(it = oldOrietation.begin(), jt = newOrietation.begin(); it != oldOrietation.end() && jt != newOrietation.end(); ++it, ++jt)
-        {
-        size_t found = layoutDescription.find(*it);
-        while (found!=std::string::npos)
-          {
-          layoutDescription.replace(found, it->size(), *jt);
-          found = layoutDescription.find(*it);
-          }
-        }
-      layoutNode->SetLayoutDescription(i, layoutDescription.c_str());
-      }
+    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found.";
+    return;
     }
+
+  std::vector<std::string> oldOrietation;
+  oldOrietation.push_back("Coronal");
+  oldOrietation.push_back("Axial");
+  oldOrietation.push_back("Sagittal");
+  std::vector<std::string> newOrietation;
+  newOrietation.push_back("XY");
+  newOrietation.push_back("XZ");
+  newOrietation.push_back("ZY");
+  for(int i = 1 ; i < 36; i++)
+    {
+    if (i == 5 || i == 11 || i == 13 || i == 18 || i == 20)
+      {
+      continue;
+      }
+
+    std::string layoutDescription = layoutNode->GetLayoutDescription(i);
+    std::vector<std::string>::const_iterator it;
+    std::vector<std::string>::const_iterator jt;
+    for(it = oldOrietation.begin(), jt = newOrietation.begin(); it != oldOrietation.end() && jt != newOrietation.end(); ++it, ++jt)
+      {
+      size_t found = layoutDescription.find(*it);
+      while (found!=std::string::npos)
+        {
+        layoutDescription.replace(found, it->size(), *jt);
+        found = layoutDescription.find(*it);
+        }
+      }
+    layoutNode->SetLayoutDescription(i, layoutDescription.c_str());
+    }
+
 
   // unregister RulerDisplayableManager
   vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->

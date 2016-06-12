@@ -1,10 +1,10 @@
 // MRML includes
 #include "vtkMRMLCoreTestingMacros.h"
-#include "vtkMRMLSmoothingParametersNode.h"
+#include "vtkMRMLAstroSmoothingParametersNode.h"
 
-int vtkMRMLSmoothingParametersNodeTest1(int , char * [] )
+int vtkMRMLAstroSmoothingParametersNodeTest1(int , char * [] )
 {
-  vtkNew< vtkMRMLSmoothingParametersNode > node1;
+  vtkNew< vtkMRMLAstroSmoothingParametersNode > node1;
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
