@@ -49,7 +49,8 @@ QString qSlicerAstroWelcomeModule::helpText()const
 //-----------------------------------------------------------------------------
 QString qSlicerAstroWelcomeModule::acknowledgementText()const
 {
-  return "This work was supported by ERC grant nr. 291531 and the Slicer "
+  return "This module was developed by Davide Punzo. <br>"
+         "This work was supported by ERC grant nr. 291531 and the Slicer "
          "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
          "</a> for details.<br>"
          "Special thanks to Steve Pieper (Isomics), Jean-Christophe Fillion-Robin (Kitware)"
@@ -61,7 +62,9 @@ QStringList qSlicerAstroWelcomeModule::contributors()const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Davide Punzo (Kapteyn Astronomical Institute)");
-  moduleContributors << QString("Jean-Christophe Fillion-Robin (Kitware)");
+  moduleContributors << QString("Thijs van der Hulst (Kapteyn Astronomical Institute)");
+  moduleContributors << QString("Jos Roerdink (Johann Bernoulli Institute)");
+  moduleContributors << QString("Jean-Christophe Fillion-Robin (Kitware).");
   return moduleContributors;
 }
 

@@ -11,10 +11,14 @@ class AstroSampleData:
     import string
     parent.title = "Astro Sample Data"
     parent.categories = ["Astronomy"]
-    parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute"]
+    parent.contributors = ["""
+    Davide Punzo (Kapteyn Astronomical Institute),
+    Thijs van der Hulst (Kapteyn Astronomical Institute) and
+    Jos Roerdink (Johann Bernoulli Institute)."""]
     parent.helpText = string.Template("""
     The SampleData module can be used to download data for working with in slicer.  Use of this module requires an active network connection.""")
     parent.acknowledgementText = """
+    This module was developed by Davide Punzo. <br>
     This work was supported by ERC grant nr. 291531 and the Slicer Community. <br><br>
     Data acknowledgement: <br>
     WEIN069: Mpati Ramatsoku and Marc Verheijen (Kapteyn Astronomical Institute); <br>

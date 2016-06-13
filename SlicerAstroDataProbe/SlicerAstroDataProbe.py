@@ -19,11 +19,15 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
     parent.title = "SlicerAstroDataProbe"
     parent.categories = ["Quantification", "Astronomy"]
     parent.dependencies = ["DataProbe"]
-    parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)."]
+    parent.contributors = ["""
+    Davide Punzo (Kapteyn Astronomical Institute),
+    Thijs van der Hulst (Kapteyn Astronomical Institute) and
+    Jos Roerdink (Johann Bernoulli Institute)."""]
     parent.helpText = """
     Data probe factorization for WCS astronomical coordinates.
     """
     parent.acknowledgementText = """
+    This module was developed by Davide Punzo. <br>
     This work was supported by ERC grant nr. 291531 and the Slicer Community.
     """
     # Trigger the override od DataProbe when application has started up
