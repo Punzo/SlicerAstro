@@ -6,7 +6,7 @@ project(SlicerAstro)
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "https://github.com/Punzo/SlicerAstro/wiki")
 set(EXTENSION_CATEGORY "Astronomy")
-set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute), Jean-Christophe Fillion-Robin (Kitware)")
+set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute), Thijs van der Hulst (Kapteyn Astronomical institute), Jos Roerdink (Johann Bernoulli Institute), Jean-Christophe Fillion-Robin (Kitware)")
 set(EXTENSION_DESCRIPTION "Extension for enabling Astronomical (HI) visualization in Slicer")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Punzo/SlicerAstro/master/SlicerAstroIcon.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/Screenshoot.png")
