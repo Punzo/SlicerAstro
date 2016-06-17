@@ -105,6 +105,9 @@
         <property name="addEnabled">
          <bool>false</bool>
         </property>
+        <property name="editEnabled">
+         <bool>false</bool>
+        </property>
         <property name="renameEnabled">
          <bool>true</bool>
         </property>

@@ -210,8 +210,8 @@ void qSlicerAstroVolumeModule::setup()
 
   //removing Volumes action from mainWindow interface:
   //for the moment I just disable the widget creation,
-  //i.e. the action is till present on mainWindows.
-  //For the moment is satisfactory.
+  //i.e. the action is still present on mainWindows.
+  //For the moment it is satisfactory.
   volumes->setWidgetRepresentationCreationEnabled(false);
 
   //modify precision in VolumeRenderingWidgets
@@ -245,7 +245,7 @@ void qSlicerAstroVolumeModule::setup()
       (QString("PresetsNodeComboBox"));
   PresetsNodeComboBox->setEnabled(false);
 
-  // modify velocity and frequancy nodes
+  // modify units nodes
   vtkMRMLUnitNode* unitNodeLength = selectionNode->GetUnitNode("length");
   unitNodeLength->SetMaximumValue(180.);
   unitNodeLength->SetMinimumValue(-180.);

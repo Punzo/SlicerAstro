@@ -46,11 +46,11 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
+#include <vtkMRMLAstroSmoothingParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLAstroSmoothingParametersNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
@@ -72,6 +72,7 @@ public:
   vtkSlicerAstroSmoothingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode;
+  vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
   vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
   vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
@@ -90,7 +91,8 @@ qSlicerAstroSmoothingModuleWidgetPrivate::qSlicerAstroSmoothingModuleWidgetPriva
   : q_ptr(&object)
 {
   this->astroVolumeWidget = 0;
-  this->parametersNode = vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode>::New();
+  this->parametersNode = 0;
+  this->selectionNode = 0;
   this->parametricVTKEllipsoid = vtkSmartPointer<vtkParametricEllipsoid>::New();
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
@@ -290,14 +292,14 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found.";
     return;
     }
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
+  d->selectionNode = appLogic->GetSelectionNode();
+  if (!d->selectionNode)
     {
     qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : selectionNode not found.";
     return;
     }
 
-  this->qvtkReconnect(selectionNode, vtkCommand::ModifiedEvent,
+  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
 
   this->initializeParameterNode(scene);
@@ -308,7 +310,7 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
                 this, SLOT(onEndCloseEvent()));
 
-  if (!(this->mrmlScene()->GetNodeByID(selectionNode->GetActiveVolumeID())))
+  if (!(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID())))
     {
     d->OutputVolumeNodeSelector->setEnabled(false);
     d->ParametersNodeComboBox->setEnabled(false);
@@ -326,27 +328,29 @@ void qSlicerAstroSmoothingModuleWidget::initializeParameterNode(vtkMRMLScene* sc
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  if (!scene || !d->parametersNode)
+  if (!scene)
     {
     return;
     }
 
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
+  vtkSmartPointer<vtkMRMLNode> parametersNode;
+  unsigned int numNodes = scene->
+      GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
+  if(numNodes > 0)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found.";
-    return;
+    parametersNode = scene->GetNthNodeByClass(0, "vtkMRMLAstroSmoothingParametersNode");
     }
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
+  else
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : selectionNode not found.";
-    return;
+    vtkMRMLNode * foo = scene->CreateNodeByClass("vtkMRMLAstroSmoothingParametersNode");
+    parametersNode.TakeReference(foo);
+    scene->AddNode(parametersNode);
     }
-
-  d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-  d->parametersNode->SetOutputVolumeNodeID(selectionNode->GetActiveVolumeID());
-  d->ParametersNodeComboBox->setCurrentNode(d->parametersNode);
+  vtkMRMLAstroSmoothingParametersNode *astroParametersNode =
+    vtkMRMLAstroSmoothingParametersNode::SafeDownCast(parametersNode);
+  astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
+  astroParametersNode->SetOutputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
+  d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
 }
 
 //-----------------------------------------------------------------------------
@@ -371,10 +375,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* s
       GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
   if(numNodes == 0)
     {
-    vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode =
-        vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode>::New();
-    this->mrmlScene()->AddNode(parametersNode);
-    d->ParametersNodeComboBox->setCurrentNode(parametersNode);
+    this->initializeParameterNode(selectionNode->GetScene());
     }
 
   int wasModifying = d->parametersNode->StartModify();

@@ -124,7 +124,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
                worldY=worldY,
                worldZ=worldZ,
                velKey = velKey,
-               orient=sliceNode.GetOrientationString(),
+               orient=sliceNode.GetOrientation(),
                )
       else:
         return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
@@ -133,12 +133,12 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
                 worldX=worldX,
                 worldY=worldY,
                 worldZ=worldZ,
-                orient=sliceNode.GetOrientationString(),
+                orient=sliceNode.GetOrientation(),
                 )
     else:
-      return "  {layoutName: <8s} SlicerAstroDataProbe could not find WCS coordinates in View: {orient: >4s}" \
+      return "  {layoutName: <8s} WCS in View {orient: >2s} not found" \
         .format(layoutName=sliceNode.GetLayoutName(),
-                orient=sliceNode.GetOrientationString(),
+                orient=sliceNode.GetOrientation(),
                 )
 
 
