@@ -561,10 +561,10 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          compositeOpacity->RemoveAllPoints();
          compositeOpacity->AddPoint(min, 0.);
          compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.4, 0.5, 0.2);
+         compositeOpacity->AddPoint(noise3, 0.5, 0.5, 0.2);
          compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
          compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise7, 0.7, 0.5, 0.2);
+         compositeOpacity->AddPoint(noise7, 0.8, 0.5, 0.2);
          compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
          compositeOpacity->AddPoint(max, 0.);
 
@@ -572,9 +572,9 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
              volumePropertyNode->GetColor();
          color->RemoveAllPoints();
          color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 1., 1., 1.);
-         color->AddRGBPoint(noise7, 0., 1., 0.);
-         color->AddRGBPoint(max, 0., 1., 0.);
+         color->AddRGBPoint(noise3, 0., 1., 0.);
+         color->AddRGBPoint(noise7, 0., 0., 1.);
+         color->AddRGBPoint(max, 0., 0., 1.);
 
          vtkPiecewiseFunction *gradientOpacity =
              volumePropertyNode->GetGradientOpacity();
@@ -589,13 +589,13 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          compositeOpacity->RemoveAllPoints();
          compositeOpacity->AddPoint(min, 0.);
          compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.4, 0.5, 0.2);
+         compositeOpacity->AddPoint(noise3, 0.5, 0.5, 0.2);
          compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
          compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise7, 0.5, 0.5, 0.2);
+         compositeOpacity->AddPoint(noise7, 0.65, 0.5, 0.2);
          compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
          compositeOpacity->AddPoint(noise15 - (noise15 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise15, 0.7, 0.5, 0.2);
+         compositeOpacity->AddPoint(noise15, 0.8, 0.5, 0.2);
          compositeOpacity->AddPoint(noise15 + (noise15 / 5.), 0., 0.5, 0.);
          compositeOpacity->AddPoint(max, 0.);
 
@@ -603,10 +603,10 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
              volumePropertyNode->GetColor();
          color->RemoveAllPoints();
          color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 1., 1., 1.);
-         color->AddRGBPoint(noise7, 0., 1., 0.);
-         color->AddRGBPoint(noise15, 0., 0., 1.);
-         color->AddRGBPoint(max, 0., 0., 1.);
+         color->AddRGBPoint(noise3, 0., 1., 0.);
+         color->AddRGBPoint(noise7, 0., 0., 1.);
+         color->AddRGBPoint(noise15, 1., 0., 0.);
+         color->AddRGBPoint(max, 1., 0., 0.);
 
          vtkPiecewiseFunction *gradientOpacity =
              volumePropertyNode->GetGradientOpacity();
