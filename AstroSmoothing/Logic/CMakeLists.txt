@@ -4,8 +4,11 @@ set(KIT ${PROJECT_NAME})
 
 set(${KIT}_EXPORT_DIRECTIVE "VTK_SLICER_${MODULE_NAME_UPPER}_MODULE_LOGIC_EXPORT")
 
+find_package(OpenGL REQUIRED)
+
 set(${KIT}_INCLUDE_DIRECTORIES
   ${SlicerAstro_BINARY_DIR}
+  ${OPENGL_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -20,6 +23,7 @@ set(${KIT}_SRCS
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
+  ${OPENGL_LIBRARIES}
   )
 
 #-----------------------------------------------------------------------------

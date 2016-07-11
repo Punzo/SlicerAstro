@@ -8,10 +8,12 @@
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkInformation.h>
 #include <vtkMatrix4x4.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 #include <vtksys/SystemTools.hxx>
+#include <vtkStreamingDemandDrivenPipeline.h>
 
 // STD includes
 #include <sstream>
@@ -820,7 +822,13 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
 // are assumed to be the same as the file extent/order.
 void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo)
 {
-  this->SetUpdateExtentToWholeExtent();
+  if (this->GetOutputInformation(0))
+    {
+    this->GetOutputInformation(0)->Set(
+      vtkStreamingDemandDrivenPipeline::UPDATE_EXTENT(),
+    this->GetOutputInformation(0)->Get(
+      vtkStreamingDemandDrivenPipeline::WHOLE_EXTENT()), 6);
+    }
   vtkImageData *data = this->AllocateOutputData(output, outInfo);
 
   if (this->GetFileName() == NULL)

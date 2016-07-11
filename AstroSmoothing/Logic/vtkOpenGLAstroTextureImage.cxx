@@ -15,15 +15,13 @@
 #include "vtkMapper.h"
 #include "vtkMatrix4x4.h"
 #include "vtkObjectFactory.h"
+#include "vtkOpenGL.h"
 #include "vtkOpenGLError.h"
 #include "vtkOpenGLRenderer.h"
 #include "vtkPointData.h"
 #include "vtkPolyData.h"
 #include "vtkPolyDataMapper.h"
 #include "vtkProperty.h"
-
-#include "vtkOpenGL.h"
-#include "vtkgl.h"
 
 #include <math.h>
 
