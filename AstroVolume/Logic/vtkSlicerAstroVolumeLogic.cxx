@@ -461,7 +461,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
         vtkMRMLVolumePropertyNode::SafeDownCast(presets->GetItemAsObject(i));
     if (volumePropertyNode)
       {
-      if(!strcmp(volumePropertyNode->GetName(),"LowCostantOpacity"))
+      if(!strcmp(volumePropertyNode->GetName(),"LowConstantOpacity"))
         {
          vtkPiecewiseFunction *compositeOpacity =
              volumePropertyNode->GetScalarOpacity();
@@ -484,7 +484,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          gradientOpacity->AddPoint(min, 1.);
          gradientOpacity->AddPoint(max, 1.);
         }
-      if(!strcmp(volumePropertyNode->GetName(),"MediumCostantOpacity"))
+      if(!strcmp(volumePropertyNode->GetName(),"MediumConstantOpacity"))
         {
          vtkPiecewiseFunction *compositeOpacity =
              volumePropertyNode->GetScalarOpacity();
@@ -507,7 +507,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          gradientOpacity->AddPoint(min, 1.);
          gradientOpacity->AddPoint(max, 1.);
         }
-      if(!strcmp(volumePropertyNode->GetName(),"HighCostantOpacity"))
+      if(!strcmp(volumePropertyNode->GetName(),"HighConstantOpacity"))
         {
          vtkPiecewiseFunction *compositeOpacity =
              volumePropertyNode->GetScalarOpacity();
@@ -554,7 +554,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          gradientOpacity->AddPoint(min, 1.);
          gradientOpacity->AddPoint(max, 1.);
         }
-      if(!strcmp(volumePropertyNode->GetName(),"TwoSurface"))
+      if(!strcmp(volumePropertyNode->GetName(),"TwoSurfaces"))
         {
          vtkPiecewiseFunction *compositeOpacity =
              volumePropertyNode->GetScalarOpacity();
@@ -582,7 +582,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          gradientOpacity->AddPoint(min, 1.);
          gradientOpacity->AddPoint(max, 1.);
         }
-      if(!strcmp(volumePropertyNode->GetName(),"ThreeSurface"))
+      if(!strcmp(volumePropertyNode->GetName(),"ThreeSurfaces"))
         {
          vtkPiecewiseFunction *compositeOpacity =
             volumePropertyNode->GetScalarOpacity();

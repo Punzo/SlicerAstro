@@ -13,11 +13,11 @@
         <file>Icons/XLarge/NGC2841.png</file>
     </qresource>
     <qresource prefix="/presets">
+        <file alias="HighConstantOpacity">Icons/high.png</file>
+        <file alias="LowConstantOpacity">Icons/low.png</file>
+        <file alias="MediumConstantOpacity">Icons/medium.png</file>
         <file alias="OneSurface">Icons/OneSurface.png</file>
-        <file alias="MediumCostantOpacity">Icons/medium.png</file>
-        <file alias="LowCostantOpacity">Icons/low.png</file>
-        <file alias="HighCostantOpacity">Icons/high.png</file>
-        <file alias="ThreeSurface">Icons/ThreeSurface.png</file>
-        <file alias="TwoSurface">Icons/TwoSurface.png</file>
+        <file alias="ThreeSurfaces">Icons/ThreeSurface.png</file>
+        <file alias="TwoSurfaces">Icons/TwoSurface.png</file>
     </qresource>
 </RCC>
