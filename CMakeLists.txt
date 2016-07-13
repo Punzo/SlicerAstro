@@ -46,6 +46,20 @@ configure_file(
   )
 
 #-----------------------------------------------------------------------------
+# configurating OpenGL2
+find_package(OpenGL)
+set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ${OPENGL_FOUND})
+set(status "disabled")
+if(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
+  set(status "enabled")
+endif()
+message(STATUS "OpenGL filtering support ${status}")
+configure_file(
+  ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
+  ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
+  )
+
+#-----------------------------------------------------------------------------
 # SuperBuild setup
 if(UNIX)
   option(${EXTENSION_NAME}_SUPERBUILD "Build ${EXTENSION_NAME} and the projects it depends on." ON)
@@ -70,6 +84,9 @@ endif()
 add_subdirectory(SlicerAstroWelcome)
 if(UNIX)
   add_subdirectory(vtkFits)
+  if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
+    add_subdirectory(vtkOpenGLFilters)
+  endif()
   add_subdirectory(AstroVolume)
   add_subdirectory(AstroSmoothing)
   add_subdirectory(AstroSampleData)

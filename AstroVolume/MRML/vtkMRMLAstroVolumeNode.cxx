@@ -102,11 +102,50 @@ vtkMRMLAstroVolumeDisplayNode* vtkMRMLAstroVolumeNode::GetAstroVolumeDisplayNode
 void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 {
   this->GetImageData()->Modified();
-  this->GetImageData()->GetPointData()->GetScalars()->Modified();
-  double range[2];
-  this->GetImageData()->GetScalarRange(range);
-  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
-  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
+  int *dims = this->GetImageData()->GetDimensions();
+  int numElements = dims[0] * dims[1] * dims[2];
+  const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  double max = this->GetImageData()->GetScalarTypeMin(), min = this->GetImageData()->GetScalarTypeMax();
+  float *outFPixel = NULL;
+  double *outDPixel = NULL;
+
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer(0,0,0));
+      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+        {
+        if (*(outFPixel + elementCnt) > max)
+          {
+          max =  *(outFPixel + elementCnt);
+          }
+        if (*(outFPixel + elementCnt) < min)
+          {
+          min =  *(outFPixel + elementCnt);
+          }
+        }
+      break;
+    case VTK_DOUBLE:
+      outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
+      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+        {
+        if (*(outDPixel + elementCnt) > max)
+          {
+          max =  *(outDPixel + elementCnt);
+          }
+        if (*(outDPixel + elementCnt) < min)
+          {
+          min =  *(outDPixel + elementCnt);
+          }
+        }
+      break;
+    default:
+      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      return;
+    }
+
+  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
+  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
 }
 
 //---------------------------------------------------------------------------

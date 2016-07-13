@@ -1,0 +1,4 @@
+set(vtkOpenGLFilters_INCLUDE_DIRS "@vtkOpenGLFilters_INCLUDE_DIRS@")
+set(vtkOpenGLFilters_LIB_DIR "@CMAKE_BINARY_DIR@/bin" "@CMAKE_BINARY_DIR@")
+set(VTK_DIR "@VTK_DIR@")
+

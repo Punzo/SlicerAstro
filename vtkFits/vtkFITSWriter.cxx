@@ -5,7 +5,9 @@
 #include <vtkFITSWriter.h>
 
 // VTK includes
+#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
+#include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
 #include <vtkObjectFactory.h>
 #include <vtkInformation.h>
