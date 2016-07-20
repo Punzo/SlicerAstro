@@ -48,6 +48,8 @@ public:
   vtkTypeMacro(vtkAstroOpenGLImageAlgorithmHelper,vtkObject);
   void PrintSelf(ostream& os, vtkIndent indent);
 
+  // Description:
+  // Execute one-pass filter
   void Execute(
     vtkOpenGLImageAlgorithmCallback *cb,
     vtkImageData *inImage, vtkDataArray *inArray,
@@ -57,6 +59,8 @@ public:
     const char *geometryCode
     );
 
+  // Description:
+  // Execute 3-pass filter with different fragmentCode kernels
   void Execute(
     vtkOpenGLImageAlgorithmCallback *cb,
     vtkImageData *inImage, vtkDataArray *inArray,
@@ -68,6 +72,8 @@ public:
     const char *geometryCode
     );
 
+  // Description:
+  // Execute n-pass filter with the same fragmentCode kernel
   void Execute(
     vtkOpenGLImageAlgorithmCallback *cb,
     vtkImageData *inImage, vtkDataArray *inArray,
