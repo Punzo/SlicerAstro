@@ -28,6 +28,7 @@ vtkAstroOpenGLImageBox::vtkAstroOpenGLImageBox()
   this->KernelLength[0] = 5;
   this->KernelLength[1] = 5;
   this->KernelLength[2] = 5;
+  this->Iterative = true;
   this->Helper = vtkSmartPointer<vtkAstroOpenGLImageAlgorithmHelper>::New();
 }
 
@@ -146,7 +147,8 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
   cb.KernelLength = this->KernelLength;
 
   if (fabs(KernelLength[0] - KernelLength[1]) < 0.001 &&
-      fabs(KernelLength[1] - KernelLength[2]) < 0.001)
+      fabs(KernelLength[1] - KernelLength[2]) < 0.001 &&
+      this->Iterative)
     {
     cb.cont /= (this->KernelLength[1] * this->KernelLength[2]);
     std::string fragShaderBegin =

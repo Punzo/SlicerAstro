@@ -28,6 +28,11 @@ public:
   vtkSetVector3Macro(KernelLength, int);
   vtkGetVector3Macro(KernelLength, int);
 
+  // Description:
+  // Sets/Gets of parameter to explicit use a 3-Pass filter (isotropic filter).
+  vtkSetMacro(Iterative, bool);
+  vtkGetMacro(Iterative, bool);
+
 protected:
   void PrintSelf(ostream& os, vtkIndent indent);
   vtkAstroOpenGLImageBox();
@@ -42,6 +47,7 @@ protected:
                            int extent[6], int id);
 
   int KernelLength[3];
+  bool Iterative;
 
 private:
   vtkAstroOpenGLImageBox(const vtkAstroOpenGLImageBox&);  // Not implemented.

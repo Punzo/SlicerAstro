@@ -12,6 +12,7 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
   set(${KIT}_INCLUDE_DIRECTORIES
      ${${KIT}_INCLUDE_DIRECTORIES}
      ${vtkOpenGLFilters_INCLUDE_DIRS}
+     ${OPENGL_INCLUDE_DIRS}
      )
 endif()
 
@@ -31,6 +32,7 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
   set(${KIT}_TARGET_LIBRARIES
      ${${KIT}_TARGET_LIBRARIES}
      vtkOpenGLFilters
+     ${OPENGL_LIBRARIES}
      )
 endif()
 

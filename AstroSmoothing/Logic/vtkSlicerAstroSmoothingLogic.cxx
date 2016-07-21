@@ -29,7 +29,7 @@
 #endif
 
 // vtkOpenGL includes
-
+#include "vtk_glew.h"
 
 // Qt includes
 #include <QtDebug>
@@ -858,6 +858,24 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
                           pnode->GetParameterZ());
   filter->SetRenderWindow(renderWindow);
 
+  // check if iterative filters are allowed by the GPU
+  const unsigned char* glver = glGetString(GL_VERSION);
+
+  std::string check;
+  check = std::string( reinterpret_cast< const char* >(glver));
+  std::size_t found = check.find("Mesa");
+  if (found!=std::string::npos)
+    {
+    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+      {
+      vtkWarningMacro("Using Mesa driver (<12). "
+                      "The GPU implementation of the isotropic Box filter (3-pass filter using 1-D Kernels) "
+                      "is not available with the specifications of the machine in use. "
+                      "A 3-D Kernel will be used. ");
+      filter->SetIterative(false);
+      }
+    }
+
   pnode->SetStatus(20);
 
   if (pnode->GetStatus() == -1)
@@ -1523,6 +1541,25 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
                             pnode->GetRy(),
                             pnode->GetRz());
   filter->SetRenderWindow(renderWindow);
+
+  // check if iterative filters are allowed by the GPU
+  const unsigned char* glver = glGetString(GL_VERSION);
+
+  std::string check;
+  check = std::string( reinterpret_cast< const char* >(glver));
+  std::size_t found = check.find("Mesa");
+  if (found!=std::string::npos)
+    {
+    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+      {
+      vtkWarningMacro("Using Mesa driver (<12). "
+                      "The GPU implementation of the isotropic Gaussian filter (3-pass filter using 1-D Kernels) "
+                      "is not available with the specifications of the machine in use. "
+                      "A 3-D Kernel will be used. ");
+      filter->SetIterative(false);
+      }
+    }
+
   pnode->SetStatus(20);
 
   if (pnode->GetStatus() == -1)
@@ -1841,6 +1878,25 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
                   "without OpenGL filtering support.")
   return 0;
   #else
+
+  // check if iterative filters are allowed by the GPU
+  const unsigned char* glver = glGetString(GL_VERSION);
+
+  std::string check;
+  check = std::string( reinterpret_cast< const char* >(glver));
+  std::size_t found = check.find("Mesa");
+  if (found!=std::string::npos)
+    {
+    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+      {
+      vtkWarningMacro("Using Mesa driver (<12). "
+                      "The GPU implementation of the Intensity-Driven Gradient filter "
+                      "is not available with the specifications of the machine in use.");
+      pnode->SetStatus(0);
+      return 0;
+      }
+    }
+
   pnode->SetStatus(1);
 
   bool cancel = false;

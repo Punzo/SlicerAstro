@@ -37,6 +37,7 @@ vtkAstroOpenGLImageGaussian::vtkAstroOpenGLImageGaussian()
   this->RotationAngles[0] = 0.;
   this->RotationAngles[1] = 0.;
   this->RotationAngles[2] = 0.;
+  this->Iterative = true;
   this->Helper = vtkSmartPointer<vtkAstroOpenGLImageAlgorithmHelper>::New();
 }
 
@@ -161,7 +162,8 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
   std::string fragShader;
 
   if (fabs(KernelLength[0] - KernelLength[1]) < 0.001 &&
-      fabs(KernelLength[1] - KernelLength[2]) < 0.001)
+      fabs(KernelLength[1] - KernelLength[2]) < 0.001 &&
+      this->Iterative)
     {
     std::string fragShaderBegin =
     "//VTK::System::Dec\n"

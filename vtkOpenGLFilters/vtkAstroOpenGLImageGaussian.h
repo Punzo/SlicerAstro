@@ -38,6 +38,11 @@ public:
   vtkSetVector3Macro(RotationAngles, double);
   vtkGetVector3Macro(RotationAngles, double);
 
+  // Description:
+  // Sets/Gets of parameter to explicit use a 3-Pass filter (isotropic filter).
+  vtkSetMacro(Iterative, bool);
+  vtkGetMacro(Iterative, bool);
+
 protected:
   void PrintSelf(ostream& os, vtkIndent indent);
   vtkAstroOpenGLImageGaussian();
@@ -54,6 +59,7 @@ protected:
   int KernelLength[3];
   double FWHM[3];
   double RotationAngles[3];
+  bool Iterative;
 
 private:
   vtkAstroOpenGLImageGaussian(const vtkAstroOpenGLImageGaussian&);  // Not implemented.
