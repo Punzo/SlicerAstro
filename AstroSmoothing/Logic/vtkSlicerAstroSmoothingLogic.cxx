@@ -8,9 +8,11 @@
 #include <vtkMRMLAstroSmoothingParametersNode.h>
 
 // VTK includes
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
 #include <vtkAstroOpenGLImageBox.h>
 #include <vtkAstroOpenGLImageGaussian.h>
 #include <vtkAstroOpenGLImageGradient.h>
+#endif
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -28,8 +30,10 @@
 #include <omp.h>
 #endif
 
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
 // vtkOpenGL includes
 #include "vtk_glew.h"
+#endif
 
 // Qt includes
 #include <QtDebug>
@@ -836,6 +840,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
+  pnode->SetStatus(0);
   return 0;
   #else
 
@@ -1514,6 +1519,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
+  pnode->SetStatus(0);
   return 0;
   #else
 
@@ -1876,6 +1882,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
+  pnode->SetStatus(0);
   return 0;
   #else
 

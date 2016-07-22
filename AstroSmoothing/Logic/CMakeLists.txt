@@ -16,7 +16,6 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
      )
 endif()
 
-
 set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.cxx
   vtkSlicer${MODULE_NAME}Logic.h
@@ -25,7 +24,6 @@ set(${KIT}_SRCS
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
-  vtkOpenGLFilters
   )
 
 if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)

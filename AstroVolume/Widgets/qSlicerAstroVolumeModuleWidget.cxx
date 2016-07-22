@@ -257,7 +257,6 @@ qSlicerAstroVolumeModuleWidget::~qSlicerAstroVolumeModuleWidget()
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
   this->Superclass::setMRMLScene(scene);
   if(scene == NULL)
     {
@@ -459,8 +458,6 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
 void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNodeOneID,
                                                            const char* volumeNodeTwoID)
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
   qSlicerApplication* app = qSlicerApplication::application();
 
   app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(15);
@@ -588,8 +585,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
 void qSlicerAstroVolumeModuleWidget::stopRockView()
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
   qSlicerApplication* app = qSlicerApplication::application();
   for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
     {
@@ -730,8 +725,6 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
   vtkMRMLVolumeRenderingDisplayNode *displayNode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(node);
   if(!displayNode)
@@ -775,7 +768,6 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender)
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
   if (!sender)
     {
     return;

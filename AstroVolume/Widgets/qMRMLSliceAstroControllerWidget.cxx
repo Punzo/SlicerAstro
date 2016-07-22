@@ -66,8 +66,6 @@ qMRMLSliceAstroControllerWidgetPrivate::~qMRMLSliceAstroControllerWidgetPrivate(
 //---------------------------------------------------------------------------
 void qMRMLSliceAstroControllerWidgetPrivate::init()
 {
-  Q_Q(qMRMLSliceAstroControllerWidget);
-
   this->Superclass::init();
 
   this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0, QApplication::UnicodeUTF8));
