@@ -2,18 +2,19 @@
 #define __vtkFITSReader_h
 
 // std includes
-#include <string>
 #include <map>
-#include <iostream>
 #include <vector>
 
+// VTK includes
 #include "vtkMedicalImageReader2.h"
 
-// vtk decleration
+// VTK decleration
 class vtkMatrix4x4;
 
-// fits includes
+// FITS includes
 #include "fitsio.h"
+
+// WCS includes
 #include "wcslib/wcslib.h"
 #include "wcslib/getwcstab.h"
 

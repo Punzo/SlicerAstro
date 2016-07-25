@@ -62,7 +62,7 @@ QString qSlicerAstroSmoothingModule::acknowledgementText()const
   return "This module was developed by Davide Punzo. <br>"
          "This work was supported by ERC grant nr. 291531, "
          "and Slicer community. <br>"
-         " Special thanks to Steve Pieper (Isomics) for support"
+         " Special thanks to Steve Pieper (Isomics) and Ken Follet (Kitware) for support"
          " regarding the GPU (OpenGL) implementation of the filters.";
 }
 
@@ -74,7 +74,6 @@ QStringList qSlicerAstroSmoothingModule::contributors()const
   moduleContributors << QString("Thijs van der Hulst (Kapteyn Astronomical Institute)");
   moduleContributors << QString("Jos Roerdink (Johann Bernoulli Institute)");
   moduleContributors << QString("Jean-Christophe Fillion-Robin (Kitware)");
-  moduleContributors << QString("Steve Pieper (Isomics).");
   return moduleContributors;
 }
 

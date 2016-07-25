@@ -1,15 +1,15 @@
 #ifndef __vtkFITSWriter_h
 #define __vtkFITSWriter_h
 
-// fitsio includes
+// FITS includes
 #include "fitsio.h"
 
-// vtk includes
+// VTK includes
 #include "vtkWriter.h"
-#include "vtkMatrix4x4.h"
-#include "vtkDoubleArray.h"
 
-
+// VTK declaration
+class vtkDoubleArray;
+class vtkMatrix4x4;
 class vtkImageData;
 class AttributeMapType;
 
