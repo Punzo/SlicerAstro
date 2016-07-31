@@ -19,6 +19,7 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkProperty.h>
 #include <vtkRenderer.h>
+#include <vtkRenderWindow.h>
 #include <vtksys/SystemTools.hxx>
 
 // SlicerQt includes
@@ -943,17 +944,14 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         if (d->parametersNode->GetHardware())
           {
           d->AccuracySpinBox->setSingleStep(2);
-          d->TimeStepSpinBox->setMaximum(0.625);
-          d->TimeStepSpinBox->setSingleStep(0.03);
-          d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
           }
         else
           {
           d->AccuracySpinBox->setSingleStep(1);
-          d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
-          d->TimeStepSpinBox->setSingleStep(0.003);
-          d->TimeStepSpinBox->setMaximum(0.0625);
           }
+        d->TimeStepSpinBox->setValue(d->parametersNode->GetTimeStep());
+        d->TimeStepSpinBox->setSingleStep(0.003);
+        d->TimeStepSpinBox->setMaximum(0.0625);
         break;
         }
       }
@@ -1048,13 +1046,12 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
     if (d->parametersNode->GetHardware())
       {
       d->parametersNode->SetAccuracy(19);
-      d->parametersNode->SetTimeStep(0.325);
       }
     else
       {
-      d->parametersNode->SetTimeStep(0.0325);
       d->parametersNode->SetAccuracy(20);
       }
+    d->parametersNode->SetTimeStep(0.0325);
     d->parametersNode->SetK(1.5);
     d->parametersNode->SetParameterX(5);
     d->parametersNode->SetParameterY(5);
@@ -1319,6 +1316,8 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     return;
     }
 
+  d->parametersNode->SetStatus(1);
+
   vtkMRMLScene *scene = this->mrmlScene();
 
   d->astroVolumeWidget->stopRockView();
@@ -1423,7 +1422,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
   d->transformationMatrix->Identity();
 
-  if (logic->Apply(d->parametersNode))
+  if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
     {
     selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
     // this should be not needed. However, without it seems that
@@ -1435,13 +1434,6 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
     selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
     appLogic->PropagateVolumeSelection();
-
-    //when SliceRT will release the segmentation
-    //let's see to make overlayed contours also the 2-D.
-    //The editor now can do only a threshold of one volume.
-    //In pricinple we can also create an editor effect specific for this.
-    //At the moment, we can add a label volume with 1 for I > 3 sigma in the filtered.
-
     }
   else
     {
@@ -1487,12 +1479,10 @@ void qSlicerAstroSmoothingModuleWidget::onHardwareChanged(int index)
    {
    if (index)
      {
-     d->parametersNode->SetTimeStep(0.325);
      d->parametersNode->SetAccuracy(19);
      }
    else
      {
-     d->parametersNode->SetTimeStep(0.0325);
      d->parametersNode->SetAccuracy(20);
      }
    }

@@ -4,27 +4,35 @@ set(KIT ${PROJECT_NAME})
 
 set(${KIT}_EXPORT_DIRECTIVE "VTK_SLICER_${MODULE_NAME_UPPER}_MODULE_LOGIC_EXPORT")
 
-find_package(OpenGL REQUIRED)
-
 set(${KIT}_INCLUDE_DIRECTORIES
   ${SlicerAstro_BINARY_DIR}
-  ${OPENGL_INCLUDE_DIRS}
   )
+
+if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
+  set(${KIT}_INCLUDE_DIRECTORIES
+     ${${KIT}_INCLUDE_DIRECTORIES}
+     ${vtkOpenGLFilters_INCLUDE_DIRS}
+     ${OPENGL_INCLUDE_DIRS}
+     )
+endif()
 
 set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.cxx
   vtkSlicer${MODULE_NAME}Logic.h
-  vtkOpenGLAstroTextureImage.h
-  vtkOpenGLAstroTextureImage.cxx
-  vtkOpenGLAstroShaderComputation.h
-  vtkOpenGLAstroShaderComputation.cxx
   )
 
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
-  ${OPENGL_LIBRARIES}
   )
+
+if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
+  set(${KIT}_TARGET_LIBRARIES
+     ${${KIT}_TARGET_LIBRARIES}
+     vtkOpenGLFilters
+     ${OPENGL_LIBRARIES}
+     )
+endif()
 
 #-----------------------------------------------------------------------------
 SlicerMacroBuildModuleLogic(

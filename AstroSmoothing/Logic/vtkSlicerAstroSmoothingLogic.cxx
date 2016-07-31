@@ -8,10 +8,16 @@
 #include <vtkMRMLAstroSmoothingParametersNode.h>
 
 // VTK includes
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+#include <vtkAstroOpenGLImageBox.h>
+#include <vtkAstroOpenGLImageGaussian.h>
+#include <vtkAstroOpenGLImageGradient.h>
+#endif
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
+#include <vtkRenderWindow.h>
 #include <vtkSmartPointer.h>
 #include <vtkVersion.h>
 
@@ -24,17 +30,16 @@
 #include <omp.h>
 #endif
 
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
 // vtkOpenGL includes
-#include <vtkOpenGLAstroShaderComputation.h>
-#include <vtkOpenGLAstroTextureImage.h>
+#include "vtk_glew.h"
+#endif
 
 // Qt includes
 #include <QtDebug>
 
 #include <iostream>
 #include <sys/time.h>
-
-#define SigmatoFWHM 2.3548200450309493
 
 //----------------------------------------------------------------------------
 class vtkSlicerAstroSmoothingLogic::vtkInternal
@@ -45,9 +50,6 @@ public:
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
   vtkSmartPointer<vtkImageData> tempVolumeData;
-  vtkSmartPointer<vtkOpenGLAstroShaderComputation> shaderComputation;
-  vtkSmartPointer<vtkOpenGLAstroTextureImage> iterationVolumeTexture;
-  vtkSmartPointer<vtkOpenGLAstroTextureImage> outputVolumeTexture;
 };
 
 //----------------------------------------------------------------------------
@@ -55,9 +57,6 @@ vtkSlicerAstroSmoothingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
   this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
-  this->shaderComputation = vtkSmartPointer<vtkOpenGLAstroShaderComputation>::New();
-  this->iterationVolumeTexture = vtkSmartPointer<vtkOpenGLAstroTextureImage>::New();
-  this->outputVolumeTexture = vtkSmartPointer<vtkOpenGLAstroTextureImage>::New();
 }
 
 //---------------------------------------------------------------------------
@@ -132,7 +131,8 @@ void vtkSlicerAstroSmoothingLogic::RegisterNodes()
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pnode,
+                                        vtkRenderWindow* renderWindow)
 {
   int success = 0;
   switch (pnode->GetFilter())
@@ -153,15 +153,7 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
         }
       else
         {
-        if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
-            fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
-          {
-          success = this->IsotropicBoxGPUFilter(pnode);
-          }
-        else
-          {
-          success = this->AnisotropicBoxGPUFilter(pnode);
-          }
+        success = this->BoxGPUFilter(pnode, renderWindow);
         }
       break;
       }
@@ -181,15 +173,7 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
           }
         else
           {
-          if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
-              fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
-            {
-            success = this->IsotropicGaussianGPUFilter(pnode);
-            }
-          else
-            {
-            success = this->AnisotropicGaussianGPUFilter(pnode);
-            }
+          success = this->GaussianGPUFilter(pnode, renderWindow);
           }
       break;
       }
@@ -201,7 +185,7 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
         }
       else
         {
-        success = this->GradientGPUFilter(pnode);
+        success = this->GradientGPUFilter(pnode, renderWindow);
         }
       break;
       }
@@ -219,16 +203,15 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
                   "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
   // ofstream outputFile("./tableAniBoxCPU.txt", ios::out | ios::app);
-
-  this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
-  this->Internal->tempVolumeData->Modified();
-  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -253,20 +236,20 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     }
   const int Zmax = (int) ((nItemsZ - 1) / 2.);
   const int cont = nItemsX * nItemsY * nItemsZ;
+  float *inFPixel = NULL;
   float *outFPixel = NULL;
-  float *tempFPixel = NULL;
+  double *inDPixel = NULL;
   double *outDPixel = NULL;
-  double *tempDPixel = NULL;
   const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
+      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
       outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
       break;
     case VTK_DOUBLE:
+      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
       outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
       break;
     default:
       vtkErrorMacro("Attempt to allocate scalars of type not allowed");
@@ -299,7 +282,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   pnode->SetStatus(1);
 
   #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel, status)
+  #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
@@ -372,10 +355,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
             switch (DataType)
               {
               case VTK_FLOAT:
-                *(outFPixel + elemCnt) += *(tempFPixel + posData);
+                *(outFPixel + elemCnt) += *(inFPixel + posData);
                 break;
               case VTK_DOUBLE:
-                *(outDPixel + elemCnt) += *(tempDPixel + posData);
+                *(outDPixel + elemCnt) += *(inDPixel + posData);
                 break;
               }
             }
@@ -421,17 +404,16 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   qDebug()<<"Box Filter (CPU) Kernel Time : "<<mtime<<" ms "<<endl;
   //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
 
+  inFPixel = NULL;
   outFPixel = NULL;
-  tempFPixel = NULL;
+  inDPixel = NULL;
   outDPixel = NULL;
-  tempDPixel = NULL;
 
+  delete inFPixel;
   delete outFPixel;
-  delete tempFPixel;
+  delete inDPixel;
   delete outDPixel;
-  delete tempDPixel;
 
-  this->Internal->tempVolumeData->Initialize();
   pnode->SetStatus(0);
 
   if (cancel)
@@ -464,7 +446,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter "
                   "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results thst "
+                  "without OpenMP support. It may results that "
                   "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
@@ -851,571 +833,69 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::AnisotropicBoxGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
+                                               vtkRenderWindow* renderWindow)
 {
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableAniBoxGPU.txt", ios::out | ios::app);
-
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  const double spacingX = 1. / dims[0];
-  const double spacingY = 1. / dims[1];
-  const double spacingZ = 1. / dims[2];
-
-  int nItemsX = (pnode->GetParameterX());
-  if (nItemsX % 2 == 0)
-    {
-    nItemsX++;
-    }
-  const int LengthKernelX = (int) (nItemsX - 1) / 2;
-  int nItemsY = (pnode->GetParameterY());
-  if (nItemsY % 2 == 0)
-    {
-    nItemsY++;
-    }
-  const int LengthKernelY = (int) (nItemsY - 1) / 2;
-  int nItemsZ = (pnode->GetParameterZ());
-  if (nItemsZ % 2 == 0)
-    {
-    nItemsZ++;
-    }
-  const int LengthKernelZ = (int) (nItemsZ - 1) / 2;
-
-  int cont = nItemsX * nItemsY * nItemsZ;
-
-  struct timeval start, end;
-
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, NULL);
-
-  pnode->SetStatus(1);
-
-  // set the shaders
-  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-
-  this->Internal->iterationVolumeTexture->SetInterpolate(1);
-  this->Internal->outputVolumeTexture->SetInterpolate(1);
-
-  // set the ImageData in the VolumeTextures
-  /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.*/
-
-  double range[2];
-  outputVolume->GetImageData()->GetScalarRange(range);
-  double scale = 1. / (range[1] - range[0]);
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) -= range[0];
-    *(fPixel+elemCnt) *= scale;
-    }
-
-  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
-
-  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
-  this->Internal->iterationVolumeTexture->Activate(0);
-  this->Internal->outputVolumeTexture->Activate(1);
-  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
-  this->Internal->shaderComputation->AcquireResultRenderbuffer();
-
-  // set the kernels
-  std::string header = "#version 120 \n"
-     "vec3 transformPoint(const in vec3 samplePoint) \n"
-     "  { \n"
-     "  return samplePoint; \n"
-     "  } \n"
-     "uniform sampler3D \n"
-     "textureUnit0, \n"
-     "textureUnit1;\n";
-
-  std::string vertexShaderTemplate = "#version 120 \n"
-      "attribute vec3 vertexAttribute; \n"
-      "attribute vec2 textureCoordinateAttribute; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "  { \n"
-      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
-      "  gl_Position = vec4(vertexAttribute, 1.); \n"
-      "  }\n";
-
-  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
-
-  std::string fragmentShaderTemplate = "uniform float slice; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "{ \n"
-        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-        "vec4 smooth = vec4(0.); \n"
-        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-        "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
-          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
-            "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
-              "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ); \n"
-              "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-              "smooth += sample1; \n"
-            "} \n"
-          "} \n"
-        "} \n"
-        "gl_FragColor = vec4(vec3(smooth / %d), 1.); \n"
-      "}\n";
-
-  int nBuffer = 2000;
-  char buffer [nBuffer];
-  bool cancel = false;
-
-  int textureUnit = 0;
-  sprintf(buffer,
-          fragmentShaderTemplate.c_str(),
-          textureUnit,
-          LengthKernelX,
-          LengthKernelX,
-          LengthKernelY,
-          LengthKernelY,
-          LengthKernelZ,
-          LengthKernelZ,
-          spacingX,
-          spacingY,
-          spacingZ,
-          textureUnit,
-          cont);
-
-  std::string shaders = header + buffer;
-  this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-
-  pnode->SetStatus(30);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Box Filter (GPU, OpenGL) Benchmark "<< endl;
-  qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
-
-  gettimeofday(&start, NULL);
-
-  int status = pnode->GetStatus();
-
-  if (status == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->iterationVolumeTexture->Activate(0);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-  if (cancel)
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  pnode->SetStatus(60);
-
-  gettimeofday(&start, NULL);
-
-  // get the output
-  this->Internal->outputVolumeTexture->ReadBack();
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
-
-  // porting back the range to the original one
-  gettimeofday(&start, NULL);
-
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += range[0];
-    }
-
-  pnode->SetStatus(80);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-  gettimeofday(&start, NULL);
-
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttributes();
-
-  pnode->SetStatus(100);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
-  fPixel = NULL;
-  delete fPixel;
-
-  this->Internal->outputVolumeTexture->SetImageData(NULL);
-  this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter "
+                  "this release of SlicerAstro has been built "
+                  "without OpenGL filtering support.")
   pnode->SetStatus(0);
+  return 0;
+  #else
 
-  return 1;
-}
+  pnode->SetStatus(1);
 
-//----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
-{
+  bool cancel = false;
+
+  struct timeval start, end;
+  long mtime, seconds, useconds;
+  gettimeofday(&start, NULL);
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  // ofstream outputFile("./tableIsoBoxGPU.txt", ios::out | ios::app);
+  vtkNew<vtkAstroOpenGLImageBox> filter;
+  filter->SetInputData(outputVolume->GetImageData());
+  filter->SetKernelLength(pnode->GetParameterX(),
+                          pnode->GetParameterY(),
+                          pnode->GetParameterZ());
+  filter->SetRenderWindow(renderWindow);
 
-  int *dims = outputVolume->GetImageData()->GetDimensions();
+  // check if iterative filters are allowed by the GPU
+  const unsigned char* glver = glGetString(GL_VERSION);
 
-  const double spacingX = 1. / dims[0];
-  const double spacingY = 1. / dims[1];
-  const double spacingZ = 1. / dims[2];
-
-  int nItems = (pnode->GetParameterX());
-  if (nItems % 2 == 0)
+  std::string check;
+  check = std::string( reinterpret_cast< const char* >(glver));
+  std::size_t found = check.find("Mesa");
+  if (found!=std::string::npos)
     {
-    nItems++;
-    }
-  const int LengthKernel = (int) (nItems - 1) / 2;
-
-  struct timeval start, end;
-
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, NULL);
-
-  pnode->SetStatus(1);
-
-  // set the shaders
-  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-
-  this->Internal->iterationVolumeTexture->SetInterpolate(1);
-  this->Internal->outputVolumeTexture->SetInterpolate(1);
-
-  // set the ImageData in the VolumeTextures
-  /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.*/
-
-  double range[2];
-  outputVolume->GetImageData()->GetScalarRange(range);
-  double scale = 1. / (range[1] - range[0]);
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) -= range[0];
-    *(fPixel+elemCnt) *= scale;
+    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+      {
+      vtkWarningMacro("Using Mesa driver (<12). "
+                      "The GPU implementation of the isotropic Box filter (3-pass filter using 1-D Kernels) "
+                      "is not available with the specifications of the machine in use. "
+                      "A 3-D Kernel will be used. ");
+      filter->SetIterative(false);
+      }
     }
 
-  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
+  pnode->SetStatus(20);
 
-  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
-  this->Internal->iterationVolumeTexture->Activate(0);
-  this->Internal->outputVolumeTexture->Activate(1);
-  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
-  this->Internal->shaderComputation->AcquireResultRenderbuffer();
-
-  // set the kernels
-  std::string header = "#version 120 \n"
-     "vec3 transformPoint(const in vec3 samplePoint) \n"
-     "  { \n"
-     "  return samplePoint; \n"
-     "  } \n"
-     "uniform sampler3D \n"
-     "textureUnit0, \n"
-     "textureUnit1;\n";
-
-  std::string vertexShaderTemplate = "#version 120 \n"
-      "attribute vec3 vertexAttribute; \n"
-      "attribute vec2 textureCoordinateAttribute; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "  { \n"
-      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
-      "  gl_Position = vec4(vertexAttribute, 1.); \n"
-      "  }\n";
-
-  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
-
-  std::string fragmentShaderTemplate = "uniform float slice; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "{ \n"
-        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-        "vec4 smooth = vec4(0.); \n"
-        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-        "for (int offset = -%d; offset <= %d; offset++){ \n"
-          "vec3 offset1 = vec3(%4.16f * offset, %4.16f * offset, %4.16f * offset); \n"
-          "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-          "smooth += sample1; \n"
-        "} \n"
-        "gl_FragColor = vec4(vec3(smooth / %d), 1.); \n"
-      "}\n";
-
-  int nBuffer = 2000;
-  char buffer [nBuffer];
-  bool cancel = false;
-
-  pnode->SetStatus(30);
-
-  int status = pnode->GetStatus();
-
-  if (status == -1)
+  if (pnode->GetStatus() == -1)
     {
     cancel = true;
     }
 
   if(!cancel)
     {
-
-    int textureUnit = 0;
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernel,
-            LengthKernel,
-            spacingX,
-            0.,
-            0.,
-            textureUnit,
-            nItems);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    qDebug()<<"Box Filter (GPU, OpenGL) Benchmark "<<endl;
-    qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
-    //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
-    mtime = 0.;
-
-    gettimeofday(&start, NULL);
-
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->iterationVolumeTexture->Activate(0);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
+    filter->Update();
     }
 
-  pnode->SetStatus(40);
+  pnode->SetStatus(70);
 
-  status = pnode->GetStatus();
-
-  if (status == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-
-    int textureUnit = 1;
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernel,
-            LengthKernel,
-            0.,
-            spacingY,
-            0.,
-            textureUnit,
-            nItems);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-
-    gettimeofday(&start, NULL);
-
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->iterationVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->outputVolumeTexture->Activate(1);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  pnode->SetStatus(50);
-
-  status = pnode->GetStatus();
-
-  if (status == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-
-    int textureUnit = 0;
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernel,
-            LengthKernel,
-            0.,
-            0.,
-            spacingZ,
-            textureUnit,
-            nItems);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-
-    gettimeofday(&start, NULL);
-
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->iterationVolumeTexture->Activate(0);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    qDebug()<<"Kernel Time"<<mtime<<" ms "<<endl;
-    //outputFile << setprecision(5) << mtime << " | ";
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  if (cancel)
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  pnode->SetStatus(60);
-
-  // get the output
-  gettimeofday(&start, NULL);
-
-  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
   gettimeofday(&end, NULL);
 
@@ -1423,32 +903,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLAstroSmoothingPar
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-
-  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
-
-  // porting backthe range to the original one
-  gettimeofday(&start, NULL);
-
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += range[0];
-    }
-
-  pnode->SetStatus(80);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
+  qDebug()<<" Box Filter (GPU, OpenGL) Benchmark Time : "<<mtime<<" ms "<<endl;
 
   gettimeofday(&start, NULL);
 
@@ -1463,18 +918,18 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxGPUFilter(vtkMRMLAstroSmoothingPar
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
-
-  fPixel = NULL;
-  delete fPixel;
-
-  this->Internal->outputVolumeTexture->SetImageData(NULL);
-  this->Internal->iterationVolumeTexture->SetImageData(NULL);
 
   pnode->SetStatus(0);
 
+  if(cancel)
+    {
+    return 0;
+    }
+
   return 1;
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENGL
 }
 
 //----------------------------------------------------------------------------
@@ -1487,16 +942,15 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
                   "the AstroSmoothing algorithm will show poor perfomrance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
   // ofstream outputFile("./tableAniGaussCPU.txt", ios::out | ios::app);
-
-  this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
-  this->Internal->tempVolumeData->Modified();
-  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -1506,20 +960,20 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   const int Ymax = (int) (pnode->GetKernelLengthY() - 1) / 2.;
   const int Zmax = (int) (pnode->GetKernelLengthZ() - 1) / 2.;
   const int numKernelSlice = pnode->GetKernelLengthX() * pnode->GetKernelLengthY();
+  float *inFPixel = NULL;
   float *outFPixel = NULL;
-  float *tempFPixel = NULL;
+  double *inDPixel = NULL;
   double *outDPixel = NULL;
-  double *tempDPixel = NULL;
   const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
+      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
       outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
       break;
     case VTK_DOUBLE:
+      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
       outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
       break;
     default:
       vtkErrorMacro("Attempt to allocate scalars of type not allowed");
@@ -1554,7 +1008,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   pnode->SetStatus(1);
 
   #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel, status)
+  #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
@@ -1630,10 +1084,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
             switch (DataType)
               {
               case VTK_FLOAT:
-                *(outFPixel + elemCnt) += *(tempFPixel + posData) * *(GaussKernel + posKernel);
+                *(outFPixel + elemCnt) += *(inFPixel + posData) * *(GaussKernel + posKernel);
                 break;
               case VTK_DOUBLE:
-                *(outDPixel + elemCnt) += *(tempDPixel + posData) * *(GaussKernel + posKernel);
+                *(outDPixel + elemCnt) += *(inDPixel + posData) * *(GaussKernel + posKernel);
                 break;
               }
             }
@@ -1666,17 +1120,17 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
   //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
+
+  inFPixel = NULL;
   outFPixel = NULL;
-  tempFPixel = NULL;
+  inDPixel = NULL;
   outDPixel = NULL;
-  tempDPixel = NULL;
 
+  delete inFPixel;
   delete outFPixel;
-  delete tempFPixel;
+  delete inDPixel;
   delete outDPixel;
-  delete tempDPixel;
 
-  this->Internal->tempVolumeData->Initialize();
   pnode->SetStatus(0);
 
   if (cancel)
@@ -2058,281 +1512,75 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
+                                                    vtkRenderWindow *renderWindow)
 {
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter "
+                  "this release of SlicerAstro has been built "
+                  "without OpenGL filtering support.")
+  pnode->SetStatus(0);
+  return 0;
+  #else
+
+  pnode->SetStatus(1);
+
+  bool cancel = false;
+
+  struct timeval start, end;
+  long mtime, seconds, useconds;
+  gettimeofday(&start, NULL);
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  // ofstream outputFile("./tableAniGaussGPU.txt", ios::out | ios::app);
+  vtkNew<vtkAstroOpenGLImageGaussian> filter;
+  filter->SetInputData(outputVolume->GetImageData());
+  filter->SetKernelLength(pnode->GetKernelLengthX(),
+                          pnode->GetKernelLengthY(),
+                          pnode->GetKernelLengthZ());
+  filter->SetFWHM(pnode->GetParameterX(),
+                  pnode->GetParameterY(),
+                  pnode->GetParameterZ());
+  filter->SetRotationAngles(pnode->GetRx(),
+                            pnode->GetRy(),
+                            pnode->GetRz());
+  filter->SetRenderWindow(renderWindow);
 
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  const double spacingX = 1. / dims[0];
-  const double spacingY = 1. / dims[1];
-  const double spacingZ = 1. / dims[2];
+  // check if iterative filters are allowed by the GPU
+  const unsigned char* glver = glGetString(GL_VERSION);
 
-  const int LengthKernelX = (int) (pnode->GetKernelLengthX() - 1) / 2;
-  const int LengthKernelY = (int) (pnode->GetKernelLengthY() - 1) / 2;
-  const int LengthKernelZ = (int) (pnode->GetKernelLengthZ() - 1) / 2;
-
-  const double sigmaX = pnode->GetParameterX() / SigmatoFWHM;
-  const double sigmaX2 = 2 * sigmaX * sigmaX;
-  const double sigmaY = pnode->GetParameterY() / SigmatoFWHM;
-  const double sigmaY2 = 2 * sigmaY * sigmaY;
-  const double sigmaZ = pnode->GetParameterZ() / SigmatoFWHM;
-  const double sigmaZ2 = 2 * sigmaZ * sigmaZ;
-
-  struct timeval start, end;
-
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, NULL);
-
-  pnode->SetStatus(1);
-
-  // set the shaders
-  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-
-  this->Internal->iterationVolumeTexture->SetInterpolate(1);
-  this->Internal->outputVolumeTexture->SetInterpolate(1);
-
-  // set the ImageData in the VolumeTextures
-  /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.*/
-
-  double range[2];
-  outputVolume->GetImageData()->GetScalarRange(range);
-  double scale = 1. / (range[1] - range[0]);
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+  std::string check;
+  check = std::string( reinterpret_cast< const char* >(glver));
+  std::size_t found = check.find("Mesa");
+  if (found!=std::string::npos)
     {
-    *(fPixel+elemCnt) -= range[0];
-    *(fPixel+elemCnt) *= scale;
+    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+      {
+      vtkWarningMacro("Using Mesa driver (<12). "
+                      "The GPU implementation of the isotropic Gaussian filter (3-pass filter using 1-D Kernels) "
+                      "is not available with the specifications of the machine in use. "
+                      "A 3-D Kernel will be used. ");
+      filter->SetIterative(false);
+      }
     }
 
-  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
+  pnode->SetStatus(20);
 
-  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
-  this->Internal->iterationVolumeTexture->Activate(0);
-  this->Internal->outputVolumeTexture->Activate(1);
-  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
-  this->Internal->shaderComputation->AcquireResultRenderbuffer();
-
-  // set the kernels
-  std::string header = "#version 120 \n"
-     "vec3 transformPoint(const in vec3 samplePoint) \n"
-     "  { \n"
-     "  return samplePoint; \n"
-     "  } \n"
-     "uniform sampler3D \n"
-     "textureUnit0, \n"
-     "textureUnit1;\n";
-
-  std::string vertexShaderTemplate = "#version 120 \n"
-      "attribute vec3 vertexAttribute; \n"
-      "attribute vec2 textureCoordinateAttribute; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "  { \n"
-      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
-      "  gl_Position = vec4(vertexAttribute, 1.); \n"
-      "  }\n";
-
-  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
-
-  std::string fragmentShaderTemplate = "uniform float slice; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "{ \n"
-        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-        "vec4 smooth = vec4(0.); \n"
-        "vec4 sum = vec4(0.); \n"
-        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-        "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
-          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
-            "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
-              "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ); \n"
-              "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-              "float expA = offsetX * offsetX / %4.16f; \n"
-              "float expB = offsetY * offsetY / %4.16f; \n"
-              "float expC = offsetZ * offsetZ / %4.16f; \n"
-              "float kernel = exp(-(expA + expB + expC)); \n"
-              "smooth += sample1 * kernel; \n"
-              "sum += kernel; \n"
-            "} \n"
-          "} \n"
-        "} \n"
-        "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
-      "}\n";
-
-  std::string fragmentShaderTemplateWithRotation = "uniform float slice; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "{ \n"
-        "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-        "vec4 smooth = vec4(0.); \n"
-        "vec4 sum = vec4(0.); \n"
-        "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-        "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
-          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
-            "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
-              "float x = offsetX * %4.16f * %4.16f - offsetY * %4.16f * %4.16f + offsetZ * %4.16f; \n"
-              "float y = offsetX * (%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
-                         "offsetY * (%4.16f * %4.16f - %4.16f * %4.16f * %4.16f) - offsetZ * %4.16f * %4.16f; \n"
-              "float z = offsetX * (-%4.16f * %4.16f * %4.16f + %4.16f * %4.16f) + "
-                         "offsetY * (%4.16f * %4.16f + %4.16f * %4.16f * %4.16f) + offsetZ * %4.16f * %4.16f; \n"
-              "vec3 offset1 = vec3(%4.16f * offsetX, %4.16f * offsetY, %4.16f * offsetZ); \n"
-              "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-              "float expA = x * x / %4.16f; \n"
-              "float expB = y * y / %4.16f; \n"
-              "float expC = z * z / %4.16f; \n"
-              "float kernel = exp(-(expA + expB + expC)); \n"
-              "smooth += sample1 * kernel; \n"
-              "sum += kernel; \n"
-            "} \n"
-          "} \n"
-        "} \n"
-        "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
-      "}\n";
-
-  int nBuffer = 2000;
-  char buffer [nBuffer];
-  bool cancel = false;
-
-  int textureUnit = 0;
-
-  if (pnode->GetRx() < 0.001 && pnode->GetRy() < 0.001 && pnode->GetRz() < 0.001)
-    {
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernelX,
-            LengthKernelX,
-            LengthKernelY,
-            LengthKernelY,
-            LengthKernelZ,
-            LengthKernelZ,
-            spacingX,
-            spacingY,
-            spacingZ,
-            textureUnit,
-            sigmaX2,
-            sigmaY2,
-            sigmaZ2);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-    }
-  else
-    {
-    double rx = pnode->GetRx() * atan(1.) / 45.;
-    double ry = pnode->GetRy() * atan(1.) / 45.;
-    double rz = pnode->GetRz() * atan(1.) / 45.;
-
-    double cx = cos(rx);
-    double sx = sin(rx);
-    double cy = cos(ry);
-    double sy = sin(ry);
-    double cz = cos(rz);
-    double sz = sin(rz);
-    sprintf(buffer,
-            fragmentShaderTemplateWithRotation.c_str(),
-            textureUnit,
-            LengthKernelX,
-            LengthKernelX,
-            LengthKernelY,
-            LengthKernelY,
-            LengthKernelZ,
-            LengthKernelZ,
-            cy, cz, cy, sz, sy,
-            cz, sx, sy, cx, sz, cx, cz, sx, sy, sz, cy, sx,
-            cx, cz, sy, sx, sz, cz, sx, cx, sy, sz, cx, cy,
-            spacingX,
-            spacingY,
-            spacingZ,
-            textureUnit,
-            sigmaX2,
-            sigmaY2,
-            sigmaZ2);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-    }
-
-  int status = pnode->GetStatus();
-
-  if (status == -1)
+  if (pnode->GetStatus() == -1)
     {
     cancel = true;
     }
 
-  pnode->SetStatus(30);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Gaussian Filter (GPU, OpenGL) Benchmark "<< endl;
-  qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
-
   if(!cancel)
     {
-    gettimeofday(&start, NULL);
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->iterationVolumeTexture->Activate(0);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
-    //outputFile << setprecision(5) << mtime << " | ";
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
+    filter->Update();
     }
 
-  if (cancel)
-    {
-    fPixel = NULL;
-    delete fPixel;
+  pnode->SetStatus(70);
 
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  pnode->SetStatus(60);
-
-  // get the output
-  gettimeofday(&start, NULL);
-
-  this->Internal->outputVolumeTexture->ReadBack();
+  outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
   gettimeofday(&end, NULL);
 
@@ -2340,32 +1588,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLAstroSmoot
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-
-  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
-
-  // porting back the range to the original one
-  gettimeofday(&start, NULL);
-
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += range[0];
-    }
-
-  pnode->SetStatus(80);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
+  qDebug()<<"Gaussian Filter (GPU, OpenGL) Benchmark Time : "<<mtime<<" ms "<<endl;
 
   gettimeofday(&start, NULL);
 
@@ -2375,407 +1598,22 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianGPUFilter(vtkMRMLAstroSmoot
   pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
-
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
-
-  fPixel = NULL;
-  delete fPixel;
-
-  this->Internal->outputVolumeTexture->SetImageData(NULL);
-  this->Internal->iterationVolumeTexture->SetImageData(NULL);
+  qDebug()<<"Update : "<<mtime<<" ms "<<endl;
 
   pnode->SetStatus(0);
-
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::IsotropicGaussianGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
-{
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableIsoGaussGPU.txt", ios::out | ios::app);
-
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  double spacingX = 1. / dims[0];
-  double spacingY = 1. / dims[1];
-  double spacingZ = 1. / dims[2];
-
-  const int LengthKernel = (int) (pnode->GetKernelLengthX() - 1) / 2;
-  const double sigma = pnode->GetParameterX() / SigmatoFWHM;
-  const double sigma2 = 2 * sigma * sigma;
-
-  struct timeval start, end;
-
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, NULL);
-
-  pnode->SetStatus(1);
-
-  // set the shaders
-  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-
-  this->Internal->iterationVolumeTexture->SetInterpolate(1);
-  this->Internal->outputVolumeTexture->SetInterpolate(1);
-
-  // set the ImageData in the VolumeTextures
-  /* since the OpenGL texture will be floats in the range 0 to 1,
-  all negative values will get clamped to zero.*/
-
-  double range[2];
-  outputVolume->GetImageData()->GetScalarRange(range);
-  double scale = 1. / (range[1] - range[0]);
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) -= range[0];
-    *(fPixel+elemCnt) *= scale;
-    }
-
-  this->Internal->iterationVolumeTexture->SetImageData(outputVolume->GetImageData());
-
-  this->Internal->outputVolumeTexture->SetImageData(outputVolume->GetImageData());
-  this->Internal->iterationVolumeTexture->Activate(0);
-  this->Internal->outputVolumeTexture->Activate(1);
-  this->Internal->shaderComputation->SetResultImageData(outputVolume->GetImageData());
-  this->Internal->shaderComputation->AcquireResultRenderbuffer();
-
-  // set the kernels
-  std::string header = "#version 120 \n"
-     "vec3 transformPoint(const in vec3 samplePoint) \n"
-     "  { \n"
-     "  return samplePoint; \n"
-     "  } \n"
-     "uniform sampler3D \n"
-     "textureUnit0, \n"
-     "textureUnit1;\n";
-
-  std::string vertexShaderTemplate = "#version 120 \n"
-      "attribute vec3 vertexAttribute; \n"
-      "attribute vec2 textureCoordinateAttribute; \n"
-      "varying vec3 interpolatedTextureCoordinate; \n"
-      "void main() \n"
-      "  { \n"
-      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5); \n"
-      "  gl_Position = vec4(vertexAttribute, 1.); \n"
-      "  }\n";
-
-  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
-
-  int nBuffer = 2000;
-  char buffer [nBuffer];
-  bool cancel = false;
-
-  int status = pnode->GetStatus();
-
-  if (status == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-
-    std::string fragmentShaderTemplate = "uniform float slice; \n"
-        "varying vec3 interpolatedTextureCoordinate; \n"
-        "void main() \n"
-        "{ \n"
-          "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-          "vec4 smooth = vec4(0.); \n"
-          "vec4 sum = vec4(0.); \n"
-          "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-          "for (int offsetX = -%d; offsetX <= %d; offsetX++){ \n"
-            "vec3 offset1 = vec3(%4.16f * offsetX, 0., 0.); \n"
-            "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-            "float kernel = exp(-(offsetX * offsetX) / %4.16f); \n"
-            "smooth += sample1 * kernel; \n"
-            "sum += kernel; \n"
-          "} \n"
-          "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
-        "}\n";
-
-    int textureUnit = 0;
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernel,
-            LengthKernel,
-            spacingX,
-            textureUnit,
-            sigma2);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-
-    pnode->SetStatus(30);
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    qDebug()<<"Gaussian Filter (GPU, OpenGL) Benchmark "<<endl;
-    qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
-    //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
-
-    gettimeofday(&start, NULL);
-    mtime = 0.;
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->iterationVolumeTexture->Activate(0);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  pnode->SetStatus(40);
-
-  status = pnode->GetStatus();
-
-  if (status == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-
-    std::string fragmentShaderTemplate = "uniform float slice; \n"
-        "varying vec3 interpolatedTextureCoordinate; \n"
-        "void main() \n"
-        "{ \n"
-          "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-          "vec4 smooth = vec4(0.); \n"
-          "vec4 sum = vec4(0.); \n"
-          "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-          "for (int offsetY = -%d; offsetY <= %d; offsetY++){ \n"
-            "vec3 offset1 = vec3(0., %4.16f * offsetY, 0.); \n"
-            "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-            "float kernel = exp(-(offsetY * offsetY) / %4.16f); \n"
-            "smooth += sample1 * kernel; \n"
-            "sum += kernel; \n"
-          "} \n"
-          "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
-        "}\n";
-
-    int textureUnit = 1;
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernel,
-            LengthKernel,
-            spacingY,
-            textureUnit,
-            sigma2);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-        gettimeofday(&start, NULL);
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->iterationVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->outputVolumeTexture->Activate(1);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
-
-  pnode->SetStatus(50);
-
-  status = pnode->GetStatus();
-
-  if (status == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-
-    std::string fragmentShaderTemplate = "uniform float slice; \n"
-        "varying vec3 interpolatedTextureCoordinate; \n"
-        "void main() \n"
-        "{ \n"
-          "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice); \n"
-          "vec4 smooth = vec4(0.); \n"
-          "vec4 sum = vec4(0.); \n"
-          "vec4 sample = texture3D(textureUnit%d, samplePoint); \n"
-          "for (int offsetZ = -%d; offsetZ <= %d; offsetZ++){ \n"
-            "vec3 offset1 = vec3(0., 0., %4.16f * offsetZ); \n"
-            "vec4 sample1 = texture3D(textureUnit%d, samplePoint + offset1); \n"
-            "float kernel = exp(-(offsetZ * offsetZ) / %4.16f); \n"
-            "smooth += sample1 * kernel; \n"
-            "sum += kernel; \n"
-          "} \n"
-          "gl_FragColor = vec4(vec3(smooth / sum), 1.); \n"
-        "}\n";
-
-    int textureUnit = 0;
-    sprintf(buffer,
-            fragmentShaderTemplate.c_str(),
-            textureUnit,
-            LengthKernel,
-            LengthKernel,
-            spacingZ,
-            textureUnit,
-            sigma2);
-
-    std::string shaders = header + buffer;
-    this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-        gettimeofday(&start, NULL);
-    for (int slice = 0; slice < dims[2]; slice++)
-      {
-      this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-      this->Internal->iterationVolumeTexture->Activate(0);
-      this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-      }
-
-    gettimeofday(&end, NULL);
-
-    seconds  = end.tv_sec  - start.tv_sec;
-    useconds = end.tv_usec - start.tv_usec;
-
-    mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-    qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
-    //outputFile << setprecision(5) << mtime << " | ";
-    }
-  else
-    {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
-    return 0;
-    }
 
   if (cancel)
     {
-    fPixel = NULL;
-    delete fPixel;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    pnode->SetStatus(0);
     return 0;
     }
 
-  pnode->SetStatus(60);
-
-  // get the output
-  gettimeofday(&start, NULL);
-
-  this->Internal->outputVolumeTexture->ReadBack();
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-
-  outputVolume->SetAndObserveImageData(this->Internal->outputVolumeTexture->GetImageData());
-
-  // porting backthe range to the original one
-  gettimeofday(&start, NULL);
-
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) /= scale;
-    *(fPixel+elemCnt) += range[0];
-    }
-
-  pnode->SetStatus(80);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-  gettimeofday(&start, NULL);
-
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttributes();
-
-  pnode->SetStatus(100);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
-  fPixel = NULL;
-  delete fPixel;
-
-  this->Internal->outputVolumeTexture->SetImageData(NULL);
-  this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-  pnode->SetStatus(0);
-
   return 1;
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENGL
 }
-
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
@@ -3036,179 +1874,75 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   return 1;
 }
 
-typedef struct float4 {
-    float x;
-    float y;
-    float z;
-    float w;
-} float4;
-
 //----------------------------------------------------------------------------
-inline float4 EncodeFloatRGBA(float v) {
-  float4 enc;
-  float intpart;
-  enc.x = modff(16777216. * v, &intpart);
-  enc.y = modff(65536. * v, &intpart);
-  enc.z = modff(256. * v, &intpart);
-  enc.w = modff(v, &intpart);
-  float frac = 1./256.;
-  enc.y -= enc.x * frac;
-  enc.z -= enc.y * frac;
-  enc.w -= enc.z * frac;
-  return enc;
-}
-
-//----------------------------------------------------------------------------
-inline float DecodeFloatRGBA(float4 v) {
-  return v.x / 16777216. + v.y / 65536. + v.z / 256. + v.w;
-}
-
-//----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode)
+int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
+                                                    vtkRenderWindow* renderWindow)
 {
+  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter "
+                  "this release of SlicerAstro has been built "
+                  "without OpenGL filtering support.")
+  pnode->SetStatus(0);
+  return 0;
+  #else
+
+  // check if iterative filters are allowed by the GPU
+  const unsigned char* glver = glGetString(GL_VERSION);
+
+  std::string check;
+  check = std::string( reinterpret_cast< const char* >(glver));
+  std::size_t found = check.find("Mesa");
+  if (found!=std::string::npos)
+    {
+    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+      {
+      vtkWarningMacro("Using Mesa driver (<12). "
+                      "The GPU implementation of the Intensity-Driven Gradient filter "
+                      "is not available with the specifications of the machine in use.");
+      pnode->SetStatus(0);
+      return 0;
+      }
+    }
+
+  pnode->SetStatus(1);
+
+  bool cancel = false;
+
+  struct timeval start, end;
+  long mtime, seconds, useconds;
+  gettimeofday(&start, NULL);
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
 
-  // ofstream outputFile("./tableGradientGPU.txt", ios::out | ios::app);
+  vtkNew<vtkAstroOpenGLImageGradient> filter;
+  filter->SetInputData(outputVolume->GetImageData());
+  filter->SetCl(pnode->GetParameterX(),
+                pnode->GetParameterY(),
+                pnode->GetParameterZ());
+  filter->SetK(pnode->GetK());
+  filter->SetAccuracy(pnode->GetAccuracy());
+  filter->SetTimeStep(pnode->GetTimeStep());
+  filter->SetRMS(StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMS")));
 
-  struct timeval start, end;
+  filter->SetRenderWindow(renderWindow);
 
-  long mtime, seconds, useconds;
+  pnode->SetStatus(20);
 
-  gettimeofday(&start, NULL);
-
-  pnode->SetStatus(1);
-  int *dims = outputVolume->GetImageData()->GetDimensions();
-  double spacingX = 1. / dims[0];
-  double spacingY = 1. / dims[1];
-  double spacingZ = 1. / dims[2];
-
-  // set the shaders
-  this->Internal->iterationVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-  this->Internal->outputVolumeTexture->SetShaderComputation(this->Internal->shaderComputation);
-
-  this->Internal->iterationVolumeTexture->SetInterpolate(1);
-  this->Internal->outputVolumeTexture->SetInterpolate(1);
-
-  // set the ImageData in the VolumeTextures
-  // since the OpenGL texture will be floats in the range 0 to 1,
-  // all negative values will get clamped to zero.
-
-  this->Internal->tempVolumeData->SetDimensions(dims);
-  this->Internal->tempVolumeData->AllocateScalars(VTK_FLOAT, 4);
-
-  //create a 4 componet vtkImageData with the value packed
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-  float *fPixel;
-  fPixel = static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-  float *fPixelTemp;
-  fPixelTemp =  static_cast<float*>(this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-
-  double range[2];
-  outputVolume->GetImageData()->GetScalarRange(range);
-  double scale = 1. / (range[1] - range[0]);
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+  if (pnode->GetStatus() == -1)
     {
-    int i = elemCnt * 4;
-    int i2 = i + 1;
-    int i3 = i + 2;
-    int i4 = i + 3;
-
-    *(fPixel+elemCnt) -= range[0];
-    *(fPixel+elemCnt) *= scale;
-
-    float4 value = EncodeFloatRGBA(*(fPixel+elemCnt));
-
-    *(fPixelTemp+i) = value.x;
-    *(fPixelTemp+i2) = value.y;
-    *(fPixelTemp+i3) = value.z;
-    *(fPixelTemp+i4) = value.w;
+    cancel = true;
     }
 
-  this->Internal->iterationVolumeTexture->SetImageData(this->Internal->tempVolumeData);
-  this->Internal->outputVolumeTexture->SetImageData(this->Internal->tempVolumeData);
-  this->Internal->iterationVolumeTexture->Activate(0);
-  this->Internal->outputVolumeTexture->Activate(1);
-  this->Internal->shaderComputation->SetResultImageData(this->Internal->tempVolumeData);
-  this->Internal->shaderComputation->AcquireResultRenderbuffer();
+  if(!cancel)
+    {
+    filter->Update();
+    }
 
+  pnode->SetStatus(70);
 
-  //set Intensity-Driven normalization
-  double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMS"));
-  noise *= scale;
-  double norm = noise * noise * pnode->GetK() * pnode->GetK();
-
-  // set the kernels
-  std::string header = "#version 120 \n"
-     "vec3 transformPoint(const in vec3 samplePoint) \n"
-     "  { \n"
-     "  return samplePoint; \n"
-     "  } \n"
-     "uniform sampler3D \n"
-     "textureUnit0, \n"
-     "textureUnit1;\n";
-
-  std::string vertexShaderTemplate = "#version 120\n"
-      "attribute vec3 vertexAttribute;\n"
-      "attribute vec2 textureCoordinateAttribute;\n"
-      "varying vec3 interpolatedTextureCoordinate;\n"
-      "void main() \n"
-      "  {\n"
-      "  interpolatedTextureCoordinate = vec3(textureCoordinateAttribute, .5);\n"
-      "  gl_Position = vec4(vertexAttribute, 1.);\n"
-      "  }\n";
-
-  this->Internal->shaderComputation->SetVertexShaderSource(vertexShaderTemplate.c_str());
-
-  std::string fragmentShaderTemplate = "uniform float slice;\n"
-    "varying vec3 interpolatedTextureCoordinate;\n"
-    "vec4 pack_float(const in float value)\n"
-    "{\n"
-       "const vec4 bit_shift = vec4(256.0*256.0*256.0, 256.0*256.0, 256.0, 1.0);\n"
-       "const vec4 bit_mask  = vec4(0.0, 1.0/256.0, 1.0/256.0, 1.0/256.0);\n"
-       "vec4 res = fract(value * bit_shift);\n"
-       "res -= res.xxyz * bit_mask;\n"
-       "return res;\n"
-     "}\n"
-
-     "float unpack_float(const in vec4 rgba_value)\n"
-     "{\n"
-       "const vec4 bit_shift = vec4(1.0/(256.0*256.0*256.0), 1.0/(256.0*256.0), 1.0/256.0, 1.0);\n"
-       "float value = dot(rgba_value, bit_shift);\n"
-       "return value;\n"
-     "}\n"
-
-     "void main()\n"
-     "{\n"
-       "vec3 samplePoint = vec3(interpolatedTextureCoordinate.xy,slice);\n"
-       "float sum = 0.;\n"
-       "float sample = unpack_float(texture3D(textureUnit%d, samplePoint));\n"
-       "float sample2 = sample * sample;\n"
-       "float norm = 1. + (sample2 / %4.16f);\n"
-       "vec3 offsetA1 = %4.16f * vec3(-1., 0., 0.);\n"
-       "vec3 offsetB1 = %4.16f * vec3(+1., 0., 0.);\n"
-       "float sampleA1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA1));\n"
-       "float sampleB1 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB1));\n"
-       "sum += ((sampleA1 - sample) + (sampleB1 - sample)) * %4.16f;\n"
-       "vec3 offsetA2 = %4.16f * vec3(0., -1., 0.);\n"
-       "vec3 offsetB2 = %4.16f * vec3(0., +1., 0.);\n"
-       "float sampleA2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA2));\n"
-       "float sampleB2 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB2));\n"
-       "sum += ((sampleA2 - sample) + (sampleB2 - sample)) * %4.16f;\n"
-       "vec3 offsetA3 = %4.16f * vec3(0., 0., -1.);\n"
-       "vec3 offsetB3 = %4.16f * vec3(0., 0., +1.);\n"
-       "float sampleA3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetA3));\n"
-       "float sampleB3 = unpack_float(texture3D(textureUnit%d, samplePoint + offsetB3));\n"
-       "sum += ((sampleA3 - sample) + (sampleB3 - sample)) * %4.16f;\n"
-       "float smooth = sample + (%4.16f * sum / norm);\n"
-       "gl_FragColor = pack_float(smooth);\n"
-     "}\n";
-
-
-  pnode->SetStatus(30);
+  outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
   gettimeofday(&end, NULL);
 
@@ -3216,170 +1950,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Intensity-Driven Gradient Filter (GPU, OpenGL) Benchmark "<<endl;
-  qDebug()<<"Setup Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << mtime << " | ";
-  mtime = 0.;
-
-  int nBuffer = 2000;
-  char buffer [nBuffer];
-  bool cancel = false;
-
-  //starting the computing
-  int iterations = pnode->GetAccuracy();
-  if (!(iterations % 2))
-    {
-    iterations++;
-    }
-
-  for (int i = 1; i <= iterations; i++)
-    {
-    int status = pnode->GetStatus();
-
-    if (status == -1)
-      {
-      cancel = true;
-      }
-
-    if(!cancel)
-      {
-
-      int textureUnit = 1 - (i%2);
-      sprintf(buffer,
-              fragmentShaderTemplate.c_str(),
-              textureUnit,
-              norm,
-              spacingX,
-              spacingX,
-              textureUnit,
-              textureUnit,
-              pnode->GetParameterX(),
-              spacingY,
-              spacingY,
-              textureUnit,
-              textureUnit,
-              pnode->GetParameterY(),
-              spacingZ,
-              spacingZ,
-              textureUnit,
-              textureUnit,
-              pnode->GetParameterZ(),
-              pnode->GetTimeStep());
-
-      std::string shaders = header + buffer;
-      this->Internal->shaderComputation->SetFragmentShaderSource(shaders.c_str());
-
-      gettimeofday(&start, NULL);
-      for (int slice = 0; slice < dims[2]; slice++)
-        {
-        if (!(textureUnit))
-          {
-          this->Internal->outputVolumeTexture->AttachAsDrawTarget(0, slice);
-          this->Internal->iterationVolumeTexture->Activate(0);
-          this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-          }
-        else
-          {
-          this->Internal->iterationVolumeTexture->AttachAsDrawTarget(0, slice);
-          this->Internal->outputVolumeTexture->Activate(1);
-          this->Internal->shaderComputation->Compute((slice + 0.5) / (1. * (dims[2])));
-          }
-        }
-
-      gettimeofday(&end, NULL);
-
-      seconds  = end.tv_sec  - start.tv_sec;
-      useconds = end.tv_usec - start.tv_usec;
-
-      mtime += ((seconds) * 1000 + useconds/1000.0) + 0.5;
-      }
-    else
-      {
-      this->Internal->outputVolumeTexture->SetImageData(NULL);
-      this->Internal->iterationVolumeTexture->SetImageData(NULL);
-      pnode->SetStatus(0);
-      return 0;
-      }
-
-    pnode->SetStatus((int) 30 + (i * 10 / pnode->GetAccuracy()));
-    }
-
-  qDebug()<<"Kernel Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-
-  if (cancel)
-    {
-    fPixel = NULL;
-    fPixelTemp = NULL;
-
-    delete fPixel;
-    delete fPixelTemp;
-
-    this->Internal->outputVolumeTexture->SetImageData(NULL);
-    this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-    this->Internal->tempVolumeData->Initialize();
-
-    pnode->SetStatus(0);
-
-    return 0;
-    }
-
-  // get the output
-  gettimeofday(&start, NULL);
-
-  this->Internal->outputVolumeTexture->ReadBack();
-
-  pnode->SetStatus(60);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"ReadBack Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
-
-  gettimeofday(&start, NULL);
-  fPixelTemp = static_cast<float*>(this->Internal->outputVolumeTexture->GetImageData()->GetScalarPointer(0,0,0));
-  fPixel =  static_cast<float*>(outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int i = elemCnt * 4;
-    int i2 = i + 1;
-    int i3 = i + 2;
-    int i4 = i + 3;
-
-    float4 value4;
-    value4.x = *(fPixelTemp+i);
-    value4.y = *(fPixelTemp+i2);
-    value4.z = *(fPixelTemp+i3);
-    value4.w = *(fPixelTemp+i4);
-    float value = DecodeFloatRGBA(value4);
-    *(fPixel+elemCnt) = value / scale;
-    }
-
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateNoiseAttributes();
-  double noiseMean = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISEMEAN"));
-
-  for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(fPixel+elemCnt) -= noiseMean;
-    }
-
-  pnode->SetStatus(80);
-
-  gettimeofday(&end, NULL);
-
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Setup Output Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime << " | ";
+  qDebug()<<" Box Filter (GPU, OpenGL) Benchmark Time : "<<mtime<<" ms "<<endl;
 
   gettimeofday(&start, NULL);
 
@@ -3394,20 +1965,16 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
-
-  this->Internal->outputVolumeTexture->SetImageData(NULL);
-  this->Internal->iterationVolumeTexture->SetImageData(NULL);
-
-  fPixel = NULL;
-  fPixelTemp = NULL;
-  delete fPixel;
-  delete fPixelTemp;
-
-  this->Internal->tempVolumeData->Initialize();
 
   pnode->SetStatus(0);
 
+  if(cancel)
+    {
+    return 0;
+    }
+
   return 1;
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENGL
 }
