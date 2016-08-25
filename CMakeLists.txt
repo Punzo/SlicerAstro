@@ -48,6 +48,14 @@ configure_file(
   )
 
 #-----------------------------------------------------------------------------
+# configurating OpenMP Flags
+if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
+#-----------------------------------------------------------------------------
 # configurating OpenGL2
 find_package(OpenGL)
 set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ${OPENGL_FOUND})
@@ -66,21 +74,11 @@ configure_file(
 
 #-----------------------------------------------------------------------------
 # SuperBuild setup
-if(UNIX)
-  option(${EXTENSION_NAME}_SUPERBUILD "Build ${EXTENSION_NAME} and the projects it depends on." ON)
-  mark_as_advanced(${EXTENSION_NAME}_SUPERBUILD)
-  if(${EXTENSION_NAME}_SUPERBUILD)
-    include("${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild.cmake")
-    return()
-  endif()
-endif(UNIX)
-
-#-----------------------------------------------------------------------------
-# configurating OpenMP Flags
-if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+option(${EXTENSION_NAME}_SUPERBUILD "Build ${EXTENSION_NAME} and the projects it depends on." ON)
+mark_as_advanced(${EXTENSION_NAME}_SUPERBUILD)
+if(${EXTENSION_NAME}_SUPERBUILD)
+  include("${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild.cmake")
+  return()
 endif()
 
 #-----------------------------------------------------------------------------
@@ -102,4 +100,6 @@ endif(UNIX)
 
 #-----------------------------------------------------------------------------
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${cfitsio_DIR};cfitsio;RuntimeLibraries;/")
+set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${wcslib_DIR};wcslib;RuntimeLibraries;/")
 include(${Slicer_EXTENSION_CPACK})

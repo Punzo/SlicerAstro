@@ -23,33 +23,42 @@ if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT 
     set(git_protocol "git")
   endif()
 
-  set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
-  set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
-  set(${proj}_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
+  set(${proj}_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
+  set(${proj}_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/healpy/cfitsio"
     GIT_TAG "1f660bd88b464c8339a0f684a2d366b253184488"
-    SOURCE_DIR ${EP_SOURCE_DIR}
-    BINARY_DIR ${EP_BINARY_DIR}
-    INSTALL_DIR ${${proj}_INSTALL_DIR}
+    SOURCE_DIR ${${proj}_SOURCE_DIR}
+    BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS
       -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
       -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
       -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
       -DCMAKE_C_FLAGS:STRING=${ep_common_c_flags}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-      -DCMAKE_INSTALL_PREFIX:PATH=<INSTALL_DIR>
+      -DBUILD_TESTING:BOOL=OFF
+      -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
+      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
+      -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
+      -DCFITSIO_INSTALL_RUNTIME_DIR:STRING=${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
+      -DCFITSIO_INSTALL_LIBRARY_DIR:STRING=${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
+      -DCMAKE_MACOSX_RPATH:BOOL=0
     DEPENDS
-      ${${proj}_DEPENDS}
+      ${${proj}_DEPENDENCIES}
     )
-  set(CFITSIO_INCLUDE_DIR ${${proj}_INSTALL_DIR}/include)
-  set(CFITSIO_LIBRARY_DIR ${${proj}_INSTALL_DIR}/lib)
+  set(CFITSIO_INCLUDE_DIR ${${proj}_SOURCE_DIR})
+  set(CFITSIO_LIBRARY_DIR ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR})
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
 endif()
+
+set(${proj}_DIR ${${proj}_BINARY_DIR})
+mark_as_superbuild(VARS ${proj}_DIR:PATH)
+
+ExternalProject_Message(${proj} "${proj}_DIR:${${proj}_DIR}")
 
 mark_as_superbuild(
   VARS

@@ -27,8 +27,9 @@ foreach(dep ${EXTENSION_DEPENDS})
 endforeach()
 
 set(proj ${SUPERBUILD_TOPLEVEL_PROJECT})
-set(${proj}_DEPENDS cfitsio wcslib)
-
+if(UNIX)
+  set(${proj}_DEPENDS cfitsio wcslib)
+endif(UNIX)
 
 ExternalProject_Include_Dependencies(${proj}
   PROJECT_VAR proj
@@ -41,6 +42,7 @@ ExternalProject_Add(${proj}
   INSTALL_COMMAND ""
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
   BINARY_DIR ${EXTENSION_BUILD_SUBDIRECTORY}
+  BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
     -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
     -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
