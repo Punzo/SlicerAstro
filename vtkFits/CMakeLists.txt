@@ -31,6 +31,13 @@ foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
     )
 endforeach()
 
+foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+  slicerInstallLibrary(FILE ${library}
+    DESTINATION ${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
+    COMPONENT Runtime
+    )
+endforeach()
+
 # --------------------------------------------------------------------------
 set(KIT ${PROJECT_NAME})
 
