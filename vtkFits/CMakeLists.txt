@@ -31,12 +31,14 @@ foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
     )
 endforeach()
 
-foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
-  slicerInstallLibrary(FILE ${library}
-    DESTINATION ${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
-    COMPONENT Runtime
-    )
-endforeach()
+if(APPLE)
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+    slicerInstallLibrary(FILE ${library}
+      DESTINATION ${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
+      COMPONENT Runtime
+      )
+  endforeach()
+endif()
 
 # --------------------------------------------------------------------------
 set(KIT ${PROJECT_NAME})
