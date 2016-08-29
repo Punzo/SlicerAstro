@@ -27,4 +27,4 @@ slicerMacroConfigureModuleCxxTestDriver(
 
 #-----------------------------------------------------------------------------
 simple_test(qSlicerAstroVolumeIOOptionsWidgetTest1)
-simple_test(qSlicerAstroVolumeModuleWidgetTest1 ${INPUT}/N2403.fits)
+simple_test(qSlicerAstroVolumeModuleWidgetTest1 ${INPUT}/WEIN069.fits)
