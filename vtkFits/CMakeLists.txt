@@ -23,14 +23,24 @@ find_library (WCSLIB_LIBRARY wcslib
 set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
 
 # Install libraries
-include(SlicerFunctionInstallLibrary)
-foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
-  slicerInstallLibrary(FILE ${library}
-    DESTINATION ${Slicer_INSTALL_LIB_DIR}
-    COMPONENT Runtime
-    )
-endforeach()
-
+if(APPLE)
+  include(SlicerFunctionInstallLibrary)
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+    slicerInstallLibrary(FILE ${library}
+      DESTINATION ${Slicer_INSTALL_LIB_DIR}
+      COMPONENT Runtime
+      )
+  endforeach()
+endif()
+if(NOT APPLE)
+  include(SlicerFunctionInstallLibrary)
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+    slicerInstallLibrary(FILE ${library}
+      DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}/qt-loadable-modules
+      COMPONENT Runtime
+      )
+  endforeach()
+endif()
 # --------------------------------------------------------------------------
 set(KIT ${PROJECT_NAME})
 
