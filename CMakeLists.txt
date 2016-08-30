@@ -100,6 +100,8 @@ endif(UNIX)
 
 #-----------------------------------------------------------------------------
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${cfitsio_DIR};cfitsio;RuntimeLibraries;/")
-set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${wcslib_DIR};wcslib;RuntimeLibraries;/")
+if(UNIX)
+  set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${cfitsio_DIR};cfitsio;RuntimeLibraries;/")
+  set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${wcslib_DIR};wcslib;RuntimeLibraries;/")
+endif(UNIX)
 include(${Slicer_EXTENSION_CPACK})
