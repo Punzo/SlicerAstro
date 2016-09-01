@@ -7,12 +7,12 @@
 
 // Logic includes
 #include <vtkSlicerApplicationLogic.h>
-#include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerVolumesLogic.h>
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLSelectionNode.h>
 
 // VTK includes
@@ -84,7 +84,10 @@ QStringList qSlicerAstroVolumeReader::extensions()const
 //-----------------------------------------------------------------------------
 qSlicerIOOptions* qSlicerAstroVolumeReader::options()const
 {
-  return new qSlicerAstroVolumeIOOptionsWidget;
+  // set the mrml scene on the options widget to allow selecting a color node
+  qSlicerIOOptionsWidget* options = new qSlicerAstroVolumeIOOptionsWidget;
+  options->setMRMLScene(this->mrmlScene());
+  return options;
 }
 
 //-----------------------------------------------------------------------------
@@ -136,6 +139,15 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     fileList.GetPointer());
   if (node)
     {
+    if (properties.contains("colorNodeID"))
+      {
+      QString colorNodeID = properties["colorNodeID"].toString();
+      vtkMRMLAstroVolumeNode* astroNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+      if (astroNode->GetAstroVolumeDisplayNode())
+        {
+        astroNode->GetAstroVolumeDisplayNode()->SetAndObserveColorNodeID(colorNodeID.toLatin1());
+        }
+      }
     vtkSlicerApplicationLogic* appLogic =
       d->Logic->GetApplicationLogic();
     vtkMRMLSelectionNode* selectionNode =

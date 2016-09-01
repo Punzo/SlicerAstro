@@ -446,5 +446,13 @@ qSlicerAbstractModuleRepresentation* qSlicerAstroVolumeModule::createWidgetRepre
 //-----------------------------------------------------------------------------
 vtkMRMLAbstractLogic* qSlicerAstroVolumeModule::createLogic()
 {
-  return vtkSlicerAstroVolumeLogic::New();
+    return vtkSlicerAstroVolumeLogic::New();
+}
+
+//-----------------------------------------------------------------------------
+QStringList qSlicerAstroVolumeModule::associatedNodeTypes() const
+{
+  return QStringList()
+    << "vtkMRMLVolumeNode"
+    << "vtkMRMLVolumeDisplayNode";
 }

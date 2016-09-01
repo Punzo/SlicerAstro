@@ -27,6 +27,7 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeStorageNode);
 vtkMRMLAstroVolumeStorageNode::vtkMRMLAstroVolumeStorageNode()
 {
   this->CenterImage = 0;
+  this->DefaultWriteFileExtension = "fits";
 }
 
 //----------------------------------------------------------------------------
@@ -175,7 +176,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   std::string fullName = this->GetFullNameFromFileName();
 
-  if (fullName == std::string(""))
+  if (fullName.empty())
     {
     vtkErrorMacro("ReadData: File name not specified");
     return 0;
@@ -430,12 +431,6 @@ void vtkMRMLAstroVolumeStorageNode::InitializeSupportedReadFileTypes()
 void vtkMRMLAstroVolumeStorageNode::InitializeSupportedWriteFileTypes()
 {
   this->SupportedWriteFileTypes->InsertNextValue("FITS (.fits)");
-}
-
-//----------------------------------------------------------------------------
-const char* vtkMRMLAstroVolumeStorageNode::GetDefaultWriteFileExtension()
-{
-  return "fits";
 }
 
 //----------------------------------------------------------------------------

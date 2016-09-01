@@ -39,10 +39,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorag
   vtkGetMacro(CenterImage, int);
   vtkSetMacro(CenterImage, int);
 
-  ///
-  /// Return a default file extension for writting
-  virtual const char* GetDefaultWriteFileExtension();
-
   /// Return true if the node can be read in.
   virtual bool CanReadInReferenceNode(vtkMRMLNode *refNode);
 

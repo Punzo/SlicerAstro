@@ -46,6 +46,9 @@ protected:
   /// Create and return the logic associated to this module
   virtual vtkMRMLAbstractLogic* createLogic();
 
+  /// Specify editable node types
+  virtual QStringList associatedNodeTypes()const;
+
   QScopedPointer<qSlicerAstroVolumeModulePrivate> d_ptr;
 
  protected slots:
