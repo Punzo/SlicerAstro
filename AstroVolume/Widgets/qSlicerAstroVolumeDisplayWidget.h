@@ -7,13 +7,13 @@
 // CTK includes
 #include <ctkVTKObject.h>
 
-// Volumes includes
+// AstroVolume includes
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class vtkMRMLNode;
 class qSlicerAstroVolumeDisplayWidgetPrivate;
 
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup Slicer_QtModules_AstroVolume_Widgets
 class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroVolumeDisplayWidget : public QStackedWidget
 {
   Q_OBJECT

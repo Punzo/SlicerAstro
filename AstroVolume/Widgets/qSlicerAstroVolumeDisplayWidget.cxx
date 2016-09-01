@@ -1,7 +1,7 @@
 // SlicerQT includes
 #include <qSlicerAstroVolumeDisplayWidget.h>
-#include <qSlicerScalarVolumeDisplayWidget.h>
-#include <qSlicerLabelMapVolumeDisplayWidget.h>
+#include <qSlicerAstroScalarVolumeDisplayWidget.h>
+#include <qSlicerAstroLabelMapVolumeDisplayWidget.h>
 
 // MRML includes
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
@@ -22,8 +22,8 @@ public:
   void init();
   void setCurrentDisplayWidget(qSlicerWidget* displayWidget);
 
-  qSlicerScalarVolumeDisplayWidget*            ScalarVolumeDisplayWidget;
-  qSlicerLabelMapVolumeDisplayWidget*          LabelMapVolumeDisplayWidget;
+  qSlicerAstroScalarVolumeDisplayWidget*            ScalarVolumeDisplayWidget;
+  qSlicerAstroLabelMapVolumeDisplayWidget*          LabelMapVolumeDisplayWidget;
 };
 
 // --------------------------------------------------------------------------
@@ -39,10 +39,10 @@ qSlicerAstroVolumeDisplayWidgetPrivate::qSlicerAstroVolumeDisplayWidgetPrivate(
 void qSlicerAstroVolumeDisplayWidgetPrivate::init()
 {
   Q_Q(qSlicerAstroVolumeDisplayWidget);
-  this->ScalarVolumeDisplayWidget = new qSlicerScalarVolumeDisplayWidget(q);
+  this->ScalarVolumeDisplayWidget = new qSlicerAstroScalarVolumeDisplayWidget(q);
   q->addWidget(this->ScalarVolumeDisplayWidget);
 
-  this->LabelMapVolumeDisplayWidget = new qSlicerLabelMapVolumeDisplayWidget(q);
+  this->LabelMapVolumeDisplayWidget = new qSlicerAstroLabelMapVolumeDisplayWidget(q);
   q->addWidget(this->LabelMapVolumeDisplayWidget);
 }
 

@@ -7,7 +7,7 @@
 // SlicerQt includes
 #include "qSlicerIOOptionsWidget.h"
 
-// Volumes includes
+// AstroVolume includes
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class qSlicerAstroVolumeIOOptionsWidgetPrivate;

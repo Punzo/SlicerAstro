@@ -118,6 +118,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    this->MRMLAstroVolumeInfoWidget, SLOT(setVolumeNode(vtkMRMLNode*)));
 
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->MRMLAstroVolumeInfoWidget, SLOT(setMRMLScene(vtkMRMLScene*)));
+
   qSlicerApplication* app = qSlicerApplication::application();
   qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
   if (volumeRendering)

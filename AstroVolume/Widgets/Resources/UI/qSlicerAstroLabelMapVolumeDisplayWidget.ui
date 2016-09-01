@@ -1,29 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>qSlicerScalarVolumeDisplayWidget</class>
- <widget class="qSlicerWidget" name="qSlicerScalarVolumeDisplayWidget">
+ <class>qSlicerAstroLabelMapVolumeDisplayWidget</class>
+ <widget class="qSlicerWidget" name="qSlicerAstroLabelMapVolumeDisplayWidget">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>331</width>
-    <height>303</height>
+    <width>284</width>
+    <height>66</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Scalar Volume Display</string>
+   <string>Astro Label Volume Display</string>
   </property>
-  <layout class="QGridLayout" name="gridLayout" columnstretch="0,0">
+  <layout class="QGridLayout" name="gridLayout">
    <property name="margin">
     <number>0</number>
    </property>
-   <item row="1" column="0">
-    <widget class="QLabel" name="InterpolateLabel">
-     <property name="text">
-      <string>Interpolate:</string>
-     </property>
-    </widget>
-   </item>
    <item row="0" column="0">
     <widget class="QLabel" name="LookupTableLabel">
      <property name="text">
@@ -33,9 +26,6 @@
    </item>
    <item row="0" column="1">
     <widget class="qMRMLColorTableComboBox" name="ColorTableComboBox">
-     <property name="showChildNodeTypes">
-      <bool>true</bool>
-     </property>
      <property name="addEnabled">
       <bool>false</bool>
      </property>
@@ -44,38 +34,39 @@
      </property>
     </widget>
    </item>
-   <item row="1" column="1">
-    <widget class="QCheckBox" name="InterpolateCheckbox">
+   <item row="1" column="0">
+    <widget class="QLabel" name="SliceIntersectionThicknessLabel">
      <property name="text">
-      <string/>
+      <string>Label Outline &amp;Thickness:</string>
+     </property>
+     <property name="buddy">
+      <cstring>SliceIntersectionThicknessSpinBox</cstring>
      </property>
     </widget>
    </item>
-   <item row="3" column="0" colspan="2">
-    <widget class="qMRMLWindowLevelWidget" name="MRMLWindowLevelWidget"/>
-   </item>
-   <item row="4" column="0" colspan="2">
-    <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget"/>
+   <item row="1" column="1">
+    <widget class="QSpinBox" name="SliceIntersectionThicknessSpinBox">
+     <property name="toolTip">
+      <string>When displaying the label map with the outline/not filled option, this controls the width of the outline.</string>
+     </property>
+     <property name="suffix">
+      <string> px</string>
+     </property>
+     <property name="minimum">
+      <number>1</number>
+     </property>
+     <property name="maximum">
+      <number>20</number>
+     </property>
+     <property name="singleStep">
+      <number>1</number>
+     </property>
+     <property name="value">
+      <number>3</number>
+     </property>
+    </widget>
    </item>
    <item row="2" column="0" colspan="2">
-    <widget class="QWidget" name="PresetsWidget" native="true">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <property name="margin">
-       <number>0</number>
-      </property>
-     </layout>
-    </widget>
-   </item>
-   <item row="5" column="0" colspan="2">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -83,7 +74,7 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>0</height>
+       <height>40</height>
       </size>
      </property>
     </spacer>
@@ -102,28 +93,16 @@
    <header>qMRMLNodeComboBox.h</header>
   </customwidget>
   <customwidget>
-   <class>qMRMLVolumeThresholdWidget</class>
-   <extends>QWidget</extends>
-   <header>qMRMLVolumeThresholdWidget.h</header>
-  </customwidget>
-  <customwidget>
-   <class>qMRMLWindowLevelWidget</class>
-   <extends>QWidget</extends>
-   <header>qMRMLWindowLevelWidget.h</header>
-  </customwidget>
-  <customwidget>
    <class>qSlicerWidget</class>
    <extends>QWidget</extends>
    <header>qSlicerWidget.h</header>
    <container>1</container>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="../qSlicerVolumesModule.qrc"/>
- </resources>
+ <resources/>
  <connections>
   <connection>
-   <sender>qSlicerScalarVolumeDisplayWidget</sender>
+   <sender>qSlicerAstroLabelMapVolumeDisplayWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>ColorTableComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>

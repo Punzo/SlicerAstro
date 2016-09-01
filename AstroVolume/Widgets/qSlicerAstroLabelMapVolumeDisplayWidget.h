@@ -1,5 +1,5 @@
-#ifndef __qSlicerLabelMapVolumeDisplayWidget_h
-#define __qSlicerLabelMapVolumeDisplayWidget_h
+#ifndef __qSlicerAstroLabelMapVolumeDisplayWidget_h
+#define __qSlicerAstroLabelMapVolumeDisplayWidget_h
 
 // Qt includes
 #include <QWidget>
@@ -10,23 +10,24 @@
 // SlicerQt includes
 #include <qSlicerWidget.h>
 
-#include "qSlicerVolumesModuleWidgetsExport.h"
+// AstroVolume includes
+#include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class vtkMRMLNode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroLabelMapVolumeDisplayNode;
-class qSlicerLabelMapVolumeDisplayWidgetPrivate;
+class qSlicerAstroLabelMapVolumeDisplayWidgetPrivate;
 
-/// \ingroup Slicer_QtModules_Volumes
-class Q_SLICER_QTMODULES_VOLUMES_WIDGETS_EXPORT qSlicerLabelMapVolumeDisplayWidget : public qSlicerWidget
+/// \ingroup Slicer_QtModules_AstroVolume_Widgets
+class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroLabelMapVolumeDisplayWidget : public qSlicerWidget
 {
   Q_OBJECT
   QVTK_OBJECT
 public:
   /// Constructors
   typedef qSlicerWidget Superclass;
-  explicit qSlicerLabelMapVolumeDisplayWidget(QWidget* parent);
-  virtual ~qSlicerLabelMapVolumeDisplayWidget();
+  explicit qSlicerAstroLabelMapVolumeDisplayWidget(QWidget* parent);
+  virtual ~qSlicerAstroLabelMapVolumeDisplayWidget();
 
   vtkMRMLAstroLabelMapVolumeNode* volumeNode()const;
   vtkMRMLAstroLabelMapVolumeDisplayNode* volumeDisplayNode()const;
@@ -47,11 +48,11 @@ protected slots:
   void updateWidgetFromMRML();
 
 protected:
-  QScopedPointer<qSlicerLabelMapVolumeDisplayWidgetPrivate> d_ptr;
+  QScopedPointer<qSlicerAstroLabelMapVolumeDisplayWidgetPrivate> d_ptr;
 
 private:
-  Q_DECLARE_PRIVATE(qSlicerLabelMapVolumeDisplayWidget);
-  Q_DISABLE_COPY(qSlicerLabelMapVolumeDisplayWidget);
+  Q_DECLARE_PRIVATE(qSlicerAstroLabelMapVolumeDisplayWidget);
+  Q_DISABLE_COPY(qSlicerAstroLabelMapVolumeDisplayWidget);
 };
 
 #endif

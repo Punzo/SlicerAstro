@@ -1,5 +1,5 @@
-#ifndef __qSlicerScalarVolumeDisplayWidget_h
-#define __qSlicerScalarVolumeDisplayWidget_h
+#ifndef __qSlicerAstroScalarVolumeDisplayWidget_h
+#define __qSlicerAstroScalarVolumeDisplayWidget_h
 
 // Qt includes
 #include <QWidget>
@@ -10,17 +10,17 @@
 // SlicerQt includes
 #include <qSlicerWidget.h>
 
-#include "qSlicerVolumesModuleWidgetsExport.h"
+// AstroVolume includes
+#include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class vtkMRMLNode;
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroVolumeNode;
-class qSlicerScalarVolumeDisplayWidgetPrivate;
+class qSlicerAstroScalarVolumeDisplayWidgetPrivate;
 class vtkImageData;
 
-/// \ingroup Slicer_QtModules_Volumes
-class Q_SLICER_QTMODULES_VOLUMES_WIDGETS_EXPORT qSlicerScalarVolumeDisplayWidget
-  : public qSlicerWidget
+/// \ingroup Slicer_QtModules_AstroVolume_Widgets
+class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroScalarVolumeDisplayWidget : public qSlicerWidget
 {
   Q_OBJECT
   QVTK_OBJECT
@@ -29,8 +29,8 @@ class Q_SLICER_QTMODULES_VOLUMES_WIDGETS_EXPORT qSlicerScalarVolumeDisplayWidget
 public:
   /// Constructors
   typedef qSlicerWidget Superclass;
-  explicit qSlicerScalarVolumeDisplayWidget(QWidget* parent);
-  virtual ~qSlicerScalarVolumeDisplayWidget();
+  explicit qSlicerAstroScalarVolumeDisplayWidget(QWidget* parent);
+  virtual ~qSlicerAstroScalarVolumeDisplayWidget();
 
   vtkMRMLAstroVolumeNode* volumeNode()const;
   vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode()const;
@@ -59,11 +59,11 @@ protected slots:
 protected:
   void showEvent(QShowEvent * event);
 protected:
-  QScopedPointer<qSlicerScalarVolumeDisplayWidgetPrivate> d_ptr;
+  QScopedPointer<qSlicerAstroScalarVolumeDisplayWidgetPrivate> d_ptr;
 
 private:
-  Q_DECLARE_PRIVATE(qSlicerScalarVolumeDisplayWidget);
-  Q_DISABLE_COPY(qSlicerScalarVolumeDisplayWidget);
+  Q_DECLARE_PRIVATE(qSlicerAstroScalarVolumeDisplayWidget);
+  Q_DISABLE_COPY(qSlicerAstroScalarVolumeDisplayWidget);
 };
 
 #endif

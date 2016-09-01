@@ -5,13 +5,13 @@
 // qMRMLWidget includes
 #include "qMRMLSliceWidget.h"
 
-// Volumes includes
+// AstroVolume includes
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class qMRMLSliceAstroWidgetPrivate;
 class qMRMLSliceAstroControllerWidget;
 
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup Slicer_QtModules_AstroVolume_Widgets
 class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qMRMLSliceAstroWidget
     : public qMRMLSliceWidget
 {
