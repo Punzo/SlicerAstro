@@ -455,6 +455,27 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
+   if(n == 3 && !(HeaderKeyValue.count("SlicerAstro.NAXIS3")) == 0)
+     {
+     int n3 = StringToInt((HeaderKeyValue.at("SlicerAstro.NAXIS3")).c_str());
+     if(n3 == 1)
+       {
+       HeaderKeyValue["SlicerAstro.NAXIS"] = "2";
+       n = 2;
+       }
+     }
+
+   if(n == 2 && !(HeaderKeyValue.count("SlicerAstro.NAXIS2")) == 0)
+     {
+     int n2 = StringToInt((HeaderKeyValue.at("SlicerAstro.NAXIS2")).c_str());
+     if(n2 == 1)
+       {
+       HeaderKeyValue["SlicerAstro.NAXIS"] = "1";
+       n = 1;
+       }
+     }
+
+
    std::string temp = "SlicerAstro.NAXIS";
 
    if(n > 3)
