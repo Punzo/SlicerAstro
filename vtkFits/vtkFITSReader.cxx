@@ -735,7 +735,7 @@ bool vtkFITSReader::AllocateWCS(){
     {
     if (info[i].status < -1 || 0 < info[i].status)
       {
-      vtkErrorMacro("wcsfix INFORMATIVE message from "<<info[i].function<<
+      vtkWarningMacro("wcsfix INFORMATIVE message from "<<info[i].function<<
                     "at line "<<info[i].line_no<<" of file "<<info[i].file<<
                     ": \n"<< info[i].msg<<"\n");
       }
