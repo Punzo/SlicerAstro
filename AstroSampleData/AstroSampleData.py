@@ -1,12 +1,18 @@
 import os
-import slicer
-import qt, ctk
+import unittest
+import vtk, qt, ctk, slicer
+from slicer.ScriptedLoadableModule import *
+import logging
 
 #
 # AstroSampleData
 #
 
-class AstroSampleData:
+class AstroSampleData(ScriptedLoadableModule):
+  """Uses ScriptedLoadableModule base class, available at:
+  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+  """
+
   def __init__(self, parent):
     import string
     parent.title = "Astro Sample Data"
@@ -84,33 +90,21 @@ class SampleDataSource:
 # AstroSampleData widget
 #
 
-class AstroSampleDataWidget:
-
-  def __init__(self, parent=None):
-    self.observerTags = []
-    self.logic = AstroSampleDataLogic(self.logMessage)
-
-    if not parent:
-      self.parent = slicer.qMRMLWidget()
-      self.parent.setLayout(qt.QVBoxLayout())
-      self.parent.setMRMLScene(slicer.mrmlScene)
-      self.layout = self.parent.layout()
-      self.setup()
-      self.parent.show()
-    else:
-      self.parent = parent
-      self.layout = parent.layout()
-
-  def enter(self):
-    pass
-
-  def exit(self):
-    pass
-
-  def updateGUIFromMRML(self, caller, event):
-    pass
+class AstroSampleDataWidget(ScriptedLoadableModuleWidget):
+  """Uses ScriptedLoadableModuleWidget base class, available at:
+  https://github.com/Slicer/Slicer/blob/master/Base/Python/slicer/ScriptedLoadableModule.py
+  """
 
   def setup(self):
+    ScriptedLoadableModuleWidget.setup(self)
+
+    # This module is often used in developer mode, therefore
+    # collapse reload & test section by default.
+    if hasattr(self, "reloadCollapsibleButton"):
+      self.reloadCollapsibleButton.collapsed = True
+
+    self.observerTags = []
+    self.logic = AstroSampleDataLogic(self.logMessage)
 
     categories = slicer.modules.sampleDataSources.keys()
     categories.sort()
@@ -150,11 +144,20 @@ class AstroSampleDataWidget:
     self.log.repaint()
     slicer.app.processEvents(qt.QEventLoop.ExcludeUserInputEvents)
 
+
 #
 # SampleData logic
 #
 
 class AstroSampleDataLogic:
+  """Manage the slicer.modules.astroSampleDataSources dictionary.
+  The dictionary keys are categories of sample data sources.
+  The BuiltIn category is managed here.  Modules or extensions can
+  register their own sample data by creating instances of the
+  SampleDataSource class.  These instances should be stored in a
+  list that is assigned to a category following the model
+  used in registerBuiltInSampleDataSources below.
+  """
   def __init__(self, logMessage=None):
     if logMessage:
       self.logMessage = logMessage
