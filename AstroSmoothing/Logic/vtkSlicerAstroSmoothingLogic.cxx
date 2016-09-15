@@ -200,7 +200,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor perfomrance.")
+                  "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *inputVolume =
@@ -210,8 +210,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableAniBoxCPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -402,7 +400,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Box Filter (CPU) Kernel Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
 
   inFPixel = NULL;
   outFPixel = NULL;
@@ -434,8 +431,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) <<mtime<<endl;
-  //outputFile.close();
+
   return 1;
 }
 
@@ -447,14 +443,12 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor perfomrance.")
+                  "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableIsoBoxCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -794,7 +788,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Box Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -827,7 +820,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
 }
@@ -903,7 +895,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<" Box Filter (GPU, OpenGL) Benchmark Time : "<<mtime<<" ms "<<endl;
+  qDebug()<<" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms "<<endl;
 
   gettimeofday(&start, NULL);
 
@@ -939,7 +931,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor perfomrance.")
+                  "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *inputVolume =
@@ -949,8 +941,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableAniGaussCPU.txt", ios::out | ios::app);
 
   const int *dims = outputVolume->GetImageData()->GetDimensions();
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -1119,7 +1109,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
 
   inFPixel = NULL;
   outFPixel = NULL;
@@ -1151,7 +1140,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-//outputFile << setprecision(5) << mtime <<endl;
+
   return 1;
 }
 
@@ -1162,13 +1151,12 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor perfomrance.")
+                  "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableIsoGaussCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -1474,7 +1462,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
+
   outFPixel = NULL;
   tempFPixel = NULL;
   outDPixel = NULL;
@@ -1506,7 +1494,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
 
   return 1;
 }
@@ -1588,7 +1575,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Gaussian Filter (GPU, OpenGL) Benchmark Time : "<<mtime<<" ms "<<endl;
+  qDebug()<<"Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms "<<endl;
 
   gettimeofday(&start, NULL);
 
@@ -1622,14 +1609,12 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor perfomrance.")
+                  "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  // ofstream outputFile("./tableGradientCPU.txt", ios::out | ios::app);
 
   this->Internal->tempVolumeData->Initialize();
   this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
@@ -1823,8 +1808,9 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+
   qDebug()<<"Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << numElements << " | " << numProcs << " | " << mtime << " | ";
+
   gettimeofday(&start, NULL);
 
   outputVolume->UpdateRangeAttributes();
@@ -1856,7 +1842,6 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
-  //outputFile << setprecision(5) << mtime <<endl;
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -1950,7 +1935,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<" Box Filter (GPU, OpenGL) Benchmark Time : "<<mtime<<" ms "<<endl;
+  qDebug()<<" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms "<<endl;
 
   gettimeofday(&start, NULL);
 
