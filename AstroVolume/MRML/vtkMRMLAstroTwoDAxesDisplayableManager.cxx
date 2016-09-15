@@ -243,8 +243,16 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     return;
     }
 
-  if (!sliceNode->GetOrientation().compare("Reformat"))
+  if ((sliceNode->GetOrientation().compare("XY") &&
+       sliceNode->GetOrientation().compare("ZY") &&
+       sliceNode->GetOrientation().compare("XZ")) ||
+      !sliceNode->GetOrientation().compare("Reformat"))
     {
+    /*vtkWarningWithObjectMacro(this->External,
+                              "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
+                              " failed: no 2D-WCS-Axis available for "<<sliceNode->GetOrientation()
+                              <<" orientation.");*/
+    this->ShowActors(false);
     return;
     }
 
@@ -312,8 +320,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.};
     double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
     double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
-    std::vector<std::vector<double> > world;
-    std::vector<std::vector<double> > xyzDisplay;
+    std::vector<std::vector<double> > *world = new std::vector<std::vector<double> >();
+    std::vector<std::vector<double> > *xyzDisplay = new std::vector<std::vector<double> >();
+    std::vector<double> *temp = new std::vector<double>();
 
     // calculate WCS coordinates of the view's corners
     xyToIJK->TransformPoint(xyz, ijk);
@@ -354,37 +363,36 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       }
 
     // allocate point along the horizontal axes
-    std::vector<double> temp;
     for (int i = 0; i < numberOfPointsHorizontal; i++)
       {
       int i8 = i * 8;
       if (!sliceNode->GetOrientation().compare("ZY"))
         {
-        temp.clear();
-        temp.push_back(worldA[0]);
-        temp.push_back(worldA[1]);
-        temp.push_back(axisCoord[0] + wcsStep[0] * i);
-        world.push_back(temp);
+        temp->clear();
+        temp->push_back(worldA[0]);
+        temp->push_back(worldA[1]);
+        temp->push_back(axisCoord[0] + wcsStep[0] * i);
+        world->push_back((*temp));
         }
 
       if (!sliceNode->GetOrientation().compare("XY") ||
           !sliceNode->GetOrientation().compare("XZ"))
         {
-        temp.clear();
-        temp.push_back(axisCoord[0] + wcsStep[0] * i);
-        temp.push_back(worldA[1]);
-        temp.push_back(worldA[2]);
-        world.push_back(temp);
+        temp->clear();
+        temp->push_back(axisCoord[0] + wcsStep[0] * i);
+        temp->push_back(worldA[1]);
+        temp->push_back(worldA[2]);
+        world->push_back((*temp));
         }
 
-      displayNode->GetIJKSpace(world[i], ijk);
+      displayNode->GetIJKSpace((*world)[i], ijk);
       xyToIJK->Inverse();
       xyToIJK->TransformPoint(ijk, xyz);
-      temp.clear();
-      temp.push_back(xyz[0]);
-      temp.push_back(xyz[1]);
-      temp.push_back(xyz[2]);
-      xyzDisplay.push_back(temp);
+      temp->clear();
+      temp->push_back(xyz[0]);
+      temp->push_back(xyz[1]);
+      temp->push_back(xyz[2]);
+      xyzDisplay->push_back((*temp));
       this->twoDAxesPoints->InsertPoint(i8, xyz[0], 2, 0);
       this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], 12, 0);
 
@@ -465,30 +473,30 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       if (!sliceNode->GetOrientation().compare("ZY") ||
           !sliceNode->GetOrientation().compare("XY"))
         {
-        temp.clear();
-        temp.push_back(worldA[0]);
-        temp.push_back(axisCoord[1] + wcsStep[1] * ii);
-        temp.push_back(worldA[2]);
-        world.push_back(temp);
+        temp->clear();
+        temp->push_back(worldA[0]);
+        temp->push_back(axisCoord[1] + wcsStep[1] * ii);
+        temp->push_back(worldA[2]);
+        world->push_back((*temp));
         }
 
       if (!sliceNode->GetOrientation().compare("XZ"))
         {
-        temp.clear();
-        temp.push_back(worldA[0]);
-        temp.push_back(worldA[1]);
-        temp.push_back(axisCoord[1] + wcsStep[1] * ii);
-        world.push_back(temp);
+        temp->clear();
+        temp->push_back(worldA[0]);
+        temp->push_back(worldA[1]);
+        temp->push_back(axisCoord[1] + wcsStep[1] * ii);
+        world->push_back((*temp));
         }
 
-      displayNode->GetIJKSpace(world[i], ijk);
+      displayNode->GetIJKSpace((*world)[i], ijk);
       xyToIJK->Inverse();
       xyToIJK->TransformPoint(ijk, xyz);
-      temp.clear();
-      temp.push_back(xyz[0]);
-      temp.push_back(xyz[1]);
-      temp.push_back(xyz[2]);
-      xyzDisplay.push_back(temp);
+      temp->clear();
+      temp->push_back(xyz[0]);
+      temp->push_back(xyz[1]);
+      temp->push_back(xyz[2]);
+      xyzDisplay->push_back((*temp));
 
       this->twoDAxesPoints->InsertPoint(i8, 2, xyz[1], 0);
       this->twoDAxesPoints->InsertPoint(i8 + 1, 12, xyz[1], 0);
@@ -632,20 +640,20 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     // allocate 2DTextActors for the horizontal axes
     for (int i = 0; i < numberOfPointsHorizontal; i++)
       {
-      if(xyzDisplay[i][0] < 50 || xyzDisplay[i][0] > viewWidthPixel - 50)
+      if((*xyzDisplay)[i][0] < 50 || (*xyzDisplay)[i][0] > viewWidthPixel - 50)
         {
         continue;
         }
 
       if (!sliceNode->GetOrientation().compare("ZY"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
+        coord = displayNode->GetAxisDisplayStringFromValueZ((*world)[i][2]);
         }
 
       if (!sliceNode->GetOrientation().compare("XY") ||
           !sliceNode->GetOrientation().compare("XZ"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueX(world[i][0]);
+        coord = displayNode->GetAxisDisplayStringFromValueX((*world)[i][0]);
         }
 
       vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
@@ -653,14 +661,14 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       textProperty->SetFontSize(fontSize);
       textProperty->SetFontFamilyToArial();
       textActorHorizontal->SetInput(coord.c_str());
-      textActorHorizontal->SetDisplayPosition((int) (xyzDisplay[i][0]-40), 15);
+      textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0]-40), 15);
       this->MarkerRenderer->AddActor2D(textActorHorizontal);
       }
 
     // allocate 2DTextActors for the vertical axes
     for (int i = numberOfPointsHorizontal; i < nTot; i++)
       {
-      if(xyzDisplay[i][1] < 50 || xyzDisplay[i][1] > viewHeightPixel)
+      if((*xyzDisplay)[i][1] < 50 || (*xyzDisplay)[i][1] > viewHeightPixel)
         {
         continue;
         }
@@ -668,12 +676,12 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       if (!sliceNode->GetOrientation().compare("ZY") ||
           !sliceNode->GetOrientation().compare("XY"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueY(world[i][1]);
+        coord = displayNode->GetAxisDisplayStringFromValueY((*world)[i][1]);
         }
 
       if (!sliceNode->GetOrientation().compare("XZ"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueZ(world[i][2]);
+        coord = displayNode->GetAxisDisplayStringFromValueZ((*world)[i][2]);
         }
 
       vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
@@ -681,13 +689,16 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       textProperty->SetFontSize(fontSize);
       textProperty->SetFontFamilyToArial();
       textActorVertical->SetInput(coord.c_str());
-      textActorVertical->SetDisplayPosition(20, (int) (xyzDisplay[i][1]-5));
+      textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]-5));
       this->MarkerRenderer->AddActor2D(textActorVertical);
       }
 
-    world.clear();
-    xyzDisplay.clear();
-    temp.clear();
+    world->clear();
+    xyzDisplay->clear();
+    temp->clear();
+    delete world;
+    delete xyzDisplay;
+    delete temp;
 
     break;
     }

@@ -59,6 +59,7 @@ protected:
   virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene);
   virtual void UpdateFromMRMLScene();
   virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
+  virtual void OnMRMLSceneEndImport();
 
   bool LoadPresets(vtkMRMLScene* scene);
   vtkMRMLScene* PresetsScene;

@@ -95,10 +95,47 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   // Events that use the default priority.  Don't care the order they
   // are triggered
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
+  events->InsertNextValue(vtkMRMLScene::EndImportEvent);
 
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
 
   this->ProcessMRMLSceneEvents(newScene, vtkMRMLScene::EndBatchProcessEvent, 0);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
+{
+  // set Slice Default Node
+  vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
+      (this->GetMRMLScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
+  if (!defaultNode)
+    {
+    vtkMRMLNode * foo = this->GetMRMLScene()->CreateNodeByClass("vtkMRMLSliceNode");
+    defaultNode.TakeReference(foo);
+    this->GetMRMLScene()->AddDefaultNode(defaultNode);
+    }
+  vtkMRMLSliceNode * defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
+  defaultSliceNode->RemoveSliceOrientationPreset("Axial");
+  defaultSliceNode->RemoveSliceOrientationPreset("Sagittal");
+  defaultSliceNode->RemoveSliceOrientationPreset("Coronal");
+
+  // modify SliceNodes already allocated
+  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
+
+  for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+    {
+    vtkMRMLSliceNode* sliceNode =
+        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+    if (sliceNode)
+      {
+      sliceNode->DisableModifiedEventOn();
+      sliceNode->RemoveSliceOrientationPreset("Axial");
+      sliceNode->RemoveSliceOrientationPreset("Sagittal");
+      sliceNode->RemoveSliceOrientationPreset("Coronal");
+      sliceNode->DisableModifiedEventOff();
+      }
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -288,7 +325,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     vtkMRMLSliceNode* sliceNodeGreen = vtkMRMLSliceNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
     sliceNodeGreen->SetOrientation("ZY");
-    }
+  }
 }
 
 namespace
