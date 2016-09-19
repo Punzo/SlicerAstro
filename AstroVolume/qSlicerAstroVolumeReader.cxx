@@ -142,10 +142,9 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     if (properties.contains("colorNodeID"))
       {
       QString colorNodeID = properties["colorNodeID"].toString();
-      vtkMRMLAstroVolumeNode* astroNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
-      if (astroNode->GetAstroVolumeDisplayNode())
+      if (node->GetDisplayNode())
         {
-        astroNode->GetAstroVolumeDisplayNode()->SetAndObserveColorNodeID(colorNodeID.toLatin1());
+        node->GetDisplayNode()->SetAndObserveColorNodeID(colorNodeID.toLatin1());
         }
       }
     vtkSlicerApplicationLogic* appLogic =

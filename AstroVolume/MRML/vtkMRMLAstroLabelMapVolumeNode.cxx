@@ -52,32 +52,6 @@ void vtkMRMLAstroLabelMapVolumeNode::PrintSelf(ostream &os, vtkIndent indent)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeNode::ReadXMLAttributes(const char **atts)
-{
-  this->Superclass::ReadXMLAttributes(atts);
-
-  this->WriteXML(std::cout,0);
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeNode::WriteXML(ostream &of, int nIndent)
-{
-  this->Superclass::WriteXML(of, nIndent);
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeNode::Copy(vtkMRMLNode *anode)
-{
-  vtkMRMLAstroLabelMapVolumeNode *astroLabelMapVolumeNode = vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(anode);
-  if (!astroLabelMapVolumeNode)
-    {
-    return;
-    }
-
-  this->Superclass::Copy(anode);
-}
-
-//----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes()
 {
   if (vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(this->GetDisplayNode())!=NULL)
@@ -90,10 +64,25 @@ void vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes()
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes failed: scene is invalid");
     return;
     }
-  vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode> dispNode;
-  dispNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeLabels");
+  vtkNew<vtkMRMLLabelMapVolumeDisplayNode> dispNode;
   this->GetScene()->AddNode(dispNode.GetPointer());
+  dispNode->SetDefaultColorMap();
   this->SetAndObserveDisplayNodeID(dispNode->GetID());
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeNode::CreateNoneNode(vtkMRMLScene *scene)
+{
+  vtkNew<vtkImageData> id;
+  id->SetDimensions(1, 1, 1);
+  id->AllocateScalars(VTK_FLOAT, 1);
+  id->GetPointData()->GetScalars()->FillComponent(0, 0);
+
+  vtkNew<vtkMRMLAstroLabelMapVolumeNode> n;
+  n->SetName("None");
+  // the scene will set the id
+  n->SetAndObserveImageData(id.GetPointer());
+  scene->AddNode(n.GetPointer());
 }
 
 //----------------------------------------------------------------------------
