@@ -4,6 +4,7 @@
 
 // VTK includes
 #include <vtkImageData.h>
+#include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 
@@ -306,6 +307,26 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
   outDPixel = NULL;
   delete outFPixel;
   delete outDPixel;
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::CreateNoneNode(vtkMRMLScene *scene)
+{
+  // Create a None volume RGBA of 0, 0, 0 so the filters won't complain
+  // about missing input
+  vtkNew<vtkImageData> id;
+  id->SetDimensions(1, 1, 1);
+  id->AllocateScalars(VTK_DOUBLE, 4);
+  id->GetPointData()->GetScalars()->FillComponent(0, 0.0);
+  id->GetPointData()->GetScalars()->FillComponent(1, 125.0);
+  id->GetPointData()->GetScalars()->FillComponent(2, 0.0);
+  id->GetPointData()->GetScalars()->FillComponent(3, 0.0);
+
+  vtkNew<vtkMRMLAstroVolumeNode> n;
+  n->SetName("None");
+  // the scene will set the id
+  n->SetAndObserveImageData(id.GetPointer());
+  scene->AddNode(n.GetPointer());
 }
 
 //---------------------------------------------------------------------------

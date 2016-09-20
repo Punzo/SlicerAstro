@@ -44,6 +44,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   virtual const char* GetNodeTagName() {return "AstroVolume";};
 
   ///
+  /// Make a 'None' volume node with blank image data
+  static void CreateNoneNode(vtkMRMLScene *scene);
+
+  ///
   /// Create and observe default Storage node
   virtual vtkMRMLStorageNode* CreateDefaultStorageNode();
 
