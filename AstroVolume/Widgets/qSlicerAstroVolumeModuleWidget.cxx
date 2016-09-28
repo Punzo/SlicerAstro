@@ -594,10 +594,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     cameraNodeTwo->SetFocalPoint(Origin);
     }
 
-  for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
+  /*for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
-    }
+    }*/
 
   volumeOne->SetDisplayVisibility(1);
   volumeTwo->SetDisplayVisibility(1);
