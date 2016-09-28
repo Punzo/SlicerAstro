@@ -67,10 +67,12 @@ public slots:
   void setComparative3DViews(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID);
   void stopRockView();
+  void startRockView();
   /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
+  void onCurrentQualityControlChanged(int);
 
 protected slots:
   void resetOffset(vtkMRMLNode* node);
@@ -78,7 +80,6 @@ protected slots:
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject*);
   void onMRMLDisplayROINodeModified(vtkObject*);
-  void onCurrentQualityControlChanged(int);
   void setDisplayROIEnabled(bool);
   void onCropToggled(bool);
   void onInputVolumeChanged(vtkMRMLNode *node);

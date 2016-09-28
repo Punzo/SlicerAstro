@@ -594,10 +594,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     cameraNodeTwo->SetFocalPoint(Origin);
     }
 
-  /*for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
-    {
-    app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
-    }*/
+  //this->startRockView();
 
   volumeOne->SetDisplayVisibility(1);
   volumeTwo->SetDisplayVisibility(1);
@@ -614,6 +611,15 @@ void qSlicerAstroVolumeModuleWidget::stopRockView()
     }
 }
 
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::startRockView()
+{
+  qSlicerApplication* app = qSlicerApplication::application();
+  for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
+    {
+    app->layoutManager()->threeDWidget(i)->threeDController()->rockView(true);
+    }
+}
 
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sender)
