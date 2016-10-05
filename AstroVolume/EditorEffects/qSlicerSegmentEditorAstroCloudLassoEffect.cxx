@@ -347,6 +347,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::init()
 
   this->ThresholdSlicerWidget = new qMRMLSliderWidget();
   this->ThresholdSlicerWidget->setSpinBoxVisible(true);
+  this->ThresholdSlicerWidget->setToolTip("list of shortcut keys: 'n' decrease the threshold value; "
+                                          "'m' increase the threshold value.");
   q->addOptionsWidget(this->ThresholdSlicerWidget);
 
   this->AutomaticThresholdCheckbox = new QCheckBox("Automatic Threshold Updating Mode");
@@ -354,17 +356,16 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::init()
                                                "of the selection when chaning the threshold value. "
                                                "If active: draw a 2-D or 3-D cloudlasso, then, change "
                                                "the threshold value. It is not possible to activate it "
-                                               "in Erase Mode.");
+                                               "in Erase Mode. The shortcut key is 'c'.");
   q->addOptionsWidget(this->AutomaticThresholdCheckbox);
 
   this->EraseModeCheckbox = new QCheckBox("Erase Mode");
-  this->EraseModeCheckbox->setToolTip("Activate or deactivate erase mode.");
+  this->EraseModeCheckbox->setToolTip("Activate or deactivate Erase Mode. The shortcut key is 'x'.");
   q->addOptionsWidget(this->EraseModeCheckbox);
 
-  QObject::connect(this->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), this, SLOT(ThresholdValueChanged(double)));
-  QObject::connect(this->EraseModeCheckbox, SIGNAL(clicked()), q, SLOT(updateMRMLFromGUI()));
-  QObject::connect(this->AutomaticThresholdCheckbox, SIGNAL(clicked()), q, SLOT(updateMRMLFromGUI()));
-  QObject::connect(this->EraseModeCheckbox, SIGNAL(clicked()), q, SLOT(onEraseModeChanged()));
+  QObject::connect(this->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), q, SLOT(onThresholdValueChanged(double)));
+  QObject::connect(this->EraseModeCheckbox, SIGNAL(toggled(bool)), q, SLOT(onEraseModeChanged(bool)));
+  QObject::connect(this->AutomaticThresholdCheckbox, SIGNAL(toggled(bool)), q, SLOT(onAutomaticThresholdModeChanged(bool)));
 
   vtkMRMLUnitNode* unitNodeIntensity = qSlicerCoreApplication::application()->applicationLogic()->GetSelectionNode()->GetUnitNode("intensity");
   this->qvtkConnect( unitNodeIntensity, vtkCommand::ModifiedEvent, this, SLOT(onUnitNodeIntensityChanged(vtkObject*)));
@@ -755,14 +756,6 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
 }
 
 //----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::ThresholdValueChanged(double value)
-{
-  Q_Q(qSlicerSegmentEditorAstroCloudLassoEffect);
-
-    q->setCommonParameter("ThresholdValue", value);
-}
-
-//----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::onUnitNodeIntensityChanged(vtkObject *sender)
 {
   if (!sender)
@@ -1119,6 +1112,46 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     {
     brushPipeline->SetBrushVisibility(false);
     }
+  else if (eid == vtkCommand::KeyPressEvent)
+    {
+    const char* key = callerInteractor->GetKeySym();
+    if (!strcmp(key, "n"))
+      {
+      bool eraseMode = this->integerParameter("EraseMode");
+      if (!eraseMode)
+        {
+        double StepValue = d->ThresholdSlicerWidget->singleStep();
+        double ThresholdValue = this->doubleParameter("ThresholdValue");
+        double ThresholdValueNew = ThresholdValue - StepValue;
+        d->ThresholdSlicerWidget->setValue(ThresholdValueNew);
+        }
+      }
+    if (!strcmp(key, "m"))
+      {
+      bool eraseMode = this->integerParameter("EraseMode");
+      if (!eraseMode)
+        {
+        double StepValue = d->ThresholdSlicerWidget->singleStep();
+        double ThresholdValue = this->doubleParameter("ThresholdValue");
+        double ThresholdValueNew = ThresholdValue + StepValue;
+        d->ThresholdSlicerWidget->setValue(ThresholdValueNew);
+        }
+      }
+    if (!strcmp(key, "c"))
+      {
+      bool eraseMode = this->integerParameter("EraseMode");
+      if (!eraseMode)
+        {
+        bool automaticThresholdMode = this->integerParameter("AutomaticThresholdMode");
+        d->AutomaticThresholdCheckbox->setChecked(!automaticThresholdMode);
+        }
+      }
+    if (!strcmp(key, "x"))
+      {
+      bool eraseMode = this->integerParameter("EraseMode");
+      d->EraseModeCheckbox->setChecked(!eraseMode);
+      }
+    }
 
   // Update paint feedback glyph to follow mouse if there are at least two points
   if(idPoint <= 0)
@@ -1178,13 +1211,16 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setMRMLDefaults()
   this->setCommonParameterDefault("EraseMode", 0);
   this->setCommonParameterDefault("AutomaticThresholdMode", 0);
   this->setCommonParameterDefault("ThresholdValue", 0.);
+  this->setCommonParameterDefault("ThresholdSingleStep", 0.);
+  this->setCommonParameterDefault("ThresholdMaximumValue", 0.);
+  this->setCommonParameterDefault("ThresholdMinimumValue", 0.);
+  this->setCommonParameterDefault("Threshold3RMSValue", 0.);
+  this->setCommonParameterDefault("ThresholdDecimals", 0);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
 {
-  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
-
   vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
 
   if (!masterVolume)
@@ -1199,21 +1235,22 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
     return;
     }
 
-  double range[2];
-  range[0] = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
-  range[1] = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
-  d->ThresholdSlicerWidget->blockSignals(true);
-  d->ThresholdSlicerWidget->setRange(range[0], range[1]);
-  d->ThresholdSlicerWidget->spinBox()->setRange(range[0], range[1]);
-  double singleStep = (range[1] - range[0]) / 100.;
-  d->ThresholdSlicerWidget->setSingleStep(singleStep);
-  d->ThresholdSlicerWidget->spinBox()->setSingleStep(singleStep);
+  double min = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
+  double max = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
+  this->setCommonParameter("ThresholdMaximumValue", max);
+  this->setCommonParameter("ThresholdMinimumValue", min);
+
+  double singleStep = (max - min) / 100.;
+  this->setCommonParameter("ThresholdSingleStep", singleStep);
+
   vtkMRMLUnitNode* unitNodeIntensity = qSlicerCoreApplication::application()
     ->applicationLogic()->GetSelectionNode()->GetUnitNode("intensity");
-  d->ThresholdSlicerWidget->spinBox()->setDecimals(unitNodeIntensity->GetPrecision());
-  d->ThresholdSlicerWidget->blockSignals(false);
+  this->setCommonParameter("ThresholdDecimals", unitNodeIntensity->GetPrecision());
+
   double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.RMS")) * 3.;
   this->setCommonParameter("ThresholdValue", noise3);
+  this->setCommonParameter("Threshold3RMSValue", noise3);
+
   this->updateGUIFromMRML();
 }
 
@@ -1240,7 +1277,6 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
   d->EraseModeCheckbox->setChecked(eraseMode);
   d->EraseModeCheckbox->blockSignals(false);
 
-  double ThresholdValue = this->doubleParameter("ThresholdValue");
   bool automaticThresholdMode = this->integerParameter("AutomaticThresholdMode");
   if (eraseMode)
     {
@@ -1253,7 +1289,17 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
   d->AutomaticThresholdCheckbox->setEnabled(!eraseMode);
   d->AutomaticThresholdCheckbox->blockSignals(false);
 
+  double ThresholdValue = this->doubleParameter("ThresholdValue");
+  double ThresholdSingleStep = this->doubleParameter("ThresholdSingleStep");
+  double ThresholdMaximumValue = this->doubleParameter("ThresholdMaximumValue");
+  double ThresholdMinimumValue = this->doubleParameter("ThresholdMinimumValue");
+  int ThresholdDecimals = this->integerParameter("ThresholdDecimals");
   d->ThresholdSlicerWidget->blockSignals(true);
+  d->ThresholdSlicerWidget->setRange(ThresholdMinimumValue, ThresholdMaximumValue);
+  d->ThresholdSlicerWidget->spinBox()->setRange(ThresholdMinimumValue, ThresholdMaximumValue);
+  d->ThresholdSlicerWidget->setSingleStep(ThresholdSingleStep);
+  d->ThresholdSlicerWidget->spinBox()->setSingleStep(ThresholdSingleStep);
+  d->ThresholdSlicerWidget->spinBox()->setDecimals(ThresholdDecimals);
   d->ThresholdSlicerWidget->setValue(ThresholdValue);
   d->ThresholdSlicerWidget->spinBox()->setValue(ThresholdValue);
   d->ThresholdSlicerWidget->setEnabled(!eraseMode);
@@ -1271,20 +1317,28 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
 //-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffect::updateMRMLFromGUI()
 {
+  Superclass::updateMRMLFromGUI();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::onThresholdValueChanged(double value)
+{
+  this->setCommonParameter("ThresholdValue", value);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::onAutomaticThresholdModeChanged(bool mode)
+{
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
-  Superclass::updateMRMLFromGUI();
-
-  bool eraseMode = d->EraseModeCheckbox->isChecked();
-  this->m_Erase = eraseMode;
-  this->setCommonParameter("EraseMode", (int)eraseMode);
-  bool automaticThresholdMode = d->AutomaticThresholdCheckbox->isChecked();
+  bool eraseMode = this->integerParameter("EraseMode");
   if (eraseMode)
     {
-    automaticThresholdMode = false;
+    mode = false;
     }
-  this->setCommonParameter("AutomaticThresholdMode", (int)automaticThresholdMode);
-  if (automaticThresholdMode)
+  this->setCommonParameter("AutomaticThresholdMode", mode);
+
+  if (mode)
     {
     QObject::connect(d->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), d, SLOT(reApplyPaint()));
     }
@@ -1292,35 +1346,27 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateMRMLFromGUI()
     {
     QObject::disconnect(d->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), d, SLOT(reApplyPaint()));
     }
-  this->setCommonParameter("ThresholdValue", d->ThresholdSlicerWidget->value());
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged()
+void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged(bool mode)
 {
-  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
-
-  vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
-  if (!masterVolume)
+  this->m_Erase = mode;
+  this->setCommonParameter("EraseMode", (int)mode);
+  if (mode)
     {
-    return;
+    this->setCommonParameter("AutomaticThresholdMode", !mode);
+    this->updateGUIFromMRML();
     }
 
-  vtkMRMLAstroVolumeNode *astroMasterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(masterVolume);
-  if (!astroMasterVolume)
-    {
-    return;
-    }
-
-  bool eraseMode = this->integerParameter("EraseMode");
   double ThresholdValue = 0.;
-  if (eraseMode)
+  if (mode)
     {
-    ThresholdValue = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
+    ThresholdValue = this->doubleParameter("ThresholdMinimumValue");
     }
   else
     {
-    ThresholdValue = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.RMS")) * 3.;
+    ThresholdValue = this->doubleParameter("Threshold3RMSValue");
     }
-    this->setCommonParameter("ThresholdValue", ThresholdValue);
+    this->onThresholdValueChanged(ThresholdValue);
 }

@@ -91,8 +91,14 @@ public slots:
   /// Update parameter set node from user interface
   virtual void updateMRMLFromGUI();
 
+  /// Update automatic Threshold value changed
+  virtual void onThresholdValueChanged(double value);
+
+  /// Update automatic Threshold mode on/off
+  virtual void onAutomaticThresholdModeChanged(bool mode);
+
   /// Update Threshold value to optimal one when EraseMode is on/off
-  virtual void onEraseModeChanged();
+  virtual void onEraseModeChanged(bool mode);
 
 protected:
   /// Flag determining whether to paint or erase.

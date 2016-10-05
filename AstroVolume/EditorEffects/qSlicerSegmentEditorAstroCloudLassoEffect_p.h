@@ -117,9 +117,6 @@ protected slots:
   /// reapply the paint if the threshold settings are changed
   void reApplyPaint();
 
-  /// update Threshold value
-  void ThresholdValueChanged(double value);
-
   /// Handle changes for the Intensity Unit Node
   void onUnitNodeIntensityChanged(vtkObject* sender);
 
