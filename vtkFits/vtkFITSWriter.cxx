@@ -204,7 +204,8 @@ void vtkFITSWriter::WriteData()
       fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
       }
     else if (!(std::string::npos != ts.find_first_of("-1234567890"))
-               || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0, 8, "CELLSCAL")))
+               || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0, 8, "CELLSCAL"))
+               || (!tmp.compare(0,8,"DATATYPE")))
       {
       fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
       }

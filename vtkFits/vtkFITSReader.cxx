@@ -23,16 +23,24 @@
 // vtkASTRO includes
 #include <vtkFITSReader.h>
 
+// Qt includes
+#include <QFileInfo>
+#include <QRegExp>
+
 // VTK includes
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
 #include <vtkInformation.h>
 #include <vtkMatrix4x4.h>
+#include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkStreamingDemandDrivenPipeline.h>
+
+// Slicer includes
+#include "vtkMRMLVolumeArchetypeStorageNode.h"
 
 // STD includes
 #include <sstream>
@@ -649,6 +657,43 @@ bool vtkFITSReader::AllocateHeader()
      {
      vtkWarningMacro("The fits header is missing the BPA keyword.");
      HeaderKeyValue["SlicerAstro.BPA"] = "0.";
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.DATATYPE") == 0)
+     {
+     bool onlyNumberInExtension = false;
+     vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
+     QFileInfo fileInfo(this->CurrentFileName);
+     QString fileBaseName = fileInfo.baseName();
+     if (fileInfo.isFile())
+       {
+       std::string fileNameStd = fileInfo.fileName().toStdString();
+       std::string filenameWithoutExtension = snode->GetFileNameWithoutExtension(fileNameStd.c_str());
+       fileBaseName = QString(filenameWithoutExtension.c_str());
+       fileInfo.suffix().toInt(&onlyNumberInExtension);
+       }
+
+     QRegExp labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
+     QRegExp segName("(\\b|_)([Ss]eg)(\\b|_)");
+     QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
+     QRegExp modelName("(\\b|_)([Mm]odel)(\\b|_)");
+     QRegExp modelNamesShort("(\\b|_)([Mm]od)(\\b|_)");
+
+     if (fileInfo.baseName().contains(labelMapName) ||
+         fileInfo.baseName().contains(segName) ||
+         fileInfo.baseName().contains(maskName))
+       {
+       HeaderKeyValue["SlicerAstro.DATATYPE"] = "MASK";
+       }
+     else if (fileInfo.baseName().contains(modelName) ||
+             fileInfo.baseName().contains(modelNamesShort))
+       {
+       HeaderKeyValue["SlicerAstro.DATATYPE"] = "MODEL";
+       }
+     else
+       {
+       HeaderKeyValue["SlicerAstro.DATATYPE"] = "DATA";
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.DATAMAX") == 0)
