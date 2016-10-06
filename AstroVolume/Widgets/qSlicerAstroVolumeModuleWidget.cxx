@@ -167,32 +167,45 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->VisibilityCheckBox, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    this->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->SynchronizeScalarDisplayNodeButton, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->RenderingMethodComboBox, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->QualityControlComboBox, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->PresetOffsetSlider, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->PresetsNodeComboBox, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->activateLabel, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->synchLabel, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->PresetsLabel, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->shiftLabel, SLOT(setEnabled(bool)));
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->CropLabel, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->RenderingMethodLabel, SLOT(setEnabled(bool)));
+
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->qualityLabel, SLOT(setEnabled(bool)));
+
  // Techniques
  vtkSlicerVolumeRenderingLogic* volumeRenderingLogic =
    vtkSlicerVolumeRenderingLogic::SafeDownCast(volumeRendering->logic());
@@ -231,17 +244,22 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
  QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                   this->volumeRenderingWidget, SLOT(offsetPreset(double)));
+
  QObject::connect(this->PresetOffsetSlider, SIGNAL(sliderPressed()),
                   this->volumeRenderingWidget, SLOT(startInteraction()));
+
  QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                   this->volumeRenderingWidget, SLOT(interaction()));
+
  QObject::connect(this->PresetOffsetSlider, SIGNAL(sliderReleased()),
                   this->volumeRenderingWidget, SLOT(endInteraction()));
 
  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                   this->ROICropCheckBox, SLOT(setEnabled(bool)));
+
  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                   this->ROICropDisplayCheckBox, SLOT(setEnabled(bool)));
+
  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                   this->ROIFitPushButton, SLOT(setEnabled(bool)));
 
@@ -254,6 +272,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
  // Rendering
  QObject::connect(this->ROICropCheckBox, SIGNAL(toggled(bool)),
                   q, SLOT(onCropToggled(bool)));
+
  QObject::connect(this->ROIFitPushButton, SIGNAL(clicked()),
                   this->volumeRenderingWidget, SLOT(fitROIToVolume()));
 
@@ -363,11 +382,13 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
         // Check Input volume dimensionality
         if (n != 3)
           {
-          d->DisplayCollapsibleButton_2->setEnabled(false);
+          d->RenderingFrame->setEnabled(false);
+          d->RenderingFrame->setCollapsed(true);
           }
         else
           {
-          d->DisplayCollapsibleButton_2->setEnabled(true);
+          d->RenderingFrame->setEnabled(true);
+          d->RenderingFrame->setCollapsed(false);
           }
         // set it to be active in the slice windows
         vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
@@ -377,7 +398,8 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
         }
       else if (labelMapVolumeNode)
         {
-        d->DisplayCollapsibleButton_2->setEnabled(false);
+        d->RenderingFrame->setEnabled(false);
+        d->RenderingFrame->setCollapsed(true);
         }
       }
     }

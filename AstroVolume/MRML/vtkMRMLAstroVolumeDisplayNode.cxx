@@ -454,7 +454,7 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
-                                               double SpaceCoordinates[3])
+                                                      double SpaceCoordinates[3])
 {
   if (this->Space != NULL)
     {
@@ -479,7 +479,8 @@ void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3], double ijk[3])
+void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
+                                                double ijk[3])
 {
   if (this->Space != NULL)
     {
@@ -503,7 +504,8 @@ void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates, double ijk[3])
+void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
+                                                double ijk[3])
 {
   if (this->Space != NULL)
     {

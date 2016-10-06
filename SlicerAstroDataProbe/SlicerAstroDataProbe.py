@@ -92,8 +92,8 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     CoordinateSystemName = "IJK"
 
     layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
-                   ('F', sliceLogic.GetForegroundLayer),
-                   ('L', sliceLogic.GetLabelLayer))
+                      ('F', sliceLogic.GetForegroundLayer),
+                      ('L', sliceLogic.GetLabelLayer))
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()

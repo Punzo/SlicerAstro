@@ -451,7 +451,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
-                                               double SpaceCoordinates[3])
+                                                              double SpaceCoordinates[3])
 {
   if (this->Space != NULL)
     {
@@ -476,7 +476,8 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3], double ijk[3])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
+                                                        double ijk[3])
 {
   if (this->Space != NULL)
     {
@@ -500,7 +501,8 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordi
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates, double ijk[3])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
+                                                        double ijk[3])
 {
   if (this->Space != NULL)
     {
@@ -1495,7 +1497,8 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(co
 
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world,
+                                                                                 vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)

@@ -98,17 +98,17 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   ///
   /// Get IJK Coordinates from WCS
   virtual void GetIJKSpace(const double SpaceCoordinates[3],
-                                 double ijk[3]);
+                           double ijk[3]);
 
   ///
   /// Get IJK Coordinates from WCS
   virtual void GetIJKSpace(std::vector<double> SpaceCoordinates,
-                                 double ijk[3]);
+                           double ijk[3]);
 
   ///
   /// Get the first tick for the display of axes at given unitNode in WCS units
   virtual double GetFirstWcsTickAxis(const double worldA, const double worldB,
-                             const double wcsStep, vtkMRMLUnitNode *node);
+                                     const double wcsStep, vtkMRMLUnitNode *node);
 
   ///
   /// Get the first tick for the display of the axis X in WCS units
@@ -125,8 +125,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   ///
   /// Get the ticks step for the display of axes at given unitNode in WCS units
   virtual double GetWcsTickStepAxis(const double wcsLength,
-                             int *numberOfPoints,
-                             vtkMRMLUnitNode *node);
+                                    int *numberOfPoints,
+                                    vtkMRMLUnitNode *node);
 
   ///
   /// Get the ticks step for the display of the axis X in WCS units
