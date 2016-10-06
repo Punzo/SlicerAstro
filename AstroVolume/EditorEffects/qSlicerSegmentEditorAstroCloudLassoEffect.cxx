@@ -36,6 +36,9 @@
 #include <QLabel>
 #include <QPushButton>
 
+// CTK includes
+#include <ctkRangeWidget.h>
+
 // VTK includes
 #include <vtkActor.h>
 #include <vtkActor2D.h>
@@ -96,8 +99,6 @@
 // Slicer includes
 #include "qMRMLSliceView.h"
 #include "qMRMLSliceWidget.h"
-#include "qMRMLSliderWidget.h"
-#include "qMRMLSpinBox.h"
 #include "qMRMLThreeDView.h"
 #include "qMRMLThreeDWidget.h"
 #include "qSlicerLayoutManager.h"
@@ -256,8 +257,8 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   , CloudLassoFrame(NULL)
   , EraseModeCheckbox(NULL)
   , AutomaticThresholdCheckbox(NULL)
-  , ThresholdSlicerLabel(NULL)
-  , ThresholdSlicerWidget(NULL)
+  , ThresholdRangeLabel(NULL)
+  , ThresholdRangeWidget(NULL)
   , distance(0.)
 {
   this->Normals[0] = 0.;
@@ -342,14 +343,15 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::init()
   this->CloudLassoFrame->setLayout(new QHBoxLayout());
   q->addOptionsWidget(this->CloudLassoFrame);
 
-  this->ThresholdSlicerLabel = new QLabel("Threshold value: ");
-  q->addOptionsWidget(this->ThresholdSlicerLabel);
+  this->ThresholdRangeLabel = new QLabel("Threshold range values: ");
+  q->addOptionsWidget(this->ThresholdRangeLabel);
 
-  this->ThresholdSlicerWidget = new qMRMLSliderWidget();
-  this->ThresholdSlicerWidget->setSpinBoxVisible(true);
-  this->ThresholdSlicerWidget->setToolTip("list of shortcut keys: 'n' decrease the threshold value; "
-                                          "'m' increase the threshold value.");
-  q->addOptionsWidget(this->ThresholdSlicerWidget);
+  this->ThresholdRangeWidget = new ctkRangeWidget();
+  this->ThresholdRangeWidget->setToolTip("list of shortcut keys: 'n' decrease the minimum threshold value; "
+                                         "'m' increase the minimum threshold value; "
+                                         "'k' decrease the maximum threshold value; "
+                                         "'l' increase the maximum threshold value. ");
+  q->addOptionsWidget(this->ThresholdRangeWidget);
 
   this->AutomaticThresholdCheckbox = new QCheckBox("Automatic Threshold Updating Mode");
   this->AutomaticThresholdCheckbox->setToolTip("Activate or deactivate automatic updating "
@@ -363,7 +365,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::init()
   this->EraseModeCheckbox->setToolTip("Activate or deactivate Erase Mode. The shortcut key is 'x'.");
   q->addOptionsWidget(this->EraseModeCheckbox);
 
-  QObject::connect(this->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), q, SLOT(onThresholdValueChanged(double)));
+  QObject::connect(this->ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)), q, SLOT(onThresholdValueChanged(double, double)));
   QObject::connect(this->EraseModeCheckbox, SIGNAL(toggled(bool)), q, SLOT(onEraseModeChanged(bool)));
   QObject::connect(this->AutomaticThresholdCheckbox, SIGNAL(toggled(bool)), q, SLOT(onAutomaticThresholdModeChanged(bool)));
 
@@ -765,7 +767,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::onUnitNodeIntensityChange
 
   vtkMRMLUnitNode* unitNodeIntensity = vtkMRMLUnitNode::SafeDownCast(sender);
 
-  this->ThresholdSlicerWidget->spinBox()->setDecimals(unitNodeIntensity->GetPrecision());
+  this->ThresholdRangeWidget->setDecimals(unitNodeIntensity->GetPrecision());
 }
 
 //----------------------------------------------------------------------------
@@ -1120,10 +1122,11 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       bool eraseMode = this->integerParameter("EraseMode");
       if (!eraseMode)
         {
-        double StepValue = d->ThresholdSlicerWidget->singleStep();
-        double ThresholdValue = this->doubleParameter("ThresholdValue");
-        double ThresholdValueNew = ThresholdValue - StepValue;
-        d->ThresholdSlicerWidget->setValue(ThresholdValueNew);
+        double StepValue = d->ThresholdRangeWidget->singleStep();
+        double ThresholdValue = this->doubleParameter("ThresholdMinimumValue");
+        ThresholdValue -= StepValue;
+        d->ThresholdRangeWidget->setValues(ThresholdValue,
+                                           this->doubleParameter("ThresholdMaximumValue"));
         }
       }
     if (!strcmp(key, "m"))
@@ -1131,10 +1134,35 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       bool eraseMode = this->integerParameter("EraseMode");
       if (!eraseMode)
         {
-        double StepValue = d->ThresholdSlicerWidget->singleStep();
-        double ThresholdValue = this->doubleParameter("ThresholdValue");
-        double ThresholdValueNew = ThresholdValue + StepValue;
-        d->ThresholdSlicerWidget->setValue(ThresholdValueNew);
+        double StepValue = d->ThresholdRangeWidget->singleStep();
+        double ThresholdValue = this->doubleParameter("ThresholdMinimumValue");
+        ThresholdValue += StepValue;
+        d->ThresholdRangeWidget->setValues(ThresholdValue,
+                                           this->doubleParameter("ThresholdMaximumValue"));
+        }
+      }
+    if (!strcmp(key, "k"))
+      {
+      bool eraseMode = this->integerParameter("EraseMode");
+      if (!eraseMode)
+        {
+        double StepValue = d->ThresholdRangeWidget->singleStep();
+        double ThresholdValue = this->doubleParameter("ThresholdMaximumValue");
+        ThresholdValue -= StepValue;
+        d->ThresholdRangeWidget->setValues(this->doubleParameter("ThresholdMinimumValue"),
+                                           ThresholdValue);
+        }
+      }
+    if (!strcmp(key, "l"))
+      {
+      bool eraseMode = this->integerParameter("EraseMode");
+      if (!eraseMode)
+        {
+        double StepValue = d->ThresholdRangeWidget->singleStep();
+        double ThresholdValue = this->doubleParameter("ThresholdMaximumValue");
+        ThresholdValue += StepValue;
+        d->ThresholdRangeWidget->setValues(this->doubleParameter("ThresholdMinimumValue"),
+                                           ThresholdValue);
         }
       }
     if (!strcmp(key, "c"))
@@ -1214,6 +1242,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setMRMLDefaults()
   this->setCommonParameterDefault("ThresholdSingleStep", 0.);
   this->setCommonParameterDefault("ThresholdMaximumValue", 0.);
   this->setCommonParameterDefault("ThresholdMinimumValue", 0.);
+  this->setCommonParameterDefault("ThresholdMaximumValueLimit", 0.);
+  this->setCommonParameterDefault("ThresholdMinimumValueLimit", 0.);
   this->setCommonParameterDefault("Threshold3RMSValue", 0.);
   this->setCommonParameterDefault("ThresholdDecimals", 0);
 }
@@ -1236,9 +1266,10 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
     }
 
   double min = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
+  this->setCommonParameter("ThresholdMinimumValueLimit", min);
   double max = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
   this->setCommonParameter("ThresholdMaximumValue", max);
-  this->setCommonParameter("ThresholdMinimumValue", min);
+  this->setCommonParameter("ThresholdMaximumValueLimit", max);
 
   double singleStep = (max - min) / 100.;
   this->setCommonParameter("ThresholdSingleStep", singleStep);
@@ -1248,7 +1279,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
   this->setCommonParameter("ThresholdDecimals", unitNodeIntensity->GetPrecision());
 
   double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.RMS")) * 3.;
-  this->setCommonParameter("ThresholdValue", noise3);
+  this->setCommonParameter("ThresholdMinimumValue", noise3);
   this->setCommonParameter("Threshold3RMSValue", noise3);
 
   this->updateGUIFromMRML();
@@ -1283,34 +1314,31 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
     automaticThresholdMode = false;
     }
 
-  d->ThresholdSlicerLabel->setEnabled(!eraseMode);
+  d->ThresholdRangeLabel->setEnabled(!eraseMode);
   d->AutomaticThresholdCheckbox->blockSignals(true);
   d->AutomaticThresholdCheckbox->setChecked(automaticThresholdMode);
   d->AutomaticThresholdCheckbox->setEnabled(!eraseMode);
   d->AutomaticThresholdCheckbox->blockSignals(false);
 
-  double ThresholdValue = this->doubleParameter("ThresholdValue");
   double ThresholdSingleStep = this->doubleParameter("ThresholdSingleStep");
   double ThresholdMaximumValue = this->doubleParameter("ThresholdMaximumValue");
   double ThresholdMinimumValue = this->doubleParameter("ThresholdMinimumValue");
+  double ThresholdMaximumValueLimit = this->doubleParameter("ThresholdMaximumValueLimit");
+  double ThresholdMinimumValueLimit = this->doubleParameter("ThresholdMinimumValueLimit");
   int ThresholdDecimals = this->integerParameter("ThresholdDecimals");
-  d->ThresholdSlicerWidget->blockSignals(true);
-  d->ThresholdSlicerWidget->setRange(ThresholdMinimumValue, ThresholdMaximumValue);
-  d->ThresholdSlicerWidget->spinBox()->setRange(ThresholdMinimumValue, ThresholdMaximumValue);
-  d->ThresholdSlicerWidget->setSingleStep(ThresholdSingleStep);
-  d->ThresholdSlicerWidget->spinBox()->setSingleStep(ThresholdSingleStep);
-  d->ThresholdSlicerWidget->spinBox()->setDecimals(ThresholdDecimals);
-  d->ThresholdSlicerWidget->setValue(ThresholdValue);
-  d->ThresholdSlicerWidget->spinBox()->setValue(ThresholdValue);
-  d->ThresholdSlicerWidget->setEnabled(!eraseMode);
-  d->ThresholdSlicerWidget->blockSignals(false);
+  d->ThresholdRangeWidget->blockSignals(true);
+  d->ThresholdRangeWidget->setMinimum(ThresholdMinimumValueLimit);
+  d->ThresholdRangeWidget->setMaximum(ThresholdMaximumValueLimit);
+  d->ThresholdRangeWidget->setSingleStep(ThresholdSingleStep);
+  d->ThresholdRangeWidget->setDecimals(ThresholdDecimals);
+  d->ThresholdRangeWidget->setValues(ThresholdMinimumValue, ThresholdMaximumValue);
+  d->ThresholdRangeWidget->setEnabled(!eraseMode);
+  d->ThresholdRangeWidget->blockSignals(false);
 
   int wasModifying = this->parameterSetNode()->StartModify();
   this->parameterSetNode()->SetMasterVolumeIntensityMask(true);
-  double range[2];
-  this->parameterSetNode()->GetMasterVolumeIntensityMaskRange(range);
-  range[0] = ThresholdValue;
-  this->parameterSetNode()->SetMasterVolumeIntensityMaskRange(range);
+  this->parameterSetNode()->SetMasterVolumeIntensityMaskRange(ThresholdMinimumValue,
+                                                              ThresholdMaximumValue);
   this->parameterSetNode()->EndModify(wasModifying);
 }
 
@@ -1321,9 +1349,10 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateMRMLFromGUI()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::onThresholdValueChanged(double value)
+void qSlicerSegmentEditorAstroCloudLassoEffect::onThresholdValueChanged(double min, double max)
 {
-  this->setCommonParameter("ThresholdValue", value);
+  this->setCommonParameter("ThresholdMinimumValue", min);
+  this->setCommonParameter("ThresholdMaximumValue", max);
 }
 
 //-----------------------------------------------------------------------------
@@ -1338,13 +1367,18 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onAutomaticThresholdModeChanged(
     }
   this->setCommonParameter("AutomaticThresholdMode", mode);
 
+  if (!d->ThresholdRangeWidget)
+    {
+    return;
+    }
+
   if (mode)
     {
-    QObject::connect(d->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), d, SLOT(reApplyPaint()));
+    QObject::connect(d->ThresholdRangeWidget, SIGNAL(valuesChanged(double, double)), d, SLOT(reApplyPaint()));
     }
   else
     {
-    QObject::disconnect(d->ThresholdSlicerWidget, SIGNAL(valueChanged(double)), d, SLOT(reApplyPaint()));
+    QObject::disconnect(d->ThresholdRangeWidget, SIGNAL(valuesChanged(double, double)), d, SLOT(reApplyPaint()));
     }
 }
 
@@ -1362,11 +1396,11 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged(bool mode)
   double ThresholdValue = 0.;
   if (mode)
     {
-    ThresholdValue = this->doubleParameter("ThresholdMinimumValue");
+    ThresholdValue = this->doubleParameter("ThresholdMinimumValueLimit");
     }
   else
     {
     ThresholdValue = this->doubleParameter("Threshold3RMSValue");
     }
-    this->onThresholdValueChanged(ThresholdValue);
+  this->onThresholdValueChanged(ThresholdValue, this->doubleParameter("ThresholdMaximumValueLimit"));
 }

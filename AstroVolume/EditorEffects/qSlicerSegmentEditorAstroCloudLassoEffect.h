@@ -92,7 +92,7 @@ public slots:
   virtual void updateMRMLFromGUI();
 
   /// Update automatic Threshold value changed
-  virtual void onThresholdValueChanged(double value);
+  virtual void onThresholdValueChanged(double min, double max);
 
   /// Update automatic Threshold mode on/off
   virtual void onAutomaticThresholdModeChanged(bool mode);

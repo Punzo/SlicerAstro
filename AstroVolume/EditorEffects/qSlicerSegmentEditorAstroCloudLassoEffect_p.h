@@ -58,6 +58,7 @@
 #include <QMap>
 
 class BrushPipeline;
+class ctkRangeWidget;
 class QCheckBox;
 class QFrame;
 class QIcon;
@@ -65,7 +66,6 @@ class QLabel;
 class QPoint;
 class QPushButton;
 class qMRMLSliceWidget;
-class qMRMLSliderWidget;
 class qMRMLSpinBox;
 class qMRMLThreeDWidget;
 class vtkActor2D;
@@ -177,8 +177,8 @@ public:
   QFrame* CloudLassoFrame;
   QCheckBox* EraseModeCheckbox;
   QCheckBox* AutomaticThresholdCheckbox;
-  QLabel* ThresholdSlicerLabel;
-  qMRMLSliderWidget *ThresholdSlicerWidget;
+  QLabel* ThresholdRangeLabel;
+  ctkRangeWidget *ThresholdRangeWidget;
 
   double distance;
   double Normals[3];
