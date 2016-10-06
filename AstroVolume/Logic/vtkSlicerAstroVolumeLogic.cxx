@@ -504,6 +504,10 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
   double max = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) * 2.;
   double min = StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN")) * 2.;
   double noise = StringToDouble(node->GetAttribute("SlicerAstro.RMS"));
+  if (noise < 0.000000001)
+    {
+    noise = (max - min) / 100.;
+    }
   double noise3 = noise * 3.;
   double noise7 = noise * 7.;
   double noise15 = noise * 15.;
