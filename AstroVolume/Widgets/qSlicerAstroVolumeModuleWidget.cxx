@@ -361,47 +361,91 @@ void qSlicerAstroVolumeModuleWidget::setup()
     }
 }
 
-
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
-  if (node)
-    {  
-    if (this->mrmlScene() &&
-        !this->mrmlScene()->IsClosing() &&
-        !this->mrmlScene()->IsBatchProcessing())
+  if (!node)
+    {
+    return;
+    }
+
+  if (!this->mrmlScene() ||
+      this->mrmlScene()->IsClosing() ||
+      this->mrmlScene()->IsBatchProcessing())
+    {
+    return;
+    }
+
+  vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
+    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+  vtkMRMLAstroVolumeNode* astroVolumeNode =
+    vtkMRMLAstroVolumeNode::SafeDownCast(node);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+
+  bool renderingActive = false;
+
+  if (astroVolumeNode)
+    {
+    int n = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
+    // Check Input volume dimensionality
+    if (n != 3)
       {
-      vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
-        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
-      vtkMRMLAstroVolumeNode* astroVolumeNode =
-        vtkMRMLAstroVolumeNode::SafeDownCast(node);
-      if (astroVolumeNode)
-        {
-        int n = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
-        // Check Input volume dimensionality
-        if (n != 3)
-          {
-          d->RenderingFrame->setEnabled(false);
-          d->RenderingFrame->setCollapsed(true);
-          }
-        else
-          {
-          d->RenderingFrame->setEnabled(true);
-          d->RenderingFrame->setCollapsed(false);
-          }
-        // set it to be active in the slice windows
-        vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-        vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-        selectionNode->SetReferenceActiveVolumeID(node->GetID());
-        appLogic->PropagateVolumeSelection();
-        }
-      else if (labelMapVolumeNode)
-        {
-        d->RenderingFrame->setEnabled(false);
-        d->RenderingFrame->setCollapsed(true);
-        }
+      renderingActive = false;
       }
+    else
+      {
+      renderingActive = true;
+      }
+    // set it to be active in the slice windows
+    selectionNode->SetReferenceActiveVolumeID(node->GetID());
+    appLogic->PropagateVolumeSelection();
+    }
+  else if (labelMapVolumeNode)
+    {
+    renderingActive = false;
+    // set it to be active in the slice windows
+    selectionNode->SetReferenceActiveLabelVolumeID(node->GetID());
+    appLogic->PropagateVolumeSelection();
+    }
+
+  if (!d->RenderingFrame ||
+      !d->ActiveVolumeNodeSelector ||
+      !d->volumeRenderingWidget ||
+      !d->PresetsNodeComboBox)
+    {
+    return;
+    }
+
+  if (renderingActive)
+    {
+    d->RenderingFrame->setEnabled(true);
+    d->RenderingFrame->setCollapsed(false);
+
+    QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                     d->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+    QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                     this, SLOT(resetOffset(vtkMRMLNode*)));
+    QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                     this, SLOT(SetPresets(vtkMRMLNode*)));
+    QObject::connect(d->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                     d->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
+    }
+  else
+    {
+    d->RenderingFrame->setEnabled(false);
+    d->RenderingFrame->setCollapsed(true);
+
+    QObject::disconnect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                        d->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+    QObject::disconnect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                        this, SLOT(resetOffset(vtkMRMLNode*)));
+    QObject::disconnect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                        this, SLOT(SetPresets(vtkMRMLNode*)));
+    QObject::disconnect(d->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                        d->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
     }
 }
 
