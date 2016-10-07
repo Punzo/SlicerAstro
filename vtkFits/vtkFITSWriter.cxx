@@ -167,11 +167,14 @@ void vtkFITSWriter::WriteData()
 
 
   switch (vtkType){
+    case  VTK_DOUBLE:
+      fits_create_img(fptr, DOUBLE_IMG, naxes, naxe, &WriteStatus);
+      break;
     case VTK_FLOAT:
       fits_create_img(fptr, FLOAT_IMG, naxes, naxe, &WriteStatus);
       break;
-    case  VTK_DOUBLE:
-      fits_create_img(fptr, DOUBLE_IMG, naxes, naxe, &WriteStatus);
+    case  VTK_SHORT:
+      fits_create_img(fptr, SHORT_IMG, naxes, naxe, &WriteStatus);
       break;
     default:
       vtkErrorMacro("Could not write data type");
@@ -231,21 +234,29 @@ void vtkFITSWriter::WriteData()
     case VTK_BINARY:
       switch (vtkType)
         {
-        case VTK_FLOAT:
-          if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
-          {
-            fits_report_error(stderr, WriteStatus);
-            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
-            this->WriteErrorOn();
-          }
-          break;
         case  VTK_DOUBLE:
           if(fits_write_img(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
-          {
+            {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
             this->WriteErrorOn();
-          }
+            }
+          break;
+        case VTK_FLOAT:
+          if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
+            {
+            fits_report_error(stderr, WriteStatus);
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            this->WriteErrorOn();
+            }
+          break;
+        case VTK_SHORT:
+          if(fits_write_img(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
+            {
+            fits_report_error(stderr, WriteStatus);
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            this->WriteErrorOn();
+            }
           break;
         }
       break;

@@ -952,7 +952,8 @@ QIcon qSlicerSegmentEditorAstroCloudLassoEffect::icon()
 //---------------------------------------------------------------------------
 QString const qSlicerSegmentEditorAstroCloudLassoEffect::helpText()const
 {
-  return QString("Left-click and drag in a slice or a 3D view to use respectively a 2-D or 3-D cloud lasso selection tool");
+  return QString("Right-click and drag in a slice or a 3D view to use respectively a 2-D or 3-D cloud lasso selection tool. "
+                 "The initial lower threshold value is 3 RMS.");
 }
 
 //-----------------------------------------------------------------------------
@@ -1076,7 +1077,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     }
 
   vtkIdType idPoint;
-  if (eid == vtkCommand::LeftButtonPressEvent)
+  if (eid == vtkCommand::RightButtonPressEvent)
     {
     d->IsPainting = true;
     QList<qMRMLWidget*> viewWidgets = d->BrushPipelines.keys();
@@ -1087,7 +1088,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     idPoint = d->paintAddPoint(brushPosition_World);
     abortEvent = true;
     }
-  else if (eid == vtkCommand::LeftButtonReleaseEvent)
+  else if (eid == vtkCommand::RightButtonReleaseEvent)
     {
     d->paintApply(viewWidget);
     d->IsPainting = false;
@@ -1108,7 +1109,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     }
   else if (eid == vtkCommand::EnterEvent)
     {
-    brushPipeline->SetBrushVisibility(!this->integerParameter("BrushPixelMode"));
+    brushPipeline->SetBrushVisibility(true);
     }
   else if (eid == vtkCommand::LeaveEvent)
     {
@@ -1117,52 +1118,50 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
   else if (eid == vtkCommand::KeyPressEvent)
     {
     const char* key = callerInteractor->GetKeySym();
-    if (!strcmp(key, "n"))
+    double StepValue = this->doubleParameter("ThresholdSingleStep");
+    double ThresholdMinimumValue = this->doubleParameter("ThresholdMinimumValue");
+    double ThresholdMaximumValue = this->doubleParameter("ThresholdMaximumValue");
+    bool eraseMode = this->integerParameter("EraseMode");
+    bool automaticThresholdMode = this->integerParameter("AutomaticThresholdMode");
+
+    if (!strcmp(key, "n") && !eraseMode)
       {
-      bool eraseMode = this->integerParameter("EraseMode");
-      if (!eraseMode)
+      ThresholdMinimumValue -= StepValue;
+      this->setCommonParameter("ThresholdMinimumValue", ThresholdMinimumValue);
+      this->updateGUIFromMRML();
+      if (automaticThresholdMode)
         {
-        double StepValue = d->ThresholdRangeWidget->singleStep();
-        double ThresholdValue = this->doubleParameter("ThresholdMinimumValue");
-        ThresholdValue -= StepValue;
-        d->ThresholdRangeWidget->setValues(ThresholdValue,
-                                           this->doubleParameter("ThresholdMaximumValue"));
+        d->reApplyPaint();
         }
       }
-    if (!strcmp(key, "m"))
+    if (!strcmp(key, "m") && !eraseMode)
       {
-      bool eraseMode = this->integerParameter("EraseMode");
-      if (!eraseMode)
+      ThresholdMinimumValue += StepValue;
+      this->setCommonParameter("ThresholdMinimumValue", ThresholdMinimumValue);
+      this->updateGUIFromMRML();
+      if (automaticThresholdMode)
         {
-        double StepValue = d->ThresholdRangeWidget->singleStep();
-        double ThresholdValue = this->doubleParameter("ThresholdMinimumValue");
-        ThresholdValue += StepValue;
-        d->ThresholdRangeWidget->setValues(ThresholdValue,
-                                           this->doubleParameter("ThresholdMaximumValue"));
+        d->reApplyPaint();
         }
       }
-    if (!strcmp(key, "k"))
+    if (!strcmp(key, "k") && !eraseMode)
       {
-      bool eraseMode = this->integerParameter("EraseMode");
-      if (!eraseMode)
+      ThresholdMaximumValue -= StepValue;
+      this->setCommonParameter("ThresholdMaximumValue", ThresholdMaximumValue);
+      this->updateGUIFromMRML();
+      if (automaticThresholdMode)
         {
-        double StepValue = d->ThresholdRangeWidget->singleStep();
-        double ThresholdValue = this->doubleParameter("ThresholdMaximumValue");
-        ThresholdValue -= StepValue;
-        d->ThresholdRangeWidget->setValues(this->doubleParameter("ThresholdMinimumValue"),
-                                           ThresholdValue);
+        d->reApplyPaint();
         }
       }
-    if (!strcmp(key, "l"))
+    if (!strcmp(key, "l") && !eraseMode)
       {
-      bool eraseMode = this->integerParameter("EraseMode");
-      if (!eraseMode)
+      ThresholdMaximumValue += StepValue;
+      this->setCommonParameter("ThresholdMaximumValue", ThresholdMaximumValue);
+      this->updateGUIFromMRML();
+      if (automaticThresholdMode)
         {
-        double StepValue = d->ThresholdRangeWidget->singleStep();
-        double ThresholdValue = this->doubleParameter("ThresholdMaximumValue");
-        ThresholdValue += StepValue;
-        d->ThresholdRangeWidget->setValues(this->doubleParameter("ThresholdMinimumValue"),
-                                           ThresholdValue);
+        d->reApplyPaint();
         }
       }
     if (!strcmp(key, "c"))
