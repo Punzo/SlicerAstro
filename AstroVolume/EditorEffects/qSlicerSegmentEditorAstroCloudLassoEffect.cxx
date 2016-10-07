@@ -82,6 +82,7 @@
 #include <vtkStringArray.h>
 #include <vtkTriangleFilter.h>
 #include <vtkTubeFilter.h>
+#include <vtkImageThreshold.h>
 #include <vtkWorldPointPicker.h>
 
 // MRML includes
@@ -252,6 +253,7 @@ double StringToDouble(const char* str)
 //-----------------------------------------------------------------------------
 qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloudLassoEffectPrivate(qSlicerSegmentEditorAstroCloudLassoEffect& object)
   : q_ptr(&object)
+  , UndoLastMask(true)
   , DelayedPaint(true)
   , IsPainting(false)
   , CloudLassoFrame(NULL)
@@ -535,8 +537,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
     brushPositioner->SetInputConnection(stencilToImage->GetOutputPort());
     brushPositioner->SetOutputSpacing(modifierLabelmap->GetSpacing());
     brushPositioner->SetOutputOrigin(modifierLabelmap->GetOrigin());
-
     brushPositioner->Update();
+
     vtkNew<vtkOrientedImageData> orientedBrushPositionerOutput;
     orientedBrushPositionerOutput->ShallowCopy(brushPositioner->GetOutput());
     orientedBrushPositionerOutput->CopyDirections(modifierLabelmap);
@@ -744,14 +746,65 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
     return;
     }
 
-  // TO DO: Here it will be nice to know if the last state was a cloudLasso
-  // selection (ModificationModeAdd) and call the undoLastState only in that case.
-  // At the moment, if the user updates the theshold widget, and the last operation
-  // was not an add cloudLasso selection will result in a bug (i.e., undoLastState
-  // will remove the last operation perfomed by the user).
-  // In the AutomaticThresholdCheckbox's tooltip (line 311), the user is warned
-  // how to use the widget. It will, however, be ideal to solve this issue.
-  q->undoLastState();
+  int Extent[6] = { 0, 0, 0, 0, 0, 0 };
+  this->LastMask->GetExtent(Extent);
+  int sum = 0.;
+  for (int ii = 0; ii < 6; ii++)
+    {
+    sum += abs(Extent[ii]);
+    }
+
+  if (sum <= 3)
+    {
+    return;
+    }
+
+  vtkOrientedImageData* masterVolumeOrientedImageData = q->masterVolumeImageData();
+  if (!masterVolumeOrientedImageData)
+    {
+    return;
+    }
+  // Make sure the modifier labelmap has the same geometry as the master volume
+  if (!vtkOrientedImageDataResample::DoGeometriesMatch(this->LastMask, masterVolumeOrientedImageData))
+    {
+    return;
+    }
+
+  double ThresholdMinimumValue = q->doubleParameter("ThresholdMinimumValue");
+  double ThresholdMaximumValue = q->doubleParameter("ThresholdMaximumValue");
+  // Create threshold image
+  vtkNew<vtkImageThreshold> threshold;
+  threshold->SetInputData(masterVolumeOrientedImageData);
+  threshold->ThresholdBetween(ThresholdMinimumValue, ThresholdMaximumValue);
+  threshold->SetInValue(1);
+  threshold->SetOutValue(0);
+  threshold->SetOutputScalarType(this->LastMask->GetScalarType());
+  threshold->Update();
+
+  vtkNew<vtkOrientedImageData> thresholdMask;
+  thresholdMask->DeepCopy(threshold->GetOutput());
+  vtkNew<vtkMatrix4x4> modifierLabelmapToWorldMatrix;
+  this->LastMask->GetImageToWorldMatrix(modifierLabelmapToWorldMatrix.GetPointer());
+  thresholdMask->SetGeometryFromImageToWorldMatrix(modifierLabelmapToWorldMatrix.GetPointer());
+
+  vtkNew<vtkOrientedImageData> ThresholdLastMask;
+  ThresholdLastMask->DeepCopy(this->LastMask);
+  q->applyImageMask(ThresholdLastMask.GetPointer(), thresholdMask.GetPointer(), q->m_EraseValue);
+
+  if (this->UndoLastMask)
+    {
+    q->undoLastState();
+    }
+
+  if (!vtkOrientedImageDataResample::CalculateEffectiveExtent(ThresholdLastMask.GetPointer(), Extent))
+    {
+    this->UndoLastMask = false;
+    return;
+    }
+  else
+    {
+    this->UndoLastMask = true;
+    }
 
   q->modifySelectedSegmentByLabelmap(this->LastMask,
     qSlicerSegmentEditorAbstractEffect::ModificationModeAdd);

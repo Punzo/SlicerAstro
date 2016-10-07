@@ -168,6 +168,7 @@ public:
   vtkSmartPointer<vtkCellArray> CloudLasso3DSelectionPolys;
 
   vtkSmartPointer<vtkOrientedImageData> LastMask;
+  bool UndoLastMask;
 
   QList<vtkActor2D*> FeedbackActors;
   QMap<qMRMLWidget*, BrushPipeline*> BrushPipelines;
