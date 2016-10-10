@@ -282,6 +282,7 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   this->CloudLasso3DSelectionPolyData->SetPolys(this->CloudLasso3DSelectionPolys);
 
   this->LastMask = vtkSmartPointer<vtkOrientedImageData>::New();
+  this->LastSelectedSegmentLabelmap = vtkSmartPointer<vtkOrientedImageData>::New();
 
   this->CloudLassoIcon = QIcon(":Icons/AstroCloudLasso.png");
 
@@ -469,10 +470,16 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
 {
   Q_Q(qSlicerSegmentEditorAstroCloudLassoEffect);
 
+  vtkOrientedImageData* selectedSegmentLabelmap = q->selectedSegmentLabelmap();
+  if (!selectedSegmentLabelmap)
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid selectedSegmentLabelmap";
+    return;
+    }
   vtkOrientedImageData* modifierLabelmap = q->defaultModifierLabelmap();
   if (!modifierLabelmap)
     {
-    qCritical() << Q_FUNC_INFO << ": Invalid segmentationNode";
+    qCritical() << Q_FUNC_INFO << ": Invalid modifierLabelmap";
     return;
     }
   if (!q->parameterSetNode())
@@ -549,6 +556,9 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
 
   // Store the modifierLabelmap for subsequent automatic thresholding on the same selection.
   this->LastMask->DeepCopy(modifierLabelmap);
+
+  // Store the selectedSegmentLabelmap for subsequent automatic thresholding on the same selection.
+  this->LastSelectedSegmentLabelmap->DeepCopy(selectedSegmentLabelmap);
 
   // Notify editor about changes
   modifierLabelmap->Modified();
@@ -793,7 +803,31 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
 
   if (this->UndoLastMask)
     {
-    q->undoLastState();
+    vtkMRMLSegmentationNode* segmentationNode = q->parameterSetNode()->GetSegmentationNode();
+    const char* selectedSegmentID = q->parameterSetNode()->GetSelectedSegmentID();
+    if (!segmentationNode || !selectedSegmentID)
+      {
+      q->defaultModifierLabelmap();
+      return;
+      }
+
+    // Get binary labelmap representation of selected segment
+    vtkSegment* selectedSegment = segmentationNode->GetSegmentation()->GetSegment(selectedSegmentID);
+    if (!selectedSegment)
+      {
+      vtkGenericWarningMacro("vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment: Invalid selected segment");
+      return;
+      }
+    vtkOrientedImageData* segmentLabelmap = vtkOrientedImageData::SafeDownCast(
+      selectedSegment->GetRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName()) );
+    if (!segmentLabelmap)
+      {
+      vtkErrorWithObjectMacro(segmentationNode, "vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment: "
+                                                "Failed to get binary labelmap representation in segmentation " << segmentationNode->GetName());
+      return;
+      }
+
+    segmentLabelmap->DeepCopy(this->LastSelectedSegmentLabelmap);
     }
 
   if (!vtkOrientedImageDataResample::CalculateEffectiveExtent(ThresholdLastMask.GetPointer(), Extent))
