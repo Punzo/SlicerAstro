@@ -156,16 +156,6 @@ void vtkFITSWriter::WriteData()
   remove(this->GetFileName());
   fits_create_file(&fptr, this->GetFileName(), &WriteStatus);
 
-  if ( this->GetUseCompression()){
-    //here could be in principle be implemented a switch for other values
-    //GZIP_1, RICE_1, HCOMPRESS_1 or PLIO_1
-    /*fits_set_compression_type(fptr, RICE_1, &WriteStatus);
-    long int tile = 100;
-    fits_set_tile_dim (fptr, 6, &tile, &WriteStatus);
-    *//*not working*/
-  }
-
-
   switch (vtkType){
     case  VTK_DOUBLE:
       fits_create_img(fptr, DOUBLE_IMG, naxes, naxe, &WriteStatus);
