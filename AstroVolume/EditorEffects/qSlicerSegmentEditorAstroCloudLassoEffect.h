@@ -84,6 +84,9 @@ public:
   /// Perform actions needed on master volume change
   virtual void masterVolumeNodeChanged();
 
+  /// Show Segment model
+  virtual void CreateSurface();
+
 public slots:
   /// Update user interface from parameter set node
   virtual void updateGUIFromMRML();

@@ -24,6 +24,7 @@
 // Segmentations includes
 #include "qSlicerSegmentEditorAstroCloudLassoEffect.h"
 #include "qSlicerSegmentEditorAstroCloudLassoEffect_p.h"
+#include "vtkMRMLSegmentationDisplayNode.h"
 #include "vtkMRMLSegmentationNode.h"
 #include "vtkMRMLSegmentEditorNode.h"
 #include "vtkOrientedImageData.h"
@@ -842,6 +843,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
 
   q->modifySelectedSegmentByLabelmap(this->LastMask,
     qSlicerSegmentEditorAbstractEffect::ModificationModeAdd);
+
+  q->CreateSurface();
 }
 
 //----------------------------------------------------------------------------
@@ -1372,6 +1375,40 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface()
+{
+  if (!this->parameterSetNode())
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid segment editor parameter set node";
+    return;
+    }
+
+  vtkMRMLSegmentationNode* segmentationNode = this->parameterSetNode()->GetSegmentationNode();
+  if (!segmentationNode)
+    {
+    return;
+    }
+  vtkMRMLSegmentationDisplayNode* displayNode = vtkMRMLSegmentationDisplayNode::SafeDownCast(
+    segmentationNode->GetDisplayNode());
+  if (!displayNode)
+    {
+    return;
+    }
+
+  // Make sure closed surface representation exists
+  if (segmentationNode->GetSegmentation()->CreateRepresentation(
+    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() ))
+    {
+    // Set closed surface as displayed poly data representation
+    displayNode->SetPreferredDisplayRepresentationName3D(
+       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
+     // But keep binary labelmap for 2D
+    displayNode->SetPreferredDisplayRepresentationName2D(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName() );
+    }
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
@@ -1475,8 +1512,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged(bool mode)
   this->setCommonParameter("EraseMode", (int)mode);
   if (mode)
     {
-    this->setCommonParameter("AutomaticThresholdMode", !mode);
-    this->updateGUIFromMRML();
+    this->onAutomaticThresholdModeChanged(false);
     }
 
   double ThresholdValue = 0.;
