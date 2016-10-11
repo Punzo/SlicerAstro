@@ -86,6 +86,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   virtual void SetWCSStruct(struct wcsprm*);
 
   ///
+  ///Get WCSStruct
+  virtual struct wcsprm* GetWCSStruct();
+
+  ///
   ///WcsStatus
   vtkSetMacro(WCSStatus,int);
   vtkGetMacro(WCSStatus,int);

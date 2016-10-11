@@ -28,6 +28,7 @@
 #include <vtkPointData.h>
 
 // MRML includes
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
@@ -103,7 +104,7 @@ void vtkMRMLAstroVolumeNode::Copy(vtkMRMLNode *anode)
     return;
     }
 
-  this->Superclass::Copy(anode);
+  this->Superclass::Copy(astroVolumeNode);
 }
 
 //----------------------------------------------------------------------------
@@ -360,10 +361,10 @@ void vtkMRMLAstroVolumeNode::CreateDefaultDisplayNodes()
   vtkMRMLAstroVolumeDisplayNode *displayNode = 
     vtkMRMLAstroVolumeDisplayNode::SafeDownCast(this->GetDisplayNode());
   if(displayNode == NULL)
-  {
+    {
     displayNode = vtkMRMLAstroVolumeDisplayNode::New();
     if(this->GetScene())
-    {
+      {
       displayNode->SetScene(this->GetScene());
       this->GetScene()->AddNode(displayNode);
       displayNode->SetDefaultColorMap();
@@ -371,6 +372,6 @@ void vtkMRMLAstroVolumeNode::CreateDefaultDisplayNodes()
 
       this->SetAndObserveDisplayNodeID(displayNode->GetID());
       std::cout << "Display node set and observed" << std::endl;
+      }
     }
-  }
 }

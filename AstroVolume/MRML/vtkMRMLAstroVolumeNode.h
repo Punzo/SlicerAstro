@@ -33,7 +33,7 @@
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 class vtkMRMLAstroVolumeDisplayNode;
-class vtkMRMLSmoothingParametersNode;
+class vtkMRMLAstroLabelMapVolumeNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
@@ -67,7 +67,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   static void CreateNoneNode(vtkMRMLScene *scene);
 
   ///
-  /// Create and observe default Storage node
+  /// Create and return default Storage node
   virtual vtkMRMLStorageNode* CreateDefaultStorageNode();
 
   ///

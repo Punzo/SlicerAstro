@@ -453,6 +453,12 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 }
 
 //----------------------------------------------------------------------------
+wcsprm *vtkMRMLAstroVolumeDisplayNode::GetWCSStruct()
+{
+  return WCS;
+}
+
+//----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
                                                       double SpaceCoordinates[3])
 {

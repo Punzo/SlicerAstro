@@ -185,7 +185,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Data" << "Volumes" << "VolumeRendering" << "Segmentations";
+  moduleDependencies << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor";
   return moduleDependencies;
 }
 

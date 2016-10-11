@@ -450,6 +450,12 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 }
 
 //----------------------------------------------------------------------------
+wcsprm *vtkMRMLAstroLabelMapVolumeDisplayNode::GetWCSStruct()
+{
+  return WCS;
+}
+
+//----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
                                                               double SpaceCoordinates[3])
 {
@@ -1349,7 +1355,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
-   }
+    }
 
   this->EndModify(disabledModify);
 }

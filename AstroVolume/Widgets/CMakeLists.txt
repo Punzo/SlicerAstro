@@ -11,6 +11,9 @@ set(${KIT}_INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_BINARY_DIR}/../Logic
     ${MRMLCore_INCLUDE_DIRS}
     ${WCSLIB_INCLUDE_DIR}
+    ${qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS}
+    ${vtkSlicerSegmentationsModuleLogic_INCLUDES_DIRS}
+    ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
     ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
     ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
   )
@@ -62,9 +65,14 @@ set(${KIT}_RESOURCES
 
 set(${KIT}_TARGET_LIBRARIES
    MRMLCore
-   vtkSlicer${MODULE_NAME}ModuleLogic
-   vtkSlicerAstroVolumeModuleMRML
+   qSlicerSegmentationsModuleWidgets
    qSlicerVolumeRenderingModuleWidgets
+   vtkSlicer${MODULE_NAME}ModuleLogic
+   vtkSlicer${MODULE_NAME}ModuleMRML
+   vtkSlicerSegmentationsModuleLogic
+   vtkSlicerSegmentationsModuleMRML
+   vtkSlicerVolumeRenderingModuleMRML
+   vtkSlicerVolumeRenderingModuleLogic 
   )
 
 #-----------------------------------------------------------------------------
