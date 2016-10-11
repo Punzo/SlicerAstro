@@ -571,6 +571,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
   this->CloudLasso3DSelectionPoints->Reset();
   this->CloudLasso3DSelectionStrips->Reset();
   this->CloudLasso3DSelectionPolys->Reset();
+
+  q->CreateSurface();
 }
 
 //-----------------------------------------------------------------------------
