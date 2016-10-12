@@ -156,22 +156,15 @@ void vtkFITSWriter::WriteData()
   remove(this->GetFileName());
   fits_create_file(&fptr, this->GetFileName(), &WriteStatus);
 
-  if ( this->GetUseCompression()){
-    //here could be in principle be implemented a switch for other values
-    //GZIP_1, RICE_1, HCOMPRESS_1 or PLIO_1
-    /*fits_set_compression_type(fptr, RICE_1, &WriteStatus);
-    long int tile = 100;
-    fits_set_tile_dim (fptr, 6, &tile, &WriteStatus);
-    *//*not working*/
-  }
-
-
   switch (vtkType){
+    case  VTK_DOUBLE:
+      fits_create_img(fptr, DOUBLE_IMG, naxes, naxe, &WriteStatus);
+      break;
     case VTK_FLOAT:
       fits_create_img(fptr, FLOAT_IMG, naxes, naxe, &WriteStatus);
       break;
-    case  VTK_DOUBLE:
-      fits_create_img(fptr, DOUBLE_IMG, naxes, naxe, &WriteStatus);
+    case  VTK_SHORT:
+      fits_create_img(fptr, SHORT_IMG, naxes, naxe, &WriteStatus);
       break;
     default:
       vtkErrorMacro("Could not write data type");
@@ -204,7 +197,8 @@ void vtkFITSWriter::WriteData()
       fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
       }
     else if (!(std::string::npos != ts.find_first_of("-1234567890"))
-               || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0, 8, "CELLSCAL")))
+               || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0, 8, "CELLSCAL"))
+               || (!tmp.compare(0,8,"DATATYPE")))
       {
       fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
       }
@@ -230,21 +224,29 @@ void vtkFITSWriter::WriteData()
     case VTK_BINARY:
       switch (vtkType)
         {
-        case VTK_FLOAT:
-          if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
-          {
-            fits_report_error(stderr, WriteStatus);
-            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
-            this->WriteErrorOn();
-          }
-          break;
         case  VTK_DOUBLE:
           if(fits_write_img(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
-          {
+            {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
             this->WriteErrorOn();
-          }
+            }
+          break;
+        case VTK_FLOAT:
+          if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
+            {
+            fits_report_error(stderr, WriteStatus);
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            this->WriteErrorOn();
+            }
+          break;
+        case VTK_SHORT:
+          if(fits_write_img(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
+            {
+            fits_report_error(stderr, WriteStatus);
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            this->WriteErrorOn();
+            }
           break;
         }
       break;

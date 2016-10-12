@@ -36,6 +36,7 @@
 #include <vtkMRMLNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
 
@@ -56,6 +57,8 @@
 #include <vtkPointData.h>
 #include <vtkSmartPointer.h>
 
+// WCS includes
+#include "wcslib.h"
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -114,6 +117,7 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   // Events that use the default priority.  Don't care the order they
   // are triggered
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
+  events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
   events->InsertNextValue(vtkMRMLScene::EndImportEvent);
 
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
@@ -210,20 +214,44 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
     }
 
+  if (node->IsA("vtkMRMLSegmentEditorNode"))
+    {
+    vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take(
+      this->GetMRMLScene()->GetNodesByClass("vtkMRMLSegmentEditorNode"));
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+    if (!selectionNode)
+      {
+      return;
+      }
+
+    vtkMRMLSegmentEditorNode* segmentEditorNode =
+      vtkMRMLSegmentEditorNode::SafeDownCast(col->GetItemAsObject(0));
+
+    if (!segmentEditorNode)
+      {
+      selectionNode->RemoveNodeReferenceIDs("SegmentEditorNodeRef");
+      return;
+      }
+
+    selectionNode->AddAndObserveNodeReferenceID("SegmentEditorNodeRef", segmentEditorNode->GetID());
+
+    col->RemoveAllItems();
+    }
+
   //check WCS and update unit nodes
   if (node->IsA("vtkMRMLAstroVolumeNode"))
     {
 
     vtkSmartPointer<vtkCollection> listAstroVolumes = vtkSmartPointer<vtkCollection>::Take(
-        this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
+      this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
 
     bool WCS = false;
     double min = std::numeric_limits<double>::max(), max = -std::numeric_limits<double>::max();
     for(int i = 0; i < listAstroVolumes->GetNumberOfItems(); i++)
       {
       vtkMRMLAstroVolumeNode* astroVolumeNode =
-          vtkMRMLAstroVolumeNode::SafeDownCast
-          (listAstroVolumes->GetItemAsObject(i));
+        vtkMRMLAstroVolumeNode::SafeDownCast(listAstroVolumes->GetItemAsObject(i));
       if (astroVolumeNode)
         {
         double mint = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
@@ -290,12 +318,12 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     {
     // change axes label names
     vtkSmartPointer<vtkCollection> viewNodes = vtkSmartPointer<vtkCollection>::Take
-        (this->GetMRMLScene()->GetNodesByClass("vtkMRMLViewNode"));
+      (this->GetMRMLScene()->GetNodesByClass("vtkMRMLViewNode"));
 
     for(int i = 0; i < viewNodes->GetNumberOfItems(); i++)
       {
       vtkMRMLViewNode* viewNode =
-          vtkMRMLViewNode::SafeDownCast(viewNodes->GetItemAsObject(i));
+        vtkMRMLViewNode::SafeDownCast(viewNodes->GetItemAsObject(i));
       if (viewNode)
         {
         viewNode->DisableModifiedEventOn();
@@ -312,12 +340,12 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       }
 
     vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
-        (this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
+      (this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
 
     for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
       {
       vtkMRMLSliceNode* sliceNode =
-          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
       if (sliceNode)
         {
         sliceNode->DisableModifiedEventOn();
@@ -345,6 +373,41 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
     sliceNodeGreen->SetOrientation("ZY");
   }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeRemoved(vtkMRMLNode *node)
+{
+  if (!node)
+    {
+    return;
+    }
+
+  if (node->IsA("vtkMRMLSegmentEditorNode"))
+    {
+    vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take(
+      this->GetMRMLScene()->GetNodesByClass("vtkMRMLSegmentEditorNode"));
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+    if (!selectionNode)
+      {
+      return;
+      }
+
+    vtkMRMLSegmentEditorNode* segmentEditorNode =
+      vtkMRMLSegmentEditorNode::SafeDownCast(col->GetItemAsObject(0));
+
+    if (!segmentEditorNode)
+      {
+      selectionNode->RemoveNodeReferenceIDs("SegmentEditorNodeRef");
+      return;
+      }
+
+    selectionNode->AddAndObserveNodeReferenceID("SegmentEditorNodeRef", segmentEditorNode->GetID());
+
+    col->RemoveAllItems();
+    }
+
 }
 
 namespace
@@ -494,6 +557,108 @@ void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
 }
 
 //---------------------------------------------------------------------------
+vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolume(vtkMRMLScene *scene,
+                                                                              vtkMRMLVolumeNode *volumeNode,
+                                                                              const char *name)
+{
+  if (scene == NULL || volumeNode == NULL || name == NULL)
+    {
+    return NULL;
+    }
+
+  // Create a volume node as copy of source volume
+  vtkNew<vtkMRMLAstroLabelMapVolumeNode> labelNode;
+  std::string uname = this->GetMRMLScene()->GetUniqueNameByString(name);
+  labelNode->SetName(uname.c_str());
+  scene->AddNode(labelNode.GetPointer());
+
+  this->CreateLabelVolumeFromVolume(scene, labelNode.GetPointer(), volumeNode);
+
+  // Make an image data of the same size and shape as the input volume, but filled with zeros
+  vtkSlicerVolumesLogic::ClearVolumeImageData(labelNode.GetPointer());
+
+  return labelNode.GetPointer();
+}
+
+//---------------------------------------------------------------------------
+vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume(vtkMRMLScene *scene,
+                                                                                       vtkMRMLAstroLabelMapVolumeNode *labelNode,
+                                                                                       vtkMRMLVolumeNode *inputVolume)
+{
+  if (scene == NULL || labelNode == NULL || inputVolume == NULL)
+    {
+    return NULL;
+    }
+
+  // Create a display node if the label node does not have one
+  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeDisplayNode> labelDisplayNode =
+    vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(labelNode->GetDisplayNode());
+  if (labelDisplayNode.GetPointer() == NULL)
+    {
+    vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(inputVolume);
+    vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplay = astroVolume->GetAstroVolumeDisplayNode();
+    labelDisplayNode = vtkSmartPointer<vtkMRMLAstroLabelMapVolumeDisplayNode>::New();
+    labelDisplayNode->SetSpaceQuantities(astroVolumeDisplay->GetSpaceQuantities());
+    labelDisplayNode->SetSpace(astroVolumeDisplay->GetSpace());
+
+    struct wcsprm* labelWCS;
+    struct wcsprm* volumeWCS;
+
+    labelWCS = labelDisplayNode->GetWCSStruct();
+    volumeWCS = astroVolumeDisplay->GetWCSStruct();
+
+    labelWCS->flag=-1;
+
+    labelDisplayNode->SetWCSStatus(wcscopy(1, volumeWCS, labelWCS));
+    if (labelDisplayNode->GetWCSStatus())
+      {
+      vtkErrorMacro("wcscopy ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
+                    "Message from "<<labelWCS->err->function<<
+                    "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
+                    ": \n"<<labelWCS->err->msg<<"\n");
+      }
+
+    labelDisplayNode->SetWCSStatus(wcsset(labelWCS));
+    if (labelDisplayNode->GetWCSStatus())
+      {
+      vtkErrorMacro("wcsset ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
+                    "Message from "<<labelWCS->err->function<<
+                    "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
+                    ": \n"<<labelWCS->err->msg<<"\n");
+      }
+
+    scene->AddNode(labelDisplayNode);
+    }
+
+  // We need to copy from the volume node to get required attributes, but
+  // the copy copies inputVolume's name as well.  So save the original name
+  // and re-set the name after the copy.
+  std::string origName(labelNode->GetName());
+  labelNode->Copy(inputVolume);
+  labelNode->SetAndObserveStorageNodeID(NULL);
+  labelNode->SetName(origName.c_str());
+  labelNode->SetAndObserveDisplayNodeID(labelDisplayNode->GetID());
+
+  // Associate labelmap with the source volume
+  //TODO: Obsolete, replace mechanism with node references
+  if (inputVolume->GetID())
+    {
+    labelNode->SetAttribute("AssociatedNodeID", inputVolume->GetID());
+    }
+
+  // Set the display node to have a label map lookup table
+  this->SetAndObserveColorToDisplayNode(labelDisplayNode,
+                                        /* labelMap = */ 1, /* filename= */ 0);
+
+  // Copy and set image data of the input volume to the label volume
+  vtkNew<vtkImageData> imageData;
+  imageData->DeepCopy(inputVolume->GetImageData());
+  labelNode->SetAndObserveImageData(imageData.GetPointer());
+
+  return labelNode;
+}
+
+//---------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node)
 {
   if (!node || !node->IsA("vtkMRMLAstroVolumeNode"))
@@ -504,6 +669,10 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
   double max = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) * 2.;
   double min = StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN")) * 2.;
   double noise = StringToDouble(node->GetAttribute("SlicerAstro.RMS"));
+  if (noise < 0.000000001)
+    {
+    noise = (max - min) / 100.;
+    }
   double noise3 = noise * 3.;
   double noise7 = noise * 7.;
   double noise15 = noise * 15.;

@@ -450,8 +450,14 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 }
 
 //----------------------------------------------------------------------------
+wcsprm *vtkMRMLAstroLabelMapVolumeDisplayNode::GetWCSStruct()
+{
+  return WCS;
+}
+
+//----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
-                                               double SpaceCoordinates[3])
+                                                              double SpaceCoordinates[3])
 {
   if (this->Space != NULL)
     {
@@ -476,7 +482,8 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3], double ijk[3])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
+                                                        double ijk[3])
 {
   if (this->Space != NULL)
     {
@@ -500,7 +507,8 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordi
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates, double ijk[3])
+void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
+                                                        double ijk[3])
 {
   if (this->Space != NULL)
     {
@@ -1347,7 +1355,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
-   }
+    }
 
   this->EndModify(disabledModify);
 }
@@ -1495,7 +1503,8 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(co
 
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world, vtkMRMLUnitNode *node)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetAxisDisplayStringFromValue(const double world,
+                                                                                 vtkMRMLUnitNode *node)
 {
   std::string value = "";
   if(!node)

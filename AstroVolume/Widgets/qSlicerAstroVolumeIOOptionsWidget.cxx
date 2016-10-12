@@ -17,7 +17,7 @@
 
 ==============================================================================*/
 
-/// Qt includes
+// Qt includes
 #include <QFileInfo>
 
 // CTK includes
@@ -32,7 +32,7 @@
 #include <qSlicerAstroVolumeIOOptionsWidget.h>
 #include <ui_qSlicerAstroVolumeIOOptionsWidget.h>
 
-/// Slicer includes
+// Slicer includes
 #include "qSlicerCoreApplication.h"
 #include "vtkMRMLColorLogic.h"
 #include "vtkMRMLVolumeArchetypeStorageNode.h"

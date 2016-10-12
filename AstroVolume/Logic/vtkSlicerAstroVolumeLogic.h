@@ -34,6 +34,7 @@
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
+class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLVolumeNode;
 
@@ -68,6 +69,20 @@ public:
   /// Update the units nodes to the metadata stored in the active volume
   void updateUnitsNodes(vtkMRMLNode *astroVolumeNode);
 
+  /// Create a label map volume to match the given \a volumeNode and add it to the \a scene
+  vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,
+                                                          vtkMRMLVolumeNode *volumeNode,
+                                                          const char *name);
+
+  /// Fill in a label map volume to match the given input volume node, under
+  /// the assumption that the given label map node is already added to the scene.
+  /// A display node will be added to it if the label node doesn't already have
+  /// one, and the image data associated with the label node will be allocated
+  /// according to the template volumeNode.
+  vtkMRMLAstroLabelMapVolumeNode *CreateLabelVolumeFromVolume(vtkMRMLScene *scene,
+                                                              vtkMRMLAstroLabelMapVolumeNode *labelNode,
+                                                              vtkMRMLVolumeNode *inputVolume);
+
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
@@ -78,6 +93,7 @@ protected:
   virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene);
   virtual void UpdateFromMRMLScene();
   virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
+  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
   virtual void OnMRMLSceneEndImport();
 
   bool LoadPresets(vtkMRMLScene* scene);

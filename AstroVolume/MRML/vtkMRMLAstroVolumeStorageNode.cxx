@@ -417,7 +417,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   vtkNew<vtkFITSWriter> writer;
   writer->SetFileName(fullName.c_str());
   writer->SetInputConnection(volNode->GetImageDataConnection());
-  writer->SetUseCompression(this->GetUseCompression());
+  writer->SetUseCompression(0);
 
   // pass down all MRML attributes
   std::vector<std::string> attributeNames = volNode->GetAttributeNames();

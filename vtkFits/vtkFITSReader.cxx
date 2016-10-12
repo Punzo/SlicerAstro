@@ -23,16 +23,25 @@
 // vtkASTRO includes
 #include <vtkFITSReader.h>
 
+// Qt includes
+#include <QFileInfo>
+#include <QRegExp>
+
 // VTK includes
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
 #include <vtkInformation.h>
 #include <vtkMatrix4x4.h>
+#include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
+#include <vtkShortArray.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkStreamingDemandDrivenPipeline.h>
+
+// Slicer includes
+#include "vtkMRMLVolumeArchetypeStorageNode.h"
 
 // STD includes
 #include <sstream>
@@ -308,34 +317,44 @@ void vtkFITSReader::ExecuteInformation()
     }
 
   // Set type information
-  switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
+  std::string dataType = this->GetHeaderValue("SlicerAstro.DATATYPE");
+  if (!dataType.compare("MASK"))
     {
-    case 8:
-      this->SetDataType( VTK_FLOAT );
-      this->SetDataScalarType( VTK_FLOAT );
-    case 16:
-      this->SetDataType( VTK_FLOAT );
-      this->SetDataScalarType( VTK_FLOAT );
-      break;
-    case 32:
-      this->SetDataType( VTK_FLOAT );
-      this->SetDataScalarType( VTK_FLOAT );
-      break;
-    case -32:
-      this->SetDataType( VTK_FLOAT );
-      this->SetDataScalarType( VTK_FLOAT );
-      break;
-    case 64:
-      this->SetDataType( VTK_DOUBLE );
-      this->SetDataScalarType( VTK_DOUBLE );
-      break;
-    case -64:
-      this->SetDataType( VTK_DOUBLE );
-      this->SetDataScalarType( VTK_DOUBLE );
-      break;
-    default:
-      vtkErrorMacro("Could not allocate data type.");
-      return;
+    this->SetDataType( VTK_SHORT );
+    this->SetDataScalarType( VTK_SHORT );
+    }
+
+  if (!dataType.compare("DATA") || !dataType.compare("MODEL"))
+    {
+    switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
+      {
+      case 8:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+      case 16:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case 32:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case -32:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case 64:
+        this->SetDataType( VTK_DOUBLE );
+        this->SetDataScalarType( VTK_DOUBLE );
+        break;
+      case -64:
+        this->SetDataType( VTK_DOUBLE );
+        this->SetDataScalarType( VTK_DOUBLE );
+        break;
+      default:
+        vtkErrorMacro("Could not allocate data type.");
+        return;
+      }
     }
 
   // Set axis information
@@ -651,6 +670,43 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.BPA"] = "0.";
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.DATATYPE") == 0)
+     {
+     bool onlyNumberInExtension = false;
+     vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
+     QFileInfo fileInfo(this->CurrentFileName);
+     QString fileBaseName = fileInfo.baseName();
+     if (fileInfo.isFile())
+       {
+       std::string fileNameStd = fileInfo.fileName().toStdString();
+       std::string filenameWithoutExtension = snode->GetFileNameWithoutExtension(fileNameStd.c_str());
+       fileBaseName = QString(filenameWithoutExtension.c_str());
+       fileInfo.suffix().toInt(&onlyNumberInExtension);
+       }
+
+     QRegExp labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
+     QRegExp segName("(\\b|_)([Ss]eg)(\\b|_)");
+     QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
+     QRegExp modelName("(\\b|_)([Mm]odel)(\\b|_)");
+     QRegExp modelNamesShort("(\\b|_)([Mm]od)(\\b|_)");
+
+     if (fileInfo.baseName().contains(labelMapName) ||
+         fileInfo.baseName().contains(segName) ||
+         fileInfo.baseName().contains(maskName))
+       {
+       HeaderKeyValue["SlicerAstro.DATATYPE"] = "MASK";
+       }
+     else if (fileInfo.baseName().contains(modelName) ||
+             fileInfo.baseName().contains(modelNamesShort))
+       {
+       HeaderKeyValue["SlicerAstro.DATATYPE"] = "MODEL";
+       }
+     else
+       {
+       HeaderKeyValue["SlicerAstro.DATATYPE"] = "DATA";
+       }
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.DATAMAX") == 0)
      {
      HeaderKeyValue["SlicerAstro.DATAMAX"] = "0.";
@@ -834,6 +890,9 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
     case VTK_FLOAT:
       pd = vtkFloatArray::New();
       break;
+    case VTK_SHORT:
+      pd = vtkShortArray::New();
+      break;
     default:
       vtkErrorMacro("Could not allocate data type.");
       return;
@@ -920,6 +979,14 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         return;
       }
       break;
+  case VTK_SHORT:
+    if(fits_read_img(fptr, TSHORT, 1, dim, &nullval, ptr, &anynull, &ReadStatus))
+    {
+      fits_report_error(stderr, ReadStatus);
+      vtkErrorMacro(<< "data is null.");
+      return;
+    }
+    break;
     default:
       vtkErrorMacro("Could not load data");
       return;

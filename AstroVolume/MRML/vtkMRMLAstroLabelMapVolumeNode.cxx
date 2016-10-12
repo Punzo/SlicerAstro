@@ -65,6 +65,32 @@ std::string DoubleToString(double Value)
 }//end namespace
 
 //----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeNode::ReadXMLAttributes(const char** atts)
+{
+  this->Superclass::ReadXMLAttributes(atts);
+
+  this->WriteXML(std::cout,0);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeNode::WriteXML(ostream& of, int nIndent)
+{
+  this->Superclass::WriteXML(of, nIndent);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeNode::Copy(vtkMRMLNode *anode)
+{
+  vtkMRMLAstroLabelMapVolumeNode *astroVolumeNode = vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(anode);
+  if (!astroVolumeNode)
+    {
+    return;
+    }
+
+  this->Superclass::Copy(astroVolumeNode);
+}
+
+//----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeNode::PrintSelf(ostream &os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);

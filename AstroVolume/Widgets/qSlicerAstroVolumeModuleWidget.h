@@ -29,6 +29,9 @@
 // AstroVolume includes
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
+// Segmentation includes
+#include "vtkMRMLSegmentationNode.h"
+
 class qSlicerAstroVolumeModuleWidgetPrivate;
 class vtkMRMLNode;
 class vtkMRMLAstroVolumeNode;
@@ -50,47 +53,67 @@ public:
   qSlicerAstroVolumeModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroVolumeModuleWidget();
 
-  /// Get volumeRenderingWidget
-  Q_INVOKABLE qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget()const;
-
-  /// Get columeRenderingDisplay
-  Q_INVOKABLE vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay()const;
+  /// Get AstroVolumeDispalyWidget
+  Q_INVOKABLE qSlicerAstroVolumeDisplayWidget* astroVolumeDisplayWidget()const;
 
   /// Get AstroVolumeInfoWidget
   Q_INVOKABLE qMRMLAstroVolumeInfoWidget* astroVolumeInfoWidget()const;
 
-  /// Get AstroVolumeInfoWidget
-  Q_INVOKABLE qSlicerAstroVolumeDisplayWidget* astroVolumeDisplayWidget()const;
+  /// Get volumeRenderingDisplay
+  Q_INVOKABLE vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay()const;
+
+  /// Get volumeRenderingWidget
+  Q_INVOKABLE qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget()const;
 
 public slots:
+  void onCurrentQualityControlChanged(int);
   void onVisibilityChanged(bool visibility);
   void setComparative3DViews(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID);
-  void stopRockView();
-  void startRockView();
-  /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
-  void onCurrentQualityControlChanged(int);
+  void startRockView();
+  void stopRockView();
 
 protected slots:
-  void resetOffset(vtkMRMLNode* node);
-  void SetPresets(vtkMRMLNode* node);
-  void onROICropDisplayCheckBoxToggled(bool toggle);
-  void onMRMLVolumeRenderingDisplayNodeModified(vtkObject*);
-  void onMRMLDisplayROINodeModified(vtkObject*);
-  void setDisplayROIEnabled(bool);
-  void onCropToggled(bool);
-  void onInputVolumeChanged(vtkMRMLNode *node);
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void setDisplayConnection(vtkMRMLNode* node);
   void clearPresets();
+  void onCreateSurfaceButtonToggled(bool toggle);
+  void onCropToggled(bool toggle);
+  void onInputVolumeChanged(vtkMRMLNode *node);
+  void onMRMLDisplayROINodeModified(vtkObject*);
+  void onMRMLSelectionNodeModified(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
+  void onPushButtonCovertLabelMapToSegmentationClicked();
+  void onPushButtonConvertSegmentationToLabelMapClicked();
+  void onROICropDisplayCheckBoxToggled(bool toggle);
+  void onSegmentEditorNodeModified(vtkObject* sender);
+  void resetOffset(vtkMRMLNode* node);
+  void setPresets(vtkMRMLNode* node);
+  void setDisplayConnection(vtkMRMLNode* node);
+  void setDisplayROIEnabled(bool);
+
+signals:
+  void astroLabelMapVolumeNodeChanged(bool enabled);
+  void astroVolumeNodeChanged(bool enabled);
+  void segmentEditorNodeChanged(bool enabled);
 
 protected:
   virtual void setup();
   virtual void setMRMLScene(vtkMRMLScene*);
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
+
+  /// Update master representation in segmentation to a given representation.
+  /// Used before adding a certain segment to a segmentation, making sure the user knows if data loss is possible.
+  /// 1. Segmentation is empty or master is unspecified -> Master is changed to the segment's representation type
+  /// 2. Segmentation is non-empty and master matches the representation -> No action
+  /// 3. Segmentation is non-empty and master differs -> Choice presented to user
+  /// \return False only if user chose not to change master representation on option 3, or if error occurred, otherwise true
+  bool updateMasterRepresentationInSegmentation(vtkSegmentation* segmentation, QString representation);
+
+  bool reactiveRenderingConnection;
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModuleWidget);

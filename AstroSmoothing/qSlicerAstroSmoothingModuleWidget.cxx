@@ -446,7 +446,16 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
       {
       // set it to be active in the slice windows
       vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+      if (!appLogic)
+        {
+        return;
+        }
       vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+      if (!selectionNode)
+        {
+        return;
+        }
+      mrmlNode->Modified();
       selectionNode->SetReferenceActiveVolumeID(d->parametersNode->GetInputVolumeNodeID());
       appLogic->PropagateVolumeSelection();
       }
@@ -1388,7 +1397,15 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   d->parametersNode->SetOutputSerial(serial);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    return;
+    }
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+  if (!selectionNode)
+    {
+    return;
+    }
 
   vtkMRMLAstroVolumeNode *secondaryVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->

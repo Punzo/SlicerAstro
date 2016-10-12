@@ -71,6 +71,10 @@
 // AstroVolume MRML includes
 #include <vtkMRMLAstroTwoDAxesDisplayableManager.h>
 
+// Segment editor effects includes
+#include "qSlicerSegmentEditorEffectFactory.h"
+#include "qSlicerSegmentEditorAstroCloudLassoEffect.h"
+
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
 #include <vtkMRMLLayoutLogic.h>
@@ -181,7 +185,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
   QStringList moduleDependencies;
-  moduleDependencies << "Data" << "Volumes" << "VolumeRendering";
+  moduleDependencies << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor";
   return moduleDependencies;
 }
 
@@ -192,6 +196,12 @@ void qSlicerAstroVolumeModule::setup()
   this->Superclass::setup();
 
   d->app = qSlicerApplication::application();
+
+  if(!d->app)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : qSlicerApplication not found.";
+    return;
+    }
 
   // Register the IO module for loading AstroVolumes as a variant of fits files
   if(!d->app->mrmlScene())
@@ -397,6 +407,9 @@ void qSlicerAstroVolumeModule::setup()
 
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroTwoDAxesDisplayableManager");
+
+  // register AstroCloudLasso selection tool in the Segmentation Editor
+  qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
 }
 
 //-----------------------------------------------------------------------------
