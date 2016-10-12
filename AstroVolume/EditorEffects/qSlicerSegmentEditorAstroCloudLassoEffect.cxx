@@ -1169,7 +1169,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     }
 
   vtkIdType idPoint;
-  if (eid == vtkCommand::RightButtonPressEvent)
+  if (eid == vtkCommand::LeftButtonPressEvent)
     {
     d->IsPainting = true;
     QList<qMRMLWidget*> viewWidgets = d->BrushPipelines.keys();
@@ -1180,7 +1180,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     idPoint = d->paintAddPoint(brushPosition_World);
     abortEvent = true;
     }
-  else if (eid == vtkCommand::RightButtonReleaseEvent)
+  else if (eid == vtkCommand::LeftButtonReleaseEvent)
     {
     d->paintApply(viewWidget);
     d->IsPainting = false;

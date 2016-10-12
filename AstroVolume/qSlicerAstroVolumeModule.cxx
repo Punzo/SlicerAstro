@@ -197,6 +197,12 @@ void qSlicerAstroVolumeModule::setup()
 
   d->app = qSlicerApplication::application();
 
+  if(!d->app)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : qSlicerApplication not found.";
+    return;
+    }
+
   // Register the IO module for loading AstroVolumes as a variant of fits files
   if(!d->app->mrmlScene())
     {

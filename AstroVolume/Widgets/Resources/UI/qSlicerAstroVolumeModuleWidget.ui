@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>396</width>
+    <width>414</width>
     <height>850</height>
    </rect>
   </property>
@@ -359,35 +359,6 @@
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
-           <widget class="QPushButton" name="pushButtonConvertSegmentationToLabelMap">
-            <property name="enabled">
-             <bool>false</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>100</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Convert the current Segmentation Node into a LabelMap Node (Masks) to write it into a FITS file.</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
-              <normaloff>:/Icons/Small/AddLabelmap.png</normaloff>:/Icons/Small/AddLabelmap.png</iconset>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
            <widget class="QPushButton" name="pushButtonCovertLabelMapToSegmentation">
             <property name="enabled">
              <bool>false</bool>
@@ -436,6 +407,35 @@
             <property name="icon">
              <iconset>
               <normaloff>:/Icons/MakeModel.png</normaloff>:/Icons/MakeModel.png</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButtonConvertSegmentationToLabelMap">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>100</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Convert the current Segmentation Node into a LabelMap Node (Masks) to write it into a FITS file.</string>
+            </property>
+            <property name="icon">
+             <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+              <normaloff>:/Icons/Small/AddLabelmap.png</normaloff>:/Icons/Small/AddLabelmap.png</iconset>
             </property>
             <property name="checkable">
              <bool>true</bool>

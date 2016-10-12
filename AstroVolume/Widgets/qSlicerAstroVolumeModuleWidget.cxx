@@ -29,7 +29,9 @@
 // VTK includes
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
+#include <vtkMatrix4x4.h>
 #include <vtkNew.h>
+#include <vtkPointData.h>
 
 // qMRMLWidgets include
 #include <qMRMLAstroVolumeInfoWidget.h>
@@ -153,11 +155,27 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
   qSlicerApplication* app = qSlicerApplication::application();
 
-  qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
-  if (volumeRendering)
+  if (!app)
     {
-    this->volumeRenderingWidget = dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
-      (volumeRendering->widgetRepresentation());
+    qCritical() << Q_FUNC_INFO << ": qSlicerApplication not found, SlicerAstro could not initialize AstroVolume GUI!";
+    return;
+    }
+
+  qSlicerAbstractCoreModule* volumeRendering = app->moduleManager()->module("VolumeRendering");
+
+  if (!volumeRendering)
+    {
+    qCritical() << Q_FUNC_INFO << ": volumeRenderingModule not found, SlicerAstro could not initialize AstroVolume GUI!";
+    return;
+    }
+
+  this->volumeRenderingWidget = dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
+    (volumeRendering->widgetRepresentation());
+
+  if (!this->volumeRenderingWidget)
+    {
+    qCritical() << Q_FUNC_INFO << ": volumeRenderingModuleWidget not found, SlicerAstro could not initialize AstroVolume GUI!";
+    return;
     }
 
   this->SynchronizeScalarDisplayNodeButton->setEnabled(false);
@@ -903,32 +921,55 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode =
+    vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
+
+  vtkMRMLAstroLabelMapVolumeNode* activelabelMapNode=
     vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(d->ActiveVolumeNodeSelector->currentNode());
 
   vtkMRMLAstroVolumeNode* activeVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(
     d->ActiveVolumeNodeSelector->currentNode());
 
-  if(!labelMapNode)
+  if(activelabelMapNode)
     {
-    if (activeVolumeNode)
+    labelMapNode->Copy(activelabelMapNode);
+    std::string name(activelabelMapNode->GetName());
+    std::string str1("Copy_mask");
+    std::string str2("mask");
+    std::size_t found = name.find(str1);
+    if (found != std::string::npos)
       {
-      vtkSlicerAstroVolumeLogic* logic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-      std::string name(activeVolumeNode->GetName());
-      name += "Copy";
-      labelMapNode = logic->CreateAndAddLabelVolume(this->mrmlScene(), activeVolumeNode, name.c_str());
+      name = name.substr(0, name.size()-9);
       }
-    else
+    found = name.find(str2);
+    if (found != std::string::npos)
       {
-      qCritical() << Q_FUNC_INFO << ": converting current segmentation Node into labelMap Node (Mask),"
-                                    " but the labelMap Node is invalid!";
-      return;
+      name = name.substr(0, name.size()-4);
       }
+    name += "Copy_mask";
+    std::string uname = this->mrmlScene()->GetUniqueNameByString(name.c_str());
+    labelMapNode->SetName(uname.c_str());
+    this->mrmlScene()->AddNode(labelMapNode);
+    }
+  else if (activeVolumeNode)
+    {
+    vtkSlicerAstroVolumeLogic* logic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+    std::string name(activeVolumeNode->GetName());
+    name += "Copy_mask";
+    labelMapNode = logic->CreateAndAddLabelVolume(this->mrmlScene(), activeVolumeNode, name.c_str());
+    }
+  else
+    {
+    qCritical() << Q_FUNC_INFO << ": converting current segmentation Node into labelMap Node (Mask),"
+                                  " but the labelMap Node is invalid!";
+    return;
     }
 
   int Extents[6] = { 0, 0, 0, 0, 0, 0 };
   labelMapNode->GetImageData()->GetExtent(Extents);
 
-  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode))
+  bool exportSuccess = vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode);
+
+  if (!exportSuccess)
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
                               " the segment cannot be converted into representation corresponding to the selected representation node.").
@@ -938,23 +979,107 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     return;
     }
 
-  //BUG: the origin is wrong.
+  double storedOrigin[3] = { 0., 0., 0. };
+  labelMapNode->GetOrigin(storedOrigin);
+
+  // restore original Extents
   vtkNew<vtkImageReslice> reslice;
   reslice->SetOutputExtent(Extents);
+  reslice->SetOutputOrigin(0., 0., 0.);
   reslice->SetOutputScalarType(VTK_SHORT);
   reslice->SetInputData(labelMapNode->GetImageData());
+
   reslice->Update();
   labelMapNode->GetImageData()->DeepCopy(reslice->GetOutput());
-  labelMapNode->GetImageData()->Modified();
+
+  // restore original Origins
+  int *dims = labelMapNode->GetImageData()->GetDimensions();
+  double dimsH[4];
+  dimsH[0] = dims[0] - 1;
+  dimsH[1] = dims[1] - 1;
+  dimsH[2] = dims[2] - 1;
+  dimsH[3] = 0.;
+
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  labelMapNode->GetIJKToRASMatrix(ijkToRAS.GetPointer());
+  double rasCorner[4];
+  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
+
+  double Origin[3] = { 0., 0., 0. };
+  Origin[0] = -0.5 * rasCorner[0];
+  Origin[1] = -0.5 * rasCorner[1];
+  Origin[2] = -0.5 * rasCorner[2];
+
+  labelMapNode->SetOrigin(Origin);
+
+  // translate data to original location (linear translation supported only)
+  storedOrigin[0] -= Origin[0];
+  storedOrigin[1] -= Origin[1];
+  storedOrigin[2] -= Origin[2];
+
+  vtkNew<vtkImageData> tempVolumeData;
+  tempVolumeData->Initialize();
+  tempVolumeData->DeepCopy(labelMapNode->GetImageData());
+  tempVolumeData->Modified();
+  tempVolumeData->GetPointData()->GetScalars()->Modified();
+
+  dims = labelMapNode->GetImageData()->GetDimensions();
+  const int numElements = dims[0] * dims[1] * dims[2];
+  const int numSlice = dims[0] * dims[1];
+  int shiftX = (int) fabs(storedOrigin[0]);
+  int shiftY = (int) fabs(storedOrigin[2]) * dims[0];
+  int shiftZ = (int) fabs(storedOrigin[1]) * numSlice;
+  short* tempVoxelPtr = static_cast<short*>(tempVolumeData->GetScalarPointer());
+  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
+
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    *(voxelPtr + elemCnt) = 0;
+    }
+
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+
+    int X = elemCnt + shiftX;
+    int ref = (int) floor(elemCnt / dims[0]);
+    ref *= dims[0];
+    if(X < ref || X >= ref + dims[0])
+      {
+      continue;
+      }
+
+    int Y = elemCnt + shiftY;
+    ref = (int) floor(elemCnt / numSlice);
+    ref *= numSlice;
+    if(Y < ref || Y >= ref + numSlice)
+      {
+      continue;
+      }
+
+    int Z = elemCnt + shiftZ;
+    if(Z < 0 || Z >= numElements)
+      {
+      continue;
+      }
+
+    int shift = elemCnt + shiftX + shiftY + shiftZ;
+
+    *(voxelPtr + shift) = *(tempVoxelPtr + elemCnt);
+    }
+
+  labelMapNode->UpdateRangeAttributes();
 
   d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
   d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
   d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
 
   // Remove segments from current segmentation if export was successful
-  for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
+  if (exportSuccess)
     {
-    currentSegmentationNode->GetSegmentation()->RemoveSegment(segmentIDs[ii]);
+    for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
+      {
+      currentSegmentationNode->GetSegmentation()->RemoveSegment(segmentIDs[ii]);
+      }
     }
 }
 
