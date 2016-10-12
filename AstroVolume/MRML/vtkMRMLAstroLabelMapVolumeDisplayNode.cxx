@@ -1337,6 +1337,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->SetInputImageDataConnection(node->GetInputImageDataConnection());
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
+  this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
 
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, node->WCS, this->WCS)))

@@ -934,16 +934,16 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     labelMapNode->Copy(activelabelMapNode);
     std::string name(activelabelMapNode->GetName());
     std::string str1("Copy_mask");
-    std::string str2("mask");
+    std::string str2("_mask");
     std::size_t found = name.find(str1);
     if (found != std::string::npos)
-      {
-      name = name.substr(0, name.size()-9);
+      { 
+      name = name.substr(0, found);
       }
     found = name.find(str2);
     if (found != std::string::npos)
       {
-      name = name.substr(0, name.size()-4);
+      name = name.substr(0, found);
       }
     name += "Copy_mask";
     std::string uname = this->mrmlScene()->GetUniqueNameByString(name.c_str());

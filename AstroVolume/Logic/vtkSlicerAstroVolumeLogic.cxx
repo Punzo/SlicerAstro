@@ -558,8 +558,8 @@ void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
 
 //---------------------------------------------------------------------------
 vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolume(vtkMRMLScene *scene,
-                                                                              vtkMRMLVolumeNode *volumeNode,
-                                                                              const char *name)
+                                                                                   vtkMRMLAstroVolumeNode *volumeNode,
+                                                                                   const char *name)
 {
   if (scene == NULL || volumeNode == NULL || name == NULL)
     {
@@ -583,7 +583,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
 //---------------------------------------------------------------------------
 vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume(vtkMRMLScene *scene,
                                                                                        vtkMRMLAstroLabelMapVolumeNode *labelNode,
-                                                                                       vtkMRMLVolumeNode *inputVolume)
+                                                                                       vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (scene == NULL || labelNode == NULL || inputVolume == NULL)
     {
@@ -595,11 +595,11 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFrom
     vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(labelNode->GetDisplayNode());
   if (labelDisplayNode.GetPointer() == NULL)
     {
-    vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(inputVolume);
-    vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplay = astroVolume->GetAstroVolumeDisplayNode();
+    vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplay = inputVolume->GetAstroVolumeDisplayNode();
     labelDisplayNode = vtkSmartPointer<vtkMRMLAstroLabelMapVolumeDisplayNode>::New();
     labelDisplayNode->SetSpaceQuantities(astroVolumeDisplay->GetSpaceQuantities());
     labelDisplayNode->SetSpace(astroVolumeDisplay->GetSpace());
+    labelDisplayNode->SetAttribute("SlicerAstro.NAXIS", inputVolume->GetAttribute("SlicerAstro.NAXIS"));
 
     struct wcsprm* labelWCS;
     struct wcsprm* volumeWCS;
@@ -645,6 +645,14 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFrom
     {
     labelNode->SetAttribute("AssociatedNodeID", inputVolume->GetID());
     }
+
+  std::vector<std::string> keys = inputVolume->GetAttributeNames();
+  for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
+    {
+    labelNode->SetAttribute((*kit).c_str(), inputVolume->GetAttribute((*kit).c_str()));
+    }
+  labelNode->SetAttribute("SlicerAstro.DATATYPE", "MASK");
+  labelNode->SetAttribute("SlicerAstro.BITPIX", "16");
 
   // Set the display node to have a label map lookup table
   this->SetAndObserveColorToDisplayNode(labelDisplayNode,

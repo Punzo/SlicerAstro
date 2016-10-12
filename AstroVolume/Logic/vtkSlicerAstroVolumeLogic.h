@@ -71,7 +71,7 @@ public:
 
   /// Create a label map volume to match the given \a volumeNode and add it to the \a scene
   vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,
-                                                          vtkMRMLVolumeNode *volumeNode,
+                                                          vtkMRMLAstroVolumeNode *volumeNode,
                                                           const char *name);
 
   /// Fill in a label map volume to match the given input volume node, under
@@ -81,7 +81,7 @@ public:
   /// according to the template volumeNode.
   vtkMRMLAstroLabelMapVolumeNode *CreateLabelVolumeFromVolume(vtkMRMLScene *scene,
                                                               vtkMRMLAstroLabelMapVolumeNode *labelNode,
-                                                              vtkMRMLVolumeNode *inputVolume);
+                                                              vtkMRMLAstroVolumeNode *inputVolume);
 
 protected:
   vtkSlicerAstroVolumeLogic();
