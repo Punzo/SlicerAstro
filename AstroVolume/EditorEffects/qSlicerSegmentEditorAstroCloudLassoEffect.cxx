@@ -573,6 +573,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
   this->CloudLasso3DSelectionPolys->Reset();
 
   q->CreateSurface();
+
+  QApplication::restoreOverrideCursor();
 }
 
 //-----------------------------------------------------------------------------
@@ -1026,6 +1028,7 @@ qSlicerSegmentEditorAstroCloudLassoEffect::qSlicerSegmentEditorAstroCloudLassoEf
 {
   this->m_Name = QString("AstroCloudLasso");
   this->m_Erase = false;
+  this->m_ShowEffectCursorInThreeDView = true;
 }
 
 //----------------------------------------------------------------------------
@@ -1182,8 +1185,8 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     }
   else if (eid == vtkCommand::LeftButtonReleaseEvent)
     {
-    d->paintApply(viewWidget);
     d->IsPainting = false;
+    d->paintApply(viewWidget);
 
     QList<qMRMLWidget*> viewWidgets = d->BrushPipelines.keys();
     foreach (qMRMLWidget* viewWidget, viewWidgets)
@@ -1196,7 +1199,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     if (d->IsPainting)
       {
       idPoint = d->paintAddPoint(brushPosition_World);
-      abortEvent = false;
+      abortEvent = true;
       }
     }
   else if (eid == vtkCommand::EnterEvent)
