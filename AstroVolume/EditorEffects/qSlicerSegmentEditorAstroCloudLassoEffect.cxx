@@ -326,7 +326,7 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
 
   this->FeedbackTubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
   this->FeedbackTubeFilter->SetInputConnection(this->SmoothPolyFilter->GetOutputPort());
-  this->FeedbackTubeFilter->SetRadius(1);
+  this->FeedbackTubeFilter->SetRadius(0.3);
   this->FeedbackTubeFilter->SetNumberOfSides(16);
   this->FeedbackTubeFilter->CappingOn();
 
@@ -884,18 +884,17 @@ double qSlicerSegmentEditorAstroCloudLassoEffectPrivate::GetSliceSpacing(qMRMLSl
 //-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushModel(qMRMLWidget* viewWidget, double brushPosition_World[3])
 {
-  double radiusMm = 1.0;
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
   if (!sliceWidget)
     {
-    this->BrushSphereSource->SetRadius(radiusMm);
+    this->BrushSphereSource->SetRadius(0.4);
     this->BrushSphereSource->SetPhiResolution(16);
     this->BrushSphereSource->SetThetaResolution(16);
     this->BrushToWorldOriginTransformer->SetInputConnection(this->BrushSphereSource->GetOutputPort());
     }
   else
     {
-    this->BrushCylinderSource->SetRadius(radiusMm);
+    this->BrushCylinderSource->SetRadius(1.0);
     this->BrushCylinderSource->SetResolution(16);
     double sliceSpacingMm = this->GetSliceSpacing(sliceWidget);
     this->BrushCylinderSource->SetHeight(sliceSpacingMm);
@@ -917,6 +916,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushModel(qMRMLWid
   this->BrushToWorldOriginTransform->RotateX(90); // cylinder's long axis is the Y axis, we need to rotate it to Z axis
 
   this->WorldOriginToWorldTransform->Identity();
+
   this->WorldOriginToWorldTransform->Translate(brushPosition_World);
 
   this->StripperFilter->Modified();
