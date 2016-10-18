@@ -28,6 +28,7 @@ class AstroSampleData(ScriptedLoadableModule):
     This work was supported by ERC grant nr. 291531 and the Slicer Community. <br><br>
     Data acknowledgement: <br>
     WEIN069: Mpati Ramatsoku and Marc Verheijen (Kapteyn Astronomical Institute); <br>
+    WEIN069_MASK: mask generated using SoFiA (https://github.com/SoFiA-Admin/SoFiA); <br>
     NGC2403: THING survey; <br>
     NGC3379 and NGC4111: ATLAS3D survey. <br>
     This file has been originally edited by Steve Pieper.
