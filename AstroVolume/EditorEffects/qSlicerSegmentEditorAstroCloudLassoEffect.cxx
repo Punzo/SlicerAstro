@@ -1047,7 +1047,7 @@ QIcon qSlicerSegmentEditorAstroCloudLassoEffect::icon()
 //---------------------------------------------------------------------------
 QString const qSlicerSegmentEditorAstroCloudLassoEffect::helpText()const
 {
-  return QString("Right-click and drag in a slice or a 3D view to use respectively a 2-D or 3-D cloud lasso selection tool. "
+  return QString("Left-click and drag in a slice or 3D view to use respectively a 2-D or 3-D cloud lasso selection tool. "
                  "The initial lower threshold value is 3 RMS.");
 }
 
