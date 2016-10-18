@@ -630,7 +630,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       d->volumeRenderingWidget->setMRMLVolumeNode(astroVolumeNode);
       this->resetOffset(astroVolumeNode);
       this->setPresets(astroVolumeNode);
-      d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
+      this->clearPresets();
       }
     }
   else
@@ -699,8 +699,6 @@ void qSlicerAstroVolumeModuleWidget::setPresets(vtkMRMLNode *node)
     }
 
   d->PresetsNodeComboBox->setMRMLScene(presetsScene);
-  d->PresetsNodeComboBox->setCurrentNodeIndex(5);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 }
 
 //---------------------------------------------------------------------------
@@ -1109,7 +1107,15 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
 void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNodeOneID,
                                                            const char* volumeNodeTwoID)
 {
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
   qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews() : qSlicerApplication not found.";
+    return;
+    }
 
   app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(15);
 
@@ -1117,6 +1123,12 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
+
+  if(!volumeOne || !volumeTwo)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews() : volumes not valid.";
+    return;
+    }
 
 
   vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
@@ -1145,6 +1157,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
         }
       }
     }
+  this->setPresets(volumeOne);
+  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   n = volumeTwo->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -1173,6 +1187,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
         }
       }
     }
+  this->setPresets(volumeTwo);
+  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));

@@ -11,12 +11,5 @@
         <file>Icons/Small/AddLabelmap.png</file>
         <file>Icons/Small/SlicerAddModel.png</file>
     </qresource>
-    <qresource prefix="/presets">
-        <file>Icons/high.png</file>
-        <file>Icons/low.png</file>
-        <file>Icons/medium.png</file>
-        <file>Icons/OneSurface.png</file>
-        <file>Icons/ThreeSurface.png</file>
-        <file>Icons/TwoSurface.png</file>
-    </qresource>
+    <qresource prefix="/presets"/>
 </RCC>

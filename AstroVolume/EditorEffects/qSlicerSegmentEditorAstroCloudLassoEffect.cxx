@@ -326,7 +326,7 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
 
   this->FeedbackTubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
   this->FeedbackTubeFilter->SetInputConnection(this->SmoothPolyFilter->GetOutputPort());
-  this->FeedbackTubeFilter->SetRadius(0.3);
+  this->FeedbackTubeFilter->SetRadius(0.5);
   this->FeedbackTubeFilter->SetNumberOfSides(16);
   this->FeedbackTubeFilter->CappingOn();
 

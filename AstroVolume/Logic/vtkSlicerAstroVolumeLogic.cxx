@@ -787,6 +787,30 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
          gradientOpacity->AddPoint(min, 1.);
          gradientOpacity->AddPoint(max, 1.);
         }
+      if(!strcmp(volumePropertyNode->GetName(),"OneSurfaceWhite"))
+        {
+         vtkPiecewiseFunction *compositeOpacity =
+             volumePropertyNode->GetScalarOpacity();
+         compositeOpacity->RemoveAllPoints();
+         compositeOpacity->AddPoint(min, 0.);
+         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+         compositeOpacity->AddPoint(noise3, 0.6, 0.5, 0.2);
+         compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
+         compositeOpacity->AddPoint(max, 0.);
+
+         vtkColorTransferFunction *color =
+             volumePropertyNode->GetColor();
+         color->RemoveAllPoints();
+         color->AddRGBPoint(min, 0., 0., 0.);
+         color->AddRGBPoint(noise3, 1., 1., 1.);
+         color->AddRGBPoint(max, 1., 1., 1.);
+
+         vtkPiecewiseFunction *gradientOpacity =
+             volumePropertyNode->GetGradientOpacity();
+         gradientOpacity->RemoveAllPoints();
+         gradientOpacity->AddPoint(min, 1.);
+         gradientOpacity->AddPoint(max, 1.);
+        }
       if(!strcmp(volumePropertyNode->GetName(),"TwoSurfaces"))
         {
          vtkPiecewiseFunction *compositeOpacity =
