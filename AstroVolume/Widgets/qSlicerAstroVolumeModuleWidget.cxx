@@ -542,8 +542,11 @@ void qSlicerAstroVolumeModuleWidget::setup()
 void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
   if (!node)
     {
+    emit astroLabelMapVolumeNodeChanged(false);
+    emit astroVolumeNodeChanged(false);
     return;
     }
 
@@ -1136,6 +1139,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   unsigned int numViewNodes = col->GetNumberOfItems();
   int n = volumeOne->GetNumberOfDisplayNodes();
+  int renderingQuality;
   for (int i = 0; i < n; i++)
     {
     vtkMRMLVolumeRenderingDisplayNode *volumeOneRenderingDisplay =
@@ -1152,11 +1156,13 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
         if (viewNodeIter)
           {
           volumeOneRenderingDisplay->AddViewNodeID(viewNodeIter->GetID());
+          renderingQuality = volumeOneRenderingDisplay->GetPerformanceControl();
           break;
           }
         }
       }
     }
+
   this->setPresets(volumeOne);
   d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
@@ -1180,6 +1186,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
           if(second)
             {
             volumeTwoRenderingDisplay->AddViewNodeID(viewNodeIter->GetID());
+            volumeTwoRenderingDisplay->SetPerformanceControl(renderingQuality);
             break;
             }
           second = true;
