@@ -80,6 +80,7 @@ protected slots:
   void clearPresets();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
+  void onEditSelectedSegment();
   void onInputVolumeChanged(vtkMRMLNode *node);
   void onMRMLDisplayROINodeModified(vtkObject*);
   void onMRMLSelectionNodeModified(vtkObject* sender);

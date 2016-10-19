@@ -340,6 +340,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->CreateSurfaceButton, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(segmentEditorNodeChanged(bool)),
+                   this->pushButton_EditSelected, SLOT(setEnabled(bool)));
+
+  QObject::connect(q, SIGNAL(segmentEditorNodeChanged(bool)),
                    this->SegmentsTableView_2, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
@@ -353,6 +356,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
   QObject::connect(this->CreateSurfaceButton, SIGNAL(toggled(bool)),
                    q, SLOT(onCreateSurfaceButtonToggled(bool)));
+
+  QObject::connect(this->pushButton_EditSelected, SIGNAL(clicked()),
+                   q, SLOT(onEditSelectedSegment()));
 
 
 }
@@ -861,8 +867,12 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
 
   if (!labelMapNode)
     {
-    qCritical() << Q_FUNC_INFO << ": the current active volume is not a LabelMap (Mask),"
-                                  "please select a mask datacube";
+    QString message = QString("the current volume is not a labelmap volume (Mask)!");
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
+    d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
+    d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
+    d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
     return;
     }
 
@@ -873,6 +883,10 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
        QString message = QString("Failed to copy labels from labelmap volume node %1!").arg(labelMapNode->GetName());
        qCritical() << Q_FUNC_INFO << ": " << message;
        QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
+       d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
+       d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
+       d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
+       return;
        }
      }
 
@@ -913,7 +927,12 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
   if (!currentSegmentationNode)
     {
-    qWarning() << Q_FUNC_INFO << ": No segmentation selected!";
+    QString message = QString("No segmentation selected!");
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
+    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
 
@@ -923,6 +942,53 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode =
     vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
+
+  if (segmentIDs.size() < 1)
+    {
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
+                                " the segment cannot be converted into representation corresponding to the selected representation node \n or"
+                                " be sure that segment to export are rpesent in the table view.").
+                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
+    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
+    return;
+    }
+
+  for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
+    {
+    vtkSegment* segment = currentSegmentationNode->GetSegmentation()->GetSegment(segmentIDs[ii]);
+    double Bounds[6] = { 0, 0, 0, 0, 0, 0 };
+    segment->GetBounds(Bounds);
+    bool removeSegment = false;
+    for (int jj = 0; jj < 6; jj++)
+      {
+      if (fabs(Bounds[jj]) > 1e+298)
+        {
+        removeSegment = true;
+        }
+      }
+    if (removeSegment)
+      {
+      currentSegmentationNode->GetSegmentation()->RemoveSegment(segment);
+      }
+    }
+
+  if (segmentIDs.size() < 1)
+    {
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
+                                " the segment cannot be converted into representation corresponding to the selected representation node \n or"
+                                " be sure that segment to export are rpesent in the table view.").
+                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
+    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
+    return;
+    }
 
   vtkMRMLAstroLabelMapVolumeNode* activelabelMapNode=
     vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(d->ActiveVolumeNodeSelector->currentNode());
@@ -962,6 +1028,9 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     {
     qCritical() << Q_FUNC_INFO << ": converting current segmentation Node into labelMap Node (Mask),"
                                   " but the labelMap Node is invalid!";
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
+    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
 
@@ -973,10 +1042,15 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   if (!exportSuccess)
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                              " the segment cannot be converted into representation corresponding to the selected representation node.").
+                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
+                              " be sure that segment to export are rpesent in the table view.").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    this->mrmlScene()->RemoveNode(labelMapNode);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
+    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
+    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
 
@@ -1399,6 +1473,33 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
     }
 
   displayNode->SetCroppingEnabled(crop);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onEditSelectedSegment()
+{
+  //Q_D(qSlicerAstroVolumeModuleWidget);
+
+  qSlicerModuleManager * moduleManager = qSlicerCoreApplication::application()->moduleManager();
+  if (!moduleManager)
+    {
+    return;
+    }
+  qSlicerAbstractCoreModule * module = moduleManager->module("SegmentEditor");
+  if(!module)
+    {
+    QMessageBox::warning(
+      this, this->tr("Raising %1 Module:").arg("Segment Editor"),
+      this->tr("Unfortunately, this requested module is not available in this Slicer session."),
+      QMessageBox::Ok);
+    return;
+    }
+  qSlicerLayoutManager * layoutManager = qSlicerApplication::application()->layoutManager();
+  if (!layoutManager)
+    {
+    return;
+    }
+  layoutManager->setCurrentModule("SegmentEditor");
 }
 
 //---------------------------------------------------------------------------
