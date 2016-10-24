@@ -16,7 +16,7 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
 
   def __init__(self, parent):
     ScriptedLoadableModule.__init__(self, parent)
-    parent.title = "SlicerAstroDataProbe"
+    parent.title = "SlicerAstro Data Probe"
     parent.categories = ["Quantification", "Astronomy"]
     parent.dependencies = ["DataProbe"]
     parent.contributors = ["""

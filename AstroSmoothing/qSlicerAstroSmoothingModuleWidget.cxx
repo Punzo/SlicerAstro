@@ -60,7 +60,6 @@
 #include <qSlicerLayoutManager.h>
 #include <qSlicerModuleManager.h>
 #include <qSlicerUtils.h>
-#include "qSlicerVolumeRenderingModuleWidget.h"
 
 // MRMLLogic includes
 #include <vtkMRMLApplicationLogic.h>
@@ -1347,8 +1346,6 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   d->parametersNode->SetStatus(1);
 
   vtkMRMLScene *scene = this->mrmlScene();
-
-  d->astroVolumeWidget->stopRockView();
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
