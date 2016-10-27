@@ -54,6 +54,7 @@
 // MRML includes
 #include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
@@ -118,6 +119,12 @@ template <typename T> T StringToNumber(const char* num)
   ss << num;
   T result;
   return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+short StringToShort(const char* str)
+{
+  return StringToNumber<short>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -876,19 +883,43 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     return;
     }
 
-   if (this->updateMasterRepresentationInSegmentation(currentSegmentationNode->GetSegmentation(), vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName()))
-     {
-     if (!vtkSlicerSegmentationsModuleLogic::ImportLabelmapToSegmentationNode(labelMapNode, currentSegmentationNode))
-       {
-       QString message = QString("Failed to copy labels from labelmap volume node %1!").arg(labelMapNode->GetName());
-       qCritical() << Q_FUNC_INFO << ": " << message;
-       QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
-       d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
-       d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
-       d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
-       return;
-       }
-     }
+  // Add a segment of 4 voxels to ensure the segmentation Bounds are the same of the LabelMap
+  // (however, it will be present a segement more which it is not ideal)
+  int* dims = labelMapNode->GetImageData()->GetDimensions();
+  const int numElements = dims[0] * dims[1] * dims[2];
+  const int numSlice = dims[0] * dims[1];
+  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
+  short val = StringToShort(labelMapNode->GetAttribute("SlicerAstro.DATAMAX")) + 1;
+
+  *(voxelPtr) = val;
+  *(voxelPtr + numSlice - 1) = val;
+
+  *(voxelPtr + numElements - numSlice) = val;
+  *(voxelPtr + numElements - 1) = val;
+
+  labelMapNode->UpdateRangeAttributes();
+
+  if (this->updateMasterRepresentationInSegmentation(currentSegmentationNode->GetSegmentation(), vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName()))
+    {
+    if (!vtkSlicerSegmentationsModuleLogic::ImportLabelmapToSegmentationNode(labelMapNode, currentSegmentationNode))
+      {
+      QString message = QString("Failed to copy labels from labelmap volume node %1!").arg(labelMapNode->GetName());
+      qCritical() << Q_FUNC_INFO << ": " << message;
+      QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
+      d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
+      d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
+      d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
+      return;
+      }
+    }
+
+  *(voxelPtr) = 0;
+  *(voxelPtr + numSlice - 1) = 0;
+
+  *(voxelPtr + numElements - numSlice) = 0;
+  *(voxelPtr + numElements - 1) = 0;
+
+  labelMapNode->UpdateRangeAttributes();
 
   currentSegmentationNode->CreateDefaultDisplayNodes();
 
@@ -946,9 +977,9 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   if (segmentIDs.size() < 1)
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                                " the segment cannot be converted into representation corresponding to the selected representation node \n or"
-                                " be sure that segment to export are rpesent in the table view.").
-                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
+                              " be sure that segment to export are rpesent in the table view.").
+                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
@@ -957,31 +988,28 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     return;
     }
 
+  int maskID = 0;
+  std::string maskIDName;
   for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
     {
     vtkSegment* segment = currentSegmentationNode->GetSegmentation()->GetSegment(segmentIDs[ii]);
-    double Bounds[6] = { 0, 0, 0, 0, 0, 0 };
-    segment->GetBounds(Bounds);
-    bool removeSegment = false;
-    for (int jj = 0; jj < 6; jj++)
+    int segmentMaskID = StringToInt(segment->GetName());
+    if (segmentMaskID > maskID)
       {
-      if (fabs(Bounds[jj]) > 1e+298)
-        {
-        removeSegment = true;
-        }
-      }
-    if (removeSegment)
-      {
-      currentSegmentationNode->GetSegmentation()->RemoveSegment(segment);
+      maskID = segmentMaskID;
+      maskIDName = segmentIDs[ii];
       }
     }
+
+  currentSegmentationNode->GetSegmentation()->RemoveSegment(maskIDName);
+  currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
   if (segmentIDs.size() < 1)
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                                " the segment cannot be converted into representation corresponding to the selected representation node \n or"
-                                " be sure that segment to export are rpesent in the table view.").
-                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
+                              " be sure that segment to export are rpesent in the table view.").
+                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
@@ -1053,6 +1081,8 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
+
+  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
 
   double storedOrigin[3] = { 0., 0., 0. };
   labelMapNode->GetOrigin(storedOrigin);
