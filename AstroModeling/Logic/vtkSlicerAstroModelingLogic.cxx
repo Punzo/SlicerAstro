@@ -22,6 +22,18 @@
 #include "vtkSlicerAstroModelingLogic.h"
 #include "vtkSlicerAstroConfigure.h"
 
+//Bbarolo includes
+#include "param.hh"
+#include "cube.hh"
+#include "stats.hh"
+#include "moment.hh"
+#include "ringmodel.hh"
+#include "smooth3D.hh"
+#include "galfit.hh"
+#include "spacepar.hh"
+#include "utils.hh"
+#include "ellprof.hh"
+
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroModelingParametersNode.h>
@@ -139,6 +151,81 @@ int vtkSlicerAstroModelingLogic::Apply(vtkMRMLAstroModelingParametersNode* pnode
 {
   int success = 0;
   pnode->SetStatus(1);
+/* now I have to modify this:
+ * make it working without mask
+ * give parameters hard coded
+ * then give parameters from interface
+ * then give mask from segmentationNode
+ * look for the best layout for the output
+  Param *par = new Param;
+
+  if (!par->getopts(argc, argv)) return EXIT_FAILURE;
+  if (par->getImageList()=="NONE") par->setImage(par->getImageFile());
+  std::cout << *par;
+
+  for (int im=0; im<par->getListSize(); im++) {
+
+      if (par->getListSize()>1) {
+          std::cout << setfill('_') << std::endl;
+          std::cout << setw(70) << "" << std::endl << std::endl;
+          std::string s = "Working on "+ par->getImage(im)+" ";
+          std::cout << setfill(' ') << right << setw(70) << s;
+          std::cout << std::endl << left;
+          std::cout << std::endl << " File "<< im+1
+                    << " of " << par->getListSize()<<std::endl<<std::endl;
+      }
+
+      par->setImageFile(par->getImage(im));
+      std::string fname = par->getImage(im);
+      int found = fname.find("[");
+      if (found>=0) fname.erase(found, fname.size()-found);
+      if (!fexists(fname)) {
+          std::cout << "\nError reading " << par->getImage(im)
+                    << " : the file doesn't exist!\n";
+          if(par->getListSize()-im>1) std::cout << "Skipping to next file...\n";
+          else {std::cout << "Exiting ...\n\n"; return EXIT_FAILURE;}
+          continue;
+      }
+
+      Cube<float> *c = new Cube<float>;
+      c->saveParam(*par);
+
+      if (!c->readCube(par->getImageFile())) {
+          std::cout << par->getImageFile() << " is not a readable FITS image!\n";
+          if(par->getListSize()-im>1) std::cout << "Skipping to next file...\n";
+          else std::cout << "Exiting ...\n\n";
+          delete c;
+          continue;
+      }
+
+      if (par->getCheckCh()) c->CheckChannels();
+
+      if (par->getflagSmooth()) {
+          Smooth3D<float> *sm = new Smooth3D<float>;
+          sm->cubesmooth(c);
+          sm->fitswrite();
+          delete sm;
+      }
+
+      ///<<<<< Searching stuff
+      if (par->getSearch()) {
+          c->Search();
+          c->plotDetections();
+          std::ofstream detout((outfolder+"detections.txt").c_str());
+          c->printDetections(detout);
+      }
+
+  if (par->getflagGalFit()) {
+      Model::Galfit<float> *fit = new Model::Galfit<float>(c);
+      fit->galfit();
+      if (par->getTwoStage()) fit->SecondStage();
+      if (par->getFlagDebug()) fit->writeModel("BOTH");
+      else fit->writeModel(par->getNORM());
+
+
+      delete fit;
+  }
+  */
   pnode->SetStatus(20);
   pnode->SetStatus(0);
   success = 1;

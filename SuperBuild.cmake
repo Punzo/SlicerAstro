@@ -28,7 +28,7 @@ endforeach()
 
 set(proj ${SUPERBUILD_TOPLEVEL_PROJECT})
 if(UNIX)
-  set(${proj}_DEPENDS cfitsio wcslib)
+  set(${proj}_DEPENDS cfitsio wcslib bbarolo)
 endif(UNIX)
 
 ExternalProject_Include_Dependencies(${proj}
