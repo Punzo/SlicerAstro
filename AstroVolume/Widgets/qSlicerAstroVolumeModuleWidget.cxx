@@ -892,9 +892,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
   short val = StringToShort(labelMapNode->GetAttribute("SlicerAstro.DATAMAX")) + 1;
 
   *(voxelPtr) = val;
-  *(voxelPtr + numSlice - 1) = val;
-
-  *(voxelPtr + numElements - numSlice) = val;
   *(voxelPtr + numElements - 1) = val;
 
   labelMapNode->UpdateRangeAttributes();
@@ -914,9 +911,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     }
 
   *(voxelPtr) = 0;
-  *(voxelPtr + numSlice - 1) = 0;
-
-  *(voxelPtr + numElements - numSlice) = 0;
   *(voxelPtr + numElements - 1) = 0;
 
   labelMapNode->UpdateRangeAttributes();
