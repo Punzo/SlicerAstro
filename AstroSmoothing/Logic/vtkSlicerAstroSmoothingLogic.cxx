@@ -882,15 +882,27 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   std::size_t found = check.find("Mesa");
   if (found!=std::string::npos)
     {
-    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
       {
-      vtkWarningMacro("Using Mesa driver (<12). "
+      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the isotropic Box filter (3-pass filter using 1-D Kernels) "
                       "is not available with the specifications of the machine in use. "
                       "A 3-D Kernel will be used. ");
       filter->SetIterative(false);
       }
+    else
+      {
+      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
+                      "The GPU implementation of the isotropic Box filter has not been tested on these specifications, "
+                      "please report the success or the failure (punzodavide@hotmail.it).");
+      }
     }
+
+#ifdef __APPLE__
+  vtkWarningMacro("Using Mac OpenGL version."
+                  "The GPU implementation of the isotropic Box filter has not been tested on these specifications, "
+                  "please report the success or the failure (punzodavide@hotmail.it).");
+#endif
 
   pnode->SetStatus(20);
 
@@ -1562,15 +1574,27 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   std::size_t found = check.find("Mesa");
   if (found!=std::string::npos)
     {
-    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
       {
-      vtkWarningMacro("Using Mesa driver (<12). "
+      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the isotropic Gaussian filter (3-pass filter using 1-D Kernels) "
                       "is not available with the specifications of the machine in use. "
                       "A 3-D Kernel will be used. ");
       filter->SetIterative(false);
       }
+    else
+      {
+      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
+                      "The GPU implementation of the isotropic Gaussian filter has not been tested on these specifications, "
+                      "please report the success or the failure (punzodavide@hotmail.it).");
+      }
     }
+
+#ifdef __APPLE__
+  vtkWarningMacro("Using Mac OpenGL version."
+                  "The GPU implementation of the Gaussian filter has not been tested on these specifications, "
+                  "please report the success or the failure (punzodavide@hotmail.it).");
+#endif
 
   pnode->SetStatus(20);
 
@@ -1898,15 +1922,27 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   std::size_t found = check.find("Mesa");
   if (found!=std::string::npos)
     {
-    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
       {
-      vtkWarningMacro("Using Mesa driver (<12). "
+      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the Intensity-Driven Gradient filter "
                       "is not available with the specifications of the machine in use.");
       pnode->SetStatus(0);
       return 0;
       }
+    else
+      {
+      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
+                      "The GPU implementation of the Intensity-Driven Gradient filter has not been tested on these specifications, "
+                      "please report the success or the failure (punzodavide@hotmail.it).");
+      }
     }
+
+#ifdef __APPLE__
+  vtkWarningMacro("Using Mac OpenGL version."
+                  "The GPU implementation of the Intensity-Driven Gradient filter has not been tested on these specifications, "
+                  "please report the success or the failure (punzodavide@hotmail.it).");
+#endif
 
   pnode->SetStatus(1);
 
