@@ -45,7 +45,7 @@ public:
 
   virtual void RegisterNodes();
 
-  int Apply(vtkMRMLAstroModelingParametersNode *pnode);
+  int FitModel(vtkMRMLAstroModelingParametersNode *pnode);
 
 protected:
   vtkSlicerAstroModelingLogic();

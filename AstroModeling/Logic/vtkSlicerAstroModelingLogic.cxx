@@ -36,6 +36,7 @@
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroModelingParametersNode.h>
 
 // VTK includes
@@ -83,6 +84,59 @@ vtkSlicerAstroModelingLogic::vtkInternal::~vtkInternal()
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroModelingLogic);
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+int StringToLong(const char* str)
+{
+  return StringToNumber<long>(str);
+}
+
+//----------------------------------------------------------------------------
+double StringToFloat(const char* str)
+{
+  return StringToNumber<float>(str);
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
+template <typename T> std::string NumberToString(T V)
+{
+  std::string stringValue;
+  std::stringstream strstream;
+  strstream << V;
+  strstream >> stringValue;
+  return stringValue;
+}
+
+//----------------------------------------------------------------------------
+std::string IntToString(int Value)
+{
+  return NumberToString<int>(Value);
+}
+
+} // end namespace
+
 //----------------------------------------------------------------------------
 vtkSlicerAstroModelingLogic::vtkSlicerAstroModelingLogic()
 {
@@ -107,25 +161,6 @@ vtkSlicerAstroVolumeLogic* vtkSlicerAstroModelingLogic::GetAstroVolumeLogic()
   return this->Internal->AstroVolumeLogic;
 }
 
-namespace
-{
-//----------------------------------------------------------------------------
-template <typename T> T StringToNumber(const char* num)
-{
-  std::stringstream ss;
-  ss << num;
-  T result;
-  return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-}// end namespace
-
 //----------------------------------------------------------------------------
 void vtkSlicerAstroModelingLogic::PrintSelf(ostream& os, vtkIndent indent)
 {
@@ -147,7 +182,7 @@ void vtkSlicerAstroModelingLogic::RegisterNodes()
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::Apply(vtkMRMLAstroModelingParametersNode* pnode)
+int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pnode)
 {
   int success = 0;
   pnode->SetStatus(1);
@@ -157,76 +192,192 @@ int vtkSlicerAstroModelingLogic::Apply(vtkMRMLAstroModelingParametersNode* pnode
  * then give parameters from interface
  * then give mask from segmentationNode
  * look for the best layout for the output
+ * (Convetional quantitative:
+ * background data; foreground model;
+ * 3-D data + segmentation (white) of model (make a LabelMap and convert to segmentation);
+ * chart: fitted parameters. )*/
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+
+  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+
   Param *par = new Param;
+  std::string file = "";
+  par->setImageFile(file);
+  par->setBeamFWHM(par->getBeamFWHM() / 3600.);
+  //par->setflagSearch(true);
+  Cube<float> *cubeF;
+  Cube<double> *cubeD;
 
-  if (!par->getopts(argc, argv)) return EXIT_FAILURE;
-  if (par->getImageList()=="NONE") par->setImage(par->getImageFile());
-  std::cout << *par;
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      cubeF = new Cube<float>;
+      cubeF->saveParam(*par);
+      break;
+    case VTK_DOUBLE:
+      cubeD = new Cube<double>;
+      cubeD->saveParam(*par);
+      break;
+    }
 
-  for (int im=0; im<par->getListSize(); im++) {
+  //check that input dimensionality is 3
+  // set header
+  Header *head = new Header;
+  head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
+  int numAxes = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
+  head->setNumAx(numAxes);
+  string inputString;
+  for (int ii = 0; ii < numAxes; ii++)
+    {
+    inputString = "SlicerAstro.NAXIS" + IntToString(ii);
+    head->setDimAx(ii,StringToLong(inputVolume->GetAttribute(inputString.c_str())));
+    inputString = "SlicerAstro.CRPIX" + IntToString(ii);
+    head->setCrpix(ii, StringToFloat(inputVolume->GetAttribute(inputString.c_str())));
+    inputString = "SlicerAstro.CRVAL" + IntToString(ii);
+    head->setCrval(ii, StringToFloat(inputVolume->GetAttribute(inputString.c_str())));
+    inputString = "SlicerAstro.CDELT" + IntToString(ii);
+    head->setCdelt(ii, StringToFloat(inputVolume->GetAttribute(inputString.c_str())));
+    inputString = "SlicerAstro.CTYPE" + IntToString(ii);
+    head->setCtype(ii, inputVolume->GetAttribute(inputString.c_str()));
+    inputString = "SlicerAstro.CUNIT" + IntToString(ii);
+    head->setCunit(ii, inputVolume->GetAttribute(inputString.c_str()));
+    }
+  head->setBmaj(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BMAJ")));
+  head->setBmin(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BMIN")));
+  head->setBpa(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BPA")));
+  head->setBzero(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BZERO")));
+  head->setBscale(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BSCALE")));
+  head->setBlank(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BLANK")));
+  head->setEpoch(StringToFloat(inputVolume->GetAttribute("SlicerAstro.EPOCH")));
+  head->setFreq0(StringToDouble(inputVolume->GetAttribute("SlicerAstro.FREQ0")));
+  head->setBunit(inputVolume->GetAttribute("SlicerAstro.BUNIT"));
+  head->setBtype(inputVolume->GetAttribute("SlicerAstro.BTYPE"));
+  head->setName(inputVolume->GetAttribute("SlicerAstro.OBJECT"));
+  head->setTelesc(inputVolume->GetAttribute("SlicerAstro.TELESC"));
+  head->setDunit3(inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
+  head->setDrval3(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DRVAL3")));
+  head->setDataMin(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN")));
+  head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
 
-      if (par->getListSize()>1) {
-          std::cout << setfill('_') << std::endl;
-          std::cout << setw(70) << "" << std::endl << std::endl;
-          std::string s = "Working on "+ par->getImage(im)+" ";
-          std::cout << setfill(' ') << right << setw(70) << s;
-          std::cout << std::endl << left;
-          std::cout << std::endl << " File "<< im+1
-                    << " of " << par->getListSize()<<std::endl<<std::endl;
-      }
+  //head->setWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct());
+  head->calcArea();
 
-      par->setImageFile(par->getImage(im));
-      std::string fname = par->getImage(im);
-      int found = fname.find("[");
-      if (found>=0) fname.erase(found, fname.size()-found);
-      if (!fexists(fname)) {
-          std::cout << "\nError reading " << par->getImage(im)
-                    << " : the file doesn't exist!\n";
-          if(par->getListSize()-im>1) std::cout << "Skipping to next file...\n";
-          else {std::cout << "Exiting ...\n\n"; return EXIT_FAILURE;}
-          continue;
-      }
+  int *dims = outputVolume->GetImageData()->GetDimensions();
+  int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      {
+      //cubeF->setHead(head);
 
-      Cube<float> *c = new Cube<float>;
-      c->saveParam(*par);
+      cubeF->setCube(static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
 
-      if (!c->readCube(par->getImageFile())) {
-          std::cout << par->getImageFile() << " is not a readable FITS image!\n";
-          if(par->getListSize()-im>1) std::cout << "Skipping to next file...\n";
-          else std::cout << "Exiting ...\n\n";
-          delete c;
-          continue;
-      }
+      if (par->getCheckCh())
+        {
+        cubeF->CheckChannels();
+        }
 
-      if (par->getCheckCh()) c->CheckChannels();
-
-      if (par->getflagSmooth()) {
-          Smooth3D<float> *sm = new Smooth3D<float>;
-          sm->cubesmooth(c);
-          sm->fitswrite();
-          delete sm;
-      }
+      if (par->getflagSmooth())
+        {
+        Smooth3D<float> *sm = new Smooth3D<float>;
+        sm->cubesmooth(cubeF);
+        delete sm;
+        }
 
       ///<<<<< Searching stuff
-      if (par->getSearch()) {
-          c->Search();
-          c->plotDetections();
-          std::ofstream detout((outfolder+"detections.txt").c_str());
-          c->printDetections(detout);
+      if (par->getSearch())
+        {
+        cubeF->Search();
+        }
+
+      ///<<<<< Cube Fitting
+      if (par->getflagGalFit())
+        {
+        Model::Galfit<float> *fit = new Model::Galfit<float>(cubeF);
+        fit->galfit();
+        if (par->getTwoStage()) fit->SecondStage();
+        Model::Galmod<float> *mod = fit->getModel();
+        cubeF = mod->Out();
+
+        delete fit;
+        delete mod;
+        }
+
+      float *cubeFPtr = cubeF->Array();
+      float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
+
+      for (int ii = 0; ii < numElements; ii++)
+        {
+        *(outFPixel + ii) = *(cubeFPtr + ii);
+        }
+      break;
       }
+    case VTK_DOUBLE:
+      {
+      //cubeD->setHead(head);
 
-  if (par->getflagGalFit()) {
-      Model::Galfit<float> *fit = new Model::Galfit<float>(c);
-      fit->galfit();
-      if (par->getTwoStage()) fit->SecondStage();
-      if (par->getFlagDebug()) fit->writeModel("BOTH");
-      else fit->writeModel(par->getNORM());
+      cubeD->setCube(static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
 
+      if (par->getCheckCh())
+        {
+        cubeD->CheckChannels();
+        }
 
-      delete fit;
-  }
-  */
-  pnode->SetStatus(20);
+      if (par->getflagSmooth())
+        {
+        Smooth3D<double> *sm = new Smooth3D<double>;
+        sm->cubesmooth(cubeD);
+        delete sm;
+        }
+
+      ///<<<<< Searching stuff
+      if (par->getSearch())
+        {
+        cubeD->Search();
+        }
+
+      ///<<<<< Cube Fitting
+      if (par->getflagGalFit())
+        {
+        Model::Galfit<double> *fit = new Model::Galfit<double>(cubeD);
+        fit->galfit();
+        if (par->getTwoStage()) fit->SecondStage();
+        Model::Galmod<double> *mod = fit->getModel();
+        cubeD = mod->Out();
+
+        delete fit;
+        delete mod;
+        }
+
+      double *cubeDPtr = cubeD->Array();
+      double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
+      for (int ii = 0; ii < numElements; ii++)
+        {
+        *(outDPixel + ii) = *(cubeDPtr + ii);
+        }
+      break;
+      }
+    }
+
+  outputVolume->UpdateNoiseAttributes();
+  outputVolume->UpdateRangeAttributes();
+  outputVolume->SetAttribute("SlicerAstro.DATATYPE", "MODEL");
+  pnode->SetStatus(100);
+
+  delete par;
+  delete head;
+
+  delete cubeF;
+  delete cubeD;
+
   pnode->SetStatus(0);
   success = 1;
   return success;

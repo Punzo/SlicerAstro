@@ -428,25 +428,26 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 {
 
-  if(wcstemp)
+  if(!wcstemp)
     {
-    this->WCS->flag=-1;
-    if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
-      {
-      vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
-                      "Message from "<<WCS->err->function<<
-                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                      ": \n"<<WCS->err->msg<<"\n");
-      }
-    if ((this->WCSStatus = wcsset (this->WCS)))
-      {
-      vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
-                      "Message from "<<WCS->err->function<<
-                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                      ": \n"<<WCS->err->msg<<"\n");
-      }
+    vtkErrorMacro("wcsprm is invalid!");
     }
 
+  this->WCS->flag=-1;
+  if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
+    {
+    vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
+    }
+  if ((this->WCSStatus = wcsset (this->WCS)))
+    {
+    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
+    }
 }
 
 //----------------------------------------------------------------------------

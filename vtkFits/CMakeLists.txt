@@ -92,6 +92,7 @@ set(lib_name ${PROJECT_NAME})
 SET (vtkFits_LIBS ${vtkFits_LIBS}
   ${CFITSIO_LIBRARIES}
   ${WCSLIB_LIBRARIES}
+  ${BBAROLO_LIBRARIES}
   ${VTK_LIBRARIES}
   MRMLCore
   )

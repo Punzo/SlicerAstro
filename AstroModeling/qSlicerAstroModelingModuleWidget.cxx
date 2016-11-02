@@ -560,14 +560,18 @@ void qSlicerAstroModelingModuleWidget::onApply()
     d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
     }
 
-  if (logic->Apply(d->parametersNode))
+  //get segmentation to use it as mask (probably the best is to convert to a LabelMap
+  // Volume and then in Bbarolo to a bool mask in the cube class).
+
+  if (logic->FitModel(d->parametersNode))
     {
     selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
     // this should be not needed. However, without it seems that
     // the connection with the Rendering Display is broken.
 
-    d->astroVolumeWidget->setComparative3DViews
-        (inputVolume->GetID(), outputVolume->GetID());
+    // here make a new method for a Quatitative Views (3-D + Tables)
+    //d->astroVolumeWidget->setComparative3DViews
+    //    (inputVolume->GetID(), outputVolume->GetID());
 
     selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
     selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
