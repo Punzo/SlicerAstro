@@ -200,12 +200,6 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-//----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
@@ -568,6 +562,18 @@ void qSlicerAstroModelingModuleWidget::onApply()
     selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
     // this should be not needed. However, without it seems that
     // the connection with the Rendering Display is broken.
+
+    /* now I have to modify this:
+     * then give parameters from interface
+     * then give mask from segmentationNode
+     * look for the best layout for the output
+     * (Convetional quantitative:
+     * background data; foreground model;
+     * 3-D data + segmentation (white) of model (make a LabelMap and convert to segmentation);
+     * chart: fitted parameters. )
+     * using another QtThread to run the calcutation
+     * we need a way to get the progress from Barolo for a statusbar
+     */
 
     // here make a new method for a Quatitative Views (3-D + Tables)
     //d->astroVolumeWidget->setComparative3DViews

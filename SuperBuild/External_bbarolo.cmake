@@ -33,7 +33,7 @@ if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/Punzo/Bbarolo"
-    GIT_TAG "b33456831023018eab4086f539ceae93f8d09c1a"
+    GIT_TAG "fa4985ce88d79ffe0da58d273cd4c7c7809603b8"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS
@@ -62,6 +62,7 @@ if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT 
       ${${proj}_SOURCE_DIR}/src/Arrays
       ${${proj}_SOURCE_DIR}/src/Map
       ${${proj}_SOURCE_DIR}/src/Utilities
+      ${${proj}_BINARY_DIR}
   )
   set(BBAROLO_LIBRARY_DIR ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR})
 

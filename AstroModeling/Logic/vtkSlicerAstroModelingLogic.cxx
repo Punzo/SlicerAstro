@@ -25,14 +25,7 @@
 //Bbarolo includes
 #include "param.hh"
 #include "cube.hh"
-#include "stats.hh"
-#include "moment.hh"
-#include "ringmodel.hh"
-#include "smooth3D.hh"
 #include "galfit.hh"
-#include "spacepar.hh"
-#include "utils.hh"
-#include "ellprof.hh"
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
@@ -102,13 +95,13 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
-int StringToLong(const char* str)
+long StringToLong(const char* str)
 {
   return StringToNumber<long>(str);
 }
 
 //----------------------------------------------------------------------------
-double StringToFloat(const char* str)
+float StringToFloat(const char* str)
 {
   return StringToNumber<float>(str);
 }
@@ -186,16 +179,6 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 {
   int success = 0;
   pnode->SetStatus(1);
-/* now I have to modify this:
- * make it working without mask
- * give parameters hard coded
- * then give parameters from interface
- * then give mask from segmentationNode
- * look for the best layout for the output
- * (Convetional quantitative:
- * background data; foreground model;
- * 3-D data + segmentation (white) of model (make a LabelMap and convert to segmentation);
- * chart: fitted parameters. )*/
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -208,10 +191,13 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
 
   Param *par = new Param;
-  std::string file = "";
+  std::string file = inputVolume->GetName();
   par->setImageFile(file);
   par->setBeamFWHM(par->getBeamFWHM() / 3600.);
-  //par->setflagSearch(true);
+  par->setSearch(true);
+  par->setflagGalFit(true);
+  par->setMASK("NONE");
+
   Cube<float> *cubeF;
   Cube<double> *cubeD;
 
@@ -227,28 +213,38 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       break;
     }
 
-  //check that input dimensionality is 3
   // set header
   Header *head = new Header;
+
   head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
   int numAxes = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
   head->setNumAx(numAxes);
   string inputString;
+
   for (int ii = 0; ii < numAxes; ii++)
     {
-    inputString = "SlicerAstro.NAXIS" + IntToString(ii);
+    inputString = "SlicerAstro.NAXIS";
+    inputString += IntToString(ii + 1);
     head->setDimAx(ii,StringToLong(inputVolume->GetAttribute(inputString.c_str())));
-    inputString = "SlicerAstro.CRPIX" + IntToString(ii);
+    inputString = "SlicerAstro.CRPIX";
+    inputString += IntToString(ii + 1);
     head->setCrpix(ii, StringToFloat(inputVolume->GetAttribute(inputString.c_str())));
-    inputString = "SlicerAstro.CRVAL" + IntToString(ii);
+    inputString = "SlicerAstro.CRVAL";
+    inputString += IntToString(ii + 1);
     head->setCrval(ii, StringToFloat(inputVolume->GetAttribute(inputString.c_str())));
-    inputString = "SlicerAstro.CDELT" + IntToString(ii);
+    inputString = "SlicerAstro.CDELT";
+    inputString += IntToString(ii + 1);
     head->setCdelt(ii, StringToFloat(inputVolume->GetAttribute(inputString.c_str())));
-    inputString = "SlicerAstro.CTYPE" + IntToString(ii);
-    head->setCtype(ii, inputVolume->GetAttribute(inputString.c_str()));
-    inputString = "SlicerAstro.CUNIT" + IntToString(ii);
-    head->setCunit(ii, inputVolume->GetAttribute(inputString.c_str()));
+    inputString = "SlicerAstro.CTYPE";
+    inputString += IntToString(ii + 1);
+    inputString = inputVolume->GetAttribute(inputString.c_str());
+    head->setCtype(ii, inputString);
+    inputString = "SlicerAstro.CUNIT";
+    inputString += IntToString(ii + 1);
+    inputString = inputVolume->GetAttribute(inputString.c_str());
+    head->setCunit(ii, inputString);
     }
+
   head->setBmaj(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BMAJ")));
   head->setBmin(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BMIN")));
   head->setBpa(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BPA")));
@@ -257,16 +253,24 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   head->setBlank(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BLANK")));
   head->setEpoch(StringToFloat(inputVolume->GetAttribute("SlicerAstro.EPOCH")));
   head->setFreq0(StringToDouble(inputVolume->GetAttribute("SlicerAstro.FREQ0")));
-  head->setBunit(inputVolume->GetAttribute("SlicerAstro.BUNIT"));
-  head->setBtype(inputVolume->GetAttribute("SlicerAstro.BTYPE"));
-  head->setName(inputVolume->GetAttribute("SlicerAstro.OBJECT"));
-  head->setTelesc(inputVolume->GetAttribute("SlicerAstro.TELESC"));
-  head->setDunit3(inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
+  inputString = inputVolume->GetAttribute("SlicerAstro.BUNIT");
+  head->setBunit(inputString);
+  inputString = inputVolume->GetAttribute("SlicerAstro.BTYPE");
+  head->setBtype(inputString);
+  inputString = inputVolume->GetAttribute("SlicerAstro.OBJECT");
+  head->setName(inputString);
+  inputString = inputVolume->GetAttribute("SlicerAstro.OBJECT");
+  head->setTelesc(inputString);
+  inputString = inputVolume->GetAttribute("SlicerAstro.OBJECT");
+  head->setDunit3(inputString);
   head->setDrval3(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DRVAL3")));
   head->setDataMin(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN")));
   head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
+  if(!head->saveWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()))
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel : the WCS copy failed!")
+    }
 
-  //head->setWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct());
   head->calcArea();
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
@@ -276,21 +280,9 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
     {
     case VTK_FLOAT:
       {
-      //cubeF->setHead(head);
+      cubeF->saveHead(*head);
 
       cubeF->setCube(static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
-
-      if (par->getCheckCh())
-        {
-        cubeF->CheckChannels();
-        }
-
-      if (par->getflagSmooth())
-        {
-        Smooth3D<float> *sm = new Smooth3D<float>;
-        sm->cubesmooth(cubeF);
-        delete sm;
-        }
 
       ///<<<<< Searching stuff
       if (par->getSearch())
@@ -303,72 +295,118 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         {
         Model::Galfit<float> *fit = new Model::Galfit<float>(cubeF);
         fit->galfit();
-        if (par->getTwoStage()) fit->SecondStage();
-        Model::Galmod<float> *mod = fit->getModel();
-        cubeF = mod->Out();
+        if (par->getTwoStage())
+          {
+          fit->SecondStage();
+          }
 
+        cout<<"bella"<<endl;
+
+        // Calculate the total flux inside last ring in data
+        float *ringreg = fit->getFinalRingsRegion();
+        float totflux_data = 0, totflux_model = 0;
+        MomentMap<float> *totalmap = new MomentMap<float>;
+        totalmap->input(cubeF);
+        totalmap->SumMap(true);
+
+        for (size_t ii = 0; ii < (size_t)cubeF->DimX() * cubeF->DimY(); ii++)
+          {
+          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+            {
+            totflux_data += totalmap->Array(ii);
+            }
+          }
+
+        cout<<"bella1"<<endl;
+        Model::Galmod<float> *mod = fit->getModel();
+        mod->Out()->Head().setMinMax(0.,0.);
+        float *outarray = mod->Out()->Array();
+
+        std::string normtype = par->getNORM();
+
+        if (normtype == "AZIM" || normtype == "BOTH")
+          {
+
+          // Calculate total flux of model within last ring
+          for (size_t ii = 0; ii < (size_t)cubeF->DimX() * cubeF->DimY(); ii++)
+            {
+            if (!isNaN(ringreg[ii]))
+              {
+              for (size_t z = 0; z < (size_t)cubeF->DimZ(); z++)
+                {
+                totflux_model += outarray[ii + z * cubeF->DimY() * cubeF->DimX()];
+                }
+              }
+            }
+          }
+
+        cout<<"bella2"<<endl;
+        double factor = totflux_data/totflux_model;
+        for (int ii = 0; ii < cubeF->NumPix(); ii++)
+          {
+          outarray[ii] *= factor;
+          }
+
+        if (normtype=="LOCAL" || normtype=="BOTH")
+          {
+
+          // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
+          // flux of observation and model is eventually equal.
+
+          for (int y = 0; y < cubeF->DimY(); y++)
+            {
+            for (int x = 0; x < cubeF->DimX(); x++)
+              {
+              float factor = 0;
+              float modSum = 0;
+              float obsSum = 0;
+              for (int z = 0; z < cubeF->DimZ(); z++)
+                {
+                long Pix = cubeF->nPix(x,y,z);
+                modSum += outarray[Pix];
+                obsSum += cubeF->Array(Pix) * cubeF->Mask()[Pix];
+                }
+              if (modSum!=0)
+                {
+                factor = obsSum/modSum;
+                }
+
+              for (int z=0; z<cubeF->DimZ(); z++)
+                {
+                outarray[cubeF->nPix(x,y,z)] *= factor;
+                }
+              }
+            }
+          }
+
+        cout<<"bella3"<<endl;
+        float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
+
+        for (int ii = 0; ii < numElements; ii++)
+          {
+          *(outFPixel + ii) = *(outarray + ii);
+          }
+
+        cout<<"bella4"<<endl;
+        delete totalmap;
         delete fit;
         delete mod;
-        }
-
-      float *cubeFPtr = cubeF->Array();
-      float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
-
-      for (int ii = 0; ii < numElements; ii++)
-        {
-        *(outFPixel + ii) = *(cubeFPtr + ii);
         }
       break;
       }
     case VTK_DOUBLE:
       {
-      //cubeD->setHead(head);
 
-      cubeD->setCube(static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
-
-      if (par->getCheckCh())
-        {
-        cubeD->CheckChannels();
-        }
-
-      if (par->getflagSmooth())
-        {
-        Smooth3D<double> *sm = new Smooth3D<double>;
-        sm->cubesmooth(cubeD);
-        delete sm;
-        }
-
-      ///<<<<< Searching stuff
-      if (par->getSearch())
-        {
-        cubeD->Search();
-        }
-
-      ///<<<<< Cube Fitting
-      if (par->getflagGalFit())
-        {
-        Model::Galfit<double> *fit = new Model::Galfit<double>(cubeD);
-        fit->galfit();
-        if (par->getTwoStage()) fit->SecondStage();
-        Model::Galmod<double> *mod = fit->getModel();
-        cubeD = mod->Out();
-
-        delete fit;
-        delete mod;
-        }
-
-      double *cubeDPtr = cubeD->Array();
-      double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
-      for (int ii = 0; ii < numElements; ii++)
-        {
-        *(outDPixel + ii) = *(cubeDPtr + ii);
-        }
-      break;
       }
     }
 
+  cout<<"bella5"<<endl;
   outputVolume->UpdateNoiseAttributes();
+  cout<<"bella6"<<endl;
   outputVolume->UpdateRangeAttributes();
+  cout<<"bella7: min and max"<<endl;
+  cout<<StringToDouble(outputVolume->GetAttribute("SlicerAstro.DATAMIN"))<<endl;
+  cout<<StringToDouble(outputVolume->GetAttribute("SlicerAstro.DATAMAX"))<<endl;
   outputVolume->SetAttribute("SlicerAstro.DATATYPE", "MODEL");
   pnode->SetStatus(100);
 
@@ -378,6 +416,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   delete cubeF;
   delete cubeD;
 
+  cout<<"bella8"<<endl;
   pnode->SetStatus(0);
   success = 1;
   return success;
