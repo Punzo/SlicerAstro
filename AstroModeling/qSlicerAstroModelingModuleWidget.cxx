@@ -436,8 +436,6 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
     d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
     }
 
-  d->AutoRunCheckBox->setChecked(d->parametersNode->GetAutoRun());
-
   if(status == 0)
     {
     this->onComputationFinished();
@@ -572,7 +570,8 @@ void qSlicerAstroModelingModuleWidget::onApply()
      * 3-D data + segmentation (white) of model (make a LabelMap and convert to segmentation);
      * chart: fitted parameters. )
      * using another QtThread to run the calcutation
-     * we need a way to get the progress from Barolo for a statusbar
+     * we need a way to get the progress from Barolo for a statusbar --->>>>>>>
+     *         //???????????????? pointer to status in galfit and second stage methods!!!!!!  ????????????
      */
 
     // here make a new method for a Quatitative Views (3-D + Tables)

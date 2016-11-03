@@ -641,6 +641,11 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
+   if(HeaderKeyValue.count("SlicerAstro.CROTA") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the CROTA keyword. Assuming degree.");
+     HeaderKeyValue["SlicerAstro.CROTA"] = "0.";
+     }
 
    if(HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
      {
@@ -837,8 +842,21 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.TELESCOP") == 0)
      {
-     vtkWarningMacro("The fits header is missing the TELESCOP keyword.");
-     HeaderKeyValue["SlicerAstro.TELESCOP"] = "";
+     if (!(HeaderKeyValue.count("SlicerAstro.TELESC") == 0))
+       {
+       HeaderKeyValue["SlicerAstro.TELESCOP"] = HeaderKeyValue.at("SlicerAstro.TELESC");
+       }
+     else
+       {
+       vtkWarningMacro("The fits header is missing the TELESCOP keyword.");
+       HeaderKeyValue["SlicerAstro.TELESCOP"] = "";
+       }
+     }
+
+   if(HeaderKeyValue.count("SlicerAstro.OBJECT") == 0)
+     {
+     vtkWarningMacro("The fits header is missing the OBJECT keyword.");
+     HeaderKeyValue["SlicerAstro.OBJECT"] = "";
      }
 
    if (ReadStatus) fits_report_error(stderr, ReadStatus); /* print any error message */
