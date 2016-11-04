@@ -73,8 +73,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
   vtkSetStringMacro(Mode);
   vtkGetStringMacro(Mode);
 
-  vtkSetMacro(OutputSerial, int);
-  vtkGetMacro(OutputSerial, int);
+  vtkSetMacro(OutputSerial,int);
+  vtkGetMacro(OutputSerial,int);
 
   vtkSetMacro(Filter,int);
   vtkGetMacro(Filter,int);

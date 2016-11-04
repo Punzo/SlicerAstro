@@ -61,14 +61,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
-  vtkSetMacro(OutputSerial, int);
-  vtkGetMacro(OutputSerial, int);
-
-  vtkSetMacro(AutoRun,bool);
-  vtkGetMacro(AutoRun,bool);
+  vtkSetMacro(OutputSerial,int);
+  vtkGetMacro(OutputSerial,int);
 
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
+
+  virtual int* GetStatusPointer() {return &Status;};
+
+  vtkSetMacro(FitSuccess,bool);
+  vtkGetMacro(FitSuccess,bool);
 
 protected:
   vtkMRMLAstroModelingParametersNode();
@@ -81,9 +83,9 @@ protected:
   char *OutputVolumeNodeID;
   int OutputSerial;
 
-  bool AutoRun;
-
   int Status;
+
+  bool FitSuccess;
 };
 
 #endif

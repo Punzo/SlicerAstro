@@ -21,6 +21,8 @@
 #include <QDebug>
 #include <QMessageBox>
 #include <QTimer>
+#include <QMutexLocker>
+#include <QThread>
 
 // CTK includes
 #include <ctkFlowLayout.h>
@@ -47,6 +49,7 @@
 // AstroModeling includes
 #include "qSlicerAstroModelingModuleWidget.h"
 #include "ui_qSlicerAstroModelingModuleWidget.h"
+#include "qSlicerAstroModelingModuleWorker.h"
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -72,6 +75,7 @@
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
+
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroModeling
 class qSlicerAstroModelingModuleWidgetPrivate: public Ui_qSlicerAstroModelingModuleWidget
@@ -89,6 +93,8 @@ public:
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
+  QThread *thread;
+  qSlicerAstroModelingModuleWorker *worker;
 };
 
 //-----------------------------------------------------------------------------
@@ -106,6 +112,11 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
 //-----------------------------------------------------------------------------
 qSlicerAstroModelingModuleWidgetPrivate::~qSlicerAstroModelingModuleWidgetPrivate()
 {
+  this->worker->abort();
+  this->thread->wait();
+
+  delete this->thread;
+  delete this->worker;
 }
 
 //-----------------------------------------------------------------------------
@@ -148,14 +159,27 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(CancelButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  QObject::connect(AutoRunCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onAutoRunChanged(bool)));
-
 
   progressBar->hide();
   progressBar->setMinimum(0);
   progressBar->setMaximum(100);
   CancelButton->hide();
+
+  this->thread = new QThread();
+  this->worker = new qSlicerAstroModelingModuleWorker();
+
+  this->worker->moveToThread(thread);
+
+  this->worker->SetAstroModelingLogic(this->logic());
+  this->worker->SetAstroModelingParametersNode(this->parametersNode);
+
+  QObject::connect(this->worker, SIGNAL(workRequested()), this->thread, SLOT(start()));
+
+  QObject::connect(this->thread, SIGNAL(started()), this->worker, SLOT(doWork()));
+
+  QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(quit()), Qt::DirectConnection);
+
+  QObject::connect(this->worker, SIGNAL(finished()), q, SLOT(onWorkFinished()));
 }
 
 //-----------------------------------------------------------------------------
@@ -458,20 +482,35 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
 void qSlicerAstroModelingModuleWidget::onApply()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
+
   vtkSlicerAstroModelingLogic *logic = d->logic();
+  if (!logic)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): logic not found!";
+    return;
+    }
 
   if (!d->parametersNode)
     {
+    qCritical() << "qSlicerAstroModelingModuleWidget::onApply(): parametersNode not found!";
     return;
     }
 
   d->parametersNode->SetStatus(1);
 
   vtkMRMLScene *scene = this->mrmlScene();
+  if(!scene)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): scene not found!";
+    }
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): inputVolume not found!";
+    }
 
   int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
   // Check Input volume
@@ -487,6 +526,10 @@ void qSlicerAstroModelingModuleWidget::onApply()
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
+  if(!outputVolume)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): outputVolume not found!";
+    }
 
   std::ostringstream outSS;
   outSS << inputVolume->GetName() << "_model";
@@ -499,21 +542,15 @@ void qSlicerAstroModelingModuleWidget::onApply()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): appLogic not found!";
     return;
     }
+
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
   if (!selectionNode)
     {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): selectionNode not found!";
     return;
-    }
-
-  vtkMRMLAstroVolumeNode *secondaryVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(selectionNode->GetSecondaryVolumeID()));
-
-  if (secondaryVolume && d->parametersNode->GetAutoRun())
-    {
-    scene->RemoveNode(secondaryVolume);
     }
 
   // check Output volume
@@ -526,9 +563,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
       StringToInt(outputVolume->GetAttribute("SlicerAstro.NAXIS3"))))
     {
 
-    vtkSlicerAstroModelingLogic* logic =
-      vtkSlicerAstroModelingLogic::SafeDownCast(this->logic());
-   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
        (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
     outputVolume->SetName(outSS.str().c_str());
@@ -552,41 +587,12 @@ void qSlicerAstroModelingModuleWidget::onApply()
     d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
     }
 
-  //get segmentation to use it as mask (probably the best is to convert to a LabelMap
-  // Volume and then in Bbarolo to a bool mask in the cube class).
+  d->worker->abort();
+  d->thread->wait(); // If the thread is not running, this will immediately return.
 
-  if (logic->FitModel(d->parametersNode))
-    {
-    selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
-    // this should be not needed. However, without it seems that
-    // the connection with the Rendering Display is broken.
-
-    /* now I have to modify this:
-     * then give parameters from interface
-     * then give mask from segmentationNode
-     * look for the best layout for the output
-     * (Convetional quantitative:
-     * background data; foreground model;
-     * 3-D data + segmentation (white) of model (make a LabelMap and convert to segmentation);
-     * chart: fitted parameters. )
-     * using another QtThread to run the calcutation
-     * we need a way to get the progress from Barolo for a statusbar --->>>>>>>
-     *         //???????????????? pointer to status in galfit and second stage methods!!!!!!  ????????????
-     */
-
-    // here make a new method for a Quatitative Views (3-D + Tables)
-    //d->astroVolumeWidget->setComparative3DViews
-    //    (inputVolume->GetID(), outputVolume->GetID());
-
-    selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
-    selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
-    appLogic->PropagateVolumeSelection();
-    }
-  else
-    {
-    scene->RemoveNode(outputVolume);
-    inputVolume->SetDisplayVisibility(1);
-    }
+  d->worker->SetAstroModelingParametersNode(d->parametersNode);
+  d->worker->SetAstroModelingLogic(logic);
+  d->worker->requestWork();
 }
 
 //-----------------------------------------------------------------------------
@@ -599,23 +605,94 @@ void qSlicerAstroModelingModuleWidget::onComputationFinished()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onWorkFinished()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): appLogic not found!";
+    return;
+    }
+
+  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+  if (!selectionNode)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): selectionNode not found!";
+    return;
+    }
+
+  vtkMRMLScene *scene = this->mrmlScene();
+  if(!scene)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): scene not found!";
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): inputVolume not found!";
+    }
+
+  vtkMRMLAstroVolumeNode *outputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
+  if(!outputVolume)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply(): outputVolume not found!";
+    }
+
+  if (d->parametersNode->GetFitSuccess())
+    {
+    selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
+    // this should be not needed. However, without it seems that
+    // the connection with the Rendering Display is broken.
+
+    /* now I have to modify this:
+     * then give parameters from interface
+     * then give mask from segmentationNode (set the cube->mask, but we can directly mask the cube->array)
+     * look for the best layout for the output
+     * (Convetional quantitative:
+     * background data; foreground model;
+     * 3-D data + segmentation (white) of model (make a LabelMap and convert to segmentation);
+     * chart: fitted parameters. )
+     * using another QtThread to run the calcutation
+     * we need a way to get the progress from Barolo for a statusbar --->>>>>>>
+     *         //???????????????? pointer to status in galfit and second stage methods!!!!!!  ????????????
+     */
+
+    // here make a new method for a Quatitative Views (3-D + Tables)
+    d->astroVolumeWidget->setComparative3DViews
+        (inputVolume->GetID(), outputVolume->GetID());
+
+    selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
+    selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
+    appLogic->PropagateVolumeSelection();
+    }
+   else
+    {
+    scene->RemoveNode(outputVolume);
+    inputVolume->SetDisplayVisibility(1);
+  }
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
   d->parametersNode->SetStatus(-1);
+  d->worker->abort();
+  d->thread->wait();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::updateProgress(int value)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
-    d->progressBar->setValue(value);
-}
-
-void qSlicerAstroModelingModuleWidget::onAutoRunChanged(bool value)
-{
-  Q_D(qSlicerAstroModelingModuleWidget);
-  d->parametersNode->SetAutoRun(value);
+  d->progressBar->setValue(value);
 }
 
 //-----------------------------------------------------------------------------

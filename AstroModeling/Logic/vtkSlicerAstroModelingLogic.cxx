@@ -179,8 +179,6 @@ void vtkSlicerAstroModelingLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pnode)
 {
-  pnode->SetStatus(1);
-
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -201,8 +199,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   par->setShowbar(false);
   par->setSearch(false);
   par->setflagGalFit(true);
-  par->setMASK("SMOOTH");
-  par->setNRADII(41);
+  /*par->setNRADII(20);
   par->setRADSEP(30);
   par->setXPOS("77");
   par->setYPOS("77");
@@ -216,7 +213,17 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   par->setFTYPE(2);
   par->setDistance(3.2);
   par->setWFUNC(2);
-  par->setFREE("VROT VDISP PA");
+  par->setFREE("VROT VDISP PA");*/
+
+  if ((par->getRADII() == "-1" && (par->getNRADII() == -1 || par->getRADSEP() == -1)) ||
+       par->getXPOS() == "-1" || par->getYPOS() == "-1" || par->getVSYS() == "-1" ||
+       par->getVROT() == "-1" || par->getPHI() == "-1"  || par->getINC() == "-1")
+    {
+    par->setSearch(true);
+    par->setMASK("SEARCH");
+    par->setBeamFWHM(par->getBeamFWHM()/3600.);
+    }
+
 
   // set header
   Header *head = new Header;
@@ -279,6 +286,14 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 
   head->calcArea();
 
+  if (pnode->GetStatus() == -1)
+    {
+    delete head;
+    delete par;
+    pnode->SetStatus(0);
+    pnode->SetFitSuccess(false);
+    return 0;
+    }
   pnode->SetStatus(10);
 
   int *dims = outputVolume->GetImageData()->GetDimensions();
@@ -304,15 +319,55 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       if (par->getflagGalFit())
         {
         Model::Galfit<float> *fit = new Model::Galfit<float>(cube);
-        //???????????????? pointer to status in galfit and second stage methods!!!!!!  ????????????
-        fit->galfit();
+
+        int rangeUpdate [2] = { 10, 60 };
+        bool success = fit->galfit(pnode->GetStatusPointer(), rangeUpdate);
+
+        if (!success)
+          {
+          delete head;
+          delete par;
+          delete cube;
+          pnode->SetStatus(0);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
 
         if (par->getTwoStage())
           {
+          if (pnode->GetStatus() == -1)
+            {
+            delete head;
+            delete par;
+            delete cube;
+            pnode->SetStatus(0);
+            pnode->SetFitSuccess(false);
+            return 0;
+            }
           pnode->SetStatus(60);
-          fit->SecondStage();
+          rangeUpdate[0] = 60;
+          rangeUpdate[0] = 80;
+          bool success = fit->SecondStage(pnode->GetStatusPointer(), rangeUpdate);
+          if (!success)
+            {
+            delete head;
+            delete par;
+            delete cube;
+            pnode->SetStatus(0);
+            pnode->SetFitSuccess(false);
+            return 0;
+            }
           }
 
+        if (pnode->GetStatus() == -1)
+          {
+          delete head;
+          delete par;
+          delete cube;
+          pnode->SetStatus(0);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         pnode->SetStatus(80);
 
         // Calculate the total flux inside last ring in data
@@ -345,13 +400,11 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           }
 
-
         double factor = totflux_data/totflux_model;
         for (int ii = 0; ii < cube->NumPix(); ii++)
           {
           outarray[ii] *= factor;
           }
-
 
         // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
         // flux of observation and model is eventually equal.
@@ -381,7 +434,6 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           }
 
-
         float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
 
         for (int ii = 0; ii < numElements; ii++)
@@ -393,6 +445,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         delete fit;
         delete mod;
         }
+
       delete cube;
       break;
       }
@@ -414,13 +467,55 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       if (par->getflagGalFit())
         {
         Model::Galfit<double> *fit = new Model::Galfit<double>(cube);
-        fit->galfit();
-        if (par->getTwoStage())
+
+        int rangeUpdate [2] = { 10, 60 };
+        bool success = fit->galfit(pnode->GetStatusPointer(), rangeUpdate);
+
+        if (!success)
           {
-          pnode->SetStatus(60);
-          fit->SecondStage();
+          delete head;
+          delete par;
+          delete cube;
+          pnode->SetStatus(0);
+          pnode->SetFitSuccess(false);
+          return 0;
           }
 
+        if (par->getTwoStage())
+          {
+          if (pnode->GetStatus() == -1)
+            {
+            delete head;
+            delete par;
+            delete cube;
+            pnode->SetStatus(0);
+            pnode->SetFitSuccess(false);
+            return 0;
+            }
+          pnode->SetStatus(60);
+          rangeUpdate[0] = 60;
+          rangeUpdate[0] = 80;
+          bool success = fit->SecondStage(pnode->GetStatusPointer(), rangeUpdate);
+          if (!success)
+            {
+            delete head;
+            delete par;
+            delete cube;
+            pnode->SetStatus(0);
+            pnode->SetFitSuccess(false);
+            return 0;
+            }
+          }
+
+        if (pnode->GetStatus() == -1)
+          {
+          delete head;
+          delete par;
+          delete cube;
+          pnode->SetStatus(0);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         pnode->SetStatus(80);
 
         // Calculate the total flux inside last ring in data
@@ -453,13 +548,11 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           }
 
-
         double factor = totflux_data/totflux_model;
         for (int ii = 0; ii < cube->NumPix(); ii++)
           {
           outarray[ii] *= factor;
           }
-
 
         // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
         // flux of observation and model is eventually equal.
@@ -489,7 +582,6 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           }
 
-
         double *outFPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
 
         for (int ii = 0; ii < numElements; ii++)
@@ -501,11 +593,14 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         delete fit;
         delete mod;
         }
+
       delete cube;
       break;
       }
     }
+
   pnode->SetStatus(100);
+
   delete par;
   delete head;
 
@@ -514,5 +609,6 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   outputVolume->SetAttribute("SlicerAstro.DATATYPE", "MODEL");
   pnode->SetStatus(0);
 
+  pnode->SetFitSuccess(true);
   return 1;
 }

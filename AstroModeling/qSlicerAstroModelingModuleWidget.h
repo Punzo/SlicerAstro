@@ -63,8 +63,8 @@ protected slots:
   void onComputationStarted();
   void onComputationCancelled();
   void onComputationFinished();
+  void onWorkFinished();
   void updateProgress(int value);
-  void onAutoRunChanged(bool value);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroModelingModuleWidget);

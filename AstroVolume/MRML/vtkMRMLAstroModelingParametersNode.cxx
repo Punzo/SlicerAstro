@@ -40,7 +40,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->OutputVolumeNodeID = NULL;
   this->OutputSerial = 1;
   this->SetStatus(0);
-  this->SetAutoRun(false);
+  this->SetFitSuccess(false);
 }
 
 //----------------------------------------------------------------------------
@@ -68,12 +68,6 @@ template <typename T> T StringToNumber(const char* num)
   ss << num;
   T result;
   return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -113,15 +107,15 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "AutoRun"))
-      {
-      this->AutoRun = StringToInt(attValue);
-      continue;
-      }
-
     if (!strcmp(attName, "Status"))
       {
       this->Status = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "FitSuccess"))
+      {
+      this->FitSuccess = StringToInt(attValue);
       continue;
       }
     }
@@ -145,8 +139,8 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
     }
 
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
-  of << indent << " AutoRun=\"" << this->AutoRun << "\"";
   of << indent << " Status=\"" << this->Status << "\"";
+  of << indent << " FitSuccess=\"" << this->FitSuccess << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -162,8 +156,8 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
   this->SetOutputSerial(node->GetOutputSerial());
-  this->SetAutoRun(node->GetAutoRun());
-
+  this->SetStatus(node->GetStatus());
+  this->SetFitSuccess(node->GetFitSuccess());
   this->EndModify(disabledModify);
 }
 
@@ -176,4 +170,5 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
   os << "OutputSerial: " << this->OutputSerial << "\n";
   os << "Status: " << this->Status << "\n";
+  os << "FitSuccess: " << this->FitSuccess << "\n";
 }

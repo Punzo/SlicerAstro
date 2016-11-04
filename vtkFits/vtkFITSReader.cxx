@@ -636,14 +636,14 @@ bool vtkFITSReader::AllocateHeader()
        }
      else
        {
-       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming km/s.");
-       HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
+       vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming m/s.");
+       HeaderKeyValue["SlicerAstro.CUNIT3"] = "m/s";
        }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CROTA") == 0)
      {
-     vtkWarningMacro("The fits header is missing the CROTA keyword. Assuming degree.");
+     vtkWarningMacro("The fits header is missing the CROTA keyword. Assuming a value equal to zero.");
      HeaderKeyValue["SlicerAstro.CROTA"] = "0.";
      }
 
@@ -827,12 +827,12 @@ bool vtkFITSReader::AllocateHeader()
      {
      vtkWarningMacro("The fits header is missing the DATE-OBS keyword. Odd behaviors may show up.");
      HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
+     }
 
-     if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
-       {
-       vtkWarningMacro("The fits header is also missing the EPOCH keyword. Assuming JD2000.");
-       HeaderKeyValue["SlicerAstro.EPOCH"] = "2000.";
-       }
+   if(HeaderKeyValue.count("SlicerAstro.EPOCH") == 0)
+     {
+     vtkWarningMacro("The fits header is also missing the EPOCH keyword. Assuming JD2000.");
+     HeaderKeyValue["SlicerAstro.EPOCH"] = "2000.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CELLSCAL") == 0)
