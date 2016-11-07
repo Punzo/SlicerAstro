@@ -91,18 +91,15 @@ void qSlicerAstroModelingModuleWorker::doWork()
 
   if (abort)
     {
-    parametersNode->SetStatus(0);
     qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
+    parametersNode->SetStatus(0);
     return;
     }
 
-  astroModelingLogic->FitModel(parametersNode);
-
-  if (abort)
-    {
-    parametersNode->SetStatus(0);
+  if (!astroModelingLogic->FitModel(parametersNode))
+    {  
     qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
-    return;
+    parametersNode->SetStatus(0);
     }
 
   // Set _working to false, meaning the process can't be aborted anymore.

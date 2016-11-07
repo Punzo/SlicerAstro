@@ -465,6 +465,13 @@ bool vtkFITSReader::AllocateHeader()
        str.replace(found, temp.size(), "E+");
        found = str.find(temp);
        }
+     temp = "D-";
+     found = str.find(temp);
+     while (found!=std::string::npos)
+       {
+       str.replace(found, temp.size(), "E-");
+       found = str.find(temp);
+       }
 
      if (std::string::npos != str.find_first_of("'"))
        {
@@ -545,55 +552,55 @@ bool vtkFITSReader::AllocateHeader()
    if(HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
      vtkWarningMacro("The fits header is missing the CDELT1 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CDELT1"] = "";
+     HeaderKeyValue["SlicerAstro.CDELT1"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
      {
      vtkWarningMacro("The fits header is missing the CDELT2 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CDELT2"] = "";
+     HeaderKeyValue["SlicerAstro.CDELT2"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
      {
      vtkWarningMacro("The fits header is missing the CDELT3 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CDELT3"] = "";
+     HeaderKeyValue["SlicerAstro.CDELT3"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
      {
      vtkWarningMacro("The fits header is missing the CRPIX1 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CRPIX1"] = "";
+     HeaderKeyValue["SlicerAstro.CRPIX1"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0)
      {
      vtkWarningMacro("The fits header is missing the CRPIX2 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CRPIX2"] = "";
+     HeaderKeyValue["SlicerAstro.CRPIX2"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0)
      {
      vtkWarningMacro("The fits header is missing the CRPIX3 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CRPIX3"] = "";
+     HeaderKeyValue["SlicerAstro.CRPIX3"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL1") == 0)
      {
      vtkWarningMacro("The fits header is missing the CRVAL1 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CRVAL1"] = "";
+     HeaderKeyValue["SlicerAstro.CRVAL1"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL2") == 0)
      {
      vtkWarningMacro("The fits header is missing the CRVAL2 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CRVAL2"] = "";
+     HeaderKeyValue["SlicerAstro.CRVAL2"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL3") == 0)
      {
      vtkWarningMacro("The fits header is missing the CRVAL3 keyword. Odd behaviors may show up.");
-     HeaderKeyValue["SlicerAstro.CRVAL3"] = "";
+     HeaderKeyValue["SlicerAstro.CRVAL3"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE1") == 0)
@@ -637,7 +644,7 @@ bool vtkFITSReader::AllocateHeader()
      else
        {
        vtkWarningMacro("The fits header is missing the CUNIT3 keyword. Assuming m/s.");
-       HeaderKeyValue["SlicerAstro.CUNIT3"] = "m/s";
+       HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
        }
      }
 
@@ -667,36 +674,36 @@ bool vtkFITSReader::AllocateHeader()
    if(HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
      {
      vtkWarningMacro("The fits header is missing the BMAJ keyword.");
-     HeaderKeyValue["SlicerAstro.BMAJ"] = "-1.";
+     HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
      {
      vtkWarningMacro("The fits header is missing the BMIN keyword.");
-     HeaderKeyValue["SlicerAstro.BMIN"] = "-1.";
+     HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
      {
      vtkWarningMacro("The fits header is missing the BPA keyword.");
-     HeaderKeyValue["SlicerAstro.BPA"] = "0.";
+     HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BZERO") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BZERO keyword.");
+     vtkWarningMacro("The fits header is missing the BZERO keyword. Assuming a value equal to zero.");
      HeaderKeyValue["SlicerAstro.BZERO"] = "0.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BSCALE") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BSCALE keyword.");
+     vtkWarningMacro("The fits header is missing the BSCALE keyword. Assuming a value equal to 1.");
      HeaderKeyValue["SlicerAstro.BSCALE"] = "1.";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BLANK") == 0)
      {
-     vtkWarningMacro("The fits header is missing the BLANK keyword.");
+     vtkWarningMacro("The fits header is missing the BLANK keyword. Assuming a value equal to zero.");
      HeaderKeyValue["SlicerAstro.BLANK"] = "0.";
      }
 

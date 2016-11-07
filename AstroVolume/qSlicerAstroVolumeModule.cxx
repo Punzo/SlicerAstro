@@ -199,7 +199,7 @@ void qSlicerAstroVolumeModule::setup()
 
   if(!d->app)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : qSlicerApplication not found.";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : qSlicerApplication not found!";
     return;
     }
 
@@ -215,7 +215,7 @@ void qSlicerAstroVolumeModule::setup()
   qSlicerAbstractCoreModule* volumes = d->app->moduleManager()->module("Volumes");
   if (!volumes)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : Volumes module not found.";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : Volumes module not found!";
     return;
     }
 
@@ -225,7 +225,7 @@ void qSlicerAstroVolumeModule::setup()
     vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
   if (!volumesLogic || !logic)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : logics not found.";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : logics not found!";
     return;
     }
 
@@ -250,7 +250,7 @@ void qSlicerAstroVolumeModule::setup()
     this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if(!selectionNode)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found.";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found!";
     return;
     }
 
@@ -265,7 +265,7 @@ void qSlicerAstroVolumeModule::setup()
 
   if(!volumeRenderingWidget)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : VolumeReneringWidget not found.";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : VolumeReneringWidget not found!";
     return;
     }
 
@@ -360,7 +360,7 @@ void qSlicerAstroVolumeModule::setup()
     this->mrmlScene()->GetSingletonNode("vtkMRMLLayoutNode","vtkMRMLLayoutNode"));
   if(!layoutNode)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found.";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found!";
     return;
     }
 

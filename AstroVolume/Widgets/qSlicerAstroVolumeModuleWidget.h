@@ -32,14 +32,14 @@
 // Segmentation includes
 #include "vtkMRMLSegmentationNode.h"
 
-class qSlicerAstroVolumeModuleWidgetPrivate;
-class vtkMRMLNode;
-class vtkMRMLAstroVolumeNode;
-class vtkMRMLAstroLabelMapVolumeNode;
-class qSlicerVolumeRenderingModuleWidget;
-class vtkMRMLVolumeRenderingDisplayNode;
 class qMRMLAstroVolumeInfoWidget;
 class qSlicerAstroVolumeDisplayWidget;
+class qSlicerAstroVolumeModuleWidgetPrivate;
+class qSlicerVolumeRenderingModuleWidget;
+class vtkMRMLAstroLabelMapVolumeNode;
+class vtkMRMLAstroVolumeNode;
+class vtkMRMLNode;
+class vtkMRMLVolumeRenderingDisplayNode;
 
 /// \ingroup Slicer_QtModules_AstroVolume_Widgets
 class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroVolumeModuleWidget :
@@ -70,6 +70,13 @@ public slots:
   void onVisibilityChanged(bool visibility);
   void setComparative3DViews(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID);
+  void setQuantitative3DView(const char* volumeNodeOneID,
+                             const char* volumeNodeTwoID,
+                             double ContourLevel);
+  void updateQuantitative3DView(const char* volumeNodeOneID,
+                                const char* volumeNodeTwoID,
+                                double ContourLevel,
+                                bool overrideSegments = false);
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);

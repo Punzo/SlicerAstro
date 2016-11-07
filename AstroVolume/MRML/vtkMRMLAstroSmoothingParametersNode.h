@@ -124,8 +124,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
   void SetGaussianKernels();
 
   void SetGaussianKernel1D();
-  void SetGaussianKernel3D();
   vtkDoubleArray* GetGaussianKernel1D();
+
+  void SetGaussianKernel3D();
   vtkDoubleArray* GetGaussianKernel3D();
 
 protected:

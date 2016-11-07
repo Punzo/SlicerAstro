@@ -40,6 +40,7 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode::vtkMRMLAstroVolumeNode()
 {
+  this->SetAttribute("SlicerAstro.PresetsActive", "0");
 }
 
 //----------------------------------------------------------------------------
@@ -127,13 +128,28 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
   int numElements = dims[0] * dims[1] * dims[2];
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   double max = this->GetImageData()->GetScalarTypeMin(), min = this->GetImageData()->GetScalarTypeMax();
+  short *outSPixel = NULL;
   float *outFPixel = NULL;
   double *outDPixel = NULL;
 
   switch (DataType)
     {
+  case VTK_SHORT:
+    outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
+    for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+      {
+      if (*(outSPixel + elementCnt) > max)
+        {
+        max =  *(outSPixel + elementCnt);
+        }
+      if (*(outSPixel + elementCnt) < min)
+        {
+        min =  *(outSPixel + elementCnt);
+        }
+      }
+    break;
     case VTK_FLOAT:
-      outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer(0,0,0));
+      outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
         if (*(outFPixel + elementCnt) > max)
@@ -147,7 +163,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
         }
       break;
     case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
+      outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
         if (*(outDPixel + elementCnt) > max)
@@ -161,12 +177,19 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
         }
       break;
     default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes() : Attempt to allocate scalars of type not allowed");
       return;
     }
 
   this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
   this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+
+  outSPixel = NULL;
+  outFPixel = NULL;
+  outDPixel = NULL;
+  delete outSPixel;
+  delete outFPixel;
+  delete outDPixel;
 }
 
 //---------------------------------------------------------------------------
@@ -186,7 +209,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
       break;
     default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateNoiseAttributes : Attempt to allocate scalars of type not allowed");
       return;
     }
   double sum = 0., noise1 = 0., noise2 = 0, noise = 0., mean1 = 0., mean2 = 0., mean = 0.;
@@ -289,37 +312,8 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
 
   mean2 = sum;
 
-  if ((noise1 / noise2) > 0.3)
-    {
-    if (noise1 > noise2)
-      {
-      noise = noise1;
-      }
-    else
-      {
-      noise = noise2;
-      }
-    }
-  else
-    {
-    noise = (noise1 + noise2) * 0.5;
-    }
-
-  if ((mean1 / mean2) > 0.3)
-    {
-    if (mean1 > mean2)
-      {
-      mean = mean1;
-      }
-    else
-      {
-      mean = mean2;
-      }
-    }
-  else
-    {
-    mean = (mean1 + mean2) * 0.5;
-    }
+  noise = (noise1 + noise2) * 0.5;
+  mean = (mean1 + mean2) * 0.5;
 
   this->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());\
   this->SetAttribute("SlicerAstro.NOISEMEAN", DoubleToString(mean).c_str());

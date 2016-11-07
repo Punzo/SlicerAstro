@@ -72,7 +72,7 @@ qSlicerAstroSmoothingModule::~qSlicerAstroSmoothingModule()
 QString qSlicerAstroSmoothingModule::helpText()const
 {
   return "AstroSmoothing module filters a Volume using several techniques. "
-         "The algorithms are optmized for Astronomical Neutral Hydoren (HI) data.";
+         "The algorithms are optmized for Astronomical Neutral Hydrogen (HI) data.";
 }
 
 //-----------------------------------------------------------------------------

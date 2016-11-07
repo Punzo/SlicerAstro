@@ -178,19 +178,23 @@ void vtkFITSWriter::WriteData()
   for (ait = this->Attributes->begin(); ait != this->Attributes->end(); ++ait)
     {
     std::size_t pos = ait->first.find("SlicerAstro.");
-    if(pos == std::string::npos)
+    if (pos == std::string::npos)
       {
       continue;
       }
     std::string tmp = ait->first.substr(pos+12);
-
-    if((!tmp.compare(0,6,"SIMPLE")) || (!tmp.compare(0,6,"EXTEND"))
+    if ((!tmp.compare(0,6,"SIMPLE")) || (!tmp.compare(0,6,"EXTEND"))
           || (!tmp.compare(0,7,"BLOCKED")))
       {
       continue;
       }
+    std::string tmp2 = ait->second;
+    if (!tmp2.compare("UNDEFINED"))
+      {
+      continue;
+      }
     std::string ts = ((ait->second).substr(0,1));
-    if((!tmp.compare(0,6,"BITPIX")) || (!tmp.compare(0,5,"NAXIS"))
+    if ((!tmp.compare(0,6,"BITPIX")) || (!tmp.compare(0,5,"NAXIS"))
             || (!tmp.compare(0,5,"BLANK")))
       {
       int ti = StringToInt((ait->second).c_str());;

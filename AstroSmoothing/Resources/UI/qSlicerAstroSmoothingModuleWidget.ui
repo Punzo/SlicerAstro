@@ -745,6 +745,15 @@
          <verstretch>0</verstretch>
         </sizepolicy>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>35</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>If toggled the smoothing will be performed as soon as any of the input parameters is modified.</string>
+       </property>
        <property name="text">
         <string>AutoRun</string>
        </property>
@@ -759,7 +768,7 @@
         <bool>false</bool>
        </property>
        <property name="sizePolicy">
-        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
@@ -767,8 +776,11 @@
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>0</height>
+         <height>35</height>
         </size>
+       </property>
+       <property name="toolTip">
+        <string>Click to smooth the data. Two contours at 3 RMS level (the data and the filtered version) will be visualized in 2-D. On the 3-D views it will be shown: i) volume rendering of the data from 3RMS in View1; ii) volume rendering of the filtered output from 3RMS in View2; iii)  a segmentation of the filtered data at 3RMS in both Views</string>
        </property>
        <property name="text">
         <string>Apply</string>
@@ -786,6 +798,12 @@
        <property name="enabled">
         <bool>false</bool>
        </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>35</height>
+        </size>
+       </property>
        <property name="text">
         <string>Cancel</string>
        </property>
@@ -795,6 +813,12 @@
       <widget class="QProgressBar" name="progressBar">
        <property name="enabled">
         <bool>false</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>35</height>
+        </size>
        </property>
        <property name="value">
         <number>0</number>

@@ -45,7 +45,7 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeStorageNode);
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeStorageNode::vtkMRMLAstroVolumeStorageNode()
 {
-  this->CenterImage = 0;
+  this->CenterImage = 2;
   this->DefaultWriteFileExtension = "fits";
 }
 
@@ -162,7 +162,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
   else
     {
-    vtkErrorMacro(<< "Do not recognize node type " << refNode->GetClassName());
+    vtkErrorMacro(<< "vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
+                     "Do not recognize node type " << refNode->GetClassName());
     return 0;
     }
 
@@ -197,7 +198,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   if (fullName.empty())
     {
-    vtkErrorMacro("ReadData: File name not specified");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : File name not specified");
     return 0;
     }
 
@@ -206,7 +207,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   // Check if this is a FITS file that we can read
   if (!reader->CanReadFile(fullName.c_str()))
     {
-    vtkErrorMacro("ReadData: This is not a fits file");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : This is not a fits file");
     return 0;
     }
 
@@ -218,7 +219,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (reader->GetPointDataType() != vtkDataSetAttributes::SCALARS &&
          reader->GetNumberOfComponents() > 1 )
       {
-      vtkErrorMacro("ReadData: MRMLVolumeNode does not match file kind");
+      vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : MRMLVolumeNode does not match file kind");
       return 0;
       }
     }
@@ -260,7 +261,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
       volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
-      vtkWarningMacro("The flux unit of Volume "<<volNode->GetName()<<
+      vtkWarningMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : the flux unit of Volume "<<volNode->GetName()<<
                       " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
       }
 
@@ -298,7 +299,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
             }
           break;
         default:
-          vtkErrorMacro("Could not get the data pointer. DataType not allowed.");
+          vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
+                        "Could not get the data pointer. DataType not allowed.");
           return 0;
         }
       }
@@ -397,19 +399,22 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     }
   else
     {
-    vtkErrorMacro(<< "WriteData: Do not recognize node type " << refNode->GetClassName());
+    vtkErrorMacro(<< "vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
+                     " Do not recognize node type " << refNode->GetClassName());
     return 0;
     }
 
   if (volNode->GetImageData() == NULL)
     {
-    vtkErrorMacro("WriteData: Cannot write NULL ImageData");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
+                  " Cannot write NULL ImageData");
     }
 
   std::string fullName = this->GetFullNameFromFileName();
   if (fullName == std::string(""))
     {
-    vtkErrorMacro("WriteData: File name not specified");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
+                  " File name not specified");
     return 0;
     }
 
@@ -431,7 +436,8 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   int writeFlag = 1;
   if (writer->GetWriteError())
     {
-    vtkErrorMacro("ERROR writing FITS file " << (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal : "
+                  "ERROR writing FITS file " << (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
     writeFlag = 0;
     }
 

@@ -47,6 +47,10 @@ public:
 
   int FitModel(vtkMRMLAstroModelingParametersNode *pnode);
 
+  int UpdateTable(vtkMRMLAstroModelingParametersNode *pnode);
+
+  int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode);
+
 protected:
   vtkSlicerAstroModelingLogic();
   virtual ~vtkSlicerAstroModelingLogic();
