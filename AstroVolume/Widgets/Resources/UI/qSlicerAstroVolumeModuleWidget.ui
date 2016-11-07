@@ -42,6 +42,9 @@
    </item>
    <item row="2" column="1" colspan="3">
     <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton">
+     <property name="toolTip">
+      <string> </string>
+     </property>
      <property name="text">
       <string>Display</string>
      </property>
@@ -54,6 +57,9 @@
    </item>
    <item row="1" column="1" colspan="3">
     <widget class="ctkCollapsibleButton" name="InfoCollapsibleButton">
+     <property name="toolTip">
+      <string> </string>
+     </property>
      <property name="text">
       <string>Volume Information</string>
      </property>
@@ -96,6 +102,9 @@
      <property name="cursor">
       <cursorShape>ArrowCursor</cursorShape>
      </property>
+     <property name="toolTip">
+      <string> </string>
+     </property>
      <property name="text">
       <string>Rendering</string>
      </property>
@@ -111,6 +120,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string> </string>
+        </property>
         <property name="text">
          <string>Activate:</string>
         </property>
@@ -120,6 +132,9 @@
        <widget class="ctkCheckBox" name="VisibilityCheckBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Click on this eye to show the rendering</string>
         </property>
         <property name="text">
          <string/>
@@ -142,6 +157,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string>  </string>
+        </property>
         <property name="text">
          <string>2-D/3-D synch: </string>
         </property>
@@ -151,6 +169,9 @@
        <widget class="QPushButton" name="SynchronizeScalarDisplayNodeButton">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string> </string>
         </property>
         <property name="text">
          <string>Synchornize</string>
@@ -162,6 +183,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string> </string>
+        </property>
         <property name="text">
          <string>Preset:</string>
         </property>
@@ -171,6 +195,9 @@
        <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string> </string>
         </property>
        </widget>
       </item>
@@ -229,6 +256,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string> </string>
+        </property>
         <property name="text">
          <string>Crop:</string>
         </property>
@@ -241,6 +271,9 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string> </string>
+          </property>
           <property name="text">
            <string>Enable</string>
           </property>
@@ -250,6 +283,9 @@
          <widget class="ctkCheckBox" name="ROICropDisplayCheckBox">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string> </string>
           </property>
           <property name="text">
            <string>Display ROI</string>
@@ -272,6 +308,9 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string> </string>
+          </property>
           <property name="text">
            <string>Fit to Volume</string>
           </property>
@@ -288,6 +327,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string> </string>
+        </property>
         <property name="text">
          <string>Rendering:</string>
         </property>
@@ -298,12 +340,18 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string> </string>
+        </property>
        </widget>
       </item>
       <item row="7" column="0">
        <widget class="QLabel" name="qualityLabel">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string> </string>
         </property>
         <property name="text">
          <string>Quality:</string>
@@ -314,6 +362,9 @@
        <widget class="QComboBox" name="QualityControlComboBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string> </string>
         </property>
         <property name="currentIndex">
          <number>0</number>
@@ -345,7 +396,7 @@
       <string>Mask Visualization</string>
      </property>
      <property name="collapsed">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <property name="contentsFrameShape">
       <enum>QFrame::StyledPanel</enum>

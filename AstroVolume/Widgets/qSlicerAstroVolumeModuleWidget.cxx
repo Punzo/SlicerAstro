@@ -887,7 +887,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
   // (however, it will be present a segement more which it is not ideal)
   int* dims = labelMapNode->GetImageData()->GetDimensions();
   const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
   short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
   short val = StringToShort(labelMapNode->GetAttribute("SlicerAstro.DATAMAX")) + 1;
 
@@ -1237,7 +1236,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   unsigned int numViewNodes = col->GetNumberOfItems();
   int n = volumeOne->GetNumberOfDisplayNodes();
-  int renderingQuality;
+  int renderingQuality = 0;
   for (int i = 0; i < n; i++)
     {
     vtkMRMLVolumeRenderingDisplayNode *volumeOneRenderingDisplay =
