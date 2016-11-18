@@ -1,11 +1,11 @@
 
 #-----------------------------------------------------------------------------
-set(MODULE_NAME AstroSmoothing)
+set(MODULE_NAME AstroModeling)
 set(MODULE_TITLE "${MODULE_NAME}")
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 
-set(MODULE_TITLE "Smooth Volume")
+set(MODULE_TITLE "Astro Modeling")
 
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)
@@ -19,6 +19,9 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/Logic
   ${qSlicerAstroVolumeModule_INCLUDE_DIRS}
   ${qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS}
+  ${qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS}
+  ${vtkSlicerSegmentationsModuleLogic_INCLUDES_DIRS}
+  ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
   ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
   ${WCSLIB_INCLUDE_DIR}
   )
@@ -28,11 +31,14 @@ set(MODULE_SRCS
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}ModuleWidget.cxx
   qSlicer${MODULE_NAME}ModuleWidget.h
+  qSlicer${MODULE_NAME}ModuleWorker.cxx
+  qSlicer${MODULE_NAME}ModuleWorker.h
   )
 
 set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}ModuleWidget.h
+  qSlicer${MODULE_NAME}ModuleWorker.h
   )
 
 set(MODULE_UI_SRCS

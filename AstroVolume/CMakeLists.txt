@@ -1,6 +1,6 @@
 #-----------------------------------------------------------------------------
 set(MODULE_NAME AstroVolume)
-set(MODULE_TITLE "${MODULE_NAME}")
+set(MODULE_TITLE "Astro Volume")
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 

@@ -806,6 +806,16 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
   ThresholdLastMask->DeepCopy(this->LastMask);
   q->applyImageMask(ThresholdLastMask.GetPointer(), thresholdMask.GetPointer(), q->m_EraseValue);
 
+  if (!vtkOrientedImageDataResample::CalculateEffectiveExtent(ThresholdLastMask.GetPointer(), Extent))
+    {
+    this->UndoLastMask = false;
+    return;
+    }
+  else
+    {
+    this->UndoLastMask = true;
+    }
+
   if (this->UndoLastMask)
     {
     vtkMRMLSegmentationNode* segmentationNode = q->parameterSetNode()->GetSegmentationNode();
@@ -833,16 +843,6 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
       }
 
     segmentLabelmap->DeepCopy(this->LastSelectedSegmentLabelmap);
-    }
-
-  if (!vtkOrientedImageDataResample::CalculateEffectiveExtent(ThresholdLastMask.GetPointer(), Extent))
-    {
-    this->UndoLastMask = false;
-    return;
-    }
-  else
-    {
-    this->UndoLastMask = true;
     }
 
   q->modifySelectedSegmentByLabelmap(this->LastMask,
@@ -1171,7 +1171,6 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       }
     }
 
-  vtkIdType idPoint;
   if (eid == vtkCommand::LeftButtonPressEvent)
     {
     d->IsPainting = true;
@@ -1180,7 +1179,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       {
       d->BrushPipelines[viewWidget]->SetFeedbackVisibility(d->DelayedPaint);
       }
-    idPoint = d->paintAddPoint(brushPosition_World);
+    d->paintAddPoint(brushPosition_World);
     abortEvent = true;
     }
   else if (eid == vtkCommand::LeftButtonReleaseEvent)
@@ -1198,7 +1197,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     {
     if (d->IsPainting)
       {
-      idPoint = d->paintAddPoint(brushPosition_World);
+      d->paintAddPoint(brushPosition_World);
       abortEvent = true;
       }
     }
@@ -1273,12 +1272,6 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       bool eraseMode = this->integerParameter("EraseMode");
       d->EraseModeCheckbox->setChecked(!eraseMode);
       }
-    }
-
-  // Update paint feedback glyph to follow mouse if there are at least two points
-  if(idPoint <= 0)
-    {
-    return abortEvent;
     }
 
   d->updateBrushModel(viewWidget, brushPosition_World);

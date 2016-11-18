@@ -5,7 +5,7 @@ project(vtkFits)
 # --------------------------------------------------------------------------
 
 #
-# Fits
+# CFITSIO
 #
 
 find_library(CFITSIO_LIBRARY cfitsio
@@ -22,10 +22,19 @@ find_library (WCSLIB_LIBRARY wcslib
   )
 set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
 
+#
+# Bbarolo
+#
+
+find_library (BBAROLO_LIBRARY bbarolo
+  PATHS ${BBAROLO_LIBRARY_DIR} NO_DEFAULT_PATH
+  )
+set(BBAROLO_LIBRARIES ${BBAROLO_LIBRARY})
+
 # Install libraries
 if(APPLE)
   include(SlicerFunctionInstallLibrary)
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
     slicerInstallLibrary(FILE ${library}
       DESTINATION ${Slicer_INSTALL_LIB_DIR}
       COMPONENT Runtime
@@ -34,7 +43,7 @@ if(APPLE)
 endif()
 if(NOT APPLE)
   include(SlicerFunctionInstallLibrary)
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY})
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
     slicerInstallLibrary(FILE ${library}
       DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}/qt-loadable-modules
       COMPONENT Runtime
@@ -83,6 +92,7 @@ set(lib_name ${PROJECT_NAME})
 SET (vtkFits_LIBS ${vtkFits_LIBS}
   ${CFITSIO_LIBRARIES}
   ${WCSLIB_LIBRARIES}
+  ${BBAROLO_LIBRARIES}
   ${VTK_LIBRARIES}
   MRMLCore
   )

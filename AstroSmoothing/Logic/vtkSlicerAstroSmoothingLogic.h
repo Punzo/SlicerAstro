@@ -23,10 +23,8 @@
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
 class vtkMRMLVolumeNode;
-class vtkSlicerCLIModuleLogic;
 class vtkSlicerAstroVolumeLogic;
 // vtk includes
-class vtkMatrix4x4;
 class vtkRenderWindow;
 // AstroSmoothings includes
 #include "vtkSlicerAstroSmoothingModuleLogicExport.h"

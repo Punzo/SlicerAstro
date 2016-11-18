@@ -60,6 +60,8 @@
 #include <iostream>
 #include <sys/time.h>
 
+#define UNUSED(expr) (void)(expr)
+
 //----------------------------------------------------------------------------
 class vtkSlicerAstroSmoothingLogic::vtkInternal
 {
@@ -418,7 +420,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Box Filter (CPU) Kernel Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Box Filter (CPU) Kernel Time : "<<mtime<<" ms /n");
 
   inFPixel = NULL;
   outFPixel = NULL;
@@ -449,7 +451,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   return 1;
 }
@@ -806,7 +808,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Box Filter (CPU) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Box Filter (CPU) Time : "<<mtime<<" ms /n");
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -838,7 +840,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   return 1;
 }
@@ -848,6 +850,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
                                                vtkRenderWindow* renderWindow)
 {
   #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  UNUSED(renderWindow);
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
@@ -882,15 +885,27 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   std::size_t found = check.find("Mesa");
   if (found!=std::string::npos)
     {
-    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
       {
-      vtkWarningMacro("Using Mesa driver (<12). "
+      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the isotropic Box filter (3-pass filter using 1-D Kernels) "
                       "is not available with the specifications of the machine in use. "
                       "A 3-D Kernel will be used. ");
       filter->SetIterative(false);
       }
+    else
+      {
+      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
+                      "The GPU implementation of the isotropic Box filter has not been tested on these specifications, "
+                      "please report the success or the failure (punzodavide@hotmail.it).");
+      }
     }
+
+#ifdef __APPLE__
+  vtkWarningMacro("Using Mac OpenGL version."
+                  "The GPU implementation of the isotropic Box filter has not been tested on these specifications, "
+                  "please report the success or the failure (punzodavide@hotmail.it).");
+#endif
 
   pnode->SetStatus(20);
 
@@ -914,7 +929,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro(" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms /n");
 
   gettimeofday(&start, NULL);
 
@@ -930,7 +945,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   pnode->SetStatus(0);
 
@@ -1127,7 +1142,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms /n");
 
   inFPixel = NULL;
   outFPixel = NULL;
@@ -1158,7 +1173,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   return 1;
 }
@@ -1480,7 +1495,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Gaussian Filter (CPU) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms /n");
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -1512,7 +1527,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   return 1;
 }
@@ -1522,6 +1537,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
                                                     vtkRenderWindow *renderWindow)
 {
   #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  UNUSED(renderWindow);
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
@@ -1562,15 +1578,27 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   std::size_t found = check.find("Mesa");
   if (found!=std::string::npos)
     {
-    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
       {
-      vtkWarningMacro("Using Mesa driver (<12). "
+      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the isotropic Gaussian filter (3-pass filter using 1-D Kernels) "
                       "is not available with the specifications of the machine in use. "
                       "A 3-D Kernel will be used. ");
       filter->SetIterative(false);
       }
+    else
+      {
+      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
+                      "The GPU implementation of the isotropic Gaussian filter has not been tested on these specifications, "
+                      "please report the success or the failure (punzodavide@hotmail.it).");
+      }
     }
+
+#ifdef __APPLE__
+  vtkWarningMacro("Using Mac OpenGL version."
+                  "The GPU implementation of the Gaussian filter has not been tested on these specifications, "
+                  "please report the success or the failure (punzodavide@hotmail.it).");
+#endif
 
   pnode->SetStatus(20);
 
@@ -1594,7 +1622,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms /n");
 
   gettimeofday(&start, NULL);
 
@@ -1608,7 +1636,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<"Update : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update : "<<mtime<<" ms /n");
 
   pnode->SetStatus(0);
 
@@ -1828,7 +1856,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms /n");
 
   gettimeofday(&start, NULL);
 
@@ -1860,7 +1888,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -1881,8 +1909,9 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
                                                     vtkRenderWindow* renderWindow)
-{
+{  
   #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  UNUSED(renderWindow);
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
@@ -1898,15 +1927,27 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   std::size_t found = check.find("Mesa");
   if (found!=std::string::npos)
     {
-    if (StringToDouble(check.substr(found + 5, 2).c_str()) < 12.)
+    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
       {
-      vtkWarningMacro("Using Mesa driver (<12). "
+      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the Intensity-Driven Gradient filter "
                       "is not available with the specifications of the machine in use.");
       pnode->SetStatus(0);
       return 0;
       }
+    else
+      {
+      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
+                      "The GPU implementation of the Intensity-Driven Gradient filter has not been tested on these specifications, "
+                      "please report the success or the failure (punzodavide@hotmail.it).");
+      }
     }
+
+#ifdef __APPLE__
+  vtkWarningMacro("Using Mac OpenGL version."
+                  "The GPU implementation of the Intensity-Driven Gradient filter has not been tested on these specifications, "
+                  "please report the success or the failure (punzodavide@hotmail.it).");
+#endif
 
   pnode->SetStatus(1);
 
@@ -1954,7 +1995,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  qDebug()<<" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro(" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms /n");
 
   gettimeofday(&start, NULL);
 
@@ -1970,7 +2011,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  qDebug()<<"Update Time : "<<mtime<<" ms "<<endl;
+  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
   pnode->SetStatus(0);
 

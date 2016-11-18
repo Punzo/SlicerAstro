@@ -27,99 +27,98 @@
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerAstroSmoothingLogic.h>
+#include <vtkSlicerAstroModelingLogic.h>
 
 
-// AstroSmoothing includes
-#include "qSlicerAstroSmoothingModule.h"
-#include "qSlicerAstroSmoothingModuleWidget.h"
-
-//-----------------------------------------------------------------------------
-Q_EXPORT_PLUGIN2(qSlicerAstroSmoothingModule, qSlicerAstroSmoothingModule);
+// AstroModeling includes
+#include "qSlicerAstroModelingModule.h"
+#include "qSlicerAstroModelingModuleWidget.h"
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroSmoothing
-class qSlicerAstroSmoothingModulePrivate
+Q_EXPORT_PLUGIN2(qSlicerAstroModelingModule, qSlicerAstroModelingModule);
+
+//-----------------------------------------------------------------------------
+/// \ingroup Slicer_QtModules_AstroModeling
+class qSlicerAstroModelingModulePrivate
 {
 public:
-  qSlicerAstroSmoothingModulePrivate();
+  qSlicerAstroModelingModulePrivate();
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroSmoothingModulePrivate methods
+// qSlicerAstroModelingModulePrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerAstroSmoothingModulePrivate::qSlicerAstroSmoothingModulePrivate()
+qSlicerAstroModelingModulePrivate::qSlicerAstroModelingModulePrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroSmoothingModule methods
+// qSlicerAstroModelingModule methods
 
 //-----------------------------------------------------------------------------
-qSlicerAstroSmoothingModule::qSlicerAstroSmoothingModule(QObject* _parent)
+qSlicerAstroModelingModule::qSlicerAstroModelingModule(QObject* _parent)
   : Superclass(_parent)
-  , d_ptr(new qSlicerAstroSmoothingModulePrivate)
+  , d_ptr(new qSlicerAstroModelingModulePrivate)
 {
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroSmoothingModule::~qSlicerAstroSmoothingModule()
+qSlicerAstroModelingModule::~qSlicerAstroModelingModule()
 {
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerAstroSmoothingModule::helpText()const
+QString qSlicerAstroModelingModule::helpText()const
 {
-  return "AstroSmoothing module filters a Volume using several techniques. "
-         "The algorithms are optmized for Astronomical Neutral Hydrogen (HI) data.";
+  return "AstroModeling module fits tilted-ring models on a Volume using Bbarolo"
+         " (http://editeodoro.github.io/Bbarolo/)";
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerAstroSmoothingModule::acknowledgementText()const
+QString qSlicerAstroModelingModule::acknowledgementText()const
 {
   return "This module was developed by Davide Punzo. <br>"
          "This work was supported by ERC grant nr. 291531, "
          "and Slicer community. <br>"
-         " Special thanks to Steve Pieper (Isomics) and Ken Follet (Kitware) for support"
-         " regarding the GPU (OpenGL) implementation of the filters.";
+         " Special thanks to Enrico di Teodoro (Australian National University)"
+         " for support regarding Bbarolo wrapping in SlicerAstro. <br>";
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerAstroSmoothingModule::contributors()const
+QStringList qSlicerAstroModelingModule::contributors()const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Davide Punzo (Kapteyn Astronomical Institute)");
   moduleContributors << QString("Thijs van der Hulst (Kapteyn Astronomical Institute)");
   moduleContributors << QString("Jos Roerdink (Johann Bernoulli Institute)");
-  moduleContributors << QString("Jean-Christophe Fillion-Robin (Kitware)");
   return moduleContributors;
 }
 
 //-----------------------------------------------------------------------------
-QIcon qSlicerAstroSmoothingModule::icon()const
+QIcon qSlicerAstroModelingModule::icon()const
 {
-  return QIcon(":/Icons/AstroSmoothing.png");
+  return QIcon(":/Icons/AstroModeling.png");
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerAstroSmoothingModule::categories()const
+QStringList qSlicerAstroModelingModule::categories()const
 {
-  return QStringList() << "Astronomy" << "Filtering";
+  return QStringList() << "Astronomy";
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerAstroSmoothingModule::dependencies()const
+QStringList qSlicerAstroModelingModule::dependencies()const
 {
   return QStringList() << "AstroVolume";
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroSmoothingModule::setup()
+void qSlicerAstroModelingModule::setup()
 {
   this->Superclass::setup();
-  vtkSlicerAstroSmoothingLogic* AstroSmoothingLogic =
-    vtkSlicerAstroSmoothingLogic::SafeDownCast(this->logic());
+  vtkSlicerAstroModelingLogic* AstroModelingLogic =
+    vtkSlicerAstroModelingLogic::SafeDownCast(this->logic());
 
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
@@ -130,17 +129,17 @@ void qSlicerAstroSmoothingModule::setup()
     }
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
-  AstroSmoothingLogic->SetAstroVolumeLogic(astroVolumeLogic);
+  AstroModelingLogic->SetAstroVolumeLogic(astroVolumeLogic);
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAbstractModuleRepresentation * qSlicerAstroSmoothingModule::createWidgetRepresentation()
+qSlicerAbstractModuleRepresentation * qSlicerAstroModelingModule::createWidgetRepresentation()
 {
-  return new qSlicerAstroSmoothingModuleWidget;
+  return new qSlicerAstroModelingModuleWidget;
 }
 
 //-----------------------------------------------------------------------------
-vtkMRMLAbstractLogic* qSlicerAstroSmoothingModule::createLogic()
+vtkMRMLAbstractLogic* qSlicerAstroModelingModule::createLogic()
 {
-  return vtkSlicerAstroSmoothingLogic::New();
+  return vtkSlicerAstroModelingLogic::New();
 }

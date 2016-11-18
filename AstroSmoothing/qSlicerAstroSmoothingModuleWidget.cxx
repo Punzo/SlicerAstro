@@ -60,13 +60,13 @@
 #include <qSlicerLayoutManager.h>
 #include <qSlicerModuleManager.h>
 #include <qSlicerUtils.h>
-#include "qSlicerVolumeRenderingModuleWidget.h"
 
 // MRMLLogic includes
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
 #include <vtkMRMLAstroSmoothingParametersNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
@@ -309,13 +309,13 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found.";
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : selectionNode not found.";
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : selectionNode not found!";
     return;
     }
 
@@ -1337,18 +1337,26 @@ void qSlicerAstroSmoothingModuleWidget::onAccuracyChanged(double value)
 void qSlicerAstroSmoothingModuleWidget::onApply()
 {
   Q_D(const qSlicerAstroSmoothingModuleWidget);
+
   vtkSlicerAstroSmoothingLogic *logic = d->logic();
+  if (!logic)
+    {
+    qCritical() <<"qSlicerAstroSmoothingModuleWidget::onApply() : astroSmoothingLogic not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
 
   if (!d->parametersNode)
     {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : parametersNode not found!";
+    d->parametersNode->SetStatus(0);
     return;
     }
+
 
   d->parametersNode->SetStatus(1);
 
   vtkMRMLScene *scene = this->mrmlScene();
-
-  d->astroVolumeWidget->stopRockView();
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
@@ -1358,16 +1366,23 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   // Check Input volume
   if (n != 3)
     {
-    qWarning() <<"filtering techniques are available only"<<
-             "for datacube with dimensionality 3 (NAXIS = 3).";
+    QString message = QString("model fitting is  available only"
+                                " for datacube with dimensionality 3 (NAXIS = 3).");
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to run Bbarolo"), message);
+    d->parametersNode->SetStatus(0);
     return;
     }
-
-  inputVolume->SetDisplayVisibility(0);
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
+
+  if (!outputVolume)
+    {
+    outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+          GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+    }
 
   std::ostringstream outSS;
   outSS << inputVolume->GetName() << "_Filtered_";
@@ -1399,11 +1414,15 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : appLogic not found!";
+    d->parametersNode->SetStatus(0);
     return;
     }
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
   if (!selectionNode)
     {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : selectionNode not found!";
+    d->parametersNode->SetStatus(0);
     return;
     }
 
@@ -1452,11 +1471,10 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
     }
 
-  d->transformationMatrix->Identity();
-  inputVolume->GetRASToIJKMatrix(d->transformationMatrix);
-  outputVolume->SetRASToIJKMatrix(d->transformationMatrix);
+  vtkNew<vtkMatrix4x4> transformationMatrix;
+  inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
+  outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
-  d->transformationMatrix->Identity();
 
   if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
     {

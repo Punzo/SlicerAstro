@@ -20,20 +20,22 @@ include_directories(BEFORE ${module_mrml_include_directory})
 # Sources
 # --------------------------------------------------------------------------
 set(module_mrml_SRCS
-    vtkMRMLAstroVolumeNode.cxx
-    vtkMRMLAstroVolumeNode.h
-    vtkMRMLAstroVolumeDisplayNode.cxx
-    vtkMRMLAstroVolumeDisplayNode.h
-    vtkMRMLAstroVolumeStorageNode.cxx
-    vtkMRMLAstroVolumeStorageNode.h
-    vtkMRMLAstroLabelMapVolumeNode.cxx
-    vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
     vtkMRMLAstroLabelMapVolumeDisplayNode.h
+    vtkMRMLAstroLabelMapVolumeNode.cxx
+    vtkMRMLAstroLabelMapVolumeNode.h
+    vtkMRMLAstroModelingParametersNode.cxx
+    vtkMRMLAstroModelingParametersNode.h
     vtkMRMLAstroSmoothingParametersNode.cxx
     vtkMRMLAstroSmoothingParametersNode.h
     vtkMRMLAstroTwoDAxesDisplayableManager.cxx
-    vtkMRMLAstroTwoDAxesDisplayableManager.h)
+    vtkMRMLAstroTwoDAxesDisplayableManager.h
+    vtkMRMLAstroVolumeDisplayNode.cxx
+    vtkMRMLAstroVolumeDisplayNode.h
+    vtkMRMLAstroVolumeNode.cxx
+    vtkMRMLAstroVolumeNode.h
+    vtkMRMLAstroVolumeStorageNode.cxx
+    vtkMRMLAstroVolumeStorageNode.h)
 
 # The header '${module_mrml_name}Export.h' will be automatically configured.
 set(module_mrml_export_directive "VTK_MRML_ASTRO_EXPORT")

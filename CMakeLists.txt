@@ -51,9 +51,9 @@ configure_file(
 #-----------------------------------------------------------------------------
 # configurating OpenMP Flags
 if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS} -O3 -ftree-vectorize -fPIC -Wuninitialized")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS} -O3 -ftree-vectorize -fPIC -Wuninitialized")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS} -O3 -ftree-vectorize -fPIC -Wuninitialized")
 endif()
 
 #-----------------------------------------------------------------------------
@@ -93,6 +93,7 @@ if(UNIX)
   endif()
   add_subdirectory(AstroVolume)
   add_subdirectory(AstroSmoothing)
+  add_subdirectory(AstroModeling)
   add_subdirectory(AstroSampleData)
   add_subdirectory(SlicerAstroDataProbe)
 endif(UNIX)
@@ -104,5 +105,6 @@ set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY
 if(UNIX)
   set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${cfitsio_DIR};cfitsio;RuntimeLibraries;/")
   set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${wcslib_DIR};wcslib;RuntimeLibraries;/")
+  set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${bbarolo_DIR};bbarolo;RuntimeLibraries;/")
 endif(UNIX)
 include(${Slicer_EXTENSION_CPACK})

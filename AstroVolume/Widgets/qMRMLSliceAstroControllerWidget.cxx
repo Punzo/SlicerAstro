@@ -253,8 +253,8 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
         astroVolume->GetImageData()->GetExtent(extent);
 
         ijk[0] = extent[1] / 2;
-        ijk[1] = extent[5] / 2;
-        ijk[2] = extent[3] / 2;
+        ijk[1] = extent[3] / 2;
+        ijk[2] = extent[5] / 2;
 
         if(!orientation.compare("XZ"))
           {

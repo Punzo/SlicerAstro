@@ -19,8 +19,8 @@
 
 // VTK includes
 #include <vtkCommand.h>
-#include <vtkObjectFactory.h>
 #include <vtkDoubleArray.h>
+#include <vtkObjectFactory.h>
 
 // MRML includes
 #include <vtkMRMLVolumeNode.h>
@@ -347,12 +347,20 @@ void vtkMRMLAstroSmoothingParametersNode::Copy(vtkMRMLNode *anode)
 //----------------------------------------------------------------------------
 vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel1D()
 {
+  if (!this->gaussianKernel1D)
+    {
+    return NULL;
+    }
   return this->gaussianKernel1D;
 }
 
 //----------------------------------------------------------------------------
 vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel3D()
 {
+  if (!this->gaussianKernel3D)
+    {
+    return NULL;
+    }
   return this->gaussianKernel3D;
 }
 

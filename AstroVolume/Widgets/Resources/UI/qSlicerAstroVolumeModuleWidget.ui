@@ -18,51 +18,12 @@
     <normaloff>:/Icons/Volumes.png</normaloff>:/Icons/Volumes.png</iconset>
   </property>
   <property name="toolTip">
-   <string>Convert LabelMap volume into a Segemtation Node for editing operations.</string>
+   <string/>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <property name="margin">
     <number>0</number>
    </property>
-   <item row="9" column="1" colspan="3">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeType">
-      <enum>QSizePolicy::Expanding</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>208</width>
-       <height>210</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
-   <item row="2" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton">
-     <property name="text">
-      <string>Display</string>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout_3">
-      <item>
-       <widget class="qSlicerAstroVolumeDisplayWidget" name="AstroVolumeDisplayWidget" native="true"/>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item row="1" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="InfoCollapsibleButton">
-     <property name="text">
-      <string>Volume Information</string>
-     </property>
-     <property name="checked">
-      <bool>false</bool>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout"/>
-    </widget>
-   </item>
    <item row="0" column="1">
     <widget class="QLabel" name="ActiveVolumeLabel">
      <property name="text">
@@ -85,6 +46,21 @@
      </property>
     </widget>
    </item>
+   <item row="2" column="1" colspan="3">
+    <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="text">
+      <string>Display</string>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout_3">
+      <item>
+       <widget class="qSlicerAstroVolumeDisplayWidget" name="AstroVolumeDisplayWidget" native="true"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
    <item row="4" column="1" colspan="3">
     <widget class="ctkCollapsibleButton" name="RenderingFrame">
      <property name="enabled">
@@ -92,6 +68,9 @@
      </property>
      <property name="cursor">
       <cursorShape>ArrowCursor</cursorShape>
+     </property>
+     <property name="toolTip">
+      <string/>
      </property>
      <property name="text">
       <string>Rendering</string>
@@ -108,6 +87,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string/>
+        </property>
         <property name="text">
          <string>Activate:</string>
         </property>
@@ -117,6 +99,9 @@
        <widget class="ctkCheckBox" name="VisibilityCheckBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>Click on this eye to show the rendering</string>
         </property>
         <property name="text">
          <string/>
@@ -139,6 +124,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string/>
+        </property>
         <property name="text">
          <string>2-D/3-D synch: </string>
         </property>
@@ -148,6 +136,9 @@
        <widget class="QPushButton" name="SynchronizeScalarDisplayNodeButton">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
         </property>
         <property name="text">
          <string>Synchornize</string>
@@ -159,6 +150,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string/>
+        </property>
         <property name="text">
          <string>Preset:</string>
         </property>
@@ -168,6 +162,9 @@
        <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
         </property>
        </widget>
       </item>
@@ -226,6 +223,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string/>
+        </property>
         <property name="text">
          <string>Crop:</string>
         </property>
@@ -238,6 +238,9 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string/>
+          </property>
           <property name="text">
            <string>Enable</string>
           </property>
@@ -247,6 +250,9 @@
          <widget class="ctkCheckBox" name="ROICropDisplayCheckBox">
           <property name="enabled">
            <bool>false</bool>
+          </property>
+          <property name="toolTip">
+           <string/>
           </property>
           <property name="text">
            <string>Display ROI</string>
@@ -269,6 +275,9 @@
           <property name="enabled">
            <bool>false</bool>
           </property>
+          <property name="toolTip">
+           <string/>
+          </property>
           <property name="text">
            <string>Fit to Volume</string>
           </property>
@@ -285,6 +294,9 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string/>
+        </property>
         <property name="text">
          <string>Rendering:</string>
         </property>
@@ -295,12 +307,18 @@
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="toolTip">
+         <string/>
+        </property>
        </widget>
       </item>
       <item row="7" column="0">
        <widget class="QLabel" name="qualityLabel">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
         </property>
         <property name="text">
          <string>Quality:</string>
@@ -311,6 +329,9 @@
        <widget class="QComboBox" name="QualityControlComboBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
         </property>
         <property name="currentIndex">
          <number>0</number>
@@ -329,6 +350,39 @@
       </item>
      </layout>
     </widget>
+   </item>
+   <item row="1" column="1" colspan="3">
+    <widget class="ctkCollapsibleButton" name="InfoCollapsibleButton">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="text">
+      <string>Volume Information</string>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <property name="collapsed">
+      <bool>true</bool>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout"/>
+    </widget>
+   </item>
+   <item row="9" column="1" colspan="3">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::Expanding</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>208</width>
+       <height>210</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item row="5" column="1" colspan="3">
     <widget class="ctkCollapsibleButton" name="CollapsibleButton_CopyMoveSegment">
@@ -376,7 +430,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert a LabelMap Node (Masks) into the current Segmentation Node for editing it</string>
+             <string>Convert a LabelMap Node (Masks) into the current Segmentation Node for editing it (NOTE: the last segment is not a sourceID, but it is needed by SlicerAstro for memory management reason)</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -482,13 +536,16 @@
            <item>
             <widget class="qMRMLSegmentsTableView" name="SegmentsTableView_2">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
               <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
                <horstretch>0</horstretch>
                <verstretch>3</verstretch>
               </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string/>
              </property>
             </widget>
            </item>

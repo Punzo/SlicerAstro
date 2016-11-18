@@ -73,8 +73,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
   vtkSetStringMacro(Mode);
   vtkGetStringMacro(Mode);
 
-  vtkSetMacro(OutputSerial, int);
-  vtkGetMacro(OutputSerial, int);
+  vtkSetMacro(OutputSerial,int);
+  vtkGetMacro(OutputSerial,int);
 
   vtkSetMacro(Filter,int);
   vtkGetMacro(Filter,int);
@@ -124,8 +124,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
   void SetGaussianKernels();
 
   void SetGaussianKernel1D();
-  void SetGaussianKernel3D();
   vtkDoubleArray* GetGaussianKernel1D();
+
+  void SetGaussianKernel3D();
   vtkDoubleArray* GetGaussianKernel3D();
 
 protected:
