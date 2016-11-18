@@ -362,7 +362,7 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 
   QObject::connect(this->worker, SIGNAL(finished()), q, SLOT(onWorkFinished()));
 
-  QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(exit()), Qt::DirectConnection);
+  QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(quit()), Qt::DirectConnection);
 }
 
 //-----------------------------------------------------------------------------
@@ -1720,9 +1720,6 @@ void qSlicerAstroModelingModuleWidget::onApply()
       }
     }
 
-  d->worker->abort();
-  d->thread->wait(); // If the thread is not running, this will immediately return.
-
   d->worker->SetAstroModelingParametersNode(d->parametersNode);
   d->worker->SetAstroModelingLogic(logic);
   d->worker->requestWork();
@@ -1902,7 +1899,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   if (!appLogic)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : appLogic not found!";
-    d->parametersNode->SetStatus(0);
     return;
     }
 
@@ -1910,7 +1906,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   if (!selectionNode)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : selectionNode not found!";
-    d->parametersNode->SetStatus(0);
     return;
     }
 
@@ -1918,7 +1913,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   if(!scene)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : scene not found!";
-    d->parametersNode->SetStatus(0);
     return;
     }
 
@@ -1944,7 +1938,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
   if (d->parametersNode->GetFitSuccess())
     {
-
     outputVolume->UpdateNoiseAttributes();
     outputVolume->UpdateRangeAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATATYPE", "MODEL");
@@ -1994,14 +1987,11 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     if(!maskVolume)
       {
-      d->parametersNode->SetStatus(0);
       return;
       }
 
     scene->RemoveNode(maskVolume);
     }
-
-  d->parametersNode->SetStatus(0);
 }
 
 //--------------------------------------------------------------------------
@@ -2058,7 +2048,6 @@ void qSlicerAstroModelingModuleWidget::onComputationCancelled()
   Q_D(qSlicerAstroModelingModuleWidget);
   d->parametersNode->SetStatus(-1);
   d->worker->abort();
-  d->thread->wait();
 }
 
 //-----------------------------------------------------------------------------
