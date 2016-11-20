@@ -142,6 +142,9 @@ vtkMRMLAstroModelingParametersNode::~vtkMRMLAstroModelingParametersNode()
     delete [] this->Mode;
     this->Mode = NULL;
     }
+
+  this->chartNodes->RemoveAllItems();
+  this->arrayNodes->RemoveAllItems();
 }
 
 namespace
@@ -534,6 +537,7 @@ vtkMRMLTableNode *vtkMRMLAstroModelingParametersNode::GetParamsTableNode()
     paramsTableNode->SetName(paramsTableNodeName.c_str());
     this->Scene->AddNode(paramsTableNode);
     this->SetAndObserveParamsTableNode(paramsTableNode);
+    paramsTableNode->Delete();
     paramsTableNode = vtkMRMLTableNode::SafeDownCast(
                       this->GetNodeReference(PARAMS_TABLE_REFERENCE_ROLE) );
     }
@@ -564,6 +568,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartXPosNode->SetProperty("default", "yAxisLabel", "X Center (pixels)");
     this->Scene->AddNode(chartXPosNode);
     this->SetAndObserveChartNode(chartXPosNode, "chartXPos");
+    chartXPosNode->Delete();
     chartXPosNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_XPOS_REFERENCE_ROLE) );
     }
@@ -583,6 +588,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartYPosNode->SetProperty("default", "yAxisLabel", "Y Center (pixels)");
     this->Scene->AddNode(chartYPosNode);
     this->SetAndObserveChartNode(chartYPosNode, "chartYPos");
+    chartYPosNode->Delete();
     chartYPosNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_YPOS_REFERENCE_ROLE) );
     }
@@ -601,6 +607,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartVSysNode->SetProperty("default", "yAxisLabel", "Systemic Velocity (km/s)");
     this->Scene->AddNode(chartVSysNode);
     this->SetAndObserveChartNode(chartVSysNode, "chartVSys");
+    chartVSysNode->Delete();
     chartVSysNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_VSYS_REFERENCE_ROLE) );
     }
@@ -619,6 +626,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartVRotNode->SetProperty("default", "yAxisLabel", "Rotational Velocity (km/s)");
     this->Scene->AddNode(chartVRotNode);
     this->SetAndObserveChartNode(chartVRotNode, "chartVRot");
+    chartVRotNode->Delete();
     chartVRotNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_VROT_REFERENCE_ROLE) );
     }
@@ -637,6 +645,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartVDispNode->SetProperty("default", "yAxisLabel", "Dispersion Velocity (km/s)");
     this->Scene->AddNode(chartVDispNode);
     this->SetAndObserveChartNode(chartVDispNode, "chartVDisp");
+    chartVDispNode->Delete();
     chartVDispNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_VDISP_REFERENCE_ROLE) );
     }
@@ -655,6 +664,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartDensNode->SetProperty("default", "yAxisLabel", "Column Density (10^20 cm^-2)");
     this->Scene->AddNode(chartDensNode);
     this->SetAndObserveChartNode(chartDensNode, "chartDens");
+    chartDensNode->Delete();
     chartDensNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_DENS_REFERENCE_ROLE) );
     }
@@ -673,6 +683,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartZ0Node->SetProperty("default", "yAxisLabel", "Scale Heigth (Kpc)");
     this->Scene->AddNode(chartZ0Node);
     this->SetAndObserveChartNode(chartZ0Node, "chartZ0");
+    chartZ0Node->Delete();
     chartZ0Node = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_Z0_REFERENCE_ROLE) );
     }
@@ -691,6 +702,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartIncNode->SetProperty("default", "yAxisLabel", "Inclination (degree)");
     this->Scene->AddNode(chartIncNode);
     this->SetAndObserveChartNode(chartIncNode, "chartInc");
+    chartIncNode->Delete();
     chartIncNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_INC_REFERENCE_ROLE) );
     }
@@ -709,6 +721,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartPhiNode->SetProperty("default", "yAxisLabel", "Orientation Angle (degree)");
     this->Scene->AddNode(chartPhiNode);
     this->SetAndObserveChartNode(chartPhiNode, "chartPhi");
+    chartPhiNode->Delete();
     chartPhiNode = vtkMRMLChartNode::SafeDownCast(
                   this->GetNodeReference(CHART_PHI_REFERENCE_ROLE) );
     }
@@ -741,6 +754,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayXPosNode);
     this->SetAndObserveArrayNode(arrayXPosNode, "arrayXPos");
+    arrayXPosNode->Delete();
     arrayXPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_XPOS_REFERENCE_ROLE) );
     }
@@ -759,6 +773,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayXPosNode);
     this->SetAndObserveArrayNode(firstArrayXPosNode, "firstArrayXPos");
+    firstArrayXPosNode->Delete();
     firstArrayXPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_XPOS_REFERENCE_ROLE) );
     }
@@ -778,6 +793,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayYPosNode);
     this->SetAndObserveArrayNode(arrayYPosNode, "arrayYPos");
+    arrayYPosNode->Delete();
     arrayYPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_YPOS_REFERENCE_ROLE) );
     }
@@ -796,6 +812,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayYPosNode);
     this->SetAndObserveArrayNode(firstArrayYPosNode, "firstArrayYPos");
+    firstArrayYPosNode->Delete();
     firstArrayYPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_YPOS_REFERENCE_ROLE) );
     }
@@ -815,6 +832,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayVSysNode);
     this->SetAndObserveArrayNode(arrayVSysNode, "arrayVSys");
+    arrayVSysNode->Delete();
     arrayVSysNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_VSYS_REFERENCE_ROLE) );
     }
@@ -833,6 +851,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayVSysNode);
     this->SetAndObserveArrayNode(firstArrayVSysNode, "firstArrayVSys");
+    firstArrayVSysNode->Delete();
     firstArrayVSysNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_VSYS_REFERENCE_ROLE) );
     }
@@ -852,6 +871,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayVRotNode);
     this->SetAndObserveArrayNode(arrayVRotNode, "arrayVRot");
+    arrayVRotNode->Delete();
     arrayVRotNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_VROT_REFERENCE_ROLE) );
     }
@@ -870,6 +890,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayVRotNode);
     this->SetAndObserveArrayNode(firstArrayVRotNode, "firstArrayVRot");
+    firstArrayVRotNode->Delete();
     firstArrayVRotNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_VROT_REFERENCE_ROLE) );
     }
@@ -889,6 +910,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayVDispNode);
     this->SetAndObserveArrayNode(arrayVDispNode, "arrayVDisp");
+    arrayVDispNode->Delete();
     arrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_VDISP_REFERENCE_ROLE) );
     }
@@ -907,6 +929,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayVDispNode);
     this->SetAndObserveArrayNode(firstArrayVDispNode, "firstArrayVDisp");
+    firstArrayVDispNode->Delete();
     firstArrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_VDISP_REFERENCE_ROLE) );
     }
@@ -926,6 +949,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayDensNode);
     this->SetAndObserveArrayNode(arrayDensNode, "arrayDens");
+    arrayDensNode->Delete();
     arrayDensNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_DENS_REFERENCE_ROLE) );
     }
@@ -944,6 +968,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayDensNode);
     this->SetAndObserveArrayNode(firstArrayDensNode, "firstArrayDens");
+    firstArrayDensNode->Delete();
     firstArrayDensNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_DENS_REFERENCE_ROLE) );
     }
@@ -963,6 +988,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayZ0Node);
     this->SetAndObserveArrayNode(arrayZ0Node, "arrayZ0");
+    arrayZ0Node->Delete();
     arrayZ0Node = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_Z0_REFERENCE_ROLE) );
     }
@@ -981,6 +1007,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayZ0Node);
     this->SetAndObserveArrayNode(firstArrayZ0Node, "firstArrayZ0");
+    firstArrayZ0Node->Delete();
     firstArrayZ0Node = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_Z0_REFERENCE_ROLE) );
     }
@@ -1000,6 +1027,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayIncNode);
     this->SetAndObserveArrayNode(arrayIncNode, "arrayInc");
+    arrayIncNode->Delete();
     arrayIncNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                 this->GetNodeReference(ARRAY_INC_REFERENCE_ROLE) );
     }
@@ -1018,6 +1046,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayIncNode);
     this->SetAndObserveArrayNode(firstArrayIncNode, "firstArrayInc");
+    firstArrayIncNode->Delete();
     firstArrayIncNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                 this->GetNodeReference(FIRST_ARRAY_INC_REFERENCE_ROLE) );
     }
@@ -1037,6 +1066,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(arrayPhiNode);
     this->SetAndObserveArrayNode(arrayPhiNode, "arrayPhi");
+    arrayPhiNode->Delete();
     arrayPhiNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(ARRAY_PHI_REFERENCE_ROLE) );
     }
@@ -1055,6 +1085,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     data->SetNumberOfTuples(this->GetNumberOfRings());
     this->Scene->AddNode(firstArrayPhiNode);
     this->SetAndObserveArrayNode(firstArrayPhiNode, "firstArrayPhi");
+    firstArrayPhiNode->Delete();
     firstArrayPhiNode = vtkMRMLDoubleArrayNode::SafeDownCast(
                     this->GetNodeReference(FIRST_ARRAY_PHI_REFERENCE_ROLE) );
     }
