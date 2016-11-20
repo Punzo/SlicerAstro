@@ -282,6 +282,16 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
     return 0;
     }
 
+  vtkMRMLAstroVolumeNode *residualVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetResidualVolumeNodeID()));
+  if(!residualVolume)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+                  " residualVolume not found!");
+    return 0;
+    }
+
   vtkMRMLAstroLabelMapVolumeNode *maskVolume =
     vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
@@ -758,6 +768,21 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           *(outFPixel + ii) = *(outarray + ii);
           }
 
+        float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
+        float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
+
+        for (int ii = 0; ii < numElements; ii++)
+          {
+          if (*(outFPixel + ii) < 1.E-6)
+            {
+            *(residualFPixel + ii) = *(inFPixel + ii);
+            }
+          else
+            {
+            *(residualFPixel + ii) = 0.;
+            }
+          }
+
         delete totalmap;
         }
       break;
@@ -921,13 +946,27 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           }
 
-        double *outFPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
+        double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
 
         for (int ii = 0; ii < numElements; ii++)
           {
-          *(outFPixel + ii) = *(outarray + ii);
+          *(outDPixel + ii) = *(outarray + ii);
           }
 
+        double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
+        double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
+
+        for (int ii = 0; ii < numElements; ii++)
+          {
+          if (*(outDPixel + ii) < 1.E-6)
+            {
+            *(residualDPixel + ii) = *(inDPixel + ii);
+            }
+          else
+            {
+            *(residualDPixel + ii) = 0.;
+            }
+          }
         delete totalmap;
         }
       break;
@@ -1193,6 +1232,15 @@ int vtkSlicerAstroModelingLogic::UpdateTable(vtkMRMLAstroModelingParametersNode 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode)
 {
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if(!inputVolume)
+    {
+    vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " inputVolume not found!");
+    }
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1201,6 +1249,15 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                   " outputVolume not found!");
     return 0;
+    }
+
+  vtkMRMLAstroVolumeNode *residualVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetResidualVolumeNodeID()));
+  if(!residualVolume)
+    {
+    vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " residualVolume not found!");
     }
 
   const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
@@ -1659,6 +1716,24 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         *(outFPixel + ii) = *(outarray + ii);
         }
 
+      if (inputVolume && residualVolume)
+        {
+        float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
+        float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
+
+        for (int ii = 0; ii < numElements; ii++)
+          {
+          if (*(outFPixel + ii) < 1.E-6)
+            {
+            *(residualFPixel + ii) = *(inFPixel + ii);
+            }
+          else
+            {
+            *(residualFPixel + ii) = 0.;
+            }
+          }
+        }
+
       break;
       }
     case VTK_DOUBLE:
@@ -1772,11 +1847,29 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         }
 
-      double *outFPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
+      double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
 
       for (int ii = 0; ii < numElements; ii++)
         {
-        *(outFPixel + ii) = *(outarray + ii);
+        *(outDPixel + ii) = *(outarray + ii);
+        }
+
+      if (inputVolume && residualVolume)
+        {
+        double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
+        double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
+
+        for (int ii = 0; ii < numElements; ii++)
+          {
+          if (*(outDPixel + ii) < 1.E-6)
+            {
+            *(residualDPixel + ii) = *(inDPixel + ii);
+            }
+          else
+            {
+            *(residualDPixel + ii) = 0.;
+            }
+          }
         }
 
       break;

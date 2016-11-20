@@ -69,7 +69,7 @@ protected slots:
   void onInclinationChanged(double value);
   void onInclinationErrorChanged(double value);
   void onInclinationFitChanged(bool flag);
-  void onInputVolumeChanged(vtkMRMLNode*);
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onLayerTypeChanged(int value);
   void onMaskActiveToggled(bool active);
   void onModeChanged();
@@ -79,12 +79,13 @@ protected slots:
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
-  void onOutputVolumeChanged(vtkMRMLNode*);
+  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onParamsTableNodeModified(vtkObject* sender);
   void onPositionAngleChanged(double value);
   void onPositionAngleErrorChanged(double value);
   void onPositionAngleFitChanged(bool flag);
   void onRadSepChanged(double value);
+  void onResidualVolumeChanged(vtkMRMLNode* mrmlNode);
   void onRotationVelocityChanged(double value);
   void onRotationVelocityFitChanged(bool flag);
   void onScaleHeightChanged(double value);

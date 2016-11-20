@@ -75,6 +75,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
 
   this->InputVolumeNodeID = NULL;
   this->OutputVolumeNodeID = NULL;
+  this->ResidualVolumeNodeID = NULL;
   this->MaskVolumeNodeID = NULL;
   this->SetMaskActive(true);
   this->OutputSerial = 1;
@@ -129,6 +130,12 @@ vtkMRMLAstroModelingParametersNode::~vtkMRMLAstroModelingParametersNode()
     {
     delete [] this->OutputVolumeNodeID;
     this->OutputVolumeNodeID = NULL;
+    }
+
+  if (this->ResidualVolumeNodeID)
+    {
+    delete [] this->ResidualVolumeNodeID;
+    this->ResidualVolumeNodeID = NULL;
     }
 
   if (this->MaskVolumeNodeID)
@@ -191,6 +198,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "outputVolumeNodeID"))
       {
       this->SetOutputVolumeNodeID(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "ResidualVolumeNodeID"))
+      {
+      this->SetResidualVolumeNodeID(attValue);
       continue;
       }
 
@@ -423,6 +436,11 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " outputVolumeNodeID=\"" << this->OutputVolumeNodeID << "\"";
     }
 
+  if (this->ResidualVolumeNodeID != NULL)
+    {
+    of << indent << " ResidualVolumeNodeID=\"" << this->ResidualVolumeNodeID << "\"";
+    }
+
   if (this->MaskVolumeNodeID != NULL)
     {
     of << indent << " maskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
@@ -479,6 +497,7 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
 
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
+  this->SetResidualVolumeNodeID(node->GetResidualVolumeNodeID());
   this->SetMaskVolumeNodeID(node->GetMaskVolumeNodeID());
   this->SetMaskActive(node->GetMaskActive());
   this->SetMode(node->GetMode());
@@ -1236,6 +1255,7 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
 
   os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
   os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
+  os << "ResidualVolumeNodeID: " << ( (this->ResidualVolumeNodeID) ? this->ResidualVolumeNodeID : "None" ) << "\n";
   os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
   os << "MaskActive: " << this->MaskActive << "\n";
   os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";

@@ -72,6 +72,7 @@ public slots:
                              const char* volumeNodeTwoID);
   void setQuantitative3DView(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
+                             const char* volumeNodeThreeID,
                              double ContourLevel);
   void updateQuantitative3DView(const char* volumeNodeOneID,
                                 const char* volumeNodeTwoID,

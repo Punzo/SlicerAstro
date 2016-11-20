@@ -1478,16 +1478,8 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
 
   if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
     {
-    selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
-    // this should be not needed. However, without it seems that
-    // the connection with the Rendering Display is broken.
-
     d->astroVolumeWidget->setComparative3DViews
         (inputVolume->GetID(), outputVolume->GetID());
-
-    selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
-    selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
-    appLogic->PropagateVolumeSelection();
     }
   else
     {

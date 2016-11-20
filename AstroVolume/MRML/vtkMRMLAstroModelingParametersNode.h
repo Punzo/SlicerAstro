@@ -69,6 +69,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
+  vtkSetStringMacro(ResidualVolumeNodeID);
+  vtkGetStringMacro(ResidualVolumeNodeID);
+
   vtkSetStringMacro(MaskVolumeNodeID);
   vtkGetStringMacro(MaskVolumeNodeID);
 
@@ -244,6 +247,7 @@ protected:
 
   char *InputVolumeNodeID;
   char *OutputVolumeNodeID;
+  char *ResidualVolumeNodeID;
   char *MaskVolumeNodeID;
   char *Mode;
 

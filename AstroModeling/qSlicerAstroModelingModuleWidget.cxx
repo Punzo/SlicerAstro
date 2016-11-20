@@ -85,6 +85,8 @@
 #include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLChartNode.h>
 #include <vtkMRMLChartViewNode.h>
+#include <vtkMRMLLayoutLogic.h>
+#include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
@@ -196,6 +198,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 
   QObject::connect(OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
+
+  QObject::connect(ResidualVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onResidualVolumeChanged(vtkMRMLNode*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
@@ -479,6 +484,7 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     {
     d->OutputVolumeNodeSelector->setEnabled(false);
     d->ParametersNodeComboBox->setEnabled(false);
+    d->ResidualVolumeNodeSelector->setEnabled(false);
     }
   else
     {
@@ -682,7 +688,7 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
       return false;
       }
     std::string name(activeVolumeNode->GetName());
-    name += "Copy_mask";
+    name += "Copy_mask" + IntToString(d->parametersNode->GetOutputSerial());
     labelMapNode = astroVolumelogic->CreateAndAddLabelVolume(this->mrmlScene(), activeVolumeNode, name.c_str());
     }
   else
@@ -1210,11 +1216,37 @@ void qSlicerAstroModelingModuleWidget::onParamsTableNodeModified(vtkObject *send
   colChartViews->InitTraversal();
   vtkMRMLChartViewNode* chartViewNode = vtkMRMLChartViewNode::SafeDownCast
           (colChartViews->GetNextItemAsObject());
+
   if (!chartViewNode)
     {
-    qCritical()<<"qSlicerAstroModelingModuleWidget::"
-                 "onParamsTableNodeModified : chartNodeView invalid!"<<endl;
-    return;
+      qSlicerApplication* app = qSlicerApplication::application();
+    if(!app)
+      {
+      qCritical() << "qSlicerAstroModelingModuleWidget::onParamsTableNodeModified : "
+                     "qSlicerApplication not found!";
+      return;
+      }
+
+    app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(24);
+    colChartViews = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLChartViewNode"));
+
+    if (!colChartViews)
+      {
+      qCritical()<<"qSlicerAstroModelingModuleWidget::"
+                   "onParamsTableNodeModified : colChartViews invalid!"<<endl;
+      return;
+      }
+
+    colChartViews->InitTraversal();
+    chartViewNode = vtkMRMLChartViewNode::SafeDownCast
+            (colChartViews->GetNextItemAsObject());
+    if (!chartViewNode)
+      {
+      qCritical()<<"qSlicerAstroModelingModuleWidget::"
+                   "onParamsTableNodeModified : chartNodeView invalid!"<<endl;
+      return;
+      }
     }
 
   std::string chartVRotID;
@@ -1423,6 +1455,19 @@ void qSlicerAstroModelingModuleWidget::onRadSepChanged(double value)
 }
 
 //--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onResidualVolumeChanged(vtkMRMLNode *mrmlNode)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode || !mrmlNode)
+    {
+    return;
+    }
+
+  d->parametersNode->SetResidualVolumeNodeID(mrmlNode->GetID());
+}
+
+//--------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onRotationVelocityChanged(double value)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -1494,6 +1539,14 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   if (outputVolumeNode)
     {
     d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
+    }
+
+  char *residualVolumeNodeID = d->parametersNode->GetResidualVolumeNodeID();
+  vtkMRMLAstroVolumeNode *residualVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(residualVolumeNodeID));
+  if (residualVolumeNode)
+    {
+    d->ResidualVolumeNodeSelector->setCurrentNode(residualVolumeNode);
     }
 
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
@@ -1651,8 +1704,6 @@ void qSlicerAstroModelingModuleWidget::onApply()
 
   int serial = d->parametersNode->GetOutputSerial();
   outSS<<"_"<< IntToString(serial);
-  serial++;
-  d->parametersNode->SetOutputSerial(serial);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
@@ -1708,6 +1759,61 @@ void qSlicerAstroModelingModuleWidget::onApply()
   inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
+
+  // Create Residual Volume
+  vtkMRMLAstroVolumeNode *residualVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
+
+  if (!residualVolume)
+    {
+    residualVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+            GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+    }
+
+  std::ostringstream residualSS;
+  residualSS << inputVolume->GetName() << "_residual_"<<
+             IntToString(serial);
+  serial++;
+  d->parametersNode->SetOutputSerial(serial);
+
+  // Check residual volume
+  if (!strcmp(inputVolume->GetID(), residualVolume->GetID()) ||
+     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
+      StringToInt(residualVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
+     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
+      StringToInt(residualVolume->GetAttribute("SlicerAstro.NAXIS2"))) ||
+     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3")) !=
+      StringToInt(residualVolume->GetAttribute("SlicerAstro.NAXIS3"))))
+    {
+
+    residualVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, residualSS.str().c_str()));
+
+    residualVolume->SetName(residualSS.str().c_str());
+    d->parametersNode->SetResidualVolumeNodeID(residualVolume->GetID());
+
+    int ndnodes = residualVolume->GetNumberOfDisplayNodes();
+    for (int i=0; i<ndnodes; i++)
+      {
+      vtkMRMLVolumeRenderingDisplayNode *dnode =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+          residualVolume->GetNthDisplayNode(i));
+      if (dnode)
+        {
+        residualVolume->RemoveNthDisplayNodeID(i);
+        }
+      }
+    }
+  else
+    {
+    residualVolume->SetName(residualSS.str().c_str());
+    d->parametersNode->SetResidualVolumeNodeID(residualVolume->GetID());
+    }
+
+  inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
+  residualVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
+  residualVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
   // Check if there are segment and feed the mask to Bbarolo
   if (d->parametersNode->GetMaskActive())
@@ -1895,20 +2001,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : appLogic not found!";
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : selectionNode not found!";
-    return;
-    }
-
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
@@ -1936,6 +2028,16 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     return;
     }
 
+  vtkMRMLAstroVolumeNode *residualVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
+  if(!residualVolume)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : residualVolume not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
   if (d->parametersNode->GetFitSuccess())
     {
     outputVolume->UpdateNoiseAttributes();
@@ -1955,16 +2057,10 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       return;
       }
 
-    selectionNode->SetReferenceActiveVolumeID(outputVolume->GetID());
-    // this should be not needed. However, without it seems that
-    // the connection with the Rendering Display is broken.
-
     d->astroVolumeWidget->setQuantitative3DView
-        (inputVolume->GetID(), outputVolume->GetID(), d->parametersNode->GetContourLevel());
+        (inputVolume->GetID(), outputVolume->GetID(),
+         residualVolume->GetID(), d->parametersNode->GetContourLevel());
 
-    selectionNode->SetReferenceActiveVolumeID(inputVolume->GetID());
-    selectionNode->SetReferenceSecondaryVolumeID(outputVolume->GetID());
-    appLogic->PropagateVolumeSelection();
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
     d->OutputCollapsibleButton->setCollapsed(false);
@@ -1980,6 +2076,17 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       return;
       }
+
+    vtkMRMLAstroVolumeNode *residualVolume =
+      vtkMRMLAstroVolumeNode::SafeDownCast
+        (this->mrmlScene()->GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
+
+    if(!residualVolume)
+      {
+      return;
+      }
+
+    scene->RemoveNode(residualVolume);
 
     vtkMRMLAstroLabelMapVolumeNode *maskVolume =
       vtkMRMLAstroLabelMapVolumeNode::SafeDownCast

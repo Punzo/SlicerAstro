@@ -150,6 +150,43 @@
         </property>
        </widget>
       </item>
+      <item row="2" column="0">
+       <widget class="QLabel" name="ResidualLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Residual Volume:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="2" column="1">
+       <widget class="qMRMLNodeComboBox" name="ResidualVolumeNodeSelector">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
+        </property>
+        <property name="nodeTypes">
+         <stringlist>
+          <string>vtkMRMLAstroVolumeNode</string>
+         </stringlist>
+        </property>
+        <property name="addEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="editEnabled">
+         <bool>false</bool>
+        </property>
+        <property name="renameEnabled">
+         <bool>true</bool>
+        </property>
+        <property name="noneDisplay">
+         <string>None</string>
+        </property>
+       </widget>
+      </item>
      </layout>
     </widget>
    </item>
@@ -3230,22 +3267,6 @@
   <connection>
    <sender>qSlicerAstroModelingModuleWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>OutputVolumeNodeSelector</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>236</x>
-     <y>577</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>291</x>
-     <y>95</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>qSlicerAstroModelingModuleWidget</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>ParametersNodeComboBox</receiver>
    <slot>setMRMLScene(vtkMRMLScene*)</slot>
    <hints>
@@ -3272,22 +3293,6 @@
     <hint type="destinationlabel">
      <x>291</x>
      <y>68</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>OutputVolumeNodeSelector</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>291</x>
-     <y>95</y>
     </hint>
    </hints>
   </connection>
@@ -3320,6 +3325,86 @@
     <hint type="destinationlabel">
      <x>50</x>
      <y>95</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>qSlicerAstroModelingModuleWidget</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>OutputVolumeNodeSelector</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>236</x>
+     <y>577</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>291</x>
+     <y>95</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>OutputVolumeNodeSelector</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>279</x>
+     <y>12</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>291</x>
+     <y>95</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ResidualLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>279</x>
+     <y>12</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>55</x>
+     <y>62</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ResidualVolumeNodeSelector</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>279</x>
+     <y>12</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>291</x>
+     <y>62</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>qSlicerAstroModelingModuleWidget</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>ResidualVolumeNodeSelector</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>236</x>
+     <y>577</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>291</x>
+     <y>62</y>
     </hint>
    </hints>
   </connection>
