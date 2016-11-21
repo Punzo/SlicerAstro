@@ -47,7 +47,7 @@ public:
 
   int FitModel(vtkMRMLAstroModelingParametersNode *pnode);
 
-  int UpdateTable(vtkMRMLAstroModelingParametersNode *pnode);
+  int UpdateTableFromModel(vtkMRMLAstroModelingParametersNode *pnode);
 
   int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode);
 

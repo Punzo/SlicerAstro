@@ -308,6 +308,14 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
 
   string file = inputVolume->GetName();
+
+  if (!this->Internal->par || !this->Internal->head)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+                  " Internal pointers not defined!");
+    return 0;
+    }
+
   this->Internal->par->setImageFile(file);
   string outputFolder = this->GetMRMLScene()->GetCacheManager()->GetRemoteCacheDirectory();
   outputFolder += "/";
@@ -603,6 +611,13 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
     {
     case VTK_FLOAT:
       {
+      if (!this->Internal->cubeF)
+        {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+                      " Internal pointers not defined!");
+        return 0;
+        }
+
       this->Internal->cubeF->saveParam(*this->Internal->par);
       this->Internal->cubeF->saveHead(*this->Internal->head);
       this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
@@ -789,6 +804,13 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       }
     case VTK_DOUBLE:
       {
+      if (!this->Internal->cubeD)
+        {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+                      " Internal pointers not defined!");
+        return 0;
+        }
+
       this->Internal->cubeD->saveParam(*this->Internal->par);
       this->Internal->cubeD->saveHead(*this->Internal->head);
       this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
@@ -981,7 +1003,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::UpdateTable(vtkMRMLAstroModelingParametersNode *pnode)
+int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParametersNode *pnode)
 {
   vtkMRMLTableNode* paramsTableNode = pnode->GetParamsTableNode();
   if (!paramsTableNode)
@@ -1277,6 +1299,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       return 0;
       }
 
+    if (!this->Internal->par || !this->Internal->head)
+      {
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " Internal pointers not defined!");
+      return 0;
+      }
+
     string file = inputVolume->GetName();
     this->Internal->par->setImageFile(file);
     string outputFolder = this->GetMRMLScene()->GetCacheManager()->GetRemoteCacheDirectory();
@@ -1540,6 +1569,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       {
       case VTK_FLOAT:
         {
+        if (!this->Internal->cubeF)
+          {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                        " Internal pointers not defined!");
+          return 0;
+          }
+
         this->Internal->cubeF->saveParam(*this->Internal->par);
         this->Internal->cubeF->saveHead(*this->Internal->head);
         this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
@@ -1564,6 +1600,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
       case VTK_DOUBLE:
         {
+        if (!this->Internal->cubeD)
+          {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                        " Internal pointers not defined!");
+          return 0;
+          }
+
         this->Internal->cubeD->saveParam(*this->Internal->par);
         this->Internal->cubeD->saveHead(*this->Internal->head);
         this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
@@ -1652,6 +1695,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->fitF->Outrings()->nv.push_back(0);
         }
 
+      this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
       float *ringreg = this->Internal->fitF->getFinalRingsRegion();
       this->Internal->modF = this->Internal->fitF->getModel();
       float *outarray = this->Internal->modF->Out()->Array();
@@ -1790,6 +1834,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->fitD->Outrings()->nv.push_back(0);
         }
 
+      this->Internal->fitD->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
       double *ringreg = this->Internal->fitD->getFinalRingsRegion();
       this->Internal->modD = this->Internal->fitD->getModel();
       double *outarray = this->Internal->modD->Out()->Array();

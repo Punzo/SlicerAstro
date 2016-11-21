@@ -1258,6 +1258,9 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
+  volumeTwo->SetDisplayVisibility(0);
+  volumeOne->SetDisplayVisibility(0);
+
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
@@ -1411,8 +1414,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     cameraNodeTwo->SetFocalPoint(Origin);
     }
 
-  volumeOne->SetDisplayVisibility(1);
   volumeTwo->SetDisplayVisibility(1);
+  volumeOne->SetDisplayVisibility(1);
 
   appLogic->PropagateVolumeSelection();
 
@@ -1562,6 +1565,10 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
+  volumeTwo->SetDisplayVisibility(0);
+  volumeThree->SetDisplayVisibility(0);
+  volumeOne->SetDisplayVisibility(0);
+
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
@@ -1706,9 +1713,9 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     cameraNode->SetFocalPoint(Origin);
     }
 
-  volumeOne->SetDisplayVisibility(1);
   volumeTwo->SetDisplayVisibility(1);
   volumeThree->SetDisplayVisibility(1);
+  volumeOne->SetDisplayVisibility(1);
 
   appLogic->PropagateVolumeSelection();
 

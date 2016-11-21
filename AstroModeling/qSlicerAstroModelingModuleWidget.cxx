@@ -1772,7 +1772,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     }
 
   std::ostringstream residualSS;
-  residualSS << inputVolume->GetName() << "_residual_"<<
+  residualSS << inputVolume->GetName() << "_maskedByModel_"<<
              IntToString(serial);
   serial++;
   d->parametersNode->SetOutputSerial(serial);
@@ -2051,7 +2051,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       return;
       }
 
-    if (!logic->UpdateTable(d->parametersNode))
+    if (!logic->UpdateTableFromModel(d->parametersNode))
       {
       qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : UpdateTable error!";
       return;
@@ -2064,7 +2064,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
     d->OutputCollapsibleButton->setCollapsed(false);
-
     }
    else
     {
