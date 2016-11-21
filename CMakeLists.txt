@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.4)
 
-find_package(Slicer COMPONENTS ConfigurePrerequisites)
-
 project(SlicerAstro)
 
 #-----------------------------------------------------------------------------
@@ -23,6 +21,8 @@ set(SUPERBUILD_TOPLEVEL_PROJECT inner)
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 mark_as_superbuild(Slicer_DIR)
+
+find_package(Subversion)
 
 find_package(Git REQUIRED)
 mark_as_superbuild(GIT_EXECUTABLE)
