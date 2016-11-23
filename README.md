@@ -9,7 +9,7 @@ In this context, visualization is an essential tool for enabling qualitative and
 * [x] 1) proper visualization of astronomical data cubes: using data astronomical data formats, such as FITS, and astronomical world coordinates system (WCS);
 * [ ] 2) generation of Histogram, flux density profiles, moment maps and position-velocity diagrams linked with the 3-D view;
 * [x] 3) enabling interactive smoothing in all three dimensions;
-* [ ] 4) interactive HI data modeling coupled to visualization;
+* [x] 4) interactive HI data modeling coupled to visualization;
 * [ ] 5) introduction of the SAMP protocol to enable interoperability with Topcat, and other VO tools and catalogs.
 
 
