@@ -164,7 +164,7 @@
          <bool>false</bool>
         </property>
         <property name="toolTip">
-         <string/>
+         <string>Click one of the presets to set its 3-D color and opacity transfer functions to the active volume. Note: clicking the preset already in selection will not apply any modificaton. </string>
         </property>
        </widget>
       </item>
