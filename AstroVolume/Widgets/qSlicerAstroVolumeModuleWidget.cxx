@@ -1520,13 +1520,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
     SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-    SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
-    SegmentationDisplayNode->SetSegmentVisibility(SegmentTwoID, true);
-    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentOneID, false);
-    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentTwoID, true);
-    SegmentationDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.5);
-    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentOneID, true);
-    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentTwoID, true);
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentOneID, false);
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentTwoID, false);
     }

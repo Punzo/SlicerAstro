@@ -110,7 +110,7 @@ QStringList qSlicerAstroModelingModule::categories()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroModelingModule::dependencies()const
 {
-  return QStringList() << "AstroVolume";
+  return QStringList() << "AstroVolume" << "Segmentations" ;
 }
 
 //-----------------------------------------------------------------------------

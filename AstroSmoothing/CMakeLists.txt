@@ -19,7 +19,10 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/Logic
   ${qSlicerAstroVolumeModule_INCLUDE_DIRS}
   ${qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS}
+  ${qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS}
   ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
+  ${vtkSlicerSegmentationsModuleLogic_INCLUDES_DIRS}
+  ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
   ${WCSLIB_INCLUDE_DIR}
   )
 

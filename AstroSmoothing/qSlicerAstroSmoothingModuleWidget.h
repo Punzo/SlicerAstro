@@ -63,6 +63,7 @@ protected slots:
   void onEndCloseEvent();
   void onCurrentFilterChanged(int index);
   void onKChanged(double value);
+  void onSegmentEditorNodeModified(vtkObject* sender);
   void onTimeStepChanged(double value);
   void onParameterXChanged(double value);
   void onParameterYChanged(double value);

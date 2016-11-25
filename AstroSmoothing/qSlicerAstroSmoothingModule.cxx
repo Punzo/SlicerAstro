@@ -111,7 +111,7 @@ QStringList qSlicerAstroSmoothingModule::categories()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroSmoothingModule::dependencies()const
 {
-  return QStringList() << "AstroVolume";
+  return QStringList() << "AstroVolume" << "Segmentations" ;
 }
 
 //-----------------------------------------------------------------------------

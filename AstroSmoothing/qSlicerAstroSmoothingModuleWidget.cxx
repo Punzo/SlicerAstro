@@ -53,6 +53,7 @@
 #include <vtkSlicerAstroSmoothingLogic.h>
 
 // qMRML includes
+#include <qMRMLSegmentsTableView.h>
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
@@ -71,6 +72,8 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLSegmentationNode.h>
+#include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
@@ -93,6 +96,7 @@ public:
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
+  vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
   vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
   vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
   vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
@@ -212,6 +216,9 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 
   QObject::connect(AutoRunCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onAutoRunChanged(bool)));
+
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
 
   progressBar->hide();
@@ -335,6 +342,27 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     d->OutputVolumeNodeSelector->setEnabled(false);
     d->ParametersNodeComboBox->setEnabled(false);
     }
+
+  std::string segmentEditorSingletonTag = "SegmentEditor";
+  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
+    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
+
+  if (!segmentEditorNodeSingleton)
+    {
+    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
+    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
+    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
+      this->mrmlScene()->AddNode(d->segmentEditorNode));
+    }
+  else
+    {
+    d->segmentEditorNode = segmentEditorNodeSingleton;
+  }
+
+  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+
+  this->onSegmentEditorNodeModified(d->segmentEditorNode);
 }
 
 //-----------------------------------------------------------------------------
@@ -1110,6 +1138,44 @@ void qSlicerAstroSmoothingModuleWidget::onKChanged(double value)
   if (d->parametersNode->GetAutoRun() && d->parametersNode->GetStatus() == 0)
     {
     this->onApply();
+  }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onSegmentEditorNodeModified(vtkObject *sender)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!sender)
+    {
+    return;
+    }
+
+  vtkMRMLSegmentEditorNode *segmentEditorNode =
+    vtkMRMLSegmentEditorNode::SafeDownCast(sender);
+  if (!segmentEditorNode)
+    {
+    return;
+    }
+
+  vtkMRMLSegmentationNode* segmentationNode =
+    segmentEditorNode->GetSegmentationNode();
+  if (!segmentationNode)
+    {
+    return;
+    }
+
+  vtkMRMLSegmentationNode* segmentationNodeTable = vtkMRMLSegmentationNode::SafeDownCast(
+    d->SegmentsTableView->segmentationNode());
+  if (!segmentationNodeTable)
+    {
+    d->SegmentsTableView->setSegmentationNode(segmentationNode);
+    return;
+    }
+
+  if (segmentationNode != segmentationNodeTable)
+    {
+    d->SegmentsTableView->setSegmentationNode(segmentationNode);
     }
 }
 
