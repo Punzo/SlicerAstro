@@ -358,6 +358,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->UpdateNoiseAttributes();
       }
+    volNode->SetAttribute("SlicerAstro.RenderingInitialized","0");
     }
   else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
     {

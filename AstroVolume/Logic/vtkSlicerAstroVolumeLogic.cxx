@@ -39,7 +39,6 @@
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
-
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
 #include <vtkMRMLViewNode.h>

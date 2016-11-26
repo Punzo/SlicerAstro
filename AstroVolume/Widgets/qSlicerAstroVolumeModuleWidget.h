@@ -66,6 +66,7 @@ public:
   Q_INVOKABLE qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget()const;
 
 public slots:
+  void clearPresets();
   void onCurrentQualityControlChanged(int);
   void onVisibilityChanged(bool visibility);
   void setComparative3DViews(const char* volumeNodeOneID,
@@ -85,7 +86,6 @@ public slots:
   void stopRockView();
 
 protected slots:
-  void clearPresets();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
   void onEditSelectedSegment();

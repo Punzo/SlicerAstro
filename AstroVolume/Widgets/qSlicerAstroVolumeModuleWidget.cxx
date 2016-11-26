@@ -540,8 +540,6 @@ void qSlicerAstroVolumeModuleWidget::setup()
 
   d->setupUi(this);
 
-  this->qvtkDisconnectAll();
-
   if(d->volumeRenderingWidget)
     {
     vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
@@ -549,8 +547,8 @@ void qSlicerAstroVolumeModuleWidget::setup()
 
     if(displayNode)
       {
-      this->qvtkConnect(displayNode, vtkCommand::ModifiedEvent,
-                  this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+      this->qvtkReconnect(displayNode, vtkCommand::ModifiedEvent,
+                    this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
       }
     }
 }
@@ -629,10 +627,19 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     return;
     }
 
-  if (renderingActive)
+  if (renderingActive && astroVolumeNode)
     {
     d->RenderingFrame->setEnabled(true);
     d->RenderingFrame->setCollapsed(false);
+
+    int renderingInit = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.RenderingInitialized"));
+
+    if (renderingInit < 1)
+      {
+      d->VisibilityCheckBox->setChecked(false);
+      }
+
+    this->clearPresets();
 
     if (this->reactiveRenderingConnection)
       {
@@ -645,11 +652,20 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       QObject::connect(d->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                        d->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
 
-      d->volumeRenderingWidget->setMRMLVolumeNode(astroVolumeNode);
-      this->resetOffset(astroVolumeNode);
-      this->setPresets(astroVolumeNode);
-      this->clearPresets();
       }
+    d->volumeRenderingWidget->setMRMLVolumeNode(astroVolumeNode);
+    this->resetOffset(astroVolumeNode);
+    this->setPresets(astroVolumeNode);
+
+
+    if (renderingInit < 1)
+      {
+      d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
+      d->PresetsNodeComboBox->setCurrentNodeIndex(0);
+      astroVolumeNode->SetAttribute("SlicerAstro.RenderingInitialized", "1");
+      }
+
+    d->VisibilityCheckBox->setChecked(true);
     }
   else
     {
@@ -740,7 +756,7 @@ void qSlicerAstroVolumeModuleWidget::clearPresets()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-    d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
+  d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
 }
 
 //---------------------------------------------------------------------------
@@ -1315,10 +1331,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
-  d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-  d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
-
   selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
 
   n = volumeTwo->GetNumberOfDisplayNodes();
@@ -1607,9 +1619,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
   this->setPresets(volumeTwo);
 
-  d->PresetsNodeComboBox->setCurrentNodeIndex(3);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
-
   selectionNode->SetReferenceActiveVolumeID(volumeThree->GetID());
 
   n = volumeThree->GetNumberOfDisplayNodes();
@@ -1635,9 +1644,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
       }
     }
   this->setPresets(volumeThree);
-
-  d->PresetsNodeComboBox->setCurrentNodeIndex(3);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
 
@@ -1671,9 +1677,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
                    " PresetsNodeComboBox not found!"<<endl;
     return;
     }
-
-  d->PresetsNodeComboBox->setCurrentNodeIndex(3);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
 
