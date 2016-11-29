@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>473</width>
+    <width>554</width>
     <height>1156</height>
    </rect>
   </property>
@@ -1760,10 +1760,10 @@
            <double>5.000000000000000</double>
           </property>
           <property name="pageStep">
-           <double>30.000000000000000</double>
+           <double>100.000000000000000</double>
           </property>
           <property name="maximum">
-           <double>2000.000000000000000</double>
+           <double>10000.000000000000000</double>
           </property>
          </widget>
         </item>
