@@ -166,6 +166,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   virtual std::string GetDisplayStringFromValueY(const double world);
   virtual std::string GetDisplayStringFromValueZ(const double world);
 
+  virtual std::string AddVelocityInfoToDisplayStringZ(std::string value);
 
   ///
   /// \brief GetAxisDisplayStringFromValue, same as

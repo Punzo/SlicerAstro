@@ -1436,6 +1436,8 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
     return value.c_str();
     }
 
+  value = node->GetDisplayStringFromValue(world);
+
   std::string firstPrefix;
   std::string secondPrefix;
   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
@@ -1477,9 +1479,9 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
       }
 
     value = value + displayValueString + secondPrefix;
-    return value;
     }
-  return node->GetDisplayStringFromValue(world);
+
+  return value;
 }
 
 //----------------------------------------------------------------------------
@@ -1519,6 +1521,16 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const doub
     return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
     }
   return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::string value)
+{
+  if (!this->SpaceQuantities->GetValue(2).compare("velocity"))
+    {
+    value = value + " (" + this->GetWCSStruct()->ctype[2] + ")";
+    }
+  return value;
 }
 
 //----------------------------------------------------------------------------

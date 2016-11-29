@@ -108,33 +108,18 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
           worldX = displayNode.GetDisplayStringFromValueX(world[0])
           worldY = displayNode.GetDisplayStringFromValueY(world[1])
           worldZ = displayNode.GetDisplayStringFromValueZ(world[2])
-          printVel = 0
-          stringArray = displayNode.GetSpaceQuantities()
-          if stringArray.GetValue(2) == "velocity":
-            printVel = 1
-            velKey = volumeNode.GetAttribute("SlicerAstro.CTYPE3")
+          worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
           break
 
     if CoordinateSystemName == "WCS":
-      if printVel:
-        return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} ({velKey}) {orient: >4s}" \
-               .format(layoutName=sliceNode.GetLayoutName(),
-               sys = CoordinateSystemName,
-               worldX=worldX,
-               worldY=worldY,
-               worldZ=worldZ,
-               velKey = velKey,
-               orient=sliceNode.GetOrientation(),
-               )
-      else:
-        return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
-                .format(layoutName=sliceNode.GetLayoutName(),
-                sys = CoordinateSystemName,
-                worldX=worldX,
-                worldY=worldY,
-                worldZ=worldZ,
-                orient=sliceNode.GetOrientation(),
-                )
+      return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
+              .format(layoutName=sliceNode.GetLayoutName(),
+              sys = CoordinateSystemName,
+              worldX=worldX,
+              worldY=worldY,
+              worldZ=worldZ,
+              orient=sliceNode.GetOrientation(),
+              )
     else:
       return "  {layoutName: <8s} WCS in View {orient: >2s} not found" \
         .format(layoutName=sliceNode.GetLayoutName(),

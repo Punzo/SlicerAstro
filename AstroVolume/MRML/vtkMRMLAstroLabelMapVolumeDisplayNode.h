@@ -168,6 +168,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   virtual std::string GetDisplayStringFromValueY(const double world);
   virtual std::string GetDisplayStringFromValueZ(const double world);
 
+  virtual std::string AddVelocityInfoToDisplayStringZ(std::string value);
+
   ///
   /// \brief GetAxisDisplayStringFromValue, same as GetDisplayStringFromValue but for display on axis
   /// \param world

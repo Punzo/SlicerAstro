@@ -1418,6 +1418,8 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     return value.c_str();
     }
 
+  value = node->GetDisplayStringFromValue(world);
+
   std::string firstPrefix;
   std::string secondPrefix;
   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
@@ -1437,7 +1439,6 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     std::string displayValueString;
     std::stringstream strstream;
     strstream.setf(ios::fixed,ios::floatfield);
-
     displayValue = node->GetDisplayValueFromValue(world);
     fractpart = modf(displayValue, &intpart);
     value = DoubleToString(intpart) + node->GetSuffix() + " ";
@@ -1446,7 +1447,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     displayValueString = DoubleToString(fabs(intpart));
     if(intpart < 10.)
       {
-       displayValueString = " " + displayValueString;
+      displayValueString = " " + displayValueString;
       }
     value = value + displayValueString + firstPrefix;
     displayValueString = "";
@@ -1459,9 +1460,9 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
       }
 
     value = value + displayValueString + secondPrefix;
-    return value.c_str();
     }
-  return node->GetDisplayStringFromValue(world);
+
+  return value;
 }
 
 //----------------------------------------------------------------------------
@@ -1501,6 +1502,16 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(co
     return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
     }
   return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::string value)
+{
+  if (!this->SpaceQuantities->GetValue(2).compare("velocity"))
+    {
+    value = value + " (" + this->GetWCSStruct()->ctype[2] + ")";
+    }
+  return value;
 }
 
 
