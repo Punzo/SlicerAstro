@@ -327,12 +327,12 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       labdisNode->SetSpace("IJK");
       }
-    if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ") ||
-       !strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "Hz") ||
-       !strncmp(reader->GetHeaderValue("SlicerAstro.CTYPE3"), "FREQ", 4))
+
+    if(!strcmp(disNode->GetWCSStruct()->ctype[2] , "FREQ"))
       {
-      labdisNode->SetSpaceQuantity(2,"frequency");
+      disNode->SetSpaceQuantity(2,"frequency");
       }
+
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), ""))
       {
       labvolNode->SetAttribute("SlicerAstro.BUNIT", "");
