@@ -1398,12 +1398,20 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
   std::string labelValue = "Unknown";
   int labelIndex = int(this->GetVolumeNode()->GetImageData()->
                        GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0));
-  vtkMRMLColorNode *colornode = this->GetColorNode();
-  if(colornode)
+
+  if (labelIndex < 0)
     {
-    labelValue = colornode->GetColorName(labelIndex);
+    labelValue = "0";
     }
-  labelValue += "(" + IntToString(labelIndex) + ")";
+  else
+    {
+    vtkMRMLColorNode *colornode = this->GetColorNode();
+    if(colornode)
+      {
+      labelValue = colornode->GetColorName(labelIndex);
+      }
+    labelValue += "(" + IntToString(labelIndex) + ")";
+    }
 
   return labelValue;
 }

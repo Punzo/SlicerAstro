@@ -138,8 +138,5 @@ def generateIJKPixelDescriptionAstro(self, ijk, slicerLayerLogic):
 def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
   volumeNode = slicerLayerLogic.GetVolumeNode()
   if volumeNode:
-    if volumeNode.IsA("vtkMRMLAstroVolumeNode"):
-      displayNode = volumeNode.GetDisplayNode()
-      return "<b>%s</b>" % displayNode.GetPixelString(ijk) if displayNode else ""
-    else:
-      return "<b>%s</b>" % self.getPixelString(volumeNode,ijk) if volumeNode else ""
+    displayNode = volumeNode.GetDisplayNode()
+    return "<b>%s</b>" % displayNode.GetPixelString(ijk) if displayNode else ""
