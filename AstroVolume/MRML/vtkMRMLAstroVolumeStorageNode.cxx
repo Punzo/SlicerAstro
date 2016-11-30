@@ -252,25 +252,11 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       disNode->SetSpace("IJK");
       }
 
-    if(!strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "HZ") ||
-       !strcmp(reader->GetHeaderValue("SlicerAstro.CUNIT3"), "Hz") ||
-       !strncmp(reader->GetHeaderValue("SlicerAstro.CTYPE3"), "FREQ", 4))
+    if(!strcmp(disNode->GetWCSStruct()->ctype[2] , "FREQ"))
       {
-      struct wcsprm *WCS = disNode->GetWCSStruct();
-      int index = 2;
-      char ctypeS[9];
-      strcpy(ctypeS, "VOPT-???");
-      int WCSStatus;
-
-      if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
-        {
-        vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
-                      "Message from "<<WCS->err->function<<
-                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                      ": \n"<<WCS->err->msg<<"\n");
-        disNode->SetSpaceQuantity(2,"frequency");
-        }
+      disNode->SetSpaceQuantity(2,"frequency");
       }
+
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
       volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");

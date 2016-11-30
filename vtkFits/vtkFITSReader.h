@@ -167,7 +167,10 @@ protected:
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo);
 
   bool AllocateHeader();
+  bool FixGipsyHeader();
   bool AllocateWCS();
+
+  bool FixGipsyHeaderOn;
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.
