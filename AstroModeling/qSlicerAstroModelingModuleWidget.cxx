@@ -2071,21 +2071,12 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     inputVolume->SetDisplayVisibility(1);
 
+    scene->RemoveNode(residualVolume);
+
     if (!d->parametersNode->GetMaskActive())
       {
       return;
       }
-
-    vtkMRMLAstroVolumeNode *residualVolume =
-      vtkMRMLAstroVolumeNode::SafeDownCast
-        (this->mrmlScene()->GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
-
-    if(!residualVolume)
-      {
-      return;
-      }
-
-    scene->RemoveNode(residualVolume);
 
     vtkMRMLAstroLabelMapVolumeNode *maskVolume =
       vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
