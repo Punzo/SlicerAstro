@@ -328,9 +328,15 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   if (!strcmp(pnode->GetMode(), "Manual"))
     {
 
-    if (pnode->GetNumberOfRings() > 0)
+    if (pnode->GetNumberOfRings() > 1)
       {
       this->Internal->par->setNRADII(pnode->GetNumberOfRings());
+      }
+    else if (pnode->GetNumberOfRings() == 1)
+      {
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+                      " Barolo does not accepet a number of Rings equal to 1!");
+      return 0;
       }
     else
       {
