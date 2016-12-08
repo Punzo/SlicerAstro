@@ -29,6 +29,8 @@
 // MRML nodes includes
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLAstroModelingParametersNode.h>
+#include <vtkMRMLAstroSmoothingParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
@@ -39,8 +41,8 @@
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
-#include <vtkMRMLUnitNode.h>
 #include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
@@ -494,6 +496,8 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroModelingParametersNode>().GetPointer());
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroSmoothingParametersNode>().GetPointer());
 }
 
 //----------------------------------------------------------------------------
