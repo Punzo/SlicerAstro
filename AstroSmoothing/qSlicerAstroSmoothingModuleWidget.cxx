@@ -1432,10 +1432,10 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   // Check Input volume
   if (n != 3)
     {
-    QString message = QString("model fitting is  available only"
-                                " for datacube with dimensionality 3 (NAXIS = 3).");
+    QString message = QString("Filtering is available only"
+                              " for datacube with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run Bbarolo"), message);
+    QMessageBox::warning(NULL, tr("Failed to run the filter"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
