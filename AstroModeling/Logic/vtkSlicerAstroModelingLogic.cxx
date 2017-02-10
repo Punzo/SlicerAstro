@@ -1719,6 +1719,24 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         }
 
+
+
+      if (this->Internal->totflux_data < 1.E-6)
+        {
+        MomentMap<float> *totalmap = new MomentMap<float>;
+        totalmap->input(this->Internal->cubeF);
+        totalmap->SumMap(true);
+
+        for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+          {
+          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+            {
+            this->Internal->totflux_data += totalmap->Array(ii);
+            }
+          }
+          delete totalmap;
+        }
+
       if (this->Internal->totflux_data < 1.E-6)
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : this->Internal->totflux_data is zero!");
@@ -1845,6 +1863,22 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->modD = this->Internal->fitD->getModel();
       double *outarray = this->Internal->modD->Out()->Array();
       double totflux_model = 0.;
+
+      if (this->Internal->totflux_data < 1.E-6)
+        {
+        MomentMap<double> *totalmap = new MomentMap<double>;
+        totalmap->input(this->Internal->cubeD);
+        totalmap->SumMap(true);
+
+        for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+          {
+          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+            {
+            this->Internal->totflux_data += totalmap->Array(ii);
+            }
+          }
+          delete totalmap;
+        }
 
       // Calculate total flux of model within last ring
       for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
