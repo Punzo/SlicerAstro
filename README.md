@@ -1,5 +1,5 @@
 # SlicerAstro
-Astronomy (HI) extension for [3-D Slicer](https://www.slicer.org/)
+Astronomy (HI) extension for [3DSlicer](https://www.slicer.org/)
 
 Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automated processing using the full 3-D information (two positional dimensions and one spectral dimension) to find and characterize HI objects is imperative. 
 
