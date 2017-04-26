@@ -29,8 +29,8 @@ if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT 
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    GIT_REPOSITORY "${git_protocol}://github.com/healpy/cfitsio"
-    GIT_TAG "1f660bd88b464c8339a0f684a2d366b253184488"
+    GIT_REPOSITORY "${git_protocol}://github.com/Punzo/CFITSIO.git"
+    GIT_TAG "08070fcc369f6968464789ef54fb332370b4c23d"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS

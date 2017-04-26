@@ -678,7 +678,6 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         pnode->SetColumnDensity(StringToDouble(this->Internal->par->getDENS().c_str()));
         pnode->SetCloudsColumnDensity((double) this->Internal->par->getCDENS());
         pnode->SetNumberOfClounds(this->Internal->par->getNV());
-
         pnode->EndModify(wasModifying);
 
         bool success = this->Internal->fitF->galfit(pnode->GetStatusPointer());
