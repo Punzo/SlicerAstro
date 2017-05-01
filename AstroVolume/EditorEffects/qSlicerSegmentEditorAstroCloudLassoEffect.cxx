@@ -564,7 +564,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
   // Notify editor about changes
   modifierLabelmap->Modified();
 
-  q->modifySelectedSegmentByLabelmap(modifierLabelmap, modificationMode);
+  q->modifySelectedSegmentByLabelmap(modifierLabelmap, modificationMode, modifierLabelmap->GetExtent());
 
   this->PaintCoordinates_World->Reset();
   this->PaintLines_World->Reset();
@@ -1144,15 +1144,14 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     this->masterVolumeImageData()->GetExtent(Extents);
 
     d->distance = 0.;
-    for (int ii = 0; ii < 6; ii++)
+    for (int ii = 0; ii < 3; ii++)
       {
-      d->distance += Extents[ii] * Extents[ii] / 4.;
+      d->distance += fabs(cameraPos[ii]);
       }
-    d->distance = sqrt(d->distance);
 
     for (int ii = 0 ; ii < 3 ; ii++)
       {
-      FinalPickPosition[ii] =  cameraFP[ii] + (d->Normals[ii] * d->distance);
+      FinalPickPosition[ii] =  cameraPos[ii] - (d->Normals[ii] * 150);
       }
 
     renderer->SetWorldPoint(FinalPickPosition[0], FinalPickPosition[1], FinalPickPosition[2], FinalPickPosition[3]);
