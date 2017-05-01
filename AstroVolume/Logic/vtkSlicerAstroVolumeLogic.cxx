@@ -373,7 +373,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     vtkMRMLSliceNode* sliceNodeGreen = vtkMRMLSliceNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
     sliceNodeGreen->SetOrientation("ZY");
-  }
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -424,6 +424,7 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
   nodeSet.Scene->AddNode(astroNode.GetPointer());
 
   vtkNew<vtkMRMLAstroVolumeDisplayNode> adisplayNode;
+  adisplayNode->SetAutoWindowLevel(0);
   nodeSet.Scene->AddNode(adisplayNode.GetPointer());
   astroNode->SetAndObserveDisplayNodeID(adisplayNode->GetID());
 

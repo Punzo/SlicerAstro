@@ -71,7 +71,23 @@ std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
 }
-}//end namespace
+
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+}// end namespace
+
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeStorageNode::WriteXML(ostream& of, int nIndent)
@@ -232,7 +248,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
     volNode->SetRASToIJKMatrix(mat);
 
-    //set WCSstruct
+    // set WCSstruct
     disNode->SetWCSStruct(reader->GetWCSStruct());
 
     // parse WCS Status
@@ -322,7 +338,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     labdisNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
-      // parse Space (WCS or IJK) to the display node
+     // parse Space (WCS or IJK) to the display node
     if (labdisNode->GetWCSStatus() != 0)
       {
       labdisNode->SetSpace("IJK");
@@ -357,6 +373,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->UpdateNoiseAttributes();
       }
+    // set range in display
+    disNode->SetWindowLevelMinMax(StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMIN")),
+                                  StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMAX")));
     volNode->SetAttribute("SlicerAstro.RenderingInitialized","0");
     }
   else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
