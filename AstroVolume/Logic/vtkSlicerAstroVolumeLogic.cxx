@@ -497,8 +497,6 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
-  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroModelingParametersNode>().GetPointer());
-  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroSmoothingParametersNode>().GetPointer());
 }
 
 //----------------------------------------------------------------------------
