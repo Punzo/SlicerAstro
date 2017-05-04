@@ -58,6 +58,7 @@
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 
 // VTK includes
+#include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkSmartPointer.h>
 #include <vtksys/SystemTools.hxx>
@@ -245,28 +246,45 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
       hasDisplay = true;
       if (!strcmp(displayNode->GetSpace(), "WCS"))
         {
-
         double offset = this->mrmlSliceNode()->GetSliceOffset();
         double world [] = {0., 0., 0.};
-        int extent[6];
         double ijk [] = {0., 0., 0.};
-        astroVolume->GetImageData()->GetExtent(extent);
+        vtkNew<vtkMatrix4x4> RAStoIJK;
+        astroVolume->GetRASToIJKMatrix(RAStoIJK.GetPointer());
+        int Dims[3];
+        astroVolume->GetImageData()->GetDimensions(Dims);
+        double OriginRAS[3];
+        astroVolume->GetOrigin(OriginRAS);
+        double Spacing[3];
+        astroVolume->GetSpacing(Spacing);
 
-        ijk[0] = extent[1] / 2;
-        ijk[1] = extent[3] / 2;
-        ijk[2] = extent[5] / 2;
+        ijk[0] = Dims[0] * 0.5;
+        ijk[1] = Dims[1] * 0.5;
+        ijk[2] = Dims[2] * 0.5;
 
         if(!orientation.compare("XZ"))
           {
-          ijk[1] += offset;
+          offset -= OriginRAS[2];
+          ijk[1] = offset * RAStoIJK->GetElement(0, 1) * Spacing[0] +
+                   offset * RAStoIJK->GetElement(1, 1) * Spacing[1] +
+                   offset * RAStoIJK->GetElement(2, 1) * Spacing[2];
+          ijk[1] /= Spacing[1];
           }
         else if(!orientation.compare("XY"))
           {
-          ijk[2] += offset;
+          offset -= OriginRAS[1];
+          ijk[2] = offset * RAStoIJK->GetElement(0, 2) * Spacing[0] +
+                   offset * RAStoIJK->GetElement(1, 2) * Spacing[1] +
+                   offset * RAStoIJK->GetElement(2, 2) * Spacing[2];
+          ijk[2] /= Spacing[2];
           }
         else if(!orientation.compare("ZY"))
           {
-          ijk[0] -= offset;
+          offset -= OriginRAS[0];
+          ijk[0] = offset * RAStoIJK->GetElement(0, 0) * Spacing[0] +
+                   offset * RAStoIJK->GetElement(1, 0) * Spacing[1] +
+                   offset * RAStoIJK->GetElement(2, 0) * Spacing[2];
+          ijk[0] /= Spacing[0];
           }
         else
           {
@@ -301,28 +319,45 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
       hasDisplay = true;
       if (!strcmp(astroLabelMapDisplay->GetSpace(), "WCS"))
         {
-
         double offset = this->mrmlSliceNode()->GetSliceOffset();
         double world [] = {0., 0., 0.};
-        int extent[6];
         double ijk [] = {0., 0., 0.};
-        astroLabelMapVolume->GetImageData()->GetExtent(extent);
+        vtkNew<vtkMatrix4x4> RAStoIJK;
+        astroLabelMapVolume->GetRASToIJKMatrix(RAStoIJK.GetPointer());
+        int Dims[3];
+        astroLabelMapVolume->GetImageData()->GetDimensions(Dims);
+        double OriginRAS[3];
+        astroLabelMapVolume->GetOrigin(OriginRAS);
+        double Spacing[3];
+        astroLabelMapVolume->GetSpacing(Spacing);
 
-        ijk[0] = extent[1] / 2;
-        ijk[1] = extent[5] / 2;
-        ijk[2] = extent[3] / 2;
+        ijk[0] = Dims[0] * 0.5;
+        ijk[1] = Dims[1] * 0.5;
+        ijk[2] = Dims[2] * 0.5;
 
         if(!orientation.compare("XZ"))
           {
-          ijk[1] += offset;
+          offset -= OriginRAS[2];
+          ijk[1] = offset * RAStoIJK->GetElement(0, 1) * Spacing[0] +
+                   offset * RAStoIJK->GetElement(1, 1) * Spacing[1] +
+                   offset * RAStoIJK->GetElement(2, 1) * Spacing[2];
+          ijk[1] /= Spacing[1];
           }
         else if(!orientation.compare("XY"))
           {
-          ijk[2] += offset;
+          offset -= OriginRAS[1];
+          ijk[2] = offset * RAStoIJK->GetElement(0, 2) * Spacing[0] +
+                   offset * RAStoIJK->GetElement(1, 2) * Spacing[1] +
+                   offset * RAStoIJK->GetElement(2, 2) * Spacing[2];
+          ijk[2] /= Spacing[2];
           }
         else if(!orientation.compare("ZY"))
           {
-          ijk[0] -= offset;
+          offset -= OriginRAS[0];
+          ijk[0] = offset * RAStoIJK->GetElement(0, 0) * Spacing[0] +
+                   offset * RAStoIJK->GetElement(1, 0) * Spacing[1] +
+                   offset * RAStoIJK->GetElement(2, 0) * Spacing[2];
+          ijk[0] /= Spacing[0];
           }
         else
           {
