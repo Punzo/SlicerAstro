@@ -237,19 +237,19 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
   int nItemsX = pnode->GetParameterX();
-  if (nItemsX % 2 == 0)
+  if (nItemsX % 2 < 0.001)
     {
     nItemsX++;
     }
   const int Xmax = (int) ((nItemsX - 1) / 2.);
   int nItemsY = pnode->GetParameterY();
-  if (nItemsY % 2 == 0)
+  if (nItemsY % 2 < 0.001)
     {
     nItemsY++;
     }
   const int Ymax = (int) ((nItemsY - 1) / 2.);
   int nItemsZ = pnode->GetParameterZ();
-  if (nItemsZ % 2 == 0)
+  if (nItemsZ % 2 < 0.001)
     {
     nItemsZ++;
     }
@@ -481,11 +481,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
   int nItems = (pnode->GetParameterX());
-  if (nItems % 2 == 0)
+  if (nItems % 2 < 0.001)
     {
     nItems++;
     }
-  const int is = (int) ((nItems - 1) / 2);
+  const int is = (int) ((nItems - 1) / 2.);
 
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
@@ -1201,7 +1201,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
   const int numSlice = dims[0] * dims[1];
-  const int is = (int) (pnode->GetKernelLengthX());
+  int is = (int) (pnode->GetKernelLengthX());
+  if (is % 2 < 0.001)
+    {
+    is++;
+    }
   const int is2 = (int) - ((is - 1)/ 2);
   float *outFPixel = NULL;
   float *tempFPixel = NULL;

@@ -639,9 +639,12 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
           }
         d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction");
-        d->DoubleSpinBoxX->setMaximum(10);
-        d->DoubleSpinBoxY->setMaximum(10);
-        d->DoubleSpinBoxZ->setMaximum(10);
+        d->DoubleSpinBoxX->setMinimum(1);
+        d->DoubleSpinBoxY->setMinimum(1);
+        d->DoubleSpinBoxZ->setMinimum(1);
+        d->DoubleSpinBoxX->setMaximum(11);
+        d->DoubleSpinBoxY->setMaximum(11);
+        d->DoubleSpinBoxZ->setMaximum(11);
         break;
         }
       case 1:
@@ -679,7 +682,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
         d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
-        d->DoubleSpinBoxX->setSingleStep(1);
+        d->DoubleSpinBoxX->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxX->blockSignals(true);
@@ -691,7 +694,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
           }
         d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction");
-        d->DoubleSpinBoxY->setSingleStep(1);
+        d->DoubleSpinBoxY->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxY->blockSignals(true);
@@ -703,7 +706,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
           }
         d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction");
-        d->DoubleSpinBoxZ->setSingleStep(1);
+        d->DoubleSpinBoxZ->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxZ->blockSignals(true);
@@ -715,9 +718,12 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
           }
         d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction");
-        d->DoubleSpinBoxX->setMaximum(10);
-        d->DoubleSpinBoxY->setMaximum(10);
-        d->DoubleSpinBoxZ->setMaximum(10);
+        d->DoubleSpinBoxX->setMinimum(1);
+        d->DoubleSpinBoxY->setMinimum(1);
+        d->DoubleSpinBoxZ->setMinimum(1);
+        d->DoubleSpinBoxX->setMaximum(11);
+        d->DoubleSpinBoxY->setMaximum(11);
+        d->DoubleSpinBoxZ->setMaximum(11);
         QString theta = QChar(0x98, 0x03);
         d->RxLabel->setText(theta + "<sub>X</sub>:");
         d->RyLabel->setText(theta + "<sub>Y</sub>:");
@@ -990,6 +996,9 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
           }
+        d->DoubleSpinBoxX->setMinimum(0);
+        d->DoubleSpinBoxY->setMinimum(0);
+        d->DoubleSpinBoxZ->setMinimum(0);
         d->DoubleSpinBoxX->setMaximum(10);
         d->DoubleSpinBoxY->setMaximum(10);
         d->DoubleSpinBoxZ->setMaximum(10);
@@ -1089,9 +1098,9 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
   if (index == 1)
     {
     d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetParameterX(3);
-    d->parametersNode->SetParameterY(3);
-    d->parametersNode->SetParameterZ(3);
+    d->parametersNode->SetParameterX(5);
+    d->parametersNode->SetParameterY(5);
+    d->parametersNode->SetParameterZ(5);
     d->parametersNode->SetRx(0);
     d->parametersNode->SetRy(0);
     d->parametersNode->SetRz(0);

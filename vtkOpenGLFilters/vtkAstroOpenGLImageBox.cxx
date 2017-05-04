@@ -145,31 +145,48 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
   cb.Spacing[2] /= extent[5] - extent[4];
 
   cb.cont = 1;
-  if (this->KernelLength[0] % 2 == 0)
+  if (this->KernelLength[0] < 0.999)
+    {
+    this->KernelLength[0]++;
+    }
+  if (this->KernelLength[0] % 2 < 0.001)
     {
     this->KernelLength[0]++;
     }
   cb.cont *= this->KernelLength[0];
   this->KernelLength[0] = (int) (this->KernelLength[0] - 1.) / 2.;
-  if (this->KernelLength[1] % 2 == 0)
+
+  if (this->KernelLength[1] < 0.999)
+    {
+    this->KernelLength[1]++;
+    }
+  if (this->KernelLength[1] % 2 < 0.001)
     {
     this->KernelLength[1]++;
     }
   cb.cont *= this->KernelLength[1];
+  int norm1 = this->KernelLength[1];
   this->KernelLength[1] = (int) (this->KernelLength[1] - 1.) / 2.;
-  if (this->KernelLength[2] % 2 == 0)
+
+  if (this->KernelLength[2] < 0.999)
+    {
+    this->KernelLength[2]++;
+    }
+  if (this->KernelLength[2] % 2 < 0.001)
     {
     this->KernelLength[2]++;
     }
   cb.cont *= this->KernelLength[2];
+  int norm2 = this->KernelLength[2];
   this->KernelLength[2] = (int) (this->KernelLength[2] - 1.) / 2.;
+
   cb.KernelLength = this->KernelLength;
 
-  if (fabs(KernelLength[0] - KernelLength[1]) < 0.001 &&
-      fabs(KernelLength[1] - KernelLength[2]) < 0.001 &&
+  if (fabs(this->KernelLength[0] - this->KernelLength[1]) < 0.001 &&
+      fabs(this->KernelLength[1] - this->KernelLength[2]) < 0.001 &&
       this->Iterative)
     {
-    cb.cont /= (this->KernelLength[1] * this->KernelLength[2]);
+    cb.cont /= norm1 * norm2;
     std::string fragShaderBegin =
     "//VTK::System::Dec\n"
     "varying vec2 tcoordVSOutput;\n"

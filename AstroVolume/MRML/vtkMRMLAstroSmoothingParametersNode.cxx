@@ -367,7 +367,7 @@ vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel3D()
 //----------------------------------------------------------------------------
 inline double gauss1D(double x, double sigma)
 {
- return exp(-x * x / (2. * sigma * sigma)) / (sigma * sqrt(2. * M_PI));
+ return exp(-x * x / (2. * sigma * sigma));
 };
 
 //----------------------------------------------------------------------------
@@ -377,8 +377,7 @@ inline double gauss3D(double x, double sigmax,
 {
  return exp(-((x * x / (2. * sigmax * sigmax)) +
            (y * y / (2. * sigmay * sigmay)) +
-           (z * z / (2. * sigmaz * sigmaz)))) /
-           (sigmax * sigmay * sigmaz * 2. * M_PI * sqrt(2. * M_PI));
+           (z * z / (2. * sigmaz * sigmaz))));
 };
 
 
@@ -392,8 +391,8 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 
   if (this->gaussianKernel1D)
     {
-    int nItems = (int) ((this->GetParameterX() / SigmatoFWHM)  * this->GetAccuracy() * 2 + 1);
-    if (nItems % 2 == 0)
+    int nItems = (int) ((this->GetParameterX() / SigmatoFWHM) * this->GetAccuracy());
+    if (nItems % 2 < 0.001 && nItems > 0.001)
       {
       nItems++;
       }
@@ -402,18 +401,32 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
     this->SetKernelLengthZ(nItems);
     this->gaussianKernel1D->SetNumberOfTuples(nItems);
 
-    double sigmax = this->GetParameterX() / SigmatoFWHM;
-    if(sigmax < 0.001)
+    if(nItems == 1)
       {
-      sigmax = 0.001;
+      this->gaussianKernel1D->SetComponent(0, 0, 1.);
       }
-
-    double midpoint = (nItems - 1) / 2.;
-    for (int i = 0; i < nItems; i++)
+    else
       {
-      double x = i - midpoint;
-      double gx = gauss1D(x, sigmax);
-      this->gaussianKernel1D->SetComponent(i, 0, gx);
+      double sigmax = this->GetParameterX() / SigmatoFWHM;
+      if(sigmax < 0.001)
+        {
+        sigmax = 0.001;
+        }
+
+      double midpoint = (nItems - 1) / 2.;
+      double sumTotal = 0;
+      for (int i = 0; i < nItems; i++)
+        {
+        double x = i - midpoint;
+        double gx = gauss1D(x, sigmax);
+        sumTotal += gx;
+        this->gaussianKernel1D->SetComponent(i, 0, gx);
+        }
+
+      for (int i = 0; i < nItems; i++)
+        {
+        this->gaussianKernel1D->SetComponent(i, 0, this->gaussianKernel1D->GetComponent(i, 0) / sumTotal);
+        }
       }
     }
 }
@@ -427,21 +440,21 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
     }
 
   if (this->gaussianKernel3D)
-    { 
-    int nItemsX = (int) ((this->GetParameterX() / SigmatoFWHM) * this->GetAccuracy() * 2 + 1);
-    if (nItemsX % 2 == 0)
+    {
+    int nItemsX = (int) ((this->GetParameterX() / SigmatoFWHM) * this->GetAccuracy());
+    if (nItemsX % 2 < 0.001)
       {
       nItemsX++;
       }
     this->SetKernelLengthX(nItemsX);
-    int nItemsY = (int) ((this->GetParameterY() / SigmatoFWHM) * this->GetAccuracy() * 2 + 1);
-    if (nItemsY % 2 == 0)
+    int nItemsY = (int) ((this->GetParameterY() / SigmatoFWHM) * this->GetAccuracy());
+    if (nItemsY % 2 < 0.001)
       {
       nItemsY++;
       }
     this->SetKernelLengthY(nItemsY);
-    int nItemsZ = (int) ((this->GetParameterZ() / SigmatoFWHM) * this->GetAccuracy() * 2 + 1);
-    if (nItemsZ % 2 == 0)
+    int nItemsZ = (int) ((this->GetParameterZ() / SigmatoFWHM) * this->GetAccuracy());
+    if (nItemsZ % 2 < 0.001)
       {
       nItemsZ++;
       }
@@ -482,6 +495,7 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
       sigmaz = 0.001;
       }
 
+    double sumTotal = 0;
     for (int k = -Zmax; k <= Zmax; k++)
       {
       for (int j = -Ymax; j <= Ymax; j++)
@@ -495,7 +509,20 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
           double g = gauss3D(x, sigmax,
                              y, sigmay,
                              z, sigmaz);
+          sumTotal += g;
           this->gaussianKernel3D->SetComponent(pos, 0, g);
+          }
+        }
+      }
+
+    for (int k = -Zmax; k <= Zmax; k++)
+      {
+      for (int j = -Ymax; j <= Ymax; j++)
+        {
+        for (int i = -Xmax; i <= Xmax; i++)
+          {
+          int pos = (k + Zmax) * nItemsX * nItemsY + (j + Ymax) * nItemsX + (i + Xmax);
+          this->gaussianKernel3D->SetComponent(pos, 0, this->gaussianKernel3D->GetComponent(pos, 0) / sumTotal);
           }
         }
       }
