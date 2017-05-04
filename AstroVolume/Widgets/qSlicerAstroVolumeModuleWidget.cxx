@@ -1465,6 +1465,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
 
+  currentSegmentationNode->CreateDefaultDisplayNodes();
+
   std::string SegmentOneID = volumeOne->GetName();
   SegmentOneID += "_3RMS";
   vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
@@ -1524,8 +1526,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
-
-  currentSegmentationNode->CreateDefaultDisplayNodes();
 
   for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
