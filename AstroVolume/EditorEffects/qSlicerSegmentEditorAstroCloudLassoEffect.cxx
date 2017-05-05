@@ -257,6 +257,7 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   , UndoLastMask(true)
   , DelayedPaint(true)
   , IsPainting(false)
+  , ActiveViewWidget(NULL)
   , CloudLassoFrame(NULL)
   , EraseModeCheckbox(NULL)
   , AutomaticThresholdCheckbox(NULL)
@@ -330,6 +331,8 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   this->FeedbackTubeFilter->SetNumberOfSides(16);
   this->FeedbackTubeFilter->CappingOn();
 
+  this->ActiveViewLastInteractionPosition[0] = 0;
+  this->ActiveViewLastInteractionPosition[1] = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -417,33 +420,21 @@ BrushPipeline* qSlicerSegmentEditorAstroCloudLassoEffectPrivate::brushForWidget(
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::forceRender(qMRMLWidget* viewWidget)
+vtkIdType qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintAddTwoPoints(double brushPosition_World[3])
 {
-  qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
-  qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
-  if (sliceWidget)
-    {
-    sliceWidget->sliceView()->forceRender();
-    }
-  if (threeDWidget)
-    {
-    threeDWidget->threeDView()->forceRender();
-    }
-}
+  vtkIdType idPointFirst = this->PaintCoordinates_World->InsertNextPoint(brushPosition_World);
+  vtkIdType idPointSecond = this->PaintCoordinates_World->InsertNextPoint(brushPosition_World[0] + brushPosition_World[0]/1000.,
+                                                                          brushPosition_World[1] + brushPosition_World[1]/1000.,
+                                                                          brushPosition_World[2] + brushPosition_World[2]/1000.);
 
-//-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::scheduleRender(qMRMLWidget* viewWidget)
-{
-  qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
-  qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
-  if (sliceWidget)
-    {
-    sliceWidget->sliceView()->scheduleRender();
-    }
-  if (threeDWidget)
-    {
-    threeDWidget->threeDView()->scheduleRender();
-    }
+  this->CloudLasso3DSelectionPoints->InsertNextPoint(brushPosition_World);
+
+  vtkNew<vtkLine> line;
+  line->GetPointIds()->SetId(0, idPointFirst);
+  line->GetPointIds()->SetId(1, idPointSecond);
+  this->PaintLines_World->InsertNextCell(line.GetPointer());
+  this->SmoothPolyFilter->SetNumberOfSubdivisions(idPointSecond * 10);
+  return idPointSecond;
 }
 
 //-----------------------------------------------------------------------------
@@ -926,6 +917,12 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushModel(qMRMLWid
 void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrush(qMRMLWidget* viewWidget, BrushPipeline* pipeline)
 {
   pipeline->SetBrushVisibility(true);
+  if (this->BrushToWorldOriginTransformer->GetNumberOfInputConnections(0) == 0)
+    {
+    pipeline->SetBrushVisibility(false);
+    return;
+    }
+  pipeline->SetBrushVisibility(this->ActiveViewWidget != NULL);
 
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
   if (sliceWidget)
@@ -956,7 +953,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushes()
 
     BrushPipeline* brushPipeline = this->brushForWidget(sliceWidget);
     this->updateBrush(sliceWidget, brushPipeline);
-    this->scheduleRender(sliceWidget);
+    qSlicerSegmentEditorAbstractEffect::scheduleRender(sliceWidget);
     }
   for (int threeDViewId = 0; threeDViewId < layoutManager->threeDViewCount(); ++threeDViewId)
     {
@@ -965,7 +962,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushes()
 
     BrushPipeline* brushPipeline = this->brushForWidget(threeDWidget);
     this->updateBrush(threeDWidget, brushPipeline);
-    this->scheduleRender(threeDWidget);
+    qSlicerSegmentEditorAbstractEffect::scheduleRender(threeDWidget);
     }
 
   foreach (qMRMLWidget* viewWidget, unusedWidgetPipelines)
@@ -1013,6 +1010,72 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::clearBrushPipelines()
     delete brushPipeline;
     }
   this->BrushPipelines.clear();
+}
+
+//---------------------------------------------------------------------------
+bool qSlicerSegmentEditorAstroCloudLassoEffectPrivate::brushPositionInWorld(qMRMLWidget* viewWidget, int brushPositionInView[2], double brushPosition_World[3])
+{
+  qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
+  qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
+
+  if (sliceWidget)
+    {
+    double eventPositionXY[4] = {
+      static_cast<double>(brushPositionInView[0]),
+      static_cast<double>(brushPositionInView[1]),
+      0.0,
+      1.0};
+    sliceWidget->sliceLogic()->GetSliceNode()->GetXYToRAS()->MultiplyPoint(eventPositionXY, brushPosition_World);
+    }
+  else if (threeDWidget)
+    {
+    vtkRenderer* renderer = qSlicerSegmentEditorAbstractEffect::renderer(viewWidget);
+    if (!renderer)
+      {
+      return false;
+      }
+    static bool useCellPicker = true;
+    if (useCellPicker)
+      {
+      vtkNew<vtkCellPicker> picker;
+      picker->SetTolerance( .005 );
+      if (!picker->Pick(brushPositionInView[0], brushPositionInView[1], 0, renderer))
+        {
+        return false;
+        }
+
+      vtkPoints* pickPositions = picker->GetPickedPositions();
+      int numberOfPickedPositions = pickPositions->GetNumberOfPoints();
+      if (numberOfPickedPositions<1)
+        {
+        return false;
+        }
+      double cameraPosition[3]={0,0,0};
+      renderer->GetActiveCamera()->GetPosition(cameraPosition);
+      pickPositions->GetPoint(0, brushPosition_World);
+      double minDist2 = vtkMath::Distance2BetweenPoints(brushPosition_World, cameraPosition);
+      for (int i=1; i<numberOfPickedPositions; i++)
+        {
+        double currentMinDist2 = vtkMath::Distance2BetweenPoints(pickPositions->GetPoint(i), cameraPosition);
+        if (currentMinDist2<minDist2)
+          {
+          pickPositions->GetPoint(i, brushPosition_World);
+          minDist2 = currentMinDist2;
+          }
+        }
+      }
+    else
+      {
+      vtkNew<vtkPropPicker> picker;
+      if (!picker->Pick(brushPositionInView[0], brushPositionInView[1], 0, renderer))
+        {
+        return false;
+        }
+      picker->GetPickPosition(brushPosition_World);
+      }
+    }
+
+  return true;
 }
 
 
@@ -1063,6 +1126,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::deactivate();
   d->clearBrushPipelines();
+  d->ActiveViewWidget = NULL;
 }
 
 //---------------------------------------------------------------------------
@@ -1092,8 +1156,12 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     return abortEvent;
     }
 
+  d->ActiveViewWidget = viewWidget;
+
   int eventPosition[2] = { 0, 0 };
   callerInteractor->GetEventPosition(eventPosition);
+  d->ActiveViewLastInteractionPosition[0] = eventPosition[0];
+  d->ActiveViewLastInteractionPosition[1] = eventPosition[1];
 
   double brushPosition_World[4] = { 0.0, 0.0, 0.0, 1.0 };
   if (sliceWidget)
@@ -1178,7 +1246,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       {
       d->BrushPipelines[viewWidget]->SetFeedbackVisibility(d->DelayedPaint);
       }
-    d->paintAddPoint(brushPosition_World);
+    d->paintAddTwoPoints(brushPosition_World);
     abortEvent = true;
     }
   else if (eid == vtkCommand::LeftButtonReleaseEvent)
@@ -1207,6 +1275,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
   else if (eid == vtkCommand::LeaveEvent)
     {
     brushPipeline->SetBrushVisibility(false);
+    d->ActiveViewWidget = NULL;
     }
   else if (eid == vtkCommand::KeyPressEvent)
     {
@@ -1275,7 +1344,8 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
 
   d->updateBrushModel(viewWidget, brushPosition_World);
   d->updateBrushes();
-  d->forceRender(viewWidget);
+
+  qSlicerSegmentEditorAbstractEffect::forceRender(viewWidget);
   return abortEvent;
 }
 
@@ -1289,21 +1359,36 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::processViewNodeEvents(
   Q_UNUSED(callerViewNode);
   Q_UNUSED(eid);
 
-  // This effect only supports interactions in the 2D slice views currently
-  qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
-  qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
-  if (!sliceWidget && !threeDWidget)
-    {
-    return;
-    }
-  BrushPipeline* brushPipeline = d->brushForWidget(viewWidget);
-  if (!brushPipeline)
-    {
-    qCritical() << Q_FUNC_INFO << ": Failed to create brushPipeline!";
-    return;
-    }
+    qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
+    qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
+    if (!sliceWidget && !threeDWidget)
+      {
+      return;
+      }
 
-  d->updateBrush(viewWidget, brushPipeline);
+    BrushPipeline* brushPipeline = d->brushForWidget(viewWidget);
+    if (!brushPipeline)
+      {
+      qCritical() << Q_FUNC_INFO << ": Failed to create brushPipeline!";
+      return;
+      }
+
+    if (viewWidget == d->ActiveViewWidget)
+      {
+      double brushPosition_World[4] = { 0.0, 0.0, 0.0, 1.0 };
+      if (d->brushPositionInWorld(viewWidget, d->ActiveViewLastInteractionPosition, brushPosition_World))
+        {
+        d->updateBrushModel(viewWidget, brushPosition_World);
+        }
+      else
+        {
+        d->updateBrushModel(viewWidget, NULL);
+        }
+      d->updateBrushes();
+      qSlicerSegmentEditorAbstractEffect::scheduleRender(d->ActiveViewWidget);
+      }
+
+    d->updateBrush(viewWidget, brushPipeline);
 }
 
 //-----------------------------------------------------------------------------

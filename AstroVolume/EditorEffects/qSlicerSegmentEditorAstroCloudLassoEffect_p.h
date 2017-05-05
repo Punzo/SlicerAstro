@@ -96,6 +96,7 @@ public:
   /// Depending on the \sa DelayedPaint mode, either paint the given point or queue
   /// it up with a marker for later painting
   vtkIdType paintAddPoint(double pixelPositionWorld[3]);
+  vtkIdType paintAddTwoPoints(double pixelPositionWorld[3]);
 
   /// Update paint circle glyph
   void updateBrush(qMRMLWidget* viewWidget, BrushPipeline* brush);
@@ -132,8 +133,7 @@ protected:
 
   double GetSliceSpacing(qMRMLSliceWidget* sliceWidget);
 
-  void forceRender(qMRMLWidget* viewWidget);
-  void scheduleRender(qMRMLWidget* viewWidget);
+  bool brushPositionInWorld(qMRMLWidget* viewWidget, int brushPositionInView[2], double brushPosition_World[3]);
 
 public:
   QIcon CloudLassoIcon;
@@ -175,6 +175,10 @@ public:
   QMap<qMRMLWidget*, BrushPipeline*> BrushPipelines;
   bool DelayedPaint;
   bool IsPainting;
+
+  // Observed view node
+  qMRMLWidget* ActiveViewWidget;
+  int ActiveViewLastInteractionPosition[2];
 
   QFrame* CloudLassoFrame;
   QCheckBox* EraseModeCheckbox;
