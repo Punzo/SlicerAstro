@@ -54,31 +54,32 @@ protected:
   void initializeParameterNode(vtkMRMLScene*);
 
 protected slots:
+  void onAccuracyChanged(double value);
+  void onAutoRunChanged(bool value);
+  void onComputationCancelled();
+  void onComputationFinished();
+  void onComputationStarted();
+  void onCurrentFilterChanged(int index);
+  void onEndCloseEvent();
+  void onHardwareChanged(int index);
   void onInputVolumeChanged(vtkMRMLNode*);
-  void onOutputVolumeChanged(vtkMRMLNode*);
-  void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
+  void onKChanged(double value);
+  void onLinkChanged(bool value);
+  void onMasksCommandChanged();
   void onMRMLAstroSmoothingParametersNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onModeChanged();
-  void onEndCloseEvent();
-  void onCurrentFilterChanged(int index);
-  void onKChanged(double value);
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  void onTimeStepChanged(double value);
+  void onOutputVolumeChanged(vtkMRMLNode*);
   void onParameterXChanged(double value);
   void onParameterYChanged(double value);
   void onParameterZChanged(double value);
-  void onAccuracyChanged(double value);
   void onRxChanged(double value);
   void onRyChanged(double value);
   void onRzChanged(double value);
-  void onComputationStarted();
-  void onComputationCancelled();
-  void onComputationFinished();
+  void onSegmentEditorNodeModified(vtkObject* sender);
+  void onTimeStepChanged(double value);
   void updateProgress(int value);
-  void onHardwareChanged(int index);
-  void onLinkChanged(bool value);
-  void onAutoRunChanged(bool value);
+  void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroSmoothingModuleWidget);

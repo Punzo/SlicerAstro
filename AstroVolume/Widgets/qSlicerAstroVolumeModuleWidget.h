@@ -70,7 +70,8 @@ public slots:
   void onCurrentQualityControlChanged(int);
   void onVisibilityChanged(bool visibility);
   void setComparative3DViews(const char* volumeNodeOneID,
-                             const char* volumeNodeTwoID);
+                             const char* volumeNodeTwoID,
+                             bool generateMasks);
   void setQuantitative3DView(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
                              const char* volumeNodeThreeID,

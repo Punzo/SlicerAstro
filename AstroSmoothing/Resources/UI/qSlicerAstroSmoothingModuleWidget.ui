@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>494</width>
+    <width>495</width>
     <height>1273</height>
    </rect>
   </property>
@@ -632,39 +632,6 @@
         </property>
        </widget>
       </item>
-      <item row="0" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_5">
-        <property name="spacing">
-         <number>12</number>
-        </property>
-        <item>
-         <widget class="QRadioButton" name="AutomaticModeRadioButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="text">
-           <string>Automatic</string>
-          </property>
-          <property name="checked">
-           <bool>true</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QRadioButton" name="ManualModeRadioButton">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="text">
-           <string>Manual</string>
-          </property>
-          <property name="checked">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
       <item row="17" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_6">
         <property name="leftMargin">
@@ -716,6 +683,136 @@
         </item>
        </layout>
       </item>
+      <item row="1" column="0">
+       <widget class="QLabel" name="MasksLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Masks:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <property name="spacing">
+         <number>12</number>
+        </property>
+        <item>
+         <widget class="QRadioButton" name="AutomaticModeRadioButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>Automatic</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">buttonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="ManualModeRadioButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="text">
+           <string>Manual</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">buttonGroup</string>
+          </attribute>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="1" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_7">
+        <property name="spacing">
+         <number>12</number>
+        </property>
+        <item>
+         <widget class="QRadioButton" name="MasksGenerateModeRadioButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>If selected, the Smoothing module will automatically calculate masks (and display as segmentation) of the data and their filtered version at 3 rms.</string>
+          </property>
+          <property name="text">
+           <string>Generate</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">buttonGroup_2</string>
+          </attribute>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="MasksSkipModeRadioButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="toolTip">
+           <string>If selected, the generation of the masks at 3 rms will be skipped.</string>
+          </property>
+          <property name="text">
+           <string>Skip</string>
+          </property>
+          <property name="checked">
+           <bool>false</bool>
+          </property>
+          <attribute name="buttonGroup">
+           <string notr="true">buttonGroup_2</string>
+          </attribute>
+         </widget>
+        </item>
+       </layout>
+      </item>
      </layout>
     </widget>
    </item>
@@ -747,7 +844,7 @@
       <string>Output Masks</string>
      </property>
      <property name="collapsed">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="contentsFrameShape">
       <enum>QFrame::StyledPanel</enum>
@@ -1041,22 +1138,6 @@
   <connection>
    <sender>InputVolumeNodeSelector</sender>
    <signal>currentNodeChanged(bool)</signal>
-   <receiver>ModeLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>15</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>24</x>
-     <y>145</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
    <receiver>CancelButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -1087,18 +1168,50 @@
    </hints>
   </connection>
   <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>DoubleSpinBoxY</receiver>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>OutputSegmentCollapsibleButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>440</x>
-     <y>145</y>
+     <x>291</x>
+     <y>14</y>
     </hint>
     <hint type="destinationlabel">
-     <x>312</x>
-     <y>247</y>
+     <x>246</x>
+     <y>823</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>SegmentsTableView</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>291</x>
+     <y>14</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>246</x>
+     <y>1112</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ModeLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>320</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>24</x>
+     <y>145</y>
     </hint>
    </hints>
   </connection>
@@ -1137,16 +1250,16 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>CDELT3LabelValue</receiver>
+   <receiver>DoubleSpinBoxY</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>443</x>
+     <x>440</x>
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>318</x>
-     <y>358</y>
+     <x>312</x>
+     <y>247</y>
     </hint>
    </hints>
   </connection>
@@ -1185,16 +1298,16 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>AccuracySpinBox</receiver>
+   <receiver>CDELT3LabelValue</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>441</x>
+     <x>443</x>
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>315</x>
-     <y>317</y>
+     <x>318</x>
+     <y>358</y>
     </hint>
    </hints>
   </connection>
@@ -1211,6 +1324,70 @@
     <hint type="destinationlabel">
      <x>318</x>
      <y>387</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>KSpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>352</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SigmaYLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>226</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>CDELT3Label</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>44</x>
+     <y>358</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AccuracySpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>441</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>315</x>
+     <y>317</y>
     </hint>
    </hints>
   </connection>
@@ -1249,38 +1426,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>SigmaYLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>423</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>226</x>
-     <y>213</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>KSpinBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>318</x>
-     <y>352</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>TimeStepLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -1291,6 +1436,22 @@
     <hint type="destinationlabel">
      <x>36</x>
      <y>315</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>HardwareLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>37</x>
+     <y>175</y>
     </hint>
    </hints>
   </connection>
@@ -1313,7 +1474,23 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>HardwareLabel</receiver>
+   <receiver>SigmaXLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>423</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>45</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>CDELT1LabelValue</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1321,8 +1498,8 @@
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>37</x>
-     <y>175</y>
+     <x>318</x>
+     <y>246</y>
     </hint>
    </hints>
   </connection>
@@ -1361,22 +1538,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>CDELT1LabelValue</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>318</x>
-     <y>246</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>DoubleSpinBoxZ</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -1393,32 +1554,16 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>SigmaXLabel</receiver>
+   <receiver>DoubleSpinBoxX</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>423</x>
+     <x>440</x>
      <y>145</y>
     </hint>
     <hint type="destinationlabel">
-     <x>45</x>
-     <y>213</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>CDELT2Label</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>44</x>
-     <y>302</y>
+     <x>312</x>
+     <y>212</y>
     </hint>
    </hints>
   </connection>
@@ -1441,7 +1586,7 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>CDELT3Label</receiver>
+   <receiver>CDELT2Label</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
@@ -1450,23 +1595,7 @@
     </hint>
     <hint type="destinationlabel">
      <x>44</x>
-     <y>358</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>DoubleSpinBoxX</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>440</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>312</x>
-     <y>212</y>
+     <y>302</y>
     </hint>
    </hints>
   </connection>
@@ -1521,54 +1650,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>RxLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>57</x>
-     <y>315</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RyLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>58</x>
-     <y>350</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RxSpinBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>443</x>
-     <y>145</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>318</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>FilterComboBox</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -1617,6 +1698,54 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
+   <receiver>RxSpinBox</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>318</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RyLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>58</x>
+     <y>350</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RxLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>443</x>
+     <y>145</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>57</x>
+     <y>315</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
    <receiver>AccuracyValueLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -1647,36 +1776,56 @@
    </hints>
   </connection>
   <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>OutputSegmentCollapsibleButton</receiver>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>MasksGenerateModeRadioButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>291</x>
-     <y>14</y>
+     <x>388</x>
+     <y>108</y>
     </hint>
     <hint type="destinationlabel">
-     <x>246</x>
-     <y>823</y>
+     <x>172</x>
+     <y>133</y>
     </hint>
    </hints>
   </connection>
   <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>SegmentsTableView</receiver>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>MasksSkipModeRadioButton</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>291</x>
-     <y>14</y>
+     <x>388</x>
+     <y>108</y>
     </hint>
     <hint type="destinationlabel">
-     <x>246</x>
-     <y>1112</y>
+     <x>388</x>
+     <y>133</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>MasksLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>388</x>
+     <y>108</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>24</x>
+     <y>133</y>
     </hint>
    </hints>
   </connection>
  </connections>
+ <buttongroups>
+  <buttongroup name="buttonGroup"/>
+  <buttongroup name="buttonGroup_2"/>
+ </buttongroups>
 </ui>

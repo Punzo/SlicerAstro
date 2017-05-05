@@ -73,6 +73,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
   vtkSetStringMacro(Mode);
   vtkGetStringMacro(Mode);
 
+  vtkSetStringMacro(MasksCommand);
+  vtkGetStringMacro(MasksCommand);
+
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
@@ -139,6 +142,7 @@ protected:
   char *InputVolumeNodeID;
   char *OutputVolumeNodeID;
   char *Mode;
+  char *MasksCommand;
   int OutputSerial;
 
   /// Filter method

@@ -44,8 +44,10 @@ vtkMRMLAstroSmoothingParametersNode::vtkMRMLAstroSmoothingParametersNode()
   this->InputVolumeNodeID = NULL;
   this->OutputVolumeNodeID = NULL;
   this->Mode = NULL;
+  this->MasksCommand = NULL;
   this->OutputSerial = 1;
   this->SetMode("Automatic");
+  this->SetMasksCommand("Generate");
   this->SetStatus(0);
   this->SetFilter(2);
   this->SetHardware(0);
@@ -90,6 +92,12 @@ vtkMRMLAstroSmoothingParametersNode::~vtkMRMLAstroSmoothingParametersNode()
     {
     delete [] this->Mode;
     this->Mode = NULL;
+    }
+
+  if (this->MasksCommand)
+    {
+    delete [] this->MasksCommand;
+    this->MasksCommand = NULL;
     }
 }
 
@@ -144,6 +152,12 @@ void vtkMRMLAstroSmoothingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "Mode"))
       {
       this->SetMode(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "MasksCommand"))
+      {
+      this->SetMasksCommand(attValue);
       continue;
       }
 
@@ -286,6 +300,11 @@ void vtkMRMLAstroSmoothingParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " Mode=\"" << this->Mode << "\"";
     }
 
+  if (this->MasksCommand != NULL)
+    {
+    of << indent << " MasksCommand=\"" << this->MasksCommand << "\"";
+    }
+
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
   of << indent << " Filter=\"" << this->Filter << "\"";
   of << indent << " Hardware=\"" << this->Hardware << "\"";
@@ -320,6 +339,7 @@ void vtkMRMLAstroSmoothingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
   this->SetMode(node->GetMode());
+  this->SetMasksCommand(node->GetMasksCommand());
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetFilter(node->GetFilter());
   this->SetHardware(node->GetHardware());
@@ -562,6 +582,7 @@ void vtkMRMLAstroSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent inden
   os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
   os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
   os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
+  os << "MasksCommand: " << ( (this->MasksCommand) ? this->MasksCommand : "None" ) << "\n";
   os << "OutputSerial: " << this->OutputSerial << "\n";
   os << "Status: " << this->Status << "\n";
 

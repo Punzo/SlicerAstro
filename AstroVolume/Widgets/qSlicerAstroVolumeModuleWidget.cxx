@@ -1249,7 +1249,8 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
 
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNodeOneID,
-                                                           const char* volumeNodeTwoID)
+                                                           const char* volumeNodeTwoID,
+                                                           bool generateMasks)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -1430,6 +1431,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   volumeOne->SetDisplayVisibility(1);
 
   appLogic->PropagateVolumeSelection();
+
+  if (!generateMasks)
+    {
+    return;
+    }
 
   if (!d->segmentEditorNode)
     {

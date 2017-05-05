@@ -172,6 +172,12 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
   QObject::connect(AutomaticModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onModeChanged()));
 
+  QObject::connect(MasksGenerateModeRadioButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onMasksCommandChanged()));
+
+  QObject::connect(MasksSkipModeRadioButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onMasksCommandChanged()));
+
   QObject::connect(FilterComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onCurrentFilterChanged(int)));
 
@@ -549,6 +555,15 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
   else
     {
     d->ManualModeRadioButton->setChecked(true);
+    }
+
+  if (!(strcmp(d->parametersNode->GetMasksCommand(), "Generate")))
+    {
+    d->MasksGenerateModeRadioButton->setChecked(true);
+    }
+  else
+    {
+    d->MasksSkipModeRadioButton->setChecked(true);
     }
 
   d->FilterComboBox->setCurrentIndex(d->parametersNode->GetFilter());
@@ -1073,6 +1088,29 @@ void qSlicerAstroSmoothingModuleWidget::onModeChanged()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onMasksCommandChanged()
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  int wasModifying = d->parametersNode->StartModify();
+
+  if (d->MasksGenerateModeRadioButton->isChecked())
+    {
+    d->parametersNode->SetMasksCommand("Generate");
+    }
+  if (d->MasksSkipModeRadioButton->isChecked())
+    {
+    d->parametersNode->SetMasksCommand("Skip");
+    }
+
+  d->parametersNode->EndModify(wasModifying);
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
@@ -1553,8 +1591,17 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
 
   if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
     {
-    d->astroVolumeWidget->setComparative3DViews
-        (inputVolume->GetID(), outputVolume->GetID());
+    if (!strcmp(d->parametersNode->GetMasksCommand(), "Generate"))
+      {
+      d->astroVolumeWidget->setComparative3DViews
+          (inputVolume->GetID(), outputVolume->GetID(), true);
+      d->OutputSegmentCollapsibleButton->setCollapsed(false);
+      }
+    else
+      {
+      d->astroVolumeWidget->setComparative3DViews
+          (inputVolume->GetID(), outputVolume->GetID(), false);
+      }
     }
   else
     {
