@@ -96,7 +96,9 @@ QStringList qSlicerAstroVolumeReader::extensions()const
 {
   return QStringList()
     << "Volume (*.fits)"
+    << "Volume (*.fits.gz)"
     << "Image (*.fits)"
+    << "Image (*.fits.gz)"
     << "All Files (*)";
 }
 

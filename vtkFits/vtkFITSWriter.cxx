@@ -18,7 +18,9 @@
 ==============================================================================*/
 
 #include <map>
-#include<cstdlib>
+#include <cstdlib>
+#include <zlib.h>
+#include <stdio.h>
 
 // vtkASTRO includes
 #include <vtkFITSWriter.h>
@@ -43,7 +45,7 @@ vtkStandardNewMacro(vtkFITSWriter);
 vtkFITSWriter::vtkFITSWriter()
 {
   this->FileName = NULL;
-  this->UseCompression = 0;
+  this->UseCompression = 1;
   this->FileType = VTK_BINARY;
   this->WriteErrorOff();
   this->Attributes = new AttributeMapType;
@@ -127,6 +129,31 @@ int vtkFITSWriter::FillInputPortInformation(
 
 }
 
+// Utility function for compressing files
+//----------------------------------------------------------------------------
+bool vtkFITSWriter::compress_one_file(const char *infilename, const char *outfilename)
+{
+  FILE *infile = fopen(infilename, "rb");
+  gzFile outfile = gzopen(outfilename, "wb");
+  if (!infile || !outfile)
+    {
+    return false;
+    }
+
+  char inbuffer[128];
+  int num_read = 0;
+  unsigned long total_read = 0;
+  while ((num_read = fread(inbuffer, 1, sizeof(inbuffer), infile)) > 0)
+    {
+    total_read += num_read;
+    gzwrite(outfile, inbuffer, num_read);
+    }
+  fclose(infile);
+  gzclose(outfile);
+
+  return true;
+}
+
 
 //----------------------------------------------------------------------------
 // Writes all the data from the input.
@@ -141,8 +168,7 @@ void vtkFITSWriter::WriteData()
     return;
     }
 
-    // Fill in image information.
-
+  // Fill in image information.
   vtkImageData *input = this->GetInput();
   vtkDataArray *array;
   array = static_cast<vtkDataArray *> (input->GetPointData()->GetScalars());
@@ -153,7 +179,11 @@ void vtkFITSWriter::WriteData()
   int dim = 1;
 
   //allocate FITS struct
-  remove(this->GetFileName());
+  if (remove(this->GetFileName()) != 0)
+    {
+    vtkErrorMacro("vtkFITSWriter::WriteData Error: Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
+    }
+
   fits_create_file(&fptr, this->GetFileName(), &WriteStatus);
 
   switch (vtkType){
@@ -173,7 +203,7 @@ void vtkFITSWriter::WriteData()
 
   // write the header.
 
-  //fits_write_key
+  // fits_write_key
   AttributeMapType::iterator ait;
   for (ait = this->Attributes->begin(); ait != this->Attributes->end(); ++ait)
     {
@@ -262,6 +292,25 @@ void vtkFITSWriter::WriteData()
   // Free the FITS struct
   fits_close_file(fptr, &WriteStatus);
   fits_report_error(stderr, WriteStatus);
+
+  if (!this->GetUseCompression())
+    {
+    return;
+    }
+
+  // Compress file
+  std::string FileName = this->GetFileName();
+  std::string compressedName = FileName + ".gz";
+
+  if(!vtkFITSWriter::compress_one_file(FileName.c_str(), compressedName.c_str()))
+    {
+    vtkErrorMacro(<<"vtkFITSWriter::WriteData Error: Compression failed.");
+    }
+
+  if (remove(this->GetFileName()) != 0)
+    {
+    vtkErrorMacro("vtkFITSWriter::WriteData Error: Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
+    }
 
   return;
 }

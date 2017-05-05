@@ -47,6 +47,7 @@ vtkMRMLAstroVolumeStorageNode::vtkMRMLAstroVolumeStorageNode()
 {
   this->CenterImage = 2;
   this->DefaultWriteFileExtension = "fits";
+  this->UseCompressionOn();
 }
 
 //----------------------------------------------------------------------------
@@ -441,7 +442,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   vtkNew<vtkFITSWriter> writer;
   writer->SetFileName(fullName.c_str());
   writer->SetInputConnection(volNode->GetImageDataConnection());
-  writer->SetUseCompression(0);
+  writer->SetUseCompression(this->GetUseCompression());
 
   // pass down all MRML attributes
   std::vector<std::string> attributeNames = volNode->GetAttributeNames();
@@ -469,12 +470,14 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 void vtkMRMLAstroVolumeStorageNode::InitializeSupportedReadFileTypes()
 {
   this->SupportedReadFileTypes->InsertNextValue("FITS (.fits)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fits.gz)");
 }
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeStorageNode::InitializeSupportedWriteFileTypes()
 {
   this->SupportedWriteFileTypes->InsertNextValue("FITS (.fits)");
+  this->SupportedWriteFileTypes->InsertNextValue("FITS (.fits.gz)");
 }
 
 //----------------------------------------------------------------------------

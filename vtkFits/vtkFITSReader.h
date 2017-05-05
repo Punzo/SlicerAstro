@@ -84,7 +84,7 @@ public:
   /// Valid extentsions
   virtual const char* GetFileExtensions()
     {
-    return ".fits";
+    return ".fits .fits.gz";
     }
 
   ///
@@ -111,14 +111,19 @@ public:
   vtkGetMacro(DataType,int);
 
   ///
-  ///Number of components
+  /// Number of components
   vtkSetMacro(NumberOfComponents,int);
   vtkGetMacro(NumberOfComponents,int);
 
   ///
-  ///WCSStatus
+  /// WCSStatus
   vtkSetMacro(WCSStatus,int);
   vtkGetMacro(WCSStatus,int);
+
+  ///
+  /// Compression
+  vtkSetMacro(Compression,bool);
+  vtkGetMacro(Compression,bool);
 
   ///
   /// Use image origin from the file
@@ -151,6 +156,7 @@ protected:
   int PointDataType;
   int DataType;
   int NumberOfComponents;
+  bool Compression;
   bool UseNativeOrigin;
 
   fitsfile *fptr;
@@ -171,6 +177,8 @@ protected:
   bool AllocateWCS();
 
   bool FixGipsyHeaderOn;
+
+  static bool decompress_one_file(const char *infilename, const char *outfilename);
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

@@ -100,6 +100,8 @@ protected:
   fitsfile *fptr;
   int WriteStatus;
 
+  static bool compress_one_file(const char *infilename, const char *outfilename);
+
 private:
   vtkFITSWriter(const vtkFITSWriter&);  /// Not implemented.
   void operator=(const vtkFITSWriter&);  /// Not implemented.
