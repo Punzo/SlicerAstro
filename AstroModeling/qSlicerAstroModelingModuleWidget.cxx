@@ -1981,7 +1981,8 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
-         d->parametersNode->GetContourLevel());
+         d->parametersNode->GetContourLevel(),
+         false);
 }
 
 //--------------------------------------------------------------------------

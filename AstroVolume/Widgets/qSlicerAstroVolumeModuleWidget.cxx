@@ -1468,10 +1468,13 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     currentSegmentationNode = newSegmentationNode;
     }
 
+  if (!currentSegmentationNode->GetDisplayNode())
+    {
+    currentSegmentationNode->CreateDefaultDisplayNodes();
+    }
+
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
-
-  currentSegmentationNode->CreateDefaultDisplayNodes();
 
   std::string SegmentOneID = volumeOne->GetName();
   SegmentOneID += "_3RMS";
@@ -1752,6 +1755,11 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     currentSegmentationNode = newSegmentationNode;
     }
 
+  if (!currentSegmentationNode->GetDisplayNode())
+    {
+    currentSegmentationNode->CreateDefaultDisplayNodes();
+    }
+
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
 
@@ -1844,8 +1852,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
       }
     }
 
-  currentSegmentationNode->CreateDefaultDisplayNodes();
-
   for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
@@ -1903,6 +1909,11 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     return;
     }
 
+  if (!currentSegmentationNode->GetDisplayNode())
+    {
+    currentSegmentationNode->CreateDefaultDisplayNodes();
+    }
+
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
 
@@ -1911,13 +1922,14 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
   if (SegmentOne && overrideSegments)
     {
+    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOff();
     currentSegmentationNode->GetSegmentation()->RemoveSegment(SegmentOne);
     SegmentOne = NULL;
+    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOn();
     }
   if (!SegmentOne)
     {
     SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID);
-
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
@@ -1946,8 +1958,10 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   vtkSegment *SegmentTwo = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentTwoID);
   if (SegmentTwo && overrideSegments)
     {
+    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOff();
     currentSegmentationNode->GetSegmentation()->RemoveSegment(SegmentTwo);
     SegmentTwo = NULL;
+    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOn();
     }
   if(!SegmentTwo)
     {

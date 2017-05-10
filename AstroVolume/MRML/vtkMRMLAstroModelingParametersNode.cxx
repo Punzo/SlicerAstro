@@ -585,6 +585,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartXPosNode->SetProperty("default", "title", " ");
     chartXPosNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartXPosNode->SetProperty("default", "yAxisLabel", "X Center (pixels)");
+    chartXPosNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartXPosNode);
     this->SetAndObserveChartNode(chartXPosNode, "chartXPos");
     chartXPosNode->Delete();
@@ -605,6 +606,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartYPosNode->SetProperty("default", "title", " ");
     chartYPosNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartYPosNode->SetProperty("default", "yAxisLabel", "Y Center (pixels)");
+    chartYPosNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartYPosNode);
     this->SetAndObserveChartNode(chartYPosNode, "chartYPos");
     chartYPosNode->Delete();
@@ -624,6 +626,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartVSysNode->SetProperty("default", "title", " ");
     chartVSysNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartVSysNode->SetProperty("default", "yAxisLabel", "Systemic Velocity (km/s)");
+    chartVSysNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartVSysNode);
     this->SetAndObserveChartNode(chartVSysNode, "chartVSys");
     chartVSysNode->Delete();
@@ -643,6 +646,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartVRotNode->SetProperty("default", "title", " ");
     chartVRotNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartVRotNode->SetProperty("default", "yAxisLabel", "Rotational Velocity (km/s)");
+    chartVRotNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartVRotNode);
     this->SetAndObserveChartNode(chartVRotNode, "chartVRot");
     chartVRotNode->Delete();
@@ -662,6 +666,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartVDispNode->SetProperty("default", "title", " ");
     chartVDispNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartVDispNode->SetProperty("default", "yAxisLabel", "Dispersion Velocity (km/s)");
+    chartVDispNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartVDispNode);
     this->SetAndObserveChartNode(chartVDispNode, "chartVDisp");
     chartVDispNode->Delete();
@@ -681,6 +686,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartDensNode->SetProperty("default", "title", " ");
     chartDensNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartDensNode->SetProperty("default", "yAxisLabel", "Column Density (10^20 cm^-2)");
+    chartDensNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartDensNode);
     this->SetAndObserveChartNode(chartDensNode, "chartDens");
     chartDensNode->Delete();
@@ -700,6 +706,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartZ0Node->SetProperty("default", "title", " ");
     chartZ0Node->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartZ0Node->SetProperty("default", "yAxisLabel", "Scale Heigth (Kpc)");
+    chartZ0Node->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartZ0Node);
     this->SetAndObserveChartNode(chartZ0Node, "chartZ0");
     chartZ0Node->Delete();
@@ -719,6 +726,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartIncNode->SetProperty("default", "title", " ");
     chartIncNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartIncNode->SetProperty("default", "yAxisLabel", "Inclination (degree)");
+    chartIncNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartIncNode);
     this->SetAndObserveChartNode(chartIncNode, "chartInc");
     chartIncNode->Delete();
@@ -738,6 +746,7 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
     chartPhiNode->SetProperty("default", "title", " ");
     chartPhiNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
     chartPhiNode->SetProperty("default", "yAxisLabel", "Orientation Angle (degree)");
+    chartPhiNode->SetProperty("default", "showMarkers", "on");
     this->Scene->AddNode(chartPhiNode);
     this->SetAndObserveChartNode(chartPhiNode, "chartPhi");
     chartPhiNode->Delete();
