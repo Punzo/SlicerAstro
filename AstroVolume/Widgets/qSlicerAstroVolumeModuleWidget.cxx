@@ -1281,14 +1281,14 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : appLogic not found!";
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : appLogic not found!";
     return;
     }
 
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
   if (!selectionNode)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : selectionNode not found!";
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : selectionNode not found!";
     return;
     }
 
@@ -1586,14 +1586,14 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : appLogic not found!";
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : appLogic not found!";
     return;
     }
 
   vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
   if (!selectionNode)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : selectionNode not found!";
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : selectionNode not found!";
     return;
     }
 
