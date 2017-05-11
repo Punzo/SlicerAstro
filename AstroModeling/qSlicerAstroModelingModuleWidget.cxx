@@ -234,6 +234,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(RotVelSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onRotationVelocityChanged(double)));
 
+  QObject::connect(RadVelSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRadialVelocityChanged(double)));
+
   QObject::connect(VelDispSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onVelocityDispersionChanged(double)));
 
@@ -261,10 +264,13 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(PARadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onPositionAngleFitChanged(bool)));
 
-  QObject::connect(DISPRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(VROTRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onRotationVelocityFitChanged(bool)));
 
-  QObject::connect(VROTRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(VRadRadioButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onRadialVelocityFitChanged(bool)));
+
+  QObject::connect(DISPRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onVelocityDispersionFitChanged(bool)));
 
   QObject::connect(INCRadioButton, SIGNAL(toggled(bool)),
@@ -1119,6 +1125,7 @@ void qSlicerAstroModelingModuleWidget::onModeChanged()
     d->parametersNode->SetDistance(0.);
     d->parametersNode->SetPositionAngleFit(true);
     d->parametersNode->SetRotationVelocityFit(true);
+    d->parametersNode->SetRadialVelocityFit(false);
     d->parametersNode->SetVelocityDispersionFit(true);
     d->parametersNode->SetInclinationFit(true);
     d->parametersNode->SetXCenterFit(false);
@@ -1352,6 +1359,11 @@ void qSlicerAstroModelingModuleWidget::onParamsTableNodeModified(vtkObject *send
         data->SetComponent(ii, 1, StringToDouble(paramsTableNode->GetCellText(
                            ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));
         }
+      else if (!strcmp(chartNode->GetName(), "chartVRad"))
+        {
+        data->SetComponent(ii, 1, StringToDouble(paramsTableNode->GetCellText(
+                           ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad).c_str()));
+        }
       else if (!strcmp(chartNode->GetName(), "chartVDisp"))
         {
         data->SetComponent(ii, 1, StringToDouble(paramsTableNode->GetCellText(
@@ -1468,6 +1480,30 @@ void qSlicerAstroModelingModuleWidget::onResidualVolumeChanged(vtkMRMLNode *mrml
 }
 
 //--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onRadialVelocityChanged(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetRadialVelocity(value);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onRadialVelocityFitChanged(bool flag)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetRadialVelocityFit(flag);
+}
+
+//--------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onRotationVelocityChanged(double value)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -1567,6 +1603,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->YcenterSliderWidget->setValue(d->parametersNode->GetYCenter());
   d->SysVelSliderWidget->setValue(d->parametersNode->GetSystemicVelocity());
   d->RotVelSliderWidget->setValue(d->parametersNode->GetRotationVelocity());
+  d->RadVelSliderWidget->setValue(d->parametersNode->GetRadialVelocity());
   d->VelDispSliderWidget->setValue(d->parametersNode->GetVelocityDispersion());
   d->InclinationSliderWidget->setValue(d->parametersNode->GetInclination());
   d->InclinationErrorSpinBox->setValue(d->parametersNode->GetInclinationError());
@@ -1578,6 +1615,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->PARadioButton->setChecked(d->parametersNode->GetPositionAngleFit());
   d->DISPRadioButton->setChecked(d->parametersNode->GetRotationVelocityFit());
   d->VROTRadioButton->setChecked(d->parametersNode->GetVelocityDispersionFit());
+  d->VRadRadioButton->setChecked(d->parametersNode->GetRadialVelocityFit());
   d->INCRadioButton->setChecked(d->parametersNode->GetInclinationFit());
   d->XCenterRadioButton->setChecked(d->parametersNode->GetXCenterFit());
   d->YCenterRadioButton->setChecked(d->parametersNode->GetYCenterFit());

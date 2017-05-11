@@ -379,14 +379,21 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       this->Internal->par->setVSYS("-1");
       }
 
+
+    cout<<"bella : "<<pnode->GetRotationVelocity()<<endl;
     if (pnode->GetRotationVelocity() > 0.)
       {
+      cout<<"bella1"<<endl;
       this->Internal->par->setVROT(DoubleToString(pnode->GetRotationVelocity()));
       }
     else
       {
+      cout<<"bella2"<<endl;
       this->Internal->par->setVROT("-1");
       }
+    cout<<"bella3"<<this->Internal->par->getVROT()<<endl;
+
+    this->Internal->par->setVRAD(DoubleToString(pnode->GetRadialVelocity()));
 
     if (pnode->GetVelocityDispersion() > 0.)
       {
@@ -458,6 +465,11 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       freeParameters += "VROT";
       }
 
+    if (pnode->GetRadialVelocityFit())
+      {
+      freeParameters += "VRAD";
+      }
+
     if (pnode->GetVelocityDispersionFit())
       {
       freeParameters += "VDISP";
@@ -507,6 +519,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
     this->Internal->par->setYPOS("-1");
     this->Internal->par->setVSYS("-1");
     this->Internal->par->setVROT("-1");
+    this->Internal->par->setVRAD("0");
     this->Internal->par->setPHI("-1");
     this->Internal->par->setINC("-1");
     this->Internal->par->setZ0("-1");
@@ -670,6 +683,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         pnode->SetYCenter(StringToDouble(this->Internal->par->getYPOS().c_str()));
         pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getVSYS().c_str()));
         pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getVROT().c_str()));
+        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getVRAD().c_str()));
         pnode->SetPositionAngle(StringToDouble(this->Internal->par->getPHI().c_str()));
         pnode->SetInclination(StringToDouble(this->Internal->par->getINC().c_str()));
         pnode->SetScaleHeight(StringToDouble(this->Internal->par->getZ0().c_str()));
@@ -678,6 +692,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         pnode->SetColumnDensity(StringToDouble(this->Internal->par->getDENS().c_str()));
         pnode->SetCloudsColumnDensity((double) this->Internal->par->getCDENS());
         pnode->SetNumberOfClounds(this->Internal->par->getNV());
+
         pnode->EndModify(wasModifying);
 
         bool success = this->Internal->fitF->galfit(pnode->GetStatusPointer());
@@ -862,6 +877,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         pnode->SetYCenter(StringToDouble(this->Internal->par->getYPOS().c_str()));
         pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getVSYS().c_str()));
         pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getVROT().c_str()));
+        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getVRAD().c_str()));
         pnode->SetPositionAngle(StringToDouble(this->Internal->par->getPHI().c_str()));
         pnode->SetInclination(StringToDouble(this->Internal->par->getINC().c_str()));
         pnode->SetScaleHeight(StringToDouble(this->Internal->par->getZ0().c_str()));
@@ -1034,6 +1050,8 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
     Radii->SetName("Radius (arcsec)");
     vtkStringArray* VRot = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
     VRot->SetName("VRot (km/s)");
+    vtkStringArray* VRad = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
+    VRad->SetName("VRad (km/s)");
     vtkStringArray* Inc = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
     Inc->SetName("Inc (degree)");
     vtkStringArray* Phi = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
@@ -1093,6 +1111,14 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
         }
       }
 
+    if (this->Internal->fitF->Outrings()->vrad.size() > 0)
+      {
+      for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
+        {
+        VRad->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->vrad[ii]).c_str());
+        }
+      }
+
     if (this->Internal->fitF->Outrings()->vdisp.size() > 0)
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
@@ -1145,6 +1171,8 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
     Radii->SetName("Radius (arcsec)");
     vtkStringArray* VRot = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
     VRot->SetName("VRot (km/s)");
+    vtkStringArray* VRad = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
+    VRad->SetName("VRot (km/s)");
     vtkStringArray* Inc = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
     Inc->SetName("Inc (degree)");
     vtkStringArray* Phi = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
@@ -1201,6 +1229,14 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
         VRot->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->vrot[ii]).c_str());
+        }
+      }
+
+    if (this->Internal->fitD->Outrings()->vrad.size() > 0)
+      {
+      for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
+        {
+        VRad->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->vrad[ii]).c_str());
         }
       }
 
@@ -1375,6 +1411,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->par->setVROT("-1");
       }
 
+    this->Internal->par->setVRAD(DoubleToString(pnode->GetRadialVelocity()));
+
     if (pnode->GetVelocityDispersion() > 0.)
       {
       this->Internal->par->setVDISP(DoubleToString(pnode->GetVelocityDispersion()));
@@ -1443,6 +1481,11 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     if (pnode->GetRotationVelocityFit())
       {
       freeParameters += "VROT";
+      }
+
+    if (pnode->GetRadialVelocityFit())
+      {
+      freeParameters += "VRAD";
       }
 
     if (pnode->GetVelocityDispersionFit())
@@ -1660,7 +1703,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->fitF->Outrings()->phi.clear();
       this->Internal->fitF->Outrings()->pa.clear();
       this->Internal->fitF->Outrings()->nv.clear();
-      this->Internal->fitF->Outrings()->vexp.clear();
+      this->Internal->fitF->Outrings()->vrad.clear();
 
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
@@ -1679,6 +1722,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->fitF->Outrings()->vrot.push_back(
             StringToFloat(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));
+        this->Internal->fitF->Outrings()->vrad.push_back(
+            StringToFloat(paramsTableNode->GetCellText(
+                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad).c_str()));
         this->Internal->fitF->Outrings()->vdisp.push_back(
             StringToFloat(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp).c_str()));
@@ -1696,7 +1742,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             StringToFloat(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi).c_str()));
         this->Internal->fitF->Outrings()->pa.push_back(0.);
-        this->Internal->fitF->Outrings()->vexp.push_back(0.);
         this->Internal->fitF->Outrings()->nv.push_back(0);
         }
 
@@ -1717,8 +1762,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             }
           }
         }
-
-
 
       if (this->Internal->totflux_data < 1.E-6)
         {
@@ -1817,7 +1860,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->fitD->Outrings()->phi.clear();
       this->Internal->fitD->Outrings()->pa.clear();
       this->Internal->fitD->Outrings()->nv.clear();
-      this->Internal->fitD->Outrings()->vexp.clear();
+      this->Internal->fitD->Outrings()->vrad.clear();
 
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
@@ -1836,6 +1879,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->fitD->Outrings()->vrot.push_back(
             StringToDouble(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));
+        this->Internal->fitD->Outrings()->vrad.push_back(
+            StringToDouble(paramsTableNode->GetCellText(
+                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad).c_str()));
         this->Internal->fitD->Outrings()->vdisp.push_back(
             StringToDouble(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp).c_str()));
@@ -1853,7 +1899,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             StringToDouble(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi).c_str()));
         this->Internal->fitD->Outrings()->pa.push_back(0.);
-        this->Internal->fitD->Outrings()->vexp.push_back(0.);
         this->Internal->fitD->Outrings()->nv.push_back(0);
         }
 

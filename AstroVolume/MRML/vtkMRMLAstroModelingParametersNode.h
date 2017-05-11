@@ -102,6 +102,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(RotationVelocity,double);
   vtkGetMacro(RotationVelocity,double);
 
+  vtkSetMacro(RadialVelocity,double);
+  vtkGetMacro(RadialVelocity,double);
+
   vtkSetMacro(VelocityDispersion,double);
   vtkGetMacro(VelocityDispersion,double);
 
@@ -131,6 +134,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   vtkSetMacro(RotationVelocityFit,bool);
   vtkGetMacro(RotationVelocityFit,bool);
+
+  vtkSetMacro(RadialVelocityFit,bool);
+  vtkGetMacro(RadialVelocityFit,bool);
 
   vtkSetMacro(VelocityDispersionFit,bool);
   vtkGetMacro(VelocityDispersionFit,bool);
@@ -180,28 +186,34 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkGetMacro(ContourLevel,double);
 
   static const char* PARAMS_TABLE_REFERENCE_ROLE;
+
   static const char* CHART_XPOS_REFERENCE_ROLE;
   static const char* CHART_YPOS_REFERENCE_ROLE;
   static const char* CHART_VSYS_REFERENCE_ROLE;
   static const char* CHART_VROT_REFERENCE_ROLE;
+  static const char* CHART_VRAD_REFERENCE_ROLE;
   static const char* CHART_VDISP_REFERENCE_ROLE;
   static const char* CHART_DENS_REFERENCE_ROLE;
   static const char* CHART_Z0_REFERENCE_ROLE;
   static const char* CHART_INC_REFERENCE_ROLE;
   static const char* CHART_PHI_REFERENCE_ROLE;
+
   static const char* ARRAY_XPOS_REFERENCE_ROLE;
   static const char* ARRAY_YPOS_REFERENCE_ROLE;
   static const char* ARRAY_VSYS_REFERENCE_ROLE;
   static const char* ARRAY_VROT_REFERENCE_ROLE;
+  static const char* ARRAY_VRAD_REFERENCE_ROLE;
   static const char* ARRAY_VDISP_REFERENCE_ROLE;
   static const char* ARRAY_DENS_REFERENCE_ROLE;
   static const char* ARRAY_Z0_REFERENCE_ROLE;
   static const char* ARRAY_INC_REFERENCE_ROLE;
   static const char* ARRAY_PHI_REFERENCE_ROLE;
+
   static const char* FIRST_ARRAY_XPOS_REFERENCE_ROLE;
   static const char* FIRST_ARRAY_YPOS_REFERENCE_ROLE;
   static const char* FIRST_ARRAY_VSYS_REFERENCE_ROLE;
   static const char* FIRST_ARRAY_VROT_REFERENCE_ROLE;
+  static const char* FIRST_ARRAY_VRAD_REFERENCE_ROLE;
   static const char* FIRST_ARRAY_VDISP_REFERENCE_ROLE;
   static const char* FIRST_ARRAY_DENS_REFERENCE_ROLE;
   static const char* FIRST_ARRAY_Z0_REFERENCE_ROLE;
@@ -214,6 +226,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   {
     ParamsColumnRadii = 0,
     ParamsColumnVRot,
+    ParamsColumnVRad,
     ParamsColumnInc,
     ParamsColumnPhi,
     ParamsColumnVSys,
@@ -261,6 +274,7 @@ protected:
   double YCenter;
   double SystemicVelocity;
   double RotationVelocity;
+  double RadialVelocity;
   double VelocityDispersion;
   double Inclination;
   double InclinationError;
@@ -272,6 +286,7 @@ protected:
 
   bool PositionAngleFit;
   bool RotationVelocityFit;
+  bool RadialVelocityFit;
   bool VelocityDispersionFit;
   bool InclinationFit;
   bool XCenterFit;

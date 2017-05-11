@@ -86,6 +86,8 @@ protected slots:
   void onPositionAngleFitChanged(bool flag);
   void onRadSepChanged(double value);
   void onResidualVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onRadialVelocityChanged(double value);
+  void onRadialVelocityFitChanged(bool flag);
   void onRotationVelocityChanged(double value);
   void onRotationVelocityFitChanged(bool flag);
   void onScaleHeightChanged(double value);

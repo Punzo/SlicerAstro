@@ -38,28 +38,34 @@
 
 //------------------------------------------------------------------------------
 const char* vtkMRMLAstroModelingParametersNode::PARAMS_TABLE_REFERENCE_ROLE = "paramsTableRef";
+
 const char* vtkMRMLAstroModelingParametersNode::CHART_XPOS_REFERENCE_ROLE = "chartXPosRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_YPOS_REFERENCE_ROLE = "chartYPosRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_VSYS_REFERENCE_ROLE = "chartVSysRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_VROT_REFERENCE_ROLE = "chartVRotRef";
+const char* vtkMRMLAstroModelingParametersNode::CHART_VRAD_REFERENCE_ROLE = "chartVRadRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_VDISP_REFERENCE_ROLE = "chartVDispRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_DENS_REFERENCE_ROLE = "chartDensRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_Z0_REFERENCE_ROLE = "chartZ0Ref";
 const char* vtkMRMLAstroModelingParametersNode::CHART_INC_REFERENCE_ROLE = "chartIncRef";
 const char* vtkMRMLAstroModelingParametersNode::CHART_PHI_REFERENCE_ROLE = "chartPhiRef";
+
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_XPOS_REFERENCE_ROLE = "arrayXPosRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_YPOS_REFERENCE_ROLE = "arrayYPosRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_VSYS_REFERENCE_ROLE = "arrayVSysRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_VROT_REFERENCE_ROLE = "arrayVRotRef";
+const char* vtkMRMLAstroModelingParametersNode::ARRAY_VRAD_REFERENCE_ROLE = "arrayVRadRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_VDISP_REFERENCE_ROLE = "arrayVDispRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_DENS_REFERENCE_ROLE = "arrayDensRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_Z0_REFERENCE_ROLE = "arrayZ0Ref";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_INC_REFERENCE_ROLE = "arrayIncRef";
 const char* vtkMRMLAstroModelingParametersNode::ARRAY_PHI_REFERENCE_ROLE = "arrayPhiRef";
+
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_XPOS_REFERENCE_ROLE = "firstArrayXPosRef";
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_YPOS_REFERENCE_ROLE = "firstArrayYPosRef";
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VSYS_REFERENCE_ROLE = "firstArrayVSysRef";
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VROT_REFERENCE_ROLE = "firstArrayVRotRef";
+const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VRAD_REFERENCE_ROLE = "firstArrayVRadRef";
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VDISP_REFERENCE_ROLE = "firstArrayVDispRef";
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_DENS_REFERENCE_ROLE = "firstArrayDensRef";
 const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_Z0_REFERENCE_ROLE = "firstArrayZ0Ref";
@@ -86,6 +92,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetYCenter(0.);
   this->SetSystemicVelocity(0.);
   this->SetRotationVelocity(0.);
+  this->SetRadialVelocity(0.);
   this->SetVelocityDispersion(0.);
   this->SetInclination(0.);
   this->SetInclinationError(5.);
@@ -96,6 +103,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetColumnDensity(1.);
   this->SetPositionAngleFit(true);
   this->SetRotationVelocityFit(true);
+  this->SetRadialVelocityFit(false);
   this->SetVelocityDispersionFit(true);
   this->SetInclinationFit(true);
   this->SetXCenterFit(false);
@@ -255,6 +263,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "RadialVelocity"))
+      {
+      this->RadialVelocity = StringToDouble(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "VelocityDispersion"))
       {
       this->VelocityDispersion = StringToDouble(attValue);
@@ -312,6 +326,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "RotationVelocityFit"))
       {
       this->RotationVelocityFit = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "RadialVelocityFit"))
+      {
+      this->RadialVelocityFit = StringToInt(attValue);
       continue;
       }
 
@@ -459,6 +479,7 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " YCenter=\"" << this->YCenter << "\"";
   of << indent << " SystemicVelocity=\"" << this->SystemicVelocity << "\"";
   of << indent << " RotationVelocity=\"" << this->RotationVelocity << "\"";
+  of << indent << " RadialVelocity=\"" << this->RadialVelocity << "\"";
   of << indent << " VelocityDispersion=\"" << this->VelocityDispersion << "\"";
   of << indent << " InclinationError=\"" << this->InclinationError << "\"";
   of << indent << " PositionAngle=\"" << this->PositionAngle << "\"";
@@ -468,6 +489,7 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " Distance=\"" << this->Distance << "\"";
   of << indent << " PositionAngleFit=\"" << this->PositionAngleFit << "\"";
   of << indent << " RotationVelocityFit=\"" << this->RotationVelocityFit << "\"";
+  of << indent << " RadialVelocityFit=\"" << this->RadialVelocityFit << "\"";
   of << indent << " VelocityDispersionFit=\"" << this->VelocityDispersionFit << "\"";
   of << indent << " InclinationFit=\"" << this->InclinationFit << "\"";
   of << indent << " XCenterFit=\"" << this->XCenterFit << "\"";
@@ -507,6 +529,7 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetYCenter(node->GetYCenter());
   this->SetSystemicVelocity(node->GetSystemicVelocity());
   this->SetRotationVelocity(node->GetRotationVelocity());
+  this->SetRadialVelocity(node->GetRadialVelocity());
   this->SetVelocityDispersion(node->GetVelocityDispersion());
   this->SetInclination(node->GetInclination());
   this->SetInclinationError(node->GetInclinationError());
@@ -518,6 +541,7 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
 
   this->SetPositionAngleFit(node->GetPositionAngleFit());
   this->SetRotationVelocityFit(node->GetRotationVelocityFit());
+  this->SetRadialVelocityFit(node->GetRadialVelocityFit());
   this->SetVelocityDispersionFit(node->GetVelocityDispersionFit());
   this->SetInclinationFit(node->GetInclinationFit());
   this->SetXCenterFit(node->GetXCenterFit());
@@ -654,6 +678,26 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
                   this->GetNodeReference(CHART_VROT_REFERENCE_ROLE) );
     }
   this->chartNodes->AddItem(chartVRotNode);
+
+  vtkMRMLChartNode* chartVRadNode = vtkMRMLChartNode::SafeDownCast(
+              this->GetNodeReference(CHART_VRAD_REFERENCE_ROLE) );
+
+  if (!chartVRadNode)
+    {
+    chartVRadNode = vtkMRMLChartNode::New();
+    std::string chartVRadNodeName = this->Scene->GenerateUniqueName("chartVRad");
+    chartVRadNode->SetName(chartVRadNodeName.c_str());
+    chartVRadNode->SetProperty("default", "title", " ");
+    chartVRadNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
+    chartVRadNode->SetProperty("default", "yAxisLabel", "Radial Velocity (km/s)");
+    chartVRadNode->SetProperty("default", "showMarkers", "on");
+    this->Scene->AddNode(chartVRadNode);
+    this->SetAndObserveChartNode(chartVRadNode, "chartVRad");
+    chartVRadNode->Delete();
+    chartVRadNode = vtkMRMLChartNode::SafeDownCast(
+                  this->GetNodeReference(CHART_VRAD_REFERENCE_ROLE) );
+    }
+  this->chartNodes->AddItem(chartVRadNode);
 
   vtkMRMLChartNode* chartVDispNode = vtkMRMLChartNode::SafeDownCast(
               this->GetNodeReference(CHART_VDISP_REFERENCE_ROLE) );
@@ -924,6 +968,43 @@ vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
     }
   this->arrayNodes->AddItem(firstArrayVRotNode);
 
+  vtkMRMLDoubleArrayNode* arrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
+              this->GetNodeReference(ARRAY_VRAD_REFERENCE_ROLE) );
+
+  if (!arrayVRadNode)
+    {
+    arrayVRadNode = vtkMRMLDoubleArrayNode::New();
+    std::string arrayVRadNodeName = this->Scene->GenerateUniqueName("arrayVRad");
+    arrayVRadNode->SetName(arrayVRadNodeName.c_str());
+    vtkDoubleArray *data = arrayVRadNode->GetArray();
+    data->SetNumberOfComponents(3);
+    data->SetNumberOfTuples(this->GetNumberOfRings());
+    this->Scene->AddNode(arrayVRadNode);
+    this->SetAndObserveArrayNode(arrayVRadNode, "arrayVRad");
+    arrayVRadNode->Delete();
+    arrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
+                    this->GetNodeReference(ARRAY_VRAD_REFERENCE_ROLE) );
+    }
+  this->arrayNodes->AddItem(arrayVRadNode);
+
+  vtkMRMLDoubleArrayNode* firstArrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
+              this->GetNodeReference(FIRST_ARRAY_VRAD_REFERENCE_ROLE) );
+
+  if (!firstArrayVRadNode)
+    {
+    firstArrayVRadNode = vtkMRMLDoubleArrayNode::New();
+    std::string firstArrayVRadNodeName = this->Scene->GenerateUniqueName("firstArrayVRad");
+    firstArrayVRadNode->SetName(firstArrayVRadNodeName.c_str());
+    vtkDoubleArray *data = firstArrayVRadNode->GetArray();
+    data->SetNumberOfComponents(3);
+    data->SetNumberOfTuples(this->GetNumberOfRings());
+    this->Scene->AddNode(firstArrayVRadNode);
+    this->SetAndObserveArrayNode(firstArrayVRadNode, "firstArrayVRad");
+    firstArrayVRadNode->Delete();
+    firstArrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
+                    this->GetNodeReference(FIRST_ARRAY_VRAD_REFERENCE_ROLE) );
+    }
+  this->arrayNodes->AddItem(firstArrayVRadNode);
 
   vtkMRMLDoubleArrayNode* arrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
               this->GetNodeReference(ARRAY_VDISP_REFERENCE_ROLE) );
@@ -1148,6 +1229,10 @@ void vtkMRMLAstroModelingParametersNode::SetAndObserveChartNode(vtkMRMLChartNode
     {
     this->SetNodeReferenceID(CHART_VROT_REFERENCE_ROLE, (node ? node->GetID() : NULL));
     }
+  else if (!strcmp(chartName, "chartVRad"))
+    {
+    this->SetNodeReferenceID(CHART_VRAD_REFERENCE_ROLE, (node ? node->GetID() : NULL));
+    }
   else if (!strcmp(chartName, "chartVDisp"))
     {
     this->SetNodeReferenceID(CHART_VDISP_REFERENCE_ROLE, (node ? node->GetID() : NULL));
@@ -1209,6 +1294,14 @@ void vtkMRMLAstroModelingParametersNode::SetAndObserveArrayNode(vtkMRMLDoubleArr
   else if (!strcmp(arrayName, "firstArrayVRot"))
     {
     this->SetNodeReferenceID(FIRST_ARRAY_VROT_REFERENCE_ROLE, (node ? node->GetID() : NULL));
+    }
+  else if (!strcmp(arrayName, "arrayVRad"))
+    {
+    this->SetNodeReferenceID(ARRAY_VRAD_REFERENCE_ROLE, (node ? node->GetID() : NULL));
+    }
+  else if (!strcmp(arrayName, "firstArrayVRad"))
+    {
+    this->SetNodeReferenceID(FIRST_ARRAY_VRAD_REFERENCE_ROLE, (node ? node->GetID() : NULL));
     }
   else if (!strcmp(arrayName, "arrayVDisp"))
     {
@@ -1275,6 +1368,7 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "YCenter: " << this->YCenter << "\n";
   os << "SystemicVelocity: " << this->SystemicVelocity << "\n";
   os << "RotationVelocity: " << this->RotationVelocity << "\n";
+  os << "RadialVelocity: " << this->RadialVelocity << "\n";
   os << "VelocityDispersion: " << this->VelocityDispersion << "\n";
   os << "InclinationError: " << this->InclinationError << "\n";
   os << "PositionAngle: " << this->PositionAngle << "\n";
@@ -1285,6 +1379,7 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
 
   os << "PositionAngleFit: " << this->PositionAngleFit << "\n";
   os << "RotationVelocityFit: " << this->RotationVelocityFit << "\n";
+  os << "RadialVelocityFit: " << this->RadialVelocityFit << "\n";
   os << "VelocityDispersionFit: " << this->VelocityDispersionFit << "\n";
   os << "InclinationFit: " << this->InclinationFit << "\n";
   os << "XCenterFit: " << this->XCenterFit << "\n";

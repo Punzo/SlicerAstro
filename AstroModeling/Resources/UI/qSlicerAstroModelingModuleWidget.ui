@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>554</width>
-    <height>1156</height>
+    <height>1414</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -478,69 +478,6 @@
          <string>Rotation Velocity:</string>
         </property>
        </widget>
-      </item>
-      <item row="8" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_13">
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="ctkSliderWidget" name="RotVelSliderWidget">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>250</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
-          </property>
-          <property name="singleStep">
-           <double>5.000000000000000</double>
-          </property>
-          <property name="pageStep">
-           <double>30.000000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>500.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="RotVelLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>km/s</string>
-          </property>
-         </widget>
-        </item>
-       </layout>
       </item>
       <item row="10" column="0">
        <widget class="QLabel" name="VelDispLabel">
@@ -1146,6 +1083,16 @@
          <property name="fieldGrowthPolicy">
           <enum>QFormLayout::AllNonFixedFieldsGrow</enum>
          </property>
+         <item row="1" column="0">
+          <widget class="QLabel" name="FreeParametersLabel">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Free parameters:</string>
+           </property>
+          </widget>
+         </item>
          <item row="1" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_18">
            <property name="spacing">
@@ -1217,78 +1164,84 @@
            </item>
           </layout>
          </item>
-         <item row="2" column="1">
-          <layout class="QHBoxLayout" name="horizontalLayout_19">
-           <property name="spacing">
-            <number>12</number>
+         <item row="4" column="0">
+          <widget class="QLabel" name="DistanceLabel">
+           <property name="text">
+            <string>Distance:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout_25">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
            </property>
            <item>
-            <widget class="QRadioButton" name="XCenterRadioButton">
+            <widget class="ctkSliderWidget" name="DistanceSliderWidget">
              <property name="enabled">
               <bool>false</bool>
              </property>
-             <property name="text">
-              <string>XCenter</string>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
-             <property name="checked">
-              <bool>false</bool>
+             <property name="minimumSize">
+              <size>
+               <width>250</width>
+               <height>0</height>
+              </size>
              </property>
-             <property name="autoExclusive">
-              <bool>false</bool>
+             <property name="toolTip">
+              <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+             </property>
+             <property name="singleStep">
+              <double>1.000000000000000</double>
+             </property>
+             <property name="pageStep">
+              <double>25.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>2000.000000000000000</double>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QRadioButton" name="YCenterRadioButton">
+            <widget class="QLabel" name="DistanceLabelUnit">
              <property name="enabled">
               <bool>false</bool>
              </property>
-             <property name="text">
-              <string>YCenter</string>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
-             <property name="checked">
-              <bool>false</bool>
-             </property>
-             <property name="autoExclusive">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QRadioButton" name="VSYSRadioButton">
-             <property name="enabled">
-              <bool>false</bool>
+             <property name="minimumSize">
+              <size>
+               <width>60</width>
+               <height>0</height>
+              </size>
              </property>
              <property name="text">
-              <string>VSYS</string>
-             </property>
-             <property name="checked">
-              <bool>false</bool>
-             </property>
-             <property name="autoExclusive">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QRadioButton" name="SCRadioButton">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="text">
-              <string>Scale Height</string>
-             </property>
-             <property name="checked">
-              <bool>false</bool>
-             </property>
-             <property name="autoExclusive">
-              <bool>false</bool>
+              <string>Mpc</string>
              </property>
             </widget>
            </item>
           </layout>
          </item>
-         <item row="4" column="1">
+         <item row="5" column="0">
+          <widget class="QLabel" name="LayerTypeLabel">
+           <property name="text">
+            <string>Layer Type:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_22">
            <property name="leftMargin">
             <number>0</number>
@@ -1355,7 +1308,7 @@
            </item>
           </layout>
          </item>
-         <item row="5" column="0">
+         <item row="6" column="0">
           <widget class="QLabel" name="CloudCDLabel">
            <property name="enabled">
             <bool>false</bool>
@@ -1365,7 +1318,7 @@
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="6" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_20">
            <property name="leftMargin">
             <number>0</number>
@@ -1428,7 +1381,7 @@
            </item>
           </layout>
          </item>
-         <item row="6" column="0">
+         <item row="7" column="0">
           <widget class="QLabel" name="NumCloudsLabel">
            <property name="enabled">
             <bool>false</bool>
@@ -1438,7 +1391,7 @@
            </property>
           </widget>
          </item>
-         <item row="6" column="1">
+         <item row="7" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_21">
            <property name="leftMargin">
             <number>0</number>
@@ -1504,7 +1457,7 @@
            </item>
           </layout>
          </item>
-         <item row="7" column="0">
+         <item row="8" column="0">
           <widget class="QLabel" name="FittingFunctionLabel">
            <property name="enabled">
             <bool>false</bool>
@@ -1514,7 +1467,7 @@
            </property>
           </widget>
          </item>
-         <item row="7" column="1">
+         <item row="8" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_23">
            <property name="leftMargin">
             <number>0</number>
@@ -1571,7 +1524,7 @@
            </item>
           </layout>
          </item>
-         <item row="8" column="0">
+         <item row="9" column="0">
           <widget class="QLabel" name="WeightingFunctionLabel">
            <property name="enabled">
             <bool>false</bool>
@@ -1581,7 +1534,7 @@
            </property>
           </widget>
          </item>
-         <item row="8" column="1">
+         <item row="9" column="1">
           <layout class="QHBoxLayout" name="horizontalLayout_24">
            <property name="leftMargin">
             <number>0</number>
@@ -1638,88 +1591,95 @@
            </item>
           </layout>
          </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="FreeParametersLabel">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Free parameters:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="LayerTypeLabel">
-           <property name="text">
-            <string>Layer Type:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="DistanceLabel">
-           <property name="text">
-            <string>Distance:</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <layout class="QHBoxLayout" name="horizontalLayout_25">
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
+         <item row="2" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout_19">
+           <property name="spacing">
+            <number>12</number>
            </property>
            <item>
-            <widget class="ctkSliderWidget" name="DistanceSliderWidget">
+            <widget class="QRadioButton" name="VRadRadioButton">
              <property name="enabled">
               <bool>false</bool>
              </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
+             <property name="text">
+              <string>VRAD</string>
              </property>
-             <property name="minimumSize">
-              <size>
-               <width>250</width>
-               <height>0</height>
-              </size>
+             <property name="checked">
+              <bool>false</bool>
              </property>
-             <property name="toolTip">
-              <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
-             </property>
-             <property name="singleStep">
-              <double>1.000000000000000</double>
-             </property>
-             <property name="pageStep">
-              <double>25.000000000000000</double>
-             </property>
-             <property name="maximum">
-              <double>2000.000000000000000</double>
+             <property name="autoExclusive">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QLabel" name="DistanceLabelUnit">
+            <widget class="QRadioButton" name="VSYSRadioButton">
              <property name="enabled">
               <bool>false</bool>
              </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
+             <property name="text">
+              <string>VSYS</string>
              </property>
-             <property name="minimumSize">
-              <size>
-               <width>60</width>
-               <height>0</height>
-              </size>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+             <property name="autoExclusive">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="SCRadioButton">
+             <property name="enabled">
+              <bool>false</bool>
              </property>
              <property name="text">
-              <string>Mpc</string>
+              <string>Scale Height</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+             <property name="autoExclusive">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+         <item row="3" column="1">
+          <layout class="QHBoxLayout" name="horizontalLayout_28">
+           <property name="spacing">
+            <number>12</number>
+           </property>
+           <item>
+            <widget class="QRadioButton" name="XCenterRadioButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>XCenter</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+             <property name="autoExclusive">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QRadioButton" name="YCenterRadioButton">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>YCenter</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+             <property name="autoExclusive">
+              <bool>false</bool>
              </property>
             </widget>
            </item>
@@ -1930,6 +1890,145 @@
         </item>
        </layout>
       </item>
+      <item row="9" column="0">
+       <widget class="QLabel" name="VRadLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>Radial Velocity:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="8" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_13">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="ctkSliderWidget" name="RotVelSliderWidget">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>250</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+          </property>
+          <property name="singleStep">
+           <double>5.000000000000000</double>
+          </property>
+          <property name="pageStep">
+           <double>30.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>600.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="RotVelLabelUnit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>60</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>km/s</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="9" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_27">
+        <property name="leftMargin">
+         <number>0</number>
+        </property>
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item>
+         <widget class="ctkSliderWidget" name="RadVelSliderWidget">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>250</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+          </property>
+          <property name="singleStep">
+           <double>2.000000000000000</double>
+          </property>
+          <property name="pageStep">
+           <double>20.000000000000000</double>
+          </property>
+          <property name="minimum">
+           <double>-100.000000000000000</double>
+          </property>
+          <property name="maximum">
+           <double>100.000000000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="RadVelLabelUnit">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>60</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>km/s</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
      </layout>
     </widget>
    </item>
@@ -2125,7 +2224,6 @@
  <resources>
   <include location="../../../AstroVolume/Widgets/Resources/qSlicerAstroVolumeWidgetsModule.qrc"/>
   <include location="../../../../Slicer/Modules/Loadable/Segmentations/Widgets/Resources/qSlicerSegmentationsModuleWidgets.qrc"/>
-  <include location="../../../../SlicerRT/DoseVolumeHistogram/Resources/qSlicerDoseVolumeHistogramModule.qrc"/>
  </resources>
  <connections>
   <connection>
@@ -2531,22 +2629,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>RotVelSliderWidget</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>279</x>
-     <y>670</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>XcenterLabelUnit</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -2573,22 +2655,6 @@
     <hint type="destinationlabel">
      <x>222</x>
      <y>754</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RotVelLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>462</x>
-     <y>670</y>
     </hint>
    </hints>
   </connection>
@@ -2877,70 +2943,6 @@
     <hint type="destinationlabel">
      <x>426</x>
      <y>779</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>XCenterRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>385</x>
-     <y>392</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>166</x>
-     <y>804</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>YCenterRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>385</x>
-     <y>392</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>250</x>
-     <y>804</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>VSYSRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>385</x>
-     <y>392</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>324</x>
-     <y>804</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>SCRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>385</x>
-     <y>392</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>413</x>
-     <y>804</y>
     </hint>
    </hints>
   </connection>
@@ -3405,6 +3407,182 @@
     <hint type="destinationlabel">
      <x>291</x>
      <y>62</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>ResidualLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>446</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>62</x>
+     <y>84</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RotVelLabelUnit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>405</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>462</x>
+     <y>670</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RotVelSliderWidget</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>405</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>279</x>
+     <y>670</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RadVelLabelUnit</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>446</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>516</x>
+     <y>706</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>RadVelSliderWidget</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>446</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>306</x>
+     <y>706</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>XCenterRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>392</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>166</x>
+     <y>804</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>YCenterRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>392</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>250</x>
+     <y>804</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SCRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>392</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>413</x>
+     <y>804</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>VSYSRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>385</x>
+     <y>392</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>324</x>
+     <y>804</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>VRadRadioButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>446</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>200</x>
+     <y>1012</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>VRadLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>446</x>
+     <y>496</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>78</x>
+     <y>747</y>
     </hint>
    </hints>
   </connection>
