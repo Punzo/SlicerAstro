@@ -422,10 +422,10 @@ BrushPipeline* qSlicerSegmentEditorAstroCloudLassoEffectPrivate::brushForWidget(
 //-----------------------------------------------------------------------------
 vtkIdType qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintAddTwoPoints(double brushPosition_World[3])
 {
-  vtkIdType idPointFirst = this->PaintCoordinates_World->InsertNextPoint(brushPosition_World);
-  vtkIdType idPointSecond = this->PaintCoordinates_World->InsertNextPoint(brushPosition_World[0] + brushPosition_World[0]/1000.,
-                                                                          brushPosition_World[1] + brushPosition_World[1]/1000.,
-                                                                          brushPosition_World[2] + brushPosition_World[2]/1000.);
+  vtkIdType idPointFirst = this->PaintCoordinates_World->InsertNextPoint(brushPosition_World[0] + (brushPosition_World[0]/10000000.),
+                                                                         brushPosition_World[1] + (brushPosition_World[1]/10000000.),
+                                                                         brushPosition_World[2] + (brushPosition_World[2]/10000000.));
+  vtkIdType idPointSecond = this->PaintCoordinates_World->InsertNextPoint(brushPosition_World);
 
   this->CloudLasso3DSelectionPoints->InsertNextPoint(brushPosition_World);
 
