@@ -1429,7 +1429,7 @@
               <double>0.000000000000000</double>
              </property>
              <property name="maximum">
-              <double>100.000000000000000</double>
+              <double>1000.000000000000000</double>
              </property>
              <property name="value">
               <double>0.000000000000000</double>

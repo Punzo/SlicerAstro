@@ -379,19 +379,14 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       this->Internal->par->setVSYS("-1");
       }
 
-
-    cout<<"bella : "<<pnode->GetRotationVelocity()<<endl;
     if (pnode->GetRotationVelocity() > 0.)
       {
-      cout<<"bella1"<<endl;
       this->Internal->par->setVROT(DoubleToString(pnode->GetRotationVelocity()));
       }
     else
       {
-      cout<<"bella2"<<endl;
       this->Internal->par->setVROT("-1");
       }
-    cout<<"bella3"<<this->Internal->par->getVROT()<<endl;
 
     this->Internal->par->setVRAD(DoubleToString(pnode->GetRadialVelocity()));
 
@@ -510,6 +505,10 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       {
       this->Internal->par->setNV(pnode->GetNumberOfClounds());
       }
+    else
+      {
+      this->Internal->par->setNV(-1);
+      }
     }
   else
     {
@@ -526,6 +525,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
     this->Internal->par->setDistance(-1);
     this->Internal->par->setVDISP("-1");
     this->Internal->par->setDENS("-1");
+    this->Internal->par->setNV(-1);
     }
 
   if (maskActive)
@@ -541,7 +541,8 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
         this->Internal->par->getZ0() == "-1" ||
         this->Internal->par->getDistance() == -1 ||
         this->Internal->par->getVDISP() == "-1" ||
-        this->Internal->par->getDENS() == "-1")
+        this->Internal->par->getDENS() == "-1" ||
+        this->Internal->par->getNV() == -1)
       {
       this->Internal->par->setSearch(true);
       }
@@ -1471,6 +1472,15 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->par->setDENS("-1");
       }
 
+    if (pnode->GetNumberOfClounds() > 0)
+      {
+      this->Internal->par->setNV(pnode->GetNumberOfClounds());
+      }
+    else
+      {
+      this->Internal->par->setNV(-1);
+      }
+
     string freeParameters;
 
     if (pnode->GetPositionAngleFit())
@@ -1529,7 +1539,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->par->getZ0() == "-1" ||
         this->Internal->par->getDistance() == -1 ||
         this->Internal->par->getVDISP() == "-1" ||
-        this->Internal->par->getDENS() == "-1")
+        this->Internal->par->getDENS() == "-1" ||
+        this->Internal->par->getNV() == -1)
       {
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : /n"
                     "The scene has been imported and the fitting has not been runned. /n"
@@ -1543,11 +1554,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->par->setFTYPE(pnode->GetFittingFunction() + 1);
     this->Internal->par->setWFUNC(pnode->GetWeightingFunction());
     this->Internal->par->setCDENS(pnode->GetCloudsColumnDensity());
-
-    if (pnode->GetNumberOfClounds() > 0)
-      {
-      this->Internal->par->setNV(pnode->GetNumberOfClounds());
-      }
 
     this->Internal->par->setSearch(false);
     this->Internal->par->setMASK("SMOOTH");
