@@ -338,6 +338,7 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
 //-----------------------------------------------------------------------------
 qSlicerSegmentEditorAstroCloudLassoEffectPrivate::~qSlicerSegmentEditorAstroCloudLassoEffectPrivate()
 {
+  Q_Q(qSlicerSegmentEditorAstroCloudLassoEffect);
   this->clearBrushPipelines();
 }
 
@@ -563,7 +564,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
   this->CloudLasso3DSelectionStrips->Reset();
   this->CloudLasso3DSelectionPolys->Reset();
 
-  q->CreateSurface();
+  q->CreateSurface(true);
 
   QApplication::restoreOverrideCursor();
 }
@@ -839,7 +840,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
   q->modifySelectedSegmentByLabelmap(this->LastMask,
     qSlicerSegmentEditorAbstractEffect::ModificationModeAdd);
 
-  q->CreateSurface();
+  q->CreateSurface(true);
 }
 
 //----------------------------------------------------------------------------
@@ -1126,6 +1127,11 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::deactivate();
   d->clearBrushPipelines();
+  d->PaintCoordinates_World->Reset();
+  d->PaintLines_World->Reset();
+  d->CloudLasso3DSelectionPoints->Reset();
+  d->CloudLasso3DSelectionStrips->Reset();
+  d->CloudLasso3DSelectionPolys->Reset();
   d->ActiveViewWidget = NULL;
 }
 
@@ -1269,7 +1275,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       }
     }
   else if (eid == vtkCommand::EnterEvent)
-    {
+    {  
     brushPipeline->SetBrushVisibility(true);
     }
   else if (eid == vtkCommand::LeaveEvent)
@@ -1457,7 +1463,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface()
+void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface(bool on)
 {
   if (!this->parameterSetNode())
     {
@@ -1477,16 +1483,32 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface()
     return;
     }
 
-  // Make sure closed surface representation exists
-  if (segmentationNode->GetSegmentation()->CreateRepresentation(
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() ))
+  // If just have been checked, then create closed surface representation and show it
+  if (on)
     {
-    // Set closed surface as displayed poly data representation
-    displayNode->SetPreferredDisplayRepresentationName3D(
-       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
-     // But keep binary labelmap for 2D
-    displayNode->SetPreferredDisplayRepresentationName2D(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName() );
+    // Make sure closed surface representation exists
+    if (segmentationNode->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() ))
+      {
+      // Set closed surface as displayed poly data representation
+      displayNode->SetPreferredDisplayRepresentationName3D(
+        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
+      // But keep binary labelmap for 2D
+      bool binaryLabelmapPresent = segmentationNode->GetSegmentation()->ContainsRepresentation(
+        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+      if (binaryLabelmapPresent)
+        {
+        displayNode->SetPreferredDisplayRepresentationName2D(
+          vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName() );
+        }
+      }
+    }
+  // If unchecked, then remove representation (but only if it's not the master representation)
+  else if (segmentationNode->GetSegmentation()->GetMasterRepresentationName() !=
+    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName())
+    {
+    segmentationNode->GetSegmentation()->RemoveRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
 }
 

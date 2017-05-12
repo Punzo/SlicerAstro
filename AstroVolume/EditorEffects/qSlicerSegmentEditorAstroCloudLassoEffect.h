@@ -85,7 +85,7 @@ public:
   virtual void masterVolumeNodeChanged();
 
   /// Show Segment model
-  virtual void CreateSurface();
+  virtual void CreateSurface(bool on);
 
 public slots:
   /// Update user interface from parameter set node
