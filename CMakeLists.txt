@@ -1,6 +1,13 @@
 cmake_minimum_required(VERSION 3.4)
 
-project(SlicerAstro)
+#-----------------------------------------------------------------------------
+set(EXTENSION_NAME SlicerAstro)
+
+# ------------------------------------------------------------------------
+set(SLICERRT_VERSION_MAJOR "1")
+set(SLICERRT_VERSION_MINOR "0")
+set(SLICERRT_VERSION_PATCH "0")
+set(SLICERRT_VERSION ${SLICERRT_VERSION_MAJOR}.${SLICERRT_VERSION_MINOR}.${SLICERRT_VERSION_PATCH})
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
@@ -18,6 +25,8 @@ set(SUPERBUILD_TOPLEVEL_PROJECT inner)
 
 #-----------------------------------------------------------------------------
 # Extension dependencies
+find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
+project(SlicerAstro)
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 mark_as_superbuild(Slicer_DIR)
