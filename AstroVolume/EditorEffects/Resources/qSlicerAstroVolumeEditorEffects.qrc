@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
         <file>Icons/AstroCloudLasso.png</file>
+        <file>Icons/AstroContours.png</file>
     </qresource>
 </RCC>

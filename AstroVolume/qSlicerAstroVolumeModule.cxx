@@ -74,6 +74,7 @@
 // Segment editor effects includes
 #include "qSlicerSegmentEditorEffectFactory.h"
 #include "qSlicerSegmentEditorAstroCloudLassoEffect.h"
+#include "qSlicerSegmentEditorAstroContoursEffect.h"
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
@@ -408,8 +409,9 @@ void qSlicerAstroVolumeModule::setup()
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroTwoDAxesDisplayableManager");
 
-  // register AstroCloudLasso selection tool in the Segmentation Editor
+  // register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
+  qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroContoursEffect());
 }
 
 //-----------------------------------------------------------------------------

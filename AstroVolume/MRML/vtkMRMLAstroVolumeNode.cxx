@@ -195,6 +195,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 //---------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
 {
+  cout<<"bella"<<endl;
   //We calculate the noise as the std of 6 slices of the datacube.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
@@ -233,7 +234,6 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     }
 
   int cont = highBoundary - lowBoundary;
-
   switch (DataType)
     {
     case VTK_FLOAT:

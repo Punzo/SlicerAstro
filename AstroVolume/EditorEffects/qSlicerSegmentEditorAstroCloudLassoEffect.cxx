@@ -15,10 +15,6 @@
   This file was developed by Davide Punzo, Kapteyn Astronomical Institute,
   and was supported through the European Research Consil grant nr. 291531.
 
-  This file was originally developed by Csaba Pinter, PerkLab, Queen's University
-  and was supported through the Applied Cancer Research Unit program of Cancer Care
-  Ontario with funds provided by the Ontario Ministry of Health and Long-Term Care
-
 ==============================================================================*/
 
 // Segmentations includes
@@ -35,7 +31,6 @@
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QPushButton>
 
 // CTK includes
 #include <ctkRangeWidget.h>
@@ -355,10 +350,11 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::init()
   q->addOptionsWidget(this->ThresholdRangeLabel);
 
   this->ThresholdRangeWidget = new ctkRangeWidget();
-  this->ThresholdRangeWidget->setToolTip("list of shortcut keys: 'n' decrease the minimum threshold value; "
-                                         "'m' increase the minimum threshold value; "
-                                         "'k' decrease the maximum threshold value; "
-                                         "'l' increase the maximum threshold value. ");
+  this->ThresholdRangeWidget->setToolTip("list of shortcut keys: \n"
+                                         "'n' decrease the minimum threshold value; \n"
+                                         "'m' increase the minimum threshold value; \n"
+                                         "'k' decrease the maximum threshold value; \n"
+                                         "'l' increase the maximum threshold value. \n");
   q->addOptionsWidget(this->ThresholdRangeWidget);
 
   this->AutomaticThresholdCheckbox = new QCheckBox("Automatic Threshold Updating Mode");
@@ -1126,6 +1122,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::deactivate();
+  this->parameterSetNode()->SetMasterVolumeIntensityMask(false);
   d->clearBrushPipelines();
   d->PaintCoordinates_World->Reset();
   d->PaintLines_World->Reset();
@@ -1400,10 +1397,10 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::processViewNodeEvents(
 //-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffect::setupOptionsFrame()
 {
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+
   // Setup widgets corresponding to the parent class of this effect
   Superclass::setupOptionsFrame();
-
-  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
   d->init();
 }
