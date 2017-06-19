@@ -652,7 +652,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFrom
     {
     labelNode->SetAttribute((*kit).c_str(), inputVolume->GetAttribute((*kit).c_str()));
     }
-  labelNode->SetAttribute("SlicerAstro.DATATYPE", "MASK");
+  labelNode->SetAttribute("SlicerAstro.DATAMODEL", "MASK");
   labelNode->SetAttribute("SlicerAstro.BITPIX", "16");
 
   // Set the display node to have a label map lookup table

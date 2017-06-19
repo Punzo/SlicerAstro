@@ -2068,7 +2068,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     outputVolume->UpdateNoiseAttributes();
     outputVolume->UpdateRangeAttributes();
-    outputVolume->SetAttribute("SlicerAstro.DATATYPE", "MODEL");
+    outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "MODEL");
 
     vtkSlicerAstroModelingLogic *logic = d->logic();
     if (!logic)

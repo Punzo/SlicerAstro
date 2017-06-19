@@ -1105,7 +1105,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
       }
 
-    ZeroMomentVolume->SetAttribute("SlicerAstro.DATATYPE", "DATA");
+    ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
     }
 
   // Create 1stMomentMapVolume
@@ -1195,7 +1195,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
       }
 
-    FirstMomentVolume->SetAttribute("SlicerAstro.DATATYPE", "DATA");
+    FirstMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
     }
 
   // Create 2ndMomentMapVolume
@@ -1284,7 +1284,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
       }
 
-    SecondMomentVolume->SetAttribute("SlicerAstro.DATATYPE", "DATA");
+    SecondMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
     }
 
   serial++;

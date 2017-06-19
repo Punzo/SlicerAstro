@@ -377,14 +377,14 @@ void vtkFITSReader::ExecuteInformation()
     }
 
   // Set type information
-  std::string dataType = this->GetHeaderValue("SlicerAstro.DATATYPE");
-  if (!dataType.compare("MASK"))
+  std::string dataModel = this->GetHeaderValue("SlicerAstro.DATAMODEL");
+
+  if (!dataModel.compare("MASK"))
     {
     this->SetDataType( VTK_SHORT );
     this->SetDataScalarType( VTK_SHORT );
     }
-
-  if (!dataType.compare("DATA") || !dataType.compare("MODEL"))
+  else if (!dataModel.compare("DATA") || !dataModel.compare("MODEL"))
     {
     switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
       {
@@ -415,6 +415,11 @@ void vtkFITSReader::ExecuteInformation()
         vtkErrorMacro("vtkFITSReader::ExecuteInformation: Could not allocate data type. \n");
         return;
       }
+    }
+  else
+    {
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Could not find the DATAMODEL keyword. \n");
+    return;
     }
 
   // Set axis information
@@ -789,7 +794,7 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.BLANK"] = "0.";
      }
 
-   if(HeaderKeyValue.count("SlicerAstro.DATATYPE") == 0)
+   if(HeaderKeyValue.count("SlicerAstro.DATAMODEL") == 0)
      {
      bool onlyNumberInExtension = false;
      vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
@@ -813,16 +818,16 @@ bool vtkFITSReader::AllocateHeader()
          fileInfo.baseName().contains(segName) ||
          fileInfo.baseName().contains(maskName))
        {
-       HeaderKeyValue["SlicerAstro.DATATYPE"] = "MASK";
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MASK";
        }
      else if (fileInfo.baseName().contains(modelName) ||
              fileInfo.baseName().contains(modelNamesShort))
        {
-       HeaderKeyValue["SlicerAstro.DATATYPE"] = "MODEL";
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MODEL";
        }
      else
        {
-       HeaderKeyValue["SlicerAstro.DATATYPE"] = "DATA";
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "DATA";
        }
      }
 
