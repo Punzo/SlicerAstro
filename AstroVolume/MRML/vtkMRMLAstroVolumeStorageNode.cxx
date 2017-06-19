@@ -47,7 +47,7 @@ vtkMRMLAstroVolumeStorageNode::vtkMRMLAstroVolumeStorageNode()
 {
   this->CenterImage = 2;
   this->DefaultWriteFileExtension = "fits";
-  this->UseCompressionOn();
+  this->UseCompressionOff();
 }
 
 //----------------------------------------------------------------------------
@@ -167,12 +167,12 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   vtkMRMLAstroVolumeDisplayNode *disNode = NULL;
   vtkMRMLAstroLabelMapVolumeDisplayNode *labdisNode = NULL;
 
-  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
+  if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
     volNode = vtkMRMLAstroVolumeNode::SafeDownCast(refNode);
     disNode = volNode->GetAstroVolumeDisplayNode();
     }
-  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+  else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     labvolNode = vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(refNode);
     labdisNode = labvolNode->GetAstroLabelMapVolumeDisplayNode();
@@ -196,14 +196,14 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     reader->SetUseNativeOriginOn();
     }
 
-  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
+  if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
     if (volNode->GetImageData())
       {
       volNode->SetAndObserveImageData (NULL);
       }
     }
-  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+  else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     if (labvolNode->GetImageData())
       {
@@ -231,10 +231,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   // Read the header to see if the file corresponds to the MRML Node
   reader->UpdateInformation();
 
-  if( refNode->IsA("vtkMRMLAstroVolumeNode") || refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+  if(refNode->IsA("vtkMRMLAstroVolumeNode") || refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     if (reader->GetPointDataType() != vtkDataSetAttributes::SCALARS &&
-         reader->GetNumberOfComponents() > 1 )
+         reader->GetNumberOfComponents() > 1)
       {
       vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : MRMLVolumeNode does not match file kind");
       return 0;
@@ -243,7 +243,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   reader->Update();
 
-  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
+  if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
     // set volume attributes
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
@@ -257,8 +257,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
-    for ( std::vector<std::string>::iterator kit = keys.begin();
-          kit != keys.end(); ++kit)
+    for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
       {
       volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
@@ -321,7 +320,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         }
       }
     }
-  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+  else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     // set volume attributes
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
@@ -332,8 +331,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     labdisNode->SetWCSStatus(reader->GetWCSStatus());
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
-    for ( std::vector<std::string>::iterator kit = keys.begin();
-          kit != keys.end(); ++kit)
+    for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
       {
       labvolNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
@@ -362,11 +360,11 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   ici->SetOutputOrigin( 0, 0, 0 );
   ici->Update();
 
-  if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
+  if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
     volNode->SetImageDataConnection(ici->GetOutputPort());
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-           !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
+       !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
       {
       volNode->UpdateRangeAttributes();
       }
@@ -375,15 +373,25 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       volNode->UpdateNoiseAttributes();
       }
     // set range in display
-    disNode->SetWindowLevelMinMax(StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMIN")),
-                                  StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMAX")));
+    double min = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMIN"));
+    double max = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMAX"));
+    double window = max-min;
+    double level = 0.5*(max+min);
+    double lower = level;
+    double upper = max;
+
+    int disabledModify = disNode->StartModify();
+    disNode->SetWindowLevel(window, level);
+    disNode->SetThreshold(lower, upper);
+    disNode->EndModify(disabledModify);
+
     volNode->SetAttribute("SlicerAstro.RenderingInitialized","0");
     }
-  else if ( refNode->IsA("vtkMRMLAstroLabelMapVolumeNode") )
+  else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     labvolNode->SetImageDataConnection(ici->GetOutputPort());
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
-           !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
+       !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
       {
       labvolNode->UpdateRangeAttributes();
       }

@@ -72,6 +72,24 @@
 //--------------------------------------------------------------------------
 // qMRMLSliceAstroControllerWidgetPrivate methods
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+}// end namespace
+
 //---------------------------------------------------------------------------
 qMRMLSliceAstroControllerWidgetPrivate::qMRMLSliceAstroControllerWidgetPrivate(qMRMLSliceAstroControllerWidget& object)
   : Superclass(object)
@@ -174,6 +192,11 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 {
   Q_D(qMRMLSliceAstroControllerWidget);
 
+  if (!this->mrmlSliceNode())
+    {
+    return;
+    }
+
   std::string orientation = this->mrmlSliceNode()->GetOrientation();
 
   if (!orientation.compare("Reformat"))
@@ -243,7 +266,15 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 
     if (astroVolume && displayNode)
       {
+
+      if (StringToInt(astroVolume->GetAttribute("SlicerAstro.NAXIS")) < 3)
+        {
+        hasDisplay = false;
+        break;
+        }
+
       hasDisplay = true;
+
       if (!strcmp(displayNode->GetSpace(), "WCS"))
         {
         double offset = this->mrmlSliceNode()->GetSliceOffset();
@@ -316,6 +347,13 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
       }
     else if (astroLabelMapVolume && astroLabelMapDisplay)
       {
+
+      if (StringToInt(astroLabelMapVolume->GetAttribute("SlicerAstro.NAXIS")) < 3)
+        {
+        hasDisplay = false;
+        break;
+        }
+
       hasDisplay = true;
       if (!strcmp(astroLabelMapDisplay->GetSpace(), "WCS"))
         {

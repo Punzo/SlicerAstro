@@ -30,27 +30,17 @@
 #include <ctkFlowLayout.h>
 
 // VTK includes
-#include <vtkActor.h>
-#include <vtkActorCollection.h>
-#include <vtkCamera.h>
 #include <vtkCollection.h>
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
 #include <vtkMatrix4x4.h>
-#include <vtkMatrixToLinearTransform.h>
 #include <vtkNew.h>
-#include <vtkParametricEllipsoid.h>
-#include <vtkParametricFunctionSource.h>
 #include <vtkPointData.h>
-#include <vtkPolyDataMapper.h>
-#include <vtkProperty.h>
-#include <vtkRenderer.h>
-#include <vtkRenderWindow.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkTable.h>
 
-// SlicerQt includes
+// SlicerQt includesS
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
@@ -660,10 +650,8 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
   if (selectedSegmentIDs.size() < 1)
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              " be sure that segment to export have been selected in the table view (left click).! \n\n "
-                              " Otherwise, most probably the segment cannot be converted into representation"
-                              " corresponding to the selected representation node.").
-                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
+                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     return false;
@@ -709,9 +697,8 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
 
   if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode))
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
-                              " be sure that segment to export are present in the table view.").
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
+                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);

@@ -137,8 +137,15 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 {
   Q_Q(qSlicerAstroSmoothingModuleWidget);
   this->setupUi(q);
+
   qSlicerApplication* app = qSlicerApplication::application();
-      qSlicerAbstractCoreModule* astroVolume = app->moduleManager()->module("AstroVolume");
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidgetPrivate::init(): could not find qSlicerApplication!";
+    return;
+    }
+
+  qSlicerAbstractCoreModule* astroVolume = app->moduleManager()->module("AstroVolume");
   if (!astroVolume)
     {
     qCritical() << "qSlicerAstroSmoothingModuleWidgetPrivate::init(): could not find AstroVolume module.";

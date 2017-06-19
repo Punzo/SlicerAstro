@@ -61,6 +61,7 @@ public slots:
   void updateCoordinateWidgetFromMRMLSliceNode();
 
 protected:
+  void onMRMLSelectionNodeModified(vtkObject* sender);
   void setMRMLSliceNodeInternal(vtkMRMLSliceNode* sliceNode);
 
 public:
@@ -73,6 +74,7 @@ public:
   QLabel*     WCSDisplay;
   qSlicerApplication* app;
   vtkSmartPointer<vtkCollection> col;
+  vtkSmartPointer<vtkMRMLSliceLogic> sliceLogic;
 };
 
 #endif

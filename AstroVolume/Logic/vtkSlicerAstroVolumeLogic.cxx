@@ -243,7 +243,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   //check WCS and update unit nodes
   if (node->IsA("vtkMRMLAstroVolumeNode"))
     {
-
     vtkSmartPointer<vtkCollection> listAstroVolumes = vtkSmartPointer<vtkCollection>::Take(
       this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
 

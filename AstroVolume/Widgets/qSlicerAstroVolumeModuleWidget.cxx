@@ -65,6 +65,7 @@
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
+#include <vtkMRMLSliceNode.h>
 #include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
@@ -606,8 +607,25 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     emit astroLabelMapVolumeNodeChanged(false);
     emit astroVolumeNodeChanged(true);
     astroVolumeNode->Modified();
-    selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
-    appLogic->PropagateBackgroundVolumeSelection(1);
+
+    std::string Name = astroVolumeNode->GetName();
+    size_t found = Name.find("MomentMap");
+    if (!(found != std::string::npos))
+      {
+      selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
+      appLogic->PropagateBackgroundVolumeSelection(1);
+      }
+    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+      {
+      vtkMRMLSliceNode* sliceNode =
+          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+      if (sliceNode)
+        {
+        sliceNode->Modified();
+        }
+      }
     }
   else if (labelMapVolumeNode)
     {
@@ -617,6 +635,18 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     labelMapVolumeNode->Modified();
     selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     appLogic->PropagateLabelVolumeSelection(1);
+    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+      {
+      vtkMRMLSliceNode* sliceNode =
+          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+      if (sliceNode)
+        {
+        sliceNode->Modified();
+
+        }
+      }
     }
 
   if (!d->RenderingFrame ||
@@ -1003,10 +1033,9 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 
   if (segmentIDs.size() < 1)
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
-                              " be sure that segment to export are present in the table view.").
-                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
+                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
+                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
@@ -1033,10 +1062,9 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 
   if (segmentIDs.size() < 1)
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
-                              " be sure that segment to export are present in the table view.").
-                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
+                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
+                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
@@ -1102,9 +1130,8 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 
   if (!exportSuccess)
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\nMost probably"
-                              " the segment cannot be converted into representation corresponding to the selected representation node \n or"
-                              " be sure that segment to export are present in the table view.").
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
+                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);

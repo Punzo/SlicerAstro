@@ -1550,14 +1550,16 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
   double ThresholdMaximumValueLimit = this->doubleParameter("ThresholdMaximumValueLimit");
   double ThresholdMinimumValueLimit = this->doubleParameter("ThresholdMinimumValueLimit");
   int ThresholdDecimals = this->integerParameter("ThresholdDecimals");
-  d->ThresholdRangeWidget->blockSignals(true);
-  d->ThresholdRangeWidget->setMinimum(ThresholdMinimumValueLimit);
-  d->ThresholdRangeWidget->setMaximum(ThresholdMaximumValueLimit);
+
+  d->ThresholdRangeWidget->reset();
+  bool wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
+  d->ThresholdRangeWidget->setRange(ThresholdMinimumValueLimit, ThresholdMaximumValueLimit);
   d->ThresholdRangeWidget->setSingleStep(ThresholdSingleStep);
   d->ThresholdRangeWidget->setDecimals(ThresholdDecimals);
-  d->ThresholdRangeWidget->setValues(ThresholdMinimumValue, ThresholdMaximumValue);
+  d->ThresholdRangeWidget->setMinimumValue(ThresholdMinimumValue);
+  d->ThresholdRangeWidget->setMaximumValue(ThresholdMaximumValue);
   d->ThresholdRangeWidget->setEnabled(!eraseMode);
-  d->ThresholdRangeWidget->blockSignals(false);
+  d->ThresholdRangeWidget->blockSignals(wasBlocked);
 
   int wasModifying = this->parameterSetNode()->StartModify();
   this->parameterSetNode()->SetMasterVolumeIntensityMask(true);

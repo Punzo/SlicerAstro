@@ -143,10 +143,12 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->ContourLevelsLabel = new QLabel("Contour Levels: ");
   q->addOptionsWidget(this->ContourLevelsLabel);
 
-  this->ContourLevelsLineEdit = new QLineEdit("-3;3;7;15 RMS");
-  this->ContourLevelsLineEdit->setToolTip("Contour Levels. The Levels can be specified as a list (';' is the separator)"
-                                      "or in the following format 'MIN:MAX:SPACING'. \n\n"
-                                      "If the string is followed by 'RMS', the levels are evaluated in units of RMS of the datacube.");
+  this->ContourLevelsLineEdit = new QLineEdit("RMS -3,3,7,15");
+  this->ContourLevelsLineEdit->setToolTip("Contour Levels. The Levels can be specified as a list (',' is the separator) "
+                                          "or in the following format 'MIN:MAX:SPACING'. \n\n"
+                                          "If the string is preceded by 'RMS', the levels are evaluated in units of RMS of the datacube. \n\n"
+                                          "The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy "
+                                          "to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.");
   q->addOptionsWidget(this->ContourLevelsLineEdit);
 
   this->ApplyButton = new QPushButton("Create Contours");
@@ -204,7 +206,8 @@ void qSlicerSegmentEditorAstroContoursEffect::setMRMLDefaults()
   this->setCommonParameterDefault("RMS", 0.);
   this->setCommonParameterDefault("MIN", 0.);
   this->setCommonParameterDefault("MAX", 0.);
-  this->setCommonParameterDefault("ContourLeveles", "-3;3;7;15 RMS");
+  this->setCommonParameterDefault("FluxUnit", "JY/BEAM");
+  this->setCommonParameterDefault("ContourLeveles", "RMS -3,3,7,15");
 }
 
 //-----------------------------------------------------------------------------
@@ -237,7 +240,8 @@ void qSlicerSegmentEditorAstroContoursEffect::updateGUIFromMRML()
 
   DataInfo = "Data Info: MIN = " + DoubleToString(MIN) +
              " ; MAX = " + DoubleToString(MAX) +
-             " ; RMS = " + DoubleToString(RMS);
+             " ; RMS = " + DoubleToString(RMS) +
+             " " + this->parameter("FluxUnit").toStdString();
   d->DataInfoLabel->setText(QString::fromStdString(DataInfo));
 }
 
@@ -284,20 +288,23 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     }
 
   bool list = false;
-  found = LevelsStdString.find(";");
+  bool increment = false;
+  found = LevelsStdString.find(",");
   if (found != std::string::npos)
     {
     list = true;
     }
-
-  bool increment = false;
-  found = LevelsStdString.find(":");
-  if (found != std::string::npos)
+  else
     {
-    increment = true;
+    found = LevelsStdString.find(":");
+    if (found != std::string::npos)
+      {
+      increment = true;
+      }
     }
 
-  if ((list && increment) || (!list && !increment))
+
+  if ((list && increment))
     {
     QString message = QString("The input string defining the Contour Levels is formatted wrongly. Check the ToolTip.");
     qCritical() << Q_FUNC_INFO << ": " << message;
@@ -305,8 +312,15 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     return;
     }
 
-  if (list)
-    {
+  if (!increment)
+    { 
+    if (convert)
+      {
+      for (int ii = 0; ii < 3; ii++)
+        {
+        ss.ignore();
+        }
+      }
     while (ss >> value)
       {
       if (convert)
@@ -317,7 +331,7 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
         {
         Levels->InsertNextValue(value);
         }
-      if (ss.peek() == ';')
+      if (ss.peek() == ',' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
         {
         ss.ignore();
         }
@@ -325,10 +339,17 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     }
   else if (increment)
     {
+    if (convert)
+      {
+      for (int ii = 0; ii < 3; ii++)
+        {
+        ss.ignore();
+        }
+      }
     while (ss >> value)
       {
       Delimiters->InsertNextValue(value);
-      if (ss.peek() == ':')
+      if (ss.peek() == ':' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
         {
         ss.ignore();
         }
@@ -396,38 +417,38 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     if(!Segment)
       {
       SegmentID = segmentationNode->GetSegmentation()->AddEmptySegment(SegmentID, SegmentID);
+      }
 
-      vtkNew<vtkImageThreshold> imageThreshold;
-      imageThreshold->SetInputData(masterVolume->GetImageData());
+    vtkNew<vtkImageThreshold> imageThreshold;
+    imageThreshold->SetInputData(masterVolume->GetImageData());
 
-      double lower, higher;
-      if (ContourLevel < 0.)
-        {
-        lower = MIN;
-        higher = ContourLevel;
-        }
-      else
-        {
-        lower = ContourLevel;
-        higher = MAX;
-        }
+    double lower, higher;
+    if (ContourLevel < 0.)
+      {
+      lower = MIN;
+      higher = ContourLevel;
+      }
+    else
+      {
+      lower = ContourLevel;
+      higher = MAX;
+      }
 
-      imageThreshold->ThresholdBetween(lower, higher);
-      imageThreshold->SetInValue(1);
-      imageThreshold->SetOutValue(0);
-      imageThreshold->SetOutputScalarType(VTK_SHORT);
-      imageThreshold->Update();
-      vtkNew<vtkOrientedImageData> modifierLabelmap;
-      modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
-      vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-      masterVolume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-      modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
+    imageThreshold->ThresholdBetween(lower, higher);
+    imageThreshold->SetInValue(1);
+    imageThreshold->SetOutValue(0);
+    imageThreshold->SetOutputScalarType(VTK_SHORT);
+    imageThreshold->Update();
+    vtkNew<vtkOrientedImageData> modifierLabelmap;
+    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
+    masterVolume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
+    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-      if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-          modifierLabelmap.GetPointer(), segmentationNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
-        {
-        qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-        }
+    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
+        modifierLabelmap.GetPointer(), segmentationNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
+      {
+      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
 
@@ -485,10 +506,12 @@ void qSlicerSegmentEditorAstroContoursEffect::masterVolumeNodeChanged()
   double RMS = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.RMS"));
   double MAX = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
   double MIN = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
+  QString unit(astroMasterVolume->GetAttribute("SlicerAstro.BUNIT"));
 
   this->setCommonParameter("RMS", RMS);
   this->setCommonParameter("MAX", MAX);
   this->setCommonParameter("MIN", MIN);
+  this->setCommonParameter("FluxUnit", unit);
 }
 
 //---------------------------------------------------------------------------
@@ -525,20 +548,17 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateSurface(bool on)
       displayNode->SetPreferredDisplayRepresentationName3D(
         vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
       // But keep binary labelmap for 2D
-      bool binaryLabelmapPresent = segmentationNode->GetSegmentation()->ContainsRepresentation(
-        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-      if (binaryLabelmapPresent)
+      if (segmentationNode->GetSegmentation()->ContainsRepresentation(
+            vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName()))
         {
         displayNode->SetPreferredDisplayRepresentationName2D(
-          vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
+          vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+        }
+      else
+        {
+        displayNode->SetPreferredDisplayRepresentationName2D(
+          vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
         }
       }
-    }
-  // If unchecked, then remove representation (but only if it's not the master representation)
-  else if (segmentationNode->GetSegmentation()->GetMasterRepresentationName() !=
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName())
-    {
-    segmentationNode->GetSegmentation()->RemoveRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
 }

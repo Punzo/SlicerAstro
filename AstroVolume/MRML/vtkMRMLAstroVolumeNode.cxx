@@ -138,6 +138,10 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
     outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
     for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
       {
+      if (*(outSPixel + elementCnt) == 0.)
+        {
+        continue;
+        }
       if (*(outSPixel + elementCnt) > max)
         {
         max =  *(outSPixel + elementCnt);
@@ -152,6 +156,10 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
+       if (*(outFPixel + elementCnt) == 0.)
+          {
+          continue;
+          }
         if (*(outFPixel + elementCnt) > max)
           {
           max =  *(outFPixel + elementCnt);
@@ -166,6 +174,10 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
+        if (*(outDPixel + elementCnt) == 0.)
+          {
+          continue;
+          }
         if (*(outDPixel + elementCnt) > max)
           {
           max =  *(outDPixel + elementCnt);
@@ -195,7 +207,6 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 //---------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
 {
-  cout<<"bella"<<endl;
   //We calculate the noise as the std of 6 slices of the datacube.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
@@ -365,7 +376,7 @@ void vtkMRMLAstroVolumeNode::CreateDefaultDisplayNodes()
       displayNode->Delete();
 
       this->SetAndObserveDisplayNodeID(displayNode->GetID());
-      std::cout << "Display node set and observed" << std::endl;
+      vtkWarningMacro("Display node set and observed" << endl);
       }
     }
 }

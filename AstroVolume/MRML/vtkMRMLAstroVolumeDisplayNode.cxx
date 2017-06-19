@@ -25,15 +25,20 @@
 
 // MRML includes
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLColorNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLVolumeNode.h>
 
 // VTK includes
+#include <vtkAlgorithm.h>
+#include <vtkAlgorithmOutput.h>
+#include <vtkCommand.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
+#include <vtkPointData.h>
 #include <vtkStringArray.h>
 
 //------------------------------------------------------------------------------
@@ -1360,7 +1365,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
     this->SetWCSStatus(node->GetWCSStatus());
    }
 
-  this->EndModify(disabledModify);  
+  this->EndModify(disabledModify);
 }
 
 //----------------------------------------------------------------------------
@@ -1406,21 +1411,32 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
     }
 
   std::string pixel;
-
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if (selectionNode)
+  std::string name = this->GetVolumeNode()->GetName();
+  size_t found = name.find("MomentMap");
+  if(found!=std::string::npos)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
+    double component = this->GetVolumeNode()->GetImageData()->
+        GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0);
 
-    for(int i = 0; i < numberOfComponents; i++)
+    pixel = DoubleToString(component) + " " + this->GetVolumeNode()->GetAttribute("SlicerAstro.BUNIT");
+    }
+  else
+    {
+    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+                this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+    if (selectionNode)
       {
-      double component = this->GetVolumeNode()->GetImageData()->
-          GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
-      pixel += unitNode->GetDisplayStringFromValue(component);
-      pixel += ",";
+      vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
+
+      for(int i = 0; i < numberOfComponents; i++)
+        {
+        double component = this->GetVolumeNode()->GetImageData()->
+            GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
+        pixel += unitNode->GetDisplayStringFromValue(component);
+        pixel += ",";
+        }
+        pixel.erase(pixel.size()-1);
       }
-      pixel.erase(pixel.size()-1);
     }
 
   return pixel;

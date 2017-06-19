@@ -26,6 +26,8 @@ set(module_mrml_SRCS
     vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroModelingParametersNode.cxx
     vtkMRMLAstroModelingParametersNode.h
+    vtkMRMLAstroMomentMapsParametersNode.cxx
+    vtkMRMLAstroMomentMapsParametersNode.h
     vtkMRMLAstroSmoothingParametersNode.cxx
     vtkMRMLAstroSmoothingParametersNode.h
     vtkMRMLAstroTwoDAxesDisplayableManager.cxx

@@ -186,17 +186,36 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
 {
   Q_D(qSlicerAstroVolumeIOOptionsWidget);
 
-  if (qSlicerCoreApplication::application() != NULL)
+  if (qSlicerCoreApplication::application() == NULL)
     {
-    // access the color logic which has information about default color nodes
-    vtkSlicerApplicationLogic* appLogic = qSlicerCoreApplication::application()->applicationLogic();
-    if (appLogic && appLogic->GetColorLogic())
+    return;
+    }
+
+  // access the color logic which has information about default color nodes
+  vtkSlicerApplicationLogic* appLogic = qSlicerCoreApplication::application()->applicationLogic();
+  if (appLogic && appLogic->GetColorLogic())
+    {
+    if (d->LabelMapCheckBox->isChecked())
       {
-      if (d->LabelMapCheckBox->isChecked())
+      d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultLabelMapColorNodeID());
+      }
+    else
+      {
+      std::string Name = d->Properties["name"].toString().toStdString();
+      size_t found = Name.find("1stMoment");
+      bool set = false;
+      if (found!=std::string::npos)
         {
-        d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultLabelMapColorNodeID());
+        d->ColorTableComboBox->setCurrentNodeID("vtkMRMLColorTableNodeFileHotToColdRainbow.txt");
+        set = true;
         }
-      else
+      found = Name.find("2ndMoment");
+      if (found!=std::string::npos)
+        {
+        d->ColorTableComboBox->setCurrentNodeID("vtkMRMLColorTableNodeFileColdToHotRainbow.txt");
+        set = true;
+        }
+      if (!set)
         {
         d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
         }

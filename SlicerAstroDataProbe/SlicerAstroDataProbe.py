@@ -90,6 +90,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     world = [0., 0., 0.]
 
     CoordinateSystemName = "IJK"
+    dimensionality = 3
 
     layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
                       ('F', sliceLogic.GetForegroundLayer),
@@ -97,6 +98,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
+      dimensionality = int(volumeNode.GetAttribute("SlicerAstro.NAXIS"))
       if volumeNode:
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
@@ -112,16 +114,32 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
           break
 
     if CoordinateSystemName == "WCS":
-      return "  {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
-              .format(layoutName=sliceNode.GetLayoutName(),
-              sys = CoordinateSystemName,
-              worldX=worldX,
-              worldY=worldY,
-              worldZ=worldZ,
-              orient=sliceNode.GetOrientation(),
-              )
+      if dimensionality > 2:
+        return " {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
+                .format(layoutName=sliceNode.GetLayoutName(),
+                sys = CoordinateSystemName,
+                worldX=worldX,
+                worldY=worldY,
+                worldZ=worldZ,
+                orient=sliceNode.GetOrientation(),
+                )
+      elif dimensionality > 1:
+        return " {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s} {orient: >4s}" \
+                .format(layoutName=sliceNode.GetLayoutName(),
+                sys = CoordinateSystemName,
+                worldX=worldX,
+                worldY=worldY,
+                orient=sliceNode.GetOrientation(),
+                )
+      else:
+        return " {layoutName: <8s} {sys:s}:{worldX:>16s} {orient: >4s}" \
+                .format(layoutName=sliceNode.GetLayoutName(),
+                sys = CoordinateSystemName,
+                worldX=worldX,
+                orient=sliceNode.GetOrientation(),
+                )
     else:
-      return "  {layoutName: <8s} WCS in View {orient: >2s} not found" \
+      return " {layoutName: <8s} WCS in View {orient: >2s} not found" \
         .format(layoutName=sliceNode.GetLayoutName(),
                 orient=sliceNode.GetOrientation(),
                 )

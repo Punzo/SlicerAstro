@@ -45,7 +45,7 @@ vtkStandardNewMacro(vtkFITSWriter);
 vtkFITSWriter::vtkFITSWriter()
 {
   this->FileName = NULL;
-  this->UseCompression = 1;
+  this->UseCompression = 0;
   this->FileType = VTK_BINARY;
   this->WriteErrorOff();
   this->Attributes = new AttributeMapType;
@@ -179,10 +179,7 @@ void vtkFITSWriter::WriteData()
   int dim = 1;
 
   //allocate FITS struct
-  if (remove(this->GetFileName()) != 0)
-    {
-    vtkErrorMacro("vtkFITSWriter::WriteData Error: Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
-    }
+  remove(this->GetFileName());
 
   fits_create_file(&fptr, this->GetFileName(), &WriteStatus);
 

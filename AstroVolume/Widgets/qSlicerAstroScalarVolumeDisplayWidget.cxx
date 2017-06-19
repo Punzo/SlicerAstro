@@ -220,6 +220,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateTransferFunction()
   // AdjustRange call will take out points that are outside of the new
   // range, but it needs the points to be there in order to work, so call
   // RemoveAllPoints after it's done
+
   d->ColorTransferFunction->AdjustRange(range);
   d->ColorTransferFunction->RemoveAllPoints();
 
