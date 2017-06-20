@@ -98,8 +98,8 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
-      dimensionality = int(volumeNode.GetAttribute("SlicerAstro.NAXIS"))
       if volumeNode:
+        dimensionality = int(volumeNode.GetAttribute("SlicerAstro.NAXIS"))
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
         displayNode = volumeNode.GetDisplayNode()
