@@ -143,9 +143,11 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->ContourLevelsLabel = new QLabel("Contour Levels: ");
   q->addOptionsWidget(this->ContourLevelsLabel);
 
-  this->ContourLevelsLineEdit = new QLineEdit("RMS -3,3,7,15");
-  this->ContourLevelsLineEdit->setToolTip("Contour Levels. The Levels can be specified as a list (',' is the separator) "
-                                          "or in the following format 'MIN:MAX:SPACING'. \n\n"
+  this->ContourLevelsLineEdit = new QLineEdit("RMS -3;3;7;15");
+  this->ContourLevelsLineEdit->setToolTip("Contour Levels. The Levels can be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3') "
+                                          "or in the following format 'FISRT:LAST:SPACING'. "
+                                          "In addition, in teh case of a list, it is possible also to specify for each Contour both the MIN and MAX intensity values of the level "
+                                          "(e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). \n\n "
                                           "If the string is preceded by 'RMS', the levels are evaluated in units of RMS of the datacube. \n\n"
                                           "The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy "
                                           "to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.");
@@ -207,7 +209,7 @@ void qSlicerSegmentEditorAstroContoursEffect::setMRMLDefaults()
   this->setCommonParameterDefault("MIN", 0.);
   this->setCommonParameterDefault("MAX", 0.);
   this->setCommonParameterDefault("FluxUnit", "JY/BEAM");
-  this->setCommonParameterDefault("ContourLeveles", "RMS -3,3,7,15");
+  this->setCommonParameterDefault("ContourLeveles", "RMS -3;3;7;15");
 }
 
 //-----------------------------------------------------------------------------
@@ -289,10 +291,19 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 
   bool list = false;
   bool increment = false;
-  found = LevelsStdString.find(",");
+  bool renzogram = false;
+  found = LevelsStdString.find(";");
   if (found != std::string::npos)
     {
-    list = true;
+    found = LevelsStdString.find(",");
+    if (found != std::string::npos)
+      {
+      renzogram = true;
+      }
+    else
+      {
+      list = true;
+      }
     }
   else
     {
@@ -301,9 +312,17 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       {
       increment = true;
       }
+    else
+      {
+      found = LevelsStdString.find(",");
+      if (found != std::string::npos)
+        {
+        renzogram = true;
+        }
+      }
     }
 
-  if ((list && increment))
+  if ((list && increment) || (renzogram && increment) || (!list && !increment && !renzogram))
     {
     QString message = QString("The input string defining the Contour Levels is formatted wrongly. Check the ToolTip.");
     qCritical() << Q_FUNC_INFO << ": " << message;
@@ -311,7 +330,7 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     return;
     }
 
-  if (!increment)
+  if (list)
     { 
     if (convert)
       {
@@ -330,7 +349,32 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
         {
         Levels->InsertNextValue(value);
         }
-      if (ss.peek() == ',' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
+      if (ss.peek() == ';' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
+        {
+        ss.ignore();
+        }
+      }
+    }
+  else if (renzogram)
+    {
+    if (convert)
+      {
+      for (int ii = 0; ii < 3; ii++)
+        {
+        ss.ignore();
+        }
+      }
+    while (ss >> value)
+      {
+      if (convert)
+        {
+        Levels->InsertNextValue(value * RMS);
+        }
+      else
+        {
+        Levels->InsertNextValue(value);
+        }
+      if (ss.peek() == ';' || ss.peek() == ',' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
         {
         ss.ignore();
         }
@@ -382,6 +426,17 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       if (Levels->GetValue(ii) < MIN || Levels->GetValue(ii) > MAX)
         {
         Levels->RemoveTuple(ii);
+        if (renzogram)
+          {
+          if (ii % 2 == 0)
+            {
+            Levels->RemoveTuple(ii+1);
+            }
+          else
+            {
+            Levels->RemoveTuple(ii-1);
+            }
+          }
         }
       }
     QString message = QString("The value of some Contour Levels exceeds the MIN and MAX values. "
@@ -405,6 +460,12 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
   for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
     {
     double ContourLevel = Levels->GetValue(ii);
+    double ContourLevelNext = 0.;
+    if (renzogram)
+      {
+      ii++;
+      ContourLevelNext = Levels->GetValue(ii);
+      }
     std::string SegmentID = masterVolume->GetName();
     SegmentID += "Contour" + IntToString(ii + 1);
     SegmentIDs->InsertNextValue(SegmentID.c_str());
@@ -418,15 +479,31 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     imageThreshold->SetInputData(masterVolume->GetImageData());
 
     double lower, higher;
-    if (ContourLevel < 0.)
+    if (!renzogram)
       {
-      lower = MIN;
-      higher = ContourLevel;
+      if (ContourLevel < 0.)
+        {
+        lower = MIN;
+        higher = ContourLevel;
+        }
+      else
+        {
+        lower = ContourLevel;
+        higher = MAX;
+        }
       }
     else
       {
-      lower = ContourLevel;
-      higher = MAX;
+      if (ContourLevel < 0.)
+        {
+        lower = ContourLevelNext;
+        higher = ContourLevel;
+        }
+      else
+        {
+        lower = ContourLevel;
+        higher = ContourLevelNext;
+        }
       }
 
     imageThreshold->ThresholdBetween(lower, higher);
