@@ -303,7 +303,6 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       }
     }
 
-
   if ((list && increment))
     {
     QString message = QString("The input string defining the Contour Levels is formatted wrongly. Check the ToolTip.");
@@ -380,18 +379,14 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     {
     for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
       {
-      if (Levels->GetValue(ii) < MIN)
+      if (Levels->GetValue(ii) < MIN || Levels->GetValue(ii) > MAX)
         {
-        Levels->SetValue(ii, MIN);
-        }
-      if (Levels->GetValue(ii) > MAX)
-        {
-        Levels->SetValue(ii, MAX);
+        Levels->RemoveTuple(ii);
         }
       }
-    QString message = QString("The values of the Contour Levels exceed the MIN and MAX values.");
+    QString message = QString("The value of some Contour Levels exceeds the MIN and MAX values. "
+                              "These will be ignored.");
     qWarning() << Q_FUNC_INFO << ": " << message;
-    return;
     }
 
   vtkMRMLSegmentationNode* segmentationNode = this->parameterSetNode()->GetSegmentationNode();
