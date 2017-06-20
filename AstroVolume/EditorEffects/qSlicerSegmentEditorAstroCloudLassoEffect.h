@@ -87,9 +87,6 @@ public slots:
   /// Update user interface from parameter set node
   virtual void updateGUIFromMRML();
 
-  /// Update parameter set node from user interface
-  virtual void updateMRMLFromGUI();
-
   /// Update automatic Threshold value changed
   virtual void onThresholdValueChanged(double min, double max);
 
