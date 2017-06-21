@@ -608,8 +608,8 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     emit astroVolumeNodeChanged(true);
     astroVolumeNode->Modified();
 
-    std::string Name = astroVolumeNode->GetName();
-    size_t found = Name.find("MomentMap");
+    std::string type = astroVolumeNode->GetAttribute("SlicerAstro.DATAMODEL");
+    size_t found = type.find("MOMENTMAP");
     if (!(found != std::string::npos))
       {
       selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());

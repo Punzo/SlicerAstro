@@ -1390,12 +1390,12 @@ int vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 {
-  if(this->GetVolumeNode()->GetImageData() == NULL)
+  if (this->GetVolumeNode()->GetImageData() == NULL)
     {
     return "No Image";
     }
 
-  for(int i = 0; i < 3; i++)
+  for (int i = 0; i < 3; i++)
     {
     if(ijk[i] < 0 or ijk[i] >=  this->GetVolumeNode()->GetImageData()->GetDimensions()[i])
       {
@@ -1404,16 +1404,16 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
     }
 
   int numberOfComponents = this->GetVolumeNode()->GetImageData()->GetNumberOfScalarComponents();
-  if(numberOfComponents > 3)
+  if (numberOfComponents > 3)
     {
     std::string s = IntToString(numberOfComponents) + " components";
     return s.c_str();
     }
 
   std::string pixel;
-  std::string name = this->GetVolumeNode()->GetName();
-  size_t found = name.find("MomentMap");
-  if(found!=std::string::npos)
+  std::string type = this->GetVolumeNode()->GetAttribute("SlicerAstro.DATAMODEL");
+  size_t found = type.find("MOMENTMAP");
+  if (found!=std::string::npos)
     {
     double component = this->GetVolumeNode()->GetImageData()->
         GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0);

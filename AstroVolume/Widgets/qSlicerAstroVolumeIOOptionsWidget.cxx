@@ -201,21 +201,19 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
       }
     else
       {
-      std::string Name = d->Properties["name"].toString().toStdString();
-      size_t found = Name.find("1stMoment");
-      bool set = false;
-      if (found!=std::string::npos)
+      QString Name = d->Properties["name"].toString();
+      QRegExp firstMomentMapName("(\\b|_)([Mm]om1(st)?)(\\b|_)");
+      QRegExp secondMomentMapName("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
+
+      if (Name.contains(firstMomentMapName))
         {
         d->ColorTableComboBox->setCurrentNodeID("vtkMRMLColorTableNodeFileHotToColdRainbow.txt");
-        set = true;
         }
-      found = Name.find("2ndMoment");
-      if (found!=std::string::npos)
+      else if (Name.contains(secondMomentMapName))
         {
         d->ColorTableComboBox->setCurrentNodeID("vtkMRMLColorTableNodeFileColdToHotRainbow.txt");
-        set = true;
         }
-      if (!set)
+      else
         {
         d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
         }

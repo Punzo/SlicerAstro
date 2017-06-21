@@ -384,7 +384,11 @@ void vtkFITSReader::ExecuteInformation()
     this->SetDataType( VTK_SHORT );
     this->SetDataScalarType( VTK_SHORT );
     }
-  else if (!dataModel.compare("DATA") || !dataModel.compare("MODEL"))
+  else if (!dataModel.compare("DATA") ||
+           !dataModel.compare("MODEL") ||
+           !dataModel.compare("ZEROMOMENTMAP") ||
+           !dataModel.compare("FIRSTMOMENTMAP") ||
+           !dataModel.compare("SECONDMOMENTMAP"))
     {
     switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
       {
@@ -813,6 +817,12 @@ bool vtkFITSReader::AllocateHeader()
      QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
      QRegExp modelName("(\\b|_)([Mm]odel)(\\b|_)");
      QRegExp modelNamesShort("(\\b|_)([Mm]od)(\\b|_)");
+     QRegExp zeroMomentMapName("(\\b|_)(0(th)?[Mm]omentMap)(\\b|_)");
+     QRegExp zeroMomentMapNameShort("(\\b|_)([Mm]om0(th)?)(\\b|_)");
+     QRegExp firstMomentMapName("(\\b|_)(1(st)?[Mm]omentMap)(\\b|_)");
+     QRegExp firstMomentMapNameShort("(\\b|_)([Mm]om1(st)?)(\\b|_)");
+     QRegExp secondMomentMapName("(\\b|_)(2(nd)?[Mm]omentMap)(\\b|_)");
+     QRegExp secondMomentMapNameShort("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
 
      if (fileInfo.baseName().contains(labelMapName) ||
          fileInfo.baseName().contains(segName) ||
@@ -821,9 +831,24 @@ bool vtkFITSReader::AllocateHeader()
        HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MASK";
        }
      else if (fileInfo.baseName().contains(modelName) ||
-             fileInfo.baseName().contains(modelNamesShort))
+              fileInfo.baseName().contains(modelNamesShort))
        {
        HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MODEL";
+       }
+     else if (fileInfo.baseName().contains(zeroMomentMapName) ||
+              fileInfo.baseName().contains(zeroMomentMapNameShort))
+       {
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "ZEROMOMENTMAP";
+       }
+     else if (fileInfo.baseName().contains(firstMomentMapName) ||
+              fileInfo.baseName().contains(firstMomentMapNameShort))
+       {
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "FIRSTMOMENTMAP";
+       }
+     else if (fileInfo.baseName().contains(secondMomentMapName) ||
+              fileInfo.baseName().contains(secondMomentMapNameShort))
+       {
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "SECONDMOMENTMAP";
        }
      else
        {

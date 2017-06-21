@@ -1035,7 +1035,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       }
 
     std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_0thMomentMap";
+    outSS << inputVolume->GetName() << "_mom0th";
     outSS <<"_"<< IntToString(serial);
 
     // Check Moment volume
@@ -1105,7 +1105,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
       }
 
-    ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
+    ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMETMAP");
     }
 
   // Create 1stMomentMapVolume
@@ -1123,7 +1123,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       }
 
     std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_1stMomentMap";
+    outSS << inputVolume->GetName() << "_mom1st";
     outSS <<"_"<< IntToString(serial);
 
     // Check Moment volume
@@ -1195,7 +1195,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
       }
 
-    FirstMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
+    FirstMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "FIRSTMOMENTMAP");
     }
 
   // Create 2ndMomentMapVolume
@@ -1212,7 +1212,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       }
 
     std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_2ndMomentMap";
+    outSS << inputVolume->GetName() << "_mom2nd";
     outSS <<"_"<< IntToString(serial);
 
     // Check Moment volume
@@ -1284,7 +1284,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
       }
 
-    SecondMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
+    SecondMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "SECONDMOMENTMAP");
     }
 
   serial++;
