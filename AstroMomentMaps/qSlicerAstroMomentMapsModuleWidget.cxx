@@ -1065,6 +1065,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       std::string Bunit = ZeroMomentVolume->GetAttribute("SlicerAstro.BUNIT");
       Bunit += " km/s";
       ZeroMomentVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
+      std::string Btype = "";
+      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+      ZeroMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
       ZeroMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
       ZeroMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
       ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
@@ -1105,7 +1108,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
       }
 
-    ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMETMAP");
+    ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMENTMAP");
     }
 
   // Create 1stMomentMapVolume
@@ -1151,6 +1154,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       // modify fits attributes
       FirstMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
       FirstMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
+      std::string Btype = "";
+      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+      FirstMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
       FirstMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
       FirstMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
       FirstMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
@@ -1240,6 +1246,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       // modify fits attributes
       SecondMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
       SecondMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
+      std::string Btype = "";
+      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+      SecondMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
       SecondMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
       SecondMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
       SecondMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");

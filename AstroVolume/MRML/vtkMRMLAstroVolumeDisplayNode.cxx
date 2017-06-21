@@ -1418,7 +1418,8 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
     double component = this->GetVolumeNode()->GetImageData()->
         GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],0);
 
-    pixel = DoubleToString(component) + " " + this->GetVolumeNode()->GetAttribute("SlicerAstro.BUNIT");
+    pixel = DoubleToString(component) + " " + this->GetVolumeNode()->GetAttribute("SlicerAstro.BUNIT") +
+            " " + this->GetVolumeNode()->GetAttribute("SlicerAstro.BTYPE");
     }
   else
     {
