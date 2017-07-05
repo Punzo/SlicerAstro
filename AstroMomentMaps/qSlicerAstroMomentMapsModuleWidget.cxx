@@ -1377,6 +1377,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     {
     vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
       this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
+    redSliceComposite->SetLabelVolumeID("");
+    redSliceComposite->SetForegroundVolumeID("");
+    redSliceComposite->SetForegroundOpacity(0.);
     redSliceComposite->SetBackgroundVolumeID(ZeroMomentVolume->GetID());
 
     vtkMRMLSliceNode *redSlice = vtkMRMLSliceNode::SafeDownCast(
@@ -1390,6 +1393,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     {
     vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
       this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
+    yellowSliceComposite->SetLabelVolumeID("");
+    yellowSliceComposite->SetForegroundVolumeID("");
+    yellowSliceComposite->SetForegroundOpacity(0.);
     yellowSliceComposite->SetBackgroundVolumeID(FirstMomentVolume->GetID());
 
     vtkMRMLSliceNode *yellowSlice = vtkMRMLSliceNode::SafeDownCast(
@@ -1402,6 +1408,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     {
     vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
       this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
+    greenSliceComposite->SetLabelVolumeID("");
+    greenSliceComposite->SetForegroundVolumeID("");
+    greenSliceComposite->SetForegroundOpacity(0.);
     greenSliceComposite->SetBackgroundVolumeID(SecondMomentVolume->GetID());
 
     vtkMRMLSliceNode *greenSlice = vtkMRMLSliceNode::SafeDownCast(
