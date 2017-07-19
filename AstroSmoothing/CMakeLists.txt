@@ -5,7 +5,7 @@ set(MODULE_TITLE "${MODULE_NAME}")
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
 
-set(MODULE_TITLE "Smooth Volume")
+set(MODULE_TITLE "Astro Smoothing")
 
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)
