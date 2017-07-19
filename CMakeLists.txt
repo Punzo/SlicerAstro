@@ -66,14 +66,6 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
 endif()
 
 #-----------------------------------------------------------------------------
-# Additional Flags
-if(UNIX AND NOT APPLE)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -ftree-vectorize -fPIC -Wuninitialized")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ftree-vectorize -fPIC -Wuninitialized")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O3 -ftree-vectorize -fPIC -Wuninitialized")
-endif()
-
-#-----------------------------------------------------------------------------
 # configurating OpenGL2
 find_package(OpenGL)
 set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ${OPENGL_FOUND})
