@@ -44,6 +44,12 @@ if(WIN32)
 endif(WIN32)
 
 #-----------------------------------------------------------------------------
+# configurating additional Flags
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -flto")
+
+#-----------------------------------------------------------------------------
 # configurating OpenMP
 find_package(OpenMP)
 set(VTK_SLICER_ASTRO_SUPPORT_OPENMP ${OPENMP_FOUND})
