@@ -328,14 +328,16 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   if (!strcmp(pnode->GetMode(), "Manual"))
     {
 
-    if (pnode->GetNumberOfRings() > 1)
+    if (pnode->GetNumberOfRings() > 0 && fabs(pnode->GetNumberOfRings() - 1) > 0.001)
       {
       this->Internal->par->setNRADII(pnode->GetNumberOfRings());
       }
-    else if (pnode->GetNumberOfRings() <= 1)
+    else if (pnode->GetNumberOfRings() > 0 && fabs(pnode->GetNumberOfRings() - 1) < 0.001 )
       {
+      pnode->SetStatus(0);
+      pnode->SetFitSuccess(false);
       vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
-                      " Barolo needs at least 2 Rings!");
+                    " 3DBarolo needs at least 2 Rings!");
       return 0;
       }
     else
