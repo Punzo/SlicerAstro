@@ -1947,16 +1947,28 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
 
+  if (overrideSegments)
+    {
+    std::vector<std::string> segmentIds;
+    currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIds);
+
+    for (unsigned int ii = 0; ii < segmentIds.size(); ii++)
+      {
+      size_t foundVolumeOne = segmentIds[ii].find(volumeOne->GetName());
+      size_t foundVolumeTwo = segmentIds[ii].find(volumeTwo->GetName());
+
+      if (foundVolumeOne != std::string::npos || foundVolumeTwo != std::string::npos)
+        {
+        currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOff();
+        currentSegmentationNode->GetSegmentation()->RemoveSegment(segmentIds[ii]);
+        currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOn();
+        }
+      }
+    }
+
   std::string SegmentOneID = volumeOne->GetName();
   SegmentOneID += "_" + DoubleToString(ContourLevel) + "RMS";
   vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
-  if (SegmentOne && overrideSegments)
-    {
-    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOff();
-    currentSegmentationNode->GetSegmentation()->RemoveSegment(SegmentOne);
-    SegmentOne = NULL;
-    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOn();
-    }
   if (!SegmentOne)
     {
     double color[3] = {0.5, 0.68, 0.5};
@@ -1988,13 +2000,6 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   std::string SegmentTwoID = volumeTwo->GetName();
   SegmentTwoID += "_" + DoubleToString(ContourLevel) + "RMS";
   vtkSegment *SegmentTwo = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentTwoID);
-  if (SegmentTwo && overrideSegments)
-    {
-    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOff();
-    currentSegmentationNode->GetSegmentation()->RemoveSegment(SegmentTwo);
-    SegmentTwo = NULL;
-    currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOn();
-    }
   if(!SegmentTwo)
     {
     double color[3] = {0.17, 0.40, 0.57};
