@@ -1795,7 +1795,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
   if(!SegmentOne)
     {
-    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID);
+    double color[3] = {0.5, 0.68, 0.5};
+    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
@@ -1825,7 +1826,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   vtkSegment *SegmentTwo = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentTwoID);
   if(!SegmentTwo)
     {
-    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID);
+    double color[3] = {0.17, 0.40, 0.57};
+    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -1855,7 +1857,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   vtkSegment *SegmentThree = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentThreeID);
   if(!SegmentThree)
     {
-    SegmentThreeID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentThreeID, SegmentThreeID);
+    double color[3] = {1., 0.9, 0.13};
+    SegmentThreeID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentThreeID, SegmentThreeID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -1956,7 +1959,9 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     }
   if (!SegmentOne)
     {
-    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID);
+    double color[3] = {0.5, 0.68, 0.5};
+    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
+
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
@@ -1992,7 +1997,8 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     }
   if(!SegmentTwo)
     {
-    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID);
+    double color[3] = {0.17, 0.40, 0.57};
+    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
