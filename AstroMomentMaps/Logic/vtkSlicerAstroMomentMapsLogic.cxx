@@ -662,6 +662,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             ijkCoordinates[2] = kk;
             astroDisplay->GetReferenceSpace(ijkCoordinates, SpaceCoordinates);
             SpaceCoordinates[2] *= VelFactor;
+
             switch (DataType)
               {
               case VTK_FLOAT:
@@ -685,7 +686,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outSecondDPixel + elemCnt) < FLOATPRECISION)
+              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outSecondFPixel + elemCnt) < FLOATPRECISION)
                 {
                 *(outSecondFPixel + elemCnt) = 0.;
                 }
