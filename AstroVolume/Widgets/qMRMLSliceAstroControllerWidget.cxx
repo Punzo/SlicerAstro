@@ -106,7 +106,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
 {
   this->Superclass::init();
 
-  this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0, QApplication::UnicodeUTF8));
+  this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0));
   qMRMLOrientation XZOrientation = {qMRMLSliceControllerWidget::tr("S: "), qMRMLSliceControllerWidget::tr("S <-----> N")};
   qMRMLOrientation ZYOrientation = {qMRMLSliceControllerWidget::tr("R: "), qMRMLSliceControllerWidget::tr("E <-----> W")};
   qMRMLOrientation XYOrientation = {qMRMLSliceControllerWidget::tr("A: "), qMRMLSliceControllerWidget::tr("z <-----> Z")};
@@ -119,7 +119,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
 
   this->SliceOffsetSlider->setSpinBoxVisible(false);
   this->WCSDisplay = new QLabel();
-  this->WCSDisplay->setObjectName(QString::fromUtf8("WCSDisplay"));
+  this->WCSDisplay->setObjectName(QLatin1String("WCSDisplay"));
   this->WCSDisplay->setEnabled(true);
   this->WCSDisplay->setFixedWidth(10);
   this->WCSDisplay->setText("");

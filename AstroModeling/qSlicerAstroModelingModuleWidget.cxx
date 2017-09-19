@@ -307,7 +307,7 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 
 
   MRMLTableView = new qMRMLTableView(OutputCollapsibleButton);
-  MRMLTableView->setObjectName(QString::fromUtf8("MRMLTableView"));
+  MRMLTableView->setObjectName(QLatin1String("MRMLTableView"));
   QSizePolicy sizePolicy1(QSizePolicy::Expanding, QSizePolicy::Expanding);
   sizePolicy1.setHeightForWidth(MRMLTableView->sizePolicy().hasHeightForWidth());
   MRMLTableView->setSizePolicy(sizePolicy1);
@@ -324,7 +324,7 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   gridLayout_3->addWidget(MRMLTableView, 2, 0, 1, 1);
 
   CalculatePushButton = new QPushButton(OutputCollapsibleButton);
-  CalculatePushButton->setObjectName(QString::fromUtf8("CalculatePushButton"));
+  CalculatePushButton->setObjectName(QLatin1String("CalculatePushButton"));
   CalculatePushButton->setMinimumSize(QSize(0, 35));
   CalculatePushButton->setEnabled(false);
   CalculatePushButton->setText("Calculate and Visualize Model");
@@ -1009,7 +1009,11 @@ void qSlicerAstroModelingModuleWidget::setMRMLAstroModelingParametersNode(vtkMRM
 
   d->MRMLTableView->setMRMLTableNode(d->parametersNode->GetParamsTableNode());
   d->MRMLTableView->resizeColumnsToContents();
+#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
   d->MRMLTableView->horizontalHeader()->setResizeMode(QHeaderView::ResizeToContents);
+#else
+  d->MRMLTableView->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+#endif
 
   this->qvtkReconnect(d->parametersNode->GetParamsTableNode(), vtkCommand::ModifiedEvent,
                    this, SLOT(onParamsTableNodeModified(vtkObject*)));

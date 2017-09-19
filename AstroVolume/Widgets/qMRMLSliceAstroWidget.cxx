@@ -70,17 +70,22 @@ void qMRMLSliceAstroWidgetPrivate::init()
   delete this->frame;
 
   this->SliceController = new qMRMLSliceAstroControllerWidget(q);
-  this->SliceController->setObjectName(QString::fromUtf8("SliceController"));
+  this->SliceController->setObjectName(QLatin1String("SliceController"));
   this->verticalLayout_2->addWidget(this->SliceController);
   this->frame = new QFrame(q);
-  this->frame->setObjectName(QString::fromUtf8("frame"));
+  this->frame->setObjectName(QLatin1String("frame"));
+  QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
+  sizePolicy.setHorizontalStretch(0);
+  sizePolicy.setVerticalStretch(0);
+  sizePolicy.setHeightForWidth(frame->sizePolicy().hasHeightForWidth());
+  frame->setSizePolicy(sizePolicy);
   this->frame->setFrameShadow(QFrame::Raised);
   this->verticalLayout = new QVBoxLayout(this->frame);
   this->verticalLayout->setSpacing(0);
-  this->verticalLayout->setObjectName(QString::fromUtf8("verticalLayout"));
+  this->verticalLayout->setObjectName(QLatin1String("verticalLayout"));
   this->verticalLayout->setContentsMargins(0, 0, 0, 0);
   this->SliceView = new qMRMLSliceView(this->frame);
-  this->SliceView->setObjectName(QString::fromUtf8("SliceView"));
+  this->SliceView->setObjectName(QLatin1String("SliceView"));
   this->SliceView->setProperty("renderEnabled", QVariant(true));
 
   this->verticalLayout->addWidget(this->SliceView);

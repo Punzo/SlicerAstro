@@ -68,15 +68,15 @@ protected:
                            vtkInformationVector **inputVector,
                            vtkInformationVector *outputVector,
                            vtkImageData ***inData, vtkImageData **outData,
-                           int extent[6], int id);
+                           int extent[6], int id) VTK_OVERRIDE;
 
   double Cl[3];
   int Accuracy;
   double K, TimeStep, RMS;
 
 private:
-  vtkAstroOpenGLImageGradient(const vtkAstroOpenGLImageGradient&);  // Not implemented.
-  void operator=(const vtkAstroOpenGLImageGradient&);  // Not implemented.
+  vtkAstroOpenGLImageGradient(const vtkAstroOpenGLImageGradient&);
+  void operator=(const vtkAstroOpenGLImageGradient&);
 };
 
 #endif

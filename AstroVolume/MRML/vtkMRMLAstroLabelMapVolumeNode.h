@@ -38,29 +38,29 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
   public:
   static vtkMRMLAstroLabelMapVolumeNode *New();
   vtkTypeMacro(vtkMRMLAstroLabelMapVolumeNode,vtkMRMLLabelMapVolumeNode);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
-  virtual vtkMRMLNode* CreateNodeInstance();
+  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
   ///
   /// Set node attributes
-  virtual void ReadXMLAttributes( const char** atts);
+  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
   ///
   /// Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent);
+  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
   ///
   /// Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node);
+  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
   ///
   /// Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() {return "AstroLabelMapVolume";};
+  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroLabelMapVolume";};
 
   ///
   /// Create and observe default display node
-  virtual void CreateDefaultDisplayNodes();
+  virtual void CreateDefaultDisplayNodes() VTK_OVERRIDE;
 
   ///
   /// Make a 'None' volume node with blank image data
@@ -68,7 +68,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
 
   ///
   /// Create and observe default Storage node
-  virtual vtkMRMLStorageNode* CreateDefaultStorageNode();
+  virtual vtkMRMLStorageNode* CreateDefaultStorageNode() VTK_OVERRIDE;
 
   ///
   /// Get AstroVolume display node

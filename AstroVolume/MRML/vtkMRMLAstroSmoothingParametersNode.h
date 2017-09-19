@@ -35,25 +35,25 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
 
   static vtkMRMLAstroSmoothingParametersNode *New();
   vtkTypeMacro(vtkMRMLAstroSmoothingParametersNode,vtkMRMLNode);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
-  virtual vtkMRMLNode* CreateNodeInstance();
+  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
   // Description:
   // Set node attributes
-  virtual void ReadXMLAttributes( const char** atts);
+  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
   // Description:
   // Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent);
+  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
   // Description:
   // Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node);
+  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
   // Description:
   // Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() {return "AstroSmoothingParameters";};
+  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroSmoothingParameters";};
 
   vtkSetMacro(ParameterX,double);
   vtkGetMacro(ParameterX,double);

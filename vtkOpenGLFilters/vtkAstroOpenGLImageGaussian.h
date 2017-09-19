@@ -73,7 +73,7 @@ protected:
                            vtkInformationVector **inputVector,
                            vtkInformationVector *outputVector,
                            vtkImageData ***inData, vtkImageData **outData,
-                           int extent[6], int id);
+                           int extent[6], int id) VTK_OVERRIDE;
 
   int KernelLength[3];
   double FWHM[3];
@@ -81,8 +81,8 @@ protected:
   bool Iterative;
 
 private:
-  vtkAstroOpenGLImageGaussian(const vtkAstroOpenGLImageGaussian&);  // Not implemented.
-  void operator=(const vtkAstroOpenGLImageGaussian&);  // Not implemented.
+  vtkAstroOpenGLImageGaussian(const vtkAstroOpenGLImageGaussian&);
+  void operator=(const vtkAstroOpenGLImageGaussian&);
 };
 
 #endif

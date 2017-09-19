@@ -98,7 +98,7 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
 {
   Q_Q(qMRMLAstroVolumeInfoWidget);
 
-  q->setObjectName(QString::fromUtf8("qMRMLAstroVolumeInfoWidget"));
+  q->setObjectName(QLatin1String("qMRMLAstroVolumeInfoWidget"));
 
   q->resize(660, 424);
   QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
@@ -107,14 +107,14 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   sizePolicy.setHeightForWidth(q->sizePolicy().hasHeightForWidth());
   q->setSizePolicy(sizePolicy);
   this->formLayout = new QFormLayout(q);
-  this->formLayout->setObjectName(QString::fromUtf8("formLayout"));
+  this->formLayout->setObjectName(QLatin1String("formLayout"));
   this->ImageDimensionsLabel = new QLabel(q);
-  this->ImageDimensionsLabel->setObjectName(QString::fromUtf8("ImageDimensionsLabel"));
+  this->ImageDimensionsLabel->setObjectName(QLatin1String("ImageDimensionsLabel"));
 
   this->formLayout->setWidget(0, QFormLayout::LabelRole, ImageDimensionsLabel);
 
   this->ImageDimensionsWidget = new qMRMLCoordinatesWidget(q);
-  this->ImageDimensionsWidget->setObjectName(QString::fromUtf8("ImageDimensionsWidget"));
+  this->ImageDimensionsWidget->setObjectName(QLatin1String("ImageDimensionsWidget"));
   this->ImageDimensionsWidget->setEnabled(false);
   this->ImageDimensionsWidget->setDecimals(0);
   this->ImageDimensionsWidget->setMinimum(0);
@@ -124,12 +124,12 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->formLayout->setWidget(0, QFormLayout::FieldRole, ImageDimensionsWidget);
 
   this->ImageSpacingLabel = new QLabel(q);
-  this->ImageSpacingLabel->setObjectName(QString::fromUtf8("ImageSpacingLabel"));
+  this->ImageSpacingLabel->setObjectName(QLatin1String("ImageSpacingLabel"));
 
   this->formLayout->setWidget(1, QFormLayout::LabelRole, ImageSpacingLabel);
 
   this->ImageSpacingWidget = new qMRMLCoordinatesWidget(q);
-  this->ImageSpacingWidget->setObjectName(QString::fromUtf8("ImageSpacingWidget"));
+  this->ImageSpacingWidget->setObjectName(QLatin1String("ImageSpacingWidget"));
   this->ImageSpacingWidget->setDecimals(4);
   this->ImageSpacingWidget->setDecimalsOption(ctkDoubleSpinBox::DecimalsByKey|ctkDoubleSpinBox::DecimalsByShortcuts|ctkDoubleSpinBox::DecimalsByValue);
   this->ImageSpacingWidget->setMinimum(0.005);
@@ -140,12 +140,12 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->formLayout->setWidget(1, QFormLayout::FieldRole, ImageSpacingWidget);
 
   this->ImageOriginLabel = new QLabel(q);
-  this->ImageOriginLabel->setObjectName(QString::fromUtf8("ImageOriginLabel"));
+  this->ImageOriginLabel->setObjectName(QLatin1String("ImageOriginLabel"));
 
   this->formLayout->setWidget(2, QFormLayout::LabelRole, ImageOriginLabel);
 
   this->ImageOriginWidget = new qMRMLCoordinatesWidget(q);
-  this->ImageOriginWidget->setObjectName(QString::fromUtf8("ImageOriginWidget"));
+  this->ImageOriginWidget->setObjectName(QLatin1String("ImageOriginWidget"));
   this->ImageOriginWidget->setDecimals(4);
   this->ImageOriginWidget->setDecimalsOption(ctkDoubleSpinBox::DecimalsByKey|ctkDoubleSpinBox::DecimalsByShortcuts|ctkDoubleSpinBox::DecimalsByValue);
   this->ImageOriginWidget->setMinimum(-1e+09);
@@ -155,17 +155,17 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->formLayout->setWidget(2, QFormLayout::FieldRole, ImageOriginWidget);
 
   this->CenterVolumePushButton = new QPushButton(q);
-  this->CenterVolumePushButton->setObjectName(QString::fromUtf8("CenterVolumePushButton"));
+  this->CenterVolumePushButton->setObjectName(QLatin1String("CenterVolumePushButton"));
 
   this->formLayout->setWidget(4, QFormLayout::FieldRole, CenterVolumePushButton);
 
   this->NumberOfScalarsLabel = new QLabel(q);
-  this->NumberOfScalarsLabel->setObjectName(QString::fromUtf8("NumberOfScalarsLabel"));
+  this->NumberOfScalarsLabel->setObjectName(QLatin1String("NumberOfScalarsLabel"));
 
   this->formLayout->setWidget(6, QFormLayout::LabelRole, NumberOfScalarsLabel);
 
   this->NumberOfScalarsSpinBox = new QSpinBox(q);
-  this->NumberOfScalarsSpinBox->setObjectName(QString::fromUtf8("NumberOfScalarsSpinBox"));
+  this->NumberOfScalarsSpinBox->setObjectName(QLatin1String("NumberOfScalarsSpinBox"));
   this->NumberOfScalarsSpinBox->setMinimum(1);
   this->NumberOfScalarsSpinBox->setMaximum(1000000000);
   this->NumberOfScalarsSpinBox->setValue(1);
@@ -173,23 +173,23 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->formLayout->setWidget(6, QFormLayout::FieldRole, NumberOfScalarsSpinBox);
 
   this->FileNameLabel = new QLabel(q);
-  this->FileNameLabel->setObjectName(QString::fromUtf8("FileNameLabel"));
+  this->FileNameLabel->setObjectName(QLatin1String("FileNameLabel"));
 
   this->formLayout->setWidget(9, QFormLayout::LabelRole, FileNameLabel);
 
   this->FileNameLineEdit = new QLineEdit(q);
-  this->FileNameLineEdit->setObjectName(QString::fromUtf8("FileNameLineEdit"));
+  this->FileNameLineEdit->setObjectName(QLatin1String("FileNameLineEdit"));
   this->FileNameLineEdit->setReadOnly(true);
 
   this->formLayout->setWidget(9, QFormLayout::FieldRole, FileNameLineEdit);
 
   this->LabelMapLabel = new QLabel(q);
-  this->LabelMapLabel->setObjectName(QString::fromUtf8("LabelMapLabel"));
+  this->LabelMapLabel->setObjectName(QLatin1String("LabelMapLabel"));
 
   this->formLayout->setWidget(10, QFormLayout::LabelRole, LabelMapLabel);
 
   this->LabelMapCheckBox = new QCheckBox(q);
-  this->LabelMapCheckBox->setObjectName(QString::fromUtf8("LabelMapCheckBox"));
+  this->LabelMapCheckBox->setObjectName(QLatin1String("LabelMapCheckBox"));
   this->LabelMapCheckBox->setEnabled(false);
 
   this->formLayout->setWidget(10, QFormLayout::FieldRole, LabelMapCheckBox);

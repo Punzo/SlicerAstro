@@ -29,13 +29,15 @@
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroMomentMapsLogic.h>
 
-
 // AstroMomentMaps includes
 #include "qSlicerAstroMomentMapsModule.h"
 #include "qSlicerAstroMomentMapsModuleWidget.h"
 
 //-----------------------------------------------------------------------------
+#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
+#include <QtPlugin>
 Q_EXPORT_PLUGIN2(qSlicerAstroMomentMapsModule, qSlicerAstroMomentMapsModule);
+#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroMomentMaps

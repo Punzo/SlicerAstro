@@ -75,21 +75,21 @@ public:
   ///
   struct wcsprm* GetWCSStruct();
 
-  virtual void PrintSelf(ostream& os, vtkIndent indent);
+  virtual void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   ///  is the given file name a FITS file?
-  virtual int CanReadFile(const char* filename);
+  virtual int CanReadFile(const char* filename) VTK_OVERRIDE;
 
   ///
   /// Valid extentsions
-  virtual const char* GetFileExtensions()
+  virtual const char* GetFileExtensions() VTK_OVERRIDE
     {
     return ".fits .fits.gz";
     }
 
   ///
   /// A descriptive name for this format
-  virtual const char* GetDescriptiveName()
+  virtual const char* GetDescriptiveName() VTK_OVERRIDE
     {
     return "FITS - Flexible Image Transport System";
     }
@@ -139,8 +139,8 @@ public:
     UseNativeOrigin = false;
     }
 
-virtual vtkImageData * AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo);
-virtual void AllocateOutputData(vtkImageData *out, vtkInformation* outInfo, int *uExtent)
+virtual vtkImageData * AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo) VTK_OVERRIDE;
+virtual void AllocateOutputData(vtkImageData *out, vtkInformation* outInfo, int *uExtent) VTK_OVERRIDE
     { Superclass::AllocateOutputData(out, outInfo, uExtent); }
 void AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
 
@@ -169,8 +169,8 @@ protected:
 
   std::map <std::string, std::string> HeaderKeyValue;
 
-  virtual void ExecuteInformation();
-  virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo);
+  virtual void ExecuteInformation() VTK_OVERRIDE;
+  virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo) VTK_OVERRIDE;
 
   bool AllocateHeader();
   bool FixGipsyHeader();

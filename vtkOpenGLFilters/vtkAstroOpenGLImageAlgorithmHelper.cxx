@@ -22,11 +22,11 @@
 
 // VTK includes
 #include "vtkDataArray.h"
-#include "vtkFrameBufferObject.h"
 #include "vtkImageData.h"
 #include "vtkImageCast.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
+#include "vtkOpenGLFramebufferObject.h"
 #include "vtkOpenGLRenderWindow.h"
 #include "vtkOpenGLShaderCache.h"
 #include "vtkOpenGLVertexArrayObject.h"
@@ -42,30 +42,13 @@ vtkStandardNewMacro(vtkAstroOpenGLImageAlgorithmHelper);
 // ----------------------------------------------------------------------------
 vtkAstroOpenGLImageAlgorithmHelper::vtkAstroOpenGLImageAlgorithmHelper()
 {
-  this->RenderWindow = 0;
+  this->RenderWindow = nullptr;
 }
 
 // ----------------------------------------------------------------------------
 vtkAstroOpenGLImageAlgorithmHelper::~vtkAstroOpenGLImageAlgorithmHelper()
 {
-  this->SetRenderWindow(0);
-}
-
-void vtkAstroOpenGLImageAlgorithmHelper::SetRenderWindow(vtkRenderWindow *renWin)
-{
-  if (renWin == this->RenderWindow.Get())
-    {
-    return;
-    }
-
-  vtkOpenGLRenderWindow *orw  = NULL;
-  if (renWin)
-    {
-    orw = vtkOpenGLRenderWindow::SafeDownCast(renWin);
-    }
-
-  this->RenderWindow = orw;
-  this->Modified();
+  this->SetRenderWindow(nullptr);
 }
 
 void vtkAstroOpenGLImageAlgorithmHelper::Execute(
@@ -137,21 +120,19 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   vtkNew<vtkTextureObject> outputTex;
   outputTex->SetContext(this->RenderWindow);
 
-  vtkNew<vtkFrameBufferObject> fbo;
+  vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
 
   outputTex->SetInternalFormat(GL_R32F);
   outputTex->Create2D(outDims[0], outDims[1], 1, VTK_FLOAT, false);
-  fbo->SetNumberOfRenderTargets(1);
-  fbo->SetColorBuffer(0, outputTex.GetPointer());
+  fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.Get());
 
   // because the same FBO can be used in another pass but with several color
   // buffers, force this pass to use 1, to avoid side effects from the
   // render of the previous frame.
-  fbo->SetActiveBuffer(0);
+  fbo->ActivateDrawBuffer(0);
 
-  fbo->SetDepthBufferNeeded(false);
-  fbo->StartNonOrtho(outDims[0], outDims[1], false);
+  fbo->StartNonOrtho(outDims[0], outDims[1]);
   glViewport(0, 0, outDims[0], outDims[1]);
   glScissor(0, 0, outDims[0], outDims[1]);
   glDisable(GL_DEPTH_TEST);
@@ -276,14 +257,12 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   vtkNew<vtkTextureObject> outputTex;
   outputTex->SetContext(this->RenderWindow);
 
-  vtkNew<vtkFrameBufferObject> fbo;
+  vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
 
   outputTex->SetInternalFormat(GL_R32F);
   outputTex->Create3D(outDims[0], outDims[1], outDims[2], 1, VTK_FLOAT, false);
 
-  fbo->SetNumberOfRenderTargets(1);
-  fbo->SetDepthBufferNeeded(false);
   glViewport(0, 0, outDims[0], outDims[1]);
   glScissor(0, 0, outDims[0], outDims[1]);
   glDisable(GL_DEPTH_TEST);
@@ -312,9 +291,9 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    fbo->SetColorBuffer(0, outputTex.GetPointer(), slice);
-    fbo->SetActiveBuffer(0);
-    fbo->StartNonOrtho(outDims[0], outDims[1], false);
+    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    fbo->ActivateDrawBuffer(0);
+    fbo->StartNonOrtho(outDims[0], outDims[1]);
 
     this->Quad.Program->SetUniformf("zPos", (slice + 0.5) / (outDims[2]));
 
@@ -341,9 +320,9 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    fbo->SetColorBuffer(0, inputTex.GetPointer(), slice);
-    fbo->SetActiveBuffer(0);
-    fbo->StartNonOrtho(outDims[0], outDims[1], false);
+    fbo->AddColorAttachment(fbo->GetDrawMode(), 1, inputTex.GetPointer(), slice);
+    fbo->ActivateDrawBuffer(0);
+    fbo->StartNonOrtho(outDims[0], outDims[1]);
 
     this->Quad.Program->SetUniformf("zPos", (slice + 0.5) / (outDims[2]));
 
@@ -370,9 +349,9 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    fbo->SetColorBuffer(0, outputTex.GetPointer(), slice);
-    fbo->SetActiveBuffer(0);
-    fbo->StartNonOrtho(outDims[0], outDims[1], false);
+    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    fbo->ActivateDrawBuffer(0);
+    fbo->StartNonOrtho(outDims[0], outDims[1]);
 
     this->Quad.Program->SetUniformf("zPos", (slice + 0.5) / (outDims[2]));
 
@@ -382,7 +361,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
       this->Quad.Program, this->Quad.VAO);
     }
 
-  fbo->RemoveAllColorBuffers();
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 1);
 
   vtkPixelBufferObject *outPBO = outputTex->Download();
 
@@ -475,14 +455,12 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   vtkNew<vtkTextureObject> outputTex;
   outputTex->SetContext(this->RenderWindow);
 
-  vtkNew<vtkFrameBufferObject> fbo;
+  vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
 
   outputTex->SetInternalFormat(GL_R32F);
   outputTex->Create3D(outDims[0], outDims[1], outDims[2], 1, VTK_FLOAT, false);
 
-  fbo->SetNumberOfRenderTargets(1);
-  fbo->SetDepthBufferNeeded(false);
   glViewport(0, 0, outDims[0], outDims[1]);
   glScissor(0, 0, outDims[0], outDims[1]);
   glDisable(GL_DEPTH_TEST);
@@ -526,15 +504,15 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
 
       if ((ii % 2) < 0.001)
         {
-        fbo->SetColorBuffer(0, outputTex.GetPointer(), slice);
+        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
         }
       else
         {
-        fbo->SetColorBuffer(0, inputTex.GetPointer(), slice);
+        fbo->AddColorAttachment(fbo->GetDrawMode(), 1, inputTex.GetPointer(), slice);
         }
 
-      fbo->SetActiveBuffer(0);
-      fbo->StartNonOrtho(outDims[0], outDims[1], false);
+      fbo->ActivateDrawBuffer(0);
+      fbo->StartNonOrtho(outDims[0], outDims[1]);
 
       this->Quad.Program->SetUniformf("zPos", (slice + 0.5) / (outDims[2]));
 
@@ -544,7 +522,9 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
         this->Quad.Program, this->Quad.VAO);
       }
     }
-  fbo->RemoveAllColorBuffers();
+
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 1);
 
   vtkPixelBufferObject *outPBO = outputTex->Download();
 
@@ -564,20 +544,4 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   castFilter->SetOutputScalarTypeToFloat();
   castFilter->Update();
   outImage->DeepCopy(castFilter->GetOutput());
-}
-
-// ----------------------------------------------------------------------------
-void vtkAstroOpenGLImageAlgorithmHelper::PrintSelf(ostream& os, vtkIndent indent)
-{
-  this->Superclass::PrintSelf(os,indent);
-
-  os << indent << "RenderWindow:";
-  if(this->RenderWindow != 0)
-    {
-    this->RenderWindow->PrintSelf(os,indent);
-    }
-  else
-    {
-    os << "(none)" <<endl;
-    }
 }

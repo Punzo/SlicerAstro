@@ -63,14 +63,14 @@ protected:
                            vtkInformationVector **inputVector,
                            vtkInformationVector *outputVector,
                            vtkImageData ***inData, vtkImageData **outData,
-                           int extent[6], int id);
+                           int extent[6], int id) VTK_OVERRIDE;
 
   int KernelLength[3];
   bool Iterative;
 
 private:
-  vtkAstroOpenGLImageBox(const vtkAstroOpenGLImageBox&);  // Not implemented.
-  void operator=(const vtkAstroOpenGLImageBox&);  // Not implemented.
+  vtkAstroOpenGLImageBox(const vtkAstroOpenGLImageBox&);
+  void operator=(const vtkAstroOpenGLImageBox&);
 };
 
 #endif

@@ -1946,5 +1946,4 @@ void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
     {
     os << indent << pre << "mjdavg:   " << this->WCS->mjdavg <<std::endl;
     }
-
 }

@@ -56,7 +56,6 @@ SlicerMacroBuildModuleMRML(
   TARGET_LIBRARIES ${module_mrml_target_libraries}
   )
 
-
 # --------------------------------------------------------------------------
 # Set INCLUDE_DIRS variable
 # --------------------------------------------------------------------------

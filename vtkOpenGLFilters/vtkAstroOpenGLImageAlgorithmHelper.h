@@ -17,20 +17,6 @@
 
 ==============================================================================*/
 
-/*=========================================================================
-
-  Program:   Visualization Toolkit
-  Module:    vtkAstroOpenGLImageAlgorithmHelper.h
-
-  Copyright (c) Ken Martin, Will Schroeder, Bill Lorensen
-  All rights reserved.
-  See Copyright.txt or http://www.kitware.com/Copyright.htm for details.
-
-     This software is distributed WITHOUT ANY WARRANTY; without even
-     the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-     PURPOSE.  See the above copyright notice for more information.
-
-=========================================================================*/
 // .NAME vtkAstroOpenGLImageAlgorithmHelper - Help image algorithms use the GPU
 // .SECTION Description
 // Designed to make it easier to accelerate an image algorithm on the GPU
@@ -38,34 +24,15 @@
 #ifndef vtkAstroOpenGLImageAlgorithmHelper_h
 #define vtkAstroOpenGLImageAlgorithmHelper_h
 
-#include "vtkRenderingOpenGL2Module.h" // For export macro
 #include "vtkObject.h"
-
-#include "vtkOpenGLHelper.h" // used for ivars
-#include "vtkSmartPointer.h" // for ivar
-
+#include "vtkOpenGLImageAlgorithmHelper.h"
 #include "vtkOpenGLFiltersWin32Header.h"
 
-class vtkOpenGLRenderWindow;
-class vtkRenderWindow;
-class vtkImageData;
-class vtkDataArray;
-
-class vtkOpenGLImageAlgorithmCallback
-{
-public:
-  virtual void InitializeShaderUniforms(vtkShaderProgram * /* program */) {};
-  virtual void UpdateShaderUniforms(
-    vtkShaderProgram * /* program */, int /* zExtent */) {};
-  virtual ~vtkOpenGLImageAlgorithmCallback() {};
-};
-
-class VTK_OPENGLFILTERS_EXPORT vtkAstroOpenGLImageAlgorithmHelper : public vtkObject
+class VTK_OPENGLFILTERS_EXPORT vtkAstroOpenGLImageAlgorithmHelper : public vtkOpenGLImageAlgorithmHelper
 {
 public:
   static vtkAstroOpenGLImageAlgorithmHelper *New();
   vtkTypeMacro(vtkAstroOpenGLImageAlgorithmHelper,vtkObject);
-  void PrintSelf(ostream& os, vtkIndent indent);
 
   // Description:
   // Execute one-pass filter
@@ -103,20 +70,13 @@ public:
     const int n
     );
 
-  // Description:
-  // Set the render window to get the OpenGL resources from
-  void SetRenderWindow(vtkRenderWindow *renWin);
-
  protected:
   vtkAstroOpenGLImageAlgorithmHelper();
-  virtual ~vtkAstroOpenGLImageAlgorithmHelper();
-
-  vtkSmartPointer<vtkOpenGLRenderWindow> RenderWindow;
-  vtkOpenGLHelper Quad;
+  ~vtkAstroOpenGLImageAlgorithmHelper();
 
  private:
-  vtkAstroOpenGLImageAlgorithmHelper(const vtkAstroOpenGLImageAlgorithmHelper&);  // Not implemented.
-  void operator=(const vtkAstroOpenGLImageAlgorithmHelper&);  // Not implemented.
+  vtkAstroOpenGLImageAlgorithmHelper(const vtkAstroOpenGLImageAlgorithmHelper&);
+  void operator=(const vtkAstroOpenGLImageAlgorithmHelper&);
 };
 
 #endif

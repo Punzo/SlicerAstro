@@ -30,9 +30,14 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
     This module was developed by Davide Punzo. <br>
     This work was supported by ERC grant nr. 291531 and the Slicer Community.
     """
-    # Trigger the override od DataProbe when application has started up
+
+    if slicer.mrmlScene.GetTagByClassName( "vtkMRMLScriptedModuleNode" ) != 'ScriptedModule':
+      slicer.mrmlScene.RegisterNodeClass(vtkMRMLScriptedModuleNode())
+
+    # Trigger the override of DataProbe when application has started up
     if not slicer.app.commandOptions().noMainWindow :
-      qt.QTimer.singleShot(0, self.override);
+      slicer.app.connect("startupCompleted()", self.override)
+      #qt.QTimer.singleShot(2000, self.override);
 
 
   def override(self):
@@ -54,6 +59,7 @@ class SlicerAstroDataProbeLogic(ScriptedLoadableModuleLogic):
 
   def __init__(self, parent):
     ScriptedLoadableModuleLogic.__init__(self, parent)
+
     dataProbeInstance = slicer.modules.DataProbeInstance
     funcType = type(dataProbeInstance.infoWidget.generateViewDescription)
     dataProbeInstance.infoWidget.generateViewDescription = funcType(generateViewDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
@@ -98,14 +104,13 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
-      if volumeNode:
+      if volumeNode and (volumeNode.IsA("vtkMRMLAstroVolumeNode") or volumeNode.IsA("vtkMRMLAstroLabelMapVolumeNode")):
         dimensionality = int(volumeNode.GetAttribute("SlicerAstro.NAXIS"))
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
         displayNode = volumeNode.GetDisplayNode()
         if displayNode:
           CoordinateSystemName = displayNode.GetSpace()
-          ijkFloat = ijkFloat
           displayNode.GetReferenceSpace(ijkFloat, world)
           worldX = displayNode.GetDisplayStringFromValueX(world[0])
           worldY = displayNode.GetDisplayStringFromValueY(world[1])
