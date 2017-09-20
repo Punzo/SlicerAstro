@@ -138,7 +138,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
     outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
     for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
       {
-      if (*(outSPixel + elementCnt) == 0.)
+      if (isnan(*(outSPixel + elementCnt)))
         {
         continue;
         }
@@ -156,7 +156,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-       if (*(outFPixel + elementCnt) == 0.)
+       if (isnan(*(outFPixel + elementCnt)))
           {
           continue;
           }
@@ -174,7 +174,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-        if (*(outDPixel + elementCnt) == 0.)
+        if (isnan(*(outDPixel + elementCnt)))
           {
           continue;
           }
@@ -250,11 +250,19 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_FLOAT:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outFPixel + elemCnt)))
+           {
+           continue;
+           }
         sum += *(outFPixel + elemCnt);
         }
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outFPixel + elemCnt)))
+           {
+           continue;
+           }
         noise1 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel+elemCnt) - sum);
         }
       noise1 = sqrt(noise1 / cont);
@@ -262,11 +270,19 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_DOUBLE:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outDPixel + elemCnt)))
+           {
+           continue;
+           }
         sum += *(outDPixel + elemCnt);
         }
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outDPixel + elemCnt)))
+           {
+           continue;
+           }
         noise1 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel+elemCnt) - sum);
         }
       noise1 = sqrt(noise1 / cont);
@@ -298,11 +314,19 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_FLOAT:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outFPixel + elemCnt)))
+           {
+           continue;
+           }
         sum += *(outFPixel + elemCnt);
         }
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outFPixel + elemCnt)))
+           {
+           continue;
+           }
         noise2 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel+elemCnt) - sum);
         }
       noise2 = sqrt(noise2 / cont);
@@ -310,11 +334,19 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_DOUBLE:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outDPixel + elemCnt)))
+           {
+           continue;
+           }
         sum += *(outDPixel + elemCnt);
         }
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
+        if (isnan(*(outDPixel + elemCnt)))
+           {
+           continue;
+           }
         noise2 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel+elemCnt) - sum);
         }
       noise2 = sqrt(noise2 / cont);
