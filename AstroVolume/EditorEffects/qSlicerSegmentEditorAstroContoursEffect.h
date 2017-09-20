@@ -13,7 +13,7 @@
   limitations under the License.
 
   This file was developed by Davide Punzo, Kapteyn Astronomical Institute,
-  and was supported through the European Research Consil grant nr. 291531.
+  and was supported through the European Research Council grant nr. 291531.
 
 ==============================================================================*/
 
