@@ -29,6 +29,7 @@
 #include <vtkActor.h>
 #include <vtkActorCollection.h>
 #include <vtkCamera.h>
+#include <vtkImageCast.h>
 #include <vtkImageData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkMatrixToLinearTransform.h>
@@ -1595,6 +1596,10 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
+
+  // Necessary to guarantee taht the renderWindow is initialize
+  d->GaussianKernelView->show();
+  d->GaussianKernelView->hide();
 
   if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
     {

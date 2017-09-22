@@ -345,7 +345,7 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
       "}\n";
       }
 
-    // call the helper to execte this code
+    // call the helper to execute this code
     this->Helper->Execute(&cb,
       inData[0][0], inArray,
       outData[0], outExt,

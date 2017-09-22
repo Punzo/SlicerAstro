@@ -273,7 +273,7 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
     "gl_FragData[0] = vec4(data / cont, 1., 1., 1.); \n"
     "}\n";
 
-    // call the helper to execte this code
+    // call the helper to execute this code
     this->Helper->Execute(&cb,
       inData[0][0], inArray,
       outData[0], outExt,
