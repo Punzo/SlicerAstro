@@ -21,20 +21,12 @@ set(EXTENSION_STATUS "Beta")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated list or 'NA' if any
 set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
 
-set(SUPERBUILD_TOPLEVEL_PROJECT inner)
-
 #-----------------------------------------------------------------------------
 # Extension dependencies
 find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
 project(SlicerAstro)
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
-mark_as_superbuild(Slicer_DIR)
-
-find_package(Subversion)
-
-find_package(Git REQUIRED)
-mark_as_superbuild(GIT_EXECUTABLE)
 
 #-----------------------------------------------------------------------------
 # check OS
@@ -123,5 +115,4 @@ if(UNIX)
   set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${bbarolo_DIR};bbarolo;RuntimeLibraries;/")
 endif(UNIX)
 
-include(${Slicer_EXTENSION_GENERATE_CONFIG})
 include(${Slicer_EXTENSION_CPACK})

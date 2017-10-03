@@ -44,7 +44,7 @@ set(module_mrml_export_directive "VTK_MRML_ASTRO_EXPORT")
 
 set(module_mrml_target_libraries
   ${Slicer_GUI_LIBRARY}
-  ${MRML_LIBRARIES}
+  MRMLCore
   vtkFits
   )
 
