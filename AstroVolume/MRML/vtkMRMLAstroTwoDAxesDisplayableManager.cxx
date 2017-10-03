@@ -666,13 +666,13 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("ZY"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueZ((*world)[i][2]);
+        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2]);
         }
 
       if (!sliceNode->GetOrientation().compare("XY") ||
           !sliceNode->GetOrientation().compare("XZ"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueX((*world)[i][0]);
+        coord = displayNode->GetDisplayStringFromValueX((*world)[i][0]);
         }
 
       vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
@@ -695,12 +695,12 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       if (!sliceNode->GetOrientation().compare("ZY") ||
           !sliceNode->GetOrientation().compare("XY"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueY((*world)[i][1]);
+        coord = displayNode->GetDisplayStringFromValueY((*world)[i][1]);
         }
 
       if (!sliceNode->GetOrientation().compare("XZ"))
         {
-        coord = displayNode->GetAxisDisplayStringFromValueZ((*world)[i][2]);
+        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2]);
         }
 
       vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();

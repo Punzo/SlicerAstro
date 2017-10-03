@@ -284,7 +284,7 @@ void qSlicerAstroVolumeModule::setup()
   unitNodeLength->SetMinimumValue(-180.);
   unitNodeLength->SetDisplayCoefficient(1.);
   unitNodeLength->SetPrefix("");
-  unitNodeLength->SetSuffix("\xB0");
+  unitNodeLength->SetSuffix("\u00B0");
   unitNodeLength->SetAttribute("DisplayHint","DegreeAsArcMinutesArcSeconds");
   unitNodeLength->SetPrecision(3);
   selectionNode->SetUnitNodeID("length", unitNodeLength->GetID());
@@ -303,7 +303,7 @@ void qSlicerAstroVolumeModule::setup()
   unitNodeVelocity->SetDisplayCoefficient(0.001);
   unitNodeVelocity->SetSuffix("km/s");
   unitNodeVelocity->SetPrefix("");
-  unitNodeVelocity->SetPrecision(3);
+  unitNodeVelocity->SetPrecision(1);
   unitNodeVelocity->SetAttribute("DisplayHint","");
   selectionNode->SetUnitNodeID("velocity", unitNodeVelocity->GetID());
 

@@ -168,19 +168,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
 
   virtual std::string AddVelocityInfoToDisplayStringZ(std::string value);
 
-  ///
-  /// \brief GetAxisDisplayStringFromValue, same as
-  /// GetDisplayStringFromValue but for display coordinates on axes
-  /// \param world
-  /// \param node
-  /// \return string to display
-  virtual std::string GetAxisDisplayStringFromValue(const double world,
-                                                    vtkMRMLUnitNode *node);
-
-  virtual std::string GetAxisDisplayStringFromValueX(const double world);
-  virtual std::string GetAxisDisplayStringFromValueY(const double world);
-  virtual std::string GetAxisDisplayStringFromValueZ(const double world);
-
 protected:
   char* Space;
   vtkStringArray* SpaceQuantities;
