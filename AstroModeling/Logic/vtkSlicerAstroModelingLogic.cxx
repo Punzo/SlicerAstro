@@ -698,7 +698,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 
         pnode->EndModify(wasModifying);
 
-        bool success = this->Internal->fitF->galfit(pnode->GetStatusPointer());
+        bool success = this->Internal->fitF->galfit();
 
         if (!success)
           {
@@ -717,7 +717,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           pnode->SetStatus(60);
 
-          bool success = this->Internal->fitF->SecondStage(pnode->GetStatusPointer());
+          bool success = this->Internal->fitF->SecondStage();
           if (!success)
             {
             pnode->SetStatus(0);
@@ -892,7 +892,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 
         pnode->EndModify(wasModifying);
 
-        bool success = this->Internal->fitD->galfit(pnode->GetStatusPointer());
+        bool success = this->Internal->fitD->galfit();
 
         if (!success)
           {
@@ -910,7 +910,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             return 0;
             }
           pnode->SetStatus(60);
-          bool success = this->Internal->fitD->SecondStage(pnode->GetStatusPointer());
+          bool success = this->Internal->fitD->SecondStage();
           if (!success)
             {
             pnode->SetStatus(0);
