@@ -105,12 +105,6 @@ bool ShortIsNaN(double Value)
   return isNaN<short>(Value);
 }
 
-//----------------------------------------------------------------------------
-std::string DoubleToString(double Value)
-{
-  return NumberToString<double>(Value);
-}
-
 }// end namespace
 
 //----------------------------------------------------------------------------
