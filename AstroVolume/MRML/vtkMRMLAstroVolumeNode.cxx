@@ -80,6 +80,37 @@ int StringToInt(const char* str)
 {
   return StringToNumber<int>(str);
 }
+
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool FloatIsNaN(double Value)
+{
+  return isNaN<float>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool ShortIsNaN(double Value)
+{
+  return isNaN<short>(Value);
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
+}
+
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -138,7 +169,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
     outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
     for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
       {
-      if (isnan(*(outSPixel + elementCnt)))
+      if (ShortIsNaN(*(outSPixel + elementCnt)))
         {
         continue;
         }
@@ -156,7 +187,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-       if (isnan(*(outFPixel + elementCnt)))
+       if (FloatIsNaN(*(outFPixel + elementCnt)))
           {
           continue;
           }
@@ -174,7 +205,7 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-        if (isnan(*(outDPixel + elementCnt)))
+        if (DoubleIsNaN(*(outDPixel + elementCnt)))
           {
           continue;
           }
@@ -250,7 +281,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_FLOAT:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outFPixel + elemCnt)))
+        if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
            continue;
            }
@@ -259,7 +290,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outFPixel + elemCnt)))
+        if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
            continue;
            }
@@ -270,7 +301,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_DOUBLE:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outDPixel + elemCnt)))
+        if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
            continue;
            }
@@ -279,7 +310,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outDPixel + elemCnt)))
+        if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
            continue;
            }
@@ -314,7 +345,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_FLOAT:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outFPixel + elemCnt)))
+        if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
            continue;
            }
@@ -323,7 +354,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outFPixel + elemCnt)))
+        if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
            continue;
            }
@@ -334,7 +365,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
     case VTK_DOUBLE:
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outDPixel + elemCnt)))
+        if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
            continue;
            }
@@ -343,7 +374,7 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
       sum /= cont;
       for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
-        if (isnan(*(outDPixel + elemCnt)))
+        if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
            continue;
            }
