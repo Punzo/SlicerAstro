@@ -29,6 +29,7 @@ class vtkRenderWindow;
 // AstroModelings includes
 #include "vtkSlicerAstroModelingModuleLogicExport.h"
 class vtkMRMLAstroModelingParametersNode;
+class vtkMRMLTableNode;
 
 /// \ingroup Slicer_QtModules_AstroModeling
 class VTK_SLICER_ASTROMODELING_MODULE_LOGIC_EXPORT vtkSlicerAstroModelingLogic
@@ -45,11 +46,12 @@ public:
 
   virtual void RegisterNodes();
 
-  int FitModel(vtkMRMLAstroModelingParametersNode *pnode);
-
-  int UpdateTableFromModel(vtkMRMLAstroModelingParametersNode *pnode);
+  int OperateModel(vtkMRMLAstroModelingParametersNode *pnode,
+                   vtkMRMLTableNode *tnode);
 
   int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode);
+
+  void cleanPointers();
 
 protected:
   vtkSlicerAstroModelingLogic();

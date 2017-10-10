@@ -26,6 +26,7 @@
 // AstroModeling includes
 #include <qSlicerAstroModelingModuleWorker.h>
 #include <vtkMRMLAstroModelingParametersNode.h>
+#include <vtkMRMLTableNode.h>
 #include <vtkSlicerAstroModelingLogic.h>
 
 //-----------------------------------------------------------------------------
@@ -80,6 +81,12 @@ void qSlicerAstroModelingModuleWorker::SetAstroModelingParametersNode(vtkMRMLAst
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWorker::SetTableNode(vtkMRMLTableNode *tnode)
+{
+  internalTableNode = tnode;
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWorker::doWork()
 {
   qDebug()<<"Starting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
@@ -96,7 +103,7 @@ void qSlicerAstroModelingModuleWorker::doWork()
     return;
     }
 
-  if (!astroModelingLogic->FitModel(parametersNode))
+  if (!astroModelingLogic->OperateModel(parametersNode, internalTableNode))
     {  
     qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
     }

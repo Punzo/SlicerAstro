@@ -176,51 +176,26 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   virtual int* GetStatusPointer() {return &Status;};
 
+  vtkSetMacro(Operation,int);
+  vtkGetMacro(Operation,int);
+
+  enum OPERATION
+  {
+    ESTIMATE = 0,
+    CREATE,
+    FIT,
+  };
+
+  ///
+  /// Convert between Operation ID and name
+  virtual const char *GetOperationAsString(int id);
+  virtual int GetOperationFromString(const char *name);
+
   vtkSetMacro(FitSuccess,bool);
   vtkGetMacro(FitSuccess,bool);
 
-  vtkSetMacro(FirstPlot,bool);
-  vtkGetMacro(FirstPlot,bool);
-
   vtkSetMacro(ContourLevel,double);
   vtkGetMacro(ContourLevel,double);
-
-  static const char* PARAMS_TABLE_REFERENCE_ROLE;
-
-  static const char* CHART_XPOS_REFERENCE_ROLE;
-  static const char* CHART_YPOS_REFERENCE_ROLE;
-  static const char* CHART_VSYS_REFERENCE_ROLE;
-  static const char* CHART_VROT_REFERENCE_ROLE;
-  static const char* CHART_VRAD_REFERENCE_ROLE;
-  static const char* CHART_VDISP_REFERENCE_ROLE;
-  static const char* CHART_DENS_REFERENCE_ROLE;
-  static const char* CHART_Z0_REFERENCE_ROLE;
-  static const char* CHART_INC_REFERENCE_ROLE;
-  static const char* CHART_PHI_REFERENCE_ROLE;
-
-  static const char* ARRAY_XPOS_REFERENCE_ROLE;
-  static const char* ARRAY_YPOS_REFERENCE_ROLE;
-  static const char* ARRAY_VSYS_REFERENCE_ROLE;
-  static const char* ARRAY_VROT_REFERENCE_ROLE;
-  static const char* ARRAY_VRAD_REFERENCE_ROLE;
-  static const char* ARRAY_VDISP_REFERENCE_ROLE;
-  static const char* ARRAY_DENS_REFERENCE_ROLE;
-  static const char* ARRAY_Z0_REFERENCE_ROLE;
-  static const char* ARRAY_INC_REFERENCE_ROLE;
-  static const char* ARRAY_PHI_REFERENCE_ROLE;
-
-  static const char* FIRST_ARRAY_XPOS_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_YPOS_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_VSYS_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_VROT_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_VRAD_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_VDISP_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_DENS_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_Z0_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_INC_REFERENCE_ROLE;
-  static const char* FIRST_ARRAY_PHI_REFERENCE_ROLE;
-
-  vtkMRMLTableNode* GetParamsTableNode();
 
   enum
   {
@@ -237,11 +212,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
     ParamsColumnYPos,
   };
 
-  /// Get chart nodes
-  vtkCollection* GetChartNodes();
-
-  /// Get array nodes for charts
-  vtkCollection* GetArrayNodes();
+  vtkMRMLTableNode* GetParamsTableNode();
+  void SetParamsTableNode(vtkMRMLTableNode* node);
 
 protected:
   vtkMRMLAstroModelingParametersNode();
@@ -250,13 +222,8 @@ protected:
   vtkMRMLAstroModelingParametersNode(const vtkMRMLAstroModelingParametersNode&);
   void operator=(const vtkMRMLAstroModelingParametersNode&);
 
-  void SetAndObserveParamsTableNode(vtkMRMLTableNode* node);
-
-  void SetAndObserveChartNode(vtkMRMLChartNode* node, const char* chartName);
-  vtkSmartPointer<vtkCollection> chartNodes;
-
-  void SetAndObserveArrayNode(vtkMRMLDoubleArrayNode* node, const char* arrayName);
-  vtkSmartPointer<vtkCollection> arrayNodes;
+  static const char* PARAMS_TABLE_REFERENCE_ROLE;
+  const char *GetTableNodeReferenceRole();
 
   char *InputVolumeNodeID;
   char *OutputVolumeNodeID;
@@ -301,12 +268,11 @@ protected:
   double CloudsColumnDensity;
 
   int Status;
+  int Operation;
 
   bool FitSuccess;
-  bool FirstPlot;
 
   double ContourLevel;
 };
 
 #endif
-

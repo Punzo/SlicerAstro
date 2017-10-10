@@ -37,40 +37,8 @@
 #include <vtkMRMLAstroModelingParametersNode.h>
 
 //------------------------------------------------------------------------------
-const char* vtkMRMLAstroModelingParametersNode::PARAMS_TABLE_REFERENCE_ROLE = "paramsTableRef";
+const char* vtkMRMLAstroModelingParametersNode::PARAMS_TABLE_REFERENCE_ROLE = "paramsTable";
 
-const char* vtkMRMLAstroModelingParametersNode::CHART_XPOS_REFERENCE_ROLE = "chartXPosRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_YPOS_REFERENCE_ROLE = "chartYPosRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_VSYS_REFERENCE_ROLE = "chartVSysRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_VROT_REFERENCE_ROLE = "chartVRotRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_VRAD_REFERENCE_ROLE = "chartVRadRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_VDISP_REFERENCE_ROLE = "chartVDispRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_DENS_REFERENCE_ROLE = "chartDensRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_Z0_REFERENCE_ROLE = "chartZ0Ref";
-const char* vtkMRMLAstroModelingParametersNode::CHART_INC_REFERENCE_ROLE = "chartIncRef";
-const char* vtkMRMLAstroModelingParametersNode::CHART_PHI_REFERENCE_ROLE = "chartPhiRef";
-
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_XPOS_REFERENCE_ROLE = "arrayXPosRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_YPOS_REFERENCE_ROLE = "arrayYPosRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_VSYS_REFERENCE_ROLE = "arrayVSysRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_VROT_REFERENCE_ROLE = "arrayVRotRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_VRAD_REFERENCE_ROLE = "arrayVRadRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_VDISP_REFERENCE_ROLE = "arrayVDispRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_DENS_REFERENCE_ROLE = "arrayDensRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_Z0_REFERENCE_ROLE = "arrayZ0Ref";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_INC_REFERENCE_ROLE = "arrayIncRef";
-const char* vtkMRMLAstroModelingParametersNode::ARRAY_PHI_REFERENCE_ROLE = "arrayPhiRef";
-
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_XPOS_REFERENCE_ROLE = "firstArrayXPosRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_YPOS_REFERENCE_ROLE = "firstArrayYPosRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VSYS_REFERENCE_ROLE = "firstArrayVSysRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VROT_REFERENCE_ROLE = "firstArrayVRotRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VRAD_REFERENCE_ROLE = "firstArrayVRadRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_VDISP_REFERENCE_ROLE = "firstArrayVDispRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_DENS_REFERENCE_ROLE = "firstArrayDensRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_Z0_REFERENCE_ROLE = "firstArrayZ0Ref";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_INC_REFERENCE_ROLE = "firstArrayIncRef";
-const char* vtkMRMLAstroModelingParametersNode::FIRST_ARRAY_PHI_REFERENCE_ROLE = "firstArrayPhiRef";
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroModelingParametersNode);
 
@@ -83,7 +51,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->OutputVolumeNodeID = NULL;
   this->ResidualVolumeNodeID = NULL;
   this->MaskVolumeNodeID = NULL;
-  this->SetMaskActive(true);
+  this->SetMaskActive(false);
   this->OutputSerial = 1;
   this->Mode = NULL;
   this->SetMode("Automatic");
@@ -116,13 +84,10 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetNumberOfClounds(0);
   this->SetCloudsColumnDensity(10.);
   this->SetStatus(0);
+  this->SetOperation(vtkMRMLAstroModelingParametersNode::ESTIMATE);
   this->SetFitSuccess(false);
-  this->SetFirstPlot(true);
   this->SetNumberOfRings(0);
   this->SetContourLevel(3.);
-
-  this->chartNodes = vtkSmartPointer<vtkCollection>::New();
-  this->arrayNodes = vtkSmartPointer<vtkCollection>::New();
 }
 
 //----------------------------------------------------------------------------
@@ -157,9 +122,12 @@ vtkMRMLAstroModelingParametersNode::~vtkMRMLAstroModelingParametersNode()
     delete [] this->Mode;
     this->Mode = NULL;
     }
+}
 
-  this->chartNodes->RemoveAllItems();
-  this->arrayNodes->RemoveAllItems();
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroModelingParametersNode::GetTableNodeReferenceRole()
+{
+  return vtkMRMLAstroModelingParametersNode::PARAMS_TABLE_REFERENCE_ROLE;
 }
 
 namespace
@@ -413,15 +381,15 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "FitSuccess"))
+    if (!strcmp(attName, "Operation"))
       {
-      this->FitSuccess = StringToInt(attValue);
+      this->Operation = this->GetOperationFromString(attValue);
       continue;
       }
 
-    if (!strcmp(attName, "FirstPlot"))
+    if (!strcmp(attName, "FitSuccess"))
       {
-      this->FirstPlot = StringToInt(attValue);
+      this->FitSuccess = StringToInt(attValue);
       continue;
       }
 
@@ -502,8 +470,8 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " NumberOfClounds=\"" << this->NumberOfClounds << "\"";
   of << indent << " CloudsColumnDensity=\"" << this->CloudsColumnDensity << "\"";
   of << indent << " Status=\"" << this->Status << "\"";
+  of << indent << " Operation=\"" << this->GetOperationAsString(this->Operation) << "\"";
   of << indent << " FitSuccess=\"" << this->FitSuccess << "\"";
-  of << indent << " FirstPlot=\"" << this->FirstPlot << "\"";
   of << indent << " ContourLevel=\"" << this->ContourLevel << "\"";
 }
 
@@ -555,11 +523,45 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetCloudsColumnDensity(node->GetCloudsColumnDensity());
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetStatus(node->GetStatus());
+  this->SetOperation(node->GetOperation());
   this->SetFitSuccess(node->GetFitSuccess());
-  this->SetFirstPlot(node->GetFirstPlot());
   this->SetContourLevel(node->GetContourLevel());
 
   this->EndModify(disabledModify);
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroModelingParametersNode::GetOperationAsString(int id)
+{
+  switch (id)
+    {
+    case ESTIMATE: return "Estimate";
+    case CREATE: return "Create";
+    case FIT: return "Fit";
+    default:
+      // invalid id
+      return "";
+    }
+}
+
+//----------------------------------------------------------------------------
+int vtkMRMLAstroModelingParametersNode::GetOperationFromString(const char *name)
+{
+  if (name == NULL)
+    {
+    // invalid name
+    return -1;
+    }
+  for (int ii = 0; ii < 3; ii++)
+    {
+    if (strcmp(name, GetOperationAsString(ii)) == 0)
+      {
+      // found a matching name
+      return ii;
+      }
+    }
+  // unknown name
+  return -1;
 }
 
 //----------------------------------------------------------------------------
@@ -567,787 +569,16 @@ vtkMRMLTableNode *vtkMRMLAstroModelingParametersNode::GetParamsTableNode()
 {
   if (!this->Scene)
     {
-    vtkErrorMacro("vtkMRMLAstroModelingParametersNode::GetParamsTableNode : Invalid MRML scene!");
-    return NULL;
-    }
-  vtkMRMLTableNode* paramsTableNode = vtkMRMLTableNode::SafeDownCast(
-              this->GetNodeReference(PARAMS_TABLE_REFERENCE_ROLE) );
-
-  if (!paramsTableNode)
-    {
-    paramsTableNode = vtkMRMLTableNode::New();
-    std::string paramsTableNodeName = this->Scene->GenerateUniqueName("ModelingParamsTable");
-    paramsTableNode->SetName(paramsTableNodeName.c_str());
-    this->Scene->AddNode(paramsTableNode);
-    this->SetAndObserveParamsTableNode(paramsTableNode);
-    paramsTableNode->Delete();
-    paramsTableNode = vtkMRMLTableNode::SafeDownCast(
-                      this->GetNodeReference(PARAMS_TABLE_REFERENCE_ROLE) );
-    }
-  return paramsTableNode;
-}
-
-//----------------------------------------------------------------------------
-vtkCollection *vtkMRMLAstroModelingParametersNode::GetChartNodes()
-{
-  if (!this->Scene)
-    {
-    vtkErrorMacro("vtkMRMLAstroModelingParametersNode::GetChartNodes : Invalid MRML scene!");
     return NULL;
     }
 
-  this->chartNodes->RemoveAllItems();
-
-  vtkMRMLChartNode* chartXPosNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_XPOS_REFERENCE_ROLE) );
-
-  if (!chartXPosNode)
-    {
-    chartXPosNode = vtkMRMLChartNode::New();
-    std::string chartXPosNodeName = this->Scene->GenerateUniqueName("chartXPos");
-    chartXPosNode->SetName(chartXPosNodeName.c_str());
-    chartXPosNode->SetProperty("default", "title", " ");
-    chartXPosNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartXPosNode->SetProperty("default", "yAxisLabel", "X Center (pixels)");
-    chartXPosNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartXPosNode);
-    this->SetAndObserveChartNode(chartXPosNode, "chartXPos");
-    chartXPosNode->Delete();
-    chartXPosNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_XPOS_REFERENCE_ROLE) );
-    }
-
-  this->chartNodes->AddItem(chartXPosNode);
-
-  vtkMRMLChartNode* chartYPosNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_YPOS_REFERENCE_ROLE) );
-
-  if (!chartYPosNode)
-    {
-    chartYPosNode = vtkMRMLChartNode::New();
-    std::string chartYPosName = this->Scene->GenerateUniqueName("chartYPos");
-    chartYPosNode->SetName(chartYPosName.c_str());
-    chartYPosNode->SetProperty("default", "title", " ");
-    chartYPosNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartYPosNode->SetProperty("default", "yAxisLabel", "Y Center (pixels)");
-    chartYPosNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartYPosNode);
-    this->SetAndObserveChartNode(chartYPosNode, "chartYPos");
-    chartYPosNode->Delete();
-    chartYPosNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_YPOS_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartYPosNode);
-
-  vtkMRMLChartNode* chartVSysNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_VSYS_REFERENCE_ROLE) );
-
-  if (!chartVSysNode)
-    {
-    chartVSysNode = vtkMRMLChartNode::New();
-    std::string chartVSysNodeName = this->Scene->GenerateUniqueName("chartVSys");
-    chartVSysNode->SetName(chartVSysNodeName.c_str());
-    chartVSysNode->SetProperty("default", "title", " ");
-    chartVSysNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartVSysNode->SetProperty("default", "yAxisLabel", "Systemic Velocity (km/s)");
-    chartVSysNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartVSysNode);
-    this->SetAndObserveChartNode(chartVSysNode, "chartVSys");
-    chartVSysNode->Delete();
-    chartVSysNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_VSYS_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartVSysNode);
-
-  vtkMRMLChartNode* chartVRotNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_VROT_REFERENCE_ROLE) );
-
-  if (!chartVRotNode)
-    {
-    chartVRotNode = vtkMRMLChartNode::New();
-    std::string chartVRotNodeName = this->Scene->GenerateUniqueName("chartVRot");
-    chartVRotNode->SetName(chartVRotNodeName.c_str());
-    chartVRotNode->SetProperty("default", "title", " ");
-    chartVRotNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartVRotNode->SetProperty("default", "yAxisLabel", "Rotational Velocity (km/s)");
-    chartVRotNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartVRotNode);
-    this->SetAndObserveChartNode(chartVRotNode, "chartVRot");
-    chartVRotNode->Delete();
-    chartVRotNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_VROT_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartVRotNode);
-
-  vtkMRMLChartNode* chartVRadNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_VRAD_REFERENCE_ROLE) );
-
-  if (!chartVRadNode)
-    {
-    chartVRadNode = vtkMRMLChartNode::New();
-    std::string chartVRadNodeName = this->Scene->GenerateUniqueName("chartVRad");
-    chartVRadNode->SetName(chartVRadNodeName.c_str());
-    chartVRadNode->SetProperty("default", "title", " ");
-    chartVRadNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartVRadNode->SetProperty("default", "yAxisLabel", "Radial Velocity (km/s)");
-    chartVRadNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartVRadNode);
-    this->SetAndObserveChartNode(chartVRadNode, "chartVRad");
-    chartVRadNode->Delete();
-    chartVRadNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_VRAD_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartVRadNode);
-
-  vtkMRMLChartNode* chartVDispNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_VDISP_REFERENCE_ROLE) );
-
-  if (!chartVDispNode)
-    {
-    chartVDispNode = vtkMRMLChartNode::New();
-    std::string chartVDispNodeName = this->Scene->GenerateUniqueName("chartVDisp");
-    chartVDispNode->SetName(chartVDispNodeName.c_str());
-    chartVDispNode->SetProperty("default", "title", " ");
-    chartVDispNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartVDispNode->SetProperty("default", "yAxisLabel", "Dispersion Velocity (km/s)");
-    chartVDispNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartVDispNode);
-    this->SetAndObserveChartNode(chartVDispNode, "chartVDisp");
-    chartVDispNode->Delete();
-    chartVDispNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_VDISP_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartVDispNode);
-
-  vtkMRMLChartNode* chartDensNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_DENS_REFERENCE_ROLE) );
-
-  if (!chartDensNode)
-    {
-    chartDensNode = vtkMRMLChartNode::New();
-    std::string chartDensNodeName = this->Scene->GenerateUniqueName("chartDens");
-    chartDensNode->SetName(chartDensNodeName.c_str());
-    chartDensNode->SetProperty("default", "title", " ");
-    chartDensNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartDensNode->SetProperty("default", "yAxisLabel", "Column Density (10^20 cm^-2)");
-    chartDensNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartDensNode);
-    this->SetAndObserveChartNode(chartDensNode, "chartDens");
-    chartDensNode->Delete();
-    chartDensNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_DENS_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartDensNode);
-
-  vtkMRMLChartNode* chartZ0Node = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_Z0_REFERENCE_ROLE) );
-
-  if (!chartZ0Node)
-    {
-    chartZ0Node = vtkMRMLChartNode::New();
-    std::string chartZ0NodeName = this->Scene->GenerateUniqueName("chartZ0");
-    chartZ0Node->SetName(chartZ0NodeName.c_str());
-    chartZ0Node->SetProperty("default", "title", " ");
-    chartZ0Node->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartZ0Node->SetProperty("default", "yAxisLabel", "Scale Heigth (Kpc)");
-    chartZ0Node->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartZ0Node);
-    this->SetAndObserveChartNode(chartZ0Node, "chartZ0");
-    chartZ0Node->Delete();
-    chartZ0Node = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_Z0_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartZ0Node);
-
-  vtkMRMLChartNode* chartIncNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_INC_REFERENCE_ROLE) );
-
-  if (!chartIncNode)
-    {
-    chartIncNode = vtkMRMLChartNode::New();
-    std::string chartIncNodeName = this->Scene->GenerateUniqueName("chartInc");
-    chartIncNode->SetName(chartIncNodeName.c_str());
-    chartIncNode->SetProperty("default", "title", " ");
-    chartIncNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartIncNode->SetProperty("default", "yAxisLabel", "Inclination (degree)");
-    chartIncNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartIncNode);
-    this->SetAndObserveChartNode(chartIncNode, "chartInc");
-    chartIncNode->Delete();
-    chartIncNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_INC_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartIncNode);
-
-  vtkMRMLChartNode* chartPhiNode = vtkMRMLChartNode::SafeDownCast(
-              this->GetNodeReference(CHART_PHI_REFERENCE_ROLE) );
-
-  if (!chartPhiNode)
-    {
-    chartPhiNode = vtkMRMLChartNode::New();
-    std::string chartPhiNodeName = this->Scene->GenerateUniqueName("chartPhi");
-    chartPhiNode->SetName(chartPhiNodeName.c_str());
-    chartPhiNode->SetProperty("default", "title", " ");
-    chartPhiNode->SetProperty("default", "xAxisLabel", "Radius (arcsec)");
-    chartPhiNode->SetProperty("default", "yAxisLabel", "Orientation Angle (degree)");
-    chartPhiNode->SetProperty("default", "showMarkers", "on");
-    this->Scene->AddNode(chartPhiNode);
-    this->SetAndObserveChartNode(chartPhiNode, "chartPhi");
-    chartPhiNode->Delete();
-    chartPhiNode = vtkMRMLChartNode::SafeDownCast(
-                  this->GetNodeReference(CHART_PHI_REFERENCE_ROLE) );
-    }
-  this->chartNodes->AddItem(chartPhiNode);
-
-  return this->chartNodes;
+  return vtkMRMLTableNode::SafeDownCast(this->GetNodeReference(this->GetTableNodeReferenceRole()));
 }
 
 //----------------------------------------------------------------------------
-vtkCollection *vtkMRMLAstroModelingParametersNode::GetArrayNodes()
+void vtkMRMLAstroModelingParametersNode::SetParamsTableNode(vtkMRMLTableNode* node)
 {
-  if (!this->Scene)
-    {
-    vtkErrorMacro("vtkMRMLAstroModelingParametersNode::GetChartNodes : Invalid MRML scene!");
-    return NULL;
-    }
-
-  this->arrayNodes->RemoveAllItems();
-
-  vtkMRMLDoubleArrayNode* arrayXPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_XPOS_REFERENCE_ROLE) );
-
-  if (!arrayXPosNode)
-    {
-    arrayXPosNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayXPosNodeName = this->Scene->GenerateUniqueName("arrayXPos");
-    arrayXPosNode->SetName(arrayXPosNodeName.c_str());
-    vtkDoubleArray *data = arrayXPosNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayXPosNode);
-    this->SetAndObserveArrayNode(arrayXPosNode, "arrayXPos");
-    arrayXPosNode->Delete();
-    arrayXPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_XPOS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayXPosNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayXPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_XPOS_REFERENCE_ROLE) );
-
-  if (!firstArrayXPosNode)
-    {
-    firstArrayXPosNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayXPosNodeName = this->Scene->GenerateUniqueName("firstArrayXPos");
-    firstArrayXPosNode->SetName(firstArrayXPosNodeName.c_str());
-    vtkDoubleArray *data = firstArrayXPosNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayXPosNode);
-    this->SetAndObserveArrayNode(firstArrayXPosNode, "firstArrayXPos");
-    firstArrayXPosNode->Delete();
-    firstArrayXPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_XPOS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayXPosNode);
-
-
-  vtkMRMLDoubleArrayNode* arrayYPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_YPOS_REFERENCE_ROLE) );
-
-  if (!arrayYPosNode)
-    {
-    arrayYPosNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayYPosNodeName = this->Scene->GenerateUniqueName("arrayYPos");
-    arrayYPosNode->SetName(arrayYPosNodeName.c_str());
-    vtkDoubleArray *data = arrayYPosNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayYPosNode);
-    this->SetAndObserveArrayNode(arrayYPosNode, "arrayYPos");
-    arrayYPosNode->Delete();
-    arrayYPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_YPOS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayYPosNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayYPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_YPOS_REFERENCE_ROLE) );
-
-  if (!firstArrayYPosNode)
-    {
-    firstArrayYPosNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayYPosNodeName = this->Scene->GenerateUniqueName("firstArrayYPos");
-    firstArrayYPosNode->SetName(firstArrayYPosNodeName.c_str());
-    vtkDoubleArray *data = firstArrayYPosNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayYPosNode);
-    this->SetAndObserveArrayNode(firstArrayYPosNode, "firstArrayYPos");
-    firstArrayYPosNode->Delete();
-    firstArrayYPosNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_YPOS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayYPosNode);
-
-
-  vtkMRMLDoubleArrayNode* arrayVSysNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_VSYS_REFERENCE_ROLE) );
-
-  if (!arrayVSysNode)
-    {
-    arrayVSysNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayVSysNodeName = this->Scene->GenerateUniqueName("arrayVSys");
-    arrayVSysNode->SetName(arrayVSysNodeName.c_str());
-    vtkDoubleArray *data = arrayVSysNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayVSysNode);
-    this->SetAndObserveArrayNode(arrayVSysNode, "arrayVSys");
-    arrayVSysNode->Delete();
-    arrayVSysNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_VSYS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayVSysNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayVSysNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_VSYS_REFERENCE_ROLE) );
-
-  if (!firstArrayVSysNode)
-    {
-    firstArrayVSysNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayVSysNodeName = this->Scene->GenerateUniqueName("firstArrayVSys");
-    firstArrayVSysNode->SetName(firstArrayVSysNodeName.c_str());
-    vtkDoubleArray *data = firstArrayVSysNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayVSysNode);
-    this->SetAndObserveArrayNode(firstArrayVSysNode, "firstArrayVSys");
-    firstArrayVSysNode->Delete();
-    firstArrayVSysNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_VSYS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayVSysNode);
-
-
-  vtkMRMLDoubleArrayNode* arrayVRotNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_VROT_REFERENCE_ROLE) );
-
-  if (!arrayVRotNode)
-    {
-    arrayVRotNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayVRotNodeName = this->Scene->GenerateUniqueName("arrayVRot");
-    arrayVRotNode->SetName(arrayVRotNodeName.c_str());
-    vtkDoubleArray *data = arrayVRotNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayVRotNode);
-    this->SetAndObserveArrayNode(arrayVRotNode, "arrayVRot");
-    arrayVRotNode->Delete();
-    arrayVRotNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_VROT_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayVRotNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayVRotNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_VROT_REFERENCE_ROLE) );
-
-  if (!firstArrayVRotNode)
-    {
-    firstArrayVRotNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayVRotNodeName = this->Scene->GenerateUniqueName("firstArrayVRot");
-    firstArrayVRotNode->SetName(firstArrayVRotNodeName.c_str());
-    vtkDoubleArray *data = firstArrayVRotNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayVRotNode);
-    this->SetAndObserveArrayNode(firstArrayVRotNode, "firstArrayVRot");
-    firstArrayVRotNode->Delete();
-    firstArrayVRotNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_VROT_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayVRotNode);
-
-  vtkMRMLDoubleArrayNode* arrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_VRAD_REFERENCE_ROLE) );
-
-  if (!arrayVRadNode)
-    {
-    arrayVRadNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayVRadNodeName = this->Scene->GenerateUniqueName("arrayVRad");
-    arrayVRadNode->SetName(arrayVRadNodeName.c_str());
-    vtkDoubleArray *data = arrayVRadNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayVRadNode);
-    this->SetAndObserveArrayNode(arrayVRadNode, "arrayVRad");
-    arrayVRadNode->Delete();
-    arrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_VRAD_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayVRadNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_VRAD_REFERENCE_ROLE) );
-
-  if (!firstArrayVRadNode)
-    {
-    firstArrayVRadNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayVRadNodeName = this->Scene->GenerateUniqueName("firstArrayVRad");
-    firstArrayVRadNode->SetName(firstArrayVRadNodeName.c_str());
-    vtkDoubleArray *data = firstArrayVRadNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayVRadNode);
-    this->SetAndObserveArrayNode(firstArrayVRadNode, "firstArrayVRad");
-    firstArrayVRadNode->Delete();
-    firstArrayVRadNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_VRAD_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayVRadNode);
-
-  vtkMRMLDoubleArrayNode* arrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_VDISP_REFERENCE_ROLE) );
-
-  if (!arrayVDispNode)
-    {
-    arrayVDispNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayVDispNodeName = this->Scene->GenerateUniqueName("arrayVDisp");
-    arrayVDispNode->SetName(arrayVDispNodeName.c_str());
-    vtkDoubleArray *data = arrayVDispNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayVDispNode);
-    this->SetAndObserveArrayNode(arrayVDispNode, "arrayVDisp");
-    arrayVDispNode->Delete();
-    arrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_VDISP_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayVDispNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_VDISP_REFERENCE_ROLE) );
-
-  if (!firstArrayVDispNode)
-    {
-    firstArrayVDispNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayVDispNodeName = this->Scene->GenerateUniqueName("firstArrayVDisp");
-    firstArrayVDispNode->SetName(firstArrayVDispNodeName.c_str());
-    vtkDoubleArray *data = firstArrayVDispNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayVDispNode);
-    this->SetAndObserveArrayNode(firstArrayVDispNode, "firstArrayVDisp");
-    firstArrayVDispNode->Delete();
-    firstArrayVDispNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_VDISP_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayVDispNode);
-
-
-  vtkMRMLDoubleArrayNode* arrayDensNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_DENS_REFERENCE_ROLE) );
-
-  if (!arrayDensNode)
-    {
-    arrayDensNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayDensNodeName = this->Scene->GenerateUniqueName("arrayDens");
-    arrayDensNode->SetName(arrayDensNodeName.c_str());
-    vtkDoubleArray *data = arrayDensNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayDensNode);
-    this->SetAndObserveArrayNode(arrayDensNode, "arrayDens");
-    arrayDensNode->Delete();
-    arrayDensNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_DENS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayDensNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayDensNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_DENS_REFERENCE_ROLE) );
-
-  if (!firstArrayDensNode)
-    {
-    firstArrayDensNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayDensNodeName = this->Scene->GenerateUniqueName("firstArrayDens");
-    firstArrayDensNode->SetName(firstArrayDensNodeName.c_str());
-    vtkDoubleArray *data = firstArrayDensNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayDensNode);
-    this->SetAndObserveArrayNode(firstArrayDensNode, "firstArrayDens");
-    firstArrayDensNode->Delete();
-    firstArrayDensNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_DENS_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayDensNode);
-
-
-  vtkMRMLDoubleArrayNode* arrayZ0Node = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_Z0_REFERENCE_ROLE) );
-
-  if (!arrayZ0Node)
-    {
-    arrayZ0Node = vtkMRMLDoubleArrayNode::New();
-    std::string arrayZ0NodeName = this->Scene->GenerateUniqueName("arrayZ0");
-    arrayZ0Node->SetName(arrayZ0NodeName.c_str());
-    vtkDoubleArray *data = arrayZ0Node->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayZ0Node);
-    this->SetAndObserveArrayNode(arrayZ0Node, "arrayZ0");
-    arrayZ0Node->Delete();
-    arrayZ0Node = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_Z0_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayZ0Node);
-
-  vtkMRMLDoubleArrayNode* firstArrayZ0Node = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_Z0_REFERENCE_ROLE) );
-
-  if (!firstArrayZ0Node)
-    {
-    firstArrayZ0Node = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayZ0NodeName = this->Scene->GenerateUniqueName("firstArrayZ0");
-    firstArrayZ0Node->SetName(firstArrayZ0NodeName.c_str());
-    vtkDoubleArray *data = firstArrayZ0Node->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayZ0Node);
-    this->SetAndObserveArrayNode(firstArrayZ0Node, "firstArrayZ0");
-    firstArrayZ0Node->Delete();
-    firstArrayZ0Node = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_Z0_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayZ0Node);
-
-
-  vtkMRMLDoubleArrayNode* arrayIncNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_INC_REFERENCE_ROLE) );
-
-  if (!arrayIncNode)
-    {
-    arrayIncNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayIncNodeName = this->Scene->GenerateUniqueName("arrayInc");
-    arrayIncNode->SetName(arrayIncNodeName.c_str());
-    vtkDoubleArray *data = arrayIncNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayIncNode);
-    this->SetAndObserveArrayNode(arrayIncNode, "arrayInc");
-    arrayIncNode->Delete();
-    arrayIncNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                this->GetNodeReference(ARRAY_INC_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayIncNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayIncNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_INC_REFERENCE_ROLE) );
-
-  if (!firstArrayIncNode)
-    {
-    firstArrayIncNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayIncNodeName = this->Scene->GenerateUniqueName("firstArrayInc");
-    firstArrayIncNode->SetName(firstArrayIncNodeName.c_str());
-    vtkDoubleArray *data = firstArrayIncNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayIncNode);
-    this->SetAndObserveArrayNode(firstArrayIncNode, "firstArrayInc");
-    firstArrayIncNode->Delete();
-    firstArrayIncNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                this->GetNodeReference(FIRST_ARRAY_INC_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayIncNode);
-
-
-  vtkMRMLDoubleArrayNode* arrayPhiNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(ARRAY_PHI_REFERENCE_ROLE) );
-
-  if (!arrayPhiNode)
-    {
-    arrayPhiNode = vtkMRMLDoubleArrayNode::New();
-    std::string arrayPhiNodeName = this->Scene->GenerateUniqueName("arrayPhi");
-    arrayPhiNode->SetName(arrayPhiNodeName.c_str());
-    vtkDoubleArray *data = arrayPhiNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(arrayPhiNode);
-    this->SetAndObserveArrayNode(arrayPhiNode, "arrayPhi");
-    arrayPhiNode->Delete();
-    arrayPhiNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(ARRAY_PHI_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(arrayPhiNode);
-
-  vtkMRMLDoubleArrayNode* firstArrayPhiNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-              this->GetNodeReference(FIRST_ARRAY_PHI_REFERENCE_ROLE) );
-
-  if (!firstArrayPhiNode)
-    {
-    firstArrayPhiNode = vtkMRMLDoubleArrayNode::New();
-    std::string firstArrayPhiNodeName = this->Scene->GenerateUniqueName("firstArrayPhi");
-    firstArrayPhiNode->SetName(firstArrayPhiNodeName.c_str());
-    vtkDoubleArray *data = firstArrayPhiNode->GetArray();
-    data->SetNumberOfComponents(3);
-    data->SetNumberOfTuples(this->GetNumberOfRings());
-    this->Scene->AddNode(firstArrayPhiNode);
-    this->SetAndObserveArrayNode(firstArrayPhiNode, "firstArrayPhi");
-    firstArrayPhiNode->Delete();
-    firstArrayPhiNode = vtkMRMLDoubleArrayNode::SafeDownCast(
-                    this->GetNodeReference(FIRST_ARRAY_PHI_REFERENCE_ROLE) );
-    }
-  this->arrayNodes->AddItem(firstArrayPhiNode);
-
-  return this->arrayNodes;
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLAstroModelingParametersNode::SetAndObserveParamsTableNode(vtkMRMLTableNode* node)
-{
-  this->SetNodeReferenceID(PARAMS_TABLE_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLAstroModelingParametersNode::SetAndObserveChartNode(vtkMRMLChartNode *node,
-                                                                const char *chartName)
-{
-  if (!strcmp(chartName, "chartXPos"))
-    {
-    this->SetNodeReferenceID(CHART_XPOS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartYPos"))
-    {
-    this->SetNodeReferenceID(CHART_YPOS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartVSys"))
-    {
-    this->SetNodeReferenceID(CHART_VSYS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartVRot"))
-    {
-    this->SetNodeReferenceID(CHART_VROT_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartVRad"))
-    {
-    this->SetNodeReferenceID(CHART_VRAD_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartVDisp"))
-    {
-    this->SetNodeReferenceID(CHART_VDISP_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartDens"))
-    {
-    this->SetNodeReferenceID(CHART_DENS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartZ0"))
-    {
-    this->SetNodeReferenceID(CHART_Z0_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartInc"))
-    {
-    this->SetNodeReferenceID(CHART_INC_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(chartName, "chartPhi"))
-    {
-    this->SetNodeReferenceID(CHART_PHI_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else
-    {
-    vtkErrorMacro("vtkMRMLAstroModelingParametersNode::SetAndObserveChartNode : chartName invalid!");
-    return;
-    }
-}
-
-//----------------------------------------------------------------------------
-void vtkMRMLAstroModelingParametersNode::SetAndObserveArrayNode(vtkMRMLDoubleArrayNode *node, const char *arrayName)
-{
-  if (!strcmp(arrayName, "arrayXPos"))
-    {
-    this->SetNodeReferenceID(ARRAY_XPOS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayXPos"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_XPOS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayYPos"))
-    {
-    this->SetNodeReferenceID(ARRAY_YPOS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayYPos"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_YPOS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayVSys"))
-    {
-    this->SetNodeReferenceID(ARRAY_VSYS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayVSys"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_VSYS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayVRot"))
-    {
-    this->SetNodeReferenceID(ARRAY_VROT_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayVRot"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_VROT_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayVRad"))
-    {
-    this->SetNodeReferenceID(ARRAY_VRAD_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayVRad"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_VRAD_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayVDisp"))
-    {
-    this->SetNodeReferenceID(ARRAY_VDISP_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayVDisp"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_VDISP_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayDens"))
-    {
-    this->SetNodeReferenceID(ARRAY_DENS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayDens"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_DENS_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayZ0"))
-    {
-    this->SetNodeReferenceID(ARRAY_Z0_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayZ0"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_Z0_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayInc"))
-    {
-    this->SetNodeReferenceID(ARRAY_INC_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayInc"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_INC_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "arrayPhi"))
-    {
-    this->SetNodeReferenceID(ARRAY_PHI_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else if (!strcmp(arrayName, "firstArrayPhi"))
-    {
-    this->SetNodeReferenceID(FIRST_ARRAY_PHI_REFERENCE_ROLE, (node ? node->GetID() : NULL));
-    }
-  else
-    {
-    vtkErrorMacro("vtkMRMLAstroModelingParametersNode::SetAndObserveArrayNode : arrayName invalid!");
-    return;
-    }
+  this->SetNodeReferenceID(this->GetTableNodeReferenceRole(), (node ? node->GetID() : NULL));
 }
 
 //----------------------------------------------------------------------------
@@ -1392,7 +623,7 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "NumberOfClounds: " << this->NumberOfClounds << "\n";
   os << "CloudsColumnDensity: " << this->CloudsColumnDensity << "\n";
   os << "Status: " << this->Status << "\n";
+  os << "Operation: " << this->GetOperationAsString(this->Operation) << "\n";
   os << "FitSuccess: " << this->FitSuccess << "\n";
-  os << "FirstPlot: " << this->FirstPlot << "\n";
   os << "ContourLevel: " << this->ContourLevel << "\n";
 }

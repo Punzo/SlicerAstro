@@ -1285,11 +1285,13 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   if(!app)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : qSlicerApplication not found!";
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "qSlicerApplication not found!";
     return;
     }
 
-  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(15);
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
 
   vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
@@ -1583,15 +1585,23 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  qSlicerApplication* app = qSlicerApplication::application();
-
-  if(!app)
+  // Set a Plot Layout
+  vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
+    this->mrmlScene()->GetFirstNodeByClass("vtkMRMLLayoutNode"));
+  if (!layoutNode)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : qSlicerApplication not found!";
+    qWarning() << Q_FUNC_INFO << ": Unable to get layout node!";
     return;
     }
-
-  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(24);
+  int viewArra = layoutNode->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView  &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotView        &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotTableView   &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutOneUpPlotView         &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutThreeOverThreePlotView)
+    {
+    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+    }
 
   vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
@@ -1911,6 +1921,24 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
                                                               bool overrideSegments/*=true*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
+  // Set a Plot Layout
+  vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
+    this->mrmlScene()->GetFirstNodeByClass("vtkMRMLLayoutNode"));
+  if (!layoutNode)
+    {
+    qWarning() << Q_FUNC_INFO << ": Unable to get layout node!";
+    return;
+    }
+  int viewArra = layoutNode->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView  &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotView        &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotTableView   &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutOneUpPlotView         &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutThreeOverThreePlotView)
+    {
+    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+    }
 
   vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeOneID));

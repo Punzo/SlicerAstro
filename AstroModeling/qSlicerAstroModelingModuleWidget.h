@@ -45,15 +45,25 @@ public:
   Q_INVOKABLE vtkMRMLAstroModelingParametersNode* mrmlAstroModelingParametersNode()const;
 
 public slots:
+  void onCleanInitialParameters();
+  void onEstimateInitialParameters();
+  void onCreate();
+  void onFit();
   void onApply();
   void onCalculateAndVisualize();
   void onVisualize();
 
 protected:
+
+  virtual void setup();
+
+protected:
   QScopedPointer<qSlicerAstroModelingModuleWidgetPrivate> d_ptr;
 
-  virtual void setMRMLScene(vtkMRMLScene*);
-  void initializeParameterNode(vtkMRMLScene*);
+  virtual void setMRMLScene(vtkMRMLScene* scene);
+  void initializeParameterNode(vtkMRMLScene* scene);
+  void initializeTableNode(vtkMRMLScene* scene);
+  void createPlots();
   bool convertFirstSegmentToLabelMap();
 
 protected slots:
@@ -80,7 +90,6 @@ protected slots:
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onParamsTableNodeModified(vtkObject* sender);
   void onPositionAngleChanged(double value);
   void onPositionAngleErrorChanged(double value);
   void onPositionAngleFitChanged(bool flag);
@@ -95,6 +104,7 @@ protected slots:
   void onSegmentEditorNodeModified(vtkObject* sender);
   void onSystemicVelocityChanged(double value);
   void onSystemicVelocityFitChanged(bool flag);
+  void onTableNodeChanged(vtkMRMLNode* mrmlNode);
   void onVelocityDispersionChanged(double value);
   void onVelocityDispersionFitChanged(bool flag);
   void onWeightingFunctionChanged(int flag);

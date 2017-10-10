@@ -38,13 +38,14 @@
 
 // VTK includes
 #include <vtkCacheManager.h>
+#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 #include <vtkRenderWindow.h>
 #include <vtkSmartPointer.h>
-#include <vtkStringArray.h>
+#include <vtkTable.h>
 #include <vtkVersion.h>
 
 // STD includes
@@ -82,10 +83,10 @@ vtkSlicerAstroModelingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
   this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
-  this->par = new Param;
-  this->head = new Header;
-  this->cubeF = new Cube<float>;
-  this->cubeD = new Cube<double>;
+  this->par = NULL;
+  this->head = NULL;
+  this->cubeF = NULL;
+  this->cubeD = NULL;
   this->modF = NULL;
   this->modD = NULL;
   this->fitF = NULL;
@@ -200,12 +201,6 @@ std::string IntToString(int Value)
 }
 
 //----------------------------------------------------------------------------
-std::string FloatToString(float Value)
-{
-  return NumberToString<float>(Value);
-}
-
-//----------------------------------------------------------------------------
 std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
@@ -222,7 +217,61 @@ vtkSlicerAstroModelingLogic::vtkSlicerAstroModelingLogic()
 //----------------------------------------------------------------------------
 vtkSlicerAstroModelingLogic::~vtkSlicerAstroModelingLogic()
 {
-  delete this->Internal;
+    delete this->Internal;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroModelingLogic::cleanPointers()
+{
+  if (this->Internal->fitF != NULL)
+    {
+    delete this->Internal->fitF;
+    this->Internal->fitF = NULL;
+    }
+
+  if (this->Internal->cubeF != NULL)
+    {
+    delete this->Internal->cubeF;
+    this->Internal->cubeF = NULL;
+    }
+
+  if (this->Internal->modF != NULL)
+    {
+    delete this->Internal->modF;
+    this->Internal->modF = NULL;
+    }
+
+  if (this->Internal->fitD != NULL)
+    {
+    delete this->Internal->fitD;
+    this->Internal->fitD = NULL;
+    }
+
+  if (this->Internal->cubeD != NULL)
+    {
+    delete this->Internal->cubeD;
+    this->Internal->cubeD = NULL;
+    }
+
+  if (this->Internal->modD != NULL)
+    {
+    delete this->Internal->modD;
+    this->Internal->modD = NULL;
+    }
+
+  if (this->Internal->par != NULL)
+    {
+    delete this->Internal->par;
+    this->Internal->par = NULL;
+    }
+
+  this->Internal->par = new Param;
+
+  if (this->Internal->head != NULL)
+    {
+    delete this->Internal->head;
+    this->Internal->head = NULL;
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -258,7 +307,8 @@ void vtkSlicerAstroModelingLogic::RegisterNodes()
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pnode)
+int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode* pnode,
+                                              vtkMRMLTableNode *tnode)
 {
   int wasModifying = 0;
 
@@ -267,7 +317,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " inputVolume not found!");
     return 0;
     }
@@ -277,7 +327,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
   if(!outputVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " outputVolume not found!");
     return 0;
     }
@@ -287,7 +337,7 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       (this->GetMRMLScene()->GetNodeByID(pnode->GetResidualVolumeNodeID()));
   if(!residualVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " residualVolume not found!");
     return 0;
     }
@@ -300,21 +350,54 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 
   if(!maskVolume && maskActive)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " maskVolume not found!");
     return 0;
     }
 
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  vtkImageData* imageData = inputVolume->GetImageData();
+  if (!imageData)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " input imageData NULL!");
+    return 0;
+    }
+
+  vtkPointData* pointData = imageData->GetPointData();
+  if (!pointData)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " input pointData NULL!");
+    return 0;
+    }
+
+  vtkDataArray *dataArray = pointData->GetScalars();
+  if (!dataArray)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " input dataArray NULL!");
+    return 0;
+    }
+
+  const int DataType = dataArray->GetDataType();
 
   string file = inputVolume->GetName();
 
-  if (!this->Internal->par || !this->Internal->head)
+  if (this->Internal->par != NULL)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
-                  " Internal pointers not defined!");
-    return 0;
+    delete this->Internal->par;
+    this->Internal->par = NULL;
     }
+
+  this->Internal->par = new Param;
+
+  if (this->Internal->head != NULL)
+    {
+    delete this->Internal->head;
+    this->Internal->head = NULL;
+    }
+
+  this->Internal->head = new Header;
 
   this->Internal->par->setImageFile(file);
   string outputFolder = this->GetMRMLScene()->GetCacheManager()->GetRemoteCacheDirectory();
@@ -334,9 +417,9 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       }
     else if (pnode->GetNumberOfRings() > 0 && fabs(pnode->GetNumberOfRings() - 1) < 0.001 )
       {
-      pnode->SetStatus(0);
+      pnode->SetStatus(100);
       pnode->SetFitSuccess(false);
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                     " 3DBarolo needs at least 2 Rings!");
       return 0;
       }
@@ -612,43 +695,60 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
   this->Internal->head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
   if(!this->Internal->head->saveWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()))
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel : the WCS copy failed!")
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : the WCS copy failed!");
     }
 
   this->Internal->head->calcArea();
 
   if (pnode->GetStatus() == -1)
     {
-    pnode->SetStatus(0);
+    this->cleanPointers();
+    pnode->SetStatus(100);
     pnode->SetFitSuccess(false);
     return 0;
     }
   pnode->SetStatus(10);
 
-  int *dims = outputVolume->GetImageData()->GetDimensions();
-  int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  int *dims = inputVolume->GetImageData()->GetDimensions();
+  int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   int numElements = dims[0] * dims[1] * dims[2] * numComponents;
 
   switch (DataType)
     {
     case VTK_FLOAT:
       {
-      if (!this->Internal->cubeF)
+      if (this->Internal->cubeF != NULL)
         {
-        vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
-                      " Internal pointers not defined!");
-        return 0;
+        delete this->Internal->cubeF;
+        this->Internal->cubeF = NULL;
         }
+
+      this->Internal->cubeF = new Cube<float>;
 
       this->Internal->cubeF->saveParam(*this->Internal->par);
       this->Internal->cubeF->saveHead(*this->Internal->head);
       this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
-      this->Internal->cubeF->setCube(static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
+      float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
+      if (!inFPixel)
+        {
+        this->cleanPointers();
+        pnode->SetStatus(100);
+        pnode->SetFitSuccess(false);
+        return 0;
+        }
+      this->Internal->cubeF->setCube(inFPixel, dims);
 
       // Feed segmentation mask to cube
       if (maskActive)
         {
         short* segmentationMaskPointer = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer());
+        if (!segmentationMaskPointer)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         bool* mask = new bool[numElements];
         for(int ii = 0; ii < numElements; ii++)
           {
@@ -663,6 +763,8 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           }
 
         this->Internal->cubeF->setMask(mask);
+        delete mask;
+        mask = NULL;
         }
 
       // Searching stuff if the user has not provided a mask
@@ -674,6 +776,12 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       // Cube Fitting
       if (this->Internal->par->getflagGalFit())
         {
+        if (this->Internal->fitF != NULL)
+          {
+          delete this->Internal->fitF;
+          this->Internal->fitF = NULL;
+          }
+
         this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
 
         *this->Internal->par = this->Internal->cubeF->pars();
@@ -698,44 +806,52 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 
         pnode->EndModify(wasModifying);
 
-        bool success = this->Internal->fitF->galfit();
-
-        if (!success)
+        if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::ESTIMATE)
           {
-          pnode->SetStatus(0);
+          this->cleanPointers();
+          pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
           return 0;
           }
 
-        if (this->Internal->par->getTwoStage())
+        if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
+          this->Internal->fitF->galfit(pnode->GetStatusPointer());
+
           if (pnode->GetStatus() == -1)
             {
-            pnode->SetStatus(0);
+            this->cleanPointers();
+            pnode->SetStatus(100);
             pnode->SetFitSuccess(false);
             return 0;
             }
+
           pnode->SetStatus(60);
 
-          bool success = this->Internal->fitF->SecondStage();
-          if (!success)
+          if (this->Internal->par->getTwoStage())
             {
-            pnode->SetStatus(0);
-            pnode->SetFitSuccess(false);
-            return 0;
+            this->Internal->fitF->SecondStage(pnode->GetStatusPointer());
+            if (pnode->GetStatus() == -1)
+              {
+              this->cleanPointers();
+              pnode->SetStatus(100);
+              pnode->SetFitSuccess(false);
+              return 0;
+              }
             }
           }
 
-        if (pnode->GetStatus() == -1)
-          {
-          pnode->SetStatus(0);
-          pnode->SetFitSuccess(false);
-          return 0;
-          }
         pnode->SetStatus(80);
 
         // Calculate the total flux inside last ring in data
         float *ringreg = this->Internal->fitF->getFinalRingsRegion();
+        if (!ringreg)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         float totflux_model = 0.;
         this->Internal->totflux_data = 0.;
         MomentMap<float> *totalmap = new MomentMap<float>;
@@ -751,7 +867,21 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           }
 
         this->Internal->modF = this->Internal->fitF->getModel();
+        if (!this->Internal->modF || !this->Internal->modF->Out())
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         float *outarray = this->Internal->modF->Out()->Array();
+        if (!outarray)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
 
         // Calculate total flux of model within last ring
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
@@ -800,14 +930,26 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           }
 
         float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
-
+        if (!outFPixel)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         for (int ii = 0; ii < numElements; ii++)
           {
           *(outFPixel + ii) = *(outarray + ii);
           }
 
-        float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
         float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
+        if (!residualFPixel)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
 
         for (int ii = 0; ii < numElements; ii++)
           {
@@ -822,27 +964,50 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           }
 
         delete totalmap;
+        totalmap = NULL;
+        delete ringreg;
+        ringreg = NULL;
+        outarray = NULL;
+        outFPixel = NULL;
+        inFPixel = NULL;
+        residualFPixel = NULL;
         }
       break;
       }
     case VTK_DOUBLE:
       {
-      if (!this->Internal->cubeD)
+      if (this->Internal->cubeD != NULL)
         {
-        vtkErrorMacro("vtkSlicerAstroModelingLogic::FitModel :"
-                      " Internal pointers not defined!");
-        return 0;
+        delete this->Internal->cubeD;
+        this->Internal->cubeD = NULL;
         }
+
+      this->Internal->cubeD = new Cube<double>;
 
       this->Internal->cubeD->saveParam(*this->Internal->par);
       this->Internal->cubeD->saveHead(*this->Internal->head);
       this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
-      this->Internal->cubeD->setCube(static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
+      double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
+      if (!inDPixel)
+        {
+        this->cleanPointers();
+        pnode->SetStatus(100);
+        pnode->SetFitSuccess(false);
+        return 0;
+        }
+      this->Internal->cubeD->setCube(inDPixel, dims);
 
       // Feed segmentation mask to cube
       if (maskActive)
         {
         short* segmentationMaskPointer = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer());
+        if (!segmentationMaskPointer)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         bool* mask = new bool[numElements];
         for(int ii = 0; ii < numElements; ii++)
           {
@@ -857,9 +1022,11 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           }
 
         this->Internal->cubeD->setMask(mask);
+        delete mask;
+        mask = NULL;
         }
 
-      // Searching stuff
+      // Searching stuff if the user has not provided a mask
       if (this->Internal->par->getSearch())
         {
         this->Internal->cubeD->Search();
@@ -868,6 +1035,12 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
       // Cube Fitting
       if (this->Internal->par->getflagGalFit())
         {
+        if (this->Internal->fitD != NULL)
+          {
+          delete this->Internal->fitD;
+          this->Internal->fitD = NULL;
+          }
+
         this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
 
         *this->Internal->par = this->Internal->cubeD->pars();
@@ -892,43 +1065,52 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
 
         pnode->EndModify(wasModifying);
 
-        bool success = this->Internal->fitD->galfit();
-
-        if (!success)
+        if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::ESTIMATE)
           {
-          pnode->SetStatus(0);
+          this->cleanPointers();
+          pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
           return 0;
           }
 
-        if (this->Internal->par->getTwoStage())
+        if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
+          this->Internal->fitD->galfit(pnode->GetStatusPointer());
+
           if (pnode->GetStatus() == -1)
             {
-            pnode->SetStatus(0);
+            this->cleanPointers();
+            pnode->SetStatus(100);
             pnode->SetFitSuccess(false);
             return 0;
             }
+
           pnode->SetStatus(60);
-          bool success = this->Internal->fitD->SecondStage();
-          if (!success)
+
+          if (this->Internal->par->getTwoStage())
             {
-            pnode->SetStatus(0);
-            pnode->SetFitSuccess(false);
-            return 0;
+            this->Internal->fitD->SecondStage(pnode->GetStatusPointer());
+            if (pnode->GetStatus() == -1)
+              {
+              this->cleanPointers();
+              pnode->SetStatus(100);
+              pnode->SetFitSuccess(false);
+              return 0;
+              }
             }
           }
 
-        if (pnode->GetStatus() == -1)
-          {
-          pnode->SetStatus(0);
-          pnode->SetFitSuccess(false);
-          return 0;
-          }
         pnode->SetStatus(80);
 
         // Calculate the total flux inside last ring in data
         double *ringreg = this->Internal->fitD->getFinalRingsRegion();
+        if (!ringreg)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         double totflux_model = 0.;
         this->Internal->totflux_data = 0.;
         MomentMap<double> *totalmap = new MomentMap<double>;
@@ -943,8 +1125,22 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             }
           }
 
-        Model::Galmod<double> *mod = this->Internal->fitD->getModel();
-        double *outarray = mod->Out()->Array();
+        this->Internal->modD = this->Internal->fitD->getModel();
+        if (!this->Internal->modD || !this->Internal->modD->Out())
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
+        double *outarray = this->Internal->modD->Out()->Array();
+        if (!outarray)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
 
         // Calculate total flux of model within last ring
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
@@ -971,9 +1167,9 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           {
           for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
             {
-            double factor = 0;
-            double modSum = 0;
-            double obsSum = 0;
+            float factor = 0;
+            float modSum = 0;
+            float obsSum = 0;
             for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
               {
               long Pix = this->Internal->cubeD->nPix(x,y,z);
@@ -993,14 +1189,26 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
           }
 
         double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
-
+        if (!outDPixel)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
         for (int ii = 0; ii < numElements; ii++)
           {
           *(outDPixel + ii) = *(outarray + ii);
           }
 
-        double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
         double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
+        if (!residualDPixel)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          return 0;
+          }
 
         for (int ii = 0; ii < numElements; ii++)
           {
@@ -1013,72 +1221,89 @@ int vtkSlicerAstroModelingLogic::FitModel(vtkMRMLAstroModelingParametersNode* pn
             *(residualDPixel + ii) = 0.;
             }
           }
+
         delete totalmap;
+        totalmap = NULL;
+        delete ringreg;
+        ringreg = NULL;
+        outarray = NULL;
+        outDPixel = NULL;
+        inDPixel = NULL;
+        residualDPixel = NULL;
         }
       break;
       }
     }
 
-  pnode->SetStatus(100);
-  pnode->SetStatus(0);
-  pnode->SetFitSuccess(true);
+  pnode->SetStatus(95);
 
-  return 1;
-}
-
-//----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParametersNode *pnode)
-{
-  vtkMRMLTableNode* paramsTableNode = pnode->GetParamsTableNode();
-  if (!paramsTableNode)
+  if (!tnode)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateTable : Unable to find the parameters table.");
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateTable : "
+                  "Unable to find the internal parameters table node.");
     return 0;
     }
 
-  int wasModifying = paramsTableNode->StartModify();
+  wasModifying = tnode->StartModify();
 
-  paramsTableNode->RemoveAllColumns();
-  paramsTableNode->SetUseColumnNameAsColumnHeader(true);
-
-  if(this->Internal->fitF)
+  int numRows = tnode->GetNumberOfRows();
+  for (int ii = 0; ii < numRows; ii++)
     {
+    tnode->RemoveRow(ii);
+    }
+  numRows = pnode->GetNumberOfRings();
+  for (int ii = 0; ii < numRows; ii++)
+    {
+    tnode->AddEmptyRow();
+    }
 
-    for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
-      {
-      paramsTableNode->AddEmptyRow();
-      }
+  vtkTable* paramsTable = tnode->GetTable();
+  if (!paramsTable)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateTable : "
+                  "Unable to find the parameters table.");
+    return 0;
+    }
 
-    vtkStringArray* Radii = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Radii->SetName("Radius (arcsec)");
-    vtkStringArray* VRot = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VRot->SetName("VRot (km/s)");
-    vtkStringArray* VRad = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VRad->SetName("VRad (km/s)");
-    vtkStringArray* Inc = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Inc->SetName("Inc (degree)");
-    vtkStringArray* Phi = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Phi->SetName("Phi (degree)");
-    vtkStringArray* VSys = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VSys->SetName("VSys (km/s)");
-    vtkStringArray* VDisp = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VDisp->SetName("VDisp (km/s)");
-    vtkStringArray* Dens = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Dens->SetName("Column Density (10^20 cm^-2)");
-    vtkStringArray* Z0 = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Z0->SetName("Scale Heigth (Kpc)");
-    vtkStringArray* XPos = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    XPos->SetName("X Center (pixels)");
-    vtkStringArray* YPos = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    YPos->SetName("Y Center (pixels)");
+  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("XPos"));
+  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("YPos"));
+  vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("VSys"));
+  vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("Radii"));
+  vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("VRot"));
+  vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("VRad"));
+  vtkDoubleArray* VDisp = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("VDisp"));
+  vtkDoubleArray* Dens = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("Dens"));
+  vtkDoubleArray* Z0 = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("Z0"));
+  vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("Inc"));
+  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
+    (paramsTable->GetColumnByName("Phi"));
 
-    paramsTableNode->RemoveColumn(0);
+  if (!XPos || !YPos || !VSys || !Radii ||
+      !VRot || !VRad || !VDisp || !Dens ||
+      !Z0 || !Inc || !Phi)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                  "Unable to find one or more table columns.");
+    return 0;
+    }
 
+  if(this->Internal->fitF && this->Internal->fitF->Outrings())
+    {
     if (this->Internal->fitF->Outrings()->xpos.size() > 0)
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        XPos->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->xpos[ii]).c_str());
+        XPos->SetValue(ii, this->Internal->fitF->Outrings()->xpos[ii]);
         }
       }
 
@@ -1086,7 +1311,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        YPos->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->ypos[ii]).c_str());
+        YPos->SetValue(ii, this->Internal->fitF->Outrings()->ypos[ii]);
         }
       }
 
@@ -1094,7 +1319,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VSys->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->vsys[ii]).c_str());
+        VSys->SetValue(ii, this->Internal->fitF->Outrings()->vsys[ii]);
         }
       }
 
@@ -1102,7 +1327,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Radii->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->radii[ii]).c_str());
+        Radii->SetValue(ii, this->Internal->fitF->Outrings()->radii[ii]);
         }
       }
 
@@ -1110,7 +1335,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VRot->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->vrot[ii]).c_str());
+        VRot->SetValue(ii, this->Internal->fitF->Outrings()->vrot[ii]);
         }
       }
 
@@ -1118,7 +1343,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VRad->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->vrad[ii]).c_str());
+        VRad->SetValue(ii, this->Internal->fitF->Outrings()->vrad[ii]);
         }
       }
 
@@ -1126,7 +1351,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VDisp->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->vdisp[ii]).c_str());
+        VDisp->SetValue(ii, this->Internal->fitF->Outrings()->vdisp[ii]);
         }
       }
 
@@ -1134,7 +1359,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Dens->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->dens[ii] * 1.E-20).c_str());
+        Dens->SetValue(ii, this->Internal->fitF->Outrings()->dens[ii] * 1.E-20);
         }
       }
 
@@ -1142,8 +1367,8 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Z0->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->z0[ii]
-                                      * KpcPerArc(this->Internal->par->getDistance())).c_str());
+        Z0->SetValue(ii, this->Internal->fitF->Outrings()->z0[ii]
+                         * KpcPerArc(this->Internal->par->getDistance()));
         }
       }
 
@@ -1151,7 +1376,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Inc->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->inc[ii]).c_str());
+        Inc->SetValue(ii, this->Internal->fitF->Outrings()->inc[ii]);
         }
       }
 
@@ -1159,47 +1384,17 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Phi->SetValue(ii, FloatToString(this->Internal->fitF->Outrings()->phi[ii]).c_str());
+        Phi->SetValue(ii, this->Internal->fitF->Outrings()->phi[ii]);
         }
       }
     }
-  else if (this->Internal->fitD)
+  else if (this->Internal->fitD && this->Internal->fitD->Outrings())
     {
-    for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
-      {
-      paramsTableNode->AddEmptyRow();
-      }
-
-    vtkStringArray* Radii = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Radii->SetName("Radius (arcsec)");
-    vtkStringArray* VRot = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VRot->SetName("VRot (km/s)");
-    vtkStringArray* VRad = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VRad->SetName("VRot (km/s)");
-    vtkStringArray* Inc = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Inc->SetName("Inc (degree)");
-    vtkStringArray* Phi = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Phi->SetName("Phi (degree)");
-    vtkStringArray* VSys = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VSys->SetName("VSys (km/s)");
-    vtkStringArray* VDisp = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    VDisp->SetName("VDisp (km/s)");
-    vtkStringArray* Dens = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Dens->SetName("Column Density (10^20 cm^-2)");
-    vtkStringArray* Z0 = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    Z0->SetName("Scale Heigth (Kpc)");
-    vtkStringArray* XPos = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    XPos->SetName("X Center (pixels)");
-    vtkStringArray* YPos = vtkStringArray::SafeDownCast(paramsTableNode->AddColumn());
-    YPos->SetName("Y Center (pixels)");
-
-    paramsTableNode->RemoveColumn(0);
-
     if (this->Internal->fitD->Outrings()->xpos.size() > 0)
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        XPos->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->xpos[ii]).c_str());
+        XPos->SetValue(ii, this->Internal->fitD->Outrings()->xpos[ii]);
         }
       }
 
@@ -1207,7 +1402,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        YPos->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->ypos[ii]).c_str());
+        YPos->SetValue(ii, this->Internal->fitD->Outrings()->ypos[ii]);
         }
       }
 
@@ -1215,7 +1410,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VSys->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->vsys[ii]).c_str());
+        VSys->SetValue(ii, this->Internal->fitD->Outrings()->vsys[ii]);
         }
       }
 
@@ -1223,7 +1418,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Radii->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->radii[ii]).c_str());
+        Radii->SetValue(ii, this->Internal->fitD->Outrings()->radii[ii]);
         }
       }
 
@@ -1231,7 +1426,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VRot->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->vrot[ii]).c_str());
+        VRot->SetValue(ii, this->Internal->fitD->Outrings()->vrot[ii]);
         }
       }
 
@@ -1239,7 +1434,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VRad->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->vrad[ii]).c_str());
+        VRad->SetValue(ii, this->Internal->fitD->Outrings()->vrad[ii]);
         }
       }
 
@@ -1247,7 +1442,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VDisp->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->vdisp[ii]).c_str());
+        VDisp->SetValue(ii, this->Internal->fitD->Outrings()->vdisp[ii]);
         }
       }
 
@@ -1255,7 +1450,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Dens->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->dens[ii] * 1.E-20).c_str());
+        Dens->SetValue(ii, this->Internal->fitD->Outrings()->dens[ii] * 1.E-20);
         }
       }
 
@@ -1263,8 +1458,8 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Z0->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->z0[ii]
-                                      * KpcPerArc(this->Internal->par->getDistance())).c_str());
+        Z0->SetValue(ii, this->Internal->fitD->Outrings()->z0[ii]
+                         * KpcPerArc(this->Internal->par->getDistance()));
         }
       }
 
@@ -1272,7 +1467,7 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Inc->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->inc[ii]).c_str());
+        Inc->SetValue(ii, this->Internal->fitD->Outrings()->inc[ii]);
         }
       }
 
@@ -1280,17 +1475,22 @@ int vtkSlicerAstroModelingLogic::UpdateTableFromModel(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Phi->SetValue(ii, DoubleToString(this->Internal->fitD->Outrings()->phi[ii]).c_str());
+        Phi->SetValue(ii, this->Internal->fitD->Outrings()->phi[ii]);
         }
       }
     }
   else
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateTable : galfit not found! \n");
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " galfit not found! \n");
     return 0;
     }
 
-  paramsTableNode->EndModify(wasModifying);
+  tnode->EndModify(wasModifying);
+
+  this->cleanPointers();
+  pnode->SetStatus(100);
+  pnode->SetFitSuccess(true);
 
   return 1;
 }
@@ -1326,29 +1526,53 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                     " residualVolume not found!");
     }
 
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  int *dims = outputVolume->GetImageData()->GetDimensions();
-  int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  vtkImageData* imageData = inputVolume->GetImageData();
+  if (!imageData)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " input imageData NULL!");
+    return 0;
+    }
+
+  vtkPointData* pointData = imageData->GetPointData();
+  if (!pointData)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " input pointData NULL!");
+    return 0;
+    }
+
+  vtkDataArray *dataArray = pointData->GetScalars();
+  if (!dataArray)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " input dataArray NULL!");
+    return 0;
+    }
+
+  const int DataType = dataArray->GetDataType();
+
+  int *dims = inputVolume->GetImageData()->GetDimensions();
+  int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   int numElements = dims[0] * dims[1] * dims[2] * numComponents;
 
   if (!this->Internal->fitF && !this->Internal->fitD)
-    { 
-    vtkMRMLAstroVolumeNode *inputVolume =
-      vtkMRMLAstroVolumeNode::SafeDownCast
-        (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-    if(!inputVolume)
+    {
+    if (this->Internal->par != NULL)
       {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                    " inputVolume not found!");
-      return 0;
+      delete this->Internal->par;
+      this->Internal->par = NULL;
       }
 
-    if (!this->Internal->par || !this->Internal->head)
+    this->Internal->par = new Param;
+
+    if (this->Internal->head != NULL)
       {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                    " Internal pointers not defined!");
-      return 0;
+      delete this->Internal->head;
+      this->Internal->head = NULL;
       }
+
+    this->Internal->head = new Header;
 
     string file = inputVolume->GetName();
     this->Internal->par->setImageFile(file);
@@ -1358,7 +1582,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->par->setVerbosity(false);
     this->Internal->par->setShowbar(false);
     this->Internal->par->setflagGalFit(true);
-
 
     if (pnode->GetNumberOfRings() > 0)
       {
@@ -1545,10 +1768,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->par->getNV() == -1)
       {
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : /n"
-                    "The scene has been imported and the fitting has not been runned. /n"
-                    "You can procede to modify the model, but all the input fitting /n"
-                    "parameters have to be inserted manually. /n"
-                    "You may check if the parameters are stored in the ModelingParameterNode.");
+                    "Please run again the estimation of the input parameters. /n");
       }
 
     this->Internal->par->setFREE(freeParameters);
@@ -1616,7 +1836,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
     if(!this->Internal->head->saveWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()))
       {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : the WCS copy failed!")
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : the WCS copy failed!");
       }
 
     this->Internal->head->calcArea();
@@ -1627,9 +1847,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         {
         if (!this->Internal->cubeF)
           {
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                        " Internal pointers not defined!");
-          return 0;
+          this->Internal->cubeF = new Cube<float>;
           }
 
         this->Internal->cubeF->saveParam(*this->Internal->par);
@@ -1652,15 +1870,17 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             this->Internal->totflux_data += totalmap->Array(ii);
             }
           }
+        delete totalmap;
+        totalmap = NULL;
+        delete ringreg;
+        ringreg = NULL;
         break;
         }
       case VTK_DOUBLE:
         {
         if (!this->Internal->cubeD)
           {
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                        " Internal pointers not defined!");
-          return 0;
+          this->Internal->cubeD = new Cube<double>;
           }
 
         this->Internal->cubeD->saveParam(*this->Internal->par);
@@ -1683,22 +1903,38 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             this->Internal->totflux_data += totalmap->Array(ii);
             }
           }
+        delete totalmap;
+        totalmap = NULL;
+        delete ringreg;
+        ringreg = NULL;
         break;
         }
       }
     }
 
   vtkMRMLTableNode* paramsTableNode = pnode->GetParamsTableNode();
-    if (!paramsTableNode)
-      {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : Unable to find the parameters table.");
-      return 0;
-      }
+  if (!paramsTableNode)
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                  "Unable to find the parameters table.");
+    return 0;
+    }
 
   switch (DataType)
     {
     case VTK_FLOAT:
       {
+      if (!this->Internal->fitF || !this->Internal->fitF->Outrings())
+        {
+        return 0;
+        }
+
+      float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
+      if (!inFPixel)
+        {
+        return 0;
+        }
+
       this->Internal->fitF->Outrings()->xpos.clear();
       this->Internal->fitF->Outrings()->ypos.clear();
       this->Internal->fitF->Outrings()->vsys.clear();
@@ -1753,10 +1989,33 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->fitF->Outrings()->nv.push_back(0);
         }
 
+      // Check if Radii are in ascending order
+      for (int ii = 1; ii < pnode->GetNumberOfRings(); ii++)
+        {
+        if (this->Internal->fitF->Outrings()->radii[ii] < this->Internal->fitF->Outrings()->radii[ii-1])
+          {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "Radii are not in ascending order.");
+          return 0;
+          }
+        }
+
       this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
       float *ringreg = this->Internal->fitF->getFinalRingsRegion();
+      if (!ringreg)
+        {
+        return 0;
+        }
       this->Internal->modF = this->Internal->fitF->getModel();
+      if (!this->Internal->modF || !this->Internal->modF->Out())
+        {
+        return 0;
+        }
       float *outarray = this->Internal->modF->Out()->Array();
+      if (!outarray)
+        {
+        return 0;
+        }
       float totflux_model = 0.;
 
       // Calculate total flux of model within last ring
@@ -1785,11 +2044,15 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             }
           }
           delete totalmap;
+          totalmap = NULL;
+          delete ringreg;
+          ringreg = NULL;
         }
 
       if (this->Internal->totflux_data < 1.E-6)
         {
-        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : this->Internal->totflux_data is zero!");
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "this->Internal->totflux_data is zero!");
         return 0;
         }
 
@@ -1828,7 +2091,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
-
+      if (!outFPixel)
+        {
+        return 0;
+        }
       for (int ii = 0; ii < numElements; ii++)
         {
         *(outFPixel + ii) = *(outarray + ii);
@@ -1836,9 +2102,11 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
       if (inputVolume && residualVolume)
         {
-        float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
         float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
-
+        if (!residualFPixel)
+          {
+          return 0;
+          }
         for (int ii = 0; ii < numElements; ii++)
           {
           if (*(outFPixel + ii) < 1.E-6)
@@ -1850,12 +2118,31 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             *(residualFPixel + ii) = 0.;
             }
           }
+        residualFPixel = NULL;
         }
-
+      outarray = NULL;
+      if (this->Internal->modF != NULL)
+        {
+        delete this->Internal->modF;
+        this->Internal->modF = NULL;
+        }
+      outFPixel = NULL;
+      inFPixel = NULL;
       break;
       }
     case VTK_DOUBLE:
       {
+      if (!this->Internal->fitD || !this->Internal->fitD->Outrings())
+        {
+        return 0;
+        }
+
+      double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
+      if (!inDPixel)
+        {
+        return 0;
+        }
+
       this->Internal->fitD->Outrings()->xpos.clear();
       this->Internal->fitD->Outrings()->ypos.clear();
       this->Internal->fitD->Outrings()->vsys.clear();
@@ -1910,27 +2197,34 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->fitD->Outrings()->nv.push_back(0);
         }
 
+      // Check if Radii are in ascending order
+      for (int ii = 1; ii < pnode->GetNumberOfRings(); ii++)
+        {
+        if (this->Internal->fitD->Outrings()->radii[ii] < this->Internal->fitD->Outrings()->radii[ii-1])
+          {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "Radii are not in ascending order.");
+          return 0;
+          }
+        }
+
       this->Internal->fitD->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
       double *ringreg = this->Internal->fitD->getFinalRingsRegion();
-      this->Internal->modD = this->Internal->fitD->getModel();
-      double *outarray = this->Internal->modD->Out()->Array();
-      double totflux_model = 0.;
-
-      if (this->Internal->totflux_data < 1.E-6)
+      if (!ringreg)
         {
-        MomentMap<double> *totalmap = new MomentMap<double>;
-        totalmap->input(this->Internal->cubeD);
-        totalmap->SumMap(true);
-
-        for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
-          {
-          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
-            {
-            this->Internal->totflux_data += totalmap->Array(ii);
-            }
-          }
-          delete totalmap;
+        return 0;
         }
+      this->Internal->modD = this->Internal->fitD->getModel();
+      if (!this->Internal->modD || !this->Internal->modD->Out())
+        {
+        return 0;
+        }
+      double *outarray = this->Internal->modD->Out()->Array();
+      if (!outarray)
+        {
+        return 0;
+        }
+      double totflux_model = 0.;
 
       // Calculate total flux of model within last ring
       for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
@@ -1946,7 +2240,27 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
       if (this->Internal->totflux_data < 1.E-6)
         {
-        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : this->Internal->totflux_data is zero!");
+        MomentMap<double> *totalmap = new MomentMap<double>;
+        totalmap->input(this->Internal->cubeD);
+        totalmap->SumMap(true);
+
+        for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+          {
+          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+            {
+            this->Internal->totflux_data += totalmap->Array(ii);
+            }
+          }
+          delete totalmap;
+          totalmap = NULL;
+          delete ringreg;
+          ringreg = NULL;
+        }
+
+      if (this->Internal->totflux_data < 1.E-6)
+        {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "this->Internal->totflux_data is zero!");
         return 0;
         }
 
@@ -1985,7 +2299,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
-
+      if (!outDPixel)
+        {
+        return 0;
+        }
       for (int ii = 0; ii < numElements; ii++)
         {
         *(outDPixel + ii) = *(outarray + ii);
@@ -1993,9 +2310,11 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
       if (inputVolume && residualVolume)
         {
-        double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
         double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
-
+        if (!residualDPixel)
+          {
+          return 0;
+          }
         for (int ii = 0; ii < numElements; ii++)
           {
           if (*(outDPixel + ii) < 1.E-6)
@@ -2007,8 +2326,16 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             *(residualDPixel + ii) = 0.;
             }
           }
+        residualDPixel = NULL;
         }
-
+      outarray = NULL;
+      if (this->Internal->modD != NULL)
+        {
+        delete this->Internal->modD;
+        this->Internal->modD = NULL;
+        }
+      outDPixel = NULL;
+      inDPixel = NULL;
       break;
       }
     }

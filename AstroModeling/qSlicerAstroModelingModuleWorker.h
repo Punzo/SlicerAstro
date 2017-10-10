@@ -28,6 +28,7 @@
 #include "vtkSmartPointer.h"
 
 class vtkMRMLAstroModelingParametersNode;
+class vtkMRMLTableNode;
 class vtkSlicerAstroModelingLogic;
 
 /// \ingroup Slicer_QtModules_AstroModeling
@@ -44,12 +45,14 @@ public:
 
   void SetAstroModelingLogic(vtkSlicerAstroModelingLogic* logic);
   void SetAstroModelingParametersNode(vtkMRMLAstroModelingParametersNode* pnode);
+  void SetTableNode(vtkMRMLTableNode* tnode);
 
 private:
   bool _abort;
   bool _working;
   QMutex mutex;
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
+  vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
   vtkSlicerAstroModelingLogic* astroModelingLogic;
 
 signals:
