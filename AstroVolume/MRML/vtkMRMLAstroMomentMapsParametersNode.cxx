@@ -50,7 +50,7 @@ vtkMRMLAstroMomentMapsParametersNode::vtkMRMLAstroMomentMapsParametersNode()
   this->SecondMomentVolumeNodeID = NULL;
   this->MaskVolumeNodeID = NULL;
   this->SetCores(0);
-  this->SetMaskActive(true);
+  this->SetMaskActive(false);
   this->SetGenerateZero(true);
   this->SetGenerateFirst(true);
   this->SetGenerateSecond(true);

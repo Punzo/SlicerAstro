@@ -323,7 +323,7 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->onSegmentEditorNodeModified(d->segmentEditorNode);
 
-  d->parametersNode->SetMaskActive(true);
+  d->parametersNode->SetMaskActive(false);
 
   d->InputSegmentCollapsibleButton->setCollapsed(false);
 
@@ -369,7 +369,7 @@ void qSlicerAstroMomentMapsModuleWidget::initializeParameterNode(vtkMRMLScene* s
     vtkMRMLAstroMomentMapsParametersNode::SafeDownCast(parametersNode);
 
   int wasModifying = astroParametersNode->StartModify();
-  astroParametersNode->SetMaskActive(true);
+  astroParametersNode->SetMaskActive(false);
   astroParametersNode->SetGenerateZero(true);
   astroParametersNode->SetGenerateFirst(true);
   astroParametersNode->SetGenerateSecond(true);
@@ -876,7 +876,7 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModi
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
   if (d->parametersNode->GetMaskActive())
-    {
+    {  
     d->VelocityRangeLabel->hide();
     d->VelocityRangeWidget->hide();
     d->VelocityUnitLabel->hide();

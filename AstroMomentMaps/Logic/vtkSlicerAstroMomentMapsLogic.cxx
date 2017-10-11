@@ -290,6 +290,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   pnode->SetStatus(1);
 
+  const double NaN = sqrt(-1);
+
   vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
   double ijk[3], world[3];
   ijk[0] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
@@ -397,7 +399,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_FLOAT:
               if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outFirstFPixel + elemCnt) < FLOATPRECISION)
                 {
-                *(outFirstFPixel + elemCnt) = 0.;
+                *(outFirstFPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -407,7 +409,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_DOUBLE:
               if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outFirstFPixel + elemCnt) < DOUBLEPRECISION)
                 {
-                *(outFirstDPixel + elemCnt) = 0.;
+                *(outFirstDPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -448,7 +450,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_FLOAT:
               if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outSecondFPixel + elemCnt) < FLOATPRECISION)
                 {
-                *(outSecondFPixel + elemCnt) = 0.;
+                *(outSecondFPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -458,7 +460,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_DOUBLE:
               if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outSecondFPixel + elemCnt) < DOUBLEPRECISION)
                 {
-                *(outSecondDPixel + elemCnt) = 0.;
+                *(outSecondDPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -473,10 +475,24 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outZeroFPixel + elemCnt) *= dV;
+              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION)
+                {
+                *(outZeroFPixel + elemCnt) = NaN;
+                }
+              else
+                {
+                *(outZeroFPixel + elemCnt) *= dV;
+                }
               break;
             case VTK_DOUBLE:
-              *(outZeroDPixel + elemCnt) *= dV;
+              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION)
+                {
+                *(outZeroDPixel + elemCnt) = NaN;
+                }
+              else
+                {
+                *(outZeroDPixel + elemCnt) *= dV;
+                }
               break;
             }
           }
@@ -634,7 +650,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_FLOAT:
               if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outFirstFPixel + elemCnt) < FLOATPRECISION)
                 {
-                *(outFirstFPixel + elemCnt) = 0.;
+                *(outFirstFPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -644,7 +660,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_DOUBLE:
               if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outFirstFPixel + elemCnt) < DOUBLEPRECISION)
                 {
-                *(outFirstDPixel + elemCnt) = 0.;
+                *(outFirstDPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -688,7 +704,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_FLOAT:
               if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outSecondFPixel + elemCnt) < FLOATPRECISION)
                 {
-                *(outSecondFPixel + elemCnt) = 0.;
+                *(outSecondFPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -698,7 +714,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_DOUBLE:
               if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outSecondDPixel + elemCnt) < DOUBLEPRECISION)
                 {
-                *(outSecondDPixel + elemCnt) = 0.;
+                *(outSecondDPixel + elemCnt) = NaN;
                 }
               else
                 {
@@ -713,10 +729,24 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outZeroFPixel + elemCnt) *= dV;
+              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION)
+                {
+                *(outZeroFPixel + elemCnt) = NaN;
+                }
+              else
+                {
+                *(outZeroFPixel + elemCnt) *= dV;
+                }
               break;
             case VTK_DOUBLE:
-              *(outZeroDPixel + elemCnt) *= dV;
+              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION)
+                {
+                *(outZeroDPixel + elemCnt) = NaN;
+                }
+              else
+                {
+                *(outZeroDPixel + elemCnt) *= dV;
+                }
               break;
             }
           }
@@ -789,48 +819,45 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     ZeroMomentVolume->UpdateRangeAttributes();
     ZeroMomentVolume->UpdateNoiseAttributes();
+    int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
+    FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
     double min = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
     double window = max-min;
     double level = 0.5*(max+min);
-    double lower = level;
-    double upper = max;
-    int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-    ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(lower, upper);
+    ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
     }
   if (pnode->GetGenerateFirst())
     {
     FirstMomentVolume->UpdateRangeAttributes();
     FirstMomentVolume->UpdateNoiseAttributes();
+    int disabledModify = FirstMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
+    FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     FirstMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
     double min = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
     double window = max-min;
     double level = 0.5*(max+min);
-    double lower = level;
-    double upper = max;
-    int disabledModify = FirstMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
     FirstMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(lower, upper);
+    FirstMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     FirstMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
     }
   if (pnode->GetGenerateSecond())
     {
     SecondMomentVolume->UpdateRangeAttributes();
     SecondMomentVolume->UpdateNoiseAttributes();
+    int disabledModify = SecondMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
+    SecondMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
     double min = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
     double window = max-min;
     double level = 0.5*(max+min);
-    double lower = level;
-    double upper = max;
-    int disabledModify = SecondMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-    SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(lower, upper);
+    SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     SecondMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
     }
 
