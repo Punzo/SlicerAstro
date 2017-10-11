@@ -1246,17 +1246,6 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
   wasModifying = tnode->StartModify();
 
-  int numRows = tnode->GetNumberOfRows();
-  for (int ii = 0; ii < numRows; ii++)
-    {
-    tnode->RemoveRow(ii);
-    }
-  numRows = pnode->GetNumberOfRings();
-  for (int ii = 0; ii < numRows; ii++)
-    {
-    tnode->AddEmptyRow();
-    }
-
   vtkTable* paramsTable = tnode->GetTable();
   if (!paramsTable)
     {
@@ -1267,26 +1256,37 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
   vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("XPos"));
+  XPos->Initialize();
   vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("YPos"));
+  YPos->Initialize();
   vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("VSys"));
+  VSys->Initialize();
   vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("Radii"));
+  Radii->Initialize();
   vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("VRot"));
+  VRot->Initialize();
   vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("VRad"));
+  VRad->Initialize();
   vtkDoubleArray* VDisp = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("VDisp"));
+  VDisp->Initialize();
   vtkDoubleArray* Dens = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("Dens"));
+  Dens->Initialize();
   vtkDoubleArray* Z0 = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("Z0"));
+  Z0->Initialize();
   vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("Inc"));
+  Inc->Initialize();
   vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
     (paramsTable->GetColumnByName("Phi"));
+  Phi->Initialize();
 
   if (!XPos || !YPos || !VSys || !Radii ||
       !VRot || !VRad || !VDisp || !Dens ||
@@ -1295,6 +1295,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
                   "Unable to find one or more table columns.");
     return 0;
+    }
+
+  for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
+    {
+    tnode->AddEmptyRow();
     }
 
   if(this->Internal->fitF && this->Internal->fitF->Outrings())
