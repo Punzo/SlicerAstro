@@ -33,7 +33,7 @@ if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/Punzo/Bbarolo"
-    GIT_TAG "2ef5f7d547d5de690f24021b8a717d4d8ece56e4"
+    GIT_TAG "eec021140d892ba7881fee0e4c02f02c92eeba4f"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS
