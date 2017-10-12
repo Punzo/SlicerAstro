@@ -804,7 +804,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
     }
 
   vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!segmentationNode)
+  if (!segmentationNode || !segmentationNode->GetSegmentation())
     {
     qCritical() << Q_FUNC_INFO << ": Invalid segmentationNode";
     d->CreateSurfaceButton->blockSignals(true);
@@ -1585,6 +1585,11 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return;
+    }
+
   // Set a Plot Layout
   vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
     this->mrmlScene()->GetFirstNodeByClass("vtkMRMLLayoutNode"));
@@ -1610,7 +1615,9 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   vtkMRMLAstroVolumeNode *volumeThree = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeThreeID));
 
-  if(!volumeOne || !volumeTwo || !volumeThree)
+  if(!volumeOne || !volumeTwo || !volumeThree ||
+     !volumeOne->GetImageData() || !volumeTwo->GetImageData() ||
+     !volumeThree->GetImageData())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : volumes not valid.";
     return;
@@ -1797,6 +1804,12 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     currentSegmentationNode->CreateDefaultDisplayNodes();
     }
 
+  if (!currentSegmentationNode->GetSegmentation())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView() : segmentation not found.";
+    return;
+    }
+
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
 
@@ -1892,10 +1905,20 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
       }
     }
 
+  if (currentSegmentationNode->GetNumberOfDisplayNodes() < 1)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView error :"
+                   " SegmentationNode has no displayNodes!"<<endl;
+    }
+
   for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
     SegmentationDisplayNode->SetAllSegmentsVisibility(false);
     SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
     SegmentationDisplayNode->SetSegmentVisibility(SegmentTwoID, true);
@@ -1922,6 +1945,11 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return;
+    }
+
   // Set a Plot Layout
   vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
     this->mrmlScene()->GetFirstNodeByClass("vtkMRMLLayoutNode"));
@@ -1945,14 +1973,17 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
 
-  if(!volumeOne || !volumeTwo)
+  if(!volumeOne || !volumeTwo || !volumeOne->GetImageData() || !volumeTwo->GetImageData())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView() : volumes not valid.";
     return;
     }
 
   double rms = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS"));
-  d->PresetOffsetSlider->setValue((rms * ContourLevel) - (rms * 3.));
+  if (d->PresetOffsetSlider)
+    {
+    d->PresetOffsetSlider->setValue((rms * ContourLevel) - (rms * 3.));
+    }
 
   if (!d->segmentEditorNode)
     {
@@ -1961,7 +1992,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView() : segmentationNode not valid.";
     return;
@@ -2066,6 +2097,10 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
     SegmentationDisplayNode->SetAllSegmentsVisibility(false);
     SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
     SegmentationDisplayNode->SetSegmentVisibility(SegmentTwoID, true);

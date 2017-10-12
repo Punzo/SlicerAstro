@@ -1285,6 +1285,13 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
   char *secondaryVolumeNodeID = selectionNode->GetSecondaryVolumeID();
 
+  if (!d->logic())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize :"
+                  " logic not found!";
+    return;
+    }
+
   if (!d->logic()->UpdateModelFromTable(d->parametersNode))
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize :"

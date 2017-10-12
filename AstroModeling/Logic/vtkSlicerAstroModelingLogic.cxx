@@ -312,6 +312,20 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 {
   int wasModifying = 0;
 
+  if(!pnode)
+    {
+    vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " parameter node not found!");
+    return 0;
+    }
+
+  if(!tnode)
+    {
+    vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " table node not found!");
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -734,6 +748,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         this->cleanPointers();
         pnode->SetStatus(100);
         pnode->SetFitSuccess(false);
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                      "Unable to find inFPixel pointer.");
         return 0;
         }
       this->Internal->cubeF->setCube(inFPixel, dims);
@@ -747,6 +763,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find segmentationMask.");
           return 0;
           }
         bool* mask = new bool[numElements];
@@ -808,6 +826,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::ESTIMATE)
           {
+          // Exit. Only the estimation of the parameters was requested.
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
@@ -850,6 +869,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find ringreg.");
           return 0;
           }
         float totflux_model = 0.;
@@ -872,6 +893,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find modF.");
           return 0;
           }
         float *outarray = this->Internal->modF->Out()->Array();
@@ -880,6 +903,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find modF array.");
           return 0;
           }
 
@@ -935,6 +960,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find outFPixel pointer.");
           return 0;
           }
         for (int ii = 0; ii < numElements; ii++)
@@ -948,6 +975,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find residualFPixel pointer.");
           return 0;
           }
 
@@ -993,6 +1022,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         this->cleanPointers();
         pnode->SetStatus(100);
         pnode->SetFitSuccess(false);
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                      "Unable to find inDPixel pointer.");
         return 0;
         }
       this->Internal->cubeD->setCube(inDPixel, dims);
@@ -1006,6 +1037,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find segmentationMask.");
           return 0;
           }
         bool* mask = new bool[numElements];
@@ -1067,6 +1100,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::ESTIMATE)
           {
+          //Exit. Only the estimation of the parameters was requested.
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
@@ -1109,6 +1143,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find ringreg pointer.");
           return 0;
           }
         double totflux_model = 0.;
@@ -1131,6 +1167,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find modD pointer.");
           return 0;
           }
         double *outarray = this->Internal->modD->Out()->Array();
@@ -1139,6 +1177,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find modD array.");
           return 0;
           }
 
@@ -1194,6 +1234,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find outDPixel pointer.");
           return 0;
           }
         for (int ii = 0; ii < numElements; ii++)
@@ -1207,6 +1249,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "Unable to find residualDPixel pointer.");
           return 0;
           }
 
@@ -1503,6 +1547,13 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 //----------------------------------------------------------------------------
 int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode)
 {
+  if(!pnode)
+    {
+    vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " parameter node not found!");
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -1510,6 +1561,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     {
     vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                     " inputVolume not found!");
+    return 0;
     }
 
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -1773,7 +1825,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->par->getNV() == -1)
       {
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : /n"
-                    "Please run again the estimation of the input parameters. /n");
+                    "Run again the estimation of the input parameters. /n");
+      return 0;
       }
 
     this->Internal->par->setFREE(freeParameters);
@@ -1931,12 +1984,16 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       {
       if (!this->Internal->fitF || !this->Internal->fitF->Outrings())
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find fitF pointer.");
         return 0;
         }
 
       float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
       if (!inFPixel)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find inFPixel pointer.");
         return 0;
         }
 
@@ -2009,16 +2066,22 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       float *ringreg = this->Internal->fitF->getFinalRingsRegion();
       if (!ringreg)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find ringreg pointer.");
         return 0;
         }
       this->Internal->modF = this->Internal->fitF->getModel();
       if (!this->Internal->modF || !this->Internal->modF->Out())
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find modF pointer.");
         return 0;
         }
       float *outarray = this->Internal->modF->Out()->Array();
       if (!outarray)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find outarray pointer.");
         return 0;
         }
       float totflux_model = 0.;
@@ -2098,6 +2161,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
       if (!outFPixel)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find outFPixel pointer.");
         return 0;
         }
       for (int ii = 0; ii < numElements; ii++)
@@ -2110,6 +2175,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
         if (!residualFPixel)
           {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "Unable to find residualFPixel pointer.");
           return 0;
           }
         for (int ii = 0; ii < numElements; ii++)
@@ -2139,12 +2206,16 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       {
       if (!this->Internal->fitD || !this->Internal->fitD->Outrings())
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find fitD pointer.");
         return 0;
         }
 
       double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
       if (!inDPixel)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find inDPixel pointer.");
         return 0;
         }
 
@@ -2217,16 +2288,22 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       double *ringreg = this->Internal->fitD->getFinalRingsRegion();
       if (!ringreg)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find ringreg pointer.");
         return 0;
         }
       this->Internal->modD = this->Internal->fitD->getModel();
       if (!this->Internal->modD || !this->Internal->modD->Out())
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find modD pointer.");
         return 0;
         }
       double *outarray = this->Internal->modD->Out()->Array();
       if (!outarray)
         {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "Unable to find modD array.");
         return 0;
         }
       double totflux_model = 0.;
@@ -2306,6 +2383,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
       if (!outDPixel)
         {
+        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                      "Unable to find outDPixel pointer.");
         return 0;
         }
       for (int ii = 0; ii < numElements; ii++)
@@ -2318,6 +2397,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
         if (!residualDPixel)
           {
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "Unable to find residualDPixel pointer.");
           return 0;
           }
         for (int ii = 0; ii < numElements; ii++)
