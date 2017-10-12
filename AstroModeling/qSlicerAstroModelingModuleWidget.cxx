@@ -107,6 +107,17 @@ public:
   vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVRot;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVRad;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeInc;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodePhi;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVSys;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVDisp;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeDens;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeZ0;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeXPos;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeYPos;
+
   qSlicerAstroModelingModuleWorker *worker;
   QThread *thread;
   QAction *CopyAction;
@@ -126,6 +137,16 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
   this->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
   this->selectionNode = 0;
   this->segmentEditorNode = 0;
+  this->plotChartNodeVRot = 0;
+  this->plotChartNodeVRad = 0;
+  this->plotChartNodeInc = 0;
+  this->plotChartNodePhi = 0;
+  this->plotChartNodeVSys = 0;
+  this->plotChartNodeVDisp = 0;
+  this->plotChartNodeDens = 0;
+  this->plotChartNodeZ0 = 0;
+  this->plotChartNodeXPos = 0;
+  this->plotChartNodeYPos = 0;
   this->worker = 0;
   this->thread = 0;
   this->CopyAction = 0;
@@ -767,26 +788,37 @@ void qSlicerAstroModelingModuleWidget::createPlots()
    }
 
   // Create plotDataNodes
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVRot =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVRad =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeInc =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodePhi =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVSys =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVDisp =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeDens =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeZ0 =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeXPos =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeYPos =
-    vtkSmartPointer<vtkMRMLPlotDataNode>::New();
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVRot;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVRad;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeInc;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodePhi;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVSys;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVDisp;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeDens;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeZ0;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeXPos;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeYPos;
+
+  plotDataNodeVRot.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeVRad.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeInc.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodePhi.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeVSys.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeVDisp.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeDens.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeZ0.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeXPos.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+  plotDataNodeYPos.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+    (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
 
   this->mrmlScene()->AddNode(plotDataNodeVRot);
   this->mrmlScene()->AddNode(plotDataNodeVRad);
@@ -870,130 +902,154 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     (vtkMRMLAstroModelingParametersNode::ParamsColumnYPos));
   plotDataNodeYPos->SetName("YPos");
 
-  // Create a PlotChart nodes
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVRot =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeVRot);
+  // Check (and create) PlotChart nodes
+  if (!d->plotChartNodeVRot)
+    {
+    d->plotChartNodeVRot.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeVRot);
+    d->plotChartNodeVRot->SetName("VRotChart");
+    d->plotChartNodeVRot->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeVRot->SetAttribute("YAxisLabelName", "Rotational Velocity (km/s)");
+    d->plotChartNodeVRot->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeVRot->SetAttribute("Type", "Line");
+    d->plotChartNodeVRot->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVRad =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeVRad);
+  if (!d->plotChartNodeVRad)
+    {
+    d->plotChartNodeVRad.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeVRad);
+    d->plotChartNodeVRad->SetName("VRadChart");
+    d->plotChartNodeVRad->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeVRad->SetAttribute("YAxisLabelName", "Radial Velocity (km/s)");
+    d->plotChartNodeVRad->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeVRad->SetAttribute("Type", "Line");
+    d->plotChartNodeVRad->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeInc =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeInc);
+  if (!d->plotChartNodeInc)
+    {
+    d->plotChartNodeInc.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeInc);
+    d->plotChartNodeInc->SetName("IncChart");
+    d->plotChartNodeInc->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeInc->SetAttribute("YAxisLabelName", "Inclination (degree)");
+    d->plotChartNodeInc->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeInc->SetAttribute("Type", "Line");
+    d->plotChartNodeInc->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodePhi =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodePhi);
+  if (!d->plotChartNodePhi)
+    {
+    d->plotChartNodePhi.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodePhi);
+    d->plotChartNodePhi->SetName("PhiChart");
+    d->plotChartNodePhi->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodePhi->SetAttribute("YAxisLabelName", "Orientation Angle (degree)");
+    d->plotChartNodePhi->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodePhi->SetAttribute("Type", "Line");
+    d->plotChartNodePhi->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVSys =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeVSys);
+  if (!d->plotChartNodeVSys)
+    {
+    d->plotChartNodeVSys.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeVSys);
+    d->plotChartNodeVSys->SetName("VSysChart");
+    d->plotChartNodeVSys->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeVSys->SetAttribute("YAxisLabelName", "Systemic Velocity (km/s)");
+    d->plotChartNodeVSys->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeVSys->SetAttribute("Type", "Line");
+    d->plotChartNodeVSys->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVDisp =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeVDisp);
+  if (!d->plotChartNodeVDisp)
+    {
+    d->plotChartNodeVDisp.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeVDisp);
+    d->plotChartNodeVDisp->SetName("VDispChart");
+    d->plotChartNodeVDisp->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeVDisp->SetAttribute("YAxisLabelName", "Dispersion Velocity (km/s)");
+    d->plotChartNodeVDisp->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeVDisp->SetAttribute("Type", "Line");
+    d->plotChartNodeVDisp->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeDens =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeDens);
+  if (!d->plotChartNodeDens)
+    {
+    d->plotChartNodeDens.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeDens);
+    d->plotChartNodeDens->SetName("DensChart");
+    d->plotChartNodeDens->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeDens->SetAttribute("YAxisLabelName", "Column Density (10^20 cm^-2)");
+    d->plotChartNodeDens->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeDens->SetAttribute("Type", "Line");
+    d->plotChartNodeDens->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeZ0 =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeZ0);
+  if (!d->plotChartNodeZ0)
+    {
+    d->plotChartNodeZ0.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeZ0);
+    d->plotChartNodeZ0->SetName("Z0Chart");
+    d->plotChartNodeZ0->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeZ0->SetAttribute("YAxisLabelName", "Scale Heigth (Kpc)");
+    d->plotChartNodeZ0->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeZ0->SetAttribute("Type", "Line");
+    d->plotChartNodeZ0->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeXPos =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeXPos);
+  if (!d->plotChartNodeXPos)
+    {
+    d->plotChartNodeXPos.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeXPos);
+    d->plotChartNodeXPos->SetName("XPosChart");
+    d->plotChartNodeXPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeXPos->SetAttribute("YAxisLabelName", "X Center (pixels)");
+    d->plotChartNodeXPos->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeXPos->SetAttribute("Type", "Line");
+    d->plotChartNodeXPos->SetAttribute("Markers", "Circle");
+    }
 
-  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeYPos =
-    vtkSmartPointer<vtkMRMLPlotChartNode>::New();
-  this->mrmlScene()->AddNode(plotChartNodeYPos);
+  if (!d->plotChartNodeYPos)
+    {
+    d->plotChartNodeYPos.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+    this->mrmlScene()->AddNode(d->plotChartNodeYPos);
+    d->plotChartNodeYPos->SetName("YPosChart");
+    d->plotChartNodeYPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
+    d->plotChartNodeYPos->SetAttribute("YAxisLabelName", "Y Center (pixels)");
+    d->plotChartNodeYPos->SetAttribute("ClickAndDragAlongX", "off");
+    d->plotChartNodeYPos->SetAttribute("Type", "Line");
+    d->plotChartNodeYPos->SetAttribute("Markers", "Circle");
+    }
 
-  // Set Properties of PlotChartNodes
-  plotChartNodeVRot->SetName("VRotChart");
-  plotChartNodeVRot->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeVRot->SetAttribute("YAxisLabelName", "Rotational Velocity (km/s)");
-  plotChartNodeVRot->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeVRot->SetAttribute("Type", "Line");
-  plotChartNodeVRot->SetAttribute("Markers", "Circle");
-  plotChartNodeVRot->AddAndObservePlotDataNodeID(plotDataNodeVRot->GetID());
-
-  plotChartNodeVRad->SetName("VRadChart");
-  plotChartNodeVRad->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeVRad->SetAttribute("YAxisLabelName", "Radial Velocity (km/s)");
-  plotChartNodeVRad->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeVRad->SetAttribute("Type", "Line");
-  plotChartNodeVRad->SetAttribute("Markers", "Circle");
-  plotChartNodeVRad->AddAndObservePlotDataNodeID(plotDataNodeVRad->GetID());
-
-  plotChartNodeInc->SetName("IncChart");
-  plotChartNodeInc->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeInc->SetAttribute("YAxisLabelName", "Inclination (degree)");
-  plotChartNodeInc->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeInc->SetAttribute("Type", "Line");
-  plotChartNodeInc->SetAttribute("Markers", "Circle");
-  plotChartNodeInc->AddAndObservePlotDataNodeID(plotDataNodeInc->GetID());
-
-  plotChartNodePhi->SetName("PhiChart");
-  plotChartNodePhi->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodePhi->SetAttribute("YAxisLabelName", "Orientation Angle (degree)");
-  plotChartNodePhi->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodePhi->SetAttribute("Type", "Line");
-  plotChartNodePhi->SetAttribute("Markers", "Circle");
-  plotChartNodePhi->AddAndObservePlotDataNodeID(plotDataNodePhi->GetID());
-
-  plotChartNodeVSys->SetName("VSysChart");
-  plotChartNodeVSys->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeVSys->SetAttribute("YAxisLabelName", "Systemic Velocity (km/s)");
-  plotChartNodeVSys->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeVSys->SetAttribute("Type", "Line");
-  plotChartNodeVSys->SetAttribute("Markers", "Circle");
-  plotChartNodeVSys->AddAndObservePlotDataNodeID(plotDataNodeVSys->GetID());
-
-  plotChartNodeVDisp->SetName("VDispChart");
-  plotChartNodeVDisp->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeVDisp->SetAttribute("YAxisLabelName", "Dispersion Velocity (km/s)");
-  plotChartNodeVDisp->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeVDisp->SetAttribute("Type", "Line");
-  plotChartNodeVDisp->SetAttribute("Markers", "Circle");
-  plotChartNodeVDisp->AddAndObservePlotDataNodeID(plotDataNodeVDisp->GetID());
-
-  plotChartNodeDens->SetName("DensChart");
-  plotChartNodeDens->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeDens->SetAttribute("YAxisLabelName", "Column Density (10^20 cm^-2)");
-  plotChartNodeDens->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeDens->SetAttribute("Type", "Line");
-  plotChartNodeDens->SetAttribute("Markers", "Circle");
-  plotChartNodeDens->AddAndObservePlotDataNodeID(plotDataNodeDens->GetID());
-
-  plotChartNodeZ0->SetName("Z0Chart");
-  plotChartNodeZ0->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeZ0->SetAttribute("YAxisLabelName", "Scale Heigth (Kpc)");
-  plotChartNodeZ0->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeZ0->SetAttribute("Type", "Line");
-  plotChartNodeZ0->SetAttribute("Markers", "Circle");
-  plotChartNodeZ0->AddAndObservePlotDataNodeID(plotDataNodeZ0->GetID());
-
-  plotChartNodeXPos->SetName("XPosChart");
-  plotChartNodeXPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeXPos->SetAttribute("YAxisLabelName", "X Center (pixels)");
-  plotChartNodeXPos->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeXPos->SetAttribute("Type", "Line");
-  plotChartNodeXPos->SetAttribute("Markers", "Circle");
-  plotChartNodeXPos->AddAndObservePlotDataNodeID(plotDataNodeXPos->GetID());
-
-  plotChartNodeYPos->SetName("YPosChart");
-  plotChartNodeYPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-  plotChartNodeYPos->SetAttribute("YAxisLabelName", "Y Center (pixels)");
-  plotChartNodeYPos->SetAttribute("ClickAndDragAlongX", "off");
-  plotChartNodeYPos->SetAttribute("Type", "Line");
-  plotChartNodeYPos->SetAttribute("Markers", "Circle");
-  plotChartNodeYPos->AddAndObservePlotDataNodeID(plotDataNodeYPos->GetID());
+  // Add PlotDataNodes to PlotChartNodes
+  d->plotChartNodeVRot->AddAndObservePlotDataNodeID(plotDataNodeVRot->GetID());
+  d->plotChartNodeVRad->AddAndObservePlotDataNodeID(plotDataNodeVRad->GetID());
+  d->plotChartNodeInc->AddAndObservePlotDataNodeID(plotDataNodeInc->GetID());
+  d->plotChartNodePhi->AddAndObservePlotDataNodeID(plotDataNodePhi->GetID());
+  d->plotChartNodeVSys->AddAndObservePlotDataNodeID(plotDataNodeVSys->GetID());
+  d->plotChartNodeVDisp->AddAndObservePlotDataNodeID(plotDataNodeVDisp->GetID());
+  d->plotChartNodeDens->AddAndObservePlotDataNodeID(plotDataNodeDens->GetID());
+  d->plotChartNodeZ0->AddAndObservePlotDataNodeID(plotDataNodeZ0->GetID());
+  d->plotChartNodeXPos->AddAndObservePlotDataNodeID(plotDataNodeXPos->GetID());
+  d->plotChartNodeYPos->AddAndObservePlotDataNodeID(plotDataNodeYPos->GetID());
 
   //Select VRot
-  d->selectionNode->SetActivePlotChartID(plotChartNodeVRot->GetID());
+  if (!d->selectionNode->GetActivePlotChartID())
+    {
+    d->selectionNode->SetActivePlotChartID(d->plotChartNodeVRot->GetID());
+    }
 }
 
 //-----------------------------------------------------------------------------
