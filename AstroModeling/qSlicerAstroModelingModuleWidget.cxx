@@ -913,7 +913,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
 
   // Set Properties of PlotChartNodes
   plotChartNodeVRot->SetName("VRotChart");
-  plotChartNodeVRot->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeVRot->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeVRot->SetAttribute("YAxisLabelName", "Rotational Velocity (km/s)");
   plotChartNodeVRot->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeVRot->SetAttribute("Type", "Line");
@@ -921,7 +921,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeVRot->AddAndObservePlotDataNodeID(plotDataNodeVRot->GetID());
 
   plotChartNodeVRad->SetName("VRadChart");
-  plotChartNodeVRad->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeVRad->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeVRad->SetAttribute("YAxisLabelName", "Radial Velocity (km/s)");
   plotChartNodeVRad->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeVRad->SetAttribute("Type", "Line");
@@ -929,7 +929,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeVRad->AddAndObservePlotDataNodeID(plotDataNodeVRad->GetID());
 
   plotChartNodeInc->SetName("IncChart");
-  plotChartNodeInc->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeInc->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeInc->SetAttribute("YAxisLabelName", "Inclination (degree)");
   plotChartNodeInc->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeInc->SetAttribute("Type", "Line");
@@ -937,7 +937,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeInc->AddAndObservePlotDataNodeID(plotDataNodeInc->GetID());
 
   plotChartNodePhi->SetName("PhiChart");
-  plotChartNodePhi->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodePhi->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodePhi->SetAttribute("YAxisLabelName", "Orientation Angle (degree)");
   plotChartNodePhi->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodePhi->SetAttribute("Type", "Line");
@@ -945,7 +945,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodePhi->AddAndObservePlotDataNodeID(plotDataNodePhi->GetID());
 
   plotChartNodeVSys->SetName("VSysChart");
-  plotChartNodeVSys->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeVSys->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeVSys->SetAttribute("YAxisLabelName", "Systemic Velocity (km/s)");
   plotChartNodeVSys->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeVSys->SetAttribute("Type", "Line");
@@ -953,7 +953,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeVSys->AddAndObservePlotDataNodeID(plotDataNodeVSys->GetID());
 
   plotChartNodeVDisp->SetName("VDispChart");
-  plotChartNodeVDisp->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeVDisp->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeVDisp->SetAttribute("YAxisLabelName", "Dispersion Velocity (km/s)");
   plotChartNodeVDisp->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeVDisp->SetAttribute("Type", "Line");
@@ -961,7 +961,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeVDisp->AddAndObservePlotDataNodeID(plotDataNodeVDisp->GetID());
 
   plotChartNodeDens->SetName("DensChart");
-  plotChartNodeDens->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeDens->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeDens->SetAttribute("YAxisLabelName", "Column Density (10^20 cm^-2)");
   plotChartNodeDens->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeDens->SetAttribute("Type", "Line");
@@ -969,7 +969,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeDens->AddAndObservePlotDataNodeID(plotDataNodeDens->GetID());
 
   plotChartNodeZ0->SetName("Z0Chart");
-  plotChartNodeZ0->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeZ0->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeZ0->SetAttribute("YAxisLabelName", "Scale Heigth (Kpc)");
   plotChartNodeZ0->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeZ0->SetAttribute("Type", "Line");
@@ -977,7 +977,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeZ0->AddAndObservePlotDataNodeID(plotDataNodeZ0->GetID());
 
   plotChartNodeXPos->SetName("XPosChart");
-  plotChartNodeXPos->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeXPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeXPos->SetAttribute("YAxisLabelName", "X Center (pixels)");
   plotChartNodeXPos->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeXPos->SetAttribute("Type", "Line");
@@ -985,7 +985,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   plotChartNodeXPos->AddAndObservePlotDataNodeID(plotDataNodeXPos->GetID());
 
   plotChartNodeYPos->SetName("YPosChart");
-  plotChartNodeYPos->SetAttribute("XAxisLabelName", "Radii (degree)");
+  plotChartNodeYPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
   plotChartNodeYPos->SetAttribute("YAxisLabelName", "Y Center (pixels)");
   plotChartNodeYPos->SetAttribute("ClickAndDragAlongX", "off");
   plotChartNodeYPos->SetAttribute("Type", "Line");
