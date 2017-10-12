@@ -62,7 +62,7 @@ protected:
 
   virtual void setMRMLScene(vtkMRMLScene* scene);
   void initializeParameterNode(vtkMRMLScene* scene);
-  void initializeTableNode(vtkMRMLScene* scene);
+  void initializeTableNode(vtkMRMLScene* scene, bool forceNew = false);
   void createPlots();
   bool convertFirstSegmentToLabelMap();
 

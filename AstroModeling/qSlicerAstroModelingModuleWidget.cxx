@@ -603,7 +603,7 @@ void qSlicerAstroModelingModuleWidget::initializeParameterNode(vtkMRMLScene* sce
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene)
+void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, bool forceNew/* = false */)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
@@ -614,21 +614,25 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene)
     }
 
   vtkSmartPointer<vtkMRMLNode> tableNode = NULL;
-  vtkSmartPointer<vtkCollection> TableNodes = vtkSmartPointer<vtkCollection>::Take
-      (scene->GetNodesByClass("vtkMRMLTableNode"));
 
-  for (int ii = 0; ii < TableNodes->GetNumberOfItems(); ii++)
+  if (!forceNew)
     {
-    vtkMRMLTableNode* tempTableNode = vtkMRMLTableNode::SafeDownCast(TableNodes->GetItemAsObject(ii));
-    if (!tempTableNode)
+    vtkSmartPointer<vtkCollection> TableNodes = vtkSmartPointer<vtkCollection>::Take
+        (scene->GetNodesByClass("vtkMRMLTableNode"));
+
+    for (int ii = 0; ii < TableNodes->GetNumberOfItems(); ii++)
       {
-      continue;
-      }
-    std::string TableName = tempTableNode->GetName();
-    std::size_t found = TableName.find("ModelingParamsTable");
-    if (found != std::string::npos)
-      {
-      tableNode = tempTableNode;
+      vtkMRMLTableNode* tempTableNode = vtkMRMLTableNode::SafeDownCast(TableNodes->GetItemAsObject(ii));
+      if (!tempTableNode)
+        {
+        continue;
+        }
+      std::string TableName = tempTableNode->GetName();
+      std::size_t found = TableName.find("ModelingParamsTable");
+      if (found != std::string::npos)
+        {
+        tableNode = tempTableNode;
+        }
       }
     }
   if (!tableNode)
@@ -1953,6 +1957,10 @@ void qSlicerAstroModelingModuleWidget::onApply()
     }
 
   d->parametersNode->SetStatus(1);
+  if (d->parametersNode->GetParamsTableNode()->GetNumberOfRows() > 0)
+    {
+    this->initializeTableNode(this->mrmlScene(), true);
+    }
   d->internalTableNode->Copy(d->parametersNode->GetParamsTableNode());
   d->parametersNode->SetFitSuccess(false);
 

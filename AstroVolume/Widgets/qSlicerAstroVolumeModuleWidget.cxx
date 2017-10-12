@@ -1918,7 +1918,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volumeNodeOneID,
                                                               const char *volumeNodeTwoID,
                                                               double ContourLevel,
-                                                              bool overrideSegments/*=true*/)
+                                                              bool overrideSegments/*=false*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
