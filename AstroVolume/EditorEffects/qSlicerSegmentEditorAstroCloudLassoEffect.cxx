@@ -1331,17 +1331,13 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       }
     if (!strcmp(key, "c"))
       {
-      bool eraseMode = this->integerParameter("EraseMode");
-      if (!eraseMode)
-        {
-        bool automaticThresholdMode = this->integerParameter("AutomaticThresholdMode");
-        d->AutomaticThresholdCheckbox->setChecked(!automaticThresholdMode);
-        }
+      bool automaticThresholdMode = this->integerParameter("AutomaticThresholdMode");
+      this->onAutomaticThresholdModeChanged(!automaticThresholdMode);
       }
     if (!strcmp(key, "x"))
       {
       bool eraseMode = this->integerParameter("EraseMode");
-      d->EraseModeCheckbox->setChecked(!eraseMode);
+      this->onEraseModeChanged(!eraseMode);
       }
     }
 
@@ -1427,15 +1423,18 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
-  vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
+  if (!this->parameterSetNode())
+    {
+    return;
+    }
 
+  vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
   if (!masterVolume)
     {
     return;
     }
 
   vtkMRMLAstroVolumeNode *astroMasterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(masterVolume);
-
   if (!astroMasterVolume)
     {
     return;
@@ -1530,13 +1529,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
-  if (!this->active())
-    {
-    // updateGUIFromMRML is called when the effect is activated
-    return;
-    }
-
-  if (!this->scene())
+  if (!this->active() || !this->parameterSetNode() || !this->scene())
     {
     return;
     }
@@ -1627,5 +1620,25 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged(bool mode)
     ThresholdValue = this->doubleParameter("Threshold3RMSValue");
     }
   this->setCommonParameter("ThresholdMinimumValue", ThresholdValue);
+
+  if (!this->parameterSetNode())
+    {
+    return;
+    }
+
+  vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
+  if (!masterVolume)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *astroMasterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(masterVolume);
+  if (!astroMasterVolume)
+    {
+    return;
+    }
+
+  double max = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
+  this->setCommonParameter("ThresholdMaximumValue", max);
   this->updateGUIFromMRML();
 }
