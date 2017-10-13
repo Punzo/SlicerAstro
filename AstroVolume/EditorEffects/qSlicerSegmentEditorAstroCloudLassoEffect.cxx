@@ -73,7 +73,6 @@
 #include <vtkRenderWindow.h>
 #include <vtkRenderWindowInteractor.h>
 #include <vtkSmartPointer.h>
-#include <vtkSplineFilter.h>
 #include <vtkStripper.h>
 #include <vtkStringArray.h>
 #include <vtkTriangleFilter.h>
@@ -316,12 +315,8 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   this->StripperFilter = vtkSmartPointer<vtkStripper>::New();
   this->StripperFilter->SetInputData(this->FeedbackPolyData);
 
-  this->SmoothPolyFilter = vtkSmartPointer<vtkSplineFilter>::New();
-  this->SmoothPolyFilter->SetInputConnection(this->StripperFilter->GetOutputPort());
-  this->SmoothPolyFilter->SetNumberOfSubdivisions(1);
-
   this->FeedbackTubeFilter = vtkSmartPointer<vtkTubeFilter>::New();
-  this->FeedbackTubeFilter->SetInputConnection(this->SmoothPolyFilter->GetOutputPort());
+  this->FeedbackTubeFilter->SetInputConnection(this->StripperFilter->GetOutputPort());
   this->FeedbackTubeFilter->SetRadius(0.5);
   this->FeedbackTubeFilter->SetNumberOfSides(16);
   this->FeedbackTubeFilter->CappingOn();
@@ -426,11 +421,10 @@ vtkIdType qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintAddTwoPoints(do
 
   this->CloudLasso3DSelectionPoints->InsertNextPoint(brushPosition_World);
 
-  vtkNew<vtkLine> line;
+  vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
   line->GetPointIds()->SetId(0, idPointFirst);
   line->GetPointIds()->SetId(1, idPointSecond);
-  this->PaintLines_World->InsertNextCell(line.GetPointer());
-  this->SmoothPolyFilter->SetNumberOfSubdivisions(idPointSecond * 10);
+  this->PaintLines_World->InsertNextCell(line);
   return idPointSecond;
 }
 
@@ -446,11 +440,22 @@ vtkIdType qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintAddPoint(double
     return idPoint;
     }
 
-  vtkNew<vtkLine> line;
+  vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
   line->GetPointIds()->SetId(0, idPoint - 1);
   line->GetPointIds()->SetId(1, idPoint);
-  this->PaintLines_World->InsertNextCell(line.GetPointer());
-  this->SmoothPolyFilter->SetNumberOfSubdivisions(idPoint * 10);
+  this->PaintLines_World->InsertNextCell(line);
+
+  if (idPoint == 1)
+    {
+     vtkSmartPointer<vtkLine> closingLine = vtkSmartPointer<vtkLine>::New();
+     closingLine->GetPointIds()->SetId(0, idPoint);
+     closingLine->GetPointIds()->SetId(1, 0);
+     this->PaintLines_World->InsertNextCell(closingLine);
+    }
+  else
+    {
+    this->PaintLines_World->ReplaceCell(1, 1, &idPoint);
+    }
   return idPoint;
 }
 

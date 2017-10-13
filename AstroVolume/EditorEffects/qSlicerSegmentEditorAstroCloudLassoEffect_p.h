@@ -69,7 +69,6 @@ class vtkCellArray;
 class vtkPoints;
 class vtkPolyDataNormals;
 class vtkPolyDataToImageStencil;
-class vtkSplineFilter;
 class vtkStripper;
 class vtkTriangleFilter;
 class vtkTubeFilter;
@@ -149,7 +148,6 @@ public:
   vtkSmartPointer<vtkPolyDataToImageStencil> BrushPolyDataToStencil;
 
   vtkSmartPointer<vtkStripper> StripperFilter;
-  vtkSmartPointer<vtkSplineFilter> SmoothPolyFilter;
   vtkSmartPointer<vtkTubeFilter> FeedbackTubeFilter;
 
   vtkSmartPointer<vtkTriangleFilter> TriangulatorFilter;
