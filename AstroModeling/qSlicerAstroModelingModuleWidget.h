@@ -41,6 +41,9 @@ public:
   qSlicerAstroModelingModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroModelingModuleWidget();
 
+  virtual void enter();
+  virtual void exit();
+
   /// Get vtkMRMLAstroModelingParametersNode
   Q_INVOKABLE vtkMRMLAstroModelingParametersNode* mrmlAstroModelingParametersNode()const;
 
@@ -65,6 +68,7 @@ protected:
   void initializeTableNode(vtkMRMLScene* scene, bool forceNew = false);
   void createPlots();
   bool convertFirstSegmentToLabelMap();
+  void onEnter();
 
 protected slots:
   void onCloudsColumnDensityChanged(double value);
@@ -84,6 +88,10 @@ protected slots:
   void onMaskActiveToggled(bool active);
   void onModeChanged();
   void onMRMLAstroModelingParametersNodeModified();
+  void onMRMLSceneEndImportEvent();
+  void onMRMLSceneEndRestoreEvent();
+  void onMRMLSceneEndBatchProcessEvent();
+  void onMRMLSceneEndCloseEvent();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);

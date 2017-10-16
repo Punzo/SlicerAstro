@@ -11,6 +11,7 @@ add_subdirectory(Widgets)
 # AstroVolume module is required by all the others module.
 # aanother solution can be to shift all the MRML to AstroLibs folder
 add_subdirectory(MRML)
+add_subdirectory(MRMLDM)
 add_subdirectory(EditorEffects)
 
 #-----------------------------------------------------------------------------
@@ -29,6 +30,8 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_BINARY_DIR}/Widgets
   ${CMAKE_CURRENT_SOURCE_DIR}/MRML
   ${CMAKE_CURRENT_BINARY_DIR}/MRML
+  ${CMAKE_CURRENT_SOURCE_DIR}/MRMLDM
+  ${CMAKE_CURRENT_BINARY_DIR}/MRMLDM
   ${CMAKE_CURRENT_SOURCE_DIR}/EditorEffects
   ${CMAKE_CURRENT_BINARY_DIR}/EditorEffects
   ${qSlicerSegmentationsModuleEditorEffects_INCLUDE_DIR}
@@ -61,6 +64,7 @@ set(MODULE_TARGET_LIBRARIES
   qSlicerVolumeRenderingModuleWidgets
   vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicer${MODULE_NAME}ModuleMRML
+  vtkSlicer${MODULE_NAME}ModuleMRMLDisplayableManager
   )
 
 set(MODULE_RESOURCES

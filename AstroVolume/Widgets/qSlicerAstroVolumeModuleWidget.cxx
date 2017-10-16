@@ -31,9 +31,11 @@
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
 #include <vtkImageThreshold.h>
+#include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkPointData.h>
+#include <vtkTransform.h>
 
 // qMRMLWidgets include
 #include <qMRMLAstroVolumeInfoWidget.h>
@@ -1581,7 +1583,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNodeOneID,
                                                            const char *volumeNodeTwoID,
                                                            const char *volumeNodeThreeID,
-                                                           double ContourLevel)
+                                                           double ContourLevel,
+                                                           double PVPhi,
+                                                           double XPos,
+                                                           double YPos)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -1641,6 +1646,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
+  // Update 3D Renderings
   vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
 
@@ -1698,6 +1704,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
   this->setPresets(volumeThree);
 
+  selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
   selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
 
   n = volumeOne->GetNumberOfDisplayNodes();
@@ -1730,8 +1737,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
                    " PresetsNodeComboBox not found!"<<endl;
     return;
     }
-
-  selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
 
   vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
@@ -1766,8 +1771,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   volumeThree->SetDisplayVisibility(1);
   volumeOne->SetDisplayVisibility(1);
 
-  appLogic->PropagateVolumeSelection();
-
+  // Create Segmentations
   if (!d->segmentEditorNode)
     {
     std::string segmentEditorSingletonTag = "SegmentEditor";
@@ -1935,12 +1939,79 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
 
   this->onCreateSurfaceButtonToggled(true);
+
+  // Create PV major
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                  "yellowSliceNode not found!";
+    return;
+    }
+
+  yellowSliceNode->SetOrientation("XZ");
+  vtkSmartPointer<vtkMatrix3x3> PVMajorMatrix = vtkSmartPointer<vtkMatrix3x3>::New();
+  vtkNew<vtkTransform> transformMajor;
+  transformMajor->SetMatrix(yellowSliceNode->GetSliceToRAS());
+  transformMajor->RotateY(PVPhi);
+  PVMajorMatrix->SetElement(0, 0, transformMajor->GetMatrix()->GetElement(0,0));
+  PVMajorMatrix->SetElement(0, 1, transformMajor->GetMatrix()->GetElement(0,1));
+  PVMajorMatrix->SetElement(0, 2, transformMajor->GetMatrix()->GetElement(0,2));
+  PVMajorMatrix->SetElement(1, 0, transformMajor->GetMatrix()->GetElement(1,0));
+  PVMajorMatrix->SetElement(1, 1, transformMajor->GetMatrix()->GetElement(1,1));
+  PVMajorMatrix->SetElement(1, 2, transformMajor->GetMatrix()->GetElement(1,2));
+  PVMajorMatrix->SetElement(2, 0, transformMajor->GetMatrix()->GetElement(2,0));
+  PVMajorMatrix->SetElement(2, 1, transformMajor->GetMatrix()->GetElement(2,1));
+  PVMajorMatrix->SetElement(2, 2, transformMajor->GetMatrix()->GetElement(2,2));
+  yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+  yellowSliceNode->SetOrientation("PVMajor");
+  //translate to X and Y center
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  yellowSliceNode->UpdateMatrices();
+
+  // Create PV major
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                  "greenSliceNode not found!";
+    return;
+    }
+
+  greenSliceNode->SetOrientation("XZ");
+  vtkSmartPointer<vtkMatrix3x3> PVMinorMatrix = vtkSmartPointer<vtkMatrix3x3>::New();
+  vtkNew<vtkTransform> transformMinor;
+  transformMinor->SetMatrix(greenSliceNode->GetSliceToRAS());
+  transformMinor->RotateY(PVPhi + 90.);
+  PVMinorMatrix->SetElement(0, 0, transformMinor->GetMatrix()->GetElement(0,0));
+  PVMinorMatrix->SetElement(0, 1, transformMinor->GetMatrix()->GetElement(0,1));
+  PVMinorMatrix->SetElement(0, 2, transformMinor->GetMatrix()->GetElement(0,2));
+  PVMinorMatrix->SetElement(1, 0, transformMinor->GetMatrix()->GetElement(1,0));
+  PVMinorMatrix->SetElement(1, 1, transformMinor->GetMatrix()->GetElement(1,1));
+  PVMinorMatrix->SetElement(1, 2, transformMinor->GetMatrix()->GetElement(1,2));
+  PVMinorMatrix->SetElement(2, 0, transformMinor->GetMatrix()->GetElement(2,0));
+  PVMinorMatrix->SetElement(2, 1, transformMinor->GetMatrix()->GetElement(2,1));
+  PVMinorMatrix->SetElement(2, 2, transformMinor->GetMatrix()->GetElement(2,2));
+  greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+  greenSliceNode->SetOrientation("PVMinor");
+  //translate to X and Y center
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  greenSliceNode->UpdateMatrices();
 }
 
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volumeNodeOneID,
                                                               const char *volumeNodeTwoID,
                                                               double ContourLevel,
+                                                              double PVPhi,
+                                                              double XPos,
+                                                              double YPos,
                                                               bool overrideSegments/*=false*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -2113,6 +2184,77 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     }
 
   this->onCreateSurfaceButtonToggled(true);
+
+  // Create PV major
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::updateQuantitative3DView : "
+                  "yellowSliceNode not found!";
+    return;
+    }
+
+  if (!yellowSliceNode->GetSliceToRAS())
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::updateQuantitative3DView : "
+                  "SliceToRAS matrix not found!";
+    return;
+    }
+
+  yellowSliceNode->SetOrientation("XZ");
+  vtkSmartPointer<vtkMatrix3x3> PVMajorMatrix = vtkSmartPointer<vtkMatrix3x3>::New();
+  vtkNew<vtkTransform> transformMajor;
+  transformMajor->SetMatrix(yellowSliceNode->GetSliceToRAS());
+  transformMajor->RotateY(PVPhi);
+  PVMajorMatrix->SetElement(0, 0, transformMajor->GetMatrix()->GetElement(0,0));
+  PVMajorMatrix->SetElement(0, 1, transformMajor->GetMatrix()->GetElement(0,1));
+  PVMajorMatrix->SetElement(0, 2, transformMajor->GetMatrix()->GetElement(0,2));
+  PVMajorMatrix->SetElement(1, 0, transformMajor->GetMatrix()->GetElement(1,0));
+  PVMajorMatrix->SetElement(1, 1, transformMajor->GetMatrix()->GetElement(1,1));
+  PVMajorMatrix->SetElement(1, 2, transformMajor->GetMatrix()->GetElement(1,2));
+  PVMajorMatrix->SetElement(2, 0, transformMajor->GetMatrix()->GetElement(2,0));
+  PVMajorMatrix->SetElement(2, 1, transformMajor->GetMatrix()->GetElement(2,1));
+  PVMajorMatrix->SetElement(2, 2, transformMajor->GetMatrix()->GetElement(2,2));
+  yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+  yellowSliceNode->SetOrientation("PVMajor");
+  //translate to X and Y center
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  yellowSliceNode->UpdateMatrices();
+
+  // Create PV major
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::updateQuantitative3DView : "
+                  "greenSliceNode not found!";
+    return;
+    }
+
+  greenSliceNode->SetOrientation("XZ");
+  vtkSmartPointer<vtkMatrix3x3> PVMinorMatrix = vtkSmartPointer<vtkMatrix3x3>::New();
+  vtkNew<vtkTransform> transformMinor;
+  transformMinor->SetMatrix(greenSliceNode->GetSliceToRAS());
+  transformMinor->RotateY(PVPhi + 90.);
+  PVMinorMatrix->SetElement(0, 0, transformMinor->GetMatrix()->GetElement(0,0));
+  PVMinorMatrix->SetElement(0, 1, transformMinor->GetMatrix()->GetElement(0,1));
+  PVMinorMatrix->SetElement(0, 2, transformMinor->GetMatrix()->GetElement(0,2));
+  PVMinorMatrix->SetElement(1, 0, transformMinor->GetMatrix()->GetElement(1,0));
+  PVMinorMatrix->SetElement(1, 1, transformMinor->GetMatrix()->GetElement(1,1));
+  PVMinorMatrix->SetElement(1, 2, transformMinor->GetMatrix()->GetElement(1,2));
+  PVMinorMatrix->SetElement(2, 0, transformMinor->GetMatrix()->GetElement(2,0));
+  PVMinorMatrix->SetElement(2, 1, transformMinor->GetMatrix()->GetElement(2,1));
+  PVMinorMatrix->SetElement(2, 2, transformMinor->GetMatrix()->GetElement(2,2));
+  greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+  greenSliceNode->SetOrientation("PVMinor");
+  //translate to X and Y center
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  greenSliceNode->UpdateMatrices();
 }
 
 //---------------------------------------------------------------------------

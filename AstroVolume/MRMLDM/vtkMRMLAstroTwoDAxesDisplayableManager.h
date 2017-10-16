@@ -23,13 +23,13 @@
 // MRMLDisplayableManager includes
 #include "vtkMRMLAbstractDisplayableManager.h"
 
-#include <vtkSlicerAstroVolumeModuleMRMLExport.h>
+#include <vtkSlicerAstroVolumeModuleMRMLDisplayableManagerExport.h>
 
 // STL includes
 #include <vector>
 
 /// \brief Displayable manager that displays 2D WCS axes in 2D view
-class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroTwoDAxesDisplayableManager
+class VTK_MRMLDISPLAYABLEMANAGER_ASTRO_EXPORT vtkMRMLAstroTwoDAxesDisplayableManager
   : public vtkMRMLAbstractDisplayableManager
 {
   friend class vtkAstroTwoDAxesRendererUpdateObserver;

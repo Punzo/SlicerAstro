@@ -89,8 +89,6 @@
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
 
-vtkInstantiatorNewMacro(vtkMRMLAstroTwoDAxesDisplayableManager)
-
 //-----------------------------------------------------------------------------
 #if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
 #include <QtPlugin>
@@ -406,9 +404,6 @@ void qSlicerAstroVolumeModule::setup()
     UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
 
   // register AstroTwoDAxesDisplayableManager
-  vtkInstantiator::RegisterInstantiator("vtkMRMLAstroTwoDAxesDisplayableManager",
-                                        vtkInstantiatorvtkMRMLAstroTwoDAxesDisplayableManagerNew);
-
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroTwoDAxesDisplayableManager");
 

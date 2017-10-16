@@ -392,6 +392,17 @@ qSlicerAstroModelingModuleWidget::~qSlicerAstroModelingModuleWidget()
 {
 }
 
+void qSlicerAstroModelingModuleWidget::enter()
+{
+  this->onEnter();
+  this->Superclass::enter();
+}
+
+void qSlicerAstroModelingModuleWidget::exit()
+{
+  this->Superclass::exit();
+}
+
 namespace
 {
 //----------------------------------------------------------------------------
@@ -613,6 +624,11 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
 
+  if (!d->internalTableNode)
+    {
+    d->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
+    }
+
   vtkSmartPointer<vtkMRMLNode> tableNode = NULL;
 
   if (!forceNew)
@@ -788,6 +804,8 @@ void qSlicerAstroModelingModuleWidget::createPlots()
 
  if (!tableNode)
    {
+   qWarning() <<"qSlicerAstroModelingModuleWidget::createPlots : "
+                "Unable to find the table.";
    return;
    }
 
@@ -908,7 +926,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
 
   // Check (and create) PlotChart nodes
   if (!d->plotChartNodeVRot)
-    {
+    {  
     d->plotChartNodeVRot.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
       (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
     this->mrmlScene()->AddNode(d->plotChartNodeVRot);
@@ -918,6 +936,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeVRot->SetAttribute("ClickAndDragAlongX", "off");
     d->plotChartNodeVRot->SetAttribute("Type", "Line");
     d->plotChartNodeVRot->SetAttribute("Markers", "Circle");
+    }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeVRot->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeVRot);
     }
 
   if (!d->plotChartNodeVRad)
@@ -932,6 +954,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeVRad->SetAttribute("Type", "Line");
     d->plotChartNodeVRad->SetAttribute("Markers", "Circle");
     }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeVRad->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeVRad);
+    }
 
   if (!d->plotChartNodeInc)
     {
@@ -944,6 +970,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeInc->SetAttribute("ClickAndDragAlongX", "off");
     d->plotChartNodeInc->SetAttribute("Type", "Line");
     d->plotChartNodeInc->SetAttribute("Markers", "Circle");
+    }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeInc->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeInc);
     }
 
   if (!d->plotChartNodePhi)
@@ -958,6 +988,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodePhi->SetAttribute("Type", "Line");
     d->plotChartNodePhi->SetAttribute("Markers", "Circle");
     }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodePhi->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodePhi);
+    }
 
   if (!d->plotChartNodeVSys)
     {
@@ -970,6 +1004,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeVSys->SetAttribute("ClickAndDragAlongX", "off");
     d->plotChartNodeVSys->SetAttribute("Type", "Line");
     d->plotChartNodeVSys->SetAttribute("Markers", "Circle");
+    }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeVSys->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeVSys);
     }
 
   if (!d->plotChartNodeVDisp)
@@ -984,6 +1022,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeVDisp->SetAttribute("Type", "Line");
     d->plotChartNodeVDisp->SetAttribute("Markers", "Circle");
     }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeVDisp->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeVDisp);
+    }
 
   if (!d->plotChartNodeDens)
     {
@@ -996,6 +1038,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeDens->SetAttribute("ClickAndDragAlongX", "off");
     d->plotChartNodeDens->SetAttribute("Type", "Line");
     d->plotChartNodeDens->SetAttribute("Markers", "Circle");
+    }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeDens->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeDens);
     }
 
   if (!d->plotChartNodeZ0)
@@ -1010,6 +1056,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeZ0->SetAttribute("Type", "Line");
     d->plotChartNodeZ0->SetAttribute("Markers", "Circle");
     }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeZ0->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeZ0);
+    }
 
   if (!d->plotChartNodeXPos)
     {
@@ -1023,6 +1073,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeXPos->SetAttribute("Type", "Line");
     d->plotChartNodeXPos->SetAttribute("Markers", "Circle");
     }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeXPos->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeXPos);
+    }
 
   if (!d->plotChartNodeYPos)
     {
@@ -1035,6 +1089,10 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     d->plotChartNodeYPos->SetAttribute("ClickAndDragAlongX", "off");
     d->plotChartNodeYPos->SetAttribute("Type", "Line");
     d->plotChartNodeYPos->SetAttribute("Markers", "Circle");
+    }
+  else if (!this->mrmlScene()->GetNodeByID(d->plotChartNodeYPos->GetID()))
+    {
+    this->mrmlScene()->AddNode(d->plotChartNodeYPos);
     }
 
   // Add PlotDataNodes to PlotChartNodes
@@ -1050,10 +1108,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
   d->plotChartNodeYPos->AddAndObservePlotDataNodeID(plotDataNodeYPos->GetID());
 
   //Select VRot
-  if (!d->selectionNode->GetActivePlotChartID())
-    {
-    d->selectionNode->SetActivePlotChartID(d->plotChartNodeVRot->GetID());
-    }
+  d->selectionNode->SetActivePlotChartID(d->plotChartNodeVRot->GetID());
 }
 
 //-----------------------------------------------------------------------------
@@ -1256,6 +1311,25 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
   return true;
 }
 
+void qSlicerAstroModelingModuleWidget::onEnter()
+{
+  if (!this->mrmlScene())
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid scene";
+    return;
+    }
+
+  /*
+  this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
+                    this, SLOT(onMRMLSceneEndImportEvent()));
+  this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndBatchProcessEvent,
+                    this, SLOT(onMRMLSceneEndBatchProcessEvent()));
+  this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
+                    this, SLOT(onMRMLSceneEndCloseEvent()));
+  this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndRestoreEvent,
+                    this, SLOT(onMRMLSceneEndRestoreEvent()));*/
+}
+
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 {
@@ -1263,6 +1337,14 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 
   if (!d->parametersNode)
     {
+    return;
+    }
+
+  if (!d->parametersNode->GetParamsTableNode() ||
+      !d->parametersNode->GetParamsTableNode()->GetTable())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize : "
+                  "Table not found!";
     return;
     }
 
@@ -1299,11 +1381,62 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     return;
     }
 
+  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("Phi"));
+
+  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("XPos"));
+
+  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("YPos"));
+
+  if (!Phi || !XPos || !YPos)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "arrays not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
+
+  for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
+    {
+    PhiMean += Phi->GetValue(ii);
+    XPosMean += XPos->GetValue(ii);
+    YPosMean += YPos->GetValue(ii);
+    }
+
+  PhiMean /=  Phi->GetNumberOfValues();
+  XPosMean /=  XPos->GetNumberOfValues();
+  YPosMean /=  YPos->GetNumberOfValues();
+
+  double PVPhi = -(PhiMean - 90.);
+
+  vtkMRMLAstroVolumeNode *activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
+  if (!activeVolume || !activeVolume->GetImageData())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "activeVolume not found!";
+    return;
+    }
+
+  int dims[3];
+  activeVolume->GetImageData()->GetDimensions(dims);
+
+  XPosMean -= round(dims[0]/2);
+  XPosMean *= -1;
+  YPosMean -= round(dims[1]/2);
+
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
          d->parametersNode->GetContourLevel(),
-         true);
+         PVPhi, XPosMean, YPosMean, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -1879,6 +2012,26 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->TableNodeComboBox->setCurrentNode(d->parametersNode->GetParamsTableNode());
 }
 
+void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
+{
+  this->onMRMLAstroModelingParametersNodeModified();
+}
+
+void qSlicerAstroModelingModuleWidget::onMRMLSceneEndRestoreEvent()
+{
+  this->onMRMLAstroModelingParametersNodeModified();
+}
+
+void qSlicerAstroModelingModuleWidget::onMRMLSceneEndBatchProcessEvent()
+{
+  this->onMRMLAstroModelingParametersNodeModified();
+}
+
+void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
+{
+  this->onMRMLAstroModelingParametersNodeModified();
+}
+
 //---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onEstimateInitialParameters()
 {
@@ -1933,13 +2086,7 @@ void qSlicerAstroModelingModuleWidget::onFit()
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onApply()
 {
-  Q_D(const qSlicerAstroModelingModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : parametersNode not found!";
-    return;
-    }
+  Q_D(qSlicerAstroModelingModuleWidget);
 
   vtkSlicerAstroModelingLogic *logic = d->logic();
   if (!logic)
@@ -1967,6 +2114,11 @@ void qSlicerAstroModelingModuleWidget::onApply()
   if (d->parametersNode->GetParamsTableNode()->GetNumberOfRows() > 0)
     {
     this->initializeTableNode(this->mrmlScene(), true);
+    }
+
+  if (!d->internalTableNode)
+    {
+    d->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
     }
   d->internalTableNode->Copy(d->parametersNode->GetParamsTableNode());
   d->parametersNode->SetFitSuccess(false);
@@ -2293,8 +2445,16 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !this->mrmlScene())
     {
+    return;
+    }
+
+  if (!d->parametersNode->GetParamsTableNode() ||
+      !d->parametersNode->GetParamsTableNode()->GetTable())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onVisualize : "
+                  "Table not found!";
     return;
     }
 
@@ -2315,52 +2475,102 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
   char *secondaryVolumeNodeID = selectionNode->GetSecondaryVolumeID();
 
+  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("Phi"));
+
+  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("XPos"));
+
+  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("YPos"));
+
+  if (!Phi || !XPos || !YPos)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "arrays not found!";
+    return;
+    }
+
+  double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
+
+  for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
+    {
+    PhiMean += Phi->GetValue(ii);
+    XPosMean += XPos->GetValue(ii);
+    YPosMean += YPos->GetValue(ii);
+    }
+
+  PhiMean /=  Phi->GetNumberOfValues();
+  XPosMean /=  XPos->GetNumberOfValues();
+  YPosMean /=  YPos->GetNumberOfValues();
+
+  double PVPhi = (PhiMean - 90.);
+
+  vtkMRMLAstroVolumeNode *activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
+  if (!activeVolume || !activeVolume->GetImageData())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "activeVolume not found!";
+    return;
+    }
+
+  int dims[3];
+  activeVolume->GetImageData()->GetDimensions(dims);
+
+  XPosMean -= round(dims[0]/2);
+  XPosMean *= -1;
+  YPosMean -= round(dims[1]/2);
+
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
          d->parametersNode->GetContourLevel(),
-         false);
+         PVPhi, XPosMean, YPosMean, false);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::setup()
 {
-    Q_D(qSlicerAstroModelingModuleWidget);
+  Q_D(qSlicerAstroModelingModuleWidget);
 
-    // Create shortcuts for copy/paste
-    d->CopyAction = new QAction(this);
-    d->CopyAction->setIcon(QIcon(":Icons/Medium/SlicerEditCopy.png"));
-    d->CopyAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    // set CTRL+C shortcut
-    d->CopyAction->setShortcuts(QKeySequence::Copy);
-    d->CopyAction->setToolTip(tr("Copy"));
-    this->addAction(d->CopyAction);
-    d->PasteAction = new QAction(this);
-    d->PasteAction->setIcon(QIcon(":Icons/Medium/SlicerEditPaste.png"));
-    d->PasteAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    // set CTRL+V shortcut
-    d->PasteAction->setShortcuts(QKeySequence::Paste);
-    d->PasteAction->setToolTip(tr("Paste"));
-    this->addAction(d->PasteAction);
-    d->PlotAction = new QAction(this);
-    d->PlotAction->setIcon(QIcon(":Icons/Medium/SlicerInteractivePlotting.png"));
-    d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-    // set CTRL+P shortcut
-    d->PlotAction->setShortcuts(QKeySequence::Print);
-    d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection"
-                                 " of the columns of the table."));
-    this->addAction(d->PlotAction);
+  // Create shortcuts for copy/paste
+  d->CopyAction = new QAction(this);
+  d->CopyAction->setIcon(QIcon(":Icons/Medium/SlicerEditCopy.png"));
+  d->CopyAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+  // set CTRL+C shortcut
+  d->CopyAction->setShortcuts(QKeySequence::Copy);
+  d->CopyAction->setToolTip(tr("Copy"));
+  this->addAction(d->CopyAction);
+  d->PasteAction = new QAction(this);
+  d->PasteAction->setIcon(QIcon(":Icons/Medium/SlicerEditPaste.png"));
+  d->PasteAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+  // set CTRL+V shortcut
+  d->PasteAction->setShortcuts(QKeySequence::Paste);
+  d->PasteAction->setToolTip(tr("Paste"));
+  this->addAction(d->PasteAction);
+  d->PlotAction = new QAction(this);
+  d->PlotAction->setIcon(QIcon(":Icons/Medium/SlicerInteractivePlotting.png"));
+  d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
+  // set CTRL+P shortcut
+  d->PlotAction->setShortcuts(QKeySequence::Print);
+  d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection"
+                               " of the columns of the table."));
+  this->addAction(d->PlotAction);
 
-    // Connect copy, paste and plot actions
-    d->CopyButton->setDefaultAction(d->CopyAction);
-    this->connect(d->CopyAction, SIGNAL(triggered()), d->TableView, SLOT(copySelection()));
-    d->PasteButton->setDefaultAction(d->PasteAction);
-    this->connect(d->PasteAction, SIGNAL(triggered()), d->TableView, SLOT(pasteSelection()));
-    d->PlotButton->setDefaultAction(d->PlotAction);
-    this->connect(d->PlotAction, SIGNAL(triggered()), d->TableView, SLOT(plotSelection()));
+  // Connect copy, paste and plot actions
+  d->CopyButton->setDefaultAction(d->CopyAction);
+  this->connect(d->CopyAction, SIGNAL(triggered()), d->TableView, SLOT(copySelection()));
+  d->PasteButton->setDefaultAction(d->PasteAction);
+  this->connect(d->PasteAction, SIGNAL(triggered()), d->TableView, SLOT(pasteSelection()));
+  d->PlotButton->setDefaultAction(d->PlotAction);
+  this->connect(d->PlotAction, SIGNAL(triggered()), d->TableView, SLOT(plotSelection()));
 
-    // Table View resize options
-    d->TableView->resizeColumnsToContents();
+  // Table View resize options
+  d->TableView->resizeColumnsToContents();
 }
 
 //--------------------------------------------------------------------------
@@ -2383,7 +2593,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : scene not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "scene not found!";
     return;
     }
 
@@ -2392,7 +2603,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : inputVolume not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "inputVolume not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2402,7 +2614,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
   if(!outputVolume)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : outputVolume not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "outputVolume not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2412,27 +2625,75 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
   if(!residualVolume)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : residualVolume not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "residualVolume not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  if (!d->parametersNode->GetParamsTableNode() ||
+      !d->parametersNode->GetParamsTableNode()->GetTable())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "Table not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (d->parametersNode->GetFitSuccess())
     {
-    if (d->parametersNode->GetParamsTableNode())
-      {
-      d->parametersNode->GetParamsTableNode()->Copy(d->internalTableNode);
-      }
-
+    d->parametersNode->GetParamsTableNode()->Copy(d->internalTableNode);
     this->createPlots();
 
     outputVolume->UpdateNoiseAttributes();
     outputVolume->UpdateRangeAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "MODEL");
 
+    vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("Phi"));
+
+    vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("XPos"));
+
+    vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("YPos"));
+
+    if (!Phi || !XPos || !YPos)
+      {
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                    "arrays not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
+
+    for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
+      {
+      PhiMean += Phi->GetValue(ii);
+      XPosMean += XPos->GetValue(ii);
+      YPosMean += YPos->GetValue(ii);
+      }
+
+    PhiMean /=  Phi->GetNumberOfValues();
+    XPosMean /=  XPos->GetNumberOfValues();
+    YPosMean /=  YPos->GetNumberOfValues();
+
+    double PVPhi = -(PhiMean - 90.);
+    int dims[3];
+    inputVolume->GetImageData()->GetDimensions(dims);
+
+    XPosMean -= round(dims[0]/2);
+    XPosMean *= -1;
+    YPosMean -= round(dims[1]/2);
+
     d->astroVolumeWidget->setQuantitative3DView
         (inputVolume->GetID(), outputVolume->GetID(),
-         residualVolume->GetID(), d->parametersNode->GetContourLevel());
+         residualVolume->GetID(), d->parametersNode->GetContourLevel(),
+         PVPhi, XPosMean, YPosMean);
 
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);

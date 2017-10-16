@@ -75,10 +75,16 @@ public slots:
   void setQuantitative3DView(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
                              const char* volumeNodeThreeID,
-                             double ContourLevel);
+                             double ContourLevel,
+                             double PVPhi,
+                             double XPos,
+                             double YPos);
   void updateQuantitative3DView(const char* volumeNodeOneID,
                                 const char* volumeNodeTwoID,
                                 double ContourLevel,
+                                double PVPhi,
+                                double XPos,
+                                double YPos,
                                 bool overrideSegments = false);
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
