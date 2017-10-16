@@ -122,6 +122,7 @@ protected slots:
   void onYCenterChanged(double value);
   void onYCenterFitChanged(bool flag);
   void setMRMLAstroModelingParametersNode(vtkMRMLNode*);
+  void setPVOffset();
   void updateProgress(int value);
 
 private:

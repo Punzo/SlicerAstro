@@ -82,6 +82,7 @@
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
+#include <vtkMRMLSliceNode.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
@@ -123,6 +124,9 @@ public:
   QAction *CopyAction;
   QAction *PasteAction;
   QAction *PlotAction;
+
+  double XPosMean;
+  double YPosMean;
 };
 
 //-----------------------------------------------------------------------------
@@ -1616,6 +1620,33 @@ void qSlicerAstroModelingModuleWidget::setMRMLAstroModelingParametersNode(vtkMRM
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::setPVOffset()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode || yellowSliceNode->GetOrientation().compare("PVMajor"))
+    {
+    return;
+    }
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, d->XPosMean);
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->YPosMean);
+  yellowSliceNode->UpdateMatrices();
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode || greenSliceNode->GetOrientation().compare("PVMinor"))
+    {
+    return;
+    }
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, d->XPosMean);
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->YPosMean);
+  greenSliceNode->UpdateMatrices();
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -2669,35 +2700,44 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       return;
       }
 
-    double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
+    double PhiMean = 0.;
 
+    d->XPosMean = 0.;
+    d->YPosMean = 0.;
     for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
       {
       PhiMean += Phi->GetValue(ii);
-      XPosMean += XPos->GetValue(ii);
-      YPosMean += YPos->GetValue(ii);
+      d->XPosMean += XPos->GetValue(ii);
+      d->YPosMean += YPos->GetValue(ii);
       }
 
     PhiMean /=  Phi->GetNumberOfValues();
-    XPosMean /=  XPos->GetNumberOfValues();
-    YPosMean /=  YPos->GetNumberOfValues();
+    d->XPosMean /=  XPos->GetNumberOfValues();
+    d->YPosMean /=  YPos->GetNumberOfValues();
 
     double PVPhi = -(PhiMean - 90.);
     int dims[3];
     inputVolume->GetImageData()->GetDimensions(dims);
 
-    XPosMean -= round(dims[0]/2);
-    XPosMean *= -1;
-    YPosMean -= round(dims[1]/2);
+    d->XPosMean -= round(dims[0]/2);
+    d->XPosMean *= -1;
+    d->YPosMean -= round(dims[1]/2);
 
     d->astroVolumeWidget->setQuantitative3DView
         (inputVolume->GetID(), outputVolume->GetID(),
          residualVolume->GetID(), d->parametersNode->GetContourLevel(),
-         PVPhi, XPosMean, YPosMean);
+         PVPhi, d->XPosMean, d->YPosMean);
 
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
     d->OutputCollapsibleButton->setCollapsed(false);
+
+    // Force again the offset of the PV
+    // It will be good to understand why the active node
+    // in the selection node takes so much time to be updated.
+    // P.S.: FitAllSlice is called everytime the active volume is changed.
+
+    QTimer::singleShot(10, this, SLOT(setPVOffset()));
     }
    else
     {
