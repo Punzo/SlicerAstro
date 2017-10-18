@@ -617,17 +617,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
       appLogic->PropagateBackgroundVolumeSelection(1);
       }
-    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
-        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
-    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
-      {
-      vtkMRMLSliceNode* sliceNode =
-          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
-      if (sliceNode)
-        {
-        sliceNode->Modified();
-        }
-      }
     }
   else if (labelMapVolumeNode)
     {

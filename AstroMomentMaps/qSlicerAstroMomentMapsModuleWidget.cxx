@@ -1387,6 +1387,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     // setting to the XZ orientation is needed in order to force the refresh
     redSlice->SetOrientation("XZ");
     redSlice->SetOrientation("XY");
+    redSlice->SetSliceOffset(0.);
     }
 
   if (d->parametersNode->GetGenerateFirst())
@@ -1402,6 +1403,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
     yellowSlice->SetOrientation("XZ");
     yellowSlice->SetOrientation("XY");
+    yellowSlice->SetSliceOffset(0.);
     }
 
   if (d->parametersNode->GetGenerateSecond())
@@ -1417,6 +1419,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
     greenSlice->SetOrientation("XZ");
     greenSlice->SetOrientation("XY");
+    greenSlice->SetSliceOffset(0.);
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
