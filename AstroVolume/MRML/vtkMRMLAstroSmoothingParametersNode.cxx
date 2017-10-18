@@ -47,7 +47,7 @@ vtkMRMLAstroSmoothingParametersNode::vtkMRMLAstroSmoothingParametersNode()
   this->MasksCommand = NULL;
   this->OutputSerial = 1;
   this->SetMode("Automatic");
-  this->SetMasksCommand("Generate");
+  this->SetMasksCommand("Skip");
   this->SetStatus(0);
   this->SetFilter(2);
   this->SetHardware(0);
