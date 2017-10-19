@@ -349,7 +349,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Click to create a model assuming all the parameters constant for all the Rings. Two contours at 3 RMS level (the data and model) will be visualized in 2-D. On the 3-D view it will be shown: i) volume rendering of the data from 3RMS; ii) a segmentation of the model at 3 RMS; iii) a segmentation of the full model (i.e. a mask which will hide all the data fitted by the model).</string>
+           <string>Click to create a model with 3DBarolo assuming all the parameters constant for all the Rings. Two contours at 3 RMS level (the data and model) will be visualized in 2-D. On the 3-D view it will be shown: i) volume rendering of the data from 3RMS; ii) a segmentation of the model at 3 RMS; iii) a segmentation of the full model (i.e. a mask which will hide all the data fitted by the model).</string>
           </property>
           <property name="text">
            <string>Create Model</string>
@@ -374,7 +374,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Click to fit the data with Bbarolo. Two contours at 3 RMS level (the data and model) will be visualized in 2-D. On the 3-D view it will be shown: i) volume rendering of the data from 3RMS; ii) a segmentation of the model at 3 RMS; iii) a segmentation of the full model (i.e. a mask which will hide all the data fitted by the model).  </string>
+           <string>Click to fit the data with 3DBarolo. Two contours at 3 RMS level (the data and model) will be visualized in 2-D. On the 3-D view it will be shown: i) volume rendering of the data from 3RMS; ii) a segmentation of the model at 3 RMS; iii) a segmentation of the full model (i.e. a mask which will hide all the data fitted by the model).  </string>
           </property>
           <property name="text">
            <string>Fit Model</string>

@@ -1145,7 +1145,7 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
   if (!currentSegmentationNode)
     {
     QString message = QString("No segmentation selected! Please provide a mask or untoggle the input"
-                              " mask option to perform automatic masking with Bbarolo.");
+                              " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     return false;
@@ -2177,7 +2177,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     QString message = QString("Model fitting is  available only"
                               " for datacube with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run Bbarolo"), message);
+    QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2189,7 +2189,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     QString message = QString("Beam information (BMAJ, BMIN and/or BPA) not available."
                               " It is not possible to procede with the model fitting.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run Bbarolo"), message);
+    QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2321,7 +2321,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
   residualVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   residualVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
-  // Check if there are segment and feed the mask to Bbarolo
+  // Check if there are segment and feed the mask to 3DBarolo
   if (d->parametersNode->GetMaskActive())
     {
     if (!this->convertFirstSegmentToLabelMap())
@@ -2330,6 +2330,14 @@ void qSlicerAstroModelingModuleWidget::onApply()
       d->parametersNode->SetStatus(0);
       return;
       }
+    }
+  else
+    {
+    QString message = QString("No mask has been provided. 3DBarolo will search and fit the"
+                              " largest source in the datacube.");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("3DBarolo"), message);
+    d->parametersNode->SetStatus(0);
     }
 
   d->worker->SetTableNode(d->internalTableNode);

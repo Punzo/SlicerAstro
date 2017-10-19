@@ -23,7 +23,7 @@ find_library (WCSLIB_LIBRARY wcslib
 set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
 
 #
-# Bbarolo
+# 3DBarolo
 #
 
 find_library (BBAROLO_LIBRARY bbarolo

@@ -22,7 +22,7 @@
 #include "vtkSlicerAstroModelingLogic.h"
 #include "vtkSlicerAstroConfigure.h"
 
-//Bbarolo includes
+//3DBarolo includes
 #include "param.hh"
 #include "cube.hh"
 #include "header.hh"
@@ -434,7 +434,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       pnode->SetStatus(100);
       pnode->SetFitSuccess(false);
       vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                    " 3DBarolo needs at least 2 Rings!");
+                    " insufficient number of rings."
+                    " 3DBarolo needs at least two rings!");
       return 0;
       }
     else
@@ -800,7 +801,28 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->Internal->fitF = NULL;
           }
 
-        this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
+        this->Internal->fitF = new Model::Galfit<float>();
+        int error = this->Internal->fitF->input(this->Internal->cubeF);
+        if (error == 0)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "3DBarolo could not find the source.");
+          return 0;
+          }
+        else if (error == 2)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                        " insufficient number of rings. "
+                        " The identified source has not enough"
+                        " spatial resolution elements.");
+          return 0;
+          }
 
         *this->Internal->par = this->Internal->cubeF->pars();
 
@@ -1074,7 +1096,29 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->Internal->fitD = NULL;
           }
 
-        this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
+        this->Internal->fitD = new Model::Galfit<double>();
+        int error = this->Internal->fitD->input(this->Internal->cubeD);
+
+        if (error == 0)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
+                        "3DBarolo could not find the source.");
+          return 0;
+          }
+        else if (error == 2)
+          {
+          this->cleanPointers();
+          pnode->SetStatus(100);
+          pnode->SetFitSuccess(false);
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                        " insufficient number of rings. "
+                        " The identified source has not enough"
+                        " spatial resolution elements.");
+          return 0;
+          }
 
         *this->Internal->par = this->Internal->cubeD->pars();
 
