@@ -2331,13 +2331,12 @@ void qSlicerAstroModelingModuleWidget::onApply()
       return;
       }
     }
-  else
+  else if (!d->parametersNode->GetMaskActive() && d->parametersNode->GetNumberOfRings() == 0)
     {
     QString message = QString("No mask has been provided. 3DBarolo will search and fit the"
                               " largest source in the datacube.");
     qWarning() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("3DBarolo"), message);
-    d->parametersNode->SetStatus(0);
     }
 
   d->worker->SetTableNode(d->internalTableNode);
