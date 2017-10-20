@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>414</width>
+    <width>457</width>
     <height>850</height>
    </rect>
   </property>
@@ -35,8 +35,12 @@
     <widget class="qMRMLNodeComboBox" name="ActiveVolumeNodeSelector">
      <property name="nodeTypes">
       <stringlist>
-       <string>vtkMRMLVolumeNode</string>
+       <string>vtkMRMLAstroVolumeNode</string>
+       <string>vtkMRMLAstroLabelMapVolumeNode</string>
       </stringlist>
+     </property>
+     <property name="noneEnabled">
+      <bool>true</bool>
      </property>
      <property name="addEnabled">
       <bool>false</bool>
