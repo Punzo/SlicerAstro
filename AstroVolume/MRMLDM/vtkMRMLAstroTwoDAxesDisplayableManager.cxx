@@ -63,6 +63,7 @@
 
 // Constants
 static const int RENDERER_LAYER = 1; // layer ID where the orientation marker will be displayed
+const double PI_2  = PI * 0.5;
 
 //---------------------------------------------------------------------------
 class vtkAstroTwoDAxesRendererUpdateObserver : public vtkCommand
@@ -264,7 +265,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
   if ((sliceNode->GetOrientation().compare("XY") &&
        sliceNode->GetOrientation().compare("ZY") &&
-       sliceNode->GetOrientation().compare("XZ")) ||
+       sliceNode->GetOrientation().compare("XZ") &&
+       sliceNode->GetOrientation().compare("PVMajor") &&
+       sliceNode->GetOrientation().compare("PVMinor")) ||
       !sliceNode->GetOrientation().compare("Reformat"))
     {
     /*vtkWarningWithObjectMacro(this->External,
@@ -334,11 +337,20 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     vtkGeneralTransform* xyToIJK =
         sliceLayerLogic->GetXYToIJKTransform();
 
-    int numberOfPointsHorizontal = (int) (viewWidthPixel / 120.) + 1;
+    int numberOfPointsHorizontal = (int) (viewWidthPixel / 100.) + 1;
+    if (numberOfPointsHorizontal < 5)
+      {
+      numberOfPointsHorizontal = 5;
+      }
     int numberOfPointsVertical = (int) (viewHeightPixel / 100.) + 1;
-    double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.};
+    if (numberOfPointsVertical < 5)
+      {
+      numberOfPointsVertical = 5;
+      }
+    double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.}, worldD[] = {0.,0.,0.};
     double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
     double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
+    double PVwcsStepCos = 0., PVwcsStepSin = 0., PVAngle = 0.;
     std::vector<std::vector<double> > *world = new std::vector<std::vector<double> >();
     std::vector<std::vector<double> > *xyzDisplay = new std::vector<std::vector<double> >();
     std::vector<double> *temp = new std::vector<double>();
@@ -355,6 +367,11 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     xyz[1] = viewHeightPixel;
     xyToIJK->TransformPoint(xyz, ijk);
     displayNode->GetReferenceSpace(ijk, worldC);
+
+    xyz[0] = viewWidthPixel / 2.;
+    xyz[1] = 0.;
+    xyToIJK->TransformPoint(xyz, ijk);
+    displayNode->GetReferenceSpace(ijk, worldD);
 
     // calculate the wcsSteps for the two axes
     if (!sliceNode->GetOrientation().compare("ZY"))
@@ -381,6 +398,26 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
       }
 
+    if (!sliceNode->GetOrientation().compare("PVMajor") ||
+        !sliceNode->GetOrientation().compare("PVMinor"))
+      {
+      double distX = (worldA[0] - worldB[0]);
+      double distY = (worldA[1] - worldB[1]);
+      double dist = sqrt((distX * distX) + (distY * distY));
+      wcsStep[0] = displayNode->GetWcsTickStepAxisY(dist, &numberOfPointsHorizontal);
+
+      PVAngle = atan(distY / distX);
+      PVwcsStepCos = wcsStep[0] * cos(PVAngle);
+      PVwcsStepSin = wcsStep[0] * sin(PVAngle);
+
+      if (numberOfPointsHorizontal % 2 != 0)
+        {
+        numberOfPointsHorizontal += 1;
+        }
+      wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
+      axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
+      }
+
     // allocate point along the horizontal axes
     for (int i = 0; i < numberOfPointsHorizontal; i++)
       {
@@ -401,6 +438,16 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         temp->push_back(axisCoord[0] + wcsStep[0] * i);
         temp->push_back(worldA[1]);
         temp->push_back(worldA[2]);
+        world->push_back((*temp));
+        }
+
+      if (!sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
+        {
+        temp->clear();
+        temp->push_back(worldD[0] + PVwcsStepCos  * (i - (numberOfPointsHorizontal / 2.)));
+        temp->push_back(worldD[1] + PVwcsStepSin  * (i - (numberOfPointsHorizontal / 2.)));
+        temp->push_back(worldD[2]);
         world->push_back((*temp));
         }
 
@@ -432,6 +479,15 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         displayNode->GetIJKSpace(xyz, ijk);
         }
 
+      if (!sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
+        {
+        xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 4.;
+        xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 4.;
+        xyz[2] = worldD[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
       xyToIJK->TransformPoint(ijk, xyz);
       this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], 2, 0);
       this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], 7, 0);
@@ -453,6 +509,15 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         displayNode->GetIJKSpace(xyz, ijk);
         }
 
+      if (!sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
+        {
+        xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 2.;
+        xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 2.;
+        xyz[2] = worldD[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
       xyToIJK->TransformPoint(ijk, xyz);
       this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], 2, 0);
       this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], 7, 0);
@@ -471,6 +536,15 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
         xyz[1] = worldA[1];
         xyz[2] = worldA[2];
+        displayNode->GetIJKSpace(xyz, ijk);
+        }
+
+      if (!sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
+        {
+        xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos * 3. / 4.;
+        xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin * 3. / 4.;
+        xyz[2] = worldD[2];
         displayNode->GetIJKSpace(xyz, ijk);
         }
 
@@ -499,7 +573,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         world->push_back((*temp));
         }
 
-      if (!sliceNode->GetOrientation().compare("XZ"))
+      if (!sliceNode->GetOrientation().compare("XZ") ||
+          !sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
         {
         temp->clear();
         temp->push_back(worldA[0]);
@@ -529,7 +605,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         displayNode->GetIJKSpace(xyz, ijk);
         }
 
-      if (!sliceNode->GetOrientation().compare("XZ"))
+      if (!sliceNode->GetOrientation().compare("XZ") ||
+          !sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
         {
         xyz[0] = worldA[0];
         xyz[1] = worldA[1];
@@ -550,7 +628,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         displayNode->GetIJKSpace(xyz, ijk);
         }
 
-      if (!sliceNode->GetOrientation().compare("XZ"))
+      if (!sliceNode->GetOrientation().compare("XZ") ||
+          !sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
         {
         xyz[0] = worldA[0];
         xyz[1] = worldA[1];
@@ -571,7 +651,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         displayNode->GetIJKSpace(xyz, ijk);
         }
 
-      if (!sliceNode->GetOrientation().compare("XZ"))
+      if (!sliceNode->GetOrientation().compare("XZ") ||
+          !sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
         {
         xyz[0] = worldA[0];
         xyz[1] = worldA[1];
@@ -659,7 +741,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     // allocate 2DTextActors for the horizontal axes
     for (int i = 0; i < numberOfPointsHorizontal; i++)
       {
-      if((*xyzDisplay)[i][0] < 50 || (*xyzDisplay)[i][0] > viewWidthPixel - 50)
+      if((*xyzDisplay)[i][0] < 30 || (*xyzDisplay)[i][0] > viewWidthPixel - 30)
         {
         continue;
         }
@@ -675,12 +757,28 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         coord = displayNode->GetDisplayStringFromValueX((*world)[i][0]);
         }
 
+      if (!sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
+        {
+        double dist = sqrt((((*world)[i][0] - worldD[0]) * ((*world)[i][0] - worldD[0])) +
+                          (((*world)[i][1] - worldD[1]) * ((*world)[i][1] - worldD[1])));
+        coord = displayNode->GetDisplayStringFromValueY(dist);
+        }
+
       vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
       vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
       textProperty->SetFontSize(fontSize);
       textProperty->SetFontFamilyToArial();
       textActorHorizontal->SetInput(coord.c_str());
-      textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0]-40), 15);
+      switch (type)
+        {
+        case vtkMRMLAbstractViewNode::RulerTypeThin:
+          textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0]-30), 15);
+          break;
+        case vtkMRMLAbstractViewNode::RulerTypeThick:
+          textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0]-45), 15);
+          break;
+      }
       this->MarkerRenderer->AddActor2D(textActorHorizontal);
       }
 
@@ -698,7 +796,9 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         coord = displayNode->GetDisplayStringFromValueY((*world)[i][1]);
         }
 
-      if (!sliceNode->GetOrientation().compare("XZ"))
+      if (!sliceNode->GetOrientation().compare("XZ") ||
+          !sliceNode->GetOrientation().compare("PVMajor") ||
+          !sliceNode->GetOrientation().compare("PVMinor"))
         {
         coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2]);
         }

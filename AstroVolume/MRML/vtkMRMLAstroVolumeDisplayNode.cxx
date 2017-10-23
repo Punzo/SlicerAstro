@@ -623,44 +623,56 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
     return 0.;
     }
 
-  int nPoint = 1000;
-  double step = wcsLength;
-  int s = 1;
+  int nPoint = numberOfPoints[0];
+  double step = wcsLength / nPoint;
 
   if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
     step *= 0.066666666666667;
     }
 
-  while (nPoint > numberOfPoints[0])
+  std::string displayValueString;
+  std::stringstream strstream;
+
+  strstream.precision(1);
+  strstream << step;
+  strstream >> displayValueString;
+  for (int i = 9; i > 0; i--)
     {
-    step = step * s / 5.;
-    std::string displayValueString;
-    std::stringstream strstream;
 
-    strstream.precision(1);
-    strstream << step;
-    strstream >> displayValueString;
-    for (int i = 9; i > 0; i--)
+    std::size_t found = displayValueString.find(IntToString(i));
+    std::size_t foundE = displayValueString.find("e");
+
+    if (found != std::string::npos && found > foundE)
       {
+      continue;
+      }
 
-      std::size_t found = displayValueString.find(IntToString(i));
-      std::size_t foundE = displayValueString.find("e");
-
-      if (found != std::string::npos && found > foundE)
+    if (found != std::string::npos)
+      {
+      if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+          !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds")))
         {
-        continue;
-        }
-
-      if (found != std::string::npos)
-        {
-        if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-            !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-           && step < 0.6 && step > 0.095)
+        if(step > 0.95)
+          {
+          if(i >= 5)
+            {
+            displayValueString.replace(found, found+1, "10");
+            }
+          else if(i >= 3)
+            {
+            displayValueString.replace(found, found+1, "5");
+            }
+          else
+            {
+            displayValueString.replace(found, found+1, "2");
+            }
+          }
+        else if(step < 0.95 && step > 0.095)
           {
           if(i > 6)
             {
-            displayValueString.replace(found, found+1, "10");
+            displayValueString.replace(found-1, found, "1");
             }
           else if(i > 3)
             {
@@ -672,14 +684,12 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
             }
           else
             {
-            displayValueString.replace(found, found+1, "08333333333333333333333");
+            displayValueString.replace(found, found+1, "1666666666666666666666");
             }
           }
-        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-                && step < 0.095 && step > 0.0045)
+        else if(step < 0.095 && step > 0.0095)
           {
-          if(i > 4)
+          if(i >= 5)
             {
             displayValueString.replace(found, found+1, "8333333333333333333333");
             }
@@ -692,11 +702,9 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
             displayValueString.replace(found, found+1, "1666666666666666666666");
             }
           }
-        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-                && step < 0.0045 && step > 0.001)
+        else if(step < 0.0095 && step > 0.00095)
           {
-          if(i > 5)
+          if(i >= 5)
             {
             displayValueString.replace(found, found+1, "8333333333333333333333");
             }
@@ -704,14 +712,16 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
             {
             displayValueString.replace(found, found+1, "4166666666666666666666");
             }
+          else if(i >= 2)
+            {
+            displayValueString.replace(found, found+1, "2083333333333333333333");
+            }
           else
             {
             displayValueString.replace(found, found+1, "1388888888888888888888");
             }
           }
-        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-                && step < 0.001)
+        else if(step < 0.00095)
           {
           if(i > 6)
             {
@@ -726,36 +736,31 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(const double wcsLength,
             displayValueString.replace(found, found+1, "2777777777777778");
             }
           }
+        }
+      else
+        {
+        if(i > 6)
+          {
+          displayValueString.replace(found, found+1, "10");
+          }
+        else if(i >= 3)
+          {
+          displayValueString.replace(found, found+1, "5");
+          }
         else
           {
-          if(i > 6)
-            {
-            displayValueString.replace(found, found+1, "10");
-            }
-          else if(i > 3)
-            {
-            displayValueString.replace(found, found+1, "5");
-            }
-          else if (i>= 2)
-            {
-            displayValueString.replace(found, found+1, "2");
-            }
-          else
-            {
-            displayValueString.replace(found, found+1, "1");
-            }
+          displayValueString.replace(found, found+1, "2");
           }
-        break;
         }
+      break;
       }
-    step = StringToDouble(displayValueString.c_str());
-    if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-      {
-      step /= 0.066666666666667;
-      }
-    nPoint = (int) (wcsLength / step);
-    s *= 2;
     }
+  step = StringToDouble(displayValueString.c_str());
+  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    step /= 0.066666666666667;
+    }
+
   *numberOfPoints = nPoint + 3;
   return step;
 }
@@ -1471,7 +1476,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
        !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
      {
-     double fractpart, intpart, displayValue;
+     double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
      std::string displayValueString;
      std::stringstream strstream;
      strstream.setf(ios::fixed,ios::floatfield);
@@ -1485,26 +1490,49 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
        displayValue = node->GetDisplayValueFromValue(world);
        }
 
-     fractpart = modf(displayValue, &intpart);
-     value = DoubleToString(intpart) + firstPrefix;
+     firstFractpart = modf(displayValue, &firstIntpart);
+     if(firstFractpart * 60. > 59.99999)
+       {
+       firstFractpart = 0.;
+       firstIntpart += 1.;
+       }
+     if (firstIntpart > 0.00001)
+       {
+       value = DoubleToString(firstIntpart) + firstPrefix;
+       }
+     else
+       {
+       value = "   ";
+       }
 
-     fractpart = (modf(fractpart * 60., &intpart)) * 60.;
-     if(fractpart > 59.999)
+     secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
+     if(secondFractpart > 59.99999)
        {
-       fractpart = 0.;
-       intpart += 1.;
+       secondFractpart = 0.;
+       secondIntpart += 1.;
        }
-     displayValueString = DoubleToString(fabs(intpart));
-     if(intpart < 10.)
+     if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
        {
-        displayValueString = " " + displayValueString;
+       displayValueString = DoubleToString(fabs(secondIntpart));
        }
-     value = value + displayValueString + secondPrefix;
+     else
+       {
+       displayValueString = "   ";
+       }
+     if(secondIntpart < 10.)
+       {
+       displayValueString = " " + displayValueString;
+       }
+     if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
+       {
+       displayValueString += secondPrefix;
+       }
+     value = value + displayValueString;
      displayValueString = "";
      strstream.precision(0);
-     strstream << fabs(fractpart);
+     strstream << fabs(secondFractpart);
      strstream >> displayValueString;
-     if(fractpart < 10.)
+     if(secondFractpart < 10.)
        {
        displayValueString = " " + displayValueString;
        }
