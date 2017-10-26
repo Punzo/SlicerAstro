@@ -33,12 +33,16 @@
 // VTK includes
 #include <vtkCollection.h>
 #include <vtkDoubleArray.h>
+#include <vtkIdTypeArray.h>
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
+#include <vtkGeneralTransform.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
+#include <vtkPlot.h>
 #include <vtkPointData.h>
 #include <vtksys/SystemTools.hxx>
+#include <vtkStringArray.h>
 #include <vtkTable.h>
 
 // SlicerQt includesS
@@ -61,6 +65,8 @@
 #include <vtkSlicerSegmentationsModuleLogic.h>
 
 // qMRML includes
+#include <qMRMLPlotView.h>
+#include <qMRMLPlotWidget.h>
 #include <qMRMLSegmentsTableView.h>
 
 // MRMLLogic includes
@@ -77,6 +83,7 @@
 #include <vtkMRMLChartViewNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
+#include <vtkMRMLMarkupsFiducialNode.h>
 #include <vtkMRMLPlotDataNode.h>
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLSelectionNode.h>
@@ -106,6 +113,7 @@ public:
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
+  vtkSmartPointer<vtkMRMLTableNode> astroTableNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeVRot;
@@ -118,6 +126,8 @@ public:
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeZ0;
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeXPos;
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeYPos;
+  vtkSmartPointer<vtkMRMLMarkupsFiducialNode> fiducialNodeMajor;
+  vtkSmartPointer<vtkMRMLMarkupsFiducialNode> fiducialNodeMinor;
 
   qSlicerAstroModelingModuleWorker *worker;
   QThread *thread;
@@ -139,6 +149,7 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
   this->astroVolumeWidget = 0;
   this->parametersNode = 0;
   this->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
+  this->astroTableNode = 0;
   this->selectionNode = 0;
   this->segmentEditorNode = 0;
   this->plotChartNodeVRot = 0;
@@ -151,6 +162,8 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
   this->plotChartNodeZ0 = 0;
   this->plotChartNodeXPos = 0;
   this->plotChartNodeYPos = 0;
+  this->fiducialNodeMajor = 0;
+  this->fiducialNodeMinor = 0;
   this->worker = 0;
   this->thread = 0;
   this->CopyAction = 0;
@@ -440,6 +453,13 @@ std::string IntToString(int Value)
   return NumberToString<int>(Value);
 }
 
+double sign(double x)
+{
+   if (x < 0.0)
+      return( -1.0 );
+   return( 1.0 );
+}
+
 } // end namespace
 
 //-----------------------------------------------------------------------------
@@ -531,8 +551,67 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onEndCloseEvent()
 {
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (d->fiducialNodeMajor)
+    {
+    d->fiducialNodeMajor->RemoveAllMarkups();
+    d->fiducialNodeMajor = 0;
+    }
+
+  if (d->fiducialNodeMinor)
+    {
+    d->fiducialNodeMinor->RemoveAllMarkups();
+    d->fiducialNodeMinor = 0;
+    }
+
   this->initializeParameterNode(this->mrmlScene());
   this->onMRMLAstroModelingParametersNodeModified();
+
+  if (d->plotChartNodeVRot)
+    {
+    d->plotChartNodeVRot->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeVRad)
+    {
+    d->plotChartNodeVRad->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeInc)
+    {
+    d->plotChartNodeInc->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodePhi)
+    {
+    d->plotChartNodePhi->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeVSys)
+    {
+    d->plotChartNodeVSys->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeVDisp)
+    {
+    d->plotChartNodeVDisp->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeDens)
+    {
+    d->plotChartNodeDens->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeZ0)
+    {
+    d->plotChartNodeZ0->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeXPos)
+    {
+    d->plotChartNodeXPos->RemoveAllPlotDataNodeIDs();
+    }
+  if (d->plotChartNodeYPos)
+    {
+    d->plotChartNodeYPos->RemoveAllPlotDataNodeIDs();
+    }
+
+  d->InputSegmentCollapsibleButton->setCollapsed(true);
+  d->FittingParametersCollapsibleButton->setCollapsed(false);
+  d->OutputCollapsibleButton->setCollapsed(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -615,6 +694,22 @@ void qSlicerAstroModelingModuleWidget::initializeParameterNode(vtkMRMLScene* sce
   d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
 
   this->initializeTableNode(scene);
+
+  if (!d->fiducialNodeMajor)
+    {
+    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLMarkupsFiducialNode");
+    d->fiducialNodeMajor.TakeReference(vtkMRMLMarkupsFiducialNode::SafeDownCast(foo));
+    scene->AddNode(d->fiducialNodeMajor);
+    d->fiducialNodeMajor->SetName("MarkupsFiducialsMajor");
+    }
+
+  if (!d->fiducialNodeMinor)
+    {
+    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLMarkupsFiducialNode");
+    d->fiducialNodeMinor.TakeReference(vtkMRMLMarkupsFiducialNode::SafeDownCast(foo));
+    scene->AddNode(d->fiducialNodeMinor);
+    d->fiducialNodeMinor->SetName("MarkupsFiducialsMinor");
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -664,12 +759,12 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     scene->AddNode(tableNode);
     }
 
-  vtkMRMLTableNode *astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
-  astroTableNode->RemoveAllColumns();
-  astroTableNode->SetUseColumnNameAsColumnHeader(true);
-  astroTableNode->SetDefaultColumnType("double");
+  d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
+  d->astroTableNode->RemoveAllColumns();
+  d->astroTableNode->SetUseColumnNameAsColumnHeader(true);
+  d->astroTableNode->SetDefaultColumnType("double");
 
-  vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Radii)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -677,10 +772,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   Radii->SetName("Radii");
-  astroTableNode->SetColumnUnitLabel("Radii", "arcsec");
-  astroTableNode->SetColumnLongName("Radii", "Radius");
+  d->astroTableNode->SetColumnUnitLabel("Radii", "arcsec");
+  d->astroTableNode->SetColumnLongName("Radii", "Radius");
 
-  vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VRot)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -688,10 +783,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   VRot->SetName("VRot");
-  astroTableNode->SetColumnUnitLabel("VRot", "km/s");
-  astroTableNode->SetColumnLongName("VRot", "Rotational velocity");
+  d->astroTableNode->SetColumnUnitLabel("VRot", "km/s");
+  d->astroTableNode->SetColumnLongName("VRot", "Rotational velocity");
 
-  vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VRad)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -699,10 +794,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   VRad->SetName("VRad");
-  astroTableNode->SetColumnUnitLabel("VRad", "km/s");
-  astroTableNode->SetColumnLongName("VRad", "Radial velocity");
+  d->astroTableNode->SetColumnUnitLabel("VRad", "km/s");
+  d->astroTableNode->SetColumnLongName("VRad", "Radial velocity");
 
-  vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Inc)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -710,10 +805,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   Inc->SetName("Inc");
-  astroTableNode->SetColumnUnitLabel("Inc", "degree");
-  astroTableNode->SetColumnLongName("Inc", "Inclination");
+  d->astroTableNode->SetColumnUnitLabel("Inc", "degree");
+  d->astroTableNode->SetColumnLongName("Inc", "Inclination");
 
-  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Phi)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -721,10 +816,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   Phi->SetName("Phi");
-  astroTableNode->SetColumnUnitLabel("Phi", "degree");
-  astroTableNode->SetColumnLongName("Phi", "Position angle");
+  d->astroTableNode->SetColumnUnitLabel("Phi", "degree");
+  d->astroTableNode->SetColumnLongName("Phi", "Position angle");
 
-  vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VSys)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -732,10 +827,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   VSys->SetName("VSys");
-  astroTableNode->SetColumnUnitLabel("VSys", "km/s");
-  astroTableNode->SetColumnLongName("VSys", "Systematic velocity");
+  d->astroTableNode->SetColumnUnitLabel("VSys", "km/s");
+  d->astroTableNode->SetColumnLongName("VSys", "Systematic velocity");
 
-  vtkDoubleArray* VDisp = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* VDisp = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VSys)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -743,10 +838,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   VDisp->SetName("VDisp");
-  astroTableNode->SetColumnUnitLabel("VDisp", "km/s");
-  astroTableNode->SetColumnLongName("VDisp", "Dispersion velocity");
+  d->astroTableNode->SetColumnUnitLabel("VDisp", "km/s");
+  d->astroTableNode->SetColumnLongName("VDisp", "Dispersion velocity");
 
-  vtkDoubleArray* Dens = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* Dens = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Dens)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -754,10 +849,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   Dens->SetName("Dens");
-  astroTableNode->SetColumnUnitLabel("Dens", "10^20 cm^-2");
-  astroTableNode->SetColumnLongName("Dens", "Column density");
+  d->astroTableNode->SetColumnUnitLabel("Dens", "10^20 cm^-2");
+  d->astroTableNode->SetColumnLongName("Dens", "Column density");
 
-  vtkDoubleArray* Z0 = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* Z0 = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Z0)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -765,10 +860,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   Z0->SetName("Z0");
-  astroTableNode->SetColumnUnitLabel("Z0", "Kpc");
-  astroTableNode->SetColumnLongName("Z0", "Scale height");
+  d->astroTableNode->SetColumnUnitLabel("Z0", "Kpc");
+  d->astroTableNode->SetColumnLongName("Z0", "Scale height");
 
-  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!XPos)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -776,10 +871,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   XPos->SetName("XPos");
-  astroTableNode->SetColumnUnitLabel("XPos", "pixels");
-  astroTableNode->SetColumnLongName("XPos", "X center");
+  d->astroTableNode->SetColumnUnitLabel("XPos", "pixels");
+  d->astroTableNode->SetColumnLongName("XPos", "X center");
 
-  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast(astroTableNode->AddColumn());
+  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!YPos)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
@@ -787,10 +882,13 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   YPos->SetName("YPos");
-  astroTableNode->SetColumnUnitLabel("YPos", "pixels");
-  astroTableNode->SetColumnLongName("YPos", "Y center");
+  d->astroTableNode->SetColumnUnitLabel("YPos", "pixels");
+  d->astroTableNode->SetColumnLongName("YPos", "Y center");
 
-  d->parametersNode->SetParamsTableNode(astroTableNode);
+  this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableNodeModified()));
+
+  d->parametersNode->SetParamsTableNode(d->astroTableNode);
 }
 
 //-----------------------------------------------------------------------------
@@ -1100,6 +1198,17 @@ void qSlicerAstroModelingModuleWidget::createPlots()
     }
 
   // Add PlotDataNodes to PlotChartNodes
+  d->plotChartNodeVRot->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeVRad->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeInc->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodePhi->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeVSys->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeVDisp->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeDens->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeZ0->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeXPos->RemoveAllPlotDataNodeIDs();
+  d->plotChartNodeYPos->RemoveAllPlotDataNodeIDs();
+
   d->plotChartNodeVRot->AddAndObservePlotDataNodeID(plotDataNodeVRot->GetID());
   d->plotChartNodeVRad->AddAndObservePlotDataNodeID(plotDataNodeVRad->GetID());
   d->plotChartNodeInc->AddAndObservePlotDataNodeID(plotDataNodeInc->GetID());
@@ -1116,7 +1225,7 @@ void qSlicerAstroModelingModuleWidget::createPlots()
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
+bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
@@ -1144,10 +1253,10 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
   if (!currentSegmentationNode)
     {
-    QString message = QString("No segmentation selected! Please provide a mask or untoggle the input"
+    QString message = QString("No segmentation node selected! Please create a segmentation or untoggle the input"
                               " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(NULL, tr("Failed to select a mask"), message);
     return false;
     }
 
@@ -1162,11 +1271,10 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
 
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
-                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    QString message = QString("No mask selected from teh segmentation node! Please provide a mask or untoggle the input"
+                              " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(NULL, tr("Failed to select a mask"), message);
     return false;
     }
 
@@ -1182,7 +1290,7 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
       vtkSlicerAstroModelingLogic::SafeDownCast(this->logic());
     if (!astroModelinglogic)
       {
-      qCritical() <<"qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap :"
+      qCritical() <<"qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap :"
                     " astroModelinglogic not found!";
       return false;
       }
@@ -1190,7 +1298,7 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
       vtkSlicerAstroVolumeLogic::SafeDownCast(astroModelinglogic->GetAstroVolumeLogic());
     if (!astroVolumelogic)
       {
-      qCritical() <<"qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap :"
+      qCritical() <<"qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap :"
                     " vtkSlicerAstroVolumeLogic not found!";
       return false;
       }
@@ -1208,10 +1316,10 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
   int Extents[6] = { 0, 0, 0, 0, 0, 0 };
   labelMapNode->GetImageData()->GetExtent(Extents);
 
-  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode))
+  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode
+       (currentSegmentationNode, segmentIDs, labelMapNode))
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
+    QString message = QString("Failed to export segments from segmentation '%1'' to representation node '%2!.").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
@@ -1219,7 +1327,8 @@ bool qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap()
     return false;
     }
 
-  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
+  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->
+    SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
 
   double storedOrigin[3] = { 0., 0., 0. };
   labelMapNode->GetOrigin(storedOrigin);
@@ -1323,7 +1432,7 @@ void qSlicerAstroModelingModuleWidget::onEnter()
     return;
     }
 
-  /*
+
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
                     this, SLOT(onMRMLSceneEndImportEvent()));
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndBatchProcessEvent,
@@ -1331,7 +1440,7 @@ void qSlicerAstroModelingModuleWidget::onEnter()
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
                     this, SLOT(onMRMLSceneEndCloseEvent()));
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndRestoreEvent,
-                    this, SLOT(onMRMLSceneEndRestoreEvent()));*/
+                    this, SLOT(onMRMLSceneEndRestoreEvent()));
 }
 
 //-----------------------------------------------------------------------------
@@ -1431,16 +1540,25 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 
   int dims[3];
   activeVolume->GetImageData()->GetDimensions(dims);
+  int Zcenter = dims[2] * 0.5;
+  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+  IJKtoRASTransform->Identity();
+  IJKtoRASTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  activeVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
+  IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
-  XPosMean -= round(dims[0]/2);
-  XPosMean *= -1;
-  YPosMean -= round(dims[1]/2);
+  double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
+  ijk[0] = XPosMean;
+  ijk[1] = YPosMean;
+  ijk[2] = Zcenter;
+  IJKtoRASTransform->TransformPoint(ijk, RAS);
 
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
          d->parametersNode->GetContourLevel(),
-         PVPhi, XPosMean, YPosMean, true);
+         PVPhi, RAS, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -1554,6 +1672,216 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkOb
     }
 
   d->segmentEditorNode = segmentEditorNode;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->fiducialNodeMajor || !d->fiducialNodeMinor || !d->parametersNode)
+    {
+    return;
+    }
+
+  vtkMRMLScene *scene = this->mrmlScene();
+  if(!scene)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume)
+    {
+    return;
+    }
+
+  vtkImageData* imageData = inputVolume->GetImageData();
+  if (!imageData)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplayNode =
+    inputVolume->GetAstroVolumeDisplayNode();
+  if(!inputVolumeDisplayNode)
+    {
+    return;
+    }
+
+  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("Phi"));
+
+  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("XPos"));
+
+  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("YPos"));
+
+  vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("VRot"));
+
+  vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("VRad"));
+
+  vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("Inc"));
+
+  vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("VSys"));
+
+  vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast
+    (d->parametersNode->GetParamsTableNode()
+       ->GetTable()->GetColumnByName("Radii"));
+
+  if (!Phi || !XPos || !YPos || !VRot || !VRad || !Inc || !VSys || !Radii)
+    {
+    return;
+    }
+
+  if (d->fiducialNodeMajor->GetNumberOfFiducials() != Radii->GetNumberOfValues() * 2 ||
+      d->fiducialNodeMinor->GetNumberOfFiducials() != Radii->GetNumberOfValues() * 2)
+    {
+    return;
+    }
+
+  double *VRotPointer = static_cast<double*> (VRot->GetPointer(0));
+  double *PhiPointer = static_cast<double*> (Phi->GetPointer(0));
+  double *XPosPointer = static_cast<double*> (XPos->GetPointer(0));
+  double *YPosPointer = static_cast<double*> (YPos->GetPointer(0));
+  double *VRadPointer = static_cast<double*> (VRad->GetPointer(0));
+  double *IncPointer = static_cast<double*> (Inc->GetPointer(0));
+  double *VSysPointer = static_cast<double*> (VSys->GetPointer(0));
+  double *RadiiPointer = static_cast<double*> (Radii->GetPointer(0));
+
+  double PhiMean = 0., XMean = 0., YMean = 0.;
+  for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
+    {
+    PhiMean += *(PhiPointer + ii);
+    XMean += *(XPosPointer + ii);
+    YMean += *(YPosPointer + ii);
+    }
+  PhiMean /=  Phi->GetNumberOfValues();
+  XMean /=  XPos->GetNumberOfValues();
+  YMean /=  YPos->GetNumberOfValues();
+  double PVPhi = -(PhiMean - 90.);
+
+  const double arcsec2deg = 1. / 3600.;
+  double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.}, worldPositive[3] = {0.,0.,0.},
+         worldNegative[3] = {0.,0.,0.}, worldCenter[3] = {0.,0.,0.};
+  int *dims = imageData->GetDimensions();
+  int Zcenter = dims[2] * 0.5;
+
+  const double deg2rad = PI / 180.;
+  double factor = 0.;
+  if (PVPhi > 0.001 && PVPhi - 90. > 0.001)
+    {
+    factor = -180.;
+    }
+  else if (PVPhi < 0.001 && PVPhi + 90. < 0.001)
+    {
+    factor = +180.;
+    }
+  PVPhi += factor;
+  ijk[0] = XMean + (10 * cos(PVPhi * deg2rad));
+  ijk[1] = YMean + (10 * sin(PVPhi * deg2rad));
+  ijk[2] = Zcenter;
+  inputVolumeDisplayNode->GetReferenceSpace(ijk, worldPositive);
+  ijk[0] = XMean + (10 * cos((PVPhi + 90.) * deg2rad));
+  ijk[1] = YMean + (10 * sin((PVPhi + 90.) * deg2rad));
+  ijk[2] = Zcenter;
+  inputVolumeDisplayNode->GetReferenceSpace(ijk, worldNegative);
+  ijk[0] = XMean;
+  ijk[1] = YMean;
+  ijk[2] = Zcenter;
+  inputVolumeDisplayNode->GetReferenceSpace(ijk, worldCenter);
+
+  double distX = (worldPositive[0] - worldCenter[0]);
+  double distY = (worldPositive[1] - worldCenter[1]);
+  double PVPhiMajor = atan(distY / distX);
+  PVPhiMajor += factor * deg2rad;
+
+  distX = (worldNegative[0] - worldCenter[0]);
+  distY = (worldNegative[1] - worldCenter[1]);
+  double PVPhiMinor = atan(distY / distX);
+  PVPhiMinor += factor * deg2rad;
+
+  double PVPhiMajorCos = cos(-PVPhiMajor);
+  double PVPhiMajorSin = sin(-PVPhiMajor);
+
+  double PVPhiMinorCos = cos(-PVPhiMinor);
+  double PVPhiMinorSin = sin(-PVPhiMinor);
+
+  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+  IJKtoRASTransform->Identity();
+  IJKtoRASTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
+  IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
+
+  d->fiducialNodeMajor->GlobalWarningDisplayOff();
+  d->fiducialNodeMinor->GlobalWarningDisplayOff();
+  int MajorWasModifying = d->fiducialNodeMajor->StartModify();
+  int MinorWasModifying = d->fiducialNodeMinor->StartModify();
+
+  for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
+    {
+    int positiveIndex = radiiIndex * 2;
+    int negativeIndex = (radiiIndex * 2) + 1;
+    // Update fiducials on Major axis
+    double VelocitySin = *(VRotPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad);
+    double VelocityMajorPositive = - VelocitySin + *(VSysPointer + radiiIndex);
+    double ShiftX = *(RadiiPointer + radiiIndex) * arcsec2deg * PVPhiMajorCos;
+    double ShiftY = *(RadiiPointer + radiiIndex) * arcsec2deg * PVPhiMajorSin;
+    worldPositive[0] = worldCenter[0] - ShiftX;
+    worldPositive[1] = worldCenter[1] - ShiftY;
+    worldPositive[2] = VelocityMajorPositive * 1000;
+    inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
+    IJKtoRASTransform->TransformPoint(ijk, RAS);
+    d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+
+    double VelocityMajorNegative = VelocitySin + *(VSysPointer + radiiIndex);
+    worldNegative[0] = worldCenter[0] + ShiftX;
+    worldNegative[1] = worldCenter[1] + ShiftY;
+    worldNegative[2] = VelocityMajorNegative * 1000;
+    inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
+    IJKtoRASTransform->TransformPoint(ijk, RAS);
+    d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+
+    // Update fiducials on the Minor axis
+    VelocitySin = *(VRadPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad);
+    double VelocityMinorPositive = VelocitySin + VSys->GetValue(radiiIndex);
+    ShiftX = Radii->GetValue(radiiIndex) * arcsec2deg * PVPhiMinorCos;
+    ShiftY = Radii->GetValue(radiiIndex) * arcsec2deg * PVPhiMinorSin;
+    worldPositive[0] = worldCenter[0] - ShiftX;
+    worldPositive[1] = worldCenter[1] - ShiftY;
+    worldPositive[2] = VelocityMinorPositive * 1000;
+    inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
+    IJKtoRASTransform->TransformPoint(ijk, RAS);
+    d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+
+    double VelocityMinorNegative = - VelocitySin + VSys->GetValue(radiiIndex);
+    worldNegative[0] = worldCenter[0] + ShiftX;
+    worldNegative[1] = worldCenter[1] + ShiftY;
+    worldNegative[2] = VelocityMinorNegative * 1000;
+    inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
+    IJKtoRASTransform->TransformPoint(ijk, RAS);
+    d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+    }
+
+  d->fiducialNodeMajor->EndModify(MajorWasModifying);
+  d->fiducialNodeMinor->EndModify(MinorWasModifying);
+  d->fiducialNodeMajor->GlobalWarningDisplayOn();
+  d->fiducialNodeMinor->GlobalWarningDisplayOn();
 }
 
 //-----------------------------------------------------------------------------
@@ -1791,6 +2119,90 @@ void qSlicerAstroModelingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNo
     selectionNode->SetSecondaryVolumeID(NULL);
     }
   appLogic->PropagateVolumeSelection();
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs,
+                                                              vtkCollection* selectionCol)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+  if (!d->fiducialNodeMajor || !d->fiducialNodeMinor || !this->mrmlScene() ||
+      !mrmlPlotDataIDs || !selectionCol)
+    {
+    return;
+    }
+
+  d->fiducialNodeMajor->GlobalWarningDisplayOff();
+  for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMajor->GetNumberOfFiducials(); fiducialIndex++)
+    {
+    d->fiducialNodeMajor->SetNthFiducialSelected(fiducialIndex, false);
+    }
+
+  for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
+    {
+    vtkMRMLPlotDataNode* plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(mrmlPlotDataIDs->GetValue(mrmlPlotDataIndex)));
+    if (!plotDataNode)
+      {
+      continue;
+      }
+    if (!strcmp(plotDataNode->GetName(), "VRot") ||
+        !strcmp(plotDataNode->GetName(), "VRad") ||
+        !strcmp(plotDataNode->GetName(), "Inc") ||
+        !strcmp(plotDataNode->GetName(), "Phi"))
+      {
+      vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
+        (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
+      if (!selectionArray)
+        {
+        continue;
+        }
+      for (int selectionArrayIndex = 0; selectionArrayIndex < selectionArray->GetNumberOfValues(); selectionArrayIndex++)
+        {
+        int positiveIndex = selectionArray->GetValue(selectionArrayIndex) * 2;
+        int negativeIndex = (selectionArray->GetValue(selectionArrayIndex) * 2) + 1;
+        d->fiducialNodeMajor->SetNthFiducialSelected(positiveIndex, true);
+        d->fiducialNodeMajor->SetNthFiducialSelected(negativeIndex, true);
+        }
+      }
+    }
+  d->fiducialNodeMajor->GlobalWarningDisplayOn();
+
+  d->fiducialNodeMinor->GlobalWarningDisplayOff();
+  for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMinor->GetNumberOfFiducials(); fiducialIndex++)
+    {
+    d->fiducialNodeMinor->SetNthFiducialSelected(fiducialIndex, false);
+    }
+
+  for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
+    {
+    vtkMRMLPlotDataNode* plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(mrmlPlotDataIDs->GetValue(mrmlPlotDataIndex)));
+    if (!plotDataNode)
+      {
+      continue;
+      }
+    if (!strcmp(plotDataNode->GetName(), "VRot") ||
+        !strcmp(plotDataNode->GetName(), "VRad") ||
+        !strcmp(plotDataNode->GetName(), "Inc") ||
+        !strcmp(plotDataNode->GetName(), "Phi"))
+      {
+      vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
+        (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
+      if (!selectionArray)
+        {
+        continue;
+        }
+      for (int selectionArrayIndex = 0; selectionArrayIndex < selectionArray->GetNumberOfValues(); selectionArrayIndex++)
+        {
+        int positiveIndex = selectionArray->GetValue(selectionArrayIndex) * 2;
+        int negativeIndex = (selectionArray->GetValue(selectionArrayIndex) * 2) + 1;
+        d->fiducialNodeMinor->SetNthFiducialSelected(positiveIndex, true);
+        d->fiducialNodeMinor->SetNthFiducialSelected(negativeIndex, true);
+        }
+      }
+    }
+  d->fiducialNodeMinor->GlobalWarningDisplayOn();
 }
 
 //--------------------------------------------------------------------------
@@ -2045,22 +2457,22 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
 {
-  this->onMRMLAstroModelingParametersNodeModified();
+  //this->onMRMLAstroModelingParametersNodeModified();
 }
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndRestoreEvent()
 {
-  this->onMRMLAstroModelingParametersNodeModified();
+  //this->onMRMLAstroModelingParametersNodeModified();
 }
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndBatchProcessEvent()
 {
-  this->onMRMLAstroModelingParametersNodeModified();
+  //this->onMRMLAstroModelingParametersNodeModified();
 }
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
 {
-  this->onMRMLAstroModelingParametersNodeModified();
+  //this->onMRMLAstroModelingParametersNodeModified();
 }
 
 //---------------------------------------------------------------------------
@@ -2127,6 +2539,13 @@ void qSlicerAstroModelingModuleWidget::onApply()
     return;
     }
 
+  if (!this->mrmlScene())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : scene not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
   if (!d->parametersNode)
     {
     qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : parametersNode not found!";
@@ -2147,17 +2566,15 @@ void qSlicerAstroModelingModuleWidget::onApply()
     this->initializeTableNode(this->mrmlScene(), true);
     }
 
-  if (!d->internalTableNode)
-    {
-    d->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
-    }
   d->internalTableNode->Copy(d->parametersNode->GetParamsTableNode());
   d->parametersNode->SetFitSuccess(false);
 
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : scene not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                  "scene not found!";
+    return;
     }
 
   vtkMRMLAstroVolumeNode *inputVolume =
@@ -2165,7 +2582,8 @@ void qSlicerAstroModelingModuleWidget::onApply()
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : inputVolume not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                  "inputVolume not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2190,6 +2608,38 @@ void qSlicerAstroModelingModuleWidget::onApply()
                               " It is not possible to procede with the model fitting.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplayNode =
+    inputVolume->GetAstroVolumeDisplayNode();
+  if(!inputVolumeDisplayNode)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                  "inputVolumeDisplay not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  wcsprm* wcs = inputVolumeDisplayNode->GetWCSStruct();
+  if(!wcs)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                  "WCS not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  if (strncmp(wcs->ctype[2], "VRAD", 4))
+    {
+    QString message = QString("The input datacube 3rd axes is an optical velocity. "
+                              "In order to proceed with the modeling, it is required to transform the "
+                              "3rd axes into a radio velocity. A conversion tool is "
+                              "available in the AstroVolume module. ");
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
+
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2324,9 +2774,9 @@ void qSlicerAstroModelingModuleWidget::onApply()
   // Check if there are segment and feed the mask to 3DBarolo
   if (d->parametersNode->GetMaskActive())
     {
-    if (!this->convertFirstSegmentToLabelMap())
+    if (!this->convertSelectedSegmentToLabelMap())
       {
-      qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : convertFirstSegmentToLabelMap failed!";
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : convertSelectedSegmentToLabelMap failed!";
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -2338,6 +2788,16 @@ void qSlicerAstroModelingModuleWidget::onApply()
     qWarning() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("3DBarolo"), message);
     }
+
+  if (!d->fiducialNodeMajor || !d->fiducialNodeMinor)
+    {
+    qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : FiducialNodes not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  d->fiducialNodeMajor->RemoveAllMarkups();
+  d->fiducialNodeMinor->RemoveAllMarkups();
 
   d->worker->SetTableNode(d->internalTableNode);
   d->worker->SetAstroModelingParametersNode(d->parametersNode);
@@ -2450,8 +2910,10 @@ void qSlicerAstroModelingModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
     return;
     }
 
-  vtkMRMLTableNode *mrmlTableNode = vtkMRMLTableNode::SafeDownCast(mrmlNode);
-  d->parametersNode->SetParamsTableNode(mrmlTableNode);
+  d->astroTableNode = vtkMRMLTableNode::SafeDownCast(mrmlNode);
+  this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableNodeModified()));
+  d->parametersNode->SetParamsTableNode(d->astroTableNode);
 }
 
 //--------------------------------------------------------------------------
@@ -2545,7 +3007,7 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
   XPosMean /=  XPos->GetNumberOfValues();
   YPosMean /=  YPos->GetNumberOfValues();
 
-  double PVPhi = (PhiMean - 90.);
+  double PVPhi = -(PhiMean - 90.);
 
   vtkMRMLAstroVolumeNode *activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
@@ -2558,16 +3020,25 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
 
   int dims[3];
   activeVolume->GetImageData()->GetDimensions(dims);
+  int Zcenter = dims[2] * 0.5;
+  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+  IJKtoRASTransform->Identity();
+  IJKtoRASTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  activeVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
+  IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
-  XPosMean -= round(dims[0]/2);
-  XPosMean *= -1;
-  YPosMean -= round(dims[1]/2);
+  double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
+  ijk[0] = XPosMean;
+  ijk[1] = YPosMean;
+  ijk[2] = Zcenter;
+  IJKtoRASTransform->TransformPoint(ijk, RAS);
 
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
          d->parametersNode->GetContourLevel(),
-         PVPhi, XPosMean, YPosMean, false);
+         PVPhi, RAS, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -2642,7 +3113,44 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   if(!inputVolume)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
-                  "inputVolume not found!";
+                  "inputVolume node not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  vtkImageData* imageData = inputVolume->GetImageData();
+  if (!imageData)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "imageData not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  vtkPointData* pointData = imageData->GetPointData();
+  if (!pointData)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "pointData not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  vtkDataArray *dataArray = pointData->GetScalars();
+  if (!dataArray)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "dataArray not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplayNode =
+    inputVolume->GetAstroVolumeDisplayNode();
+  if(!inputVolumeDisplayNode)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "display node not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2653,7 +3161,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   if(!outputVolume)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
-                  "outputVolume not found!";
+                  "outputVolume node not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2664,7 +3172,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   if(!residualVolume)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
-                  "residualVolume not found!";
+                  "residualVolume node not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2699,7 +3207,27 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       (d->parametersNode->GetParamsTableNode()
          ->GetTable()->GetColumnByName("YPos"));
 
-    if (!Phi || !XPos || !YPos)
+    vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("VRot"));
+
+    vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("VRad"));
+
+    vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("Inc"));
+
+    vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("VSys"));
+
+    vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast
+      (d->parametersNode->GetParamsTableNode()
+         ->GetTable()->GetColumnByName("Radii"));
+
+    if (!Phi || !XPos || !YPos || !VRot || !VRad || !Inc || !VSys || !Radii)
       {
       qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                     "arrays not found!";
@@ -2723,17 +3251,31 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     d->YPosMean /=  YPos->GetNumberOfValues();
 
     double PVPhi = -(PhiMean - 90.);
-    int dims[3];
-    inputVolume->GetImageData()->GetDimensions(dims);
 
-    d->XPosMean -= round(dims[0]/2);
-    d->XPosMean *= -1;
-    d->YPosMean -= round(dims[1]/2);
+    int *dims = imageData->GetDimensions();
+    int Zcenter = dims[2] * 0.5;
+    double XMean = d->XPosMean;
+    double YMean = d->YPosMean;
+
+    vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+    IJKtoRASTransform->Identity();
+    IJKtoRASTransform->PostMultiply();
+    vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+    inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
+    IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
+
+    double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
+    ijk[0] = XMean;
+    ijk[1] = YMean;
+    ijk[2] = Zcenter;
+    IJKtoRASTransform->TransformPoint(ijk, RAS);
+    d->XPosMean = RAS[0];
+    d->YPosMean = RAS[2];
 
     d->astroVolumeWidget->setQuantitative3DView
         (inputVolume->GetID(), outputVolume->GetID(),
          residualVolume->GetID(), d->parametersNode->GetContourLevel(),
-         PVPhi, d->XPosMean, d->YPosMean);
+         PVPhi, RAS);
 
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
@@ -2745,6 +3287,258 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     // P.S.: FitAllSlice is called everytime the active volume is changed.
 
     QTimer::singleShot(10, this, SLOT(setPVOffset()));
+
+    // Connect PlotWidget with ModelingWidget
+    // Setting the Layout for the Output
+    qSlicerApplication* app = qSlicerApplication::application();
+
+    if(!app)
+      {
+      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
+                     "qSlicerApplication not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    qSlicerLayoutManager* layoutManager = app->layoutManager();
+
+    if(!app)
+      {
+      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
+                     "layoutManager not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    qMRMLPlotWidget* plotWidget = layoutManager->plotWidget(0);
+
+    if(!plotWidget)
+      {
+      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
+                     "plotWidget not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    qMRMLPlotView* plotView = plotWidget->plotView();
+    if(!plotWidget)
+      {
+      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
+                     "plotView not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    QObject::connect(plotView, SIGNAL(dataSelected(vtkStringArray*, vtkCollection*)),
+                     this, SLOT(onPlotSelectionChanged(vtkStringArray*, vtkCollection*)));
+
+    // Add fiducials
+    if (!d->fiducialNodeMajor || !d->fiducialNodeMinor)
+      {
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                    "fiducialNodes not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    double *VRotPointer = static_cast<double*> (VRot->GetPointer(0));
+    double *VRadPointer = static_cast<double*> (VRad->GetPointer(0));
+    double *IncPointer = static_cast<double*> (Inc->GetPointer(0));
+    double *VSysPointer = static_cast<double*> (VSys->GetPointer(0));
+    double *RadiiPointer = static_cast<double*> (Radii->GetPointer(0));
+
+    const double arcsec2deg = 1. / 3600.;
+    double worldPositive[3] = {0.,0.,0.}, worldNegative[3] = {0.,0.,0.},
+           worldCenter[3] = {0.,0.,0.};
+
+    const double deg2rad = PI / 180.;
+    double factor = 0.;
+    if (PVPhi > 0.001 && PVPhi - 90. > 0.001)
+      {
+      factor = -180.;
+      }
+    else if (PVPhi < 0.001 && PVPhi + 90. < 0.001)
+      {
+      factor = +180.;
+      }
+    PVPhi += factor;
+    ijk[0] = XMean + (10 * cos(PVPhi * deg2rad));
+    ijk[1] = YMean + (10 * sin(PVPhi * deg2rad));
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldPositive);
+    ijk[0] = XMean + (10 * cos((PVPhi + 90.) * deg2rad));
+    ijk[1] = YMean + (10 * sin((PVPhi + 90.) * deg2rad));
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldNegative);
+    ijk[0] = XMean;
+    ijk[1] = YMean;
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldCenter);
+
+    double distX = (worldPositive[0] - worldCenter[0]);
+    double distY = (worldPositive[1] - worldCenter[1]);
+    double PVPhiMajor = atan(distY / distX);
+    PVPhiMajor += factor * deg2rad;
+
+    distX = (worldNegative[0] - worldCenter[0]);
+    distY = (worldNegative[1] - worldCenter[1]);
+    double PVPhiMinor = atan(distY / distX);
+    PVPhiMinor += factor * deg2rad;
+
+    double PVPhiMajorCos = cos(-PVPhiMajor);
+    double PVPhiMajorSin = sin(-PVPhiMajor);
+
+    double PVPhiMinorCos = cos(-PVPhiMinor);
+    double PVPhiMinorSin = sin(-PVPhiMinor);
+
+    double MinorSign = sign(cos((PVPhi + 30.) * deg2rad));
+
+    // Create fiducials
+    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
+      {
+      d->fiducialNodeMajor->AddFiducial(0., 0., 0.);
+      d->fiducialNodeMinor->AddFiducial(0., 0., 0.);
+      }
+
+    d->fiducialNodeMajor->GlobalWarningDisplayOff();
+    d->fiducialNodeMinor->GlobalWarningDisplayOff();
+    int MajorWasModifying = d->fiducialNodeMajor->StartModify();
+    int MinorWasModifying = d->fiducialNodeMinor->StartModify();
+
+    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
+      {
+      int positiveIndex = radiiIndex * 2;
+      int negativeIndex = (radiiIndex * 2) + 1;
+
+      // Update fiducials on the Major axes:
+      // Center of PV is in (X0,Y0), this means that the angle beta is equal
+      // to the angle of the slice. Therefore, the angle theta is zero on the semi-major axes.
+      // Project velocity (theta zero)
+      double VelocitySin = *(VRotPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad);
+      double VelocityMajorPositive = - VelocitySin + *(VSysPointer + radiiIndex);
+
+      // Project radius (beta equal to PVPhiMajor)
+      double ProjectedRadius = *(RadiiPointer + radiiIndex) * arcsec2deg;
+      double ShiftX = ProjectedRadius * PVPhiMajorCos;
+      double ShiftY = ProjectedRadius * PVPhiMajorSin;
+
+      worldPositive[0] = worldCenter[0] - ShiftX;
+      worldPositive[1] = worldCenter[1] - ShiftY;
+      worldPositive[2] = VelocityMajorPositive * 1000;
+      inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+
+      double VelocityMajorNegative = VelocitySin + *(VSysPointer + radiiIndex);
+      worldNegative[0] = worldCenter[0] + ShiftX;
+      worldNegative[1] = worldCenter[1] + ShiftY;
+      worldNegative[2] = VelocityMajorNegative * 1000;
+      inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+
+      std::string fiducialLabelPositive = "RMajor";
+      std::string fiducialLabelNegative = "-RMajor";
+      fiducialLabelPositive += IntToString(radiiIndex);
+      fiducialLabelNegative += IntToString(radiiIndex);
+      d->fiducialNodeMajor->SetNthFiducialLabel(positiveIndex, fiducialLabelPositive);
+      d->fiducialNodeMajor->SetNthFiducialSelected(positiveIndex, false);
+      d->fiducialNodeMajor->SetNthMarkupLocked(positiveIndex, true);
+      d->fiducialNodeMajor->SetNthFiducialLabel(negativeIndex, fiducialLabelNegative);
+      d->fiducialNodeMajor->SetNthFiducialSelected(negativeIndex, false);
+      d->fiducialNodeMajor->SetNthMarkupLocked(negativeIndex, true);
+
+      // Update fiducials on the Minor axes
+      // Project velocity
+      double beta = 90 * deg2rad;
+      double theta = atan2(tan(beta), cos(*(IncPointer + radiiIndex) * deg2rad));
+      VelocitySin = *(VRadPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad) * sin(theta) +
+                    *(VRotPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad) * cos(theta);
+      double VelocityMinorPositive = VelocitySin + VSys->GetValue(radiiIndex);
+
+      // Project radius
+      ProjectedRadius = Radii->GetValue(radiiIndex) * arcsec2deg * cos(theta) / cos(beta);
+      ShiftX = ProjectedRadius * PVPhiMinorCos;
+      ShiftY = ProjectedRadius * PVPhiMinorSin;
+      worldPositive[0] = worldCenter[0] + ShiftX * MinorSign;
+      worldPositive[1] = worldCenter[1] + ShiftY * MinorSign;
+      worldPositive[2] = VelocityMinorPositive * 1000;
+      inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+
+      double VelocityMinorNegative = - VelocitySin + VSys->GetValue(radiiIndex);
+      worldNegative[0] = worldCenter[0] - ShiftX * MinorSign;
+      worldNegative[1] = worldCenter[1] - ShiftY * MinorSign;
+      worldNegative[2] = VelocityMinorNegative * 1000;
+      inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+
+      fiducialLabelPositive = "RMinor";
+      fiducialLabelNegative = "-RMinor";
+      fiducialLabelPositive += IntToString(radiiIndex);
+      fiducialLabelNegative += IntToString(radiiIndex);
+      d->fiducialNodeMinor->SetNthFiducialLabel(positiveIndex, fiducialLabelPositive);
+      d->fiducialNodeMinor->SetNthFiducialSelected(positiveIndex, false);
+      d->fiducialNodeMinor->SetNthMarkupLocked(positiveIndex, true);
+      d->fiducialNodeMinor->SetNthFiducialLabel(negativeIndex, fiducialLabelNegative);
+      d->fiducialNodeMinor->SetNthFiducialSelected(negativeIndex, false);
+      d->fiducialNodeMinor->SetNthMarkupLocked(negativeIndex, true);
+      }
+
+    d->fiducialNodeMajor->EndModify(MajorWasModifying);
+    d->fiducialNodeMinor->EndModify(MinorWasModifying);
+    d->fiducialNodeMajor->GlobalWarningDisplayOn();
+    d->fiducialNodeMinor->GlobalWarningDisplayOn();
+
+    // Change scale value for the display of the fiducials
+    vtkMRMLMarkupsDisplayNode *fiducialsMajorDisplayNode =
+      d->fiducialNodeMajor->GetMarkupsDisplayNode();
+    if (!fiducialsMajorDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                    "fiducial display node not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    fiducialsMajorDisplayNode->SetGlyphScale(1.5);
+    fiducialsMajorDisplayNode->SetTextScale(0.);
+    fiducialsMajorDisplayNode->RemoveAllViewNodeIDs();
+    vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+    if (!yellowSliceNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
+                    "yellowSliceNode not found!";
+      return;
+      }
+    fiducialsMajorDisplayNode->AddViewNodeID(yellowSliceNode->GetID());
+
+    vtkMRMLMarkupsDisplayNode *fiducialsMinorDisplayNode =
+      d->fiducialNodeMinor->GetMarkupsDisplayNode();
+    if (!fiducialsMinorDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                    "fiducial display node not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    fiducialsMinorDisplayNode->SetGlyphScale(1.5);
+    fiducialsMinorDisplayNode->SetTextScale(0.);
+    fiducialsMinorDisplayNode->SetColor(1., 1., 0.44);
+    fiducialsMinorDisplayNode->RemoveAllViewNodeIDs();
+    vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+    if (!greenSliceNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
+                    "greenSliceNode not found!";
+      return;
+      }
+    fiducialsMinorDisplayNode->AddViewNodeID(greenSliceNode->GetID());
     }
    else
     {

@@ -192,7 +192,7 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 {
   Q_D(qMRMLSliceAstroControllerWidget);
 
-  if (!this->mrmlSliceNode())
+  if (!this->mrmlSliceNode() || !d->col || !d->WCSDisplay)
     {
     return;
     }
@@ -221,6 +221,8 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
     d->WCSDisplay->setFixedWidth(10);
     return;
     }
+
+  d->col->RemoveAllItems();
 
   if (sliceLogic->GetBackgroundLayer())
     {

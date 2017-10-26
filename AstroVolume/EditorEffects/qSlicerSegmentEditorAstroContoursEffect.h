@@ -72,9 +72,6 @@ public slots:
   /// Update parameter set node from user interface
   virtual void updateMRMLFromGUI();
 
-  /// Update Contours Levels
-  virtual void onContourLevelsChanged(QString ContourLevels);
-
   /// Apply the Contours
   virtual void CreateContours();
 

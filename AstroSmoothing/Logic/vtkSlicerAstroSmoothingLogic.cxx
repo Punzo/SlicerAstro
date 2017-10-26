@@ -432,8 +432,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   delete inDPixel;
   delete outDPixel;
 
-  pnode->SetStatus(0);
-
   if (cancel)
     {
     return 0;
@@ -616,7 +614,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     delete tempDPixel;
 
     this->Internal->tempVolumeData->Initialize();
-    pnode->SetStatus(0);
 
     return 0;
     }
@@ -724,7 +721,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     delete tempDPixel;
 
     this->Internal->tempVolumeData->Initialize();
-    pnode->SetStatus(0);
 
     return 0;
     }
@@ -821,7 +817,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   delete tempDPixel;
 
   this->Internal->tempVolumeData->Initialize();
-  pnode->SetStatus(0);
 
   if (cancel)
     {
@@ -854,7 +849,6 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
-  pnode->SetStatus(0);
   return 0;
   #else
 
@@ -947,7 +941,6 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
 
-  pnode->SetStatus(0);
 
   if(cancel)
     {
@@ -1154,8 +1147,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   delete inDPixel;
   delete outDPixel;
 
-  pnode->SetStatus(0);
-
   if (cancel)
     {
     return 0;
@@ -1327,7 +1318,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     delete tempDPixel;
 
     this->Internal->tempVolumeData->Initialize();
-    pnode->SetStatus(0);
 
     return 0;
     }
@@ -1425,7 +1415,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     delete tempDPixel;
 
     this->Internal->tempVolumeData->Initialize();
-    pnode->SetStatus(0);
 
     return 0;
     }
@@ -1512,7 +1501,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   delete tempDPixel;
 
   this->Internal->tempVolumeData->Initialize();
-  pnode->SetStatus(0);
 
   if (cancel)
     {
@@ -1545,7 +1533,6 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
-  pnode->SetStatus(0);
   return 0;
   #else
 
@@ -1641,8 +1628,6 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro("Update : "<<mtime<<" ms /n");
-
-  pnode->SetStatus(0);
 
   if (cancel)
     {
@@ -1830,7 +1815,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
       delete tempDPixel;
 
       this->Internal->tempVolumeData->Initialize();
-      pnode->SetStatus(0);
+
       return 0;
       }
 
@@ -1867,7 +1852,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateNoiseAttributes();
 
-  double noiseMean = StringToDouble(outputVolume->GetAttribute("SlicerAstro.NOISEMEAN"));
+  double noiseMean = StringToDouble(outputVolume->GetAttribute("SlicerAstro.RMSMEAN"));
 
   for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
@@ -1905,7 +1890,6 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   delete tempDPixel;
 
   this->Internal->tempVolumeData->Initialize();
-  pnode->SetStatus(0);
 
   return 1;
 }
@@ -1919,7 +1903,6 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenGL filtering support.")
-  pnode->SetStatus(0);
   return 0;
   #else
 
@@ -1936,7 +1919,6 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
       vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
                       "The GPU implementation of the Intensity-Driven Gradient filter "
                       "is not available with the specifications of the machine in use.");
-      pnode->SetStatus(0);
       return 0;
       }
     else
@@ -2016,8 +1998,6 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
-
-  pnode->SetStatus(0);
 
   if(cancel)
     {

@@ -646,15 +646,15 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       {
       this->Internal->par->setSearch(true);
       }
+    else
+      {
+      this->Internal->par->setSearch(false);
+      }
     }
   else
     {
     this->Internal->par->setSearch(true);
-    this->Internal->par->setMASK("SMOOTH");
-    this->Internal->par->setBeamFWHM(this->Internal->par->getBeamFWHM()/3600.);
     }
-
-  this->Internal->par->setTOL(1.E-3);
 
   // set header
   this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
@@ -1420,7 +1420,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Radii->SetValue(ii, this->Internal->fitF->Outrings()->radii[ii]);
+        Radii->SetValue(ii, this->Internal->fitF->Outrings()->radii[ii] * 2.);
         }
       }
 
@@ -1511,7 +1511,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Radii->SetValue(ii, this->Internal->fitD->Outrings()->radii[ii]);
+        Radii->SetValue(ii, this->Internal->fitD->Outrings()->radii[ii] * 2.);
         }
       }
 
@@ -2068,7 +2068,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()));
         this->Internal->fitF->Outrings()->radii.push_back(
             StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()));
+                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()) * 0.5);
         this->Internal->fitF->Outrings()->vrot.push_back(
             StringToFloat(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));
@@ -2290,7 +2290,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()));
         this->Internal->fitD->Outrings()->radii.push_back(
             StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()));
+                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()) * 0.5);
         this->Internal->fitD->Outrings()->vrot.push_back(
             StringToDouble(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));

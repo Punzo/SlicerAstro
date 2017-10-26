@@ -77,14 +77,12 @@ public slots:
                              const char* volumeNodeThreeID,
                              double ContourLevel,
                              double PVPhi,
-                             double XPos,
-                             double YPos);
+                             double RAS[3]);
   void updateQuantitative3DView(const char* volumeNodeOneID,
                                 const char* volumeNodeTwoID,
                                 double ContourLevel,
                                 double PVPhi,
-                                double XPos,
-                                double YPos,
+                                double RAS[3],
                                 bool overrideSegments = false);
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
@@ -98,18 +96,22 @@ protected slots:
   void onEditSelectedSegment();
   void onInputVolumeChanged(vtkMRMLNode *node);
   void onMRMLDisplayROINodeModified(vtkObject*);
+  void onMRMLLabelVolumeNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLVolumeNodeModified();
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
   void resetOffset(vtkMRMLNode* node);
-  void setPresets(vtkMRMLNode* node);
   void setDisplayConnection(vtkMRMLNode* node);
-  void setDisplayROIEnabled(bool);
+  void setDisplayROIEnabled(bool visibility);
+  void setOpticalVelocity();
+  void setPresets(vtkMRMLNode* node);
+  void setRadioVelocity();
 
 signals:
   void astroLabelMapVolumeNodeChanged(bool enabled);

@@ -146,7 +146,7 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->ContourLevelsLineEdit = new QLineEdit("RMS -3;3;7;15");
   this->ContourLevelsLineEdit->setToolTip("Contour Levels. The Levels can be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3') "
                                           "or in the following format 'FISRT:LAST:SPACING'. "
-                                          "In addition, in teh case of a list, it is possible also to specify for each Contour both the MIN and MAX intensity values of the level "
+                                          "In the case of a list, it is possible also to specify for each Contour both the MIN and MAX intensity values of the level "
                                           "(e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). \n\n "
                                           "If the string is preceded by 'RMS', the levels are evaluated in units of RMS of the datacube. \n\n"
                                           "The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy "
@@ -156,7 +156,6 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->ApplyButton = new QPushButton("Create Contours");
   q->addOptionsWidget(this->ApplyButton);
 
-  QObject::connect(this->ContourLevelsLineEdit, SIGNAL(textChanged(QString)), q, SLOT(onContourLevelsChanged(QString)));
   QObject::connect(this->ApplyButton, SIGNAL(clicked()), q, SLOT(CreateContours()));
 }
 
@@ -257,20 +256,13 @@ void qSlicerSegmentEditorAstroContoursEffect::updateMRMLFromGUI()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroContoursEffect::onContourLevelsChanged(QString ContourLevels)
-{
-  Q_D(qSlicerSegmentEditorAstroContoursEffect);
-
-  this->setParameter("ContourLeveles", ContourLevels);
-}
-
-//-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 {
   Q_D(qSlicerSegmentEditorAstroContoursEffect);
 
-  QString LevelsString = this->parameter("ContourLeveles");
-  std::string LevelsStdString = LevelsString.toStdString();
+  QString ContourLevels = d->ContourLevelsLineEdit->text();
+  this->setParameter("ContourLeveles", ContourLevels);
+  std::string LevelsStdString = ContourLevels.toStdString();
 
   vtkNew<vtkDoubleArray> Levels;
   vtkNew<vtkDoubleArray> Delimiters;
@@ -304,6 +296,11 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       {
       list = true;
       }
+    found = LevelsStdString.find(":");
+    if (found != std::string::npos)
+      {
+      increment = true;
+      }
     }
   else
     {
@@ -312,19 +309,22 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       {
       increment = true;
       }
-    else
+    found = LevelsStdString.find(",");
+    if (found != std::string::npos)
       {
-      found = LevelsStdString.find(",");
-      if (found != std::string::npos)
-        {
-        renzogram = true;
-        }
+      renzogram = true;
       }
     }
 
-  if ((list && increment) || (renzogram && increment) || (!list && !increment && !renzogram))
+  if (!list && !increment && !renzogram)
     {
-    QString message = QString("The input string defining the Contour Levels is formatted wrongly. Check the ToolTip.");
+    list = true;
+    }
+
+  if ((list && increment) || (renzogram && increment))
+    {
+    QString message = QString("The input string defining the Contour Levels"
+                              " is formatted wrongly. Check the ToolTip.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to create Contours"), message);
     return;
@@ -397,6 +397,16 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
         ss.ignore();
         }
       }
+
+    if(Delimiters->GetNumberOfValues() != 3)
+      {
+      QString message = QString("The input string defining the Contour Levels"
+                                " is formatted wrongly. Check the ToolTip.");
+      qCritical() << Q_FUNC_INFO << ": " << message;
+      QMessageBox::warning(NULL, tr("Failed to create Contours"), message);
+      return;
+      }
+
     double iter = Delimiters->GetValue(0);
     while (iter <= Delimiters->GetValue(1))
       {

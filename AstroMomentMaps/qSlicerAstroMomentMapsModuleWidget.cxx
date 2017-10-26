@@ -696,71 +696,12 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     {
     selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-
-    vtkMRMLAstroVolumeNode* astroMrmlNode = vtkMRMLAstroVolumeNode::SafeDownCast(mrmlNode);
-    vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = astroMrmlNode->GetAstroVolumeDisplayNode();
-
-    double ijk[3], worldOne[3], worldTwo[3];
-    ijk[0] = StringToDouble(mrmlNode->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
-    ijk[1] = StringToDouble(mrmlNode->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
-    ijk[2] = 0.;
-    astroMrmlDisplayNode->GetReferenceSpace(ijk, worldOne);
-    if(!strcmp(astroMrmlDisplayNode->GetWCSStruct()->cunit[2], "m/s"))
-      {
-      worldOne[2] /= 1000.;
-      }
-    ijk[2] = StringToDouble(mrmlNode->GetAttribute("SlicerAstro.NAXIS3"));
-    if (ijk[2] < 2)
-      {
-      ijk[2] += 1;
-      }
-    astroMrmlDisplayNode->GetReferenceSpace(ijk, worldTwo);
-    if(!strcmp(astroMrmlDisplayNode->GetWCSStruct()->cunit[2], "m/s"))
-      {
-      worldTwo[2] /= 1000.;
-      }
-
-    double Vmin, Vmax;
-
-    if (worldOne[2] < worldTwo[2])
-      {
-      Vmin = worldOne[2];
-      Vmax = worldTwo[2];
-      }
-    else
-      {
-      Vmin = worldTwo[2];
-      Vmax = worldOne[2];
-      }
-
-    d->VelocityRangeWidget->reset();
-    int wasBlocked = d->VelocityRangeWidget->blockSignals(true);
-    d->VelocityRangeWidget->setRange(Vmin, Vmax);
-    d->VelocityRangeWidget->setSingleStep((Vmax - Vmin) / 200.);
-    d->VelocityRangeWidget->blockSignals(wasBlocked);
-
-    double min = StringToDouble(mrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
-    double max = StringToDouble(mrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
-
-    d->ThresholdRangeWidget->reset();
-    wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
-    d->ThresholdRangeWidget->setRange(min, max);
-    d->ThresholdRangeWidget->setSingleStep((max - min) / 200.);
-    d->ThresholdRangeWidget->blockSignals(wasBlocked);
-
-    int wasModifying = d->parametersNode->StartModify();
     d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
 
-    d->parametersNode->SetVelocityMin(Vmin);
-    d->parametersNode->SetVelocityMax(Vmax);
+    this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onInputVolumeModified()));
 
-    d->parametersNode->SetIntensityMin(StringToDouble(mrmlNode->GetAttribute("SlicerAstro.DATAMIN")));
-    d->parametersNode->SetIntensityMax(StringToDouble(mrmlNode->GetAttribute("SlicerAstro.DATAMAX")));
-
-    d->parametersNode->EndModify(wasModifying);
-
-    d->VelocityUnitLabel->setText("km/s");
-    d->ThresholdUnitLabel->setText(mrmlNode->GetAttribute("SlicerAstro.BUNIT"));
+    this->onInputVolumeModified();
     }
   else
     {
@@ -768,6 +709,89 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     selectionNode->SetActiveVolumeID(NULL);
     }
   appLogic->PropagateVolumeSelection();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
+{
+  Q_D(qSlicerAstroMomentMapsModuleWidget);
+
+  if (!d->parametersNode || !this->mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode* astroMrmlNode = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if (!astroMrmlNode)
+    {
+    return;
+    }
+  vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = astroMrmlNode->GetAstroVolumeDisplayNode();
+  if (!astroMrmlDisplayNode)
+    {
+    return;
+    }
+
+  double ijk[3], worldOne[3], worldTwo[3];
+  ijk[0] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
+  ijk[1] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
+  ijk[2] = 0.;
+  astroMrmlDisplayNode->GetReferenceSpace(ijk, worldOne);
+  if(!strcmp(astroMrmlDisplayNode->GetWCSStruct()->cunit[2], "m/s"))
+    {
+    worldOne[2] /= 1000.;
+    }
+  ijk[2] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS3"));
+  if (ijk[2] < 2)
+    {
+    ijk[2] += 1;
+    }
+  astroMrmlDisplayNode->GetReferenceSpace(ijk, worldTwo);
+  if(!strcmp(astroMrmlDisplayNode->GetWCSStruct()->cunit[2], "m/s"))
+    {
+    worldTwo[2] /= 1000.;
+    }
+
+  double Vmin, Vmax;
+
+  if (worldOne[2] < worldTwo[2])
+    {
+    Vmin = worldOne[2];
+    Vmax = worldTwo[2];
+    }
+  else
+    {
+    Vmin = worldTwo[2];
+    Vmax = worldOne[2];
+    }
+
+  d->VelocityRangeWidget->reset();
+  int wasBlocked = d->VelocityRangeWidget->blockSignals(true);
+  d->VelocityRangeWidget->setRange(Vmin, Vmax);
+  d->VelocityRangeWidget->setSingleStep((Vmax - Vmin) / 200.);
+  d->VelocityRangeWidget->blockSignals(wasBlocked);
+
+  double min = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
+  double max = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
+
+  d->ThresholdRangeWidget->reset();
+  wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
+  d->ThresholdRangeWidget->setRange(min, max);
+  d->ThresholdRangeWidget->setSingleStep((max - min) / 200.);
+  d->ThresholdRangeWidget->blockSignals(wasBlocked);
+
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetVelocityMin(Vmin);
+  d->parametersNode->SetVelocityMax(Vmax);
+
+  d->parametersNode->SetIntensityMin(StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN")));
+  d->parametersNode->SetIntensityMax(StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX")));
+
+  d->parametersNode->EndModify(wasModifying);
+
+  d->VelocityUnitLabel->setText("km/s");
+  d->ThresholdUnitLabel->setText(astroMrmlNode->GetAttribute("SlicerAstro.BUNIT"));
 }
 
 //-----------------------------------------------------------------------------

@@ -180,7 +180,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   else
     {
     vtkErrorMacro(<< "vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
-                     "Do not recognize node type " << refNode->GetClassName());
+                     "do not recognize node type " << refNode->GetClassName());
     return 0;
     }
 
@@ -215,7 +215,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   if (fullName.empty())
     {
-    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : File name not specified");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : file name not specified");
     return 0;
     }
 
@@ -224,7 +224,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   // Check if this is a FITS file that we can read
   if (!reader->CanReadFile(fullName.c_str()))
     {
-    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : This is not a fits file");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : this is not a fits file");
     return 0;
     }
 
@@ -236,12 +236,20 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (reader->GetPointDataType() != vtkDataSetAttributes::SCALARS &&
          reader->GetNumberOfComponents() > 1)
       {
-      vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : MRMLVolumeNode does not match file kind");
+      vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
+                    "MRMLVolumeNode does not match file kind");
       return 0;
       }
     }
 
   reader->Update();
+
+  if (reader->GetWCSStruct() == NULL)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
+                  "WCS not allocated.");
+    return 0;
+    }
 
   if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
@@ -284,6 +292,13 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
       vtkImageData *imageData = reader->GetOutput();
+      if (imageData == NULL)
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
+                      "imageData not allocated.");
+        return 0;
+        }
+
       int vtkType = reader->GetDataType();
       int *dims = imageData->GetDimensions();
       const int numComponents = imageData->GetNumberOfScalarComponents();
@@ -315,7 +330,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
           break;
         default:
           vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
-                        "Could not get the data pointer. DataType not allowed.");
+                        "could not get the data pointer. DataType not allowed.");
           return 0;
         }
       }
@@ -325,10 +340,13 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     // set volume attributes
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
     labvolNode->SetRASToIJKMatrix(mat);
+
     //set WCSstruct
     labdisNode->SetWCSStruct(reader->GetWCSStruct());
+
     // parse WCS Status
     labdisNode->SetWCSStatus(reader->GetWCSStatus());
+
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
     for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
@@ -366,11 +384,21 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
       {
-      volNode->UpdateRangeAttributes();
+      if (!volNode->UpdateRangeAttributes())
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
+                      "could not calculate range attributes.");
+        return 0;
+        }
       }
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.RMS"), "0."))
       {
-      volNode->UpdateNoiseAttributes();
+      if (!volNode->UpdateNoiseAttributes())
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
+                      "could not calculate noise attributes.");
+        return 0;
+        }
       }
     // set range in display
     double min = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMIN"));
@@ -385,7 +413,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     disNode->SetThreshold(lower, upper);
     disNode->EndModify(disabledModify);
 
-    volNode->SetAttribute("SlicerAstro.RenderingInitialized","0");
+    volNode->SetAttribute("SlicerAstro.RENDERINGINIT","0");
     }
   else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
@@ -393,7 +421,12 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
       {
-      labvolNode->UpdateRangeAttributes();
+      if (!labvolNode->UpdateRangeAttributes())
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
+                      "could not calculate noise attributes.");
+        return 0;
+        }
       }
 
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.RMS"), "0."))
@@ -428,21 +461,21 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   else
     {
     vtkErrorMacro(<< "vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
-                     " Do not recognize node type " << refNode->GetClassName());
+                     " do not recognize node type " << refNode->GetClassName());
     return 0;
     }
 
   if (volNode->GetImageData() == NULL)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
-                  " Cannot write NULL ImageData");
+                  " cannot write NULL ImageData");
     }
 
   std::string fullName = this->GetFullNameFromFileName();
   if (fullName == std::string(""))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
-                  " File name not specified");
+                  " file name not specified");
     return 0;
     }
 
@@ -465,7 +498,8 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   if (writer->GetWriteError())
     {
     vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal : "
-                  "ERROR writing FITS file " << (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
+                  "ERROR writing FITS file " <<
+                  (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
     writeFlag = 0;
     }
 

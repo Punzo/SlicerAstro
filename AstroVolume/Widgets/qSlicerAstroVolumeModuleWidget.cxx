@@ -60,6 +60,7 @@
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLLayoutLogic.h>
@@ -95,6 +96,8 @@ public:
   qMRMLAstroVolumeInfoWidget *MRMLAstroVolumeInfoWidget;
   vtkSlicerSegmentationsModuleLogic* segmentationsLogic;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;  
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
+  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelVolumeNode;
 };
 
 //-----------------------------------------------------------------------------
@@ -265,7 +268,21 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->qualityLabel, SLOT(setEnabled(bool)));
 
-  // Techniques
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->OpticalVelocityButton, SLOT(setEnabled(bool)));
+
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->RadioVelocityButton, SLOT(setEnabled(bool)));
+
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->VelocityLabel, SLOT(setEnabled(bool)));
+
+  QObject::connect(this->OpticalVelocityButton, SIGNAL(clicked()),
+                   q, SLOT(setOpticalVelocity()));
+
+  QObject::connect(this->RadioVelocityButton, SIGNAL(clicked()),
+                   q, SLOT(setRadioVelocity()));
+
   vtkSlicerVolumeRenderingLogic* volumeRenderingLogic =
     vtkSlicerVolumeRenderingLogic::SafeDownCast(volumeRendering->logic());
   std::map<std::string, std::string> methods =
@@ -551,7 +568,7 @@ void qSlicerAstroVolumeModuleWidget::setup()
     if(displayNode)
       {
       this->qvtkReconnect(displayNode, vtkCommand::ModifiedEvent,
-                    this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+                          this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
       }
     }
 }
@@ -635,7 +652,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       if (sliceNode)
         {
         sliceNode->Modified();
-
         }
       }
     }
@@ -653,7 +669,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     d->RenderingFrame->setEnabled(true);
     d->RenderingFrame->setCollapsed(false);
 
-    int renderingInit = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.RenderingInitialized"));
+    int renderingInit = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.RENDERINGINIT"));
 
     if (renderingInit < 1)
       {
@@ -683,7 +699,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       {
       d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
       d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-      astroVolumeNode->SetAttribute("SlicerAstro.RenderingInitialized", "1");
+      astroVolumeNode->SetAttribute("SlicerAstro.RENDERINGINIT", "1");
       }
 
     d->VisibilityCheckBox->setChecked(true);
@@ -763,12 +779,137 @@ void qSlicerAstroVolumeModuleWidget::setPresets(vtkMRMLNode *node)
 
   vtkMRMLAstroVolumeNode* inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
               d->ActiveVolumeNodeSelector->currentNode());
-  if (inputVolume && !strcmp(inputVolume->GetAttribute("SlicerAstro.PresetsActive"), "0"))
+  if (inputVolume && !strcmp(inputVolume->GetAttribute("SlicerAstro.PRESETACTIVE"), "0"))
     {
-    inputVolume->SetAttribute("SlicerAstro.PresetsActive", "1");
+    inputVolume->SetAttribute("SlicerAstro.PRESETACTIVE", "1");
     d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
     d->PresetsNodeComboBox->setCurrentNodeIndex(0);
     d->PresetsNodeComboBox->update();
+  }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLNode *node = d->ActiveVolumeNodeSelector->currentNode();
+  vtkMRMLAstroVolumeNode *volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  vtkMRMLAstroLabelMapVolumeNode *volumeLabelNode =
+    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+  if (!volumeNode && !volumeLabelNode)
+    {
+    return;
+    }
+
+  wcsprm *WCS = NULL;
+  int WCSStatus;
+  if (volumeNode)
+    {
+    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
+      volumeNode->GetAstroVolumeDisplayNode();
+    if (!volumeDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
+                    "volumeDisplayNode not found.";
+      return;
+      }
+    WCS = volumeDisplayNode->GetWCSStruct();
+    WCSStatus = volumeDisplayNode->GetWCSStatus();
+    }
+  else if (volumeLabelNode)
+    {
+    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
+      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
+    if (!volumeLabelDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
+                    "volumeLabelDisplayNode not found.";
+      return;
+      }
+    WCS = volumeLabelDisplayNode->GetWCSStruct();
+    WCSStatus = volumeLabelDisplayNode->GetWCSStatus();
+    }
+
+  if (!WCS)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
+                  "WCS not found.";
+    return;
+    }
+
+  std::string ctype2 = WCS->ctype[2];
+  if (strncmp(WCS->ctype[2], "VRAD", 4))
+    {
+    int index = 2;
+    char ctypeS[9];
+    strcpy(ctypeS, "VRAD-???");
+
+    if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : wcssptr ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg;
+      }
+    else
+      {
+      qDebug() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
+                 "3rd WCS axes has been converted "
+                 "from "<<ctype2.c_str()<< " to "<<WCS->ctype[2]<<".";
+      }
+
+    if ((WCSStatus = wcsset(WCS)))
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : wcsset ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg;
+      }
+
+    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+      {
+      vtkMRMLSliceNode* sliceNode =
+          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+      if (sliceNode)
+        {
+        sliceNode->Modified();
+        }
+      }
+    }
+
+  if (volumeNode)
+    {
+    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
+      volumeNode->GetAstroVolumeDisplayNode();
+    if (!volumeDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
+                    "volumeDisplayNode not found.";
+      return;
+      }
+    volumeDisplayNode->Modified();
+    volumeNode->Modified();
+    }
+  else if (volumeLabelNode)
+    {
+    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
+      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
+    if (!volumeLabelDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
+                    "volumeLabelDisplayNode not found.";
+      return;
+      }
+    volumeLabelDisplayNode->Modified();
+    volumeLabelNode->Modified();
     }
 }
 
@@ -1574,8 +1715,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
                                                            const char *volumeNodeThreeID,
                                                            double ContourLevel,
                                                            double PVPhi,
-                                                           double XPos,
-                                                           double YPos)
+                                                           double RAS[3])
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -1944,6 +2084,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   vtkNew<vtkTransform> transformMajor;
   transformMajor->SetMatrix(yellowSliceNode->GetSliceToRAS());
   transformMajor->RotateY(PVPhi);
+
   PVMajorMatrix->SetElement(0, 0, transformMajor->GetMatrix()->GetElement(0,0));
   PVMajorMatrix->SetElement(0, 1, transformMajor->GetMatrix()->GetElement(0,1));
   PVMajorMatrix->SetElement(0, 2, transformMajor->GetMatrix()->GetElement(0,2));
@@ -1953,15 +2094,24 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   PVMajorMatrix->SetElement(2, 0, transformMajor->GetMatrix()->GetElement(2,0));
   PVMajorMatrix->SetElement(2, 1, transformMajor->GetMatrix()->GetElement(2,1));
   PVMajorMatrix->SetElement(2, 2, transformMajor->GetMatrix()->GetElement(2,2));
-  yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+
+  if (yellowSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    yellowSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix);
+    }
+  else
+    {
+    yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+    }
   yellowSliceNode->SetOrientation("PVMajor");
+
   // Translate to X and Y center
-  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
-  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, RAS[0]);
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, RAS[1]);
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, RAS[2]);
   yellowSliceNode->UpdateMatrices();
 
-  // Create PV major
+  // Create PV minor
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
   if (!greenSliceNode)
@@ -1985,12 +2135,20 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   PVMinorMatrix->SetElement(2, 0, transformMinor->GetMatrix()->GetElement(2,0));
   PVMinorMatrix->SetElement(2, 1, transformMinor->GetMatrix()->GetElement(2,1));
   PVMinorMatrix->SetElement(2, 2, transformMinor->GetMatrix()->GetElement(2,2));
-  greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+
+  if (greenSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    greenSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix);
+    }
+  else
+    {
+    greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+    }
   greenSliceNode->SetOrientation("PVMinor");
   // Translate to X and Y center
-  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
-  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, RAS[0]);
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, RAS[1]);
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, RAS[2]);
   greenSliceNode->UpdateMatrices();
 
   // Add Presents PV to Red, Yellow and Green slices
@@ -2003,11 +2161,42 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
-  redSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
-  redSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+  if (redSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    redSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix);
+    }
+  else
+    {
+    redSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+    }
+
+  if (redSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    redSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix);
+    }
+  else
+    {
+    redSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+    }
   redSliceNode->Modified();
-  greenSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
-  yellowSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+
+  if (greenSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    greenSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix);
+    }
+  else
+    {
+    greenSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+    }
+
+  if (yellowSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    yellowSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix);
+    }
+  else
+    {
+    yellowSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -2015,8 +2204,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
                                                               const char *volumeNodeTwoID,
                                                               double ContourLevel,
                                                               double PVPhi,
-                                                              double XPos,
-                                                              double YPos,
+                                                              double RAS[3],
                                                               bool overrideSegments/*=false*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -2221,15 +2409,23 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   PVMajorMatrix->SetElement(2, 0, transformMajor->GetMatrix()->GetElement(2,0));
   PVMajorMatrix->SetElement(2, 1, transformMajor->GetMatrix()->GetElement(2,1));
   PVMajorMatrix->SetElement(2, 2, transformMajor->GetMatrix()->GetElement(2,2));
-  yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+
+  if (yellowSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    yellowSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix);
+    }
+  else
+    {
+    yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+    }
   yellowSliceNode->SetOrientation("PVMajor");
-  //translate to X and Y center
-  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
-  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  // Translate to X and Y center
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, RAS[0]);
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, RAS[1]);
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, RAS[2]);
   yellowSliceNode->UpdateMatrices();
 
-  // Create PV major
+  // Create PV minor
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
   if (!greenSliceNode)
@@ -2253,13 +2449,68 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   PVMinorMatrix->SetElement(2, 0, transformMinor->GetMatrix()->GetElement(2,0));
   PVMinorMatrix->SetElement(2, 1, transformMinor->GetMatrix()->GetElement(2,1));
   PVMinorMatrix->SetElement(2, 2, transformMinor->GetMatrix()->GetElement(2,2));
-  greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+
+  if (greenSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    greenSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix);
+    }
+  else
+    {
+    greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+    }
   greenSliceNode->SetOrientation("PVMinor");
-  //translate to X and Y center
-  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, XPos);
-  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, YPos);
+  // Translate to X and Y center
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, RAS[0]);
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, RAS[1]);
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, RAS[2]);
   greenSliceNode->UpdateMatrices();
+
+  // Add Presents PV to Red, Yellow and Green slices
+  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+  if (!redSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                  "redSliceNode not found!";
+    return;
+    }
+
+  if (redSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    redSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix);
+    }
+  else
+    {
+    redSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+    }
+
+  if (redSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    redSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix);
+    }
+  else
+    {
+    redSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+    }
+  redSliceNode->Modified();
+
+  if (greenSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    greenSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix);
+    }
+  else
+    {
+    greenSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix);
+    }
+
+  if (yellowSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    yellowSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix);
+    }
+  else
+    {
+    yellowSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -2300,7 +2551,46 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
   else
     {
     d->ROICropDisplayCheckBox->setChecked(false);
+  }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLLabelVolumeNodeModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroLabelVolumeNode)
+    {
+    return;
     }
+
+  vtkMRMLAstroLabelMapVolumeDisplayNode* astroLabelVolumeDisplayNode =
+    d->astroLabelVolumeNode->GetAstroLabelMapVolumeDisplayNode();
+  if (!astroLabelVolumeDisplayNode)
+    {
+    return;
+    }
+
+  wcsprm* WCS = astroLabelVolumeDisplayNode->GetWCSStruct();
+  if (!WCS)
+    {
+    return;
+    }
+
+  bool opticalState = d->OpticalVelocityButton->blockSignals(true);
+  bool radioState = d->RadioVelocityButton->blockSignals(true);
+  d->OpticalVelocityButton->setChecked(false);
+  d->RadioVelocityButton->setChecked(false);
+  if (!strncmp(WCS->ctype[2], "VOPT", 4))
+    {
+    d->OpticalVelocityButton->setChecked(true);
+    }
+  else if (!strncmp(WCS->ctype[2], "VRAD", 4))
+    {
+    d->RadioVelocityButton->setChecked(true);
+    }
+  d->RadioVelocityButton->blockSignals(radioState);
+  d->OpticalVelocityButton->blockSignals(opticalState);
 }
 
 //---------------------------------------------------------------------------
@@ -2332,7 +2622,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
     QString(displayNode->GetClassName()) : defaultRenderingMethod;
   d->RenderingMethodComboBox->setCurrentIndex(
     d->RenderingMethodComboBox->findData(currentVolumeMapper) );
-
 }
 
 //---------------------------------------------------------------------------
@@ -2386,6 +2675,131 @@ void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
   for(int i = 0; i < n; i++)
     {
     ROINode->GetNthDisplayNode(i)->EndModify(wasModifying[i]);
+  }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setOpticalVelocity()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLNode *node = d->ActiveVolumeNodeSelector->currentNode();
+  vtkMRMLAstroVolumeNode *volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  vtkMRMLAstroLabelMapVolumeNode *volumeLabelNode =
+    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+  if (!volumeNode && !volumeLabelNode)
+    {
+    return;
+    }
+
+  wcsprm *WCS = NULL;
+  int WCSStatus;
+  if (volumeNode)
+    {
+    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
+      volumeNode->GetAstroVolumeDisplayNode();
+    if (!volumeDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+                    "volumeDisplayNode not found.";
+      return;
+      }
+    WCS = volumeDisplayNode->GetWCSStruct();
+    WCSStatus = volumeDisplayNode->GetWCSStatus();
+    }
+  else if (volumeLabelNode)
+    {
+    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
+      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
+    if (!volumeLabelDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+                    "volumeLabelDisplayNode not found.";
+      return;
+      }
+    WCS = volumeLabelDisplayNode->GetWCSStruct();
+    WCSStatus = volumeLabelDisplayNode->GetWCSStatus();
+    }
+
+  if (!WCS)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+                  "WCS not found.";
+    return;
+    }
+
+  std::string ctype2 = WCS->ctype[2];
+  if (strncmp(WCS->ctype[2], "VOPT", 4))
+    {
+    int index = 2;
+    char ctypeS[9];
+    strcpy(ctypeS, "VOPT-???");
+
+    if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : wcssptr ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg;
+      }
+    else
+      {
+      qDebug() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+                 "3rd WCS axes has been converted "
+                 "from "<<ctype2.c_str()<< " to "<<WCS->ctype[2]<<".";
+      }
+
+    if ((WCSStatus = wcsset(WCS)))
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : wcsset ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg;
+      }
+
+    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+      {
+      vtkMRMLSliceNode* sliceNode =
+          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+      if (sliceNode)
+        {
+        sliceNode->Modified();
+        }
+      }
+    }
+
+  if (volumeNode)
+    {
+    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
+      volumeNode->GetAstroVolumeDisplayNode();
+    if (!volumeDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+                    "volumeDisplayNode not found.";
+      return;
+      }
+    volumeDisplayNode->Modified();
+    volumeNode->Modified();
+    }
+  else if (volumeLabelNode)
+    {
+    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
+      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
+    if (!volumeLabelDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+                    "volumeLabelDisplayNode not found.";
+      return;
+      }
+    volumeLabelDisplayNode->Modified();
+    volumeLabelNode->Modified();
     }
 }
 
@@ -2413,8 +2827,6 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onEditSelectedSegment()
 {
-  //Q_D(qSlicerAstroVolumeModuleWidget);
-
   qSlicerModuleManager * moduleManager = qSlicerCoreApplication::application()->moduleManager();
   if (!moduleManager)
     {
@@ -2483,6 +2895,8 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender)
 {
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
   if (!sender)
     {
     return;
@@ -2506,19 +2920,37 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
     if(activeVolumeNode->GetMTime() > activeLabelMapVolumeNode->GetMTime())
       {
       this->setMRMLVolumeNode(activeVolumeNode);
+      d->astroVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(activeVolumeNode);
+      this->qvtkReconnect(d->astroVolumeNode, vtkCommand::ModifiedEvent,
+                          this, SLOT(onMRMLVolumeNodeModified()));
+      this->onMRMLVolumeNodeModified();
       }
     else
       {
       this->setMRMLVolumeNode(activeLabelMapVolumeNode);
+      d->astroLabelVolumeNode =
+        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(activeLabelMapVolumeNode);
+      this->qvtkReconnect(d->astroLabelVolumeNode, vtkCommand::ModifiedEvent,
+                          this, SLOT(onMRMLLabelVolumeNodeModified()));
+      this->onMRMLLabelVolumeNodeModified();
       }
     }
   else if (activeVolumeNode)
     {
     this->setMRMLVolumeNode(activeVolumeNode);
+    d->astroVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(activeVolumeNode);
+    this->qvtkReconnect(d->astroVolumeNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLVolumeNodeModified()));
+    this->onMRMLVolumeNodeModified();
     }
   else if (activeLabelMapVolumeNode)
     {
     this->setMRMLVolumeNode(activeLabelMapVolumeNode);
+    d->astroLabelVolumeNode =
+      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(activeLabelMapVolumeNode);
+    this->qvtkReconnect(d->astroLabelVolumeNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLLabelVolumeNodeModified()));
+    this->onMRMLLabelVolumeNodeModified();
     }
 
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
@@ -2587,6 +3019,45 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObje
 
   d->segmentEditorNode = segmentEditorNode;
   emit segmentEditorNodeChanged(true);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
+    d->astroVolumeNode->GetAstroVolumeDisplayNode();
+  if (!astroVolumeDisplayNode)
+    {
+    return;
+    }
+
+  wcsprm* WCS = astroVolumeDisplayNode->GetWCSStruct();
+  if (!WCS)
+    {
+    return;
+    }
+
+  bool opticalState = d->OpticalVelocityButton->blockSignals(true);
+  bool radioState = d->RadioVelocityButton->blockSignals(true);
+  d->OpticalVelocityButton->setChecked(false);
+  d->RadioVelocityButton->setChecked(false);
+  if (!strncmp(WCS->ctype[2], "VOPT", 4))
+    {
+    d->OpticalVelocityButton->setChecked(true);
+    }
+  else if (!strncmp(WCS->ctype[2], "VRAD", 4))
+    {
+    d->RadioVelocityButton->setChecked(true);
+    }
+  d->RadioVelocityButton->blockSignals(radioState);
+  d->OpticalVelocityButton->blockSignals(opticalState);
 }
 
 //--------------------------------------------------------------------------

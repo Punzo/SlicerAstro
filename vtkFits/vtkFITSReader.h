@@ -139,10 +139,12 @@ public:
     UseNativeOrigin = false;
     }
 
-virtual vtkImageData * AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo) VTK_OVERRIDE;
-virtual void AllocateOutputData(vtkImageData *out, vtkInformation* outInfo, int *uExtent) VTK_OVERRIDE
+  virtual vtkImageData * AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo) VTK_OVERRIDE;
+
+  virtual void AllocateOutputData(vtkImageData *out, vtkInformation* outInfo, int *uExtent) VTK_OVERRIDE
     { Superclass::AllocateOutputData(out, outInfo, uExtent); }
-void AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
+
+  bool AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
 
 protected:
   vtkFITSReader();

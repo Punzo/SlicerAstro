@@ -1620,6 +1620,8 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     scene->RemoveNode(outputVolume);
     inputVolume->SetDisplayVisibility(1);
     }
+
+  d->parametersNode->SetStatus(0);
 }
 
 //-----------------------------------------------------------------------------

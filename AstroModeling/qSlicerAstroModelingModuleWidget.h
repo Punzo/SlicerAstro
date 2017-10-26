@@ -26,8 +26,10 @@
 #include "qSlicerAstroModelingModuleExport.h"
 
 class qSlicerAstroModelingModuleWidgetPrivate;
+class vtkCollection;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLNode;
+class vtkStringArray;
 
 /// \ingroup Slicer_QtModules_AstroModeling
 class Q_SLICER_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWidget :
@@ -67,7 +69,7 @@ protected:
   void initializeParameterNode(vtkMRMLScene* scene);
   void initializeTableNode(vtkMRMLScene* scene, bool forceNew = false);
   void createPlots();
-  bool convertFirstSegmentToLabelMap();
+  bool convertSelectedSegmentToLabelMap();
   void onEnter();
 
 protected slots:
@@ -95,9 +97,11 @@ protected slots:
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLTableNodeModified();
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
   void onPositionAngleChanged(double value);
   void onPositionAngleErrorChanged(double value);
   void onPositionAngleFitChanged(bool flag);

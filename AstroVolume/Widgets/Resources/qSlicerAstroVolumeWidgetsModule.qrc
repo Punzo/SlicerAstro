@@ -10,6 +10,8 @@
         <file>Icons/XLarge/SlicerVolumes.png</file>
         <file>Icons/Small/AddLabelmap.png</file>
         <file>Icons/Small/SlicerAddModel.png</file>
+        <file>Icons/OpticalVelocity.png</file>
+        <file>Icons/RadioVelocity.png</file>
     </qresource>
     <qresource prefix="/presets"/>
 </RCC>

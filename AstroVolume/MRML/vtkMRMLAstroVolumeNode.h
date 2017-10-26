@@ -80,11 +80,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   ///
   /// Update Max and Min Attributes
-  virtual void UpdateRangeAttributes();
+  virtual bool UpdateRangeAttributes();
 
   ///
   /// Update Noise Attribute
-   virtual void UpdateNoiseAttributes();
+   virtual bool UpdateNoiseAttributes();
 
 protected:
   vtkMRMLAstroVolumeNode();
