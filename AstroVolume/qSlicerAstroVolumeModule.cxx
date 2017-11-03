@@ -58,6 +58,7 @@
 #include <qSlicerScriptedLoadableModuleWidget.h>
 #include <qSlicerUtils.h>
 #include <qSlicerVolumeRenderingModuleWidget.h>
+#include <vtkSlicerVersionConfigure.h> // For Slicer_VERSION_MAJOR, Slicer_VERSION_MINOR
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -88,6 +89,12 @@
 #include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
+
+// DisplayableManager initialization
+#if Slicer_VERSION_MAJOR == 4 && Slicer_VERSION_MINOR >= 9
+#include <vtkAutoInit.h>
+VTK_MODULE_INIT(vtkSlicerAstroVolumeModuleMRMLDisplayableManager)
+#endif
 
 //-----------------------------------------------------------------------------
 #if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
