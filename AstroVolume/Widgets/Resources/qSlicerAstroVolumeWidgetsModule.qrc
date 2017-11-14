@@ -12,6 +12,8 @@
         <file>Icons/Small/SlicerAddModel.png</file>
         <file>Icons/OpticalVelocity.png</file>
         <file>Icons/RadioVelocity.png</file>
+        <file>Icons/RMSROI.png</file>
+        <file>Icons/Synchornize.png</file>
     </qresource>
     <qresource prefix="/presets"/>
 </RCC>

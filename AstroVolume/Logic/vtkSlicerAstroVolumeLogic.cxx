@@ -27,6 +27,7 @@
 #include <vtkSlicerAstroVolumeLogic.h>
 
 // MRML nodes includes
+#include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroModelingParametersNode.h>
@@ -51,6 +52,7 @@
 #include <vtkCacheManager.h>
 #include <vtkCollection.h>
 #include <vtkColorTransferFunction.h>
+#include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -95,6 +97,41 @@ double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
 }
+
+//----------------------------------------------------------------------------
+template <typename T> std::string NumberToString(T V)
+{
+  std::string stringValue;
+  std::stringstream strstream;
+  strstream << V;
+  strstream >> stringValue;
+  return stringValue;
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool FloatIsNaN(double Value)
+{
+  return isNaN<float>(Value);
+}
+
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -665,6 +702,224 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFrom
   labelNode->SetAndObserveImageData(imageData.GetPointer());
 
   return labelNode;
+}
+
+//---------------------------------------------------------------------------
+double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *roiNode,
+                                                    vtkMRMLAstroVolumeNode *inputVolume)
+{
+  if (!roiNode)
+    {
+    return 0.;
+    }
+
+  if (inputVolume->GetImageData() == NULL)
+   {
+   vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
+                 "imageData not allocated.");
+   return false;
+   }
+
+  //We calculate the noise as the std of 6 slices of the datacube.
+  int *dims = inputVolume->GetImageData()->GetDimensions();
+  int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
+  if (numComponents > 1)
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
+                  "imageData with more than one components.");
+    return 0.;
+    }
+  int numSlice = dims[0] * dims[1];
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  float *outFPixel = NULL;
+  double *outDPixel = NULL;
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      outFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      outDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      break;
+    default:
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
+                    "attempt to allocate scalars of type not allowed");
+      return false;
+    }
+
+  double noise = 0., mean = 0., roiBounds[6], volumeBounds[6];
+  int cont = 0;
+
+  roiNode->GetRASBounds(roiBounds);
+  inputVolume->GetRASBounds(volumeBounds);
+
+  for (int ii = 0; ii < 6; ii++)
+    {
+    if (fabs(roiBounds[ii]) - fabs(volumeBounds[ii]) > 1E-06)
+      {
+      roiBounds[ii] = volumeBounds[ii];
+      }
+    }
+
+  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+  RAStoIJKTransform->Identity();
+  RAStoIJKTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+  inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix);
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix);
+
+  double ijkMin[3], RASMin[3], ijkMax[3], RASMax[3];
+  RASMin[0] = roiBounds[0];
+  RASMin[1] = roiBounds[2];
+  RASMin[2] = roiBounds[4];
+  RASMax[0] = roiBounds[1];
+  RASMax[1] = roiBounds[3];
+  RASMax[2] = roiBounds[5];
+
+  RAStoIJKTransform->TransformPoint(RASMin, ijkMin);
+  RAStoIJKTransform->TransformPoint(RASMax, ijkMax);
+
+  roiBounds[0] = (int) ijkMin[0];
+  roiBounds[2] = (int) ijkMin[1];
+  roiBounds[4] = (int) ijkMin[2];
+  roiBounds[1] = (int) ijkMax[0];
+  roiBounds[3] = (int) ijkMax[1];
+  roiBounds[5] = (int) ijkMax[2];
+
+  if (roiBounds[0] > roiBounds[1])
+    {
+    int temp = roiBounds[0];
+    roiBounds[0] = roiBounds[1];
+    roiBounds[1] = temp;
+    }
+
+  if (roiBounds[2] > roiBounds[3])
+    {
+    int temp = roiBounds[2];
+    roiBounds[2] = roiBounds[3];
+    roiBounds[3] = temp;
+    }
+
+  if (roiBounds[4] > roiBounds[5])
+    {
+    int temp = roiBounds[4];
+    roiBounds[4] = roiBounds[5];
+    roiBounds[5] = temp;
+    }
+
+  cont = (roiBounds[1] - roiBounds[0]) *
+         (roiBounds[3] - roiBounds[2]) *
+         (roiBounds[5] - roiBounds[4]);
+
+  int firstElement, lastElement;
+
+  firstElement = roiBounds[0] + roiBounds[2] * dims[0] +
+                 roiBounds[4] * numSlice;
+
+  lastElement = roiBounds[1] + roiBounds[3] * dims[0] +
+                roiBounds[5] * numSlice;
+
+
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+        { 
+        int ref  = (int) floor(elemCnt / dims[0]);
+        ref *= dims[0];
+        int x = elemCnt - ref;
+        ref = (int) floor(elemCnt / numSlice);
+        ref *= numSlice;
+        ref = elemCnt - ref;
+        int y = (int) floor(ref / dims[0]);
+        if (x < roiBounds[0] ||  x > roiBounds[1] ||
+            y < roiBounds[2] ||  y > roiBounds[3])
+          {
+          continue;
+          }
+        if (FloatIsNaN(*(outFPixel + elemCnt)))
+          {
+          continue;
+          }
+        mean += *(outFPixel + elemCnt);
+        }
+      mean /= cont;
+      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+        {
+        int ref  = (int) floor(elemCnt / dims[0]);
+        ref *= dims[0];
+        int x = elemCnt - ref;
+        ref = (int) floor(elemCnt / numSlice);
+        ref *= numSlice;
+        ref = elemCnt - ref;
+        int y = (int) floor(ref / dims[0]);
+        if (x < roiBounds[0] ||  x > roiBounds[1] ||
+            y < roiBounds[2] ||  y > roiBounds[3])
+          {
+          continue;
+          }
+        if (FloatIsNaN(*(outFPixel + elemCnt)))
+          {
+          continue;
+          }
+        noise += (*(outFPixel + elemCnt) - mean) * (*(outFPixel+elemCnt) - mean);
+        }
+      noise = sqrt(noise / cont);
+      break;
+    case VTK_DOUBLE:
+      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+        {
+        int ref  = (int) floor(elemCnt / dims[0]);
+        ref *= dims[0];
+        int x = elemCnt - ref;
+        ref = (int) floor(elemCnt / numSlice);
+        ref *= numSlice;
+        ref = elemCnt - ref;
+        int y = (int) floor(ref / dims[0]);
+        if (x < roiBounds[0] ||  x > roiBounds[1] ||
+            y < roiBounds[2] ||  y > roiBounds[3])
+          {
+          continue;
+          }
+        if (DoubleIsNaN(*(outDPixel + elemCnt)))
+          {
+          continue;
+          }
+        mean += *(outDPixel + elemCnt);
+        }
+      mean /= cont;
+      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+        {
+        int ref  = (int) floor(elemCnt / dims[0]);
+        ref *= dims[0];
+        int x = elemCnt - ref;
+        ref = (int) floor(elemCnt / numSlice);
+        ref *= numSlice;
+        ref = elemCnt - ref;
+        int y = (int) floor(ref / dims[0]);
+        if (x < roiBounds[0] ||  x > roiBounds[1] ||
+            y < roiBounds[2] ||  y > roiBounds[3])
+          {
+          continue;
+          }
+        if (DoubleIsNaN(*(outDPixel + elemCnt)))
+          {
+          continue;
+          }
+        noise += (*(outDPixel + elemCnt) - mean) * (*(outDPixel+elemCnt) - mean);
+        }
+      noise = sqrt(noise / cont);
+      break;
+    }
+
+  inputVolume->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
+  inputVolume->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
+  outFPixel = NULL;
+  outDPixel = NULL;
+  delete outFPixel;
+  delete outDPixel;
+
+  return noise;
 }
 
 //---------------------------------------------------------------------------

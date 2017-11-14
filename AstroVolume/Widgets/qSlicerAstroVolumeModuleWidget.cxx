@@ -331,6 +331,21 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->volumeRenderingWidget, SLOT(endInteraction()));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
+                   this->RMSLabel, SLOT(setEnabled(bool)));
+
+  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
+                   this->RMSDoubleSpinBox, SLOT(setEnabled(bool)));
+
+  QObject::connect(this->RMSDoubleSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRMSValueChanged(double)));
+
+  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
+                   this->CalculateRMSPushButton, SLOT(setEnabled(bool)));
+
+  QObject::connect(this->CalculateRMSPushButton, SIGNAL(clicked()),
+                   q, SLOT(onCalculateRMS()));
+
+  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->ROICropCheckBox, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
@@ -737,7 +752,7 @@ void qSlicerAstroVolumeModuleWidget::resetOffset(vtkMRMLNode* node)
       node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     width = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) -
-        StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
+            StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
     }
 
   d->PresetOffsetSlider->setValue(0.);
@@ -785,7 +800,7 @@ void qSlicerAstroVolumeModuleWidget::setPresets(vtkMRMLNode *node)
     d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
     d->PresetsNodeComboBox->setCurrentNodeIndex(0);
     d->PresetsNodeComboBox->update();
-  }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -1382,6 +1397,19 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   d->CreateSurfaceButton->blockSignals(true);
   d->CreateSurfaceButton->setChecked(false);
   d->CreateSurfaceButton->blockSignals(false);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onRMSValueChanged(double RMS)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode)
+    {
+    return;
+    }
+
+  d->astroVolumeNode->SetAttribute("SlicerAstro.RMS", DoubleToString(RMS).c_str());
 }
 
 //---------------------------------------------------------------------------
@@ -2520,7 +2548,33 @@ void qSlicerAstroVolumeModuleWidget::stopRockView()
   for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
     {
     app->layoutManager()->threeDWidget(i)->threeDController()->rockView(false);
+  }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode || !d->volumeRenderingWidget)
+    {
+    return;
     }
+
+  vtkMRMLAnnotationROINode *roiNode = d->volumeRenderingWidget->mrmlROINode();
+  if (!roiNode)
+    {
+    return;
+    }
+
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (!astroVolumeLogic)
+    {
+    return;
+    }
+
+  astroVolumeLogic->CalculateRMSinROI(roiNode, d->astroVolumeNode);
 }
 
 //---------------------------------------------------------------------------
@@ -3026,10 +3080,28 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if (!d->astroVolumeNode)
+  if (!d->astroVolumeNode || !d->volumeRenderingWidget)
     {
     return;
     }
+
+  double RMS = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.RMS"));
+  d->RMSDoubleSpinBox->setValue(RMS);
+  double max = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+  d->RMSDoubleSpinBox->setMaximum(max);
+  double min = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+  if (min < 0.)
+    {
+    min = 0.;
+    }
+  d->RMSDoubleSpinBox->setMinimum(min);
+  d->RMSDoubleSpinBox->setSingleStep((max - min) / 100.);
+  QString rmsUnit = "  ";
+  rmsUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
+  d->RMSDoubleSpinBox->setSuffix(rmsUnit);
+
+  this->setPresets(d->astroVolumeNode);
+  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
     d->astroVolumeNode->GetAstroVolumeDisplayNode();

@@ -137,6 +137,12 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
         <property name="toolTip">
          <string>Click on this eye to show the rendering</string>
         </property>
@@ -156,6 +162,35 @@
         </property>
        </widget>
       </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="SynchronizeScalarDisplayNodeButton">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string/>
+        </property>
+        <property name="text">
+         <string>Synchornize</string>
+        </property>
+        <property name="icon">
+         <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+          <normaloff>:/Icons/Synchornize.png</normaloff>:/Icons/Synchornize.png</iconset>
+        </property>
+       </widget>
+      </item>
       <item row="1" column="0">
        <widget class="QLabel" name="synchLabel">
         <property name="enabled">
@@ -169,26 +204,7 @@
         </property>
        </widget>
       </item>
-      <item row="1" column="1">
-       <widget class="QPushButton" name="SynchronizeScalarDisplayNodeButton">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-        <property name="text">
-         <string>Synchornize</string>
-        </property>
-       </widget>
-      </item>
-      <item row="3" column="0">
+      <item row="2" column="0">
        <widget class="QLabel" name="PresetsLabel">
         <property name="enabled">
          <bool>false</bool>
@@ -201,13 +217,29 @@
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="2" column="1">
        <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox">
         <property name="enabled">
          <bool>false</bool>
         </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
         <property name="toolTip">
          <string>Click one of the presets to set its 3-D color and opacity transfer functions to the active volume. Note: clicking the preset already in selection will not apply any modificaton. </string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="0">
+       <widget class="QLabel" name="RMSLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>RMS:</string>
         </property>
        </widget>
       </item>
@@ -224,6 +256,94 @@
         </property>
        </widget>
       </item>
+      <item row="5" column="0">
+       <widget class="QLabel" name="CropLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
+        </property>
+        <property name="text">
+         <string>Crop:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="RenderingMethodLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
+        </property>
+        <property name="text">
+         <string>Rendering:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="7" column="0">
+       <widget class="QLabel" name="qualityLabel">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="toolTip">
+         <string/>
+        </property>
+        <property name="text">
+         <string>Quality:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="3" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="ctkDoubleSpinBox" name="RMSDoubleSpinBox">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="decimals">
+           <number>9</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="CalculateRMSPushButton">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Calculate the RMS value in a ROI</string>
+          </property>
+          <property name="text">
+           <string>Calculate RMS in ROI</string>
+          </property>
+          <property name="icon">
+           <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+            <normaloff>:/Icons/RMSROI.png</normaloff>:/Icons/RMSROI.png</iconset>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
       <item row="4" column="1">
        <widget class="ctkDoubleSlider" name="PresetOffsetSlider">
         <property name="enabled">
@@ -235,8 +355,14 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
         <property name="toolTip">
-         <string>Shift transfer functions</string>
+         <string>Shift the 3D color transfer functions</string>
         </property>
         <property name="layoutDirection">
          <enum>Qt::LeftToRight</enum>
@@ -261,19 +387,6 @@
         </property>
        </widget>
       </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="CropLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-        <property name="text">
-         <string>Crop:</string>
-        </property>
-       </widget>
-      </item>
       <item row="5" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
@@ -286,6 +399,12 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
           </property>
           <property name="toolTip">
            <string/>
@@ -305,6 +424,12 @@
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
           </property>
           <property name="toolTip">
            <string/>
@@ -336,6 +461,12 @@
             <verstretch>0</verstretch>
            </sizepolicy>
           </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
           <property name="toolTip">
            <string/>
           </property>
@@ -350,39 +481,19 @@
         </item>
        </layout>
       </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="RenderingMethodLabel">
-        <property name="enabled">
-         <bool>false</bool>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-        <property name="text">
-         <string>Rendering:</string>
-        </property>
-       </widget>
-      </item>
       <item row="6" column="1">
        <widget class="QComboBox" name="RenderingMethodComboBox">
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="7" column="0">
-       <widget class="QLabel" name="qualityLabel">
-        <property name="enabled">
-         <bool>false</bool>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
         </property>
         <property name="toolTip">
          <string/>
-        </property>
-        <property name="text">
-         <string>Quality:</string>
         </property>
        </widget>
       </item>
@@ -390,6 +501,12 @@
        <widget class="QComboBox" name="QualityControlComboBox">
         <property name="enabled">
          <bool>false</bool>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
         </property>
         <property name="toolTip">
          <string/>
@@ -866,6 +983,11 @@
    <class>ctkDoubleSlider</class>
    <extends>QWidget</extends>
    <header>ctkDoubleSlider.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ctkDoubleSpinBox</class>
+   <extends>QWidget</extends>
+   <header>ctkDoubleSpinBox.h</header>
   </customwidget>
   <customwidget>
    <class>ctkExpandableWidget</class>

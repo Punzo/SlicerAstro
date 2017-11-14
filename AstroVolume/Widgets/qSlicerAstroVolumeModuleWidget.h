@@ -91,6 +91,7 @@ public slots:
   void stopRockView();
 
 protected slots:
+  void onCalculateRMS();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
   void onEditSelectedSegment();
@@ -104,6 +105,7 @@ protected slots:
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
+  void onRMSValueChanged(double RMS);
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
   void resetOffset(vtkMRMLNode* node);
