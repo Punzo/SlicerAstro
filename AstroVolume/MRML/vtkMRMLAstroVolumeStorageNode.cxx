@@ -405,15 +405,11 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     double max = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMAX"));
     double window = max-min;
     double level = 0.5*(max+min);
-    double lower = level;
-    double upper = max;
 
     int disabledModify = disNode->StartModify();
     disNode->SetWindowLevel(window, level);
-    disNode->SetThreshold(lower, upper);
+    disNode->SetThreshold(min, max);
     disNode->EndModify(disabledModify);
-
-    volNode->SetAttribute("SlicerAstro.RENDERINGINIT","0");
     }
   else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {

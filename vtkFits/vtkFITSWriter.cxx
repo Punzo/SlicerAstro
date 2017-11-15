@@ -213,8 +213,6 @@ void vtkFITSWriter::WriteData()
     std::string tmp = ait->first.substr(pos+12);
     if ((!tmp.compare(0,6,"SIMPLE")) ||
         (!tmp.compare(0,7,"RMSMEAN")) ||
-        (!tmp.compare(0,13,"RENDERINGINIT")) ||
-        (!tmp.compare(0,12,"PRESETACTIVE")) ||
         (!tmp.compare(0,9,"DATAMODEL")))
       {
       continue;

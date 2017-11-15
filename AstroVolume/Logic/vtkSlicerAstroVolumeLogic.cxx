@@ -75,10 +75,6 @@ vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
 {
-  if (this->PresetsScene)
-    {
-    this->PresetsScene->Delete();
-    }
 }
 
 namespace
@@ -540,9 +536,9 @@ vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
 {
   if (!this->PresetsScene)
     {
-    this->PresetsScene = vtkMRMLScene::New();
-    this->LoadPresets(this->PresetsScene);
+    this->PresetsScene = vtkSmartPointer<vtkMRMLScene>::New();
     }
+  this->LoadPresets(this->PresetsScene);
   return this->PresetsScene;
 }
 
@@ -1152,5 +1148,24 @@ bool vtkSlicerAstroVolumeLogic::LoadPresets(vtkMRMLScene *scene)
     vtkErrorMacro(<< "Failed to load presets [" << presetFileName << "]");
     return false;
     }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro(<< "Failed to load presets: MRMLScene not found.");
+    return false;
+    }
+  vtkSmartPointer<vtkCollection> presets = vtkSmartPointer<vtkCollection>::Take(
+      this->PresetsScene->GetNodesByClass("vtkMRMLVolumePropertyNode"));
+
+  for(int i = 0; i < presets->GetNumberOfItems(); i++)
+    {
+    vtkMRMLVolumePropertyNode* volumePropertyNode =
+        vtkMRMLVolumePropertyNode::SafeDownCast(presets->GetItemAsObject(i));
+    if (volumePropertyNode)
+      {
+      this->GetMRMLScene()->AddNode(volumePropertyNode);
+      }
+    }
+
   return true;
 }

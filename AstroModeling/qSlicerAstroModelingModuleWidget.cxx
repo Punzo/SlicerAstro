@@ -1432,7 +1432,6 @@ void qSlicerAstroModelingModuleWidget::onEnter()
     return;
     }
 
-
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
                     this, SLOT(onMRMLSceneEndImportEvent()));
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndBatchProcessEvent,

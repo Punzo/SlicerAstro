@@ -102,7 +102,7 @@ protected:
   virtual void OnMRMLSceneEndImport();
 
   bool LoadPresets(vtkMRMLScene* scene);
-  vtkMRMLScene* PresetsScene;
+  vtkSmartPointer<vtkMRMLScene> PresetsScene;
   bool Init;
 
 private:

@@ -26,6 +26,7 @@
 
 // CTK includes
 #include <ctkUtils.h>
+#include <ctkVTKVolumePropertyWidget.h>
 
 // VTK includes
 #include <vtkImageData.h>
@@ -98,6 +99,10 @@ public:
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;  
   vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelVolumeNode;
+
+  double expandOldValue;
+  double offsetOldValue;
+  bool Lock;
 };
 
 //-----------------------------------------------------------------------------
@@ -111,6 +116,9 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   this->MRMLAstroVolumeInfoWidget = 0;
   this->segmentationsLogic = 0;
   this->volumeRenderingWidget = 0;
+  this->expandOldValue = 0.;
+  this->offsetOldValue = 0.;
+  this->Lock = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -229,9 +237,6 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->VisibilityCheckBox, SLOT(setEnabled(bool)));
 
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   this->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
-
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->SynchronizeScalarDisplayNodeButton, SLOT(setEnabled(bool)));
 
@@ -243,6 +248,12 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->PresetOffsetSlider, SLOT(setEnabled(bool)));
+
+  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
+                   this->PresetExpandSlider, SLOT(setEnabled(bool)));
+
+  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
+                   this->LockPushButton, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->PresetsNodeComboBox, SLOT(setEnabled(bool)));
@@ -258,6 +269,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->shiftLabel, SLOT(setEnabled(bool)));
+
+  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
+                   this->ExpandLabel, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->CropLabel, SLOT(setEnabled(bool)));
@@ -313,22 +327,37 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(resetOffset(vtkMRMLNode*)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setPresets(vtkMRMLNode*)));
+                   q, SLOT(resetExpand(vtkMRMLNode*)));
+
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(updatePresets(vtkMRMLNode*)));
+
+  QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(resetOffset(vtkMRMLNode*)));
+
+  QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(resetExpand(vtkMRMLNode*)));
+
+  QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onPresetsNodeChanged(vtkMRMLNode*)));
 
   QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    this->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
 
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
-                   this->volumeRenderingWidget, SLOT(offsetPreset(double)));
-
-  QObject::connect(this->PresetOffsetSlider, SIGNAL(sliderPressed()),
-                   this->volumeRenderingWidget, SLOT(startInteraction()));
+                   q, SLOT(offsetPreset(double)));
 
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                    this->volumeRenderingWidget, SLOT(interaction()));
 
-  QObject::connect(this->PresetOffsetSlider, SIGNAL(sliderReleased()),
-                   this->volumeRenderingWidget, SLOT(endInteraction()));
+  QObject::connect(this->PresetExpandSlider, SIGNAL(valueChanged(double)),
+                   q, SLOT(spreadPreset(double)));
+
+  QObject::connect(this->PresetExpandSlider, SIGNAL(valueChanged(double)),
+                   this->volumeRenderingWidget, SLOT(interaction()));
+
+  QObject::connect(this->LockPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onLockToggled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->RMSLabel, SLOT(setEnabled(bool)));
@@ -372,18 +401,6 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->SynchronizeScalarDisplayNodeButton, SIGNAL(clicked()),
                    q, SLOT(clearPresets()));
 
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   this->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(resetOffset(vtkMRMLNode*)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setPresets(vtkMRMLNode*)));
-
-  QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   this->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
-
   qSlicerAbstractCoreModule* segmentations= app->moduleManager()->module("Segmentations");
   if (segmentations)
     {
@@ -425,7 +442,6 @@ qSlicerAstroVolumeModuleWidget::qSlicerAstroVolumeModuleWidget(QWidget* _parent)
   : Superclass(_parent)
   , d_ptr(new qSlicerAstroVolumeModuleWidgetPrivate(*this))
 {
-  this->reactiveRenderingConnection = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -493,6 +509,17 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                    " PresetsNodeComboBox not found!"<<endl;
     return;
     }
+
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (!astroVolumeLogic)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene error :"
+                     " astroVolumeLogic not found!"<<endl;
+    return;
+    }
+  vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
+  d->PresetsNodeComboBox->setMRMLScene(presetsScene);
   d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
   d->PresetsNodeComboBox->setCurrentNodeIndex(0);
   d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
@@ -574,30 +601,29 @@ void qSlicerAstroVolumeModuleWidget::setup()
   Q_D(qSlicerAstroVolumeModuleWidget);
 
   d->setupUi(this);
+}
 
-  if(d->volumeRenderingWidget)
-    {
-    vtkMRMLVolumeRenderingDisplayNode* displayNode = vtkMRMLVolumeRenderingDisplayNode::
-       SafeDownCast(d->volumeRenderingWidget->mrmlDisplayNode());
-
-    if(displayNode)
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onEnter()
+{
+    if (!this->mrmlScene())
       {
-      this->qvtkReconnect(displayNode, vtkCommand::ModifiedEvent,
-                          this, SLOT(onMRMLVolumeRenderingDisplayNodeModified(vtkObject*)));
+      qCritical() << Q_FUNC_INFO << ": Invalid scene";
+      return;
       }
-    }
+
+    this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
+                      this, SLOT(onMRMLSceneEndCloseEvent()));
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
-
   if (!node)
     {
     emit astroLabelMapVolumeNodeChanged(false);
     emit astroVolumeNodeChanged(false);
-    return;
     }
 
   if (!this->mrmlScene() ||
@@ -630,17 +656,12 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     {
     int n = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
     // Check Input volume dimensionality
-    if (n != 3)
-      {
-      renderingActive = false;
-      }
-    else
+    if (n == 3)
       {
       renderingActive = true;
       }
     emit astroLabelMapVolumeNodeChanged(false);
     emit astroVolumeNodeChanged(true);
-    astroVolumeNode->Modified();
 
     std::string type = astroVolumeNode->GetAttribute("SlicerAstro.DATAMODEL");
     size_t found = type.find("MOMENTMAP");
@@ -649,26 +670,32 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
       appLogic->PropagateBackgroundVolumeSelection(1);
       }
+
+    if (renderingActive)
+      {
+      d->RenderingFrame->setEnabled(true);
+      d->RenderingFrame->setCollapsed(false);
+      if (d->volumeRenderingWidget)
+        {
+        d->volumeRenderingWidget->setMRMLVolumeNode(astroVolumeNode);
+        }
+      d->VisibilityCheckBox->setChecked(true);
+      }
     }
   else if (labelMapVolumeNode)
     {
     renderingActive = false;
     emit astroLabelMapVolumeNodeChanged(true);
     emit astroVolumeNodeChanged(false);
-    labelMapVolumeNode->Modified();
     selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     appLogic->PropagateLabelVolumeSelection(1);
-    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
-        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
-    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
-      {
-      vtkMRMLSliceNode* sliceNode =
-          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
-      if (sliceNode)
-        {
-        sliceNode->Modified();
-        }
-      }
+    }
+  else
+    {
+    selectionNode->SetReferenceActiveVolumeID("");
+    appLogic->PropagateBackgroundVolumeSelection(1);
+    selectionNode->SetReferenceActiveLabelVolumeID("");
+    appLogic->PropagateLabelVolumeSelection(1);
     }
 
   if (!d->RenderingFrame ||
@@ -679,61 +706,33 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     return;
     }
 
-  if (renderingActive && astroVolumeNode)
-    {
-    d->RenderingFrame->setEnabled(true);
-    d->RenderingFrame->setCollapsed(false);
-
-    int renderingInit = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.RENDERINGINIT"));
-
-    if (renderingInit < 1)
-      {
-      d->VisibilityCheckBox->setChecked(false);
-      }
-
-    this->clearPresets();
-
-    if (this->reactiveRenderingConnection)
-      {
-      QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                       d->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
-      QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                       this, SLOT(resetOffset(vtkMRMLNode*)));
-      QObject::connect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                       this, SLOT(setPresets(vtkMRMLNode*)));
-      QObject::connect(d->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                       d->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
-
-      }
-    d->volumeRenderingWidget->setMRMLVolumeNode(astroVolumeNode);
-    this->resetOffset(astroVolumeNode);
-    this->setPresets(astroVolumeNode);
-
-
-    if (renderingInit < 1)
-      {
-      d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-      d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-      astroVolumeNode->SetAttribute("SlicerAstro.RENDERINGINIT", "1");
-      }
-
-    d->VisibilityCheckBox->setChecked(true);
-    }
-  else
+  if (!renderingActive && !astroVolumeNode)
     {
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
+    d->VisibilityCheckBox->setChecked(false);
+  }
+}
 
-    QObject::disconnect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                        d->volumeRenderingWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
-    QObject::disconnect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                        this, SLOT(resetOffset(vtkMRMLNode*)));
-    QObject::disconnect(d->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                        this, SLOT(setPresets(vtkMRMLNode*)));
-    QObject::disconnect(d->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                        d->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onLockToggled(bool toggled)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
 
-    this->reactiveRenderingConnection = true;
+  d->Lock = toggled;
+
+  if (!d->LockPushButton)
+    {
+    return;
+    }
+
+  if (d->Lock)
+    {
+    d->LockPushButton->setIcon(QIcon(":Icons/astrolock.png"));
+    }
+  else
+    {
+    d->LockPushButton->setIcon(QIcon(":Icons/astrounlock.png"));
     }
 }
 
@@ -747,16 +746,16 @@ void qSlicerAstroVolumeModuleWidget::resetOffset(vtkMRMLNode* node)
     return;
     }
 
-  double width = 0.;
-  if (node->IsA("vtkMRMLAstroVolumeNode") ||
-      node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
-    {
-    width = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) -
-            StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
-    }
-
   d->PresetOffsetSlider->setValue(0.);
 
+  if (!node->IsA("vtkMRMLAstroVolumeNode") &&
+      !node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
+    {
+    return;
+    }
+
+  double width = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) -
+          StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
   bool wasBlocking = d->PresetOffsetSlider->blockSignals(true);
   d->PresetOffsetSlider->setSingleStep(
     width ? ctk::closestPowerOfTen(width) / 100. : 0.1);
@@ -766,41 +765,37 @@ void qSlicerAstroVolumeModuleWidget::resetOffset(vtkMRMLNode* node)
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::setPresets(vtkMRMLNode *node)
+void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if(!node)
+  vtkMRMLAstroVolumeNode* inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+
+  if(!inputVolume)
     {
     return;
     }
 
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-  vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
 
   if(!astroVolumeLogic->synchronizePresetsToVolumeNode(node))
     {
-    qWarning() << "qSlicerAstroVolumeModuleWidget::setPresets error : synchronizePresetsToVolumeNode failed;"
+    qWarning() << "qSlicerAstroVolumeModuleWidget::updatePresets error : synchronizePresetsToVolumeNode failed;"
                   " encountered in adjusting the Color Function for the 3-D display.";
     }
 
-  d->PresetsNodeComboBox->setMRMLScene(presetsScene);
-
-  if (!d->ActiveVolumeNodeSelector)
+  if (inputVolume->GetPresetNode() != NULL)
     {
-    qWarning() << "qSlicerAstroVolumeModuleWidget::setPresets error : ActiveVolumeNodeSelector not found!";
+    d->PresetsNodeComboBox->setCurrentNode(inputVolume->GetPresetNode());
     }
-
-  vtkMRMLAstroVolumeNode* inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
-              d->ActiveVolumeNodeSelector->currentNode());
-  if (inputVolume && !strcmp(inputVolume->GetAttribute("SlicerAstro.PRESETACTIVE"), "0"))
+  else
     {
-    inputVolume->SetAttribute("SlicerAstro.PRESETACTIVE", "1");
     d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
     d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-    d->PresetsNodeComboBox->update();
     }
+
+  d->PresetsNodeComboBox->update();
 }
 
 //---------------------------------------------------------------------------
@@ -925,6 +920,34 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
       }
     volumeLabelDisplayNode->Modified();
     volumeLabelNode->Modified();
+  }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::spreadPreset(double expandValue)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->volumeRenderingWidget)
+    {
+    return;
+    }
+
+  ctkVTKVolumePropertyWidget* volumePropertyWidget =
+     d->volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
+       (QString("VolumeProperty"));
+
+  if (!volumePropertyWidget)
+    {
+    return;
+    }
+
+  volumePropertyWidget->spreadAllPoints(expandValue - d->expandOldValue, true);
+  d->expandOldValue = expandValue;
+
+  if (d->Lock)
+    {
+    d->PresetOffsetSlider->setValue(expandValue);
     }
 }
 
@@ -1040,7 +1063,35 @@ void qSlicerAstroVolumeModuleWidget::onSegmentEditorNodeModified(vtkObject *send
   if (segmentationNode != segmentationNodeTable)
     {
     d->SegmentsTableView_2->setSegmentationNode(segmentationNode);
+  }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::resetExpand(vtkMRMLNode *node)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if(!node)
+    {
+    return;
     }
+
+  d->PresetExpandSlider->setValue(0.);
+
+  if (!node->IsA("vtkMRMLAstroVolumeNode") &&
+      !node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
+    {
+    return;
+    }
+
+  double width = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) -
+                 StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
+  bool wasBlocking = d->PresetExpandSlider->blockSignals(true);
+  d->PresetExpandSlider->setSingleStep(
+    width ? ctk::closestPowerOfTen(width) / 100. : 0.1);
+  d->PresetExpandSlider->setPageStep(d->PresetOffsetSlider->singleStep());
+  d->PresetExpandSlider->setRange(-width, width);
+  d->PresetExpandSlider->blockSignals(wasBlocking);
 }
 
 //---------------------------------------------------------------------------
@@ -1512,7 +1563,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       }
     }
 
-  this->setPresets(volumeOne);
+  this->updatePresets(volumeOne);
 
   if(!d->PresetsNodeComboBox)
     {
@@ -1551,7 +1602,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
         }
       }
     }
-  this->setPresets(volumeTwo);
+  this->updatePresets(volumeTwo);
 
   if(!d->PresetsNodeComboBox)
     {
@@ -1833,7 +1884,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
         }
       }
     }
-  this->setPresets(volumeTwo);
+  this->updatePresets(volumeTwo);
 
   selectionNode->SetReferenceActiveVolumeID(volumeThree->GetID());
 
@@ -1859,7 +1910,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
         }
       }
     }
-  this->setPresets(volumeThree);
+  this->updatePresets(volumeThree);
 
   selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
   selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
@@ -1887,7 +1938,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
       }
     }
 
-  this->setPresets(volumeOne);
+  this->updatePresets(volumeOne);
   if(!d->PresetsNodeComboBox)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView error :"
@@ -2552,6 +2603,34 @@ void qSlicerAstroVolumeModuleWidget::stopRockView()
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->volumeRenderingWidget)
+    {
+    return;
+    }
+
+  ctkVTKVolumePropertyWidget* volumePropertyWidget =
+     d->volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
+       (QString("VolumeProperty"));
+
+  if (!volumePropertyWidget)
+    {
+    return;
+    }
+
+  volumePropertyWidget->moveAllPoints(offsetValue - d->offsetOldValue, 0., true);
+  d->offsetOldValue = offsetValue;
+
+  if (d->Lock)
+    {
+    d->PresetExpandSlider->setValue(offsetValue);
+    }
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -2648,6 +2727,12 @@ void qSlicerAstroVolumeModuleWidget::onMRMLLabelVolumeNodeModified()
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndCloseEvent()
+{
+  this->setMRMLScene(this->mrmlScene());
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -2659,6 +2744,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
 
   vtkMRMLVolumeRenderingDisplayNode* displayNode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(sender);
+
   d->VisibilityCheckBox->setChecked(
     displayNode ? displayNode->GetVisibility() : false);
 
@@ -2675,7 +2761,20 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
   QString currentVolumeMapper = displayNode ?
     QString(displayNode->GetClassName()) : defaultRenderingMethod;
   d->RenderingMethodComboBox->setCurrentIndex(
-    d->RenderingMethodComboBox->findData(currentVolumeMapper) );
+              d->RenderingMethodComboBox->findData(currentVolumeMapper) );
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onPresetsNodeChanged(vtkMRMLNode *node)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode || !node)
+    {
+    return;
+    }
+
+  d->astroVolumeNode->SetPresetNode(node);
 }
 
 //---------------------------------------------------------------------------
@@ -3100,7 +3199,14 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
   rmsUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
   d->RMSDoubleSpinBox->setSuffix(rmsUnit);
 
-  this->setPresets(d->astroVolumeNode);
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+
+  if(!astroVolumeLogic->synchronizePresetsToVolumeNode(d->astroVolumeNode))
+    {
+    qWarning() << "qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified error : synchronizePresetsToVolumeNode failed;"
+                  " encountered in adjusting the Color Function for the 3-D display.";
+    }
   d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
@@ -3179,7 +3285,20 @@ qSlicerVolumeRenderingModuleWidget* qSlicerAstroVolumeModuleWidget::volumeRender
 {
   Q_D(const qSlicerAstroVolumeModuleWidget);
 
-  return d->volumeRenderingWidget;
+    return d->volumeRenderingWidget;
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::enter()
+{
+  this->onEnter();
+  this->Superclass::enter();
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::exit()
+{
+  this->Superclass::exit();
 }
 
 //--------------------------------------------------------------------------

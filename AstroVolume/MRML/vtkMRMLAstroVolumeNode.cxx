@@ -33,6 +33,10 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLVolumePropertyNode.h>
+
+//------------------------------------------------------------------------------
+const char* vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE = "preset";
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
@@ -40,12 +44,17 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode::vtkMRMLAstroVolumeNode()
 {
-  this->SetAttribute("SlicerAstro.PRESETACTIVE", "0");
 }
 
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode::~vtkMRMLAstroVolumeNode()
 {
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroVolumeNode::GetPresetNodeReferenceRole()
+{
+  return vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE;
 }
 
 namespace
@@ -408,6 +417,29 @@ bool vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
   delete outDPixel;
 
   return true;
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetPresetNode(vtkMRMLVolumePropertyNode *node)
+{
+  this->SetNodeReferenceID(this->GetPresetNodeReferenceRole(), (node ? node->GetID() : NULL));
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetPresetNode(vtkMRMLNode *node)
+{
+  this->SetPresetNode(vtkMRMLVolumePropertyNode::SafeDownCast(node));
+}
+
+//-----------------------------------------------------------
+vtkMRMLNode *vtkMRMLAstroVolumeNode::GetPresetNode()
+{
+  if (!this->Scene)
+    {
+    return NULL;
+    }
+
+  return this->GetNodeReference(this->GetPresetNodeReferenceRole());
 }
 
 //-----------------------------------------------------------

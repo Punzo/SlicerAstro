@@ -34,6 +34,7 @@
 
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroLabelMapVolumeNode;
+class vtkMRMLVolumePropertyNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
@@ -86,9 +87,18 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   /// Update Noise Attribute
    virtual bool UpdateNoiseAttributes();
 
+  ///
+  /// Set/Get reference to a Preset Node
+  void SetPresetNode(vtkMRMLVolumePropertyNode* node);
+  void SetPresetNode(vtkMRMLNode* node);
+  vtkMRMLNode *GetPresetNode();
+
 protected:
   vtkMRMLAstroVolumeNode();
   virtual ~vtkMRMLAstroVolumeNode();
+
+  static const char* PRESET_REFERENCE_ROLE;
+  const char *GetPresetNodeReferenceRole();
 
   vtkMRMLAstroVolumeNode(const vtkMRMLAstroVolumeNode&);
   void operator=(const vtkMRMLAstroVolumeNode&);
