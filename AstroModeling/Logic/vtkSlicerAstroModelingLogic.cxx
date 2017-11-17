@@ -930,48 +930,51 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           return 0;
           }
 
-        // Calculate total flux of model within last ring
-        for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+        if (pnode->GetNormalize())
           {
-          if (!isNaN(ringreg[ii]))
+          // Calculate total flux of model within last ring
+          for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
             {
-            for (size_t z = 0; z < (size_t)this->Internal->cubeF->DimZ(); z++)
+            if (!isNaN(ringreg[ii]))
               {
-              totflux_model += outarray[ii + z * this->Internal->cubeF->DimY() * this->Internal->cubeF->DimX()];
+              for (size_t z = 0; z < (size_t)this->Internal->cubeF->DimZ(); z++)
+                {
+                totflux_model += outarray[ii + z * this->Internal->cubeF->DimY() * this->Internal->cubeF->DimX()];
+                }
               }
             }
-          }
 
-        double factor = this->Internal->totflux_data/totflux_model;
-        for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
-          {
-          outarray[ii] *= factor;
-          }
-
-        // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
-        // flux of observation and model is eventually equal.
-
-        for (int y = 0; y < this->Internal->cubeF->DimY(); y++)
-          {
-          for (int x = 0; x < this->Internal->cubeF->DimX(); x++)
+          double factor = this->Internal->totflux_data/totflux_model;
+          for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
             {
-            float factor = 0;
-            float modSum = 0;
-            float obsSum = 0;
-            for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
-              {
-              long Pix = this->Internal->cubeF->nPix(x,y,z);
-              modSum += outarray[Pix];
-              obsSum += this->Internal->cubeF->Array(Pix) * this->Internal->cubeF->Mask()[Pix];
-              }
-            if (modSum!=0)
-              {
-              factor = obsSum/modSum;
-              }
+            outarray[ii] *= factor;
+            }
 
-            for (int z=0; z<this->Internal->cubeF->DimZ(); z++)
+          // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
+          // flux of observation and model is eventually equal.
+
+          for (int y = 0; y < this->Internal->cubeF->DimY(); y++)
+            {
+            for (int x = 0; x < this->Internal->cubeF->DimX(); x++)
               {
-              outarray[this->Internal->cubeF->nPix(x,y,z)] *= factor;
+              float factor = 0;
+              float modSum = 0;
+              float obsSum = 0;
+              for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
+                {
+                long Pix = this->Internal->cubeF->nPix(x,y,z);
+                modSum += outarray[Pix];
+                obsSum += this->Internal->cubeF->Array(Pix) * this->Internal->cubeF->Mask()[Pix];
+                }
+              if (modSum!=0)
+                {
+                factor = obsSum/modSum;
+                }
+
+              for (int z=0; z<this->Internal->cubeF->DimZ(); z++)
+                {
+                outarray[this->Internal->cubeF->nPix(x,y,z)] *= factor;
+                }
               }
             }
           }
@@ -1226,48 +1229,51 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           return 0;
           }
 
-        // Calculate total flux of model within last ring
-        for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+        if (pnode->GetNormalize())
           {
-          if (!isNaN(ringreg[ii]))
+          // Calculate total flux of model within last ring
+          for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
             {
-            for (size_t z = 0; z < (size_t)this->Internal->cubeD->DimZ(); z++)
+            if (!isNaN(ringreg[ii]))
               {
-              totflux_model += outarray[ii + z * this->Internal->cubeD->DimY() * this->Internal->cubeD->DimX()];
+              for (size_t z = 0; z < (size_t)this->Internal->cubeD->DimZ(); z++)
+                {
+                totflux_model += outarray[ii + z * this->Internal->cubeD->DimY() * this->Internal->cubeD->DimX()];
+                }
               }
             }
-          }
 
-        double factor = this->Internal->totflux_data/totflux_model;
-        for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
-          {
-          outarray[ii] *= factor;
-          }
-
-        // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
-        // flux of observation and model is eventually equal.
-
-        for (int y = 0; y < this->Internal->cubeD->DimY(); y++)
-          {
-          for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
+          double factor = this->Internal->totflux_data/totflux_model;
+          for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
             {
-            float factor = 0;
-            float modSum = 0;
-            float obsSum = 0;
-            for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
-              {
-              long Pix = this->Internal->cubeD->nPix(x,y,z);
-              modSum += outarray[Pix];
-              obsSum += this->Internal->cubeD->Array(Pix) * this->Internal->cubeD->Mask()[Pix];
-              }
-            if (modSum!=0)
-              {
-              factor = obsSum/modSum;
-              }
+            outarray[ii] *= factor;
+            }
 
-            for (int z=0; z<this->Internal->cubeD->DimZ(); z++)
+          // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
+          // flux of observation and model is eventually equal.
+
+          for (int y = 0; y < this->Internal->cubeD->DimY(); y++)
+            {
+            for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
               {
-              outarray[this->Internal->cubeD->nPix(x,y,z)] *= factor;
+              float factor = 0;
+              float modSum = 0;
+              float obsSum = 0;
+              for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
+                {
+                long Pix = this->Internal->cubeD->nPix(x,y,z);
+                modSum += outarray[Pix];
+                obsSum += this->Internal->cubeD->Array(Pix) * this->Internal->cubeD->Mask()[Pix];
+                }
+              if (modSum!=0)
+                {
+                factor = obsSum/modSum;
+                }
+
+              for (int z=0; z<this->Internal->cubeD->DimZ(); z++)
+                {
+                outarray[this->Internal->cubeD->nPix(x,y,z)] *= factor;
+                }
               }
             }
           }
@@ -2130,74 +2136,75 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
       float totflux_model = 0.;
 
-      // Calculate total flux of model within last ring
-      for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+      if (pnode->GetNormalize())
         {
-        if (!isNaN(ringreg[ii]))
-          {
-          for (size_t z = 0; z < (size_t)this->Internal->cubeF->DimZ(); z++)
-            {
-            totflux_model += outarray[ii + z * this->Internal->cubeF->DimY() * this->Internal->cubeF->DimX()];
-            }
-          }
-        }
-
-      if (this->Internal->totflux_data < 1.E-6)
-        {
-        MomentMap<float> *totalmap = new MomentMap<float>;
-        totalmap->input(this->Internal->cubeF);
-        totalmap->SumMap(true);
-
+        // Calculate total flux of model within last ring
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
           {
-          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+          if (!isNaN(ringreg[ii]))
             {
-            this->Internal->totflux_data += totalmap->Array(ii);
+            for (size_t z = 0; z < (size_t)this->Internal->cubeF->DimZ(); z++)
+              {
+              totflux_model += outarray[ii + z * this->Internal->cubeF->DimY() * this->Internal->cubeF->DimX()];
+              }
             }
           }
+
+        if (this->Internal->totflux_data < 1.E-6)
+          {
+          MomentMap<float> *totalmap = new MomentMap<float>;
+          totalmap->input(this->Internal->cubeF);
+          totalmap->SumMap(true);
+
+          for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+            {
+            if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+              {
+              this->Internal->totflux_data += totalmap->Array(ii);
+              }
+            }
+
           delete totalmap;
           totalmap = NULL;
-          delete ringreg;
-          ringreg = NULL;
-        }
+          }
 
-      if (this->Internal->totflux_data < 1.E-6)
-        {
-        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
-                      "this->Internal->totflux_data is zero!");
-        return 0;
-        }
-
-      double factor = this->Internal->totflux_data/totflux_model;
-      for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
-        {
-        outarray[ii] *= factor;
-        }
-
-      // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
-      // flux of observation and model is eventually equal.
-
-      for (int y = 0; y < this->Internal->cubeF->DimY(); y++)
-        {
-        for (int x = 0; x < this->Internal->cubeF->DimX(); x++)
+        if (this->Internal->totflux_data < 1.E-6)
           {
-          float factor = 0;
-          float modSum = 0;
-          float obsSum = 0;
-          for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
-            {
-            long Pix = this->Internal->cubeF->nPix(x,y,z);
-            modSum += outarray[Pix];
-            obsSum += this->Internal->cubeF->Array(Pix) * this->Internal->cubeF->Mask()[Pix];
-            }
-          if (modSum!=0)
-            {
-            factor = obsSum/modSum;
-            }
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "this->Internal->totflux_data is zero!");
+          return 0;
+          }
 
-          for (int z=0; z<this->Internal->cubeF->DimZ(); z++)
+        double factor = this->Internal->totflux_data/totflux_model;
+        for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
+          {
+          outarray[ii] *= factor;
+          }
+
+        // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
+        // flux of observation and model is eventually equal.
+        for (int y = 0; y < this->Internal->cubeF->DimY(); y++)
+          {
+          for (int x = 0; x < this->Internal->cubeF->DimX(); x++)
             {
-            outarray[this->Internal->cubeF->nPix(x,y,z)] *= factor;
+            float factor = 0;
+            float modSum = 0;
+            float obsSum = 0;
+            for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
+              {
+              long Pix = this->Internal->cubeF->nPix(x,y,z);
+              modSum += outarray[Pix];
+              obsSum += this->Internal->cubeF->Array(Pix) * this->Internal->cubeF->Mask()[Pix];
+              }
+            if (modSum!=0)
+              {
+              factor = obsSum/modSum;
+              }
+
+            for (int z=0; z<this->Internal->cubeF->DimZ(); z++)
+              {
+              outarray[this->Internal->cubeF->nPix(x,y,z)] *= factor;
+              }
             }
           }
         }
@@ -2236,6 +2243,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         residualFPixel = NULL;
         }
+
+      delete ringreg;
+      ringreg = NULL;
       outarray = NULL;
       if (this->Internal->modF != NULL)
         {
@@ -2352,74 +2362,75 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
       double totflux_model = 0.;
 
-      // Calculate total flux of model within last ring
-      for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+      if (pnode->GetNormalize())
         {
-        if (!isNaN(ringreg[ii]))
-          {
-          for (size_t z = 0; z < (size_t)this->Internal->cubeD->DimZ(); z++)
-            {
-            totflux_model += outarray[ii + z * this->Internal->cubeD->DimY() * this->Internal->cubeD->DimX()];
-            }
-          }
-        }
-
-      if (this->Internal->totflux_data < 1.E-6)
-        {
-        MomentMap<double> *totalmap = new MomentMap<double>;
-        totalmap->input(this->Internal->cubeD);
-        totalmap->SumMap(true);
-
+        // Calculate total flux of model within last ring
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
           {
-          if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+          if (!isNaN(ringreg[ii]))
             {
-            this->Internal->totflux_data += totalmap->Array(ii);
+            for (size_t z = 0; z < (size_t)this->Internal->cubeD->DimZ(); z++)
+              {
+              totflux_model += outarray[ii + z * this->Internal->cubeD->DimY() * this->Internal->cubeD->DimX()];
+              }
             }
           }
+
+        if (this->Internal->totflux_data < 1.E-6)
+          {
+          MomentMap<double> *totalmap = new MomentMap<double>;
+          totalmap->input(this->Internal->cubeD);
+          totalmap->SumMap(true);
+
+          for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+            {
+            if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+              {
+              this->Internal->totflux_data += totalmap->Array(ii);
+              }
+            }
+
           delete totalmap;
           totalmap = NULL;
-          delete ringreg;
-          ringreg = NULL;
-        }
+          }
 
-      if (this->Internal->totflux_data < 1.E-6)
-        {
-        vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
-                      "this->Internal->totflux_data is zero!");
-        return 0;
-        }
-
-      double factor = this->Internal->totflux_data/totflux_model;
-      for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
-        {
-        outarray[ii] *= factor;
-        }
-
-      // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
-      // flux of observation and model is eventually equal.
-
-      for (int y = 0; y < this->Internal->cubeD->DimY(); y++)
-        {
-        for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
+        if (this->Internal->totflux_data < 1.E-6)
           {
-          double factor = 0;
-          double modSum = 0;
-          double obsSum = 0;
-          for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
-            {
-            long Pix = this->Internal->cubeD->nPix(x,y,z);
-            modSum += outarray[Pix];
-            obsSum += this->Internal->cubeD->Array(Pix) * this->Internal->cubeD->Mask()[Pix];
-            }
-          if (modSum!=0)
-            {
-            factor = obsSum/modSum;
-            }
+          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                        "this->Internal->totflux_data is zero!");
+          return 0;
+          }
 
-          for (int z=0; z<this->Internal->cubeD->DimZ(); z++)
+        double factor = this->Internal->totflux_data/totflux_model;
+        for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
+          {
+          outarray[ii] *= factor;
+          }
+
+        // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
+        // flux of observation and model is eventually equal.
+        for (int y = 0; y < this->Internal->cubeD->DimY(); y++)
+          {
+          for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
             {
-            outarray[this->Internal->cubeD->nPix(x,y,z)] *= factor;
+            double factor = 0;
+            double modSum = 0;
+            double obsSum = 0;
+            for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
+              {
+              long Pix = this->Internal->cubeD->nPix(x,y,z);
+              modSum += outarray[Pix];
+              obsSum += this->Internal->cubeD->Array(Pix) * this->Internal->cubeD->Mask()[Pix];
+              }
+            if (modSum!=0)
+              {
+              factor = obsSum/modSum;
+              }
+
+            for (int z=0; z<this->Internal->cubeD->DimZ(); z++)
+              {
+              outarray[this->Internal->cubeD->nPix(x,y,z)] *= factor;
+              }
             }
           }
         }
@@ -2458,6 +2469,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         residualDPixel = NULL;
         }
+
+      delete ringreg;
+      ringreg = NULL;
       outarray = NULL;
       if (this->Internal->modD != NULL)
         {

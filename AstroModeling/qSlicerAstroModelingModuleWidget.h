@@ -98,6 +98,7 @@ protected slots:
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onMRMLTableNodeModified();
+  void onNormalizeToggled(bool toggled);
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);

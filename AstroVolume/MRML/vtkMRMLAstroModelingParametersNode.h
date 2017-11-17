@@ -194,6 +194,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(FitSuccess,bool);
   vtkGetMacro(FitSuccess,bool);
 
+  vtkSetMacro(Normalize,bool);
+  vtkGetMacro(Normalize,bool);
+
   vtkSetMacro(ContourLevel,double);
   vtkGetMacro(ContourLevel,double);
 
@@ -271,6 +274,8 @@ protected:
   int Operation;
 
   bool FitSuccess;
+
+  bool Normalize;
 
   double ContourLevel;
 };

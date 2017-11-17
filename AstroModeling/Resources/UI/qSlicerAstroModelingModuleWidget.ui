@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>514</width>
-    <height>1233</height>
+    <height>1306</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -242,10 +242,10 @@
       <string>Input Mask</string>
      </property>
      <property name="checked">
-      <bool>true</bool>
+      <bool>false</bool>
      </property>
      <property name="collapsed">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="contentsFrameShape">
       <enum>QFrame::StyledPanel</enum>
@@ -1046,6 +1046,26 @@
             </widget>
            </item>
           </layout>
+         </item>
+         <item row="10" column="0">
+          <widget class="QLabel" name="NormalizeLabel">
+           <property name="text">
+            <string>Normalize:</string>
+           </property>
+          </widget>
+         </item>
+         <item row="10" column="1">
+          <widget class="QCheckBox" name="NormalizeCheckBox">
+           <property name="toolTip">
+            <string>If toggled the model will be normalized with the integrated line of sight intensity values of the data.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
         </layout>
        </widget>

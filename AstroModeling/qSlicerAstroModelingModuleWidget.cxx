@@ -342,6 +342,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(EstimateInitialParametersPushButton, SIGNAL(clicked()),
                    q, SLOT(onEstimateInitialParameters()));
 
+  QObject::connect(NormalizeCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onNormalizeToggled(bool)));
+
   QObject::connect(FitPushButton, SIGNAL(clicked()),
                    q, SLOT(onFit()));
 
@@ -1883,6 +1886,17 @@ void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
   d->fiducialNodeMinor->GlobalWarningDisplayOn();
 }
 
+void qSlicerAstroModelingModuleWidget::onNormalizeToggled(bool toggled)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetNormalize(toggled);
+}
+
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onNumberOfCloundsChanged(double value)
 {
@@ -2434,6 +2448,8 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->CloudCDSliderWidget->setValue(d->parametersNode->GetCloudsColumnDensity());
 
   d->ContourSliderWidget->setValue(d->parametersNode->GetContourLevel());
+
+  d->NormalizeCheckBox->setChecked(d->parametersNode->GetNormalize());
 
   d->TableView->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());

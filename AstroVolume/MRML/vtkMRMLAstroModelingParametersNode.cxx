@@ -86,6 +86,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetStatus(0);
   this->SetOperation(vtkMRMLAstroModelingParametersNode::ESTIMATE);
   this->SetFitSuccess(false);
+  this->SetNormalize(true);
   this->SetNumberOfRings(0);
   this->SetContourLevel(3.);
 }
@@ -393,6 +394,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "Normalize"))
+      {
+      this->Normalize = StringToInt(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "MaskActive"))
       {
       this->MaskActive = StringToInt(attValue);
@@ -472,6 +479,7 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " Status=\"" << this->Status << "\"";
   of << indent << " Operation=\"" << this->GetOperationAsString(this->Operation) << "\"";
   of << indent << " FitSuccess=\"" << this->FitSuccess << "\"";
+  of << indent << " Normalize=\"" << this->Normalize << "\"";
   of << indent << " ContourLevel=\"" << this->ContourLevel << "\"";
 }
 
@@ -525,6 +533,7 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetStatus(node->GetStatus());
   this->SetOperation(node->GetOperation());
   this->SetFitSuccess(node->GetFitSuccess());
+  this->SetNormalize(node->GetNormalize());
   this->SetContourLevel(node->GetContourLevel());
 
   this->EndModify(disabledModify);
@@ -625,5 +634,6 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "Status: " << this->Status << "\n";
   os << "Operation: " << this->GetOperationAsString(this->Operation) << "\n";
   os << "FitSuccess: " << this->FitSuccess << "\n";
+  os << "Normalize: " << this->Normalize << "\n";
   os << "ContourLevel: " << this->ContourLevel << "\n";
 }
