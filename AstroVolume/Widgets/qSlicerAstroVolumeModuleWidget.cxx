@@ -1181,6 +1181,42 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
   d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
   d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
   d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
+
+  this->onCreateSurfaceButtonToggled(true);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    return;
+    }
+
+  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
+  if (!selectionNode)
+    {
+    return;
+    }
+
+  selectionNode->SetReferenceActiveLabelVolumeID("");
+  appLogic->PropagateLabelVolumeSelection(1);
+
+  if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode* activeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(selectionNode->GetActiveVolumeID()));
+
+  d->ActiveVolumeNodeSelector->setCurrentNode(activeNode);
+
+  if (!activeNode)
+    {
+    qSlicerApplication* app = qSlicerApplication::application();
+    for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
+      {
+      app->layoutManager()->threeDWidget(i)->threeDController()->resetFocalPoint();
+      }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -3194,7 +3230,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
     min = 0.;
     }
   d->RMSDoubleSpinBox->setMinimum(min);
-  d->RMSDoubleSpinBox->setSingleStep((max - min) / 100.);
+  d->RMSDoubleSpinBox->setSingleStep((max - min) / 1000.);
   QString rmsUnit = "  ";
   rmsUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
   d->RMSDoubleSpinBox->setSuffix(rmsUnit);

@@ -142,7 +142,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Display Masks in the 3-D view</string>
+             <string>Display Masks in the 3D view</string>
             </property>
             <property name="text">
              <string>Create surface</string>
