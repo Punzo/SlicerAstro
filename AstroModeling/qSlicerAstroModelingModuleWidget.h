@@ -71,6 +71,7 @@ protected:
   void createPlots();
   bool convertSelectedSegmentToLabelMap();
   void onEnter();
+  void onExit();
 
 protected slots:
   void onCloudsColumnDensityChanged(double value);
@@ -82,6 +83,7 @@ protected slots:
   void onDistanceChanged(double value);
   void onEndCloseEvent();
   void onFittingFunctionChanged(int value);
+  void onGreenSliceRotated(double value);
   void onInclinationChanged(double value);
   void onInclinationErrorChanged(double value);
   void onInclinationFitChanged(bool flag);
@@ -97,6 +99,7 @@ protected slots:
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLSliceNodeModified(vtkObject* sender);
   void onMRMLTableNodeModified();
   void onNormalizeToggled(bool toggled);
   void onNumberOfCloundsChanged(double value);
@@ -126,6 +129,7 @@ protected slots:
   void onXCenterFitChanged(bool flag);
   void onYCenterChanged(double value);
   void onYCenterFitChanged(bool flag);
+  void onYellowSliceRotated(double value);
   void setMRMLAstroModelingParametersNode(vtkMRMLNode*);
   void setPVOffset();
   void updateProgress(int value);

@@ -44,6 +44,7 @@
 #include <vtksys/SystemTools.hxx>
 #include <vtkStringArray.h>
 #include <vtkTable.h>
+#include <vtkTransform.h>
 
 // SlicerQt includesS
 #include <qSlicerAbstractCoreModule.h>
@@ -137,6 +138,8 @@ public:
 
   double XPosMean;
   double YPosMean;
+  double YellowRotOldValue;
+  double GreenRotOldValue;
 };
 
 //-----------------------------------------------------------------------------
@@ -169,6 +172,10 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
   this->CopyAction = 0;
   this->PasteAction = 0;
   this->PlotAction = 0;
+  this->XPosMean = 0;
+  this->YPosMean = 0;
+  this->YellowRotOldValue = 0.;
+  this->GreenRotOldValue = 0.;
 }
 
 //-----------------------------------------------------------------------------
@@ -360,10 +367,16 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(CalculatePushButton, SIGNAL(clicked()),
                    q, SLOT(onCalculateAndVisualize()));
 
+  QObject::connect(YellowSliceSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onYellowSliceRotated(double)));
+
+  QObject::connect(GreenSliceSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onGreenSliceRotated(double)));
 
   InputSegmentCollapsibleButton->setCollapsed(true);
   FittingParametersCollapsibleButton->setCollapsed(false);
   OutputCollapsibleButton->setCollapsed(true);
+  OutputCollapsibleButton_2->setCollapsed(true);
 
   progressBar->hide();
   progressBar->setMinimum(0);
@@ -420,6 +433,7 @@ void qSlicerAstroModelingModuleWidget::enter()
 
 void qSlicerAstroModelingModuleWidget::exit()
 {
+  this->onExit();
   this->Superclass::exit();
 }
 
@@ -549,6 +563,7 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   d->InputSegmentCollapsibleButton->setCollapsed(true);
   d->FittingParametersCollapsibleButton->setCollapsed(false);
   d->OutputCollapsibleButton->setCollapsed(true);
+  d->OutputCollapsibleButton_2->setCollapsed(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -615,6 +630,7 @@ void qSlicerAstroModelingModuleWidget::onEndCloseEvent()
   d->InputSegmentCollapsibleButton->setCollapsed(true);
   d->FittingParametersCollapsibleButton->setCollapsed(false);
   d->OutputCollapsibleButton->setCollapsed(true);
+  d->OutputCollapsibleButton_2->setCollapsed(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -627,6 +643,40 @@ void qSlicerAstroModelingModuleWidget::onFittingFunctionChanged(int value)
     return;
     }
   d->parametersNode->SetFittingFunction(value);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onGreenSliceRotated(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
+                  "greenSliceNode not found!";
+    return;
+    }
+
+  vtkNew<vtkTransform> transform;
+  vtkMatrix4x4* sliceToRAS = greenSliceNode->GetSliceToRAS();
+  if (!sliceToRAS)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
+                  "greenSliceNode matrix not found!";
+    return;
+    }
+  transform->SetMatrix(sliceToRAS);
+  transform->RotateY(value - d->GreenRotOldValue);
+  d->GreenRotOldValue = value;
+  sliceToRAS->DeepCopy(transform->GetMatrix());
+  greenSliceNode->UpdateMatrices();
 }
 
 //-----------------------------------------------------------------------------
@@ -1429,7 +1479,7 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
 
 void qSlicerAstroModelingModuleWidget::onEnter()
 {
-  if (!this->mrmlScene())
+  /*if (!this->mrmlScene())
     {
     qCritical() << Q_FUNC_INFO << ": Invalid scene";
     return;
@@ -1442,7 +1492,12 @@ void qSlicerAstroModelingModuleWidget::onEnter()
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
                     this, SLOT(onMRMLSceneEndCloseEvent()));
   this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndRestoreEvent,
-                    this, SLOT(onMRMLSceneEndRestoreEvent()));
+                    this, SLOT(onMRMLSceneEndRestoreEvent()));*/
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onExit()
+{
 }
 
 //-----------------------------------------------------------------------------
@@ -1674,6 +1729,26 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkOb
     }
 
   d->segmentEditorNode = segmentEditorNode;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender)
+{
+  if (!sender)
+    {
+    return;
+    }
+
+  vtkMRMLSliceNode *sliceNode =
+      vtkMRMLSliceNode::SafeDownCast(sender);
+
+  if (!sliceNode)
+    {
+    return;
+    }
+
+  // TO DO: Update Fiducials position
+
 }
 
 //-----------------------------------------------------------------------------
@@ -2454,12 +2529,17 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->TableView->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourLabel->setEnabled(d->parametersNode->GetFitSuccess());
-  d->ContourLabelUnit->setEnabled(d->parametersNode->GetFitSuccess());
   d->VisualizePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->CalculatePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->CopyButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->PasteButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->PlotButton->setEnabled(d->parametersNode->GetFitSuccess());
+
+  d->OutputCollapsibleButton_2->setEnabled(d->parametersNode->GetFitSuccess());
+  d->YellowSliceLabel->setEnabled(d->parametersNode->GetFitSuccess());
+  d->YellowSliceSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());
+  d->GreenSliceLabel->setEnabled(d->parametersNode->GetFitSuccess());
+  d->GreenSliceSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());
 
   // Set params table to table view
   if (d->TableView->mrmlTableNode() != d->parametersNode->GetParamsTableNode())
@@ -2472,22 +2552,22 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
 {
-  //this->onMRMLAstroModelingParametersNodeModified();
+  this->onMRMLAstroModelingParametersNodeModified();
 }
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndRestoreEvent()
 {
-  //this->onMRMLAstroModelingParametersNodeModified();
+  this->onMRMLAstroModelingParametersNodeModified();
 }
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndBatchProcessEvent()
 {
-  //this->onMRMLAstroModelingParametersNodeModified();
+  this->onMRMLAstroModelingParametersNodeModified();
 }
 
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
 {
-  //this->onMRMLAstroModelingParametersNodeModified();
+  this->onMRMLAstroModelingParametersNodeModified();
 }
 
 //---------------------------------------------------------------------------
@@ -3201,6 +3281,25 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     return;
     }
 
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
+                  "yellowSliceNode not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
+                  "greenSliceNode not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
   if (d->parametersNode->GetFitSuccess())
     {
     d->parametersNode->GetParamsTableNode()->Copy(d->internalTableNode);
@@ -3295,6 +3394,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
     d->OutputCollapsibleButton->setCollapsed(false);
+    d->OutputCollapsibleButton_2->setCollapsed(false);
 
     // Force again the offset of the PV
     // It will be good to understand why the active node
@@ -3406,7 +3506,10 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     double PVPhiMinorCos = cos(-PVPhiMinor);
     double PVPhiMinorSin = sin(-PVPhiMinor);
 
-    double MinorSign = sign(cos((PVPhi + 30.) * deg2rad));
+    double MinorSign = sign(cos((PVPhi + 90.) * deg2rad));
+
+    double beta = 90. * deg2rad;
+    double cosBeta = cos(beta);
 
     // Create fiducials
     for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
@@ -3424,12 +3527,14 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       int positiveIndex = radiiIndex * 2;
       int negativeIndex = (radiiIndex * 2) + 1;
+      double sinInc = sin(*(IncPointer + radiiIndex) * deg2rad);
+      double cosInc = cos(*(IncPointer + radiiIndex) * deg2rad);
 
       // Update fiducials on the Major axes:
       // Center of PV is in (X0,Y0), this means that the angle beta is equal
       // to the angle of the slice. Therefore, the angle theta is zero on the semi-major axes.
       // Project velocity (theta zero)
-      double VelocitySin = *(VRotPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad);
+      double VelocitySin = *(VRotPointer + radiiIndex) * sinInc;
       double VelocityMajorPositive = - VelocitySin + *(VSysPointer + radiiIndex);
 
       // Project radius (beta equal to PVPhiMajor)
@@ -3465,14 +3570,13 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
       // Update fiducials on the Minor axes
       // Project velocity
-      double beta = 90 * deg2rad;
-      double theta = atan2(tan(beta), cos(*(IncPointer + radiiIndex) * deg2rad));
-      VelocitySin = *(VRadPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad) * sin(theta) +
-                    *(VRotPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad) * cos(theta);
+      double theta = atan2(tan(beta), cosInc);
+      VelocitySin = *(VRadPointer + radiiIndex) * sinInc * sin(theta) +
+                    *(VRotPointer + radiiIndex) * sinInc * cos(theta);
       double VelocityMinorPositive = VelocitySin + VSys->GetValue(radiiIndex);
 
       // Project radius
-      ProjectedRadius = Radii->GetValue(radiiIndex) * arcsec2deg * cos(theta) / cos(beta);
+      ProjectedRadius = Radii->GetValue(radiiIndex) * arcsec2deg * cos(theta) / cosBeta;
       ShiftX = ProjectedRadius * PVPhiMinorCos;
       ShiftY = ProjectedRadius * PVPhiMinorSin;
       worldPositive[0] = worldCenter[0] + ShiftX * MinorSign;
@@ -3521,14 +3625,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     fiducialsMajorDisplayNode->SetGlyphScale(1.5);
     fiducialsMajorDisplayNode->SetTextScale(0.);
     fiducialsMajorDisplayNode->RemoveAllViewNodeIDs();
-    vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-    if (!yellowSliceNode)
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
-                    "yellowSliceNode not found!";
-      return;
-      }
     fiducialsMajorDisplayNode->AddViewNodeID(yellowSliceNode->GetID());
 
     vtkMRMLMarkupsDisplayNode *fiducialsMinorDisplayNode =
@@ -3545,15 +3641,13 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     fiducialsMinorDisplayNode->SetTextScale(0.);
     fiducialsMinorDisplayNode->SetColor(1., 1., 0.44);
     fiducialsMinorDisplayNode->RemoveAllViewNodeIDs();
-    vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-    if (!greenSliceNode)
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
-                    "greenSliceNode not found!";
-      return;
-      }
     fiducialsMinorDisplayNode->AddViewNodeID(greenSliceNode->GetID());
+
+    // Connect slice nodes to slot to update fiducials
+    this->qvtkConnect(yellowSliceNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
+    this->qvtkConnect(greenSliceNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
     }
    else
     {
@@ -3562,6 +3656,12 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     inputVolume->SetDisplayVisibility(1);
 
     scene->RemoveNode(residualVolume);
+
+    // Disconnect slice nodes to slot to update fiducials
+    this->qvtkDisconnect(yellowSliceNode, vtkCommand::ModifiedEvent,
+                         this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
+    this->qvtkDisconnect(greenSliceNode, vtkCommand::ModifiedEvent,
+                         this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
 
     if (!d->parametersNode->GetMaskActive())
       {
@@ -3631,6 +3731,40 @@ void qSlicerAstroModelingModuleWidget::onYCenterFitChanged(bool flag)
     return;
     }
   d->parametersNode->SetYCenterFit(flag);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onYellowSliceRotated(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
+                  "yellowSliceNode not found!";
+    return;
+    }
+
+  vtkNew<vtkTransform> transform;
+  vtkMatrix4x4* sliceToRAS = yellowSliceNode->GetSliceToRAS();
+  if (!sliceToRAS)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
+                  "yellowSliceNode matrix not found!";
+    return;
+    }
+  transform->SetMatrix(sliceToRAS);
+  transform->RotateY(value - d->YellowRotOldValue);
+  d->YellowRotOldValue = value;
+  sliceToRAS->DeepCopy(transform->GetMatrix());
+  yellowSliceNode->UpdateMatrices();
 }
 
 //-----------------------------------------------------------------------------

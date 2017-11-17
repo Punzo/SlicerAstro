@@ -263,17 +263,13 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     return;
     }
 
-  if ((sliceNode->GetOrientation().compare("XY") &&
-       sliceNode->GetOrientation().compare("ZY") &&
-       sliceNode->GetOrientation().compare("XZ") &&
-       sliceNode->GetOrientation().compare("PVMajor") &&
-       sliceNode->GetOrientation().compare("PVMinor")) ||
-      !sliceNode->GetOrientation().compare("Reformat"))
+  if (sliceNode->GetOrientation().compare("XY") &&
+      sliceNode->GetOrientation().compare("ZY") &&
+      sliceNode->GetOrientation().compare("XZ") &&
+      sliceNode->GetOrientation().compare("PVMajor") &&
+      sliceNode->GetOrientation().compare("PVMinor") &&
+      sliceNode->GetOrientation().compare("Reformat"))
     {
-    /*vtkWarningWithObjectMacro(this->External,
-                              "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
-                              " failed: no 2D-WCS-Axis available for "<<sliceNode->GetOrientation()
-                              <<" orientation.");*/
     this->ShowActors(false);
     return;
     }
@@ -357,6 +353,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
     // calculate WCS coordinates of the view's corners
     xyToIJK->TransformPoint(xyz, ijk);
+    int controlY1 = ijk[1];
     displayNode->GetReferenceSpace(ijk, worldA);
 
     xyz[0] = viewWidthPixel;
@@ -366,6 +363,19 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     xyz[0] = 0.;
     xyz[1] = viewHeightPixel;
     xyToIJK->TransformPoint(xyz, ijk);
+    int controlY2 = ijk[1];
+    // check if the reformat plane is parallel to the velocity axes
+    bool showReformat = false;
+    if (controlY1 == controlY2 && !sliceNode->GetOrientation().compare("Reformat"))
+      {
+      showReformat = true;
+      }
+    else if(!sliceNode->GetOrientation().compare("Reformat")    )
+      {
+      this->ShowActors(false);
+      return;
+      }
+
     displayNode->GetReferenceSpace(ijk, worldC);
 
     xyz[0] = viewWidthPixel / 2.;
@@ -399,7 +409,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       }
 
     if (!sliceNode->GetOrientation().compare("PVMajor") ||
-        !sliceNode->GetOrientation().compare("PVMinor"))
+        !sliceNode->GetOrientation().compare("PVMinor") ||
+        showReformat)
       {
       double distX = (worldA[0] - worldB[0]);
       double distY = (worldA[1] - worldB[1]);
@@ -442,7 +453,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         temp->clear();
         temp->push_back(worldD[0] + PVwcsStepCos  * (i - (numberOfPointsHorizontal / 2.)));
@@ -480,7 +492,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 4.;
         xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 4.;
@@ -510,7 +523,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 2.;
         xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 2.;
@@ -540,7 +554,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos * 3. / 4.;
         xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin * 3. / 4.;
@@ -575,7 +590,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("XZ") ||
           !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         temp->clear();
         temp->push_back(worldA[0]);
@@ -607,7 +623,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("XZ") ||
           !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         xyz[0] = worldA[0];
         xyz[1] = worldA[1];
@@ -630,7 +647,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("XZ") ||
           !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         xyz[0] = worldA[0];
         xyz[1] = worldA[1];
@@ -653,7 +671,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("XZ") ||
           !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         xyz[0] = worldA[0];
         xyz[1] = worldA[1];
@@ -758,7 +777,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         double dist = sqrt((((*world)[i][0] - worldD[0]) * ((*world)[i][0] - worldD[0])) +
                           (((*world)[i][1] - worldD[1]) * ((*world)[i][1] - worldD[1])));
@@ -798,7 +818,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("XZ") ||
           !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor"))
+          !sliceNode->GetOrientation().compare("PVMinor") ||
+          showReformat)
         {
         coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2]);
         }

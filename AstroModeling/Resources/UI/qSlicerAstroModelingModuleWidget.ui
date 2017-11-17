@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>514</width>
+    <width>475</width>
     <height>1306</height>
    </rect>
   </property>
@@ -570,27 +570,8 @@
              <property name="maximum">
               <double>2000.000000000000000</double>
              </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="DistanceLabelUnit">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>60</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="text">
-              <string>Mpc</string>
+             <property name="suffix">
+              <string> Mpc</string>
              </property>
             </widget>
            </item>
@@ -647,25 +628,6 @@
                <string>Box</string>
               </property>
              </item>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="NumCloudsLabelUnit_2">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>60</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
             </widget>
            </item>
           </layout>
@@ -798,25 +760,6 @@
              </property>
             </widget>
            </item>
-           <item>
-            <widget class="QLabel" name="NumCloudsLabelUnit">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>60</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-            </widget>
-           </item>
           </layout>
          </item>
          <item row="8" column="0">
@@ -865,25 +808,6 @@
              </item>
             </widget>
            </item>
-           <item>
-            <widget class="QLabel" name="NumCloudsLabelUnit_3">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>60</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-            </widget>
-           </item>
           </layout>
          </item>
          <item row="9" column="0">
@@ -930,25 +854,6 @@
                <string>Cosine^2</string>
               </property>
              </item>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="NumCloudsLabelUnit_4">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="minimumSize">
-              <size>
-               <width>60</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
             </widget>
            </item>
           </layout>
@@ -1206,25 +1111,6 @@
           </property>
          </widget>
         </item>
-        <item>
-         <widget class="QLabel" name="RingWidthLabelUnit_2">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-         </widget>
-        </item>
        </layout>
       </item>
       <item row="3" column="0">
@@ -1274,24 +1160,8 @@
           <property name="maximum">
            <double>300.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="RingWidthLabelUnit">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>&quot;</string>
+          <property name="suffix">
+           <string> &quot;</string>
           </property>
          </widget>
         </item>
@@ -1334,27 +1204,8 @@
           <property name="maximum">
            <double>2000.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="XcenterLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>pixels</string>
+          <property name="suffix">
+           <string> pixels</string>
           </property>
          </widget>
         </item>
@@ -1417,27 +1268,8 @@
           <property name="maximum">
            <double>2000.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="YcenterLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>pixels</string>
+          <property name="suffix">
+           <string> pixels</string>
           </property>
          </widget>
         </item>
@@ -1480,27 +1312,8 @@
           <property name="maximum">
            <double>10000.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="SysVelLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>km/s</string>
+          <property name="suffix">
+           <string> km/s</string>
           </property>
          </widget>
         </item>
@@ -1543,27 +1356,8 @@
           <property name="maximum">
            <double>600.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="RotVelLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>km/s</string>
+          <property name="suffix">
+           <string> km/s</string>
           </property>
          </widget>
         </item>
@@ -1639,27 +1433,8 @@
           <property name="maximum">
            <double>100.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="RadVelLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>km/s</string>
+          <property name="suffix">
+           <string> km/s</string>
           </property>
          </widget>
         </item>
@@ -1712,27 +1487,8 @@
           <property name="maximum">
            <double>50.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="VelDispLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>km/s</string>
+          <property name="suffix">
+           <string> km/s</string>
           </property>
          </widget>
         </item>
@@ -1765,6 +1521,12 @@
           </property>
           <property name="maximum">
            <double>90.000000000000000</double>
+          </property>
+          <property name="prefix">
+           <string/>
+          </property>
+          <property name="suffix">
+           <string> °</string>
           </property>
          </widget>
         </item>
@@ -1833,33 +1595,14 @@
             <height>0</height>
            </size>
           </property>
+          <property name="suffix">
+           <string> °</string>
+          </property>
           <property name="maximum">
            <double>90.000000000000000</double>
           </property>
           <property name="value">
            <double>5.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="InclinationLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>60</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>°</string>
           </property>
          </widget>
         </item>
@@ -1892,6 +1635,9 @@
           </property>
           <property name="maximum">
            <double>360.000000000000000</double>
+          </property>
+          <property name="suffix">
+           <string> °</string>
           </property>
          </widget>
         </item>
@@ -1960,33 +1706,14 @@
             <height>0</height>
            </size>
           </property>
+          <property name="suffix">
+           <string> °</string>
+          </property>
           <property name="maximum">
            <double>360.000000000000000</double>
           </property>
           <property name="value">
            <double>15.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="PALabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>°</string>
           </property>
          </widget>
         </item>
@@ -2029,27 +1756,8 @@
           <property name="maximum">
            <double>100.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="SHLabelUnit">
-          <property name="enabled">
-           <bool>false</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>&quot;</string>
+          <property name="suffix">
+           <string> &quot;</string>
           </property>
          </widget>
         </item>
@@ -2091,6 +1799,9 @@
           </property>
           <property name="value">
            <double>1.000000000000000</double>
+          </property>
+          <property name="suffix">
+           <string/>
           </property>
          </widget>
         </item>
@@ -2183,7 +1894,10 @@
       </sizepolicy>
      </property>
      <property name="text">
-      <string>Output</string>
+      <string>Model</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
      </property>
      <property name="collapsed">
       <bool>false</bool>
@@ -2257,24 +1971,8 @@
           <property name="value">
            <double>3.000000000000000</double>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="ContourLabelUnit">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>60</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>RMS</string>
+          <property name="suffix">
+           <string> RMS</string>
           </property>
          </widget>
         </item>
@@ -2394,19 +2092,6 @@
         </item>
        </layout>
       </item>
-      <item row="8" column="1">
-       <spacer name="verticalSpacer">
-        <property name="orientation">
-         <enum>Qt::Vertical</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>40</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
       <item row="6" column="1">
        <widget class="QPushButton" name="CalculatePushButton">
         <property name="sizePolicy">
@@ -2470,6 +2155,108 @@
         <property name="cornerButtonEnabled">
          <bool>false</bool>
         </property>
+       </widget>
+      </item>
+      <item row="7" column="1">
+       <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton_2">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Position Velocity Diagrams</string>
+        </property>
+        <property name="collapsed">
+         <bool>false</bool>
+        </property>
+        <layout class="QGridLayout" name="gridLayout_4">
+         <property name="leftMargin">
+          <number>2</number>
+         </property>
+         <property name="topMargin">
+          <number>4</number>
+         </property>
+         <property name="rightMargin">
+          <number>2</number>
+         </property>
+         <property name="bottomMargin">
+          <number>4</number>
+         </property>
+         <property name="spacing">
+          <number>4</number>
+         </property>
+         <item row="3" column="1">
+          <spacer name="verticalSpacer">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item row="2" column="1">
+          <layout class="QGridLayout" name="gridLayout_2">
+           <item row="0" column="1">
+            <widget class="ctkSliderWidget" name="YellowSliceSliderWidget">
+             <property name="toolTip">
+              <string>Rotate the Yellow Slice respect to the velocity axes</string>
+             </property>
+             <property name="minimum">
+              <double>-200.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>200.000000000000000</double>
+             </property>
+             <property name="suffix">
+              <string> °</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="ctkSliderWidget" name="GreenSliceSliderWidget">
+             <property name="toolTip">
+              <string>Rotate the Green Slice respect to the velocity axes</string>
+             </property>
+             <property name="minimum">
+              <double>-200.000000000000000</double>
+             </property>
+             <property name="maximum">
+              <double>200.000000000000000</double>
+             </property>
+             <property name="value">
+              <double>0.000000000000000</double>
+             </property>
+             <property name="suffix">
+              <string> °</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="0">
+            <widget class="QLabel" name="YellowSliceLabel">
+             <property name="text">
+              <string>Yellow Slice:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="GreenSliceLabel">
+             <property name="text">
+              <string>Green Slice:</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
        </widget>
       </item>
      </layout>
@@ -2654,22 +2441,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>OutputCollapsibleButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>236</x>
-     <y>912</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>qSlicerAstroModelingModuleWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>InputVolumeNodeSelector</receiver>
@@ -2832,38 +2603,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>RingWidthLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>377</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>421</x>
-     <y>518</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>SHLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>462</x>
-     <y>832</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>CDLabelUnit</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -2889,22 +2628,6 @@
     </hint>
     <hint type="destinationlabel">
      <x>399</x>
-     <y>754</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>InclinationLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>462</x>
      <y>754</y>
     </hint>
    </hints>
@@ -3081,22 +2804,6 @@
     </hint>
     <hint type="destinationlabel">
      <x>279</x>
-     <y>670</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RotVelLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>462</x>
      <y>670</y>
     </hint>
    </hints>
@@ -3360,22 +3067,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>YcenterLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>440</x>
-     <y>590</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>CDLabel</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -3386,22 +3077,6 @@
     <hint type="destinationlabel">
      <x>75</x>
      <y>857</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>XcenterLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>440</x>
-     <y>554</y>
     </hint>
    </hints>
   </connection>
@@ -3434,22 +3109,6 @@
     <hint type="destinationlabel">
      <x>256</x>
      <y>590</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>VelDispLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>462</x>
-     <y>712</y>
     </hint>
    </hints>
   </connection>
@@ -3498,22 +3157,6 @@
     <hint type="destinationlabel">
      <x>279</x>
      <y>832</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>PALabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>462</x>
-     <y>790</y>
     </hint>
    </hints>
   </connection>
@@ -3610,22 +3253,6 @@
     <hint type="destinationlabel">
      <x>265</x>
      <y>947</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>SysVelLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>405</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>440</x>
-     <y>626</y>
     </hint>
    </hints>
   </connection>
@@ -3744,22 +3371,6 @@
   <connection>
    <sender>ManualModeRadioButton</sender>
    <signal>toggled(bool)</signal>
-   <receiver>DistanceLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>385</x>
-     <y>392</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>433</x>
-     <y>834</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
    <receiver>RingsSliderWidget</receiver>
    <slot>setEnabled(bool)</slot>
    <hints>
@@ -3818,22 +3429,6 @@
     <hint type="destinationlabel">
      <x>324</x>
      <y>804</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ManualModeRadioButton</sender>
-   <signal>toggled(bool)</signal>
-   <receiver>RadVelLabelUnit</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>446</x>
-     <y>452</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>516</x>
-     <y>706</y>
     </hint>
    </hints>
   </connection>
@@ -3978,6 +3573,22 @@
     <hint type="destinationlabel">
      <x>48</x>
      <y>118</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>OutputCollapsibleButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>279</x>
+     <y>12</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>236</x>
+     <y>912</y>
     </hint>
    </hints>
   </connection>
