@@ -171,6 +171,39 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(CloudsColumnDensity,double);
   vtkGetMacro(CloudsColumnDensity,double);
 
+  vtkSetMacro(XPosMean,double);
+  vtkGetMacro(XPosMean,double);
+
+  vtkSetMacro(YPosMean,double);
+  vtkGetMacro(YPosMean,double);
+
+  vtkSetMacro(XPosRAS,double);
+  vtkGetMacro(XPosRAS,double);
+
+  vtkSetMacro(YPosRAS,double);
+  vtkGetMacro(YPosRAS,double);
+
+  vtkSetMacro(PVPhi,double);
+  vtkGetMacro(PVPhi,double);
+
+  enum
+    {
+      YellowRotationModifiedEvent = 70000,
+      GreenRotationModifiedEvent = 71000
+    };
+
+  vtkSetMacro(YellowRotOldValue,double);
+  vtkGetMacro(YellowRotOldValue,double);
+
+  void SetYellowRotValue(double rot);
+  vtkGetMacro(YellowRotValue,double);
+
+  vtkSetMacro(GreenRotOldValue,double);
+  vtkGetMacro(GreenRotOldValue,double);
+
+  void SetGreenRotValue(double rot);
+  vtkGetMacro(GreenRotValue,double);
+
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 
@@ -253,6 +286,16 @@ protected:
   double ScaleHeight;
   double ColumnDensity;
   double Distance;
+
+  double XPosMean;
+  double YPosMean;
+  double XPosRAS;
+  double YPosRAS;
+  double PVPhi;
+  double YellowRotValue;
+  double YellowRotOldValue;
+  double GreenRotValue;
+  double GreenRotOldValue;
 
   bool PositionAngleFit;
   bool RotationVelocityFit;

@@ -135,11 +135,6 @@ public:
   QAction *CopyAction;
   QAction *PasteAction;
   QAction *PlotAction;
-
-  double XPosMean;
-  double YPosMean;
-  double YellowRotOldValue;
-  double GreenRotOldValue;
 };
 
 //-----------------------------------------------------------------------------
@@ -172,10 +167,6 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
   this->CopyAction = 0;
   this->PasteAction = 0;
   this->PlotAction = 0;
-  this->XPosMean = 0;
-  this->YPosMean = 0;
-  this->YellowRotOldValue = 0.;
-  this->GreenRotOldValue = 0.;
 }
 
 //-----------------------------------------------------------------------------
@@ -650,33 +641,15 @@ void qSlicerAstroModelingModuleWidget::onGreenSliceRotated(double value)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!mrmlScene())
+  if (!d->parametersNode)
     {
     return;
     }
 
-  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-  if (!greenSliceNode)
-    {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
-                  "greenSliceNode not found!";
-    return;
-    }
-
-  vtkNew<vtkTransform> transform;
-  vtkMatrix4x4* sliceToRAS = greenSliceNode->GetSliceToRAS();
-  if (!sliceToRAS)
-    {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
-                  "greenSliceNode matrix not found!";
-    return;
-    }
-  transform->SetMatrix(sliceToRAS);
-  transform->RotateY(value - d->GreenRotOldValue);
-  d->GreenRotOldValue = value;
-  sliceToRAS->DeepCopy(transform->GetMatrix());
-  greenSliceNode->UpdateMatrices();
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetGreenRotOldValue(d->parametersNode->GetGreenRotValue());
+  d->parametersNode->SetGreenRotValue(value);
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -1548,6 +1521,11 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize :"
                   " UpdateModel error!";
+    int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetXPosMean(0.);
+    d->parametersNode->SetYPosMean(0.);
+    d->parametersNode->SetPVPhi(0.);
+    d->parametersNode->EndModify(wasModifying);
     return;
     }
 
@@ -1565,13 +1543,12 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 
   if (!Phi || !XPos || !YPos)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize : "
                   "arrays not found!";
-    d->parametersNode->SetStatus(0);
     return;
     }
 
-  double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
+  double PhiMean = 0. , XPosMean = 0., YPosMean = 0.;
 
   for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
     {
@@ -1580,17 +1557,25 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     YPosMean += YPos->GetValue(ii);
     }
 
-  PhiMean /=  Phi->GetNumberOfValues();
-  XPosMean /=  XPos->GetNumberOfValues();
-  YPosMean /=  YPos->GetNumberOfValues();
+  PhiMean /= Phi->GetNumberOfValues();
+  XPosMean /= XPos->GetNumberOfValues();
+  YPosMean /= YPos->GetNumberOfValues();
 
-  double PVPhi = -(PhiMean - 90.);
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetXPosMean(XPosMean);
+  d->parametersNode->SetYPosMean(YPosMean);
+  d->parametersNode->SetPVPhi(-(PhiMean - 90.));
+  d->parametersNode->SetYellowRotOldValue(0.);
+  d->parametersNode->SetYellowRotValue(0.);
+  d->parametersNode->SetGreenRotOldValue(0.);
+  d->parametersNode->SetGreenRotValue(0.);
+  d->parametersNode->EndModify(wasModifying);
 
   vtkMRMLAstroVolumeNode *activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
   if (!activeVolume || !activeVolume->GetImageData())
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize : "
                   "activeVolume not found!";
     return;
     }
@@ -1606,16 +1591,22 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
   IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
   double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
-  ijk[0] = XPosMean;
-  ijk[1] = YPosMean;
+  ijk[0] = d->parametersNode->GetXPosMean();
+  ijk[1] = d->parametersNode->GetYPosMean();
   ijk[2] = Zcenter;
   IJKtoRASTransform->TransformPoint(ijk, RAS);
+  wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetXPosRAS(RAS[0]);
+  d->parametersNode->SetYPosRAS(RAS[2]);
+  d->parametersNode->EndModify(wasModifying);
 
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
          d->parametersNode->GetContourLevel(),
-         PVPhi, RAS, true);
+         d->parametersNode->GetPVPhi(),
+         d->parametersNode->GetPVPhi() + 90.,
+         RAS, RAS, true);
 }
 
 //-----------------------------------------------------------------------------
@@ -1961,6 +1952,45 @@ void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
   d->fiducialNodeMinor->GlobalWarningDisplayOn();
 }
 
+//---------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLYellowSliceRotated()
+{
+  Q_D(const qSlicerAstroModelingModuleWidget);
+
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode)
+    {
+    return;
+    }
+
+  vtkMatrix4x4* yellowSliceToRAS = yellowSliceNode->GetSliceToRAS();
+  if (!yellowSliceToRAS)
+    {
+    return;
+    }
+
+  vtkNew<vtkTransform> yellowTransform;
+  yellowTransform->SetMatrix(yellowSliceToRAS);
+  double RotY = d->parametersNode->GetYellowRotValue() -
+                d->parametersNode->GetYellowRotOldValue();
+  if (fabs(RotY) > 1.E-6)
+    {
+    yellowTransform->RotateY(RotY);
+    yellowSliceToRAS->DeepCopy(yellowTransform->GetMatrix());
+    yellowSliceNode->UpdateMatrices();
+    d->YellowSliceSliderWidget->blockSignals(true);
+    d->YellowSliceSliderWidget->setValue(d->parametersNode->GetYellowRotValue());
+    d->YellowSliceSliderWidget->blockSignals(false);
+    }
+  else
+    {
+    d->YellowSliceSliderWidget->blockSignals(true);
+    d->YellowSliceSliderWidget->setValue(0.);
+    d->YellowSliceSliderWidget->blockSignals(false);
+    }
+}
+
 void qSlicerAstroModelingModuleWidget::onNormalizeToggled(bool toggled)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -2032,6 +2062,18 @@ void qSlicerAstroModelingModuleWidget::setMRMLAstroModelingParametersNode(vtkMRM
 
   this->onMRMLAstroModelingParametersNodeModified();
 
+  this->qvtkReconnect(d->parametersNode, AstroModelingParaNode,
+                      vtkMRMLAstroModelingParametersNode::YellowRotationModifiedEvent,
+                      this, SLOT(onMRMLYellowSliceRotated()));
+
+  this->onMRMLYellowSliceRotated();
+
+  this->qvtkReconnect(d->parametersNode, AstroModelingParaNode,
+                      vtkMRMLAstroModelingParametersNode::GreenRotationModifiedEvent,
+                      this, SLOT(onMRMLGreenSliceRotated()));
+
+  this->onMRMLGreenSliceRotated();
+
   this->setEnabled(AstroModelingParaNode != 0);
 }
 
@@ -2040,15 +2082,20 @@ void qSlicerAstroModelingModuleWidget::setPVOffset()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
   if (!yellowSliceNode || yellowSliceNode->GetOrientation().compare("PVMajor"))
     {
     return;
     }
-  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, d->XPosMean);
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosRAS());
   yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->YPosMean);
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetYPosRAS());
   yellowSliceNode->UpdateMatrices();
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
@@ -2056,9 +2103,9 @@ void qSlicerAstroModelingModuleWidget::setPVOffset()
     {
     return;
     }
-  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, d->XPosMean);
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosRAS());
   greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->YPosMean);
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetYPosRAS());
   greenSliceNode->UpdateMatrices();
 }
 
@@ -2431,7 +2478,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !mrmlScene())
     {
     return;
     }
@@ -2550,21 +2597,64 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->TableNodeComboBox->setCurrentNode(d->parametersNode->GetParamsTableNode());
 }
 
+//---------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLGreenSliceRotated()
+{
+  Q_D(const qSlicerAstroModelingModuleWidget);
+
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode)
+    {
+    return;
+    }
+
+  vtkMatrix4x4* greenSliceToRAS = greenSliceNode->GetSliceToRAS();
+  if (!greenSliceToRAS)
+    {
+    return;
+    }
+
+  vtkNew<vtkTransform> greenTransform;
+  greenTransform->SetMatrix(greenSliceToRAS);
+  double RotY = d->parametersNode->GetGreenRotValue() -
+                d->parametersNode->GetGreenRotOldValue();
+  if (fabs(RotY) > 1.E-6)
+    {
+    greenTransform->RotateY(RotY);
+    greenSliceToRAS->DeepCopy(greenTransform->GetMatrix());
+    greenSliceNode->UpdateMatrices();
+    d->GreenSliceSliderWidget->blockSignals(true);
+    d->GreenSliceSliderWidget->setValue(d->parametersNode->GetGreenRotValue());
+    d->GreenSliceSliderWidget->blockSignals(false);
+    }
+  else
+    {
+    d->GreenSliceSliderWidget->blockSignals(true);
+    d->GreenSliceSliderWidget->setValue(0.);
+    d->GreenSliceSliderWidget->blockSignals(false);
+    }
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
 {
   this->onMRMLAstroModelingParametersNodeModified();
 }
 
+//---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndRestoreEvent()
 {
   this->onMRMLAstroModelingParametersNodeModified();
 }
 
+//---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndBatchProcessEvent()
 {
   this->onMRMLAstroModelingParametersNodeModified();
 }
 
+//---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
 {
   this->onMRMLAstroModelingParametersNodeModified();
@@ -3070,40 +3160,6 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
   char *secondaryVolumeNodeID = selectionNode->GetSecondaryVolumeID();
 
-  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("Phi"));
-
-  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("XPos"));
-
-  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("YPos"));
-
-  if (!Phi || !XPos || !YPos)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
-                  "arrays not found!";
-    return;
-    }
-
-  double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
-
-  for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
-    {
-    PhiMean += Phi->GetValue(ii);
-    XPosMean += XPos->GetValue(ii);
-    YPosMean += YPos->GetValue(ii);
-    }
-
-  PhiMean /=  Phi->GetNumberOfValues();
-  XPosMean /=  XPos->GetNumberOfValues();
-  YPosMean /=  YPos->GetNumberOfValues();
-
-  double PVPhi = -(PhiMean - 90.);
-
   vtkMRMLAstroVolumeNode *activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
   if (!activeVolume || !activeVolume->GetImageData())
@@ -3113,27 +3169,38 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
     return;
     }
 
-  int dims[3];
-  activeVolume->GetImageData()->GetDimensions(dims);
-  int Zcenter = dims[2] * 0.5;
-  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
-  IJKtoRASTransform->Identity();
-  IJKtoRASTransform->PostMultiply();
-  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
-  activeVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
-  IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!activeVolume || !activeVolume->GetImageData())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "yellowSliceNode not found!";
+    return;
+    }
 
-  double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
-  ijk[0] = XPosMean;
-  ijk[1] = YPosMean;
-  ijk[2] = Zcenter;
-  IJKtoRASTransform->TransformPoint(ijk, RAS);
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!activeVolume || !activeVolume->GetImageData())
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "greenSliceNode not found!";
+    return;
+    }
+
+  double yellowRAS[3] = {0., 0., 0.}, greenRAS[3] = {0., 0., 0.};
+  for (int ii = 0; ii < 3; ii++)
+    {
+    yellowRAS[ii] = yellowSliceNode->GetSliceToRAS()->GetElement(ii, 3);
+    greenRAS[ii] = greenSliceNode->GetSliceToRAS()->GetElement(ii, 3);
+    }
 
   d->astroVolumeWidget->updateQuantitative3DView
         (activeVolumeNodeID,
          secondaryVolumeNodeID,
          d->parametersNode->GetContourLevel(),
-         PVPhi, RAS, false);
+         d->parametersNode->GetPVPhi() + d->parametersNode->GetYellowRotValue(),
+         d->parametersNode->GetPVPhi() + 90. + d->parametersNode->GetGreenRotValue(),
+         yellowRAS, greenRAS, false);
 }
 
 //-----------------------------------------------------------------------------
@@ -3194,11 +3261,21 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "parametersNode not found!";
+    d->TableView->resizeColumnsToContents();
+    return;
+    }
+
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "scene not found!";
+    d->TableView->resizeColumnsToContents();
+    d->parametersNode->SetStatus(0);
     return;
     }
 
@@ -3209,6 +3286,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "inputVolume node not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3218,6 +3296,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "imageData not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3227,6 +3306,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "pointData not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3236,6 +3316,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "dataArray not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3246,6 +3327,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "display node not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3257,6 +3339,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "outputVolume node not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3268,6 +3351,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "residualVolume node not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3277,6 +3361,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                   "Table not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3287,6 +3372,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
                   "yellowSliceNode not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3296,6 +3382,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::onWorkFinished : "
                   "greenSliceNode not found!";
+    d->TableView->resizeColumnsToContents();
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3345,31 +3432,39 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                     "arrays not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
 
-    double PhiMean = 0.;
+    double PhiMean = 0., XPosMean = 0., YPosMean = 0.;
 
-    d->XPosMean = 0.;
-    d->YPosMean = 0.;
+    XPosMean = 0.;
+    YPosMean = 0.;
     for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
       {
       PhiMean += Phi->GetValue(ii);
-      d->XPosMean += XPos->GetValue(ii);
-      d->YPosMean += YPos->GetValue(ii);
+      XPosMean += XPos->GetValue(ii);
+      YPosMean += YPos->GetValue(ii);
       }
 
     PhiMean /=  Phi->GetNumberOfValues();
-    d->XPosMean /=  XPos->GetNumberOfValues();
-    d->YPosMean /=  YPos->GetNumberOfValues();
+    XPosMean /=  XPos->GetNumberOfValues();
+    YPosMean /=  YPos->GetNumberOfValues();
 
+    int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetXPosMean(XPosMean);
+    d->parametersNode->SetYPosMean(YPosMean);
     double PVPhi = -(PhiMean - 90.);
+    d->parametersNode->SetPVPhi(PVPhi);
+    d->parametersNode->SetYellowRotOldValue(0.);
+    d->parametersNode->SetYellowRotValue(0.);
+    d->parametersNode->SetGreenRotOldValue(0.);
+    d->parametersNode->SetGreenRotValue(0.);
+    d->parametersNode->EndModify(wasModifying);
 
     int *dims = imageData->GetDimensions();
     int Zcenter = dims[2] * 0.5;
-    double XMean = d->XPosMean;
-    double YMean = d->YPosMean;
 
     vtkNew<vtkGeneralTransform> IJKtoRASTransform;
     IJKtoRASTransform->Identity();
@@ -3379,17 +3474,21 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
     double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
-    ijk[0] = XMean;
-    ijk[1] = YMean;
+    ijk[0] = d->parametersNode->GetXPosMean();
+    ijk[1] = d->parametersNode->GetYPosMean();
     ijk[2] = Zcenter;
     IJKtoRASTransform->TransformPoint(ijk, RAS);
-    d->XPosMean = RAS[0];
-    d->YPosMean = RAS[2];
+    wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetXPosRAS(RAS[0]);
+    d->parametersNode->SetYPosRAS(RAS[2]);
+    d->parametersNode->EndModify(wasModifying);
 
     d->astroVolumeWidget->setQuantitative3DView
         (inputVolume->GetID(), outputVolume->GetID(),
          residualVolume->GetID(), d->parametersNode->GetContourLevel(),
-         PVPhi, RAS);
+         PVPhi,
+         PVPhi + 90.,
+         RAS);
 
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
@@ -3411,6 +3510,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
                      "qSlicerApplication not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3421,6 +3521,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
                      "layoutManager not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3431,6 +3532,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
                      "plotWidget not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3440,6 +3542,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
                      "plotView not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3452,6 +3555,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                     "fiducialNodes not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3468,25 +3572,31 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     const double deg2rad = PI / 180.;
     double factor = 0.;
-    if (PVPhi > 0.001 && PVPhi - 90. > 0.001)
+    if (PVPhi > 0.001 &&
+        PVPhi - 90. > 0.001)
       {
       factor = -180.;
       }
-    else if (PVPhi < 0.001 && PVPhi + 90. < 0.001)
+    else if (PVPhi < 0.001 &&
+             PVPhi + 90. < 0.001)
       {
       factor = +180.;
       }
     PVPhi += factor;
-    ijk[0] = XMean + (10 * cos(PVPhi * deg2rad));
-    ijk[1] = YMean + (10 * sin(PVPhi * deg2rad));
+    ijk[0] = d->parametersNode->GetXPosMean() +
+            (10 * cos(PVPhi * deg2rad));
+    ijk[1] = d->parametersNode->GetYPosMean() +
+            (10 * sin(PVPhi * deg2rad));
     ijk[2] = Zcenter;
     inputVolumeDisplayNode->GetReferenceSpace(ijk, worldPositive);
-    ijk[0] = XMean + (10 * cos((PVPhi + 90.) * deg2rad));
-    ijk[1] = YMean + (10 * sin((PVPhi + 90.) * deg2rad));
+    ijk[0] = d->parametersNode->GetXPosMean() +
+            (10 * cos((PVPhi + 90.) * deg2rad));
+    ijk[1] = d->parametersNode->GetYPosMean() +
+            (10 * sin((PVPhi + 90.) * deg2rad));
     ijk[2] = Zcenter;
     inputVolumeDisplayNode->GetReferenceSpace(ijk, worldNegative);
-    ijk[0] = XMean;
-    ijk[1] = YMean;
+    ijk[0] = d->parametersNode->GetXPosMean();
+    ijk[1] = d->parametersNode->GetYPosMean();
     ijk[2] = Zcenter;
     inputVolumeDisplayNode->GetReferenceSpace(ijk, worldCenter);
 
@@ -3618,6 +3728,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                     "fiducial display node not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3633,6 +3744,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
                     "fiducial display node not found!";
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3663,8 +3775,19 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     this->qvtkDisconnect(greenSliceNode, vtkCommand::ModifiedEvent,
                          this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
 
+    int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetXPosMean(0.);
+    d->parametersNode->SetYPosMean(0.);
+    d->parametersNode->SetPVPhi(0.);
+    d->parametersNode->SetYellowRotOldValue(0.);
+    d->parametersNode->SetYellowRotValue(0.);
+    d->parametersNode->SetGreenRotOldValue(0.);
+    d->parametersNode->SetGreenRotValue(0.);
+    d->parametersNode->EndModify(wasModifying);
+
     if (!d->parametersNode->GetMaskActive())
       {
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3675,6 +3798,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     if(!maskVolume)
       {
+      d->TableView->resizeColumnsToContents();
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3738,33 +3862,15 @@ void qSlicerAstroModelingModuleWidget::onYellowSliceRotated(double value)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!mrmlScene())
+  if (!d->parametersNode)
     {
     return;
     }
 
-  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-  if (!yellowSliceNode)
-    {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
-                  "yellowSliceNode not found!";
-    return;
-    }
-
-  vtkNew<vtkTransform> transform;
-  vtkMatrix4x4* sliceToRAS = yellowSliceNode->GetSliceToRAS();
-  if (!sliceToRAS)
-    {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::onGreenSliceRotated : "
-                  "yellowSliceNode matrix not found!";
-    return;
-    }
-  transform->SetMatrix(sliceToRAS);
-  transform->RotateY(value - d->YellowRotOldValue);
-  d->YellowRotOldValue = value;
-  sliceToRAS->DeepCopy(transform->GetMatrix());
-  yellowSliceNode->UpdateMatrices();
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetYellowRotOldValue(d->parametersNode->GetYellowRotValue());
+  d->parametersNode->SetYellowRotValue(value);
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------

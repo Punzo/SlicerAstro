@@ -92,6 +92,7 @@ protected slots:
   void onMaskActiveToggled(bool active);
   void onModeChanged();
   void onMRMLAstroModelingParametersNodeModified();
+  void onMRMLGreenSliceRotated();
   void onMRMLSceneEndImportEvent();
   void onMRMLSceneEndRestoreEvent();
   void onMRMLSceneEndBatchProcessEvent();
@@ -101,6 +102,7 @@ protected slots:
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onMRMLSliceNodeModified(vtkObject* sender);
   void onMRMLTableNodeModified();
+  void onMRMLYellowSliceRotated();
   void onNormalizeToggled(bool toggled);
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
