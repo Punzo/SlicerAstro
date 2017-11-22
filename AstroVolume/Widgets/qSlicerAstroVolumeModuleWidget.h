@@ -118,13 +118,13 @@ protected slots:
   void onRMSValueChanged(double RMS);
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
-  void resetExpand(vtkMRMLNode* node);
+  void resetStretch(vtkMRMLNode* node);
   void resetOffset(vtkMRMLNode* node);
   void setDisplayConnection(vtkMRMLNode* node);
   void setDisplayROIEnabled(bool visibility);
   void setOpticalVelocity();
   void setRadioVelocity();
-  void spreadPreset(double expandValue);
+  void spreadPreset(double stretchValue);
   void updatePresets(vtkMRMLNode* node);
 
 signals:

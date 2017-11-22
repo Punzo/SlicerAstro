@@ -100,7 +100,7 @@ public:
   vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelVolumeNode;
 
-  double expandOldValue;
+  double stretchOldValue;
   double offsetOldValue;
   bool Lock;
 };
@@ -116,7 +116,7 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   this->MRMLAstroVolumeInfoWidget = 0;
   this->segmentationsLogic = 0;
   this->volumeRenderingWidget = 0;
-  this->expandOldValue = 0.;
+  this->stretchOldValue = 0.;
   this->offsetOldValue = 0.;
   this->Lock = false;
 }
@@ -250,7 +250,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->PresetOffsetSlider, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->PresetExpandSlider, SLOT(setEnabled(bool)));
+                   this->PresetStretchSlider, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->LockPushButton, SLOT(setEnabled(bool)));
@@ -271,7 +271,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->shiftLabel, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->ExpandLabel, SLOT(setEnabled(bool)));
+                   this->StretchLabel, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->CropLabel, SLOT(setEnabled(bool)));
@@ -327,7 +327,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(resetOffset(vtkMRMLNode*)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(resetExpand(vtkMRMLNode*)));
+                   q, SLOT(resetStretch(vtkMRMLNode*)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(updatePresets(vtkMRMLNode*)));
@@ -336,7 +336,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(resetOffset(vtkMRMLNode*)));
 
   QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(resetExpand(vtkMRMLNode*)));
+                   q, SLOT(resetStretch(vtkMRMLNode*)));
 
   QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onPresetsNodeChanged(vtkMRMLNode*)));
@@ -350,10 +350,10 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                    this->volumeRenderingWidget, SLOT(interaction()));
 
-  QObject::connect(this->PresetExpandSlider, SIGNAL(valueChanged(double)),
+  QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(spreadPreset(double)));
 
-  QObject::connect(this->PresetExpandSlider, SIGNAL(valueChanged(double)),
+  QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
                    this->volumeRenderingWidget, SLOT(interaction()));
 
   QObject::connect(this->LockPushButton, SIGNAL(toggled(bool)),
@@ -924,7 +924,7 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::spreadPreset(double expandValue)
+void qSlicerAstroVolumeModuleWidget::spreadPreset(double stretchValue)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -942,12 +942,12 @@ void qSlicerAstroVolumeModuleWidget::spreadPreset(double expandValue)
     return;
     }
 
-  volumePropertyWidget->spreadAllPoints(expandValue - d->expandOldValue, true);
-  d->expandOldValue = expandValue;
+  volumePropertyWidget->spreadAllPoints(stretchValue - d->stretchOldValue, true);
+  d->stretchOldValue = stretchValue;
 
   if (d->Lock)
     {
-    d->PresetOffsetSlider->setValue(expandValue);
+    d->PresetOffsetSlider->setValue(stretchValue);
     }
 }
 
@@ -1067,7 +1067,7 @@ void qSlicerAstroVolumeModuleWidget::onSegmentEditorNodeModified(vtkObject *send
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::resetExpand(vtkMRMLNode *node)
+void qSlicerAstroVolumeModuleWidget::resetStretch(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -1076,7 +1076,7 @@ void qSlicerAstroVolumeModuleWidget::resetExpand(vtkMRMLNode *node)
     return;
     }
 
-  d->PresetExpandSlider->setValue(0.);
+  d->PresetStretchSlider->setValue(0.);
 
   if (!node->IsA("vtkMRMLAstroVolumeNode") &&
       !node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
@@ -1086,12 +1086,12 @@ void qSlicerAstroVolumeModuleWidget::resetExpand(vtkMRMLNode *node)
 
   double width = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) -
                  StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN"));
-  bool wasBlocking = d->PresetExpandSlider->blockSignals(true);
-  d->PresetExpandSlider->setSingleStep(
+  bool wasBlocking = d->PresetStretchSlider->blockSignals(true);
+  d->PresetStretchSlider->setSingleStep(
     width ? ctk::closestPowerOfTen(width) / 100. : 0.1);
-  d->PresetExpandSlider->setPageStep(d->PresetOffsetSlider->singleStep());
-  d->PresetExpandSlider->setRange(-width, width);
-  d->PresetExpandSlider->blockSignals(wasBlocking);
+  d->PresetStretchSlider->setPageStep(d->PresetOffsetSlider->singleStep());
+  d->PresetStretchSlider->setRange(-width, width);
+  d->PresetStretchSlider->blockSignals(wasBlocking);
 }
 
 //---------------------------------------------------------------------------
@@ -2661,7 +2661,7 @@ void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
 
   if (d->Lock)
     {
-    d->PresetExpandSlider->setValue(offsetValue);
+    d->PresetStretchSlider->setValue(offsetValue);
     }
 }
 
