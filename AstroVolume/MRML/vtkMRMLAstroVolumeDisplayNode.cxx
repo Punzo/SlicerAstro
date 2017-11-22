@@ -438,25 +438,30 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 
   if(!wcstemp)
     {
-    vtkErrorMacro("wcsprm is invalid!");
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct: "
+                  "wcsprm is invalid!");
     return;
     }
 
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
     {
-    vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct: "
+                  "wcscopy ERROR "<<WCSStatus<<":\n"<<
                   "Message from "<<WCS->err->function<<
                   "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                   ": \n"<<WCS->err->msg<<"\n");
     }
   if ((this->WCSStatus = wcsset (this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct :"
+                  "wcsset ERROR "<<WCSStatus<<":\n"<<
                   "Message from "<<WCS->err->function<<
                   "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                   ": \n"<<WCS->err->msg<<"\n");
     }
+
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -466,7 +471,89 @@ wcsprm *vtkMRMLAstroVolumeDisplayNode::GetWCSStruct()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
+bool vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition()
+{
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition :"
+                  " WCS not found.");
+    return false;
+    }
+
+  if (strncmp(WCS->ctype[2], "VRAD", 4))
+    {
+    int index = 2;
+    char ctypeS[9];
+    strcpy(ctypeS, "VRAD-???");
+
+    if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition :"
+                    " wcssptr ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg);
+      return false;
+      }
+
+    if ((WCSStatus = wcsset(WCS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition :"
+                    " wcsset ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg);
+      return false;
+      }
+    }
+
+  this->Modified();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition()
+{
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition :"
+                  " WCS not found.");
+    return false;
+    }
+
+  if (strncmp(WCS->ctype[2], "VOPT", 4))
+    {
+    int index = 2;
+    char ctypeS[9];
+    strcpy(ctypeS, "VOPT-???");
+
+    if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition"
+                    " : wcssptr ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg);
+      return false;
+      }
+
+    if ((WCSStatus = wcsset(WCS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition"
+                    " : wcsset ERROR "<<WCSStatus<<":"<<
+                    "Message from "<<WCS->err->function<<
+                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                    ": "<<WCS->err->msg);
+      return false;
+      }
+    }
+
+  this->Modified();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
                                                       double SpaceCoordinates[3])
 {
   if (this->Space != NULL)
@@ -480,19 +567,27 @@ void vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
 
       if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
         {
-        vtkErrorMacro("wcsp2s ERROR "<<WCSStatus<<":\n"<<
-                        "Message from "<<WCS->err->function<<
-                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                        ": \n"<<WCS->err->msg<<"\n");
+        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace : "
+                      "wcsp2s ERROR "<<WCSStatus<<":\n"<<
+                      "Message from "<<WCS->err->function<<
+                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                      ": \n"<<WCS->err->msg<<"\n");
+        return false;
         }
 
       std::copy(SpaceCoordinatesM, SpaceCoordinatesM + 3, SpaceCoordinates);
       }
+    else
+      {
+      return false;
+      }
     }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
+bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
                                                 double ijk[3])
 {
   if (this->Space != NULL)
@@ -506,18 +601,26 @@ void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
 
       if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
         {
-        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<":\n"<<
-                        "Message from "<<WCS->err->function<<
-                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                        ": \n"<<WCS->err->msg<<"\n");
+        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace : "
+                      "wcss2p ERROR "<<WCSStatus<<":\n"<<
+                      "Message from "<<WCS->err->function<<
+                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                      ": \n"<<WCS->err->msg<<"\n");
+        return false;
         }
       std::copy(ijkm, ijkm + 3, ijk);
       }
+    else
+      {
+      return false;
+      }
     }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
+bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
                                                 double ijk[3])
 {
   if (this->Space != NULL)
@@ -537,10 +640,17 @@ void vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordin
                         "Message from "<<WCS->err->function<<
                         "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                         ": \n"<<WCS->err->msg<<"\n");
+        return false;
         }
       std::copy(ijkm, ijkm + 3, ijk);
       }
+    else
+      {
+      return false;
+      }
     }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -1374,7 +1484,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-int vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
+bool vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 {
 
   if (ind >= this->SpaceQuantities->GetNumberOfValues())
@@ -1386,10 +1496,10 @@ int vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
   if (this->SpaceQuantities->GetValue(ind) != SpaceQuantities)
     {
     this->SpaceQuantities->SetValue(ind, SpaceQuantities);
-    return 1;
+    this->Modified();
+    return true;
     }
-  return 0;
-
+  return false;
 }
 
 //----------------------------------------------------------------------------

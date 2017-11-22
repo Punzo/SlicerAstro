@@ -681,6 +681,8 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
         }
       d->VisibilityCheckBox->setChecked(true);
       }
+
+    astroVolumeNode->Modified();
     }
   else if (labelMapVolumeNode)
     {
@@ -689,6 +691,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     emit astroVolumeNodeChanged(false);
     selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     appLogic->PropagateLabelVolumeSelection(1);
+    labelMapVolumeNode->Modified();
     }
   else
     {
@@ -711,7 +714,19 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
     d->VisibilityCheckBox->setChecked(false);
-  }
+    }
+
+  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+  for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+    {
+    vtkMRMLSliceNode* sliceNode =
+        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+    if (sliceNode)
+      {
+      sliceNode->Modified();
+      }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -817,8 +832,7 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
     return;
     }
 
-  wcsprm *WCS = NULL;
-  int WCSStatus;
+  bool updateSlice = false;
   if (volumeNode)
     {
     vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
@@ -829,8 +843,11 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
                     "volumeDisplayNode not found.";
       return;
       }
-    WCS = volumeDisplayNode->GetWCSStruct();
-    WCSStatus = volumeDisplayNode->GetWCSStatus();
+    if (volumeDisplayNode->SetRadioVelocityDefinition())
+      {
+      volumeNode->Modified();
+      updateSlice = true;
+      }
     }
   else if (volumeLabelNode)
     {
@@ -842,46 +859,15 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
                     "volumeLabelDisplayNode not found.";
       return;
       }
-    WCS = volumeLabelDisplayNode->GetWCSStruct();
-    WCSStatus = volumeLabelDisplayNode->GetWCSStatus();
+    if (volumeLabelDisplayNode->SetRadioVelocityDefinition())
+      {
+      volumeLabelNode->Modified();
+      updateSlice = true;
+      }
     }
 
-  if (!WCS)
+  if (updateSlice)
     {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
-                  "WCS not found.";
-    return;
-    }
-
-  std::string ctype2 = WCS->ctype[2];
-  if (strncmp(WCS->ctype[2], "VRAD", 4))
-    {
-    int index = 2;
-    char ctypeS[9];
-    strcpy(ctypeS, "VRAD-???");
-
-    if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : wcssptr ERROR "<<WCSStatus<<":"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": "<<WCS->err->msg;
-      }
-    else
-      {
-      qDebug() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
-                 "3rd WCS axes has been converted "
-                 "from "<<ctype2.c_str()<< " to "<<WCS->ctype[2]<<".";
-      }
-
-    if ((WCSStatus = wcsset(WCS)))
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : wcsset ERROR "<<WCSStatus<<":"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": "<<WCS->err->msg;
-      }
-
     vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
         (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
     for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
@@ -894,33 +880,6 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
         }
       }
     }
-
-  if (volumeNode)
-    {
-    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
-      volumeNode->GetAstroVolumeDisplayNode();
-    if (!volumeDisplayNode)
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
-                    "volumeDisplayNode not found.";
-      return;
-      }
-    volumeDisplayNode->Modified();
-    volumeNode->Modified();
-    }
-  else if (volumeLabelNode)
-    {
-    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
-      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
-    if (!volumeLabelDisplayNode)
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
-                    "volumeLabelDisplayNode not found.";
-      return;
-      }
-    volumeLabelDisplayNode->Modified();
-    volumeLabelNode->Modified();
-  }
 }
 
 //---------------------------------------------------------------------------
@@ -2885,20 +2844,22 @@ void qSlicerAstroVolumeModuleWidget::setOpticalVelocity()
     return;
     }
 
-  wcsprm *WCS = NULL;
-  int WCSStatus;
+  bool updateSlice = false;
   if (volumeNode)
     {
     vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
       volumeNode->GetAstroVolumeDisplayNode();
     if (!volumeDisplayNode)
       {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
                     "volumeDisplayNode not found.";
       return;
       }
-    WCS = volumeDisplayNode->GetWCSStruct();
-    WCSStatus = volumeDisplayNode->GetWCSStatus();
+    if (volumeDisplayNode->SetOpticalVelocityDefinition())
+      {
+      volumeNode->Modified();
+      updateSlice = true;
+      }
     }
   else if (volumeLabelNode)
     {
@@ -2906,50 +2867,19 @@ void qSlicerAstroVolumeModuleWidget::setOpticalVelocity()
       volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
     if (!volumeLabelDisplayNode)
       {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRadioVelocity : "
                     "volumeLabelDisplayNode not found.";
       return;
       }
-    WCS = volumeLabelDisplayNode->GetWCSStruct();
-    WCSStatus = volumeLabelDisplayNode->GetWCSStatus();
+    if (volumeLabelDisplayNode->SetOpticalVelocityDefinition())
+      {
+      volumeLabelNode->Modified();
+      updateSlice = true;
+      }
     }
 
-  if (!WCS)
+  if (updateSlice)
     {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
-                  "WCS not found.";
-    return;
-    }
-
-  std::string ctype2 = WCS->ctype[2];
-  if (strncmp(WCS->ctype[2], "VOPT", 4))
-    {
-    int index = 2;
-    char ctypeS[9];
-    strcpy(ctypeS, "VOPT-???");
-
-    if ((WCSStatus = wcssptr(WCS, &index, ctypeS)))
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : wcssptr ERROR "<<WCSStatus<<":"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": "<<WCS->err->msg;
-      }
-    else
-      {
-      qDebug() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
-                 "3rd WCS axes has been converted "
-                 "from "<<ctype2.c_str()<< " to "<<WCS->ctype[2]<<".";
-      }
-
-    if ((WCSStatus = wcsset(WCS)))
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : wcsset ERROR "<<WCSStatus<<":"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": "<<WCS->err->msg;
-      }
-
     vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
         (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
     for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
@@ -2961,33 +2891,6 @@ void qSlicerAstroVolumeModuleWidget::setOpticalVelocity()
         sliceNode->Modified();
         }
       }
-    }
-
-  if (volumeNode)
-    {
-    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
-      volumeNode->GetAstroVolumeDisplayNode();
-    if (!volumeDisplayNode)
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
-                    "volumeDisplayNode not found.";
-      return;
-      }
-    volumeDisplayNode->Modified();
-    volumeNode->Modified();
-    }
-  else if (volumeLabelNode)
-    {
-    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
-      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
-    if (!volumeLabelDisplayNode)
-      {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::setOpticalVelocity : "
-                    "volumeLabelDisplayNode not found.";
-      return;
-      }
-    volumeLabelDisplayNode->Modified();
-    volumeLabelNode->Modified();
     }
 }
 

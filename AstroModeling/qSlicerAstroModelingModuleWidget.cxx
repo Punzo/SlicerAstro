@@ -853,7 +853,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(vtkMRMLScene *scene, 
     return;
     }
   VSys->SetName("VSys");
-  d->astroTableNode->SetColumnUnitLabel("VSys", "km/s");
+  d->astroTableNode->SetColumnUnitLabel("VSys", "km/s (Velocity Definition: Optical)");
   d->astroTableNode->SetColumnLongName("VSys", "Systematic velocity");
 
   vtkDoubleArray* VDisp = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
@@ -1478,7 +1478,7 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !this->mrmlScene() || !d->astroVolumeWidget)
     {
     return;
     }
@@ -2816,7 +2816,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     return;
     }
 
-  if (strncmp(wcs->ctype[2], "VRAD", 4))
+  /*if (strncmp(wcs->ctype[2], "VRAD", 4))
     {
     QString message = QString("The input datacube 3rd axes is an optical velocity. "
                               "In order to proceed with the modeling, it is required to transform the "
@@ -2827,7 +2827,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
 
     d->parametersNode->SetStatus(0);
     return;
-    }
+    }*/
 
   // Create Output Volume
   vtkMRMLAstroVolumeNode *outputVolume =
@@ -3130,7 +3130,7 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode || !this->mrmlScene())
+  if (!d->parametersNode || !this->mrmlScene() || !d->astroVolumeWidget)
     {
     return;
     }
@@ -3260,6 +3260,14 @@ void qSlicerAstroModelingModuleWidget::onWeightingFunctionChanged(int flag)
 void qSlicerAstroModelingModuleWidget::onWorkFinished()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->astroVolumeWidget)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                  "astroVolumeWidget not found!";
+    d->TableView->resizeColumnsToContents();
+    return;
+    }
 
   if (!d->parametersNode)
     {

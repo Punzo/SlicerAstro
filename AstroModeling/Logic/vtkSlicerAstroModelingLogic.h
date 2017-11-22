@@ -29,6 +29,7 @@ class vtkRenderWindow;
 // AstroModelings includes
 #include "vtkSlicerAstroModelingModuleLogicExport.h"
 class vtkMRMLAstroModelingParametersNode;
+class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLTableNode;
 
 /// \ingroup Slicer_QtModules_AstroModeling
@@ -56,6 +57,8 @@ public:
 protected:
   vtkSlicerAstroModelingLogic();
   virtual ~vtkSlicerAstroModelingLogic();
+
+  double CalculateCentralVelocity(vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode);
 
 private:
   vtkSlicerAstroModelingLogic(const vtkSlicerAstroModelingLogic&); // Not implemented

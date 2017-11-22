@@ -79,7 +79,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
 
   ///
   /// Set the i-th SpaceQunatity name
-  int SetSpaceQuantity(int ind, const char *name);
+  bool SetSpaceQuantity(int ind, const char *name);
 
   ///
   ///Set WCSStruct
@@ -90,23 +90,31 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   virtual struct wcsprm* GetWCSStruct();
 
   ///
-  ///WcsStatus
+  /// WcsStatus
   vtkSetMacro(WCSStatus,int);
   vtkGetMacro(WCSStatus,int);
 
   ///
+  /// Set radio as velocity definition
+  virtual bool SetRadioVelocityDefinition();
+
+  ///
+  /// Set optical as velocity definition
+  virtual bool SetOpticalVelocityDefinition();
+
+  ///
   /// Get WCS Coordinates from IJK
-  virtual void GetReferenceSpace(const double ijk[3],
+  virtual bool GetReferenceSpace(const double ijk[3],
                                  double SpaceCoordinates[3]);
 
   ///
   /// Get IJK Coordinates from WCS
-  virtual void GetIJKSpace(const double SpaceCoordinates[3],
+  virtual bool GetIJKSpace(const double SpaceCoordinates[3],
                            double ijk[3]);
 
   ///
   /// Get IJK Coordinates from WCS
-  virtual void GetIJKSpace(std::vector<double> SpaceCoordinates,
+  virtual bool GetIJKSpace(std::vector<double> SpaceCoordinates,
                            double ijk[3]);
 
   ///
