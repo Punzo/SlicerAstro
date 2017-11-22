@@ -1464,19 +1464,21 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, node->WCS, this->WCS)))
     {
-    vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy: "
+                  "wcscopy ERROR "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
     }
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy : "
+                  "wcsset ERROR "<<WCSStatus<<":\n"<<
+                  "Message from "<<WCS->err->function<<
+                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
+                  ": \n"<<WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
    }
 
@@ -1560,20 +1562,37 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world,
-                                                                     vtkMRMLUnitNode *node)
+                                                                     vtkMRMLUnitNode *node,
+                                                                     int precision,
+                                                                     const char* language)
 {
-   std::string value = "";
-   if(!node)
-     {
-     return value.c_str();
-     }
+ std::string value = "";
+ if(!node)
+   {
+   return value.c_str();
+   }
 
+ if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+     !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+   {
    std::string firstPrefix;
    std::string secondPrefix;
    std::string thirdPrefix;
    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
      {
-     firstPrefix = "\u00B0 ";
+     if (!strcmp(language, "C++"))
+       {
+       firstPrefix = "\u00B0 "; //C++
+       }
+     else if (!strcmp(language, "Python"))
+       {
+       firstPrefix = "\xB0 "; //Python
+       }
+     else
+       {
+       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
+                     "no degree uft-8 code found for "<<language);
+       }
      secondPrefix = "\x27 ";
      thirdPrefix = "\x22";
      }
@@ -1583,111 +1602,155 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
      secondPrefix = "m ";
      thirdPrefix = "s";
      }
-   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-       !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+
+   double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
+   std::string displayValueString;
+   std::stringstream strstream;
+   strstream.setf(ios::fixed,ios::floatfield);
+
+   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
      {
-     double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
-     std::string displayValueString;
-     std::stringstream strstream;
-     strstream.setf(ios::fixed,ios::floatfield);
-
-     if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
-       {
-       displayValue = world;
-       }
-     else
-       {
-       displayValue = node->GetDisplayValueFromValue(world);
-       }
-
-     firstFractpart = modf(displayValue, &firstIntpart);
-     if(firstFractpart * 60. > 59.99999)
-       {
-       firstFractpart = 0.;
-       firstIntpart += 1.;
-       }
-     if (firstIntpart > 0.00001)
-       {
-       value = DoubleToString(firstIntpart) + firstPrefix;
-       }
-     else
-       {
-       value = "   ";
-       }
-
-     secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
-     if(secondFractpart > 59.99999)
-       {
-       secondFractpart = 0.;
-       secondIntpart += 1.;
-       }
-     if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
-       {
-       displayValueString = DoubleToString(fabs(secondIntpart));
-       }
-     else
-       {
-       displayValueString = "   ";
-       }
-     if(secondIntpart < 10.)
-       {
-       displayValueString = " " + displayValueString;
-       }
-     if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
-       {
-       displayValueString += secondPrefix;
-       }
-     value = value + displayValueString;
-     displayValueString = "";
-     strstream.precision(0);
-     strstream << fabs(secondFractpart);
-     strstream >> displayValueString;
-     if(secondFractpart < 10.)
-       {
-       displayValueString = " " + displayValueString;
-       }
-
-     value = value + displayValueString + thirdPrefix;
-     return value.c_str();
+     displayValue = world;
      }
-   return node->GetDisplayStringFromValue(world);
+   else
+     {
+     displayValue = node->GetDisplayValueFromValue(world);
+     }
+
+   firstFractpart = modf(displayValue, &firstIntpart);
+   if(firstFractpart * 60. > 59.99999)
+     {
+     firstFractpart = 0.;
+     firstIntpart += 1.;
+     }
+   if (firstIntpart > 0.00001)
+     {
+     value = DoubleToString(firstIntpart) + firstPrefix;
+     }
+   else
+     {
+     value = "   ";
+     }
+
+   secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
+   if(secondFractpart > 59.99999)
+     {
+     secondFractpart = 0.;
+     secondIntpart += 1.;
+     }
+   if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
+     {
+     displayValueString = DoubleToString(fabs(secondIntpart));
+     }
+   else
+     {
+     displayValueString = "   ";
+     }
+   if(secondIntpart < 10.)
+     {
+     displayValueString = " " + displayValueString;
+     }
+   if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
+     {
+     displayValueString += secondPrefix;
+     }
+   value = value + displayValueString;
+   displayValueString = "";
+   strstream.precision(precision);
+   strstream << fabs(secondFractpart);
+   strstream >> displayValueString;
+   if(secondFractpart < 10.)
+     {
+     displayValueString = " " + displayValueString;
+     }
+
+   value = value + displayValueString + thirdPrefix;
+   return value.c_str();
+   }
+
+  return node->GetDisplayStringFromValue(world);
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const double world,
+                                                                      int precision = 0)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const double world,
+                                                                      int precision = 0)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
+std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const double world,
+                                                                      int precision = 0)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueX(const double world,
+                                                                            int precision = 0)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueY(const double world,
+                                                                            int precision = 0)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueZ(const double world,
+                                                                            int precision = 0)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
     }
   return "";
 }

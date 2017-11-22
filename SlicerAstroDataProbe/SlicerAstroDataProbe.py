@@ -112,9 +112,9 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         if displayNode:
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
-          worldX = displayNode.GetDisplayStringFromValueX(world[0])
-          worldY = displayNode.GetDisplayStringFromValueY(world[1])
-          worldZ = displayNode.GetDisplayStringFromValueZ(world[2])
+          worldX = displayNode.GetPythonDisplayStringFromValueX(world[0], 3)
+          worldY = displayNode.GetPythonDisplayStringFromValueY(world[1], 3)
+          worldZ = displayNode.GetPythonDisplayStringFromValueZ(world[2], 3)
           worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
           break
 

@@ -159,10 +159,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
 
   ///
   /// Given a coordinate of the volume and unit node,
-  /// create a string (for DataProve display)
-  /// if special formatting is required
+  /// create a string if special formatting is required
   virtual std::string GetDisplayStringFromValue(const double world,
-                                                vtkMRMLUnitNode *node);
+                                                vtkMRMLUnitNode *node,
+                                                int precision,
+                                                const char *language);
 
   ///
   /// \brief GetDisplayStringFromValueAxes
@@ -170,9 +171,19 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   /// \return Given a coordinate of the volume,
   /// create a string if special formatting is required
 
-  virtual std::string GetDisplayStringFromValueX(const double world);
-  virtual std::string GetDisplayStringFromValueY(const double world);
-  virtual std::string GetDisplayStringFromValueZ(const double world);
+  virtual std::string GetDisplayStringFromValueX(const double world,
+                                                 int precision /* = 0*/);
+  virtual std::string GetDisplayStringFromValueY(const double world,
+                                                 int precision /* = 0*/);
+  virtual std::string GetDisplayStringFromValueZ(const double world,
+                                                 int precision /* = 0*/);
+
+  virtual std::string GetPythonDisplayStringFromValueX(const double world,
+                                                       int precision /* = 0*/);
+  virtual std::string GetPythonDisplayStringFromValueY(const double world,
+                                                       int precision /* = 0*/);
+  virtual std::string GetPythonDisplayStringFromValueZ(const double world,
+                                                       int precision /* = 0*/);
 
   virtual std::string AddVelocityInfoToDisplayStringZ(std::string value);
 

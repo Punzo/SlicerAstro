@@ -767,13 +767,13 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       if (!sliceNode->GetOrientation().compare("ZY"))
         {
-        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2]);
+        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2], 0);
         }
 
       if (!sliceNode->GetOrientation().compare("XY") ||
           !sliceNode->GetOrientation().compare("XZ"))
         {
-        coord = displayNode->GetDisplayStringFromValueX((*world)[i][0]);
+        coord = displayNode->GetDisplayStringFromValueX((*world)[i][0], 0);
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
@@ -782,7 +782,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         {
         double dist = sqrt((((*world)[i][0] - worldD[0]) * ((*world)[i][0] - worldD[0])) +
                           (((*world)[i][1] - worldD[1]) * ((*world)[i][1] - worldD[1])));
-        coord = displayNode->GetDisplayStringFromValueY(dist);
+        coord = displayNode->GetDisplayStringFromValueY(dist, 0);
         }
 
       vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
@@ -813,7 +813,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       if (!sliceNode->GetOrientation().compare("ZY") ||
           !sliceNode->GetOrientation().compare("XY"))
         {
-        coord = displayNode->GetDisplayStringFromValueY((*world)[i][1]);
+        coord = displayNode->GetDisplayStringFromValueY((*world)[i][1], 0);
         }
 
       if (!sliceNode->GetOrientation().compare("XZ") ||
@@ -821,7 +821,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           !sliceNode->GetOrientation().compare("PVMinor") ||
           showReformat)
         {
-        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2]);
+        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2], 0);
         }
 
       vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
