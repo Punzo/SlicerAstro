@@ -6,15 +6,24 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>475</width>
-    <height>1306</height>
+    <width>497</width>
+    <height>1323</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Model Fitting</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -36,19 +45,19 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector">
+      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector" native="true">
        <property name="enabled">
         <bool>true</bool>
        </property>
-       <property name="nodeTypes">
+       <property name="nodeTypes" stdset="0">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
         </stringlist>
        </property>
-       <property name="addEnabled">
+       <property name="addEnabled" stdset="0">
         <bool>false</bool>
        </property>
-       <property name="renameEnabled">
+       <property name="renameEnabled" stdset="0">
         <bool>true</bool>
        </property>
       </widget>
@@ -56,7 +65,7 @@
     </layout>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton" native="true">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -66,13 +75,13 @@
        <height>0</height>
       </size>
      </property>
-     <property name="text">
+     <property name="text" stdset="0">
       <string>Nodes</string>
      </property>
-     <property name="checked">
+     <property name="checked" stdset="0">
       <bool>false</bool>
      </property>
-     <property name="collapsed">
+     <property name="collapsed" stdset="0">
       <bool>true</bool>
      </property>
      <layout class="QFormLayout" name="formLayout">
@@ -90,28 +99,28 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox">
+       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="nodeTypes">
+        <property name="nodeTypes" stdset="0">
          <stringlist>
           <string>vtkMRMLAstroModelingParametersNode</string>
          </stringlist>
         </property>
-        <property name="showHidden">
+        <property name="showHidden" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="noneEnabled">
+        <property name="noneEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="addEnabled">
+        <property name="addEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="editEnabled">
+        <property name="editEnabled" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled">
+        <property name="renameEnabled" stdset="0">
          <bool>true</bool>
         </property>
        </widget>
@@ -127,31 +136,31 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="qMRMLNodeComboBox" name="OutputVolumeNodeSelector">
+       <widget class="qMRMLNodeComboBox" name="OutputVolumeNodeSelector" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
         </property>
-        <property name="nodeTypes">
+        <property name="nodeTypes" stdset="0">
          <stringlist>
           <string>vtkMRMLAstroVolumeNode</string>
          </stringlist>
         </property>
-        <property name="noneEnabled">
+        <property name="noneEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="addEnabled">
+        <property name="addEnabled" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="editEnabled">
+        <property name="editEnabled" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled">
+        <property name="renameEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="noneDisplay">
+        <property name="noneDisplay" stdset="0">
          <string>None</string>
         </property>
        </widget>
@@ -167,31 +176,31 @@
        </widget>
       </item>
       <item row="3" column="1">
-       <widget class="qMRMLNodeComboBox" name="ResidualVolumeNodeSelector">
+       <widget class="qMRMLNodeComboBox" name="ResidualVolumeNodeSelector" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
         </property>
-        <property name="nodeTypes">
+        <property name="nodeTypes" stdset="0">
          <stringlist>
           <string>vtkMRMLAstroVolumeNode</string>
          </stringlist>
         </property>
-        <property name="noneEnabled">
+        <property name="noneEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="addEnabled">
+        <property name="addEnabled" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="editEnabled">
+        <property name="editEnabled" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled">
+        <property name="renameEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="noneDisplay">
+        <property name="noneDisplay" stdset="0">
          <string>None</string>
         </property>
        </widget>
@@ -204,22 +213,22 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="TableNodeComboBox">
-        <property name="nodeTypes">
+       <widget class="qMRMLNodeComboBox" name="TableNodeComboBox" native="true">
+        <property name="nodeTypes" stdset="0">
          <stringlist>
           <string>vtkMRMLTableNode</string>
          </stringlist>
         </property>
-        <property name="showHidden">
+        <property name="showHidden" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="noneEnabled">
+        <property name="noneEnabled" stdset="0">
          <bool>true</bool>
         </property>
-        <property name="addEnabled">
+        <property name="addEnabled" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="removeEnabled">
+        <property name="removeEnabled" stdset="0">
          <bool>false</bool>
         </property>
        </widget>
@@ -228,7 +237,7 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="InputSegmentCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="InputSegmentCollapsibleButton" native="true">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -238,23 +247,29 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
+     <property name="text" stdset="0">
       <string>Input Mask</string>
      </property>
-     <property name="checked">
+     <property name="checked" stdset="0">
       <bool>false</bool>
      </property>
-     <property name="collapsed">
+     <property name="collapsed" stdset="0">
       <bool>true</bool>
-     </property>
-     <property name="contentsFrameShape">
-      <enum>QFrame::StyledPanel</enum>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>4</number>
+      </property>
+      <property name="topMargin">
+       <number>4</number>
+      </property>
+      <property name="rightMargin">
+       <number>4</number>
+      </property>
+      <property name="bottomMargin">
        <number>4</number>
       </property>
       <item>
@@ -283,12 +298,9 @@
             <height>100</height>
            </size>
           </property>
-          <property name="orientations">
-           <set>Qt::Vertical</set>
-          </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
+            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView" native="true">
              <property name="enabled">
               <bool>false</bool>
              </property>
@@ -315,17 +327,17 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="FittingParametersCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="FittingParametersCollapsibleButton" native="true">
      <property name="enabled">
       <bool>false</bool>
      </property>
-     <property name="text">
+     <property name="text" stdset="0">
       <string>Model Fitting Parameters</string>
      </property>
-     <property name="checked">
+     <property name="checked" stdset="0">
       <bool>true</bool>
      </property>
-     <property name="collapsed">
+     <property name="collapsed" stdset="0">
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
@@ -428,17 +440,17 @@
        </layout>
       </item>
       <item row="20" column="0" colspan="2">
-       <widget class="ctkCollapsibleButton" name="AdvancedCollapsibleButton">
+       <widget class="ctkCollapsibleButton" name="AdvancedCollapsibleButton" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
-        <property name="text">
+        <property name="text" stdset="0">
          <string>Advanced</string>
         </property>
-        <property name="checked">
+        <property name="checked" stdset="0">
          <bool>false</bool>
         </property>
-        <property name="collapsed">
+        <property name="collapsed" stdset="0">
          <bool>true</bool>
         </property>
         <layout class="QFormLayout" name="formLayout_3">
@@ -482,7 +494,7 @@
               <bool>false</bool>
              </property>
              <property name="text">
-              <string>DISP</string>
+              <string>&amp;DISP</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -498,7 +510,7 @@
               <bool>false</bool>
              </property>
              <property name="text">
-              <string>VROT</string>
+              <string>VRO&amp;T</string>
              </property>
              <property name="checked">
               <bool>true</bool>
@@ -542,7 +554,7 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="ctkSliderWidget" name="DistanceSliderWidget">
+            <widget class="ctkSliderWidget" name="DistanceSliderWidget" native="true">
              <property name="enabled">
               <bool>false</bool>
              </property>
@@ -559,18 +571,18 @@
               </size>
              </property>
              <property name="toolTip">
-              <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+              <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
              </property>
-             <property name="singleStep">
+             <property name="singleStep" stdset="0">
               <double>1.000000000000000</double>
              </property>
-             <property name="pageStep">
+             <property name="pageStep" stdset="0">
               <double>25.000000000000000</double>
              </property>
-             <property name="maximum">
+             <property name="maximum" stdset="0">
               <double>2000.000000000000000</double>
              </property>
-             <property name="suffix">
+             <property name="suffix" stdset="0">
               <string> Mpc</string>
              </property>
             </widget>
@@ -651,7 +663,7 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="ctkSliderWidget" name="CloudCDSliderWidget">
+            <widget class="ctkSliderWidget" name="CloudCDSliderWidget" native="true">
              <property name="enabled">
               <bool>false</bool>
              </property>
@@ -667,16 +679,19 @@
                <height>0</height>
               </size>
              </property>
-             <property name="singleStep">
+             <property name="toolTip">
+              <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
+             </property>
+             <property name="singleStep" stdset="0">
               <double>1.000000000000000</double>
              </property>
-             <property name="pageStep">
+             <property name="pageStep" stdset="0">
               <double>10.000000000000000</double>
              </property>
-             <property name="maximum">
+             <property name="maximum" stdset="0">
               <double>100.000000000000000</double>
              </property>
-             <property name="value">
+             <property name="value" stdset="0">
               <double>10.000000000000000</double>
              </property>
             </widget>
@@ -724,7 +739,7 @@
             <number>0</number>
            </property>
            <item>
-            <widget class="ctkSliderWidget" name="NumCloudsSliderWidget">
+            <widget class="ctkSliderWidget" name="NumCloudsSliderWidget" native="true">
              <property name="enabled">
               <bool>false</bool>
              </property>
@@ -741,21 +756,21 @@
               </size>
              </property>
              <property name="toolTip">
-              <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+              <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
              </property>
-             <property name="decimals">
+             <property name="decimals" stdset="0">
               <number>0</number>
              </property>
-             <property name="singleStep">
+             <property name="singleStep" stdset="0">
               <double>1.000000000000000</double>
              </property>
-             <property name="minimum">
+             <property name="minimum" stdset="0">
               <double>0.000000000000000</double>
              </property>
-             <property name="maximum">
+             <property name="maximum" stdset="0">
               <double>1000.000000000000000</double>
              </property>
-             <property name="value">
+             <property name="value" stdset="0">
               <double>0.000000000000000</double>
              </property>
             </widget>
@@ -901,7 +916,7 @@
               <bool>false</bool>
              </property>
              <property name="text">
-              <string>Scale Height</string>
+              <string>Sca&amp;le Height</string>
              </property>
              <property name="checked">
               <bool>false</bool>
@@ -924,7 +939,7 @@
               <bool>false</bool>
              </property>
              <property name="text">
-              <string>XCenter</string>
+              <string>&amp;XCenter</string>
              </property>
              <property name="checked">
               <bool>false</bool>
@@ -940,7 +955,7 @@
               <bool>false</bool>
              </property>
              <property name="text">
-              <string>YCenter</string>
+              <string>&amp;YCenter</string>
              </property>
              <property name="checked">
               <bool>false</bool>
@@ -993,7 +1008,7 @@
            <bool>false</bool>
           </property>
           <property name="text">
-           <string>Automatic</string>
+           <string>A&amp;utomatic</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -1075,7 +1090,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="RingsSliderWidget">
+         <widget class="ctkSliderWidget" name="RingsSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1092,21 +1107,21 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="decimals">
+          <property name="decimals" stdset="0">
            <number>0</number>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="minimum">
+          <property name="minimum" stdset="0">
            <double>0.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>100.000000000000000</double>
           </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>0.000000000000000</double>
           </property>
          </widget>
@@ -1132,7 +1147,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="RingWidthSliderWidget">
+         <widget class="ctkSliderWidget" name="RingWidthSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1149,18 +1164,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>30.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>300.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> &quot;</string>
           </property>
          </widget>
@@ -1176,7 +1191,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="XcenterSliderWidget">
+         <widget class="ctkSliderWidget" name="XcenterSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1193,18 +1208,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>25.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>2000.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> pixels</string>
           </property>
          </widget>
@@ -1240,7 +1255,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="YcenterSliderWidget">
+         <widget class="ctkSliderWidget" name="YcenterSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1257,18 +1272,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>25.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>2000.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> pixels</string>
           </property>
          </widget>
@@ -1284,7 +1299,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="SysVelSliderWidget">
+         <widget class="ctkSliderWidget" name="SysVelSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1301,18 +1316,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>The systemic velocity of the galaxy expressed using the optical velocity definition. If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>5.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>100.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>10000.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> km/s</string>
           </property>
          </widget>
@@ -1328,7 +1343,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="RotVelSliderWidget">
+         <widget class="ctkSliderWidget" name="RotVelSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1345,18 +1360,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>5.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>30.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>600.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> km/s</string>
           </property>
          </widget>
@@ -1402,7 +1417,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="RadVelSliderWidget">
+         <widget class="ctkSliderWidget" name="RadVelSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1419,21 +1434,21 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>2.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>20.000000000000000</double>
           </property>
-          <property name="minimum">
+          <property name="minimum" stdset="0">
            <double>-100.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>100.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> km/s</string>
           </property>
          </widget>
@@ -1459,7 +1474,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="VelDispSliderWidget">
+         <widget class="ctkSliderWidget" name="VelDispSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1476,18 +1491,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>10.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>50.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> km/s</string>
           </property>
          </widget>
@@ -1506,7 +1521,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="InclinationSliderWidget">
+         <widget class="ctkSliderWidget" name="InclinationSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1517,15 +1532,15 @@
            </sizepolicy>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>90.000000000000000</double>
           </property>
-          <property name="prefix">
+          <property name="prefix" stdset="0">
            <string/>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> °</string>
           </property>
          </widget>
@@ -1579,7 +1594,7 @@
          </spacer>
         </item>
         <item>
-         <widget class="ctkDoubleSpinBox" name="InclinationErrorSpinBox">
+         <widget class="ctkDoubleSpinBox" name="InclinationErrorSpinBox" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1595,13 +1610,13 @@
             <height>0</height>
            </size>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> °</string>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>90.000000000000000</double>
           </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>5.000000000000000</double>
           </property>
          </widget>
@@ -1620,7 +1635,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="PASliderWidget">
+         <widget class="ctkSliderWidget" name="PASliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1631,12 +1646,12 @@
            </sizepolicy>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>360.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> °</string>
           </property>
          </widget>
@@ -1690,7 +1705,7 @@
          </spacer>
         </item>
         <item>
-         <widget class="ctkDoubleSpinBox" name="PAErrorSpinBox">
+         <widget class="ctkDoubleSpinBox" name="PAErrorSpinBox" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1706,13 +1721,13 @@
             <height>0</height>
            </size>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> °</string>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>360.000000000000000</double>
           </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>15.000000000000000</double>
           </property>
          </widget>
@@ -1728,7 +1743,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="SHSliderWidget">
+         <widget class="ctkSliderWidget" name="SHSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1745,18 +1760,18 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by SlicerAstro</string>
+           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>10.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>100.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> &quot;</string>
           </property>
          </widget>
@@ -1772,7 +1787,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="CDSliderWidget">
+         <widget class="ctkSliderWidget" name="CDSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1788,19 +1803,19 @@
             <height>0</height>
            </size>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>10.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>100.000000000000000</double>
           </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>1.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string/>
           </property>
          </widget>
@@ -1883,7 +1898,7 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton" native="true">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -1893,13 +1908,13 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text">
+     <property name="text" stdset="0">
       <string>Model</string>
      </property>
-     <property name="checked">
+     <property name="checked" stdset="0">
       <bool>true</bool>
      </property>
-     <property name="collapsed">
+     <property name="collapsed" stdset="0">
       <bool>false</bool>
      </property>
      <layout class="QGridLayout" name="gridLayout_3">
@@ -1934,7 +1949,7 @@
          </widget>
         </item>
         <item>
-         <widget class="ctkSliderWidget" name="ContourSliderWidget">
+         <widget class="ctkSliderWidget" name="ContourSliderWidget" native="true">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -1953,25 +1968,25 @@
           <property name="toolTip">
            <string>Value of the contour level. The value will be used both in the 3-D (for the model segmentation and volume rendering of the data) and 2-D Views. A value major than 1.5 is adviced. </string>
           </property>
-          <property name="decimals">
+          <property name="decimals" stdset="0">
            <number>2</number>
           </property>
-          <property name="singleStep">
+          <property name="singleStep" stdset="0">
            <double>0.500000000000000</double>
           </property>
-          <property name="pageStep">
+          <property name="pageStep" stdset="0">
            <double>5.000000000000000</double>
           </property>
-          <property name="minimum">
+          <property name="minimum" stdset="0">
            <double>-10.000000000000000</double>
           </property>
-          <property name="maximum">
+          <property name="maximum" stdset="0">
            <double>50.000000000000000</double>
           </property>
-          <property name="value">
+          <property name="value" stdset="0">
            <double>3.000000000000000</double>
           </property>
-          <property name="suffix">
+          <property name="suffix" stdset="0">
            <string> RMS</string>
           </property>
          </widget>
@@ -2054,7 +2069,16 @@
            <property name="spacing">
             <number>0</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
@@ -2158,7 +2182,7 @@
        </widget>
       </item>
       <item row="7" column="1">
-       <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton_2">
+       <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton_2" native="true">
         <property name="enabled">
          <bool>false</bool>
         </property>
@@ -2168,10 +2192,10 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <property name="text">
+        <property name="text" stdset="0">
          <string>Position Velocity Diagrams</string>
         </property>
-        <property name="collapsed">
+        <property name="collapsed" stdset="0">
          <bool>false</bool>
         </property>
         <layout class="QGridLayout" name="gridLayout_4">
@@ -2206,36 +2230,36 @@
          <item row="2" column="1">
           <layout class="QGridLayout" name="gridLayout_2">
            <item row="0" column="1">
-            <widget class="ctkSliderWidget" name="YellowSliceSliderWidget">
+            <widget class="ctkSliderWidget" name="YellowSliceSliderWidget" native="true">
              <property name="toolTip">
               <string>Rotate the Yellow Slice respect to the velocity axes</string>
              </property>
-             <property name="minimum">
+             <property name="minimum" stdset="0">
               <double>-200.000000000000000</double>
              </property>
-             <property name="maximum">
+             <property name="maximum" stdset="0">
               <double>200.000000000000000</double>
              </property>
-             <property name="suffix">
+             <property name="suffix" stdset="0">
               <string> °</string>
              </property>
             </widget>
            </item>
            <item row="1" column="1">
-            <widget class="ctkSliderWidget" name="GreenSliceSliderWidget">
+            <widget class="ctkSliderWidget" name="GreenSliceSliderWidget" native="true">
              <property name="toolTip">
               <string>Rotate the Green Slice respect to the velocity axes</string>
              </property>
-             <property name="minimum">
+             <property name="minimum" stdset="0">
               <double>-200.000000000000000</double>
              </property>
-             <property name="maximum">
+             <property name="maximum" stdset="0">
               <double>200.000000000000000</double>
              </property>
-             <property name="value">
+             <property name="value" stdset="0">
               <double>0.000000000000000</double>
              </property>
-             <property name="suffix">
+             <property name="suffix" stdset="0">
               <string> °</string>
              </property>
             </widget>
