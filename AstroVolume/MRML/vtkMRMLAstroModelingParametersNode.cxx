@@ -87,6 +87,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetYPosMean(0.);
   this->SetXPosRAS(0.);
   this->SetYPosRAS(0.);
+  this->SetZPosRAS(0.);
   this->SetPVPhi(0.);
   this->SetYellowRotOldValue(0.);
   this->SetYellowRotValue(0.);
@@ -403,6 +404,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "ZPosRAS"))
+      {
+      this->ZPosRAS = StringToDouble(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "PVPhi"))
       {
       this->PVPhi = StringToDouble(attValue);
@@ -543,6 +550,7 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " YPosMean=\"" << this->YPosMean << "\"";
   of << indent << " XPosRAS=\"" << this->XPosRAS << "\"";
   of << indent << " YPosRAS=\"" << this->YPosRAS << "\"";
+  of << indent << " ZPosRAS=\"" << this->ZPosRAS << "\"";
   of << indent << " PVPhi=\"" << this->PVPhi << "\"";
   of << indent << " YellowRotOldValue=\"" << this->YellowRotOldValue << "\"";
   of << indent << " YellowRotValue=\"" << this->YellowRotValue << "\"";
@@ -611,6 +619,7 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetYPosMean(node->GetYPosMean());
   this->SetXPosRAS(node->GetXPosRAS());
   this->SetYPosRAS(node->GetYPosRAS());
+  this->SetZPosRAS(node->GetZPosRAS());
   this->SetPVPhi(node->GetPVPhi());
   this->SetYellowRotOldValue(node->GetYellowRotOldValue());
   this->SetYellowRotValue(node->GetYellowRotValue());
@@ -735,6 +744,7 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "YPosMean: " << this->YPosMean << "\n";
   os << "XPosRAS: " << this->XPosRAS << "\n";
   os << "YPosRAS: " << this->YPosRAS << "\n";
+  os << "ZPosRAS: " << this->ZPosRAS << "\n";
   os << "PVPhi: " << this->PVPhi << "\n";
   os << "YellowRotOldValue: " << this->YellowRotOldValue << "\n";
   os << "YellowRotValue: " << this->YellowRotValue << "\n";

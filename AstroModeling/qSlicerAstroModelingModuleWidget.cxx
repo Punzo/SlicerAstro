@@ -1597,7 +1597,8 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
   IJKtoRASTransform->TransformPoint(ijk, RAS);
   wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetXPosRAS(RAS[0]);
-  d->parametersNode->SetYPosRAS(RAS[2]);
+  d->parametersNode->SetYPosRAS(RAS[1]);
+  d->parametersNode->SetZPosRAS(RAS[2]);
   d->parametersNode->EndModify(wasModifying);
 
   d->astroVolumeWidget->updateQuantitative3DView
@@ -2087,6 +2088,7 @@ void qSlicerAstroModelingModuleWidget::setPVOffset()
     return;
     }
 
+  //TO DO: use matrix
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
   if (!yellowSliceNode || yellowSliceNode->GetOrientation().compare("PVMajor"))
@@ -2094,8 +2096,8 @@ void qSlicerAstroModelingModuleWidget::setPVOffset()
     return;
     }
   yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosRAS());
-  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetYPosRAS());
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, d->parametersNode->GetYPosRAS());
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetZPosRAS());
   yellowSliceNode->UpdateMatrices();
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
@@ -2104,8 +2106,8 @@ void qSlicerAstroModelingModuleWidget::setPVOffset()
     return;
     }
   greenSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosRAS());
-  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, 0.);
-  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetYPosRAS());
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, d->parametersNode->GetYPosRAS());
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetZPosRAS());
   greenSliceNode->UpdateMatrices();
 }
 
@@ -3488,7 +3490,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     IJKtoRASTransform->TransformPoint(ijk, RAS);
     wasModifying = d->parametersNode->StartModify();
     d->parametersNode->SetXPosRAS(RAS[0]);
-    d->parametersNode->SetYPosRAS(RAS[2]);
+    d->parametersNode->SetYPosRAS(RAS[1]);
+    d->parametersNode->SetZPosRAS(RAS[2]);
     d->parametersNode->EndModify(wasModifying);
 
     d->astroVolumeWidget->setQuantitative3DView

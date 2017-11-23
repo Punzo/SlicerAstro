@@ -183,6 +183,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(YPosRAS,double);
   vtkGetMacro(YPosRAS,double);
 
+  vtkSetMacro(ZPosRAS,double);
+  vtkGetMacro(ZPosRAS,double);
+
   vtkSetMacro(PVPhi,double);
   vtkGetMacro(PVPhi,double);
 
@@ -291,6 +294,7 @@ protected:
   double YPosMean;
   double XPosRAS;
   double YPosRAS;
+  double ZPosRAS;
   double PVPhi;
   double YellowRotValue;
   double YellowRotOldValue;
