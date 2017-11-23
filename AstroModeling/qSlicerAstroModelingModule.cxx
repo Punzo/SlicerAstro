@@ -28,6 +28,7 @@
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroModelingLogic.h>
+#include <vtkSlicerMarkupsLogic.h>
 
 // AstroModeling includes
 #include "qSlicerAstroModelingModule.h"
@@ -112,7 +113,7 @@ QStringList qSlicerAstroModelingModule::categories()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroModelingModule::dependencies()const
 {
-  return QStringList() << "AstroVolume" << "Segmentations" ;
+  return QStringList() << "AstroVolume" << "Markups" << "Segmentations" ;
 }
 
 //-----------------------------------------------------------------------------
@@ -131,7 +132,28 @@ void qSlicerAstroModelingModule::setup()
     }
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
+  if (!astroVolumeLogic)
+    {
+    qCritical() << "AstroVolume logic is not found";
+    return;
+    }
   AstroModelingLogic->SetAstroVolumeLogic(astroVolumeLogic);
+
+  qSlicerAbstractCoreModule* markupsModule =
+    qSlicerCoreApplication::application()->moduleManager()->module("Markups");
+  if (!markupsModule)
+    {
+    qCritical() << "Markups module is not found";
+    return;
+    }
+  vtkSlicerMarkupsLogic* markupsLogic =
+    vtkSlicerMarkupsLogic::SafeDownCast(markupsModule->logic());
+  if (!markupsLogic)
+    {
+    qCritical() << "Markups logic is not found";
+    return;
+    }
+  AstroModelingLogic->SetMarkupsLogic(markupsLogic);
 }
 
 //-----------------------------------------------------------------------------

@@ -96,11 +96,15 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
 
   ///
   /// Set radio as velocity definition
-  virtual bool SetRadioVelocityDefinition();
+  virtual bool SetRadioVelocityDefinition(bool update = true);
 
   ///
   /// Set optical as velocity definition
-  virtual bool SetOpticalVelocityDefinition();
+  virtual bool SetOpticalVelocityDefinition(bool update = true);
+
+  ///
+  /// Get the velocity definition currently in use
+  virtual std::string GetVelocityDefinition();
 
   ///
   /// Get WCS Coordinates from IJK

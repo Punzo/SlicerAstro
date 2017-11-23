@@ -738,7 +738,7 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
   ijk[1] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
   ijk[2] = 0.;
   astroMrmlDisplayNode->GetReferenceSpace(ijk, worldOne);
-  if(!strcmp(astroMrmlDisplayNode->GetWCSStruct()->cunit[2], "m/s"))
+  if(!strcmp(astroMrmlDisplayNode->GetVelocityDefinition().c_str(), "m/s"))
     {
     worldOne[2] /= 1000.;
     }
@@ -748,7 +748,7 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
     ijk[2] += 1;
     }
   astroMrmlDisplayNode->GetReferenceSpace(ijk, worldTwo);
-  if(!strcmp(astroMrmlDisplayNode->GetWCSStruct()->cunit[2], "m/s"))
+  if(!strcmp(astroMrmlDisplayNode->GetVelocityDefinition().c_str(), "m/s"))
     {
     worldTwo[2] /= 1000.;
     }

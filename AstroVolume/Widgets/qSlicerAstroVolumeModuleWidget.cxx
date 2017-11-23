@@ -2698,21 +2698,15 @@ void qSlicerAstroVolumeModuleWidget::onMRMLLabelVolumeNodeModified()
     return;
     }
 
-  wcsprm* WCS = astroLabelVolumeDisplayNode->GetWCSStruct();
-  if (!WCS)
-    {
-    return;
-    }
-
   bool opticalState = d->OpticalVelocityButton->blockSignals(true);
   bool radioState = d->RadioVelocityButton->blockSignals(true);
   d->OpticalVelocityButton->setChecked(false);
   d->RadioVelocityButton->setChecked(false);
-  if (!strncmp(WCS->ctype[2], "VOPT", 4))
+  if (!strncmp(astroLabelVolumeDisplayNode->GetVelocityDefinition().c_str(), "VOPT", 4))
     {
     d->OpticalVelocityButton->setChecked(true);
     }
-  else if (!strncmp(WCS->ctype[2], "VRAD", 4))
+  else if (!strncmp(astroLabelVolumeDisplayNode->GetVelocityDefinition().c_str(), "VRAD", 4))
     {
     d->RadioVelocityButton->setChecked(true);
     }
@@ -3154,21 +3148,15 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
     return;
     }
 
-  wcsprm* WCS = astroVolumeDisplayNode->GetWCSStruct();
-  if (!WCS)
-    {
-    return;
-    }
-
   bool opticalState = d->OpticalVelocityButton->blockSignals(true);
   bool radioState = d->RadioVelocityButton->blockSignals(true);
   d->OpticalVelocityButton->setChecked(false);
   d->RadioVelocityButton->setChecked(false);
-  if (!strncmp(WCS->ctype[2], "VOPT", 4))
+  if (!strncmp(astroVolumeDisplayNode->GetVelocityDefinition().c_str(), "VOPT", 4))
     {
     d->OpticalVelocityButton->setChecked(true);
     }
-  else if (!strncmp(WCS->ctype[2], "VRAD", 4))
+  else if (!strncmp(astroVolumeDisplayNode->GetVelocityDefinition().c_str(), "VRAD", 4))
     {
     d->RadioVelocityButton->setChecked(true);
     }

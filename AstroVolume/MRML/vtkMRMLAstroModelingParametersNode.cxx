@@ -83,11 +83,11 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetWeightingFunction(1);
   this->SetNumberOfClounds(0);
   this->SetCloudsColumnDensity(10.);
-  this->SetXPosMean(0.);
-  this->SetYPosMean(0.);
-  this->SetXPosRAS(0.);
-  this->SetYPosRAS(0.);
-  this->SetZPosRAS(0.);
+  this->SetXPosCenterIJK(0.);
+  this->SetYPosCenterIJK(0.);
+  this->SetXPosCenterRAS(0.);
+  this->SetYPosCenterRAS(0.);
+  this->SetZPosCenterRAS(0.);
   this->SetPVPhi(0.);
   this->SetYellowRotOldValue(0.);
   this->SetYellowRotValue(0.);
@@ -380,33 +380,33 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "XPosMean"))
+    if (!strcmp(attName, "XPosCenterIJK"))
       {
-      this->XPosMean = StringToDouble(attValue);
+      this->XPosCenterIJK = StringToDouble(attValue);
       continue;
       }
 
-    if (!strcmp(attName, "YPosMean"))
+    if (!strcmp(attName, "YPosCenterIJK"))
       {
-      this->YPosMean = StringToDouble(attValue);
+      this->YPosCenterIJK = StringToDouble(attValue);
       continue;
       }
 
-    if (!strcmp(attName, "XPosRAS"))
+    if (!strcmp(attName, "XPosCenterRAS"))
       {
-      this->XPosRAS = StringToDouble(attValue);
+      this->XPosCenterRAS = StringToDouble(attValue);
       continue;
       }
 
-    if (!strcmp(attName, "YPosRAS"))
+    if (!strcmp(attName, "YPosCenterRAS"))
       {
-      this->YPosRAS = StringToDouble(attValue);
+      this->YPosCenterRAS = StringToDouble(attValue);
       continue;
       }
 
-    if (!strcmp(attName, "ZPosRAS"))
+    if (!strcmp(attName, "ZPosCenterRAS"))
       {
-      this->ZPosRAS = StringToDouble(attValue);
+      this->ZPosCenterRAS = StringToDouble(attValue);
       continue;
       }
 
@@ -546,11 +546,11 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " WeightingFunction=\"" << this->WeightingFunction << "\"";
   of << indent << " NumberOfClounds=\"" << this->NumberOfClounds << "\"";
   of << indent << " CloudsColumnDensity=\"" << this->CloudsColumnDensity << "\"";
-  of << indent << " XPosMean=\"" << this->XPosMean << "\"";
-  of << indent << " YPosMean=\"" << this->YPosMean << "\"";
-  of << indent << " XPosRAS=\"" << this->XPosRAS << "\"";
-  of << indent << " YPosRAS=\"" << this->YPosRAS << "\"";
-  of << indent << " ZPosRAS=\"" << this->ZPosRAS << "\"";
+  of << indent << " XPosCenterIJK=\"" << this->XPosCenterIJK << "\"";
+  of << indent << " YPosCenterIJK=\"" << this->YPosCenterIJK << "\"";
+  of << indent << " XPosCenterRAS=\"" << this->XPosCenterRAS << "\"";
+  of << indent << " YPosCenterRAS=\"" << this->YPosCenterRAS << "\"";
+  of << indent << " ZPosCenterRAS=\"" << this->ZPosCenterRAS << "\"";
   of << indent << " PVPhi=\"" << this->PVPhi << "\"";
   of << indent << " YellowRotOldValue=\"" << this->YellowRotOldValue << "\"";
   of << indent << " YellowRotValue=\"" << this->YellowRotValue << "\"";
@@ -615,11 +615,11 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetFitSuccess(node->GetFitSuccess());
   this->SetNormalize(node->GetNormalize());
   this->SetContourLevel(node->GetContourLevel());
-  this->SetXPosMean(node->GetXPosMean());
-  this->SetYPosMean(node->GetYPosMean());
-  this->SetXPosRAS(node->GetXPosRAS());
-  this->SetYPosRAS(node->GetYPosRAS());
-  this->SetZPosRAS(node->GetZPosRAS());
+  this->SetXPosCenterIJK(node->GetXPosCenterIJK());
+  this->SetYPosCenterIJK(node->GetYPosCenterIJK());
+  this->SetXPosCenterRAS(node->GetXPosCenterRAS());
+  this->SetYPosCenterRAS(node->GetYPosCenterRAS());
+  this->SetZPosCenterRAS(node->GetZPosCenterRAS());
   this->SetPVPhi(node->GetPVPhi());
   this->SetYellowRotOldValue(node->GetYellowRotOldValue());
   this->SetYellowRotValue(node->GetYellowRotValue());
@@ -740,11 +740,11 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "FitSuccess: " << this->FitSuccess << "\n";
   os << "Normalize: " << this->Normalize << "\n";
   os << "ContourLevel: " << this->ContourLevel << "\n";
-  os << "XPosMean: " << this->XPosMean << "\n";
-  os << "YPosMean: " << this->YPosMean << "\n";
-  os << "XPosRAS: " << this->XPosRAS << "\n";
-  os << "YPosRAS: " << this->YPosRAS << "\n";
-  os << "ZPosRAS: " << this->ZPosRAS << "\n";
+  os << "XPosCenterIJK: " << this->XPosCenterIJK << "\n";
+  os << "YPosCenterIJK: " << this->YPosCenterIJK << "\n";
+  os << "XPosCenterRAS: " << this->XPosCenterRAS << "\n";
+  os << "YPosCenterRAS: " << this->YPosCenterRAS << "\n";
+  os << "ZPosCenterRAS: " << this->ZPosCenterRAS << "\n";
   os << "PVPhi: " << this->PVPhi << "\n";
   os << "YellowRotOldValue: " << this->YellowRotOldValue << "\n";
   os << "YellowRotValue: " << this->YellowRotValue << "\n";

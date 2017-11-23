@@ -63,6 +63,7 @@
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroModelingLogic.h>
+#include <vtkSlicerMarkupsLogic.h>
 #include <vtkSlicerSegmentationsModuleLogic.h>
 
 // qMRML includes
@@ -446,6 +447,12 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
@@ -461,11 +468,48 @@ std::string IntToString(int Value)
   return NumberToString<int>(Value);
 }
 
+//-----------------------------------------------------------------------------
 double sign(double x)
 {
-   if (x < 0.0)
-      return( -1.0 );
-   return( 1.0 );
+  if (x < 0.)
+    {
+    return -1.;
+    }
+
+ return 1.;
+}
+
+//-----------------------------------------------------------------------------
+double arctan(double y, double x)
+{
+  double r;
+
+  r = atan2(y, x);
+
+  if (r < 0.)
+    {
+    r += 2. * PI;
+    }
+
+  return r;
+}
+
+//-----------------------------------------------------------------------------
+double putinrangerad(double angle)
+{
+  double twopi = 2. * PI;
+
+  while (angle < 0.)
+    {
+    angle += twopi;
+    }
+
+  while (angle > twopi)
+    {
+    angle -= twopi;
+    }
+
+  return angle;
 }
 
 } // end namespace
@@ -721,20 +765,35 @@ void qSlicerAstroModelingModuleWidget::initializeParameterNode(vtkMRMLScene* sce
 
   this->initializeTableNode(scene);
 
+  vtkSlicerAstroModelingLogic* astroModelingLogic =
+    vtkSlicerAstroModelingLogic::SafeDownCast(this->logic());
+  if (!astroModelingLogic)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeParameterNode :"
+                  " vtkSlicerAstroModelingLogic not found!";
+    return;
+    }
+  vtkSlicerMarkupsLogic* MarkupsLogic =
+    vtkSlicerMarkupsLogic::SafeDownCast(astroModelingLogic->GetMarkupsLogic());
+  if (!MarkupsLogic)
+    {
+    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeParameterNode :"
+                  " vtkSlicerMarkupsLogic not found!";
+    return;
+    }
+
   if (!d->fiducialNodeMajor)
     {
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLMarkupsFiducialNode");
-    d->fiducialNodeMajor.TakeReference(vtkMRMLMarkupsFiducialNode::SafeDownCast(foo));
-    scene->AddNode(d->fiducialNodeMajor);
-    d->fiducialNodeMajor->SetName("MarkupsFiducialsMajor");
+    std::string ID = MarkupsLogic->AddNewFiducialNode("MarkupsFiducialsMajor");
+    d->fiducialNodeMajor = vtkMRMLMarkupsFiducialNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(ID));
     }
 
   if (!d->fiducialNodeMinor)
     {
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLMarkupsFiducialNode");
-    d->fiducialNodeMinor.TakeReference(vtkMRMLMarkupsFiducialNode::SafeDownCast(foo));
-    scene->AddNode(d->fiducialNodeMinor);
-    d->fiducialNodeMinor->SetName("MarkupsFiducialsMinor");
+    std::string ID = MarkupsLogic->AddNewFiducialNode("MarkupsFiducialsMinor");
+    d->fiducialNodeMinor = vtkMRMLMarkupsFiducialNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(ID));
     }
 }
 
@@ -1522,8 +1581,8 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize :"
                   " UpdateModel error!";
     int wasModifying = d->parametersNode->StartModify();
-    d->parametersNode->SetXPosMean(0.);
-    d->parametersNode->SetYPosMean(0.);
+    d->parametersNode->SetXPosCenterIJK(0.);
+    d->parametersNode->SetYPosCenterIJK(0.);
     d->parametersNode->SetPVPhi(0.);
     d->parametersNode->EndModify(wasModifying);
     return;
@@ -1562,8 +1621,8 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
   YPosMean /= YPos->GetNumberOfValues();
 
   int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetXPosMean(XPosMean);
-  d->parametersNode->SetYPosMean(YPosMean);
+  d->parametersNode->SetXPosCenterIJK(XPosMean);
+  d->parametersNode->SetYPosCenterIJK(YPosMean);
   d->parametersNode->SetPVPhi(-(PhiMean - 90.));
   d->parametersNode->SetYellowRotOldValue(0.);
   d->parametersNode->SetYellowRotValue(0.);
@@ -1591,14 +1650,14 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
   IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
   double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
-  ijk[0] = d->parametersNode->GetXPosMean();
-  ijk[1] = d->parametersNode->GetYPosMean();
+  ijk[0] = d->parametersNode->GetXPosCenterIJK();
+  ijk[1] = d->parametersNode->GetYPosCenterIJK();
   ijk[2] = Zcenter;
   IJKtoRASTransform->TransformPoint(ijk, RAS);
   wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetXPosRAS(RAS[0]);
-  d->parametersNode->SetYPosRAS(RAS[1]);
-  d->parametersNode->SetZPosRAS(RAS[2]);
+  d->parametersNode->SetXPosCenterRAS(RAS[0]);
+  d->parametersNode->SetYPosCenterRAS(RAS[1]);
+  d->parametersNode->SetZPosCenterRAS(RAS[2]);
   d->parametersNode->EndModify(wasModifying);
 
   d->astroVolumeWidget->updateQuantitative3DView
@@ -1726,7 +1785,9 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkOb
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender)
 {
-  if (!sender)
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!sender || ! d->parametersNode || !this->mrmlScene())
     {
     return;
     }
@@ -1739,58 +1800,38 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
     return;
     }
 
-  // TO DO: Update Fiducials position
-
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
-{
-  Q_D(qSlicerAstroModelingModuleWidget);
-
-  if (!d->fiducialNodeMajor || !d->fiducialNodeMinor || !d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLScene *scene = this->mrmlScene();
-  if(!scene)
-    {
-    return;
-    }
-
   vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
     return;
     }
 
-  vtkImageData* imageData = inputVolume->GetImageData();
-  if (!imageData)
-    {
-    return;
-    }
-
-  vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplayNode =
-    inputVolume->GetAstroVolumeDisplayNode();
+  vtkMRMLAstroVolumeDisplayNode* inputVolumeDisplayNode = inputVolume->GetAstroVolumeDisplayNode();
   if(!inputVolumeDisplayNode)
     {
     return;
     }
 
-  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("Phi"));
+  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+  IJKtoRASTransform->Identity();
+  IJKtoRASTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
+  IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
-  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("XPos"));
+  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+  RAStoIJKTransform->Identity();
+  RAStoIJKTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+  inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix);
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix);
 
-  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("YPos"));
+  if (!d->parametersNode->GetParamsTableNode())
+    {
+    return;
+    }
 
   vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast
     (d->parametersNode->GetParamsTableNode()
@@ -1812,151 +1853,485 @@ void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
     (d->parametersNode->GetParamsTableNode()
        ->GetTable()->GetColumnByName("Radii"));
 
-  if (!Phi || !XPos || !YPos || !VRot || !VRad || !Inc || !VSys || !Radii)
-    {
-    return;
-    }
-
-  if (d->fiducialNodeMajor->GetNumberOfFiducials() != Radii->GetNumberOfValues() * 2 ||
-      d->fiducialNodeMinor->GetNumberOfFiducials() != Radii->GetNumberOfValues() * 2)
+  if (!VRot || !VRad || !Inc || !VSys || !Radii)
     {
     return;
     }
 
   double *VRotPointer = static_cast<double*> (VRot->GetPointer(0));
-  double *PhiPointer = static_cast<double*> (Phi->GetPointer(0));
-  double *XPosPointer = static_cast<double*> (XPos->GetPointer(0));
-  double *YPosPointer = static_cast<double*> (YPos->GetPointer(0));
   double *VRadPointer = static_cast<double*> (VRad->GetPointer(0));
   double *IncPointer = static_cast<double*> (Inc->GetPointer(0));
   double *VSysPointer = static_cast<double*> (VSys->GetPointer(0));
   double *RadiiPointer = static_cast<double*> (Radii->GetPointer(0));
 
-  double PhiMean = 0., XMean = 0., YMean = 0.;
-  for (int ii = 0; ii < Phi->GetNumberOfValues(); ii++)
+  if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
     {
-    PhiMean += *(PhiPointer + ii);
-    XMean += *(XPosPointer + ii);
-    YMean += *(YPosPointer + ii);
+    if (!d->fiducialNodeMajor)
+      {
+      return;
+      }
+
+    // Semi-major axes angle
+    double PVPhi = d->parametersNode->GetPVPhi();
+    // Slice angle
+    double sl_anglerad = d->parametersNode->GetYellowRotValue();
+    if (int(fabs(sl_anglerad) - 90.) < 1.E-6)
+      {
+      sl_anglerad += 0.01;
+      }
+
+    sl_anglerad += PVPhi;
+
+    double factor = 0.;
+    if ((sl_anglerad - 90.) > 1.E-6 && (sl_anglerad - 270.) < 1.E-6)
+      {
+      factor = -180.;
+      }
+    else if ((sl_anglerad - 270.) > 1.E-6)
+      {
+      factor = -360.;
+      }
+    else if ((sl_anglerad + 90.) < 1.E-6 && (sl_anglerad + 270.) > 1.E-6)
+      {
+      factor = +180.;
+      }
+    else if ((sl_anglerad + 270.) < 1.E-6)
+      {
+      factor = +360.;
+      }
+    sl_anglerad += factor;
+
+    // Slice offset
+    int dims[3];
+    inputVolume->GetImageData()->GetDimensions(dims);
+    int Zcenter = dims[2] * 0.5;
+
+    const double arcsec2deg = 1. / 3600.;
+    const double deg2arcsec = 3600.;
+    const double deg2rad = PI / 180.;
+    const double kms2ms = 1000.;
+    double  pidiv4 = PI / 4.;
+    double  pidiv2 = PI / 2.;
+    double worldSliceCenter[3] = {0.,0.,0.}, world[3] = {0.,0.,0.},
+           worldPositive[3] = {0.,0.,0.}, worldNegative[3] = {0.,0.,0.},
+           ijk[3] = {0.,0.,0.}, RAS[3] = {0., 0., 0.};
+
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+    ijk[0] = 1;
+    ijk[1] = 1;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldSliceCenter);
+    double stepX = worldSliceCenter[1] - world[1];
+    double stepY = worldSliceCenter[0] - world[0];
+    double CDELTA1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
+    double CDELTA2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
+    double factorX = fabs(stepX / CDELTA1);
+    double factorY = fabs(stepY / CDELTA2);
+
+    ijk[0] = d->parametersNode->GetXPosCenterIJK();
+    ijk[1] = d->parametersNode->GetYPosCenterIJK();
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+
+    for (int ii = 0; ii < 3; ii++)
+      {
+      RAS[ii] = sliceNode->GetSliceToRAS()->GetElement(ii, 3);
+      }
+    RAStoIJKTransform->TransformPoint(RAS, ijk);
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldSliceCenter);
+    double worldOffsetX = (worldSliceCenter[0] - world[0]) * factorX * deg2arcsec;
+    double worldOffsetY = (worldSliceCenter[1] - world[1]) * factorY * deg2arcsec;
+
+    PVPhi *= deg2rad;
+    sl_anglerad *= deg2rad;
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldSliceCenter);
+    ijk[0] += (10 * cos(sl_anglerad));
+    ijk[1] += (10 * sin(sl_anglerad));
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+
+    double distX = (world[0] - worldSliceCenter[0]);
+    double distY = (world[1] - worldSliceCenter[1]);
+    double PVPhiWorld = atan(distY / distX);
+
+    double PVPhiCos = cos(-PVPhiWorld);
+    double PVPhiSin = sin(-PVPhiWorld);
+
+    double alpha = putinrangerad(PVPhi);
+    double sina  = sin(alpha);
+    double cosa  = cos(alpha);
+    sl_anglerad = putinrangerad(sl_anglerad);
+
+    d->fiducialNodeMajor->GlobalWarningDisplayOff();
+    int MajorWasModifying = d->fiducialNodeMajor->StartModify();
+    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
+      {
+      double m, b, p, q, r, x[2], y[2];
+      int positiveIndex = radiiIndex * 2;
+      int negativeIndex = (radiiIndex * 2) + 1;
+      double sinInc = sin(*(IncPointer + radiiIndex) * deg2rad);
+      double cosInc = cos(*(IncPointer + radiiIndex) * deg2rad);
+      double cosIncCosInc = 1. / (cosInc * cosInc);
+
+      double A = cosa * cosa + sina * sina * cosIncCosInc;
+      double B = 2. * cosa * sina - 2. * sina * cosa * cosIncCosInc;
+      double C = sina * sina + cosa * cosa * cosIncCosInc;
+
+
+      bool danger = ((sl_anglerad >= 1. * pidiv4 && sl_anglerad <= 3. * pidiv4) ||
+                     (sl_anglerad >= 5. * pidiv4 && sl_anglerad <= 7. * pidiv4));
+      if (!danger)
+        {
+        /* Intersect with a line Y = mX + b */
+        m = tan(sl_anglerad);
+        b = worldOffsetY - worldOffsetX * m;  /* offsets are from g. to sl. center */
+        p = A + B * m + C * m * m;
+        q = B * b + 2. * m * b * C;
+        r = C * b * b - *(RadiiPointer + radiiIndex) * *(RadiiPointer + radiiIndex);
+        }
+      else
+        {
+        /* Intersect with a line X = mY + b */
+        m = tan(pidiv2 - sl_anglerad);
+        b = worldOffsetX - worldOffsetY * m;
+        p = A * m * m + B * m + C;
+        q = B * b + 2. * m * b * A;
+        r = A * b * b - *(RadiiPointer + radiiIndex) * *(RadiiPointer + radiiIndex);
+        }
+
+      double det = q * q - 4. * p * r;
+      if (det < 0.)
+        {
+        d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, 0., 0., 0.);
+        d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, 0., 0., 0.);
+        d->fiducialNodeMajor->SetNthFiducialVisibility(positiveIndex, false);
+        d->fiducialNodeMajor->SetNthFiducialVisibility(negativeIndex, false);
+        continue;
+        }
+
+      double sqrdet = sqrt(det);
+      if (!danger)
+        {
+        x[0] = (-1. * q + sqrdet) / (2. * p);
+        x[1] = (-1. * q - sqrdet) / (2. * p);
+        y[0] = m * (x[0]) + b;
+        y[1] = m * (x[1]) + b;
+        }
+      else
+        {
+        y[0] = (-1. * q + sqrdet) / (2. * p);
+        y[1] = (-1. * q - sqrdet) / (2. * p);
+        x[0] = m * (y[0]) + b;
+        x[1] = m * (y[1]) + b;
+        }
+
+      // Project velocity
+      double e1 = arctan(y[0], x[0]);
+      double beta1 = putinrangerad(e1 - alpha);
+      double theta1 = arctan(fabs(tan(beta1)), fabs(cosInc));
+      double VelocitySin1 = (*(VRadPointer + radiiIndex) * sinInc * sin(theta1) +
+                             *(VRotPointer + radiiIndex) * sinInc * cos(theta1)) * sign(cos(beta1));
+      double VelocityPositive = *(VSysPointer + radiiIndex) + VelocitySin1;
+
+      // Project radius
+      double xt1 = x[0] - worldOffsetX;
+      double yt1 = y[0] - worldOffsetY;
+      double ProjectedRadius1 = (xt1 * cos(sl_anglerad) / factorX + yt1 * sin(sl_anglerad) / factorY)
+                                 * fabs(cos(theta1) / cos(beta1)) * arcsec2deg;
+
+      // Update fiducials
+      double ShiftX1 = ProjectedRadius1 * PVPhiCos;
+      double ShiftY1 = ProjectedRadius1 * PVPhiSin;
+      worldPositive[0] = worldSliceCenter[0] + ShiftX1;
+      worldPositive[1] = worldSliceCenter[1] + ShiftY1;
+      worldPositive[2] = VelocityPositive * kms2ms;
+      inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMajor->SetNthFiducialVisibility(positiveIndex, true);
+
+      // Project velocity
+      double e2 = arctan(y[1], x[1]);
+      double beta2 = putinrangerad(e2 - alpha);
+      double theta2 = arctan(fabs(tan(beta2)), fabs(cosInc));
+      double VelocitySin2 = (*(VRadPointer + radiiIndex) * sinInc * sin(theta2) +
+                             *(VRotPointer + radiiIndex) * sinInc * cos(theta2)) * sign(cos(beta2));
+      double VelocityNegative = *(VSysPointer + radiiIndex) + VelocitySin2;
+
+      // Project radius
+      double xt2 = x[1] - worldOffsetX;
+      double yt2 = y[1] - worldOffsetY;
+      double ProjectedRadius2 = (xt2 * cos(sl_anglerad) / factorX + yt2 * sin(sl_anglerad) / factorY)
+                                 * fabs(cos(theta2) / cos(beta2)) * arcsec2deg;
+
+      // Update fiducials
+      double ShiftX2 = ProjectedRadius2 * PVPhiCos;
+      double ShiftY2 = ProjectedRadius2 * PVPhiSin;
+      worldNegative[0] = worldSliceCenter[0] + ShiftX2;
+      worldNegative[1] = worldSliceCenter[1] + ShiftY2;
+      worldNegative[2] = VelocityNegative * kms2ms;
+      inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMajor->SetNthFiducialVisibility(negativeIndex, true);
+      }
+     d->fiducialNodeMajor->EndModify(MajorWasModifying);
+     d->fiducialNodeMajor->GlobalWarningDisplayOn();
+     // This is required to update the table in the Markups Module.
+     // However, it slows down a lot teh performance.
+     /*for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
+       {
+       d->fiducialNodeMajor->InvokeCustomModifiedEvent(vtkMRMLMarkupsNode::PointModifiedEvent, (void*)&radiiIndex);
+       }*/
     }
-  PhiMean /=  Phi->GetNumberOfValues();
-  XMean /=  XPos->GetNumberOfValues();
-  YMean /=  YPos->GetNumberOfValues();
-  double PVPhi = -(PhiMean - 90.);
-
-  const double arcsec2deg = 1. / 3600.;
-  double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.}, worldPositive[3] = {0.,0.,0.},
-         worldNegative[3] = {0.,0.,0.}, worldCenter[3] = {0.,0.,0.};
-  int *dims = imageData->GetDimensions();
-  int Zcenter = dims[2] * 0.5;
-
-  const double deg2rad = PI / 180.;
-  double factor = 0.;
-  if (PVPhi > 0.001 && PVPhi - 90. > 0.001)
+  else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
     {
-    factor = -180.;
+    if (!d->fiducialNodeMinor)
+      {
+      return;
+      }
+
+    // Semi-major axes angle
+    double PVPhi = d->parametersNode->GetPVPhi();
+    // Slice angle
+    double sl_anglerad = d->parametersNode->GetGreenRotValue();
+    if (int(fabs(sl_anglerad) - 180.) < 1.E-6)
+      {
+      sl_anglerad += 0.01;
+      }
+
+    sl_anglerad += PVPhi + 90.;
+
+    double factor = 0.;
+    if ((sl_anglerad - 90.) > 1.E-6 && (sl_anglerad - 270.) < 1.E-6)
+      {
+      factor = -180.;
+      }
+    else if ((sl_anglerad - 270.) > 1.E-6)
+      {
+      factor = -360.;
+      }
+    else if ((sl_anglerad + 90.) < 1.E-6 && (sl_anglerad + 270.) > 1.E-6)
+      {
+      factor = +180.;
+      }
+    else if ((sl_anglerad + 270.) < 1.E-6)
+      {
+      factor = +360.;
+      }
+
+    sl_anglerad += factor;
+
+    // Slice offset
+    int dims[3];
+    inputVolume->GetImageData()->GetDimensions(dims);
+    int Zcenter = dims[2] * 0.5;
+
+    const double arcsec2deg = 1. / 3600.;
+    const double deg2arcsec = 3600.;
+    const double deg2rad = PI / 180.;
+    const double kms2ms = 1000.;
+    double  pidiv4 = PI / 4.;
+    double  pidiv2 = PI / 2.;
+    double worldSliceCenter[3] = {0.,0.,0.}, world[3] = {0.,0.,0.},
+           worldPositive[3] = {0.,0.,0.}, worldNegative[3] = {0.,0.,0.},
+           ijk[3] = {0.,0.,0.}, RAS[3] = {0., 0., 0.};
+
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+    ijk[0] = 1;
+    ijk[1] = 1;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldSliceCenter);
+    double stepX = worldSliceCenter[1] - world[1];
+    double stepY = worldSliceCenter[0] - world[0];
+    double CDELTA1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
+    double CDELTA2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
+    double factorX = fabs(stepX / CDELTA1);
+    double factorY = fabs(stepY / CDELTA2);
+
+    ijk[0] = d->parametersNode->GetXPosCenterIJK();
+    ijk[1] = d->parametersNode->GetYPosCenterIJK();
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+
+    for (int ii = 0; ii < 3; ii++)
+      {
+      RAS[ii] = sliceNode->GetSliceToRAS()->GetElement(ii, 3);
+      }
+    RAStoIJKTransform->TransformPoint(RAS, ijk);
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldSliceCenter);
+    double worldOffsetX = (worldSliceCenter[0] - world[0]) * factorX * deg2arcsec;
+    double worldOffsetY = (worldSliceCenter[1] - world[1]) * factorY * deg2arcsec;
+
+    PVPhi *= deg2rad;
+    sl_anglerad *= deg2rad;
+    ijk[2] = Zcenter;
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldSliceCenter);
+    ijk[0] += (10 * cos(sl_anglerad));
+    ijk[1] += (10 * sin(sl_anglerad));
+    inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+
+    double distX = (world[0] - worldSliceCenter[0]);
+    double distY = (world[1] - worldSliceCenter[1]);
+    double PVPhiWorld = atan(distY / distX);
+
+    double PVPhiCos = cos(-PVPhiWorld);
+    double PVPhiSin = sin(-PVPhiWorld);
+
+    double alpha = putinrangerad(PVPhi);
+    double sina  = sin(alpha);
+    double cosa  = cos(alpha);
+    sl_anglerad = putinrangerad(sl_anglerad);
+
+    d->fiducialNodeMinor->GlobalWarningDisplayOff();
+    int MajorWasModifying = d->fiducialNodeMinor->StartModify();
+    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
+      {
+      double m, b, p, q, r, x[2], y[2];
+      int positiveIndex = radiiIndex * 2;
+      int negativeIndex = (radiiIndex * 2) + 1;
+      double sinInc = sin(*(IncPointer + radiiIndex) * deg2rad);
+      double cosInc = cos(*(IncPointer + radiiIndex) * deg2rad);
+      double cosIncCosInc = 1. / (cosInc * cosInc);
+
+      double A = cosa * cosa + sina * sina * cosIncCosInc;
+      double B = 2. * cosa * sina - 2. * sina * cosa * cosIncCosInc;
+      double C = sina * sina + cosa * cosa * cosIncCosInc;
+
+
+      bool danger = ((sl_anglerad >= 1. * pidiv4 && sl_anglerad <= 3. * pidiv4) ||
+                     (sl_anglerad >= 5. * pidiv4 && sl_anglerad <= 7. * pidiv4));
+      if (!danger)
+        {
+        /* Intersect with a line Y = mX + b */
+        m = tan(sl_anglerad);
+        b = worldOffsetY - worldOffsetX * m;  /* offsets are from g. to sl. center */
+        p = A + B * m + C * m * m;
+        q = B * b + 2. * m * b * C;
+        r = C * b * b - *(RadiiPointer + radiiIndex) * *(RadiiPointer + radiiIndex);
+        }
+      else
+        {
+        /* Intersect with a line X = mY + b */
+        m = tan(pidiv2 - sl_anglerad);
+        b = worldOffsetX - worldOffsetY * m;
+        p = A * m * m + B * m + C;
+        q = B * b + 2. * m * b * A;
+        r = A * b * b - *(RadiiPointer + radiiIndex) * *(RadiiPointer + radiiIndex);
+        }
+
+      double det = q * q - 4. * p * r;
+      if (det < 0.)
+        {
+        d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, 0., 0., 0.);
+        d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, 0., 0., 0.);
+        d->fiducialNodeMinor->SetNthFiducialVisibility(positiveIndex, false);
+        d->fiducialNodeMinor->SetNthFiducialVisibility(negativeIndex, false);
+        continue;
+        }
+
+      double sqrdet = sqrt(det);
+      if (!danger)
+        {
+        x[0] = (-1. * q + sqrdet) / (2. * p);
+        x[1] = (-1. * q - sqrdet) / (2. * p);
+        y[0] = m * (x[0]) + b;
+        y[1] = m * (x[1]) + b;
+        }
+      else
+        {
+        y[0] = (-1. * q + sqrdet) / (2. * p);
+        y[1] = (-1. * q - sqrdet) / (2. * p);
+        x[0] = m * (y[0]) + b;
+        x[1] = m * (y[1]) + b;
+        }
+
+      // Project velocity
+      double e1 = arctan(y[0], x[0]);
+      double beta1 = putinrangerad(e1 - alpha);
+      double theta1 = arctan(fabs(tan(beta1)), fabs(cosInc));
+      double VelocitySin1 = (*(VRadPointer + radiiIndex) * sinInc * sin(theta1) +
+                             *(VRotPointer + radiiIndex) * sinInc * cos(theta1)) * sign(cos(beta1));
+      double VelocityPositive = *(VSysPointer + radiiIndex) + VelocitySin1;
+
+      // Project radius
+      double xt1 = x[0] - worldOffsetX;
+      double yt1 = y[0] - worldOffsetY;
+      double ProjectedRadius1 = (xt1 * cos(sl_anglerad) / factorX + yt1 * sin(sl_anglerad) / factorY)
+                                 * fabs(cos(theta1) / cos(beta1)) * arcsec2deg;
+
+      // Update fiducials
+      double ShiftX1 = ProjectedRadius1 * PVPhiCos;
+      double ShiftY1 = ProjectedRadius1 * PVPhiSin;
+      worldPositive[0] = worldSliceCenter[0] + ShiftX1;
+      worldPositive[1] = worldSliceCenter[1] + ShiftY1;
+      worldPositive[2] = VelocityPositive * kms2ms;
+      inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMinor->SetNthFiducialVisibility(positiveIndex, true);
+
+      // Project velocity
+      double e2 = arctan(y[1], x[1]);
+      double beta2 = putinrangerad(e2 - alpha);
+      double theta2 = arctan(fabs(tan(beta2)), fabs(cosInc));
+      double VelocitySin2 = (*(VRadPointer + radiiIndex) * sinInc * sin(theta2) +
+                             *(VRotPointer + radiiIndex) * sinInc * cos(theta2)) * sign(cos(beta2));
+      double VelocityNegative = *(VSysPointer + radiiIndex) + VelocitySin2;
+
+      // Project radius
+      double xt2 = x[1] - worldOffsetX;
+      double yt2 = y[1] - worldOffsetY;
+      double ProjectedRadius2 = (xt2 * cos(sl_anglerad) / factorX + yt2 * sin(sl_anglerad) / factorY)
+                                 * fabs(cos(theta2) / cos(beta2)) * arcsec2deg;
+
+      // Update fiducials
+      double ShiftX2 = ProjectedRadius2 * PVPhiCos;
+      double ShiftY2 = ProjectedRadius2 * PVPhiSin;
+      worldNegative[0] = worldSliceCenter[0] + ShiftX2;
+      worldNegative[1] = worldSliceCenter[1] + ShiftY2;
+      worldNegative[2] = VelocityNegative * kms2ms;
+      inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
+      IJKtoRASTransform->TransformPoint(ijk, RAS);
+      d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMinor->SetNthFiducialVisibility(negativeIndex, true);
+      }
+     d->fiducialNodeMinor->EndModify(MajorWasModifying);
+     d->fiducialNodeMinor->GlobalWarningDisplayOn();
+     // This is required to update the table in the Markups Module.
+     // However, it slows down a lot teh performance.
+     /*for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
+       {
+       d->fiducialNodeMinor->InvokeCustomModifiedEvent(vtkMRMLMarkupsNode::PointModifiedEvent, (void*)&radiiIndex);
+       }*/
     }
-  else if (PVPhi < 0.001 && PVPhi + 90. < 0.001)
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (!greenSliceNode || !yellowSliceNode)
     {
-    factor = +180.;
-    }
-  PVPhi += factor;
-  ijk[0] = XMean + (10 * cos(PVPhi * deg2rad));
-  ijk[1] = YMean + (10 * sin(PVPhi * deg2rad));
-  ijk[2] = Zcenter;
-  inputVolumeDisplayNode->GetReferenceSpace(ijk, worldPositive);
-  ijk[0] = XMean + (10 * cos((PVPhi + 90.) * deg2rad));
-  ijk[1] = YMean + (10 * sin((PVPhi + 90.) * deg2rad));
-  ijk[2] = Zcenter;
-  inputVolumeDisplayNode->GetReferenceSpace(ijk, worldNegative);
-  ijk[0] = XMean;
-  ijk[1] = YMean;
-  ijk[2] = Zcenter;
-  inputVolumeDisplayNode->GetReferenceSpace(ijk, worldCenter);
-
-  double distX = (worldPositive[0] - worldCenter[0]);
-  double distY = (worldPositive[1] - worldCenter[1]);
-  double PVPhiMajor = atan(distY / distX);
-  PVPhiMajor += factor * deg2rad;
-
-  distX = (worldNegative[0] - worldCenter[0]);
-  distY = (worldNegative[1] - worldCenter[1]);
-  double PVPhiMinor = atan(distY / distX);
-  PVPhiMinor += factor * deg2rad;
-
-  double PVPhiMajorCos = cos(-PVPhiMajor);
-  double PVPhiMajorSin = sin(-PVPhiMajor);
-
-  double PVPhiMinorCos = cos(-PVPhiMinor);
-  double PVPhiMinorSin = sin(-PVPhiMinor);
-
-  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
-  IJKtoRASTransform->Identity();
-  IJKtoRASTransform->PostMultiply();
-  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
-  inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
-  IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
-
-  d->fiducialNodeMajor->GlobalWarningDisplayOff();
-  d->fiducialNodeMinor->GlobalWarningDisplayOff();
-  int MajorWasModifying = d->fiducialNodeMajor->StartModify();
-  int MinorWasModifying = d->fiducialNodeMinor->StartModify();
-
-  for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
-    {
-    int positiveIndex = radiiIndex * 2;
-    int negativeIndex = (radiiIndex * 2) + 1;
-    // Update fiducials on Major axis
-    double VelocitySin = *(VRotPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad);
-    double VelocityMajorPositive = - VelocitySin + *(VSysPointer + radiiIndex);
-    double ShiftX = *(RadiiPointer + radiiIndex) * arcsec2deg * PVPhiMajorCos;
-    double ShiftY = *(RadiiPointer + radiiIndex) * arcsec2deg * PVPhiMajorSin;
-    worldPositive[0] = worldCenter[0] - ShiftX;
-    worldPositive[1] = worldCenter[1] - ShiftY;
-    worldPositive[2] = VelocityMajorPositive * 1000;
-    inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
-    IJKtoRASTransform->TransformPoint(ijk, RAS);
-    d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-
-    double VelocityMajorNegative = VelocitySin + *(VSysPointer + radiiIndex);
-    worldNegative[0] = worldCenter[0] + ShiftX;
-    worldNegative[1] = worldCenter[1] + ShiftY;
-    worldNegative[2] = VelocityMajorNegative * 1000;
-    inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
-    IJKtoRASTransform->TransformPoint(ijk, RAS);
-    d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
-
-    // Update fiducials on the Minor axis
-    VelocitySin = *(VRadPointer + radiiIndex) * sin(*(IncPointer + radiiIndex) * deg2rad);
-    double VelocityMinorPositive = VelocitySin + VSys->GetValue(radiiIndex);
-    ShiftX = Radii->GetValue(radiiIndex) * arcsec2deg * PVPhiMinorCos;
-    ShiftY = Radii->GetValue(radiiIndex) * arcsec2deg * PVPhiMinorSin;
-    worldPositive[0] = worldCenter[0] - ShiftX;
-    worldPositive[1] = worldCenter[1] - ShiftY;
-    worldPositive[2] = VelocityMinorPositive * 1000;
-    inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
-    IJKtoRASTransform->TransformPoint(ijk, RAS);
-    d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-
-    double VelocityMinorNegative = - VelocitySin + VSys->GetValue(radiiIndex);
-    worldNegative[0] = worldCenter[0] + ShiftX;
-    worldNegative[1] = worldCenter[1] + ShiftY;
-    worldNegative[2] = VelocityMinorNegative * 1000;
-    inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
-    IJKtoRASTransform->TransformPoint(ijk, RAS);
-    d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+    return;
     }
 
-  d->fiducialNodeMajor->EndModify(MajorWasModifying);
-  d->fiducialNodeMinor->EndModify(MinorWasModifying);
-  d->fiducialNodeMajor->GlobalWarningDisplayOn();
-  d->fiducialNodeMinor->GlobalWarningDisplayOn();
+  this->onMRMLSliceNodeModified(yellowSliceNode);
+  this->onMRMLSliceNodeModified(greenSliceNode);
 }
 
 //---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLYellowSliceRotated()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
 
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
@@ -2088,26 +2463,27 @@ void qSlicerAstroModelingModuleWidget::setPVOffset()
     return;
     }
 
-  //TO DO: use matrix
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-  if (!yellowSliceNode || yellowSliceNode->GetOrientation().compare("PVMajor"))
+  if (!yellowSliceNode || !yellowSliceNode->GetSliceToRAS() ||
+      yellowSliceNode->GetOrientation().compare("PVMajor"))
     {
     return;
     }
-  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosRAS());
-  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, d->parametersNode->GetYPosRAS());
-  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetZPosRAS());
+  yellowSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosCenterRAS());
+  yellowSliceNode->GetSliceToRAS()->SetElement(1, 3, d->parametersNode->GetYPosCenterRAS());
+  yellowSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetZPosCenterRAS());
   yellowSliceNode->UpdateMatrices();
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-  if (!greenSliceNode || greenSliceNode->GetOrientation().compare("PVMinor"))
+  if (!greenSliceNode || !greenSliceNode->GetSliceToRAS() ||
+      greenSliceNode->GetOrientation().compare("PVMinor"))
     {
     return;
     }
-  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosRAS());
-  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, d->parametersNode->GetYPosRAS());
-  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetZPosRAS());
+  greenSliceNode->GetSliceToRAS()->SetElement(0, 3, d->parametersNode->GetXPosCenterRAS());
+  greenSliceNode->GetSliceToRAS()->SetElement(1, 3, d->parametersNode->GetYPosCenterRAS());
+  greenSliceNode->GetSliceToRAS()->SetElement(2, 3, d->parametersNode->GetZPosCenterRAS());
   greenSliceNode->UpdateMatrices();
 }
 
@@ -2270,6 +2646,8 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
     }
 
   d->fiducialNodeMajor->GlobalWarningDisplayOff();
+  d->fiducialNodeMinor->GlobalWarningDisplayOff();
+
   for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMajor->GetNumberOfFiducials(); fiducialIndex++)
     {
     d->fiducialNodeMajor->SetNthFiducialSelected(fiducialIndex, false);
@@ -2303,9 +2681,7 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
         }
       }
     }
-  d->fiducialNodeMajor->GlobalWarningDisplayOn();
 
-  d->fiducialNodeMinor->GlobalWarningDisplayOff();
   for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMinor->GetNumberOfFiducials(); fiducialIndex++)
     {
     d->fiducialNodeMinor->SetNthFiducialSelected(fiducialIndex, false);
@@ -2339,6 +2715,8 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
         }
       }
     }
+
+  d->fiducialNodeMajor->GlobalWarningDisplayOn();
   d->fiducialNodeMinor->GlobalWarningDisplayOn();
 }
 
@@ -2809,28 +3187,6 @@ void qSlicerAstroModelingModuleWidget::onApply()
     return;
     }
 
-  wcsprm* wcs = inputVolumeDisplayNode->GetWCSStruct();
-  if(!wcs)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
-                  "WCS not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  /*if (strncmp(wcs->ctype[2], "VRAD", 4))
-    {
-    QString message = QString("The input datacube 3rd axes is an optical velocity. "
-                              "In order to proceed with the modeling, it is required to transform the "
-                              "3rd axes into a radio velocity. A conversion tool is "
-                              "available in the AstroVolume module. ");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
-
-    d->parametersNode->SetStatus(0);
-    return;
-    }*/
-
   // Create Output Volume
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
@@ -2975,16 +3331,6 @@ void qSlicerAstroModelingModuleWidget::onApply()
     qWarning() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("3DBarolo"), message);
     }
-
-  if (!d->fiducialNodeMajor || !d->fiducialNodeMinor)
-    {
-    qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : FiducialNodes not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  d->fiducialNodeMajor->RemoveAllMarkups();
-  d->fiducialNodeMinor->RemoveAllMarkups();
 
   d->worker->SetTableNode(d->internalTableNode);
   d->worker->SetAstroModelingParametersNode(d->parametersNode);
@@ -3463,8 +3809,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     YPosMean /=  YPos->GetNumberOfValues();
 
     int wasModifying = d->parametersNode->StartModify();
-    d->parametersNode->SetXPosMean(XPosMean);
-    d->parametersNode->SetYPosMean(YPosMean);
+    d->parametersNode->SetXPosCenterIJK(XPosMean);
+    d->parametersNode->SetYPosCenterIJK(YPosMean);
     double PVPhi = -(PhiMean - 90.);
     d->parametersNode->SetPVPhi(PVPhi);
     d->parametersNode->SetYellowRotOldValue(0.);
@@ -3484,14 +3830,14 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
 
     double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
-    ijk[0] = d->parametersNode->GetXPosMean();
-    ijk[1] = d->parametersNode->GetYPosMean();
+    ijk[0] = d->parametersNode->GetXPosCenterIJK();
+    ijk[1] = d->parametersNode->GetYPosCenterIJK();
     ijk[2] = Zcenter;
     IJKtoRASTransform->TransformPoint(ijk, RAS);
     wasModifying = d->parametersNode->StartModify();
-    d->parametersNode->SetXPosRAS(RAS[0]);
-    d->parametersNode->SetYPosRAS(RAS[1]);
-    d->parametersNode->SetZPosRAS(RAS[2]);
+    d->parametersNode->SetXPosCenterRAS(RAS[0]);
+    d->parametersNode->SetYPosCenterRAS(RAS[1]);
+    d->parametersNode->SetZPosCenterRAS(RAS[2]);
     d->parametersNode->EndModify(wasModifying);
 
     d->astroVolumeWidget->setQuantitative3DView
@@ -3511,7 +3857,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     // in the selection node takes so much time to be updated.
     // P.S.: FitAllSlice is called everytime the active volume is changed.
 
-    QTimer::singleShot(10, this, SLOT(setPVOffset()));
+    QTimer::singleShot(2, this, SLOT(setPVOffset()));
 
     // Connect PlotWidget with ModelingWidget
     // Setting the Layout for the Output
@@ -3571,76 +3917,41 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       return;
       }
 
-    double *VRotPointer = static_cast<double*> (VRot->GetPointer(0));
-    double *VRadPointer = static_cast<double*> (VRad->GetPointer(0));
-    double *IncPointer = static_cast<double*> (Inc->GetPointer(0));
-    double *VSysPointer = static_cast<double*> (VSys->GetPointer(0));
-    double *RadiiPointer = static_cast<double*> (Radii->GetPointer(0));
-
-    const double arcsec2deg = 1. / 3600.;
-    double worldPositive[3] = {0.,0.,0.}, worldNegative[3] = {0.,0.,0.},
-           worldCenter[3] = {0.,0.,0.};
-
-    const double deg2rad = PI / 180.;
-    double factor = 0.;
-    if (PVPhi > 0.001 &&
-        PVPhi - 90. > 0.001)
-      {
-      factor = -180.;
-      }
-    else if (PVPhi < 0.001 &&
-             PVPhi + 90. < 0.001)
-      {
-      factor = +180.;
-      }
-    PVPhi += factor;
-    ijk[0] = d->parametersNode->GetXPosMean() +
-            (10 * cos(PVPhi * deg2rad));
-    ijk[1] = d->parametersNode->GetYPosMean() +
-            (10 * sin(PVPhi * deg2rad));
-    ijk[2] = Zcenter;
-    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldPositive);
-    ijk[0] = d->parametersNode->GetXPosMean() +
-            (10 * cos((PVPhi + 90.) * deg2rad));
-    ijk[1] = d->parametersNode->GetYPosMean() +
-            (10 * sin((PVPhi + 90.) * deg2rad));
-    ijk[2] = Zcenter;
-    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldNegative);
-    ijk[0] = d->parametersNode->GetXPosMean();
-    ijk[1] = d->parametersNode->GetYPosMean();
-    ijk[2] = Zcenter;
-    inputVolumeDisplayNode->GetReferenceSpace(ijk, worldCenter);
-
-    double distX = (worldPositive[0] - worldCenter[0]);
-    double distY = (worldPositive[1] - worldCenter[1]);
-    double PVPhiMajor = atan(distY / distX);
-    PVPhiMajor += factor * deg2rad;
-
-    distX = (worldNegative[0] - worldCenter[0]);
-    distY = (worldNegative[1] - worldCenter[1]);
-    double PVPhiMinor = atan(distY / distX);
-    PVPhiMinor += factor * deg2rad;
-
-    double PVPhiMajorCos = cos(-PVPhiMajor);
-    double PVPhiMajorSin = sin(-PVPhiMajor);
-
-    double PVPhiMinorCos = cos(-PVPhiMinor);
-    double PVPhiMinorSin = sin(-PVPhiMinor);
-
-    double MinorSign = sign(cos((PVPhi + 90.) * deg2rad));
-
-    double beta = 90. * deg2rad;
-    double cosBeta = cos(beta);
-
     // Create fiducials
-    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
+    vtkSlicerAstroModelingLogic* astroModelingLogic =
+      vtkSlicerAstroModelingLogic::SafeDownCast(this->logic());
+    if (!astroModelingLogic)
       {
-      d->fiducialNodeMajor->AddFiducial(0., 0., 0.);
-      d->fiducialNodeMinor->AddFiducial(0., 0., 0.);
+      qCritical() <<"qSlicerAstroModelingModuleWidget::initializeParameterNode :"
+                    " vtkSlicerAstroModelingLogic not found!";
+      return;
+      }
+    vtkSlicerMarkupsLogic* MarkupsLogic =
+      vtkSlicerMarkupsLogic::SafeDownCast(astroModelingLogic->GetMarkupsLogic());
+    if (!MarkupsLogic)
+      {
+      qCritical() <<"qSlicerAstroModelingModuleWidget::initializeParameterNode :"
+                    " vtkSlicerMarkupsLogic not found!";
+      return;
       }
 
     d->fiducialNodeMajor->GlobalWarningDisplayOff();
     d->fiducialNodeMinor->GlobalWarningDisplayOff();
+    d->fiducialNodeMajor->RemoveAllMarkups();
+    d->fiducialNodeMinor->RemoveAllMarkups();
+
+    MarkupsLogic->SetActiveListID(d->fiducialNodeMinor);
+    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
+      {
+      MarkupsLogic->AddFiducial(0., 0., 0.);
+      }
+
+    MarkupsLogic->SetActiveListID(d->fiducialNodeMajor);
+    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
+      {
+      MarkupsLogic->AddFiducial(0., 0., 0.);
+      }
+
     int MajorWasModifying = d->fiducialNodeMajor->StartModify();
     int MinorWasModifying = d->fiducialNodeMinor->StartModify();
 
@@ -3648,35 +3959,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       int positiveIndex = radiiIndex * 2;
       int negativeIndex = (radiiIndex * 2) + 1;
-      double sinInc = sin(*(IncPointer + radiiIndex) * deg2rad);
-      double cosInc = cos(*(IncPointer + radiiIndex) * deg2rad);
-
-      // Update fiducials on the Major axes:
-      // Center of PV is in (X0,Y0), this means that the angle beta is equal
-      // to the angle of the slice. Therefore, the angle theta is zero on the semi-major axes.
-      // Project velocity (theta zero)
-      double VelocitySin = *(VRotPointer + radiiIndex) * sinInc;
-      double VelocityMajorPositive = - VelocitySin + *(VSysPointer + radiiIndex);
-
-      // Project radius (beta equal to PVPhiMajor)
-      double ProjectedRadius = *(RadiiPointer + radiiIndex) * arcsec2deg;
-      double ShiftX = ProjectedRadius * PVPhiMajorCos;
-      double ShiftY = ProjectedRadius * PVPhiMajorSin;
-
-      worldPositive[0] = worldCenter[0] - ShiftX;
-      worldPositive[1] = worldCenter[1] - ShiftY;
-      worldPositive[2] = VelocityMajorPositive * 1000;
-      inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
-      IJKtoRASTransform->TransformPoint(ijk, RAS);
-      d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-
-      double VelocityMajorNegative = VelocitySin + *(VSysPointer + radiiIndex);
-      worldNegative[0] = worldCenter[0] + ShiftX;
-      worldNegative[1] = worldCenter[1] + ShiftY;
-      worldNegative[2] = VelocityMajorNegative * 1000;
-      inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
-      IJKtoRASTransform->TransformPoint(ijk, RAS);
-      d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
 
       std::string fiducialLabelPositive = "RMajor";
       std::string fiducialLabelNegative = "-RMajor";
@@ -3688,32 +3970,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       d->fiducialNodeMajor->SetNthFiducialLabel(negativeIndex, fiducialLabelNegative);
       d->fiducialNodeMajor->SetNthFiducialSelected(negativeIndex, false);
       d->fiducialNodeMajor->SetNthMarkupLocked(negativeIndex, true);
-
-      // Update fiducials on the Minor axes
-      // Project velocity
-      double theta = atan2(tan(beta), cosInc);
-      VelocitySin = *(VRadPointer + radiiIndex) * sinInc * sin(theta) +
-                    *(VRotPointer + radiiIndex) * sinInc * cos(theta);
-      double VelocityMinorPositive = VelocitySin + VSys->GetValue(radiiIndex);
-
-      // Project radius
-      ProjectedRadius = Radii->GetValue(radiiIndex) * arcsec2deg * cos(theta) / cosBeta;
-      ShiftX = ProjectedRadius * PVPhiMinorCos;
-      ShiftY = ProjectedRadius * PVPhiMinorSin;
-      worldPositive[0] = worldCenter[0] + ShiftX * MinorSign;
-      worldPositive[1] = worldCenter[1] + ShiftY * MinorSign;
-      worldPositive[2] = VelocityMinorPositive * 1000;
-      inputVolumeDisplayNode->GetIJKSpace(worldPositive, ijk);
-      IJKtoRASTransform->TransformPoint(ijk, RAS);
-      d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-
-      double VelocityMinorNegative = - VelocitySin + VSys->GetValue(radiiIndex);
-      worldNegative[0] = worldCenter[0] - ShiftX * MinorSign;
-      worldNegative[1] = worldCenter[1] - ShiftY * MinorSign;
-      worldNegative[2] = VelocityMinorNegative * 1000;
-      inputVolumeDisplayNode->GetIJKSpace(worldNegative, ijk);
-      IJKtoRASTransform->TransformPoint(ijk, RAS);
-      d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
 
       fiducialLabelPositive = "RMinor";
       fiducialLabelNegative = "-RMinor";
@@ -3729,8 +3985,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     d->fiducialNodeMajor->EndModify(MajorWasModifying);
     d->fiducialNodeMinor->EndModify(MinorWasModifying);
-    d->fiducialNodeMajor->GlobalWarningDisplayOn();
-    d->fiducialNodeMinor->GlobalWarningDisplayOn();
 
     // Change scale value for the display of the fiducials
     vtkMRMLMarkupsDisplayNode *fiducialsMajorDisplayNode =
@@ -3766,11 +4020,16 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     fiducialsMinorDisplayNode->RemoveAllViewNodeIDs();
     fiducialsMinorDisplayNode->AddViewNodeID(greenSliceNode->GetID());
 
+    d->fiducialNodeMajor->GlobalWarningDisplayOn();
+    d->fiducialNodeMinor->GlobalWarningDisplayOn();
+
     // Connect slice nodes to slot to update fiducials
     this->qvtkConnect(yellowSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
     this->qvtkConnect(greenSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
+    this->onMRMLSliceNodeModified(yellowSliceNode);
+    this->onMRMLSliceNodeModified(greenSliceNode);
     }
    else
     {
@@ -3786,9 +4045,16 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     this->qvtkDisconnect(greenSliceNode, vtkCommand::ModifiedEvent,
                          this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
 
+    d->fiducialNodeMajor->GlobalWarningDisplayOff();
+    d->fiducialNodeMinor->GlobalWarningDisplayOff();
+    d->fiducialNodeMajor->RemoveAllMarkups();
+    d->fiducialNodeMinor->RemoveAllMarkups();
+    d->fiducialNodeMajor->GlobalWarningDisplayOn();
+    d->fiducialNodeMinor->GlobalWarningDisplayOn();
+
     int wasModifying = d->parametersNode->StartModify();
-    d->parametersNode->SetXPosMean(0.);
-    d->parametersNode->SetYPosMean(0.);
+    d->parametersNode->SetXPosCenterIJK(0.);
+    d->parametersNode->SetYPosCenterIJK(0.);
     d->parametersNode->SetPVPhi(0.);
     d->parametersNode->SetYellowRotOldValue(0.);
     d->parametersNode->SetYellowRotValue(0.);
@@ -3816,6 +4082,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     scene->RemoveNode(maskVolume);
     }
+
   d->parametersNode->SetStatus(0);
   d->TableView->resizeColumnsToContents();
 }

@@ -104,7 +104,7 @@ void qSlicerAstroModelingModuleWorker::doWork()
     }
 
   if (!astroModelingLogic->OperateModel(parametersNode, internalTableNode))
-    {  
+    {
     qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
     }
 

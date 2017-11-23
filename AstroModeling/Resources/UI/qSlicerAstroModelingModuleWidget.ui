@@ -1434,7 +1434,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>If the value of the parameter is zero, it will be estimated by 3DBarolo.</string>
+           <string>The default value of the radial velocity parameter is zero. This parameter will not be estimated by 3DBarolo.</string>
           </property>
           <property name="singleStep" stdset="0">
            <double>2.000000000000000</double>

@@ -306,7 +306,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         if(astroVolumeDisplayNode->GetWCSStatus() != 0 && WCS)
           {
           vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
-                        <<"It may results in odd behaviours."<<endl);
+                           <<"It may results in odd behaviours."<<endl);
           }
         if(astroVolumeDisplayNode->GetWCSStatus() == 0)
           {
@@ -641,24 +641,34 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFrom
     labelWCS = labelDisplayNode->GetWCSStruct();
     volumeWCS = astroVolumeDisplay->GetWCSStruct();
 
+    if (!labelWCS || !volumeWCS)
+      {
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
+                    "WCS not found!");
+      return NULL;
+      }
     labelWCS->flag=-1;
 
     labelDisplayNode->SetWCSStatus(wcscopy(1, volumeWCS, labelWCS));
     if (labelDisplayNode->GetWCSStatus())
       {
-      vtkErrorMacro("wcscopy ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
+                    "wcscopy ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
                     "Message from "<<labelWCS->err->function<<
                     "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
                     ": \n"<<labelWCS->err->msg<<"\n");
+      return NULL;
       }
 
     labelDisplayNode->SetWCSStatus(wcsset(labelWCS));
     if (labelDisplayNode->GetWCSStatus())
       {
-      vtkErrorMacro("wcsset ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume :"
+                    "wcsset ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
                     "Message from "<<labelWCS->err->function<<
                     "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
                     ": \n"<<labelWCS->err->msg<<"\n");
+      return NULL;
       }
 
     scene->AddNode(labelDisplayNode);

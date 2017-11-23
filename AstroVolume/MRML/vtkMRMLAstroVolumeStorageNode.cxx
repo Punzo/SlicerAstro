@@ -276,7 +276,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       disNode->SetSpace("IJK");
       }
 
-    if(!strcmp(disNode->GetWCSStruct()->ctype[2] , "FREQ"))
+    if(!strcmp(disNode->GetVelocityDefinition().c_str() , "FREQ"))
       {
       disNode->SetSpaceQuantity(2,"frequency");
       }
@@ -361,7 +361,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       labdisNode->SetSpace("IJK");
       }
 
-    if(!strcmp(labdisNode->GetWCSStruct()->ctype[2] , "FREQ"))
+    if(!strcmp(labdisNode->GetVelocityDefinition().c_str() , "FREQ"))
       {
       labdisNode->SetSpaceQuantity(2,"frequency");
       }

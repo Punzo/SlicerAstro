@@ -22,15 +22,18 @@
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
+class vtkMRMLTableNode;
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
+class vtkSlicerMarkupsLogic;
+
 // vtk includes
 class vtkRenderWindow;
+
 // AstroModelings includes
 #include "vtkSlicerAstroModelingModuleLogicExport.h"
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLAstroVolumeDisplayNode;
-class vtkMRMLTableNode;
 
 /// \ingroup Slicer_QtModules_AstroModeling
 class VTK_SLICER_ASTROMODELING_MODULE_LOGIC_EXPORT vtkSlicerAstroModelingLogic
@@ -44,6 +47,9 @@ public:
 
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
+
+  void SetMarkupsLogic(vtkSlicerMarkupsLogic* logic);
+  vtkSlicerMarkupsLogic *GetMarkupsLogic();
 
   virtual void RegisterNodes();
 

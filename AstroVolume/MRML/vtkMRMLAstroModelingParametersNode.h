@@ -84,6 +84,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
+  ///
+  /// 3DBarolo input parameters
   vtkSetMacro(NumberOfRings,int);
   vtkGetMacro(NumberOfRings,int);
 
@@ -171,21 +173,30 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(CloudsColumnDensity,double);
   vtkGetMacro(CloudsColumnDensity,double);
 
-  vtkSetMacro(XPosMean,double);
-  vtkGetMacro(XPosMean,double);
+  ///
+  /// IJK coordinates of the center
+  /// for the PV on the semi-major axis
+  vtkSetMacro(XPosCenterIJK,double);
+  vtkGetMacro(XPosCenterIJK,double);
 
-  vtkSetMacro(YPosMean,double);
-  vtkGetMacro(YPosMean,double);
+  vtkSetMacro(YPosCenterIJK,double);
+  vtkGetMacro(YPosCenterIJK,double);
 
-  vtkSetMacro(XPosRAS,double);
-  vtkGetMacro(XPosRAS,double);
+  ///
+  /// RAS coordinates of the center
+  /// for the PV on the semi-major axis
+  vtkSetMacro(XPosCenterRAS,double);
+  vtkGetMacro(XPosCenterRAS,double);
 
-  vtkSetMacro(YPosRAS,double);
-  vtkGetMacro(YPosRAS,double);
+  vtkSetMacro(YPosCenterRAS,double);
+  vtkGetMacro(YPosCenterRAS,double);
 
-  vtkSetMacro(ZPosRAS,double);
-  vtkGetMacro(ZPosRAS,double);
+  vtkSetMacro(ZPosCenterRAS,double);
+  vtkGetMacro(ZPosCenterRAS,double);
 
+  ///
+  /// Angle reference for the PV
+  /// on the semi-major axis from W->E position.
   vtkSetMacro(PVPhi,double);
   vtkGetMacro(PVPhi,double);
 
@@ -195,12 +206,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
       GreenRotationModifiedEvent = 71000
     };
 
+  ///
+  /// Angles for the semi-major axis PV rotation
   vtkSetMacro(YellowRotOldValue,double);
   vtkGetMacro(YellowRotOldValue,double);
 
   void SetYellowRotValue(double rot);
   vtkGetMacro(YellowRotValue,double);
 
+  ///
+  /// Angles for the semi-minor axis PV rotation
   vtkSetMacro(GreenRotOldValue,double);
   vtkGetMacro(GreenRotOldValue,double);
 
@@ -290,11 +305,11 @@ protected:
   double ColumnDensity;
   double Distance;
 
-  double XPosMean;
-  double YPosMean;
-  double XPosRAS;
-  double YPosRAS;
-  double ZPosRAS;
+  double XPosCenterIJK;
+  double YPosCenterIJK;
+  double XPosCenterRAS;
+  double YPosCenterRAS;
+  double ZPosCenterRAS;
   double PVPhi;
   double YellowRotValue;
   double YellowRotOldValue;
