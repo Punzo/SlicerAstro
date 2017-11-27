@@ -65,6 +65,9 @@ public:
   /// Get volumeRenderingWidget
   Q_INVOKABLE qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget()const;
 
+  virtual void enter();
+  virtual void exit();
+
 public slots:
   void clearPresets();
   void onCurrentQualityControlChanged(int);
@@ -76,15 +79,16 @@ public slots:
                              const char* volumeNodeTwoID,
                              const char* volumeNodeThreeID,
                              double ContourLevel,
-                             double PVPhi,
-                             double XPos,
-                             double YPos);
+                             double PVPhiMajor,
+                             double PVPhiMinor,
+                             double RAS[3]);
   void updateQuantitative3DView(const char* volumeNodeOneID,
                                 const char* volumeNodeTwoID,
                                 double ContourLevel,
-                                double PVPhi,
-                                double XPos,
-                                double YPos,
+                                double PVPhiMajor,
+                                double PVPhiMinor,
+                                double yellowRAS[3],
+                                double greenRAS[3],
                                 bool overrideSegments = false);
   void setMRMLVolumeNode(vtkMRMLNode* node);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
@@ -93,23 +97,35 @@ public slots:
   void stopRockView();
 
 protected slots:
+  void offsetPreset(double offsetValue);
+  void onCalculateRMS();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
   void onEditSelectedSegment();
   void onInputVolumeChanged(vtkMRMLNode *node);
+  void onLockToggled(bool toggled);
   void onMRMLDisplayROINodeModified(vtkObject*);
+  void onMRMLLabelVolumeNodeModified();
+  void onMRMLSceneEndCloseEvent();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLVolumeNodeModified();
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
+  void onPresetsNodeChanged(vtkMRMLNode*);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
+  void onRMSValueChanged(double RMS);
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
+  void resetStretch(vtkMRMLNode* node);
   void resetOffset(vtkMRMLNode* node);
-  void setPresets(vtkMRMLNode* node);
   void setDisplayConnection(vtkMRMLNode* node);
-  void setDisplayROIEnabled(bool);
+  void setDisplayROIEnabled(bool visibility);
+  void setOpticalVelocity();
+  void setRadioVelocity();
+  void spreadPreset(double stretchValue);
+  void updatePresets(vtkMRMLNode* node);
 
 signals:
   void astroLabelMapVolumeNodeChanged(bool enabled);
@@ -118,6 +134,7 @@ signals:
 
 protected:
   virtual void setup();
+  virtual void onEnter();
   virtual void setMRMLScene(vtkMRMLScene*);
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
 
@@ -128,8 +145,6 @@ protected:
   /// 3. Segmentation is non-empty and master differs -> Choice presented to user
   /// \return False only if user chose not to change master representation on option 3, or if error occurred, otherwise true
   bool updateMasterRepresentationInSegmentation(vtkSegmentation* segmentation, QString representation);
-
-  bool reactiveRenderingConnection;
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModuleWidget);

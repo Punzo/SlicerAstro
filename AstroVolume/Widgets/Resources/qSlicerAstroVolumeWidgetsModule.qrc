@@ -10,6 +10,12 @@
         <file>Icons/XLarge/SlicerVolumes.png</file>
         <file>Icons/Small/AddLabelmap.png</file>
         <file>Icons/Small/SlicerAddModel.png</file>
+        <file>Icons/OpticalVelocity.png</file>
+        <file>Icons/RadioVelocity.png</file>
+        <file>Icons/RMSROI.png</file>
+        <file>Icons/Synchornize.png</file>
+        <file>Icons/astrolock.png</file>
+        <file>Icons/astrounlock.png</file>
     </qresource>
     <qresource prefix="/presets"/>
 </RCC>

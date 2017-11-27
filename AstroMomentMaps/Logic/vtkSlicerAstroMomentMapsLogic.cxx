@@ -297,7 +297,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   ijk[0] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
   ijk[1] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
   double VelFactor = 1.;
-  if (!strcmp(astroDisplay->GetWCSStruct()->cunit[2], "m/s"))
+  if (!strcmp(astroDisplay->GetVelocityDefinition().c_str(), "m/s"))
     {
     VelFactor = 0.001;
     }

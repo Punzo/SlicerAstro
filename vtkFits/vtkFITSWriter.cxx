@@ -199,6 +199,7 @@ void vtkFITSWriter::WriteData()
   }
 
   // write the header.
+  fits_write_comment(fptr, "processed by SlicerAstro (https://github.com/Punzo/SlicerAstro)", &WriteStatus);
 
   // fits_write_key
   AttributeMapType::iterator ait;
@@ -210,25 +211,37 @@ void vtkFITSWriter::WriteData()
       continue;
       }
     std::string tmp = ait->first.substr(pos+12);
-    if ((!tmp.compare(0,6,"SIMPLE")) || (!tmp.compare(0,6,"EXTEND"))
-          || (!tmp.compare(0,7,"BLOCKED")))
+    if ((!tmp.compare(0,6,"SIMPLE")) ||
+        (!tmp.compare(0,7,"RMSMEAN")) ||
+        (!tmp.compare(0,9,"DATAMODEL")))
       {
       continue;
       }
+
     std::string tmp2 = ait->second;
     if (!tmp2.compare("UNDEFINED"))
       {
       continue;
       }
+
+    if (!tmp.compare(0,8,"_COMMENT"))
+      {
+      continue;
+      }
+    if(!tmp.compare(0,8,"_HISTORY"))
+      {
+      continue;
+      }
+
     std::string ts = ((ait->second).substr(0,1));
     if ((!tmp.compare(0,6,"BITPIX")) || (!tmp.compare(0,5,"NAXIS"))
-            || (!tmp.compare(0,5,"BLANK")))
+        || (!tmp.compare(0,5,"BLANK")))
       {
       int ti = StringToInt((ait->second).c_str());;
       fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
       }
     else if (!(std::string::npos != ts.find_first_of("-1234567890"))
-               || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0, 8, "CELLSCAL"))
+               || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0,8, "CELLSCAL"))
                || (!tmp.compare(0,8,"DATATYPE")))
       {
       fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
@@ -238,6 +251,44 @@ void vtkFITSWriter::WriteData()
       double td;
       td = StringToDouble((ait->second).c_str());
       fits_update_key(fptr, TDOUBLE, tmp.c_str(), &td, "", &WriteStatus);
+      }
+    }
+
+  // Write comment
+  for (ait = this->Attributes->begin(); ait != this->Attributes->end(); ++ait)
+    {
+    std::size_t pos = ait->first.find("SlicerAstro._");
+    if (pos == std::string::npos)
+      {
+      continue;
+      }
+
+    std::string tmp = ait->first.substr(pos+13);
+    std::string tmp2 = ait->second;
+
+    if (!tmp.compare(0,7,"COMMENT"))
+      {
+      fits_write_comment(fptr, tmp2.c_str(), &WriteStatus);
+      continue;
+      }
+    }
+
+  // Write history
+  for (ait = this->Attributes->begin(); ait != this->Attributes->end(); ++ait)
+    {
+    std::size_t pos = ait->first.find("SlicerAstro._");
+    if (pos == std::string::npos)
+      {
+      continue;
+      }
+
+    std::string tmp = ait->first.substr(pos+13);
+    std::string tmp2 = ait->second;
+
+    if(!tmp.compare(0,7,"HISTORY"))
+      {
+      fits_write_history(fptr, tmp2.c_str(), &WriteStatus);
+      continue;
       }
     }
 

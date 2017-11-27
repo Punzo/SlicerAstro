@@ -62,6 +62,18 @@ std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
 }
+
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool ShortIsNaN(double Value)
+{
+  return isNaN<short>(Value);
+}
 }//end namespace
 
 //----------------------------------------------------------------------------
@@ -143,13 +155,54 @@ vtkMRMLAstroLabelMapVolumeDisplayNode *vtkMRMLAstroLabelMapVolumeNode::GetAstroL
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
+bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
 {
+  if (this->GetImageData() == NULL)
+   {
+   vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes : "
+                 "imageData not allocated.");
+   return false;
+   }
+
   this->GetImageData()->Modified();
-  this->GetImageData()->GetPointData()->GetScalars()->Modified();
-  double range[2];
-  this->GetImageData()->GetScalarRange(range);
-  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(range[1]).c_str());
-  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(range[0]).c_str());
+  int *dims = this->GetImageData()->GetDimensions();
+  int numElements = dims[0] * dims[1] * dims[2];
+  const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  double max = this->GetImageData()->GetScalarTypeMin(), min = this->GetImageData()->GetScalarTypeMax();
+  short *outSPixel = NULL;
+
+  switch (DataType)
+    {
+  case VTK_SHORT:
+    outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
+    for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+      {
+      if (ShortIsNaN(*(outSPixel + elementCnt)))
+        {
+        continue;
+        }
+      if (*(outSPixel + elementCnt) > max)
+        {
+        max =  *(outSPixel + elementCnt);
+        }
+      if (*(outSPixel + elementCnt) < min)
+        {
+        min =  *(outSPixel + elementCnt);
+        }
+      }
+    break;
+    default:
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes() : "
+                    "attempt to allocate scalars of type not allowed");
+      return false;
+    }
+
+  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
+  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+
+  outSPixel = NULL;
+  delete outSPixel;
+
+  return true;
 }
 

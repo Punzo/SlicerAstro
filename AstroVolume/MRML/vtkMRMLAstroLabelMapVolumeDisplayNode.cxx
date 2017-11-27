@@ -78,10 +78,11 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::~vtkMRMLAstroLabelMapVolumeDisplayNode()
     {
     if((this->WCSStatus = wcsfree(this->WCS)))
       {
-      vtkErrorMacro("wcsfree ERROR "<<WCSStatus<<":\n"<<
-                      "Message from "<<WCS->err->function<<
-                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                      ": \n"<<WCS->err->msg<<"\n");
+      vtkErrorMacro("wcsfree ERROR "<<this->WCSStatus<<":\n"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": \n"<<this->WCS->err->msg<<"\n");
       }
     delete [] this->WCS;
     this->WCS = NULL;
@@ -155,6 +156,13 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 
   of << indent << " SpaceQuantities=\"" << quantities << "\"";
   of << indent << " Space=\"" << (this->Space ? this->Space : "") << "\"";
+
+  if (!this->WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::WriteXML : "
+                  "WCS not found!");
+    return;
+    }
 
   std::string pre = " SlicerAstro.WCS.";
   std::string und = "UNDEFINED";
@@ -427,27 +435,40 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 //----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
 {
-
   if(!wcstemp)
     {
-    vtkErrorMacro("wcsprm is invalid!");
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct : "
+                  "wcsprm is invalid!");
+    }
+
+  if (!this->WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct: "
+                  "WCS not found!");
+    return;
     }
 
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
     {
-    vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
-                  "Message from "<<WCS->err->function<<
-                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                  ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct : "
+                  "wcscopy ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
     }
-  if ((this->WCSStatus = wcsset (this->WCS)))
+  if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
-                  "Message from "<<WCS->err->function<<
-                  "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                  ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetWCSStruct : "
+                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
     }
+
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -457,81 +478,217 @@ wcsprm *vtkMRMLAstroLabelMapVolumeDisplayNode::GetWCSStruct()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
+bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition(bool update /*= true*/)
+{
+  if (!this->WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition :"
+                  " WCS not found.");
+    return false;
+    }
+
+  if (strncmp(this->WCS->ctype[2], "VRAD", 4))
+    {
+    int index = 2;
+    char ctypeS[9];
+    strcpy(ctypeS, "VRAD-???");
+
+    if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition :"
+                    " wcssptr ERROR "<<this->WCSStatus<<":"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": "<<this->WCS->err->msg);
+      return false;
+      }
+
+    if ((this->WCSStatus = wcsset(this->WCS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition :"
+                    " wcsset ERROR "<<this->WCSStatus<<":"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": "<<this->WCS->err->msg);
+      return false;
+      }
+    }
+
+  if (update)
+    {
+    this->Modified();
+    }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition(bool update /*= true*/)
+{
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition :"
+                  " WCS not found.");
+    return false;
+    }
+
+  if (strncmp(this->WCS->ctype[2], "VOPT", 4))
+    {
+    int index = 2;
+    char ctypeS[9];
+    strcpy(ctypeS, "VOPT-???");
+
+    if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition"
+                    " : wcssptr ERROR "<<this->WCSStatus<<":"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": "<<this->WCS->err->msg);
+      return false;
+      }
+
+    if ((this->WCSStatus = wcsset(this->WCS)))
+      {
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition"
+                    " : wcsset ERROR "<<this->WCSStatus<<":"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": "<<this->WCS->err->msg);
+      return false;
+      }
+    }
+
+  if (update)
+    {
+    this->Modified();
+    }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetVelocityDefinition()
+{
+  if (!this->WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetVelocityDefinition :"
+                  " WCS not found.");
+    return "";
+    }
+
+  return std::string(this->WCS->ctype[2]);
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
                                                               double SpaceCoordinates[3])
 {
-  if (this->Space != NULL)
+  if (!this->WCS || !this->Space)
     {
-    if (!strcmp(Space, "WCS"))
-      {
-      double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
-      int stati[1];
-
-      std::copy(ijk, ijk + 3, ijkm);
-
-      if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
-        {
-        vtkErrorMacro("wcsp2s ERROR "<<WCSStatus<<":\n"<<
-                        "Message from "<<WCS->err->function<<
-                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                        ": \n"<<WCS->err->msg<<"\n");
-        }
-
-      std::copy(SpaceCoordinatesM, SpaceCoordinatesM + 3, SpaceCoordinates);
-      }
+    return false;
     }
+  if (!strcmp(this->Space, "WCS"))
+    {
+    double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
+    int stati[1];
+
+    std::copy(ijk, ijk + 3, ijkm);
+
+    if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
+      {
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace :"
+                    " wcsp2s ERROR "<<this->WCSStatus<<":\n"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": \n"<<this->WCS->err->msg<<"\n");
+      return false;
+      }
+
+    std::copy(SpaceCoordinatesM, SpaceCoordinatesM + 3, SpaceCoordinates);
+    }
+  else
+    {
+    return false;
+    }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
+bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
                                                         double ijk[3])
 {
-  if (this->Space != NULL)
+  if (!this->WCS || !this->Space)
     {
-    if (!strcmp(Space, "WCS"))
-      {
-      double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
-      int stati[1];
-
-      std::copy(SpaceCoordinates, SpaceCoordinates + 3, SpaceCoordinatesM);
-
-      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
-        {
-        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<":\n"<<
-                        "Message from "<<WCS->err->function<<
-                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                        ": \n"<<WCS->err->msg<<"\n");
-        }
-      std::copy(ijkm, ijkm + 3, ijk);
-      }
+    return false;
     }
+  if (!strcmp(this->Space, "WCS"))
+    {
+    double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
+    int stati[1];
+
+    std::copy(SpaceCoordinates, SpaceCoordinates + 3, SpaceCoordinatesM);
+
+    if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
+      {
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace : "
+                    "wcss2p ERROR "<<this->WCSStatus<<":\n"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": \n"<<this->WCS->err->msg<<"\n");
+      return false;
+      }
+    std::copy(ijkm, ijkm + 3, ijk);
+    }
+  else
+    {
+    return false;
+    }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
+bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
                                                         double ijk[3])
 {
-  if (this->Space != NULL)
+  if (!this->WCS || !this->Space)
     {
-    if (!strcmp(Space, "WCS"))
-      {
-      double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
-      int stati[1];
-
-      SpaceCoordinatesM[0] = SpaceCoordinates[0];
-      SpaceCoordinatesM[1] = SpaceCoordinates[1];
-      SpaceCoordinatesM[2] = SpaceCoordinates[2];
-
-      if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
-        {
-        vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<":\n"<<
-                        "Message from "<<WCS->err->function<<
-                        "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                        ": \n"<<WCS->err->msg<<"\n");
-        }
-      std::copy(ijkm, ijkm + 3, ijk);
-      }
+    return false;
     }
+  if (!strcmp(this->Space, "WCS"))
+    {
+    double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
+    int stati[1];
+
+    SpaceCoordinatesM[0] = SpaceCoordinates[0];
+    SpaceCoordinatesM[1] = SpaceCoordinates[1];
+    SpaceCoordinatesM[2] = SpaceCoordinates[2];
+
+    if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
+      {
+      vtkErrorMacro("wcss2p ERROR "<<this->WCSStatus<<":\n"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<
+                    " of file "<<this->WCS->err->file<<
+                    ": \n"<<this->WCS->err->msg<<"\n");
+      return false;
+      }
+    std::copy(ijkm, ijkm + 3, ijk);
+    }
+  else
+    {
+    return false;
+    }
+
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -805,13 +962,21 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::ReadXMLAttributes(const char** atts)
   const char* attName;
   const char* attValue;
 
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::ReadXMLAttributes :"
+                  " WCS not found.");
+    return;
+    }
+
   this->WCS->flag=-1;
   if((this->WCSStatus = wcsini(1, StringToInt(this->GetAttribute("SlicerAstro.NAXIS")), this->WCS)))
     {
-    vtkErrorMacro("wcsini ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
     }
 
   std::string pre = "SlicerAstro.WCS.";
@@ -1305,10 +1470,11 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::ReadXMLAttributes(const char** atts)
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
     }
 
   this->WriteXML(std::cout,0);
@@ -1340,22 +1506,33 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->SetSpace(node->GetSpace());
   this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
 
+  if (!this->WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::Copy :"
+                  " WCS not found.");
+    return;
+    }
+
   this->WCS->flag=-1;
   if ((this->WCSStatus = wcscopy(1, node->WCS, this->WCS)))
     {
-    vtkErrorMacro("wcscopy ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy: "
+                  "wcscopy ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
     }
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("wcsset ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy : "
+                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
     }
 
@@ -1363,9 +1540,8 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-int vtkMRMLAstroLabelMapVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
+bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 {
-
   if (ind >= this->SpaceQuantities->GetNumberOfValues())
     {
     this->SpaceQuantities->SetNumberOfValues(ind+1);
@@ -1375,10 +1551,11 @@ int vtkMRMLAstroLabelMapVolumeDisplayNode::SetSpaceQuantity(int ind, const char 
   if (this->SpaceQuantities->GetValue(ind) != SpaceQuantities)
     {
     this->SpaceQuantities->SetValue(ind, SpaceQuantities);
-    return 1;
+    this->Modified();
+    return true;
     }
-  return 0;
 
+  return false;
 }
 
 //----------------------------------------------------------------------------
@@ -1418,7 +1595,9 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world,
-                                                                             vtkMRMLUnitNode *node)
+                                                                             vtkMRMLUnitNode *node,
+                                                                             int precision,
+                                                                             const char* language)
 {
   std::string value = "";
   if(!node)
@@ -1426,25 +1605,38 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     return value.c_str();
     }
 
-  std::string firstPrefix;
-  std::string secondPrefix;
-  std::string thirdPrefix;
-  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
-    {
-    firstPrefix = "\u00B0 ";
-    secondPrefix = "\x27 ";
-    thirdPrefix = "\x22";
-    }
-  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-    {
-    firstPrefix = "h ";
-    secondPrefix = "m ";
-    thirdPrefix = "s";
-    }
   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
       !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
-    double fractpart, intpart, displayValue;
+    std::string firstPrefix;
+    std::string secondPrefix;
+    std::string thirdPrefix;
+    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+      {
+      if (!strcmp(language, "C++"))
+        {
+        firstPrefix = "\u00B0 "; //C++
+        }
+      else if (!strcmp(language, "Python"))
+        {
+        firstPrefix = "\xB0 "; //Python
+        }
+      else
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
+                      "no degree uft-8 code found for "<<language);
+        }
+      secondPrefix = "\x27 ";
+      thirdPrefix = "\x22";
+      }
+    if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+      {
+      firstPrefix = "h ";
+      secondPrefix = "m ";
+      thirdPrefix = "s";
+      }
+
+    double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
     std::string displayValueString;
     std::stringstream strstream;
     strstream.setf(ios::fixed,ios::floatfield);
@@ -1458,26 +1650,49 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
       displayValue = node->GetDisplayValueFromValue(world);
       }
 
-    fractpart = modf(displayValue, &intpart);
-    value = DoubleToString(intpart) + firstPrefix;
+    firstFractpart = modf(displayValue, &firstIntpart);
+    if(firstFractpart * 60. > 59.99999)
+      {
+      firstFractpart = 0.;
+      firstIntpart += 1.;
+      }
+    if (firstIntpart > 0.00001)
+      {
+      value = DoubleToString(firstIntpart) + firstPrefix;
+      }
+    else
+      {
+      value = "   ";
+      }
 
-    fractpart = (modf(fractpart * 60., &intpart)) * 60.;
-    if(fractpart > 59.999)
+    secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
+    if(secondFractpart > 59.99999)
       {
-      fractpart = 0.;
-      intpart += 1.;
+      secondFractpart = 0.;
+      secondIntpart += 1.;
       }
-    displayValueString = DoubleToString(fabs(intpart));
-    if(intpart < 10.)
+    if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
       {
-       displayValueString = " " + displayValueString;
+      displayValueString = DoubleToString(fabs(secondIntpart));
       }
-    value = value + displayValueString + secondPrefix;
+    else
+      {
+      displayValueString = "   ";
+      }
+    if(secondIntpart < 10.)
+      {
+      displayValueString = " " + displayValueString;
+      }
+    if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
+      {
+      displayValueString += secondPrefix;
+      }
+    value = value + displayValueString;
     displayValueString = "";
-    strstream.precision(0);
-    strstream << fabs(fractpart);
+    strstream.precision(precision);
+    strstream << fabs(secondFractpart);
     strstream >> displayValueString;
-    if(fractpart < 10.)
+    if(secondFractpart < 10.)
       {
       displayValueString = " " + displayValueString;
       }
@@ -1485,44 +1700,90 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     value = value + displayValueString + thirdPrefix;
     return value.c_str();
     }
-  return node->GetDisplayStringFromValue(world);
+
+   return node->GetDisplayStringFromValue(world);
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world,
+                                                                              int precision = 0)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world,
+                                                                              int precision = 0)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
-std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world)
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world,
+                                                                              int precision = 0)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(world, unitNode);
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromValueX(const double world,
+                                                                                    int precision = 0)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromValueY(const double world,
+                                                                                    int precision = 0)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    }
+  return "";
+}
+
+//----------------------------------------------------------------------------
+std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromValueZ(const double world,
+                                                                                    int precision = 0)
+{
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if (selectionNode)
+    {
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
     }
   return "";
 }
@@ -1530,9 +1791,16 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(co
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::string value)
 {
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStringZ : "
+                  "WCS not found!");
+    return "";
+    }
+
   if (!this->SpaceQuantities->GetValue(2).compare("velocity"))
     {
-    value = value + " (" + this->GetWCSStruct()->ctype[2] + ")";
+    value = value + " (" + this->WCS->ctype[2] + ")";
     }
   return value;
 }
@@ -1555,6 +1823,13 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent ind
 
   os << indent << "SpaceQuantities=\"" << quantities << "\n";
   os << indent << "Space: " << (this->Space ? this->Space : "(none)") << "\n";
+
+  if (!this->WCS)
+    {
+    vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::PrintSelf :"
+                  " WCS not found.");
+    return;
+    }
 
   std::string pre=" SlicerAstro.WCS.";
   std::string und="UNDEFINED";

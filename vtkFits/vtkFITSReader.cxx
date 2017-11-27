@@ -509,14 +509,12 @@ bool vtkFITSReader::AllocateHeader()
    fits_get_hdrspace(fptr, &nkeys, NULL, &ReadStatus); /* get # of keywords */
 
    /* Read and print each keywords */
+   int histCont = 0, commCont = 0;
    for (ii = 1; ii <= nkeys; ii++)
      {
-
      if (fits_read_record(fptr, ii, card, &ReadStatus))break;
      if (fits_get_keyname(card, key, &keylen, &ReadStatus)) break;
      std::string strkey(key);
-     if (strkey.compare(0,7,"HISTORY") == 0) continue;
-     if (strkey.compare(0,7,"COMMENT") == 0) continue;
      if (fits_parse_value(card, val, com, &ReadStatus)) break;
 
      std::string str(val);
@@ -540,9 +538,29 @@ bool vtkFITSReader::AllocateHeader()
        str.erase(0,1);
        str.erase(str.size()-1, str.size());
        }
-     str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
-     std::string strkey1 = "SlicerAstro." + strkey;
-     HeaderKeyValue[strkey1] = str;
+
+     if (!strkey.compare("COMMENT"))
+       {
+       commCont++;
+       strkey = "SlicerAstro._" + strkey + IntToString(commCont);
+       str = card;
+       str = str.substr(8);
+       HeaderKeyValue[strkey] = str;
+       }
+     else if (!strkey.compare("HISTORY"))
+       {
+       histCont++;
+       strkey = "SlicerAstro._" + strkey + IntToString(histCont);
+       str = card;
+       str = str.substr(8);
+       HeaderKeyValue[strkey] = str;
+       }
+     else
+       {
+       str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
+       strkey = "SlicerAstro." + strkey;
+       HeaderKeyValue[strkey] = str;
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.NAXIS") == 0)
@@ -597,7 +615,7 @@ bool vtkFITSReader::AllocateHeader()
    if(n > 3)
      {
      vtkErrorMacro("vtkFITSReader::ExecuteInformation:"
-                   " SlicerAstro, currently, can't load datacube with NAXIS > 3 \n");
+                   " SlicerAstro, currently, can't load datacube with NAXIS > 3. \n");
      return false;
      }
 
@@ -609,7 +627,7 @@ bool vtkFITSReader::AllocateHeader()
        {
        vtkErrorMacro("vtkFITSReader::ExecuteInformation:"
                      " The fits header is missing the NAXIS" << ii <<
-                      " keyword. It is not possible to load the datacube. \n");
+                     " keyword. It is not possible to load the datacube. \n");
        return false;
        }
        temp.erase(temp.size()-1);
@@ -866,21 +884,8 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
-   if(!(HeaderKeyValue.count("SlicerAstro.NOISE") == 0))
-     {
-     HeaderKeyValue["SlicerAstro.RMS"] = HeaderKeyValue.at("SlicerAstro.NOISE");
-     HeaderKeyValue.erase("SlicerAstro.NOISE");
-     }
-
-   if(HeaderKeyValue.count("SlicerAstro.RMS") == 0)
-     {
-     HeaderKeyValue["SlicerAstro.RMS"] = "0.";
-     }
-
-   if(HeaderKeyValue.count("SlicerAstro.NOISEMEAN") == 0)
-     {
-     HeaderKeyValue["SlicerAstro.NOISEMEAN"] = "0.";
-     }
+   HeaderKeyValue["SlicerAstro.RMS"] = "0.";
+   HeaderKeyValue["SlicerAstro.RMSMEAN"] = "0.";
 
    if(HeaderKeyValue.count("SlicerAstro.DUNIT3") == 0)
      {
@@ -922,7 +927,7 @@ bool vtkFITSReader::AllocateHeader()
          double crval3hz = 0.;
          if (!dunit3.compare("KM/S") || !dunit3.compare("km/s"))
            {
-           drval3ms = drval3*1000;
+           drval3ms = drval3 * 1000;
            }
          else if (!dunit3.compare("M/S") || !dunit3.compare("m/s"))
            {
@@ -934,22 +939,30 @@ bool vtkFITSReader::AllocateHeader()
            }
          else if (!cunit3.compare("MHZ") || !cunit3.compare("MHz") || !cunit3.compare("Mhz") || !cunit3.compare("mhz"))
            {
-           crval3hz = crval3*1.E06;
+           crval3hz = crval3 * 1.E06;
            }
          else if (!cunit3.compare("GHZ") || !cunit3.compare("GHz") || !cunit3.compare("Ghz") || !cunit3.compare("ghz"))
            {
-           crval3hz = crval3*1.E09;
+           crval3hz = crval3 * 1.E09;
            }
-         double freq0 = crval3hz*sqrt((299792458.+drval3ms)/(299792458.-drval3ms));
+         double freq0 = crval3hz * sqrt((299792458. + drval3ms) / (299792458. - drval3ms));
          HeaderKeyValue["SlicerAstro.RESTFREQ"] = DoubleToString(freq0);
          }
        }
      }
 
+   if (StringToDouble(HeaderKeyValue.at("SlicerAstro.RESTFREQ").c_str()) == 0.)
+     {
+     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                     " The fits header is missing the RESTFREQ keyword. "
+                     " Assuming HI data, i.e. RESTFREQ = 1.420405752E+09. \n");
+     HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
+     }
+
    if(HeaderKeyValue.count("SlicerAstro.DATE-OBS") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the DATE-OBS keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the DATE-OBS keyword. \n");
      HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
      }
 
@@ -1006,7 +1019,7 @@ bool vtkFITSReader::FixGipsyHeader()
       !HeaderKeyValue.at("SlicerAstro.CTYPE3").compare(GipsyKeywords[3].c_str()))
     {
     double c = 299792458.0;
-    double vel = -1;
+    double vel = 0.;
 
     // Get Velocity reference info
     if(!HeaderKeyValue.count("SlicerAstro.VELR") == 0)
@@ -1032,7 +1045,7 @@ bool vtkFITSReader::FixGipsyHeader()
         }
       }
 
-    if (vel < 0.)
+    if (fabs(vel) < 1.E-06)
       {
       vtkErrorMacro("vtkFITSReader::FixGipsyHeader: could not find velocity information. \n");
       return false;
@@ -1059,6 +1072,7 @@ bool vtkFITSReader::FixGipsyHeader()
     unitKeywords.push_back("Ghz");
     unitKeywords.push_back("ghz");
 
+    bool found = false;
     for (unsigned int ii = 0; ii < unitKeywords.size(); ii++)
       {
       if (!unit.compare(unitKeywords[ii]))
@@ -1082,13 +1096,15 @@ bool vtkFITSReader::FixGipsyHeader()
           }
         freq  *= multi;
         dfreq *= multi;
+        found = true;
         break;
         }
-      else
-        {
-        vtkErrorMacro("vtkFITSReader::FixGipsyHeader : Freq unit not found. \n");
-        return false;
-        }
+      }
+
+    if (!found)
+      {
+      vtkErrorMacro("vtkFITSReader::FixGipsyHeader : Freq unit not found. \n");
+      return false;
       }
 
     // Need rest frequency for conversion
@@ -1142,11 +1158,13 @@ bool vtkFITSReader::AllocateWCS(){
     fits_report_error(stderr, WCSStatus);
     }
 
+  std::string stdHeader(header);
+
+  size_t found;
+
   if (FixGipsyHeaderOn)
     {
-    std::string stdHeader(header);
-
-    size_t found = stdHeader.find("CTYPE3");
+    found = stdHeader.find("CTYPE3");
     if (found != std::string::npos)
       {
       size_t first = stdHeader.find("=", found);
@@ -1217,9 +1235,40 @@ bool vtkFITSReader::AllocateWCS(){
         return false;
         }
       }
-
-    std::strcpy(header, stdHeader.c_str());
     }
+
+  found = stdHeader.find("RESTFREQ");
+  if (found != std::string::npos)
+    {
+    size_t first = stdHeader.find("=", found);
+    if (first != std::string::npos)
+      {
+      std::string blankString = "                                                                       ";
+      std::string replaceString = HeaderKeyValue.at("SlicerAstro.RESTFREQ");
+      blankString.replace(1, replaceString.size(), replaceString);
+      stdHeader.replace(first + 1, blankString.size(), blankString);
+      }
+    }
+  else
+    {
+    std::string addString = "RESTFREQ=                                                                       ";
+    stdHeader.insert(0, addString);
+    found = stdHeader.find("RESTFREQ");
+    if (found != std::string::npos)
+      {
+      size_t first = stdHeader.find("=", found);
+      if (first != std::string::npos)
+        {
+        std::string blankString = "                                                                       ";
+        std::string replaceString = HeaderKeyValue.at("SlicerAstro.RESTFREQ");
+        blankString.replace(1, replaceString.size(), replaceString);
+        stdHeader.replace(first + 1, blankString.size(), blankString);
+        }
+      }
+    }
+
+  header = (char *)malloc(((int)(stdHeader.size())+1)*sizeof(char));
+  std::strcpy(header, stdHeader.c_str());
 
   if ((WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &NWCS, &WCS)))
     {
@@ -1268,7 +1317,8 @@ bool vtkFITSReader::AllocateWCS(){
                   ": \n"<<WCS->err->msg<<"\n");
     }
 
-  if (!strcmp(WCS->ctype[2], "FREQ"))
+  std::string ctype2 = WCS->ctype[2];
+  if (strncmp(WCS->ctype[2], "VOPT", 4))
     {
     int index = 2;
     char ctypeS[9];
@@ -1283,7 +1333,8 @@ bool vtkFITSReader::AllocateWCS(){
       }
     else
       {
-      vtkWarningMacro("vtkFITSReader::AllocateWCS: 3rd axis in WCS has been converted from FREQ to VEL. \n");
+      vtkWarningMacro("vtkFITSReader::AllocateWCS: 3rd WCS axes has been converted "
+                      "from "<<ctype2<< " to "<<WCS->ctype[2]<<". \n");
       }
 
     if ((WCSStatus = wcsset(WCS)))
@@ -1310,20 +1361,26 @@ vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformati
   vtkImageData *res = vtkImageData::SafeDownCast(out);
   if (!res)
     {
-    vtkWarningMacro("vtkFITSReader::AllocateOutputData: Call to AllocateOutputData with non vtkImageData output.");
+    vtkErrorMacro("vtkFITSReader::AllocateOutputData: Call to AllocateOutputData with"
+                    " non vtkImageData output.");
     return NULL;
     }
 
   this->ExecuteInformation();
 
   res->SetExtent(this->GetUpdateExtent());
-  this->AllocatePointData(res, outInfo);
+
+  if (!this->AllocatePointData(res, outInfo))
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateOutputData: AllocatePointData failed.");
+    return NULL;
+    }
 
   return res;
 }
 
 //----------------------------------------------------------------------------
-void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo) {
+bool vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo) {
 
   vtkDataArray *pd = NULL;
   int Extent[6];
@@ -1332,8 +1389,9 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
   // if the scalar type has not been set then we have a problem
   if (this->DataType == VTK_VOID)
     {
-    vtkErrorMacro("vtkFITSReader::AllocatePointData: Attempt to allocate scalars before scalar type was set.");
-    return;
+    vtkErrorMacro("vtkFITSReader::AllocatePointData:"
+                  " attempt to allocate void scalars.");
+    return false;
     }
 
   // if we currently have scalars then just adjust the size
@@ -1349,7 +1407,7 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
     // Since the execute method will be modifying the scalars
     // directly.
     pd->Modified();
-    return;
+    return true;
     }
 
   // allocate the new scalars
@@ -1366,7 +1424,7 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
       break;
     default:
       vtkErrorMacro("vtkFITSReader::AllocatePointData: Could not allocate data type.");
-      return;
+      return false;
     }
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo,
     this->DataType, this->GetNumberOfComponents());
@@ -1377,15 +1435,13 @@ void vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
                       (Extent[3] - Extent[2] + 1)*
                       (Extent[5] - Extent[4] + 1));
 
-
   out->GetPointData()->SetScalars(pd);
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo,
          this->DataType, this->GetNumberOfComponents());
 
   pd->Delete();
+  return true;
 }
-
-
 
 //----------------------------------------------------------------------------
 // This function reads a data from a file.  The datas extent/axes
@@ -1401,9 +1457,17 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     }
   vtkImageData *data = this->AllocateOutputData(output, outInfo);
 
+  if (data == NULL)
+    {
+    vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: "
+                     "data not allocated.");
+    return;
+    }
+
   if (this->GetFileName() == NULL)
     {
-    vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: Either a FileName or FilePrefix must be specified.");
+    vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: "
+                     "Either a FileName or FilePrefix must be specified.");
     return;
     }
 
@@ -1411,13 +1475,14 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   // twice: once by ExecuteInformation, and once here
   if(fits_open_data(&fptr, this->GetFileName(), READONLY, &ReadStatus))
     {
-    vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: ERROR IN CFITSIO! Error reading "<< this->GetFileName() << ":\n");
+    vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
+                  "ERROR IN CFITSIO! Error reading "<< this->GetFileName() << ":\n");
     fits_report_error(stderr, ReadStatus);
     return;
     }
 
   data->GetPointData()->GetScalars()->SetName("FITSImage");
-  //get pointer
+  // Get data pointer
   void *ptr = NULL;
   ptr = data->GetPointData()->GetScalars()->GetVoidPointer(0);
   this->ComputeDataIncrements();
@@ -1465,7 +1530,8 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
 
   if (fits_close_file(fptr, &ReadStatus))
     {
-    vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: ERROR IN CFITSIO! Error closing "<< this->GetFileName() << ":\n");
+    vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: ERROR IN CFITSIO! Error closing "
+                  << this->GetFileName() << ":\n");
     fits_report_error(stderr, ReadStatus);
     }
 
@@ -1473,7 +1539,8 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     {
     if (remove(this->GetFileName()) != 0)
       {
-      vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
+      vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
+                    "Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
       }
     }
 }

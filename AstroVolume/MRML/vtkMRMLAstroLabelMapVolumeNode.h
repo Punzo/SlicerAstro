@@ -76,7 +76,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
 
   ///
   /// Update Max and Min Attributes
-  virtual void UpdateRangeAttributes();
+  virtual bool UpdateRangeAttributes();
 
 protected:
   vtkMRMLAstroLabelMapVolumeNode();

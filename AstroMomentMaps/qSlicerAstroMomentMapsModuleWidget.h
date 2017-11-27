@@ -63,6 +63,7 @@ protected slots:
   void onComputationFinished();
   void onEndCloseEvent();
   void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onInputVolumeModified();
   void onFirstMomentVolumeChanged(vtkMRMLNode* mrmlNode);
   void onGenerateFirstToggled(bool generate);
   void onGenerateSecondToggled(bool generate);

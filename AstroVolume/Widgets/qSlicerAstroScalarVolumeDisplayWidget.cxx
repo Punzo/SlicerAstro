@@ -169,6 +169,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
   vtkMRMLAstroVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
   d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
   d->MRMLVolumeThresholdWidget->setMRMLVolumeNode(volumeNode);
+
   qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
                 vtkCommand::ModifiedEvent,
                 this, SLOT(updateWidgetFromMRML()));
@@ -240,21 +241,21 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateTransferFunction()
     }
   else
     {
-    max = qMax(min+0.001, max);
-    low = qMax(range[0] + 0.001, low);
-    min = qMax(range[0] + 0.001, min);
-    upper = qMin(range[1] - 0.001, upper);
+    max = qMax(min+0.000001, max);
+    low = qMax(range[0] + 0.000001, low);
+    min = qMax(range[0] + 0.000001, min);
+    upper = qMin(range[1] - 0.000001, upper);
 
     if (min <= low)
       {
       minVal = (low - min)/(max - min);
-      min = low + 0.001;
+      min = low + 0.000001;
       }
 
     if (max >= upper)
       {
       maxVal = (upper - min)/(max-min);
-      max = upper - 0.001;
+      max = upper - 0.000001;
       }
 
     d->ColorTransferFunction->AddRGBPoint(range[0], 0, 0, 0);
@@ -262,9 +263,9 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateTransferFunction()
     d->ColorTransferFunction->AddRGBPoint(min, minVal, minVal, minVal);
     d->ColorTransferFunction->AddRGBPoint(max, maxVal, maxVal, maxVal);
     d->ColorTransferFunction->AddRGBPoint(upper, maxVal, maxVal, maxVal);
-    if (upper+0.001 < range[1])
+    if (upper+0.000001 < range[1])
       {
-      d->ColorTransferFunction->AddRGBPoint(upper+0.001, 0, 0, 0);
+      d->ColorTransferFunction->AddRGBPoint(upper+0.000001, 0, 0, 0);
       d->ColorTransferFunction->AddRGBPoint(range[1], 0, 0, 0);
       }
     }

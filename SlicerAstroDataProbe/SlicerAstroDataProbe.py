@@ -21,8 +21,9 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
     parent.dependencies = ["DataProbe"]
     parent.contributors = ["""
     Davide Punzo (Kapteyn Astronomical Institute),
-    Thijs van der Hulst (Kapteyn Astronomical Institute) and
-    Jos Roerdink (Johann Bernoulli Institute)."""]
+    Thijs van der Hulst (Kapteyn Astronomical Institute),
+    Jos Roerdink (Johann Bernoulli Institute) and
+    Jean-Christophe Fillion-Robin (Kitware)."""]
     parent.helpText = """
     Data probe factorization for WCS astronomical coordinates.
     """
@@ -112,36 +113,36 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         if displayNode:
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
-          worldX = displayNode.GetDisplayStringFromValueX(world[0])
-          worldY = displayNode.GetDisplayStringFromValueY(world[1])
-          worldZ = displayNode.GetDisplayStringFromValueZ(world[2])
+          worldX = displayNode.GetPythonDisplayStringFromValueX(world[0], 3)
+          worldY = displayNode.GetPythonDisplayStringFromValueY(world[1], 3)
+          worldZ = displayNode.GetPythonDisplayStringFromValueZ(world[2], 3)
           worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
           break
 
     if CoordinateSystemName == "WCS":
       if dimensionality > 2:
-        return " {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s},{worldZ:>10s} {orient: >4s}" \
+        return " {layoutName: <8s} {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s},{worldZ:>10s}" \
                 .format(layoutName=sliceNode.GetLayoutName(),
                 sys = CoordinateSystemName,
+                orient=sliceNode.GetOrientation(),
                 worldX=worldX,
                 worldY=worldY,
                 worldZ=worldZ,
-                orient=sliceNode.GetOrientation(),
                 )
       elif dimensionality > 1:
-        return " {layoutName: <8s} {sys:s}:{worldX:>16s},{worldY:>16s} {orient: >4s}" \
+        return " {layoutName: <8s} {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s}" \
                 .format(layoutName=sliceNode.GetLayoutName(),
                 sys = CoordinateSystemName,
+                orient=sliceNode.GetOrientation(),
                 worldX=worldX,
                 worldY=worldY,
-                orient=sliceNode.GetOrientation(),
                 )
       else:
-        return " {layoutName: <8s} {sys:s}:{worldX:>16s} {orient: >4s}" \
+        return " {layoutName: <8s} {sys:s}[{orient:s}]:{worldX:>16s}" \
                 .format(layoutName=sliceNode.GetLayoutName(),
                 sys = CoordinateSystemName,
-                worldX=worldX,
                 orient=sliceNode.GetOrientation(),
+                worldX=worldX,
                 )
     else:
       return " {layoutName: <8s} WCS in View {orient: >2s} not found" \

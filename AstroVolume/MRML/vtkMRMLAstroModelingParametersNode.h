@@ -84,6 +84,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
+  ///
+  /// 3DBarolo input parameters
   vtkSetMacro(NumberOfRings,int);
   vtkGetMacro(NumberOfRings,int);
 
@@ -171,6 +173,55 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(CloudsColumnDensity,double);
   vtkGetMacro(CloudsColumnDensity,double);
 
+  ///
+  /// IJK coordinates of the center
+  /// for the PV on the semi-major axis
+  vtkSetMacro(XPosCenterIJK,double);
+  vtkGetMacro(XPosCenterIJK,double);
+
+  vtkSetMacro(YPosCenterIJK,double);
+  vtkGetMacro(YPosCenterIJK,double);
+
+  ///
+  /// RAS coordinates of the center
+  /// for the PV on the semi-major axis
+  vtkSetMacro(XPosCenterRAS,double);
+  vtkGetMacro(XPosCenterRAS,double);
+
+  vtkSetMacro(YPosCenterRAS,double);
+  vtkGetMacro(YPosCenterRAS,double);
+
+  vtkSetMacro(ZPosCenterRAS,double);
+  vtkGetMacro(ZPosCenterRAS,double);
+
+  ///
+  /// Angle reference for the PV
+  /// on the semi-major axis from W->E position.
+  vtkSetMacro(PVPhi,double);
+  vtkGetMacro(PVPhi,double);
+
+  enum
+    {
+      YellowRotationModifiedEvent = 70000,
+      GreenRotationModifiedEvent = 71000
+    };
+
+  ///
+  /// Angles for the semi-major axis PV rotation
+  vtkSetMacro(YellowRotOldValue,double);
+  vtkGetMacro(YellowRotOldValue,double);
+
+  void SetYellowRotValue(double rot);
+  vtkGetMacro(YellowRotValue,double);
+
+  ///
+  /// Angles for the semi-minor axis PV rotation
+  vtkSetMacro(GreenRotOldValue,double);
+  vtkGetMacro(GreenRotOldValue,double);
+
+  void SetGreenRotValue(double rot);
+  vtkGetMacro(GreenRotValue,double);
+
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 
@@ -193,6 +244,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   vtkSetMacro(FitSuccess,bool);
   vtkGetMacro(FitSuccess,bool);
+
+  vtkSetMacro(Normalize,bool);
+  vtkGetMacro(Normalize,bool);
 
   vtkSetMacro(ContourLevel,double);
   vtkGetMacro(ContourLevel,double);
@@ -251,6 +305,17 @@ protected:
   double ColumnDensity;
   double Distance;
 
+  double XPosCenterIJK;
+  double YPosCenterIJK;
+  double XPosCenterRAS;
+  double YPosCenterRAS;
+  double ZPosCenterRAS;
+  double PVPhi;
+  double YellowRotValue;
+  double YellowRotOldValue;
+  double GreenRotValue;
+  double GreenRotOldValue;
+
   bool PositionAngleFit;
   bool RotationVelocityFit;
   bool RadialVelocityFit;
@@ -271,6 +336,8 @@ protected:
   int Operation;
 
   bool FitSuccess;
+
+  bool Normalize;
 
   double ContourLevel;
 };

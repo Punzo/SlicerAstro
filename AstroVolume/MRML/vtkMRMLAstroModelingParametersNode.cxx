@@ -83,9 +83,20 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetWeightingFunction(1);
   this->SetNumberOfClounds(0);
   this->SetCloudsColumnDensity(10.);
+  this->SetXPosCenterIJK(0.);
+  this->SetYPosCenterIJK(0.);
+  this->SetXPosCenterRAS(0.);
+  this->SetYPosCenterRAS(0.);
+  this->SetZPosCenterRAS(0.);
+  this->SetPVPhi(0.);
+  this->SetYellowRotOldValue(0.);
+  this->SetYellowRotValue(0.);
+  this->SetGreenRotOldValue(0.);
+  this->SetGreenRotValue(0.);
   this->SetStatus(0);
   this->SetOperation(vtkMRMLAstroModelingParametersNode::ESTIMATE);
   this->SetFitSuccess(false);
+  this->SetNormalize(true);
   this->SetNumberOfRings(0);
   this->SetContourLevel(3.);
 }
@@ -369,6 +380,66 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "XPosCenterIJK"))
+      {
+      this->XPosCenterIJK = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "YPosCenterIJK"))
+      {
+      this->YPosCenterIJK = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "XPosCenterRAS"))
+      {
+      this->XPosCenterRAS = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "YPosCenterRAS"))
+      {
+      this->YPosCenterRAS = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "ZPosCenterRAS"))
+      {
+      this->ZPosCenterRAS = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "PVPhi"))
+      {
+      this->PVPhi = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "YellowRotOldValue"))
+      {
+      this->YellowRotOldValue = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "YellowRotValue"))
+      {
+      this->YellowRotValue = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "GreenRotOldValue"))
+      {
+      this->GreenRotOldValue = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "GreenRotValue"))
+      {
+      this->GreenRotValue = StringToDouble(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "OutputSerial"))
       {
       this->OutputSerial = StringToInt(attValue);
@@ -390,6 +461,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "FitSuccess"))
       {
       this->FitSuccess = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Normalize"))
+      {
+      this->Normalize = StringToInt(attValue);
       continue;
       }
 
@@ -469,9 +546,20 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " WeightingFunction=\"" << this->WeightingFunction << "\"";
   of << indent << " NumberOfClounds=\"" << this->NumberOfClounds << "\"";
   of << indent << " CloudsColumnDensity=\"" << this->CloudsColumnDensity << "\"";
+  of << indent << " XPosCenterIJK=\"" << this->XPosCenterIJK << "\"";
+  of << indent << " YPosCenterIJK=\"" << this->YPosCenterIJK << "\"";
+  of << indent << " XPosCenterRAS=\"" << this->XPosCenterRAS << "\"";
+  of << indent << " YPosCenterRAS=\"" << this->YPosCenterRAS << "\"";
+  of << indent << " ZPosCenterRAS=\"" << this->ZPosCenterRAS << "\"";
+  of << indent << " PVPhi=\"" << this->PVPhi << "\"";
+  of << indent << " YellowRotOldValue=\"" << this->YellowRotOldValue << "\"";
+  of << indent << " YellowRotValue=\"" << this->YellowRotValue << "\"";
+  of << indent << " GreenRotOldValue=\"" << this->GreenRotOldValue << "\"";
+  of << indent << " GreenRotValue=\"" << this->GreenRotValue << "\"";
   of << indent << " Status=\"" << this->Status << "\"";
   of << indent << " Operation=\"" << this->GetOperationAsString(this->Operation) << "\"";
   of << indent << " FitSuccess=\"" << this->FitSuccess << "\"";
+  of << indent << " Normalize=\"" << this->Normalize << "\"";
   of << indent << " ContourLevel=\"" << this->ContourLevel << "\"";
 }
 
@@ -525,9 +613,34 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetStatus(node->GetStatus());
   this->SetOperation(node->GetOperation());
   this->SetFitSuccess(node->GetFitSuccess());
+  this->SetNormalize(node->GetNormalize());
   this->SetContourLevel(node->GetContourLevel());
+  this->SetXPosCenterIJK(node->GetXPosCenterIJK());
+  this->SetYPosCenterIJK(node->GetYPosCenterIJK());
+  this->SetXPosCenterRAS(node->GetXPosCenterRAS());
+  this->SetYPosCenterRAS(node->GetYPosCenterRAS());
+  this->SetZPosCenterRAS(node->GetZPosCenterRAS());
+  this->SetPVPhi(node->GetPVPhi());
+  this->SetYellowRotOldValue(node->GetYellowRotOldValue());
+  this->SetYellowRotValue(node->GetYellowRotValue());
+  this->SetGreenRotOldValue(node->GetGreenRotOldValue());
+  this->SetGreenRotValue(node->GetGreenRotValue());
 
   this->EndModify(disabledModify);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroModelingParametersNode::SetYellowRotValue(double rot)
+{
+  this->YellowRotValue = rot;
+  this->InvokeCustomModifiedEvent(vtkMRMLAstroModelingParametersNode::YellowRotationModifiedEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroModelingParametersNode::SetGreenRotValue(double rot)
+{
+  this->GreenRotValue = rot;
+  this->InvokeCustomModifiedEvent(vtkMRMLAstroModelingParametersNode::GreenRotationModifiedEvent);
 }
 
 //----------------------------------------------------------------------------
@@ -625,5 +738,16 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "Status: " << this->Status << "\n";
   os << "Operation: " << this->GetOperationAsString(this->Operation) << "\n";
   os << "FitSuccess: " << this->FitSuccess << "\n";
+  os << "Normalize: " << this->Normalize << "\n";
   os << "ContourLevel: " << this->ContourLevel << "\n";
+  os << "XPosCenterIJK: " << this->XPosCenterIJK << "\n";
+  os << "YPosCenterIJK: " << this->YPosCenterIJK << "\n";
+  os << "XPosCenterRAS: " << this->XPosCenterRAS << "\n";
+  os << "YPosCenterRAS: " << this->YPosCenterRAS << "\n";
+  os << "ZPosCenterRAS: " << this->ZPosCenterRAS << "\n";
+  os << "PVPhi: " << this->PVPhi << "\n";
+  os << "YellowRotOldValue: " << this->YellowRotOldValue << "\n";
+  os << "YellowRotValue: " << this->YellowRotValue << "\n";
+  os << "GreenRotOldValue: " << this->GreenRotOldValue << "\n";
+  os << "GreenRotValue: " << this->GreenRotValue << "\n";
 }

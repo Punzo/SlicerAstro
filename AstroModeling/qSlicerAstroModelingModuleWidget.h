@@ -26,8 +26,10 @@
 #include "qSlicerAstroModelingModuleExport.h"
 
 class qSlicerAstroModelingModuleWidgetPrivate;
+class vtkCollection;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLNode;
+class vtkStringArray;
 
 /// \ingroup Slicer_QtModules_AstroModeling
 class Q_SLICER_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWidget :
@@ -67,8 +69,9 @@ protected:
   void initializeParameterNode(vtkMRMLScene* scene);
   void initializeTableNode(vtkMRMLScene* scene, bool forceNew = false);
   void createPlots();
-  bool convertFirstSegmentToLabelMap();
+  bool convertSelectedSegmentToLabelMap();
   void onEnter();
+  void onExit();
 
 protected slots:
   void onCloudsColumnDensityChanged(double value);
@@ -80,6 +83,7 @@ protected slots:
   void onDistanceChanged(double value);
   void onEndCloseEvent();
   void onFittingFunctionChanged(int value);
+  void onGreenSliceRotated(double value);
   void onInclinationChanged(double value);
   void onInclinationErrorChanged(double value);
   void onInclinationFitChanged(bool flag);
@@ -88,6 +92,7 @@ protected slots:
   void onMaskActiveToggled(bool active);
   void onModeChanged();
   void onMRMLAstroModelingParametersNodeModified();
+  void onMRMLGreenSliceRotated();
   void onMRMLSceneEndImportEvent();
   void onMRMLSceneEndRestoreEvent();
   void onMRMLSceneEndBatchProcessEvent();
@@ -95,9 +100,14 @@ protected slots:
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLSliceNodeModified(vtkObject* sender);
+  void onMRMLTableNodeModified();
+  void onMRMLYellowSliceRotated();
+  void onNormalizeToggled(bool toggled);
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
   void onPositionAngleChanged(double value);
   void onPositionAngleErrorChanged(double value);
   void onPositionAngleFitChanged(bool flag);
@@ -121,6 +131,7 @@ protected slots:
   void onXCenterFitChanged(bool flag);
   void onYCenterChanged(double value);
   void onYCenterFitChanged(bool flag);
+  void onYellowSliceRotated(double value);
   void setMRMLAstroModelingParametersNode(vtkMRMLNode*);
   void setPVOffset();
   void updateProgress(int value);

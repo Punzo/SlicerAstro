@@ -22,6 +22,8 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS}
   ${vtkSlicerSegmentationsModuleLogic_INCLUDES_DIRS}
   ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
+  ${vtkSlicerMarkupsModuleLogic_INCLUDES_DIRS}
+  ${vtkSlicerMarkupsModuleMRML_INCLUDES_DIRS}
   ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
   ${WCSLIB_INCLUDE_DIR}
   )
@@ -50,6 +52,8 @@ set(MODULE_TARGET_LIBRARIES
   vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicerAstroVolumeModuleLogic
   vtkSlicerAstroVolumeModuleMRML
+  vtkSlicerMarkupsModuleLogic
+  vtkSlicerMarkupsModuleMRML
   )
 
 set(MODULE_RESOURCES

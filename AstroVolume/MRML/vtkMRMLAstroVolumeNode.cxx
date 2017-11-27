@@ -33,6 +33,10 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLVolumePropertyNode.h>
+
+//------------------------------------------------------------------------------
+const char* vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE = "preset";
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
@@ -40,12 +44,17 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode::vtkMRMLAstroVolumeNode()
 {
-  this->SetAttribute("SlicerAstro.PresetsActive", "0");
 }
 
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode::~vtkMRMLAstroVolumeNode()
 {
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroVolumeNode::GetPresetNodeReferenceRole()
+{
+  return vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE;
 }
 
 namespace
@@ -146,8 +155,14 @@ vtkMRMLAstroVolumeDisplayNode* vtkMRMLAstroVolumeNode::GetAstroVolumeDisplayNode
 }
 
 //---------------------------------------------------------------------------
-void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
+bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 {
+  if (this->GetImageData() == NULL)
+   {
+   vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes : "
+                 "imageData not allocated.");
+   return false;
+   }
   this->GetImageData()->Modified();
   int *dims = this->GetImageData()->GetDimensions();
   int numElements = dims[0] * dims[1] * dims[2];
@@ -214,8 +229,9 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
         }
       break;
     default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes() : Attempt to allocate scalars of type not allowed");
-      return;
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes() : "
+                    "attempt to allocate scalars of type not allowed");
+      return false;
     }
 
   this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
@@ -227,11 +243,20 @@ void vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
   delete outSPixel;
   delete outFPixel;
   delete outDPixel;
+
+  return true;
 }
 
 //---------------------------------------------------------------------------
-void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
+bool vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
 {
+  if (this->GetImageData() == NULL)
+   {
+   vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateNoiseAttributes : "
+                 "imageData not allocated.");
+   return false;
+   }
+
   //We calculate the noise as the std of 6 slices of the datacube.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
@@ -246,8 +271,9 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
       break;
     default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateNoiseAttributes : Attempt to allocate scalars of type not allowed");
-      return;
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateNoiseAttributes : "
+                    "attempt to allocate scalars of type not allowed");
+      return false;
     }
   double sum = 0., noise1 = 0., noise2 = 0, noise = 0., mean1 = 0., mean2 = 0., mean = 0.;
   int lowBoundary;
@@ -384,11 +410,36 @@ void vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
   mean = (mean1 + mean2) * 0.5;
 
   this->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());\
-  this->SetAttribute("SlicerAstro.NOISEMEAN", DoubleToString(mean).c_str());
+  this->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
   outFPixel = NULL;
   outDPixel = NULL;
   delete outFPixel;
   delete outDPixel;
+
+  return true;
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetPresetNode(vtkMRMLVolumePropertyNode *node)
+{
+  this->SetNodeReferenceID(this->GetPresetNodeReferenceRole(), (node ? node->GetID() : NULL));
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetPresetNode(vtkMRMLNode *node)
+{
+  this->SetPresetNode(vtkMRMLVolumePropertyNode::SafeDownCast(node));
+}
+
+//-----------------------------------------------------------
+vtkMRMLNode *vtkMRMLAstroVolumeNode::GetPresetNode()
+{
+  if (!this->Scene)
+    {
+    return NULL;
+    }
+
+  return this->GetNodeReference(this->GetPresetNodeReferenceRole());
 }
 
 //-----------------------------------------------------------

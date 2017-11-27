@@ -34,6 +34,7 @@
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
+class vtkMRMLAnnotationROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLVolumeNode;
@@ -83,6 +84,10 @@ public:
                                                               vtkMRMLAstroLabelMapVolumeNode *labelNode,
                                                               vtkMRMLAstroVolumeNode *inputVolume);
 
+  /// Calculate RMS (as standard deviation) given a ROI node
+  double CalculateRMSinROI(vtkMRMLAnnotationROINode* roiNode,
+                           vtkMRMLAstroVolumeNode *inputVolume);
+
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
@@ -97,7 +102,7 @@ protected:
   virtual void OnMRMLSceneEndImport();
 
   bool LoadPresets(vtkMRMLScene* scene);
-  vtkMRMLScene* PresetsScene;
+  vtkSmartPointer<vtkMRMLScene> PresetsScene;
   bool Init;
 
 private:
