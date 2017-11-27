@@ -9,9 +9,12 @@ set(MODULE_PYTHON_SCRIPTS
 
 set(MODULE_PYTHON_RESOURCES
   Resources/Icons/NGC2841.png
+  Resources/Icons/WEIN069.png
+  Resources/Icons/WEIN069_mask.png
+  Resources/Icons/NGC2403.png
+  Resources/Icons/NGC4111.png
+  Resources/Icons/NGC3379.png
   )
-
-
 
 #-----------------------------------------------------------------------------
 slicerMacroBuildScriptedModule(
