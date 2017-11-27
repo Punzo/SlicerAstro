@@ -17,6 +17,8 @@
 
 ==============================================================================*/
 
+#include <stdlib.h>
+
 // Qt includes
 #include <QDebug>
 #include <QDesktopServices>
@@ -168,8 +170,8 @@ void qSlicerAstroWelcomeModuleWidget::setup()
           this, SLOT (loadRemoteSampleData()));
   connect(d->EditApplicationSettingsButton, SIGNAL(clicked()),
           this, SLOT (editApplicationSettings()));
-  connect(d->pushToSlicerWelcom, SIGNAL(clicked()),
-          this, SLOT (navigateToSlicerWelcom()));
+  connect(d->PushToTutorial, SIGNAL(clicked()),
+          this, SLOT (navigateToTutorial()));
 
   this->Superclass::setup();
   d->FeedbackCollapsibleWidget->setCollapsed(false);
@@ -236,9 +238,16 @@ bool qSlicerAstroWelcomeModuleWidget::loadRemoteSampleData()
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroWelcomeModuleWidget::navigateToSlicerWelcom()
+int qSlicerAstroWelcomeModuleWidget::navigateToTutorial()
 {
-  Q_D(qSlicerAstroWelcomeModuleWidget);
-  return d->selectModule("Welcome");
+#if defined(__linux) || defined(__linux__) || defined(linux)
+  {
+  return system("xdg-open https://github.com/Punzo/SlicerAstro/wiki/Tutorial &");
+  }
+#elif defined(__APPLE__)
+  {
+  return system("open https://github.com/Punzo/SlicerAstro/wiki/Tutorial &");
+  }
+#endif
 }
 

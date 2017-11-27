@@ -47,7 +47,7 @@ public slots:
   void editApplicationSettings();
   bool loadNonDicomData();
   bool loadRemoteSampleData();
-  bool navigateToSlicerWelcom();
+  int navigateToTutorial();
 
 protected:
   virtual void setup();

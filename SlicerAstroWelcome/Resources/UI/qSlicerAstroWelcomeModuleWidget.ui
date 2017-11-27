@@ -105,7 +105,7 @@
        </widget>
       </item>
       <item row="2" column="0">
-       <widget class="QPushButton" name="pushToSlicerWelcom">
+       <widget class="QPushButton" name="PushToTutorial">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
           <horstretch>0</horstretch>
