@@ -293,11 +293,25 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   const double NaN = sqrt(-1);
 
   vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
+                  " astroDisplay not found!");
+    return false;
+    }
   double ijk[3], world[3];
   ijk[0] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
   ijk[1] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
   double VelFactor = 1.;
-  if (!strcmp(astroDisplay->GetVelocityDefinition().c_str(), "m/s"))
+
+  struct wcsprm* WCS = astroDisplay->GetWCSStruct();
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
+                  " WCS not found!");
+    return false;
+    }
+  if (!strcmp(WCS->cunit[2], "m/s"))
     {
     VelFactor = 0.001;
     }
