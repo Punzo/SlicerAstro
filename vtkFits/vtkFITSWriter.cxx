@@ -267,7 +267,7 @@ void vtkFITSWriter::WriteData()
     std::string tmp2 = ait->second;
 
     if (!tmp.compare(0,7,"COMMENT"))
-      {
+      {  
       fits_write_comment(fptr, tmp2.c_str(), &WriteStatus);
       continue;
       }

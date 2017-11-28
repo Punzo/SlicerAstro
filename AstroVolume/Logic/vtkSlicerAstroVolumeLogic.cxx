@@ -54,6 +54,7 @@
 #include <vtkColorTransferFunction.h>
 #include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
+#include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPiecewiseFunction.h>
@@ -75,6 +76,10 @@ vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::~vtkSlicerAstroVolumeLogic()
 {
+  if (this->PresetsScene)
+    {
+    this->PresetsScene->Delete();
+    }
 }
 
 namespace
@@ -529,6 +534,11 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
+  if (!this->PresetsScene)
+    {
+    this->PresetsScene = vtkMRMLScene::New();
+    }
+  this->PresetsScene->RegisterNodeClass(vtkNew<vtkMRMLVolumePropertyNode>().GetPointer());
 }
 
 //----------------------------------------------------------------------------
@@ -536,7 +546,7 @@ vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
 {
   if (!this->PresetsScene)
     {
-    this->PresetsScene = vtkSmartPointer<vtkMRMLScene>::New();
+    this->PresetsScene = vtkMRMLScene::New();
     }
   this->LoadPresets(this->PresetsScene);
   return this->PresetsScene;
@@ -771,8 +781,8 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
   RAStoIJKTransform->Identity();
   RAStoIJKTransform->PostMultiply();
   vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
-  inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix);
-  RAStoIJKTransform->Concatenate(RAStoIJKMatrix);
+  inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
 
   double ijkMin[3], RASMin[3], ijkMax[3], RASMax[3];
   RASMin[0] = roiBounds[0];
@@ -1142,7 +1152,10 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
 //---------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::LoadPresets(vtkMRMLScene *scene)
 {
-  this->PresetsScene->RegisterNodeClass(vtkNew<vtkMRMLVolumePropertyNode>().GetPointer());
+  if (!this->PresetsScene)
+    {
+    return false;
+    }
 
   if (this->GetModuleShareDirectory().empty())
     {

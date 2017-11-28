@@ -834,7 +834,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     ZeroMomentVolume->UpdateRangeAttributes();
     ZeroMomentVolume->UpdateNoiseAttributes();
     int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
+    ZeroMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
     double min = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));

@@ -50,8 +50,9 @@ public slots:
 protected:
   QScopedPointer<qSlicerAstroSmoothingModuleWidgetPrivate> d_ptr;
 
-  virtual void setMRMLScene(vtkMRMLScene*);
-  void initializeParameterNode(vtkMRMLScene*);
+  virtual void setMRMLScene(vtkMRMLScene* scene);
+  void initializeParameterNode(vtkMRMLScene* scene);
+  void initializeSegmentations(vtkMRMLScene* scene);
 
 protected slots:
   void onAccuracyChanged(double value);
@@ -61,6 +62,7 @@ protected slots:
   void onComputationStarted();
   void onCurrentFilterChanged(int index);
   void onEndCloseEvent();
+  void onEndImportEvent();
   void onHardwareChanged(int index);
   void onInputVolumeChanged(vtkMRMLNode*);
   void onKChanged(double value);
@@ -68,6 +70,8 @@ protected slots:
   void onMasksCommandChanged();
   void onMRMLAstroSmoothingParametersNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onModeChanged();
   void onOutputVolumeChanged(vtkMRMLNode*);
   void onParameterXChanged(double value);
@@ -77,6 +81,7 @@ protected slots:
   void onRyChanged(double value);
   void onRzChanged(double value);
   void onSegmentEditorNodeModified(vtkObject* sender);
+  void onStartImportEvent();
   void onTimeStepChanged(double value);
   void updateProgress(int value);
   void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);

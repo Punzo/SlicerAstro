@@ -97,6 +97,7 @@ public slots:
   void stopRockView();
 
 protected slots:
+  void applyPreset(vtkMRMLNode* volumePropertyNode);
   void offsetPreset(double offsetValue);
   void onCalculateRMS();
   void onCreateSurfaceButtonToggled(bool toggle);
