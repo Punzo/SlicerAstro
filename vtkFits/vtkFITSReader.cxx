@@ -541,18 +541,34 @@ bool vtkFITSReader::AllocateHeader()
 
      if (!strkey.compare("COMMENT"))
        {
-       commCont++;
-       strkey = "SlicerAstro._" + strkey + IntToString(commCont);
        str = card;
        str = str.substr(8);
+       if (str.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_-*+/=!<>,.?/;:'|#()[]{} ") != std::string::npos)
+         {
+         vtkWarningMacro("vtkFITSReader::AllocateHeader: "
+                         "found a COMMENT keyword with a special unsupported characters: \n"
+                         <<str<<" \n"<<
+                         "The keyword will be ignored. \n");
+         continue;
+         }
+       commCont++;
+       strkey = "SlicerAstro._" + strkey + IntToString(commCont);
        HeaderKeyValue[strkey] = str;
        }
      else if (!strkey.compare("HISTORY"))
        {
-       histCont++;
-       strkey = "SlicerAstro._" + strkey + IntToString(histCont);
        str = card;
        str = str.substr(8);
+       if (str.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_-*+/=!<>,.?/;:'|#()[]{} ") != std::string::npos)
+         {
+         vtkWarningMacro("vtkFITSReader::AllocateHeader: "
+                         "found a HISTORY keyword with a special unsupported characters. \n"
+                         <<str<<" \n"<<
+                         "The keyword will be ignored. \n");
+         continue;
+         }
+       histCont++;
+       strkey = "SlicerAstro._" + strkey + IntToString(histCont);
        HeaderKeyValue[strkey] = str;
        }
      else

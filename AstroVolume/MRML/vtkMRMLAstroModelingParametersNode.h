@@ -203,7 +203,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   enum
     {
       YellowRotationModifiedEvent = 70000,
-      GreenRotationModifiedEvent = 71000
+      GreenRotationModifiedEvent = 71000,
+      YellowRotationUpdatedEvent = 72000,
+      GreenRotationUpdatedEvent = 73000
     };
 
   ///
@@ -247,6 +249,9 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   vtkSetMacro(Normalize,bool);
   vtkGetMacro(Normalize,bool);
+
+  vtkSetMacro(ForceSliceUpdate,bool);
+  vtkGetMacro(ForceSliceUpdate,bool);
 
   vtkSetMacro(ContourLevel,double);
   vtkGetMacro(ContourLevel,double);
@@ -336,8 +341,8 @@ protected:
   int Operation;
 
   bool FitSuccess;
-
   bool Normalize;
+  bool ForceSliceUpdate;
 
   double ContourLevel;
 };

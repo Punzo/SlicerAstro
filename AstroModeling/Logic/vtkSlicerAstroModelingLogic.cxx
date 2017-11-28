@@ -2045,8 +2045,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->par->getNV() == -1)
       {
       inputVolumeDisplay->SetOpticalVelocityDefinition();
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : /n"
-                    "Run again the estimation of the input parameters. /n");
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
+                    "Run again the estimation of the input parameters. ");
       return 0;
       }
 

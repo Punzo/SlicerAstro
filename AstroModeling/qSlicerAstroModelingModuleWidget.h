@@ -66,14 +66,18 @@ protected:
   QScopedPointer<qSlicerAstroModelingModuleWidgetPrivate> d_ptr;
 
   virtual void setMRMLScene(vtkMRMLScene* scene);
-  void initializeParameterNode(vtkMRMLScene* scene);
-  void initializeTableNode(vtkMRMLScene* scene, bool forceNew = false);
-  void createPlots();
+  void initializeNodes(bool forceNew = false);
+  void initializeFiducialNodes(bool forceNew = false);
+  void initializeParameterNode(bool forceNew = false);
+  void initializePlotNodes(bool forceNew = false);
+  void initializeSegmentations(bool forceNew = false);
+  void initializeTableNode(bool forceNew = false);
   bool convertSelectedSegmentToLabelMap();
   void onEnter();
   void onExit();
 
 protected slots:
+  void centerPVOffset();
   void onCloudsColumnDensityChanged(double value);
   void onColumnDensityChanged(double value);
   void onComputationStarted();
@@ -81,7 +85,6 @@ protected slots:
   void onComputationFinished();
   void onContourLevelChanged(double value);
   void onDistanceChanged(double value);
-  void onEndCloseEvent();
   void onFittingFunctionChanged(int value);
   void onGreenSliceRotated(double value);
   void onInclinationChanged(double value);
@@ -97,6 +100,7 @@ protected slots:
   void onMRMLSceneEndRestoreEvent();
   void onMRMLSceneEndBatchProcessEvent();
   void onMRMLSceneEndCloseEvent();
+  void onMRMLSceneStartImportEvent();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
@@ -133,7 +137,6 @@ protected slots:
   void onYCenterFitChanged(bool flag);
   void onYellowSliceRotated(double value);
   void setMRMLAstroModelingParametersNode(vtkMRMLNode*);
-  void setPVOffset();
   void updateProgress(int value);
 
 private:

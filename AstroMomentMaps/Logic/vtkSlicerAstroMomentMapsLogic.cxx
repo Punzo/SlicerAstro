@@ -792,7 +792,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Moment Maps Kernel Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Moment Maps Kernel Time : "<<mtime<<" ms.");
 
   inFPixel = NULL;
   inDPixel = NULL;
@@ -834,7 +834,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     ZeroMomentVolume->UpdateRangeAttributes();
     ZeroMomentVolume->UpdateNoiseAttributes();
     int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
+    ZeroMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
     double min = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
@@ -882,7 +882,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return true;
 }

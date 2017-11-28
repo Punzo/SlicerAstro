@@ -69,12 +69,12 @@
 // vtkSlicer includes
 #include <vtkSlicerApplicationLogic.h>
 
-//--------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 // qMRMLSliceAstroControllerWidgetPrivate methods
 
 namespace
 {
-//----------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 template <typename T> T StringToNumber(const char* num)
 {
   std::stringstream ss;
@@ -83,7 +83,7 @@ template <typename T> T StringToNumber(const char* num)
   return ss >> result ? result : 0;
 }
 
-//----------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 int StringToInt(const char* str)
 {
   return StringToNumber<int>(str);
@@ -104,6 +104,8 @@ qMRMLSliceAstroControllerWidgetPrivate::~qMRMLSliceAstroControllerWidgetPrivate(
 //---------------------------------------------------------------------------
 void qMRMLSliceAstroControllerWidgetPrivate::init()
 {
+  Q_Q(qMRMLSliceAstroControllerWidget);
+
   this->Superclass::init();
 
   this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0));
@@ -152,7 +154,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSli
   q->setDisabled(newSliceNode == 0);
 }
 
-// --------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 void qMRMLSliceAstroControllerWidgetPrivate::updateCoordinateWidgetFromMRMLSliceNode()
 {
   Q_Q(qMRMLSliceAstroControllerWidget);
@@ -165,10 +167,10 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateCoordinateWidgetFromMRMLSlice
   q->setWCSDisplay();
 }
 
-// --------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 // qMRMLSliceView methods
 
-// --------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 qMRMLSliceAstroControllerWidget::qMRMLSliceAstroControllerWidget(QWidget* _parent)
   : Superclass(new qMRMLSliceAstroControllerWidgetPrivate(*this), _parent)
 {
@@ -182,12 +184,12 @@ qMRMLSliceAstroControllerWidget::qMRMLSliceAstroControllerWidget(qMRMLSliceAstro
   // init() should be called in the subclass constructor
 }
 
-// --------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 qMRMLSliceAstroControllerWidget::~qMRMLSliceAstroControllerWidget()
 {
 }
 
-// --------------------------------------------------------------------------
+//---------------------------------------------------------------------------
 void qMRMLSliceAstroControllerWidget::setWCSDisplay()
 {
   Q_D(qMRMLSliceAstroControllerWidget);
@@ -437,5 +439,5 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
       {
       d->WCSDisplay->setText("");
       d->WCSDisplay->setFixedWidth(10);
-      }
+    }
 }

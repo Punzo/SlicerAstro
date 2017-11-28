@@ -97,6 +97,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetOperation(vtkMRMLAstroModelingParametersNode::ESTIMATE);
   this->SetFitSuccess(false);
   this->SetNormalize(true);
+  this->SetForceSliceUpdate(true);
   this->SetNumberOfRings(0);
   this->SetContourLevel(3.);
 }
@@ -526,6 +527,7 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " RotationVelocity=\"" << this->RotationVelocity << "\"";
   of << indent << " RadialVelocity=\"" << this->RadialVelocity << "\"";
   of << indent << " VelocityDispersion=\"" << this->VelocityDispersion << "\"";
+  of << indent << " Inclination=\"" << this->Inclination << "\"";
   of << indent << " InclinationError=\"" << this->InclinationError << "\"";
   of << indent << " PositionAngle=\"" << this->PositionAngle << "\"";
   of << indent << " PositionAngleError=\"" << this->PositionAngleError << "\"";

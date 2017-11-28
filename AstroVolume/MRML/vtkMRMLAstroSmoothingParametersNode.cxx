@@ -367,20 +367,12 @@ void vtkMRMLAstroSmoothingParametersNode::Copy(vtkMRMLNode *anode)
 //----------------------------------------------------------------------------
 vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel1D()
 {
-  if (!this->gaussianKernel1D)
-    {
-    return NULL;
-    }
   return this->gaussianKernel1D;
 }
 
 //----------------------------------------------------------------------------
 vtkDoubleArray *vtkMRMLAstroSmoothingParametersNode::GetGaussianKernel3D()
 {
-  if (!this->gaussianKernel3D)
-    {
-    return NULL;
-    }
   return this->gaussianKernel3D;
 }
 
@@ -406,6 +398,7 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 {
   if(this->GetFilter() != 1)
     {
+    this->gaussianKernel1D = NULL;
     return;
     }
 
@@ -445,7 +438,8 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 
       for (int i = 0; i < nItems; i++)
         {
-        this->gaussianKernel1D->SetComponent(i, 0, this->gaussianKernel1D->GetComponent(i, 0) / sumTotal);
+        this->gaussianKernel1D->SetComponent(i, 0,
+          this->gaussianKernel1D->GetComponent(i, 0) / sumTotal);
         }
       }
     }
@@ -456,6 +450,7 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
 {
   if(this->GetFilter() != 1)
     {
+    this->gaussianKernel3D = NULL;
     return;
     }
 
@@ -542,7 +537,8 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
         for (int i = -Xmax; i <= Xmax; i++)
           {
           int pos = (k + Zmax) * nItemsX * nItemsY + (j + Ymax) * nItemsX + (i + Xmax);
-          this->gaussianKernel3D->SetComponent(pos, 0, this->gaussianKernel3D->GetComponent(pos, 0) / sumTotal);
+          this->gaussianKernel3D->SetComponent(pos, 0,
+            this->gaussianKernel3D->GetComponent(pos, 0) / sumTotal);
           }
         }
       }
