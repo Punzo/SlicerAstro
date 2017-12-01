@@ -102,14 +102,13 @@ protected:
   virtual void OnMRMLSceneEndImport();
 
   bool LoadPresets(vtkMRMLScene* scene);
-  vtkSmartPointer<vtkMRMLScene> PresetsScene;
+  vtkMRMLScene* PresetsScene;
   bool Init;
 
 private:
 
   vtkSlicerAstroVolumeLogic(const vtkSlicerAstroVolumeLogic&); // Not implemented
   void operator=(const vtkSlicerAstroVolumeLogic&);               // Not implemented
-
 };
 
 #endif

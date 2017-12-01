@@ -55,6 +55,7 @@ protected:
 
   virtual void setMRMLScene(vtkMRMLScene*);
   void initializeParameterNode(vtkMRMLScene*);
+  void initializeSegmentations(vtkMRMLScene* scene);
   bool convertFirstSegmentToLabelMap();
 
 protected slots:
@@ -62,6 +63,7 @@ protected slots:
   void onComputationCancelled();
   void onComputationFinished();
   void onEndCloseEvent();
+  void onEndImportEvent();
   void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onInputVolumeModified();
   void onFirstMomentVolumeChanged(vtkMRMLNode* mrmlNode);
@@ -75,6 +77,7 @@ protected slots:
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onSecondMomentVolumeChanged(vtkMRMLNode* mrmlNode);
   void onSegmentEditorNodeModified(vtkObject* sender);
+  void onStartImportEvent();
   void onThresholdRangeChanged(double min, double max);
   void onUnitNodeIntensityChanged(vtkObject* sender);
   void onUnitNodeVelocityChanged(vtkObject* sender);

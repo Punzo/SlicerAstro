@@ -97,6 +97,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetOperation(vtkMRMLAstroModelingParametersNode::ESTIMATE);
   this->SetFitSuccess(false);
   this->SetNormalize(true);
+  this->SetForceSliceUpdate(true);
   this->SetNumberOfRings(0);
   this->SetContourLevel(3.);
 }

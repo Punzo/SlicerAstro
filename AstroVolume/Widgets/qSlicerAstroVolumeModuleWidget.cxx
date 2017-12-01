@@ -71,6 +71,7 @@
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLViewNode.h>
+#include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 // logic includes
@@ -342,7 +343,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(onPresetsNodeChanged(vtkMRMLNode*)));
 
   QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   this->volumeRenderingWidget, SLOT(applyPreset(vtkMRMLNode*)));
+                   q, SLOT(applyPreset(vtkMRMLNode*)));
 
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(offsetPreset(double)));
@@ -522,7 +523,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   d->PresetsNodeComboBox->setMRMLScene(presetsScene);
   d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
   d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
+  this->applyPreset(d->PresetsNodeComboBox->currentNode());
 }
 
 //-----------------------------------------------------------------------------
@@ -1608,7 +1609,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
   d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
+  this->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
   selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
@@ -2597,6 +2598,29 @@ void qSlicerAstroVolumeModuleWidget::stopRockView()
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::applyPreset(vtkMRMLNode *volumePropertyNode)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->volumeRenderingWidget || !volumePropertyNode)
+    {
+    return;
+    }
+
+  d->volumeRenderingWidget->applyPreset(volumePropertyNode);
+
+  vtkMRMLVolumePropertyNode* newVolumePropertyNode =
+    d->volumeRenderingWidget->mrmlVolumePropertyNode();
+  if (!newVolumePropertyNode || !d->astroVolumeNode)
+    {
+    return;
+    }
+  std::string newVolumePropertyNodeName = newVolumePropertyNode->GetName();
+  newVolumePropertyNodeName += d->astroVolumeNode->GetName();
+  newVolumePropertyNode->SetName(newVolumePropertyNodeName.c_str());
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -3139,7 +3163,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
     qWarning() << "qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified error : synchronizePresetsToVolumeNode failed;"
                   " encountered in adjusting the Color Function for the 3-D display.";
     }
-  d->volumeRenderingWidget->applyPreset(d->PresetsNodeComboBox->currentNode());
+  this->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
     d->astroVolumeNode->GetAstroVolumeDisplayNode();

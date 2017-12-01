@@ -91,7 +91,9 @@ public:
 
   qSlicerAstroSmoothingModuleWidgetPrivate(qSlicerAstroSmoothingModuleWidget& object);
   ~qSlicerAstroSmoothingModuleWidgetPrivate();
+
   void init();
+  void cleanPointers();
 
   vtkSlicerAstroSmoothingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
@@ -252,6 +254,12 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidgetPrivate::cleanPointers()
+{
+  this->parametersNode = 0;
+}
+
+//-----------------------------------------------------------------------------
 vtkSlicerAstroSmoothingLogic* qSlicerAstroSmoothingModuleWidgetPrivate::logic() const
 {
   Q_Q(const qSlicerAstroSmoothingModuleWidget);
@@ -321,11 +329,12 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  this->Superclass::setMRMLScene(scene);
-  if (scene == NULL)
+  if (!scene)
     {
     return;
     }
+
+  this->Superclass::setMRMLScene(scene);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
@@ -333,6 +342,7 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
+
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
@@ -340,16 +350,25 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     return;
     }
 
+  this->initializeParameterNode(scene);
+
+  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
+                      this, SLOT(onEndCloseEvent()));
+  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::StartImportEvent,
+                      this, SLOT(onStartImportEvent()));
+  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
+                      this, SLOT(onEndImportEvent()));
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
+  this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
+                      this, SLOT(onMRMLSelectionNodeReferenceAdded(vtkObject*)));
+  this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceRemovedEvent,
+                      this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
-  this->initializeParameterNode(scene);
+  this->onMRMLSelectionNodeModified(d->selectionNode);
+  this->onInputVolumeChanged(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
   this->onMRMLAstroSmoothingParametersNodeModified();
-  this->onOutputVolumeChanged(scene->GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
-
-  // observe close event so can re-add a parameters node if necessary
-  qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
-                this, SLOT(onEndCloseEvent()));
 
   if (!(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID())))
     {
@@ -357,36 +376,95 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     d->ParametersNodeComboBox->setEnabled(false);
     }
 
-  std::string segmentEditorSingletonTag = "SegmentEditor";
-  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-    {
-    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->AddNode(d->segmentEditorNode));
-    }
-  else
-    {
-    d->segmentEditorNode = segmentEditorNodeSingleton;
-  }
-
-  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
-
-  this->onSegmentEditorNodeModified(d->segmentEditorNode);
+  this->initializeSegmentations(scene);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidget::onEndCloseEvent()
 {
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
+    return;
+    }
+
+  d->selectionNode = appLogic->GetSelectionNode();
+  if (!d->selectionNode)
+    {
+    qCritical() << "qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent"
+                   " : selectionNode not found!";
+    return;
+    }
+
   this->initializeParameterNode(this->mrmlScene());
+  this->onMRMLAstroSmoothingParametersNodeModified();
+  this->initializeSegmentations(this->mrmlScene());
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onEndImportEvent()
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
+    return;
+    }
+
+  d->selectionNode = appLogic->GetSelectionNode();
+  if (!d->selectionNode)
+    {
+    qCritical() << "qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent"
+                   " : selectionNode not found!";
+    return;
+    }
+
+  this->initializeParameterNode(this->mrmlScene());
+  this->onMRMLAstroSmoothingParametersNodeModified();
+  this->initializeSegmentations(this->mrmlScene());
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidget::initializeParameterNode(vtkMRMLScene* scene)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!scene || !d->selectionNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroSmoothingParametersNode *astroParametersNode = NULL;
+  unsigned int numNodes = scene->
+      GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
+  if(numNodes > 0)
+    {
+    astroParametersNode = vtkMRMLAstroSmoothingParametersNode::SafeDownCast
+      (scene->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroSmoothingParametersNode"));
+    }
+  else
+    {
+    vtkSmartPointer<vtkMRMLNode> parametersNode;
+    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLAstroSmoothingParametersNode");
+    parametersNode.TakeReference(foo);
+    scene->AddNode(parametersNode);
+    astroParametersNode = vtkMRMLAstroSmoothingParametersNode::SafeDownCast(parametersNode);
+    int wasModifying = astroParametersNode->StartModify();
+    astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
+    astroParametersNode->SetOutputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
+    astroParametersNode->EndModify(wasModifying);
+    }
+
+  d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::initializeSegmentations(vtkMRMLScene *scene)
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
@@ -395,24 +473,36 @@ void qSlicerAstroSmoothingModuleWidget::initializeParameterNode(vtkMRMLScene* sc
     return;
     }
 
-  vtkSmartPointer<vtkMRMLNode> parametersNode;
-  unsigned int numNodes = scene->
-      GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
-  if(numNodes > 0)
+  std::string segmentEditorSingletonTag = "SegmentEditor";
+  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
+    scene->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
+
+  if (!segmentEditorNodeSingleton)
     {
-    parametersNode = scene->GetNthNodeByClass(0, "vtkMRMLAstroSmoothingParametersNode");
+    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
+    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
+    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
+    scene->AddNode(d->segmentEditorNode));
     }
   else
     {
-    vtkMRMLNode * foo = scene->CreateNodeByClass("vtkMRMLAstroSmoothingParametersNode");
-    parametersNode.TakeReference(foo);
-    scene->AddNode(parametersNode);
+    d->segmentEditorNode = segmentEditorNodeSingleton;
     }
-  vtkMRMLAstroSmoothingParametersNode *astroParametersNode =
-    vtkMRMLAstroSmoothingParametersNode::SafeDownCast(parametersNode);
-  astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
-  astroParametersNode->SetOutputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
-  d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
+
+  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+
+  this->onSegmentEditorNodeModified(d->segmentEditorNode);
+
+  if (!d->segmentEditorNode->GetSegmentationNode())
+    {
+    vtkSmartPointer<vtkMRMLNode> segmentationNode;
+    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLSegmentationNode");
+    segmentationNode.TakeReference(foo);
+    scene->AddNode(segmentationNode);
+    d->segmentEditorNode->SetAndObserveSegmentationNode
+      (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -428,16 +518,9 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* s
   vtkMRMLSelectionNode *selectionNode =
       vtkMRMLSelectionNode::SafeDownCast(sender);
 
-  if (!d->parametersNode)
+  if (!selectionNode || !d->parametersNode)
     {
     return;
-    }
-
-  unsigned int numNodes = this->mrmlScene()->
-      GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
-  if(numNodes == 0)
-    {
-    this->initializeParameterNode(selectionNode->GetScene());
     }
 
   int wasModifying = d->parametersNode->StartModify();
@@ -446,8 +529,65 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* s
   d->parametersNode->EndModify(wasModifying);
 }
 
+//--------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObject *sender)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
 
-// --------------------------------------------------------------------------
+  if (!sender)
+    {
+    return;
+    }
+
+  vtkMRMLSelectionNode *selectionNode =
+      vtkMRMLSelectionNode::SafeDownCast(sender);
+
+  if (!selectionNode)
+    {
+    return;
+    }
+
+  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
+      selectionNode->GetNodeReference("SegmentEditorNodeRef"));
+
+  if (!segmentEditorNode)
+    {
+    return;
+    }
+
+  d->segmentEditorNode = segmentEditorNode;
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObject *sender)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!sender)
+    {
+    return;
+    }
+
+  vtkMRMLSelectionNode *selectionNode =
+      vtkMRMLSelectionNode::SafeDownCast(sender);
+
+  if (!selectionNode)
+    {
+    return;
+    }
+
+  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
+      selectionNode->GetNodeReference("SegmentEditorNodeRef"));
+
+  if (!segmentEditorNode)
+    {
+    return;
+    }
+
+  d->segmentEditorNode = segmentEditorNode;
+}
+
+//--------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidget::setMRMLAstroSmoothingParametersNode(vtkMRMLNode* mrmlNode)
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
@@ -466,7 +606,6 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLAstroSmoothingParametersNode(vtkM
   d->parametersNode = AstroSmoothingParaNode;
 
   this->onMRMLAstroSmoothingParametersNodeModified();
-  this->setEnabled(AstroSmoothingParaNode != 0);
 }
 
 //-----------------------------------------------------------------------------
@@ -474,38 +613,29 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !d->selectionNode)
+    {
+    return;
+    }
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
     {
     return;
     }
 
   if (mrmlNode)
     {
+    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
-    if (this->mrmlScene() &&
-        !this->mrmlScene()->IsClosing() &&
-        !this->mrmlScene()->IsBatchProcessing())
-      {
-      // set it to be active in the slice windows
-      vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-      if (!appLogic)
-        {
-        return;
-        }
-      vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-      if (!selectionNode)
-        {
-        return;
-        }
-      mrmlNode->Modified();
-      selectionNode->SetReferenceActiveVolumeID(d->parametersNode->GetInputVolumeNodeID());
-      appLogic->PropagateVolumeSelection();
-      }
     }
   else
     {
-    d->parametersNode->SetInputVolumeNodeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(NULL);
+    d->selectionNode->SetActiveVolumeID(NULL);
     }
+  appLogic->PropagateVolumeSelection();
 }
 
 //-----------------------------------------------------------------------------
@@ -518,14 +648,24 @@ void qSlicerAstroSmoothingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
     return;
     }
 
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    return;
+    }
+
   if (mrmlNode)
     {
+    d->selectionNode->SetReferenceSecondaryVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetSecondaryVolumeID(mrmlNode->GetID());
     d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
     }
   else
     {
-    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    d->selectionNode->SetReferenceSecondaryVolumeID(NULL);
+    d->selectionNode->SetSecondaryVolumeID(NULL);
     }
+  appLogic->PropagateVolumeSelection();
 }
 
 //-----------------------------------------------------------------------------
@@ -614,15 +754,18 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->DoubleSpinBoxY->show();
         d->SigmaZLabel->show();
         d->DoubleSpinBoxZ->show();
-        double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
-        d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueX(cdelt1, 3).c_str());
-        double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
-        d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
-        double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
-        d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueZ(cdelt3, 3).c_str());
+        if (inputVolumeNode)
+          {
+          double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
+          d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                       ->GetDisplayStringFromValueX(cdelt1, 3).c_str());
+          double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
+          d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                       ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
+          double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
+          d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                       ->GetDisplayStringFromValueZ(cdelt3, 3).c_str());
+          }
         d->SigmaXLabel->setText("N<sub>X</sub>:");
         d->SigmaYLabel->setText("N<sub>Y</sub>:");
         d->SigmaZLabel->setText("N<sub>Z</sub>:");
@@ -693,15 +836,18 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->DoubleSpinBoxY->show();
         d->SigmaZLabel->show();
         d->DoubleSpinBoxZ->show();
-        double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
-        d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueX(cdelt1, 3).c_str());
-        double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
-        d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
-        double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
-        d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                     ->GetDisplayStringFromValueZ(cdelt3, 3).c_str());
+        if (inputVolumeNode)
+          {
+          double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
+          d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                       ->GetDisplayStringFromValueX(cdelt1, 3).c_str());
+          double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
+          d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                       ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
+          double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
+          d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
+                                       ->GetDisplayStringFromValueZ(cdelt3, 3).c_str());
+          }
         d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
         d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
@@ -1222,16 +1368,45 @@ void qSlicerAstroSmoothingModuleWidget::onSegmentEditorNodeModified(vtkObject *s
 
   vtkMRMLSegmentationNode* segmentationNodeTable = vtkMRMLSegmentationNode::SafeDownCast(
     d->SegmentsTableView->segmentationNode());
-  if (!segmentationNodeTable)
-    {
-    d->SegmentsTableView->setSegmentationNode(segmentationNode);
-    return;
-    }
-
   if (segmentationNode != segmentationNodeTable)
     {
     d->SegmentsTableView->setSegmentationNode(segmentationNode);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onStartImportEvent()
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!this->mrmlScene())
+    {
+    return;
     }
+
+  if (d->parametersNode)
+    {
+    this->mrmlScene()->RemoveNode(d->parametersNode);
+    }
+
+  if (d->segmentEditorNode)
+    {
+    if (d->segmentEditorNode->GetSegmentationNode())
+      {
+      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
+      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    }
+  if (d->SegmentsTableView)
+    {
+    if (d->SegmentsTableView->segmentationNode())
+      {
+      this->mrmlScene()->RemoveNode(d->SegmentsTableView->segmentationNode());
+      d->SegmentsTableView->setSegmentationNode(NULL);
+      }
+    }
+
+  d->cleanPointers();
 }
 
 //-----------------------------------------------------------------------------
