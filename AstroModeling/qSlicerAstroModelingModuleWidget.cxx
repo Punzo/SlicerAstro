@@ -4444,8 +4444,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     IJKtoRASTransform->Identity();
     IJKtoRASTransform->PostMultiply();
     vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
-    inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix);
-    IJKtoRASTransform->Concatenate(IJKtoRASMatrix);
+    inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix.GetPointer());
+    IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
 
     double ijk[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
     ijk[0] = d->parametersNode->GetXPosCenterIJK();
