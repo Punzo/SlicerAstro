@@ -438,7 +438,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Box Filter (CPU) Kernel Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Box Filter (CPU) Kernel Time : "<<mtime<<" ms.");
 
   inFPixel = NULL;
   outFPixel = NULL;
@@ -467,7 +467,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return 1;
 }
@@ -844,7 +844,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("Box Filter (CPU) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Box Filter (CPU) Time : "<<mtime<<" ms.");
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -875,7 +875,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return 1;
 }
@@ -978,7 +978,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro(" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro(" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
   gettimeofday(&start, NULL);
 
@@ -994,7 +994,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
 
   if(cancel)
@@ -1208,7 +1208,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
 
   inFPixel = NULL;
   outFPixel = NULL;
@@ -1237,7 +1237,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return 1;
 }
@@ -1583,7 +1583,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -1614,7 +1614,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return 1;
 }
@@ -1723,7 +1723,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
   gettimeofday(&start, NULL);
 
@@ -1737,7 +1737,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro("Update : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update : "<<mtime<<" ms.");
 
   if (cancel)
     {
@@ -1977,7 +1977,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms.");
 
   gettimeofday(&start, NULL);
 
@@ -2009,7 +2009,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   outFPixel = NULL;
   tempFPixel = NULL;
@@ -2128,7 +2128,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   useconds = end.tv_usec - start.tv_usec;
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-  vtkDebugMacro(" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms /n");
+  vtkDebugMacro(" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
   gettimeofday(&start, NULL);
 
@@ -2144,7 +2144,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 
-  vtkDebugMacro("Update Time : "<<mtime<<" ms /n");
+  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   if(cancel)
     {

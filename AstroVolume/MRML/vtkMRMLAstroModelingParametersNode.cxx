@@ -527,6 +527,7 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " RotationVelocity=\"" << this->RotationVelocity << "\"";
   of << indent << " RadialVelocity=\"" << this->RadialVelocity << "\"";
   of << indent << " VelocityDispersion=\"" << this->VelocityDispersion << "\"";
+  of << indent << " Inclination=\"" << this->Inclination << "\"";
   of << indent << " InclinationError=\"" << this->InclinationError << "\"";
   of << indent << " PositionAngle=\"" << this->PositionAngle << "\"";
   of << indent << " PositionAngleError=\"" << this->PositionAngleError << "\"";
