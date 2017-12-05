@@ -107,7 +107,9 @@ protected slots:
   void onLockToggled(bool toggled);
   void onMRMLDisplayROINodeModified(vtkObject*);
   void onMRMLLabelVolumeNodeModified();
+  void onMRMLSceneEndImportEvent();
   void onMRMLSceneEndCloseEvent();
+  void onMRMLSceneStartImportEvent();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
@@ -134,10 +136,11 @@ signals:
   void segmentEditorNodeChanged(bool enabled);
 
 protected:
-  virtual void setup();
-  virtual void onEnter();
-  virtual void setMRMLScene(vtkMRMLScene*);
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
+
+  virtual void setup();
+  virtual void setMRMLScene(vtkMRMLScene*);
+  void initializeSegmentations(vtkMRMLScene* scene);
 
   /// Update master representation in segmentation to a given representation.
   /// Used before adding a certain segment to a segmentation, making sure the user knows if data loss is possible.

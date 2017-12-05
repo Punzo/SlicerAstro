@@ -483,6 +483,7 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
     }
+
 }
 
 //----------------------------------------------------------------------------

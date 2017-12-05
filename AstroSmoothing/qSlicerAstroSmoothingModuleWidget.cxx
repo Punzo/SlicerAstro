@@ -144,14 +144,16 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
   qSlicerApplication* app = qSlicerApplication::application();
   if(!app)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidgetPrivate::init(): could not find qSlicerApplication!";
+    qCritical() << "qSlicerAstroMomentMapsModuleWidgetPrivate::init : "
+                   "could not find qSlicerApplication!";
     return;
     }
 
   qSlicerAbstractCoreModule* astroVolume = app->moduleManager()->module("AstroVolume");
   if (!astroVolume)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidgetPrivate::init(): could not find AstroVolume module.";
+    qCritical() << "qSlicerAstroSmoothingModuleWidgetPrivate::init : "
+                   "could not find AstroVolume module.";
     return;
     }
 
@@ -336,6 +338,13 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->Superclass::setMRMLScene(scene);
 
+  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
+                      this, SLOT(onEndCloseEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
+                      this, SLOT(onStartImportEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
+                      this, SLOT(onEndImportEvent()));
+
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
@@ -352,12 +361,6 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->initializeParameterNode(scene);
 
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
-                      this, SLOT(onEndCloseEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::StartImportEvent,
-                      this, SLOT(onStartImportEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
-                      this, SLOT(onEndImportEvent()));
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
   this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
@@ -366,11 +369,11 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
   this->onMRMLAstroSmoothingParametersNodeModified();
 
-  if (!(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID())))
+  if (!(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID())))
     {
     d->OutputVolumeNodeSelector->setEnabled(false);
     d->ParametersNodeComboBox->setEnabled(false);
@@ -672,6 +675,7 @@ void qSlicerAstroSmoothingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
 void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModified()
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
+
 
   if (!d->parametersNode)
     {

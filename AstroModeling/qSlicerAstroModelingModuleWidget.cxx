@@ -468,15 +468,15 @@ qSlicerAstroModelingModuleWidget::~qSlicerAstroModelingModuleWidget()
 {
 }
 
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::enter()
 {
-  this->onEnter();
   this->Superclass::enter();
 }
 
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::exit()
 {
-  this->onExit();
   this->Superclass::exit();
 }
 
@@ -577,17 +577,30 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->Superclass::setMRMLScene(scene);
 
+  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
+                      this, SLOT(onMRMLSceneStartImportEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
+                      this, SLOT(onMRMLSceneEndImportEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndBatchProcessEvent,
+                      this, SLOT(onMRMLSceneEndBatchProcessEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
+                      this, SLOT(onMRMLSceneEndCloseEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndRestoreEvent,
+                      this, SLOT(onMRMLSceneEndRestoreEvent()));
+
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : "
+                   "appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : selectionNode not found!";
+    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : "
+                   "selectionNode not found!";
     return;
     }
 
@@ -601,11 +614,68 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
   this->onMRMLAstroModelingParametersNodeModified();
 
-  vtkMRMLNode *activeVolume = this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID());
+  // Connect PlotWidget with ModelingWidget
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : "
+                   "qSlicerApplication not found!";
+    return;
+    }
+
+  qSlicerLayoutManager* layoutManager = app->layoutManager();
+
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : "
+                   "layoutManager not found!";
+    return;
+    }
+
+  vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
+    scene->GetFirstNodeByClass("vtkMRMLLayoutNode"));
+  if (!layoutNode)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : "
+                   "layoutNode not found!";
+    return;
+    }
+  int viewArra = layoutNode->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView  &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotView        &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotTableView   &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutOneUpPlotView         &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutThreeOverThreePlotView)
+    {
+    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+    }
+
+  qMRMLPlotWidget* plotWidget = layoutManager->plotWidget(0);
+
+  if(!plotWidget)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : "
+                   "plotWidget not found!";
+    return;
+    }
+
+  qMRMLPlotView* plotView = plotWidget->plotView();
+  if(!plotWidget)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : "
+                   "plotView not found!";
+    return;
+    }
+
+  QObject::connect(plotView, SIGNAL(dataSelected(vtkStringArray*, vtkCollection*)),
+                   this, SLOT(onPlotSelectionChanged(vtkStringArray*, vtkCollection*)));
+
+  vtkMRMLNode *activeVolume = scene->GetNodeByID(d->selectionNode->GetActiveVolumeID());
   if (!activeVolume)
     {
     d->OutputVolumeNodeSelector->setEnabled(false);
@@ -618,27 +688,6 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     d->XcenterSliderWidget->setMaximum(StringToInt(activeVolume->GetAttribute("SlicerAstro.NAXIS1")));
     d->YcenterSliderWidget->setMaximum(StringToInt(activeVolume->GetAttribute("SlicerAstro.NAXIS2")));
     }
-
-  std::string segmentEditorSingletonTag = "SegmentEditor";
-  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-    {
-    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->AddNode(d->segmentEditorNode));
-    }
-  else
-    {
-    d->segmentEditorNode = segmentEditorNodeSingleton;
-  }
-
-  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
-
-  this->onSegmentEditorNodeModified(d->segmentEditorNode);
 
   d->InputSegmentCollapsibleButton->setCollapsed(true);
   d->FittingParametersCollapsibleButton->setCollapsed(false);
@@ -1924,31 +1973,6 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
   return true;
 }
 
-void qSlicerAstroModelingModuleWidget::onEnter()
-{
-  if (!this->mrmlScene())
-    {
-    qCritical() << Q_FUNC_INFO << ": Invalid scene";
-    return;
-    }
-
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::StartImportEvent,
-                      this, SLOT(onMRMLSceneStartImportEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
-                      this, SLOT(onMRMLSceneEndImportEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndBatchProcessEvent,
-                      this, SLOT(onMRMLSceneEndBatchProcessEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
-                      this, SLOT(onMRMLSceneEndCloseEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndRestoreEvent,
-                      this, SLOT(onMRMLSceneEndRestoreEvent()));
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroModelingModuleWidget::onExit()
-{
-}
-
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 {
@@ -2108,8 +2132,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeModified(vtkObject* se
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!sender || !this->mrmlScene() ||
-      this->mrmlScene()->IsClosing() || this->mrmlScene()->IsBatchProcessing())
+  if (!sender || !this->mrmlScene())
     {
     return;
     }
@@ -3409,7 +3432,8 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent :"
+                   " appLogic not found!";
     return;
     }
 
@@ -3441,6 +3465,31 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
     d->FittingParametersCollapsibleButton->setCollapsed(true);
     d->OutputCollapsibleButton->setCollapsed(false);
     d->OutputCollapsibleButton_2->setCollapsed(false);
+    this->onCalculateAndVisualize();
+
+    vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+    if (!yellowSliceNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent : "
+                    "yellowSliceNode not found!";
+      return;
+      }
+    vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+    if (!greenSliceNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent : "
+                    "greenSliceNode not found!";
+      return;
+      }
+
+    this->qvtkConnect(yellowSliceNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
+    this->qvtkConnect(greenSliceNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLSliceNodeModified(vtkObject*)));
+    this->onMRMLSliceNodeModified(yellowSliceNode);
+    this->onMRMLSliceNodeModified(greenSliceNode);
     }
 
   this->onMRMLAstroModelingParametersNodeModified();
@@ -3469,7 +3518,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
 
@@ -4482,55 +4531,6 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     // P.S.: FitAllSlice is called everytime the active volume is changed.
 
     QTimer::singleShot(2, this, SLOT(centerPVOffset()));
-
-
-    // Connect PlotWidget with ModelingWidget
-    // Setting the Layout for the Output
-    qSlicerApplication* app = qSlicerApplication::application();
-
-    if(!app)
-      {
-      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
-                     "qSlicerApplication not found!";
-      d->TableView->resizeColumnsToContents();
-      d->parametersNode->SetStatus(0);
-      return;
-      }
-
-    qSlicerLayoutManager* layoutManager = app->layoutManager();
-
-    if(!app)
-      {
-      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
-                     "layoutManager not found!";
-      d->TableView->resizeColumnsToContents();
-      d->parametersNode->SetStatus(0);
-      return;
-      }
-
-    qMRMLPlotWidget* plotWidget = layoutManager->plotWidget(0);
-
-    if(!plotWidget)
-      {
-      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
-                     "plotWidget not found!";
-      d->TableView->resizeColumnsToContents();
-      d->parametersNode->SetStatus(0);
-      return;
-      }
-
-    qMRMLPlotView* plotView = plotWidget->plotView();
-    if(!plotWidget)
-      {
-      qCritical() << "qSlicerAstroMomentMapsModuleWidget::onWorkFinished : "
-                     "plotView not found!";
-      d->TableView->resizeColumnsToContents();
-      d->parametersNode->SetStatus(0);
-      return;
-      }
-
-    QObject::connect(plotView, SIGNAL(dataSelected(vtkStringArray*, vtkCollection*)),
-                     this, SLOT(onPlotSelectionChanged(vtkStringArray*, vtkCollection*)));
 
     // Add fiducials
     if (!d->fiducialNodeMajor || !d->fiducialNodeMinor)

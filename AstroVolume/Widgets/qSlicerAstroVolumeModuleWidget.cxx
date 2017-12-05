@@ -100,6 +100,7 @@ public:
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;  
   vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelVolumeNode;
+  vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
 
   double stretchOldValue;
   double offsetOldValue;
@@ -117,6 +118,7 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   this->MRMLAstroVolumeInfoWidget = 0;
   this->segmentationsLogic = 0;
   this->volumeRenderingWidget = 0;
+  this->selectionNode = 0;
   this->stretchOldValue = 0.;
   this->offsetOldValue = 0.;
   this->Lock = false;
@@ -456,53 +458,39 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   Q_D(qSlicerAstroVolumeModuleWidget);
 
   this->Superclass::setMRMLScene(scene);
-  if(scene == NULL)
-    {
-    return;
-    }
+
+  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
+                      this, SLOT(onMRMLSceneStartImportEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
+                      this, SLOT(onMRMLSceneEndImportEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
+                      this, SLOT(onMRMLSceneEndCloseEvent()));
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : appLogic not found!";
-    return;
-    }
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
-    {
-    qCritical() << "qSlicerAstroModelingModuleWidget::setMRMLScene : selectionNode not found!";
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
 
-  this->qvtkReconnect(selectionNode, vtkCommand::ModifiedEvent,
+  d->selectionNode = appLogic->GetSelectionNode();
+  if (!d->selectionNode)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene : selectionNode not found!";
+    return;
+    }
+
+  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-  this->qvtkReconnect(selectionNode, vtkMRMLNode::ReferenceAddedEvent,
+  this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
                       this, SLOT(onMRMLSelectionNodeReferenceAdded(vtkObject*)));
-  this->qvtkReconnect(selectionNode, vtkMRMLNode::ReferenceRemovedEvent,
+  this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceRemovedEvent,
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
-  this->onMRMLSelectionNodeModified(selectionNode);
-  this->onMRMLSelectionNodeReferenceAdded(selectionNode);
+  this->onMRMLSelectionNodeModified(d->selectionNode);
+  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
 
-  std::string segmentEditorSingletonTag = "SegmentEditor";
-  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-    {
-    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->AddNode(d->segmentEditorNode));
-    }
-  else
-    {
-    d->segmentEditorNode = segmentEditorNodeSingleton;
-  }
-
-  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
-
-  this->onSegmentEditorNodeModified(d->segmentEditorNode);
+  this->initializeSegmentations(scene);
 
   if(!d->PresetsNodeComboBox)
     {
@@ -524,6 +512,48 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
   d->PresetsNodeComboBox->setCurrentNodeIndex(0);
   this->applyPreset(d->PresetsNodeComboBox->currentNode());
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::initializeSegmentations(vtkMRMLScene *scene)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!scene)
+    {
+    return;
+    }
+
+  std::string segmentEditorSingletonTag = "SegmentEditor";
+  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
+    scene->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
+
+  if (!segmentEditorNodeSingleton)
+    {
+    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
+    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
+    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
+    scene->AddNode(d->segmentEditorNode));
+    }
+  else
+    {
+    d->segmentEditorNode = segmentEditorNodeSingleton;
+    }
+
+  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+
+  this->onSegmentEditorNodeModified(d->segmentEditorNode);
+
+  if (!d->segmentEditorNode->GetSegmentationNode())
+    {
+    vtkSmartPointer<vtkMRMLNode> segmentationNode;
+    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLSegmentationNode");
+    segmentationNode.TakeReference(foo);
+    scene->AddNode(segmentationNode);
+    d->segmentEditorNode->SetAndObserveSegmentationNode
+      (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -605,33 +635,14 @@ void qSlicerAstroVolumeModuleWidget::setup()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onEnter()
-{
-    if (!this->mrmlScene())
-      {
-      qCritical() << Q_FUNC_INFO << ": Invalid scene";
-      return;
-      }
-
-    this->qvtkConnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
-                      this, SLOT(onMRMLSceneEndCloseEvent()));
-}
-
-//-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
   if (!node)
     {
     emit astroLabelMapVolumeNodeChanged(false);
     emit astroVolumeNodeChanged(false);
-    }
-
-  if (!this->mrmlScene() ||
-      this->mrmlScene()->IsClosing() ||
-      this->mrmlScene()->IsBatchProcessing())
-    {
-    return;
     }
 
   vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
@@ -645,8 +656,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     return;
     }
 
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
+  if (!d->selectionNode)
     {
     return;
     }
@@ -668,7 +678,8 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     size_t found = type.find("MOMENTMAP");
     if (!(found != std::string::npos))
       {
-      selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
+      d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
+      d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
       appLogic->PropagateBackgroundVolumeSelection(1);
       }
 
@@ -682,7 +693,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
         }
       d->VisibilityCheckBox->setChecked(true);
       }
-
     astroVolumeNode->Modified();
     }
   else if (labelMapVolumeNode)
@@ -690,15 +700,18 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     renderingActive = false;
     emit astroLabelMapVolumeNodeChanged(true);
     emit astroVolumeNodeChanged(false);
-    selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
+    d->selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
+    d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
     appLogic->PropagateLabelVolumeSelection(1);
     labelMapVolumeNode->Modified();
     }
   else
     {
-    selectionNode->SetReferenceActiveVolumeID("");
+    d->selectionNode->SetReferenceActiveVolumeID(NULL);
+    d->selectionNode->SetActiveVolumeID(NULL);
     appLogic->PropagateBackgroundVolumeSelection(1);
-    selectionNode->SetReferenceActiveLabelVolumeID("");
+    d->selectionNode->SetReferenceActiveLabelVolumeID(NULL);
+    d->selectionNode->SetActiveLabelVolumeID(NULL);
     appLogic->PropagateLabelVolumeSelection(1);
     }
 
@@ -715,6 +728,11 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
     d->VisibilityCheckBox->setChecked(false);
+    }
+
+  if (!this->mrmlScene())
+    {
+    return;
     }
 
   vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
@@ -1150,13 +1168,12 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     return;
     }
 
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
+  if (!d->selectionNode)
     {
     return;
     }
 
-  selectionNode->SetReferenceActiveLabelVolumeID("");
+  d->selectionNode->SetReferenceActiveLabelVolumeID("");
   appLogic->PropagateLabelVolumeSelection(1);
 
   if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
@@ -1165,7 +1182,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     }
 
   vtkMRMLAstroVolumeNode* activeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(selectionNode->GetActiveVolumeID()));
+    (this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
 
   d->ActiveVolumeNodeSelector->setCurrentNode(activeNode);
 
@@ -1299,7 +1316,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     vtkSlicerAstroVolumeLogic* logic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
     if (!logic)
       {
-      qCritical() <<"qSlicerAstroModelingModuleWidget::convertFirstSegmentToLabelMap :"
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::convertFirstSegmentToLabelMap :"
                     " astroVolumelogic not found!";
       return;
       }
@@ -1521,8 +1538,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
+  if (!d->selectionNode)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : selectionNode not found!";
     return;
@@ -1531,7 +1547,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
 
-  selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
+  d->selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
 
   unsigned int numViewNodes = col->GetNumberOfItems();
   int n = volumeOne->GetNumberOfDisplayNodes();
@@ -1568,7 +1584,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
-  selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
 
   n = volumeTwo->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -1611,8 +1627,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   d->PresetsNodeComboBox->setCurrentNodeIndex(0);
   this->applyPreset(d->PresetsNodeComboBox->currentNode());
 
-  selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
-  selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
+  d->selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
 
   vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
@@ -1844,8 +1860,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
+  if (!d->selectionNode)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : selectionNode not found!";
     return;
@@ -1857,7 +1872,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   unsigned int numViewNodes = col->GetNumberOfItems();
 
-  selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
 
   int n = volumeTwo->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -1883,7 +1898,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
   this->updatePresets(volumeTwo);
 
-  selectionNode->SetReferenceActiveVolumeID(volumeThree->GetID());
+  d->selectionNode->SetReferenceActiveVolumeID(volumeThree->GetID());
 
   n = volumeThree->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -1909,8 +1924,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
   this->updatePresets(volumeThree);
 
-  selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
-  selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
+  d->selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
 
   n = volumeOne->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -2739,9 +2754,70 @@ void qSlicerAstroVolumeModuleWidget::onMRMLLabelVolumeNodeModified()
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->selectionNode)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent"
+                   " : selectionNode not found!";
+    return;
+    }
+
+  this->onMRMLSelectionNodeModified(d->selectionNode);
+  this->initializeSegmentations(this->mrmlScene());
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndCloseEvent()
 {
-  this->setMRMLScene(this->mrmlScene());
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene : appLogic not found!";
+    return;
+    }
+
+  d->selectionNode = appLogic->GetSelectionNode();
+  if (!d->selectionNode)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent"
+                   " : selectionNode not found!";
+    return;
+  }
+
+  this->initializeSegmentations(this->mrmlScene());
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLSceneStartImportEvent()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!this->mrmlScene())
+    {
+    return;
+    }
+
+  if (d->segmentEditorNode)
+    {
+    if (d->segmentEditorNode->GetSegmentationNode())
+      {
+      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
+      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    }
+  if (d->SegmentsTableView_2)
+    {
+    if (d->SegmentsTableView_2->segmentationNode())
+      {
+      this->mrmlScene()->RemoveNode(d->SegmentsTableView_2->segmentationNode());
+      d->SegmentsTableView_2->setSegmentationNode(NULL);
+      }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -2756,6 +2832,11 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
 
   vtkMRMLVolumeRenderingDisplayNode* displayNode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(sender);
+
+  if (!displayNode)
+    {
+    return;
+    }
 
   d->VisibilityCheckBox->setChecked(
     displayNode ? displayNode->GetVisibility() : false);
@@ -3006,15 +3087,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if (!sender)
-    {
-    return;
-    }
-
   vtkMRMLSelectionNode *selectionNode =
       vtkMRMLSelectionNode::SafeDownCast(sender);
 
-  if (!selectionNode)
+  if (!selectionNode || !this->mrmlScene())
     {
     return;
     }
@@ -3064,6 +3140,11 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
 
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+
+  if (!astroVolumeLogic)
+    {
+    return;
+    }
 
   astroVolumeLogic->updateUnitsNodes(activeVolumeNode);
 }
@@ -3215,6 +3296,11 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if (!volumeNode)
+    {
+    return;
+    }
+
   d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
 
   this->setEnabled(volumeNode != 0);
@@ -3224,6 +3310,11 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!volumeNode)
+    {
+    return;
+    }
 
   d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
 
@@ -3241,7 +3332,6 @@ qSlicerVolumeRenderingModuleWidget* qSlicerAstroVolumeModuleWidget::volumeRender
 //--------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::enter()
 {
-  this->onEnter();
   this->Superclass::enter();
 }
 

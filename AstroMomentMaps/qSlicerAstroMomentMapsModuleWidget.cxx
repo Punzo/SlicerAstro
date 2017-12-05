@@ -293,11 +293,11 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->initializeParameterNode(scene);
 
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndCloseEvent,
+  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
                       this, SLOT(onEndCloseEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::StartImportEvent,
+  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
                       this, SLOT(onStartImportEvent()));
-  this->qvtkReconnect(this->mrmlScene(), vtkMRMLScene::EndImportEvent,
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
                       this, SLOT(onEndImportEvent()));
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
@@ -307,7 +307,7 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
   this->onMRMLAstroMomentMapsParametersNodeModified();
 

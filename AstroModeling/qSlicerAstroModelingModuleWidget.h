@@ -73,8 +73,6 @@ protected:
   void initializeSegmentations(bool forceNew = false);
   void initializeTableNode(bool forceNew = false);
   bool convertSelectedSegmentToLabelMap();
-  void onEnter();
-  void onExit();
 
 protected slots:
   void centerPVOffset();

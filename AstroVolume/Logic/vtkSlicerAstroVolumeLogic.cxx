@@ -153,15 +153,11 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   // List of events the slice logics should listen
   vtkNew<vtkIntArray> events;
 
-  // Events that use the default priority.  Don't care the order they
-  // are triggered
+  // Events that use the default priority.
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
   events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
   events->InsertNextValue(vtkMRMLScene::EndImportEvent);
-
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
-
-  this->ProcessMRMLSceneEvents(newScene, vtkMRMLScene::EndBatchProcessEvent, 0);
 }
 
 //----------------------------------------------------------------------------
@@ -401,15 +397,24 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 
     vtkMRMLSliceNode* sliceNodeRed = vtkMRMLSliceNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
-    sliceNodeRed->SetOrientation("XY");
+    if (sliceNodeRed && !this->GetMRMLScene()->IsImporting())
+      {
+      sliceNodeRed->SetOrientation("XY");
+      }
 
     vtkMRMLSliceNode* sliceNodeYellow = vtkMRMLSliceNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-    sliceNodeYellow->SetOrientation("XZ");
+    if (sliceNodeYellow && !this->GetMRMLScene()->IsImporting())
+      {
+      sliceNodeYellow->SetOrientation("XZ");
+      }
 
     vtkMRMLSliceNode* sliceNodeGreen = vtkMRMLSliceNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-    sliceNodeGreen->SetOrientation("ZY");
+    if (sliceNodeGreen && !this->GetMRMLScene()->IsImporting())
+      {
+      sliceNodeGreen->SetOrientation("ZY");
+      }
     }
 }
 
@@ -567,37 +572,38 @@ void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
 
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
     this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if (selectionNode)
+  if (!selectionNode)
     {
-    vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
-    double max = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
-    double min = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
-    unitNode1->SetMaximumValue(max);
-    unitNode1->SetMinimumValue(min);
-    unitNode1->SetDisplayCoefficient(1.);
-    std::string temp = " ";
-    if(max < 0.001)
-      {
-      temp += "\xB5";
-      unitNode1->SetDisplayCoefficient(1000000.);
-      }
-    else
-      {
-      if(max < 1.)
-        {
-        temp += "m";
-        unitNode1->SetDisplayCoefficient(1000.);
-        }
-      }
-
-    temp += "Jy/beam";
-    unitNode1->SetPrecision(6);
-    unitNode1->SetPrefix("");
-    unitNode1->SetSuffix(temp.c_str());
-    unitNode1->SetAttribute("DisplayHint","");
-    selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+    return;
     }
 
+  vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+  double max = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+  double min = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+  unitNode1->SetMaximumValue(max);
+  unitNode1->SetMinimumValue(min);
+  unitNode1->SetDisplayCoefficient(1.);
+  std::string temp = " ";
+  if(max < 0.001)
+    {
+    temp += "\xB5";
+    unitNode1->SetDisplayCoefficient(1000000.);
+    }
+  else
+    {
+    if(max < 1.)
+      {
+      temp += "m";
+      unitNode1->SetDisplayCoefficient(1000.);
+      }
+    }
+
+  temp += "Jy/beam";
+  unitNode1->SetPrecision(6);
+  unitNode1->SetPrefix("");
+  unitNode1->SetSuffix(temp.c_str());
+  unitNode1->SetAttribute("DisplayHint","");
+  selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
 }
 
 //---------------------------------------------------------------------------
