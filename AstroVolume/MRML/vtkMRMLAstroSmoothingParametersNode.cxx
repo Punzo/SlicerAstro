@@ -398,7 +398,7 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 {
   if(this->GetFilter() != 1)
     {
-    this->gaussianKernel1D = NULL;
+    this->gaussianKernel1D->Initialize();
     return;
     }
 
@@ -450,7 +450,7 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
 {
   if(this->GetFilter() != 1)
     {
-    this->gaussianKernel3D = NULL;
+    this->gaussianKernel3D->Initialize();
     return;
     }
 
