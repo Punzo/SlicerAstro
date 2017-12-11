@@ -1096,6 +1096,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
             }
           coll->RemoveAllItems();
           coll->Delete();
+          d->GaussianKernelView->forceRender();
           }
         break;
         }
