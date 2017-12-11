@@ -844,7 +844,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
           d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueX(cdelt1, 3).c_str());
+                                       ->GetDisplayStringFromValueY(cdelt1, 3).c_str());
           double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
           d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
                                        ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
