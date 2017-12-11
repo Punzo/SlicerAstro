@@ -121,6 +121,7 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->ImageDimensionsWidget->setMinimum(0);
   this->ImageDimensionsWidget->setMaximum(1e+06);
   this->ImageDimensionsWidget->setUnitAwareProperties(qMRMLCoordinatesWidget::MaximumValue|qMRMLCoordinatesWidget::MinimumValue|qMRMLCoordinatesWidget::Precision|qMRMLCoordinatesWidget::Prefix|qMRMLCoordinatesWidget::Scaling|qMRMLCoordinatesWidget::Suffix);
+  this->ImageDimensionsWidget->setToolTip("The reference space is the IJK.");
 
   this->formLayout->setWidget(0, QFormLayout::FieldRole, ImageDimensionsWidget);
 
@@ -137,6 +138,7 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->ImageSpacingWidget->setSingleStep(0.5);
   this->ImageSpacingWidget->setMaximum(1e+09);
   this->ImageSpacingWidget->setUnitAwareProperties(qMRMLCoordinatesWidget::Precision|qMRMLCoordinatesWidget::Prefix|qMRMLCoordinatesWidget::Scaling|qMRMLCoordinatesWidget::Suffix);
+  this->ImageSpacingWidget->setToolTip("The reference space is the IJK.");
 
   this->formLayout->setWidget(1, QFormLayout::FieldRole, ImageSpacingWidget);
 
@@ -152,6 +154,7 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->ImageOriginWidget->setMinimum(-1e+09);
   this->ImageOriginWidget->setMaximum(1e+09);
   this->ImageOriginWidget->setUnitAwareProperties(qMRMLCoordinatesWidget::Precision|qMRMLCoordinatesWidget::Prefix|qMRMLCoordinatesWidget::Scaling|qMRMLCoordinatesWidget::Suffix);
+  this->ImageOriginWidget->setToolTip("This is the center of the display of the dataset in IJK coordinates. The IJK Origin in SlicerAstro is always at the IJK coordinates (0,0,0), i.e., the bottom-left corner.");
 
   this->formLayout->setWidget(2, QFormLayout::FieldRole, ImageOriginWidget);
 
@@ -202,7 +205,7 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->ImageDimensionsWidget->setProperty("coordinates", QVariant("1,1,1"));
   this->ImageSpacingLabel->setText("Image Spacing:");
   this->ImageSpacingWidget->setProperty("coordinates", QVariant("0,0,0"));
-  this->ImageOriginLabel->setText("Image Origin:");
+  this->ImageOriginLabel->setText("Image Center:");
   this->CenterVolumePushButton->setText("Center Volume");
   this->NumberOfScalarsLabel->setText("Number of Scalars:");
   this->FileNameLabel->setText("File Name:");
