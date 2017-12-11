@@ -126,6 +126,8 @@ protected slots:
   void setDisplayConnection(vtkMRMLNode* node);
   void setDisplayROIEnabled(bool visibility);
   void setOpticalVelocity();
+  void setRADegreeUnit();
+  void setRASexagesimalUnit();
   void setRadioVelocity();
   void spreadPreset(double stretchValue);
   void updatePresets(vtkMRMLNode* node);

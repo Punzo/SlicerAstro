@@ -746,7 +746,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->RySpinBox->hide();
         d->RzLabel->hide();
         d->RzSpinBox->hide();
-        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters N<sub>X</sub>"
+        d->LinkCheckBox->setToolTip("Click to link/unlink the parameters N<sub>X</sub>"
                                     ", N<sub>Y</sub> and N<sub>Z</sub>");
         d->CDELT1Label->show();
         d->CDELT1LabelValue->show();
@@ -784,7 +784,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
           }
-        d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction");
+        d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction.");
         d->DoubleSpinBoxY->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
@@ -796,7 +796,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
           }
-        d->DoubleSpinBoxY->setToolTip("Number of pixel of the Box kernel in the Y direction");
+        d->DoubleSpinBoxY->setToolTip("Number of pixel of the Box kernel in the Y direction.");
         d->DoubleSpinBoxZ->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
@@ -808,7 +808,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
           }
-        d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction");
+        d->DoubleSpinBoxZ->setToolTip("Number of pixel of the Box kernel in the Z direction.");
         d->DoubleSpinBoxX->setMinimum(1);
         d->DoubleSpinBoxY->setMinimum(1);
         d->DoubleSpinBoxZ->setMinimum(1);
@@ -828,8 +828,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->KSpinBox->hide();
         d->TimeStepLabel->hide();
         d->TimeStepSpinBox->hide();
-        d->LinkCheckBox->setToolTip("Click to link / unlink the parameters"
-                                    " FWHM<sub>X</sub>, FWHM<sub>Y</sub> and FWHM<sub>Z</sub>");
+        d->LinkCheckBox->setToolTip("Click to link/unlink the parameters"
+                                    " FWHM<sub>X</sub>, FWHM<sub>Y</sub> and FWHM<sub>Z</sub>.");
         d->CDELT1Label->show();
         d->CDELT1LabelValue->show();
         d->CDELT2Label->show();
@@ -866,7 +866,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
           }
-        d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction");
+        d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction.");
         d->DoubleSpinBoxY->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
@@ -878,7 +878,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
           }
-        d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction");
+        d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction.");
         d->DoubleSpinBoxZ->setSingleStep(2);
         if(d->parametersNode->GetLink())
           {
@@ -890,7 +890,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxZ->setValue(d->parametersNode->GetParameterZ());
           }
-        d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction");
+        d->DoubleSpinBoxZ->setToolTip("Full width at half maximum in pixel in the Z direction.");
         d->DoubleSpinBoxX->setMinimum(1);
         d->DoubleSpinBoxY->setMinimum(1);
         d->DoubleSpinBoxZ->setMinimum(1);
@@ -901,14 +901,14 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->RxLabel->setText(theta + "<sub>X</sub>:");
         d->RyLabel->setText(theta + "<sub>Y</sub>:");
         d->RzLabel->setText(theta + "<sub>Z</sub>:");
-        d->RxSpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the x axis");
-        d->RySpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the y axis");
-        d->RzSpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the z axis");
+        d->RxSpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the X axes.");
+        d->RySpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the Y axes.");
+        d->RzSpinBox->setToolTip("Rotation Euler angle (in degree) with respect to the Z axes.");
         d->AccuracyLabel->setText("Kernel Accuracy:");
         d->AccuracySpinBox->setSingleStep(1);
         d->AccuracySpinBox->setValue(d->parametersNode->GetAccuracy());
         d->AccuracySpinBox->setMaximum(5);
-        d->AccuracySpinBox->setToolTip("Set the accuracy of the Gaussian Kernel in sigma units");
+        d->AccuracySpinBox->setToolTip("Set the accuracy of the Gaussian Kernel in sigma units.");
         switch (d->parametersNode->GetAccuracy())
           {
           case 1:
@@ -1120,7 +1120,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->CDELT2LabelValue->hide();
         d->CDELT3Label->hide();
         d->CDELT3LabelValue->hide();
-        d->LinkCheckBox->setToolTip("Click to link / unlink the conductivity parameters");
+        d->LinkCheckBox->setToolTip("Click to link/unlink the conductivity parameters.");
         d->KLabel->show();
         d->KSpinBox->show();
         d->SigmaYLabel->show();

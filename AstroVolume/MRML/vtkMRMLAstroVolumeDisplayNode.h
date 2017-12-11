@@ -69,7 +69,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
 
   ///
   /// Set/Get the SpaceQuantities.
-  /// The default is 3 and the values are "length; length; velocity".
+  /// The default is 3 and the values are "time; length; velocity".
   /// \sa SetSpaceQuantities(), GetSpaceQuantities()
   vtkGetObjectMacro(SpaceQuantities, vtkStringArray);
   vtkSetObjectMacro(SpaceQuantities, vtkStringArray);

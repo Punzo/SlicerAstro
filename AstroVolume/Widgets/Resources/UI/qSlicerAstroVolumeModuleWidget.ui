@@ -21,20 +21,11 @@
    <string/>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="leftMargin">
-    <number>0</number>
-   </property>
-   <property name="topMargin">
-    <number>0</number>
-   </property>
-   <property name="rightMargin">
-    <number>0</number>
-   </property>
-   <property name="bottomMargin">
+   <property name="margin">
     <number>0</number>
    </property>
    <item row="4" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="DisplayCollapsibleButton">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
@@ -50,7 +41,7 @@
      <property name="toolTip">
       <string/>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Display</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -77,7 +68,7 @@
     </spacer>
    </item>
    <item row="7" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="CollapsibleButton_CopyMoveSegment" native="true">
+    <widget class="ctkCollapsibleButton" name="CollapsibleButton_CopyMoveSegment">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
        <horstretch>0</horstretch>
@@ -90,29 +81,20 @@
        <height>0</height>
       </size>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Mask Visualization</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="leftMargin">
-       <number>4</number>
-      </property>
-      <property name="topMargin">
-       <number>4</number>
-      </property>
-      <property name="rightMargin">
-       <number>4</number>
-      </property>
-      <property name="bottomMargin">
+      <property name="margin">
        <number>4</number>
       </property>
       <item>
@@ -137,7 +119,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert a LabelMap Node (Masks) into the current Segmentation Node for editing it (NOTE: the last segment is not a sourceID, but it is needed by SlicerAstro for memory management reason)</string>
+             <string>Convert a LabelMap Node (Masks) into the current Segmentation for editing it (NOTE: the last segment is not a sourceID, but it is needed by SlicerAstro for memory management reason)</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -160,7 +142,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Display Masks in the 3D view</string>
+             <string>Display (On/Off) Masks in the 3D view</string>
             </property>
             <property name="text">
              <string>Create surface</string>
@@ -192,7 +174,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert the current Segmentation Node into a LabelMap Node (Masks) to write it into a FITS file</string>
+             <string>Convert the current Segmentation into a LabelMap Node (Masks) to write it into a FITS file.</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -215,7 +197,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>click to navigate to the segment editor module</string>
+             <string>Click to navigate to the segment editor module.</string>
             </property>
             <property name="text">
              <string>Edit segmentation</string>
@@ -238,7 +220,7 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView_2" native="true">
+            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView_2">
              <property name="enabled">
               <bool>true</bool>
              </property>
@@ -268,7 +250,7 @@
     </widget>
    </item>
    <item row="3" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="CollapsibleButton_CopyMoveSegment_2" native="true">
+    <widget class="ctkCollapsibleButton" name="CollapsibleButton_CopyMoveSegment_2">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
@@ -281,36 +263,133 @@
        <height>0</height>
       </size>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>WCS</string>
      </property>
-     <property name="checkable" stdset="0">
+     <property name="checkable">
       <bool>true</bool>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_12">
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="leftMargin">
-       <number>4</number>
-      </property>
-      <property name="topMargin">
-       <number>4</number>
-      </property>
-      <property name="rightMargin">
-       <number>4</number>
-      </property>
-      <property name="bottomMargin">
+      <property name="margin">
        <number>4</number>
       </property>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_9">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_15">
+          <item>
+           <widget class="QLabel" name="RightAscensionUnitLabel">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>145</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="text">
+             <string>Right Ascension Unit:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="DegreeUnitButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>32</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Click to use degree as unit for the 1st WCS axes. </string>
+            </property>
+            <property name="text">
+             <string>Degree</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>32</width>
+              <height>32</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>false</bool>
+            </property>
+            <property name="autoDefault">
+             <bool>false</bool>
+            </property>
+            <property name="default">
+             <bool>false</bool>
+            </property>
+            <property name="flat">
+             <bool>false</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="SexagesimalUnitButton">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>0</width>
+              <height>32</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Click to use sexagesimal system as unit for the 1st WCS axes. </string>
+            </property>
+            <property name="text">
+             <string>Sexagesimal</string>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>32</width>
+              <height>32</height>
+             </size>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_13">
           <item>
@@ -323,12 +402,12 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>100</width>
+              <width>145</width>
               <height>0</height>
              </size>
             </property>
             <property name="text">
-             <string>Velocity definition:</string>
+             <string>Velocity Definition:</string>
             </property>
            </widget>
           </item>
@@ -346,7 +425,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>30</height>
+              <height>32</height>
              </size>
             </property>
             <property name="toolTip">
@@ -396,7 +475,7 @@
             <property name="minimumSize">
              <size>
               <width>0</width>
-              <height>30</height>
+              <height>32</height>
              </size>
             </property>
             <property name="toolTip">
@@ -428,7 +507,7 @@
     </widget>
    </item>
    <item row="2" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="InfoCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="InfoCollapsibleButton">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
        <horstretch>0</horstretch>
@@ -444,13 +523,13 @@
      <property name="toolTip">
       <string/>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Volume Information</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout"/>
@@ -478,7 +557,7 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLNodeComboBox" name="ActiveVolumeNodeSelector" native="true">
+      <widget class="qMRMLNodeComboBox" name="ActiveVolumeNodeSelector">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -491,19 +570,19 @@
          <height>0</height>
         </size>
        </property>
-       <property name="nodeTypes" stdset="0">
+       <property name="nodeTypes">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
          <string>vtkMRMLAstroLabelMapVolumeNode</string>
         </stringlist>
        </property>
-       <property name="noneEnabled" stdset="0">
+       <property name="noneEnabled">
         <bool>true</bool>
        </property>
-       <property name="addEnabled" stdset="0">
+       <property name="addEnabled">
         <bool>false</bool>
        </property>
-       <property name="renameEnabled" stdset="0">
+       <property name="renameEnabled">
         <bool>true</bool>
        </property>
       </widget>
@@ -511,7 +590,7 @@
     </layout>
    </item>
    <item row="6" column="1" colspan="3">
-    <widget class="ctkCollapsibleButton" name="RenderingFrame" native="true">
+    <widget class="ctkCollapsibleButton" name="RenderingFrame">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -533,10 +612,10 @@
      <property name="toolTip">
       <string/>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Rendering</string>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_14">
@@ -579,12 +658,12 @@
         <property name="text">
          <string/>
         </property>
-        <property name="indicatorIcon" stdset="0">
+        <property name="indicatorIcon">
          <iconset>
           <normaloff>:/Icons/VisibleOn.png</normaloff>
           <normalon>:/Icons/VisibleOff.png</normalon>:/Icons/VisibleOn.png</iconset>
         </property>
-        <property name="indicatorIconSize" stdset="0">
+        <property name="indicatorIconSize">
          <size>
           <width>21</width>
           <height>21</height>
@@ -648,7 +727,7 @@
        </widget>
       </item>
       <item row="2" column="1">
-       <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox" native="true">
+       <widget class="qSlicerPresetComboBox" name="PresetsNodeComboBox">
         <property name="enabled">
          <bool>false</bool>
         </property>
@@ -676,7 +755,7 @@
       <item row="3" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_3">
         <item>
-         <widget class="ctkDoubleSpinBox" name="RMSDoubleSpinBox" native="true">
+         <widget class="ctkDoubleSpinBox" name="RMSDoubleSpinBox">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -689,7 +768,7 @@
           <property name="toolTip">
            <string>Update the RMS value and the 3D color function presets.</string>
           </property>
-          <property name="decimals" stdset="0">
+          <property name="decimals">
            <number>9</number>
           </property>
          </widget>
@@ -730,7 +809,7 @@
         <item>
          <layout class="QGridLayout" name="gridLayout_3">
           <item row="0" column="0">
-           <widget class="ctkSliderWidget" name="PresetOffsetSlider" native="true">
+           <widget class="ctkSliderWidget" name="PresetOffsetSlider">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -743,13 +822,13 @@
             <property name="toolTip">
              <string>Shift the current 3D color transfer function.</string>
             </property>
-            <property name="decimals" stdset="0">
+            <property name="decimals">
              <number>6</number>
             </property>
            </widget>
           </item>
           <item row="1" column="0">
-           <widget class="ctkSliderWidget" name="PresetStretchSlider" native="true">
+           <widget class="ctkSliderWidget" name="PresetStretchSlider">
             <property name="enabled">
              <bool>false</bool>
             </property>
@@ -760,9 +839,9 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Stretch  the current 3D color transfer function. When using this tool is adviced to lock the Shift and Stretch  widgets.  </string>
+             <string>Stretch the current 3D color transfer function. When using this tool is adviced to lock the Shift and Stretch widgets.  </string>
             </property>
-            <property name="decimals" stdset="0">
+            <property name="decimals">
              <number>6</number>
             </property>
            </widget>
@@ -787,7 +866,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>This lock the Shift and Stretch  widgets to have the same value.</string>
+           <string>This lock the Shift and Stretch widgets to have the same value.</string>
           </property>
           <property name="icon">
            <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -869,12 +948,12 @@
           <property name="text">
            <string>Display ROI</string>
           </property>
-          <property name="indicatorIcon" stdset="0">
+          <property name="indicatorIcon">
            <iconset>
             <normaloff>:/Icons/VisibleOn.png</normaloff>
             <normalon>:/Icons/VisibleOff.png</normalon>:/Icons/VisibleOn.png</iconset>
           </property>
-          <property name="indicatorIconSize" stdset="0">
+          <property name="indicatorIconSize">
            <size>
             <width>21</width>
             <height>21</height>
