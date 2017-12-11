@@ -52,6 +52,7 @@
 #include <vtkDataArray.h>
 #include <vtkImageAlgorithm.h>
 #include <vtkImageData.h>
+#include <vtkGeneralTransform.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkTrivialProducer.h>
@@ -338,8 +339,24 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
   double* spacing = d->VolumeNode->GetSpacing();
   d->ImageSpacingWidget->setCoordinates(spacing);
 
-  double* origin = d->VolumeNode->GetOrigin();
-  d->ImageOriginWidget->setCoordinates(origin);
+  double* RASOrigin = d->VolumeNode->GetOrigin();
+  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+  RAStoIJKTransform->Identity();
+  RAStoIJKTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+  d->VolumeNode->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+  RAStoIJKMatrix->SetElement(0,3,0.);
+  RAStoIJKMatrix->SetElement(1,3,0.);
+  RAStoIJKMatrix->SetElement(2,3,0.);
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+  double IJKOrigin[3];
+  RAStoIJKTransform->TransformPoint(RASOrigin, IJKOrigin);
+  IJKOrigin[0] += dimensions[0];
+  IJKOrigin[1] += dimensions[1];
+  IJKOrigin[2] += dimensions[2];
+  bool state = d->ImageOriginWidget->blockSignals(true);
+  d->ImageOriginWidget->setCoordinates(IJKOrigin);
+  d->ImageOriginWidget->blockSignals(state);
 
   d->CenterVolumePushButton->setEnabled(!this->isCentered());
 
@@ -370,14 +387,38 @@ void qMRMLAstroVolumeInfoWidget::setImageSpacing(double* spacing)
 }
 
 //------------------------------------------------------------------------------
-void qMRMLAstroVolumeInfoWidget::setImageOrigin(double* origin)
+void qMRMLAstroVolumeInfoWidget::setImageOrigin(double* IJKOrigin)
 {
   Q_D(qMRMLAstroVolumeInfoWidget);
   if (d->VolumeNode == 0)
     {
     return;
     }
-  d->VolumeNode->SetOrigin(origin);
+
+  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+  IJKtoRASTransform->Identity();
+  IJKtoRASTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  d->VolumeNode->GetIJKToRASMatrix(IJKtoRASMatrix.GetPointer());
+  IJKtoRASMatrix->SetElement(0,3,0.);
+  IJKtoRASMatrix->SetElement(1,3,0.);
+  IJKtoRASMatrix->SetElement(2,3,0.);
+  IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
+  vtkImageData* image = d->VolumeNode->GetImageData();
+  double dimensions[3] = {0.,0.,0.};
+  int* dims = image ? image->GetDimensions() : 0;
+  if (dims)
+    {
+    dimensions[0] = dims[0];
+    dimensions[1] = dims[1];
+    dimensions[2] = dims[2];
+    }
+  IJKOrigin[0] -= dimensions[0];
+  IJKOrigin[1] -= dimensions[1];
+  IJKOrigin[2] -= dimensions[2];
+  double RASOrigin[3];
+  IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
+  d->VolumeNode->SetOrigin(RASOrigin);
 }
 
 //------------------------------------------------------------------------------

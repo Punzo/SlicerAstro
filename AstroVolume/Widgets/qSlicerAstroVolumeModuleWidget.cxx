@@ -2780,8 +2780,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLLabelVolumeNodeModified()
     {
     d->SexagesimalUnitButton->setChecked(true);
     }
-  d->DegreeUnitButton->blockSignals(SexagesimalState);
-  d->SexagesimalUnitButton->blockSignals(DegreeState);
+  d->DegreeUnitButton->blockSignals(DegreeState);
+  d->SexagesimalUnitButton->blockSignals(SexagesimalState);
 }
 
 //---------------------------------------------------------------------------
@@ -3442,8 +3442,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
     {
     d->SexagesimalUnitButton->setChecked(true);
     }
-  d->DegreeUnitButton->blockSignals(SexagesimalState);
-  d->SexagesimalUnitButton->blockSignals(DegreeState);
+  d->DegreeUnitButton->blockSignals(DegreeState);
+  d->SexagesimalUnitButton->blockSignals(SexagesimalState);
 }
 
 //--------------------------------------------------------------------------
