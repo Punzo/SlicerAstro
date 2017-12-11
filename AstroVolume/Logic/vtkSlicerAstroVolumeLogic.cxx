@@ -735,6 +735,13 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
     return 0.;
     }
 
+  if (inputVolume == NULL)
+   {
+   vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
+                 "inputVolume not found.");
+   return false;
+   }
+
   if (inputVolume->GetImageData() == NULL)
    {
    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
@@ -934,13 +941,15 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
       break;
     }
 
-  inputVolume->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
-  inputVolume->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
   outFPixel = NULL;
   outDPixel = NULL;
   delete outFPixel;
   delete outDPixel;
 
+  inputVolume->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
+  inputVolume->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
+
+  inputVolume->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::NoiseModifiedEvent);
   return noise;
 }
 

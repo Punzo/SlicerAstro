@@ -37,6 +37,7 @@
 
 //------------------------------------------------------------------------------
 const char* vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE = "preset";
+const char* vtkMRMLAstroVolumeNode::VOLUMEPROPERTY_REFERENCE_ROLE = "volumeProperty";
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
@@ -55,6 +56,12 @@ vtkMRMLAstroVolumeNode::~vtkMRMLAstroVolumeNode()
 const char *vtkMRMLAstroVolumeNode::GetPresetNodeReferenceRole()
 {
   return vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE;
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroVolumeNode::GetVolumePropertyNodeReferenceRole()
+{
+  return vtkMRMLAstroVolumeNode::VOLUMEPROPERTY_REFERENCE_ROLE;
 }
 
 namespace
@@ -409,13 +416,15 @@ bool vtkMRMLAstroVolumeNode::UpdateNoiseAttributes()
   noise = (noise1 + noise2) * 0.5;
   mean = (mean1 + mean2) * 0.5;
 
-  this->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());\
-  this->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
   outFPixel = NULL;
   outDPixel = NULL;
   delete outFPixel;
   delete outDPixel;
 
+  this->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
+  this->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
+
+  this->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::NoiseModifiedEvent);
   return true;
 }
 
@@ -440,6 +449,74 @@ vtkMRMLNode *vtkMRMLAstroVolumeNode::GetPresetNode()
     }
 
   return this->GetNodeReference(this->GetPresetNodeReferenceRole());
+}
+
+//-----------------------------------------------------------
+int vtkMRMLAstroVolumeNode::GetPresetIndex()
+{
+  vtkMRMLNode* presetNode = this->GetPresetNode();
+  if (!presetNode)
+    {
+    return vtkMRMLAstroVolumeNode::LowConstantOpacityPreset;
+    }
+
+  std::string presetName = presetNode->GetName();
+
+  if (presetName.find("LowConstantOpacity") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::LowConstantOpacityPreset;
+    }
+  else if (presetName.find("MediumConstantOpacity") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::MediumConstantOpacityPreset;
+    }
+  else if (presetName.find("HighConstantOpacity") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::HighConstantOpacityPreset;
+    }
+  else if (presetName.find("OneSurface") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::OneSurfacePreset;
+    }
+  else if (presetName.find("OneSurfaceWhite") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::OneSurfaceWhitePreset;
+    }
+  else if (presetName.find("TwoSurfaces") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::TwoSurfacesPreset;
+    }
+  else if (presetName.find("ThreeSurfaces") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
+    }
+  else
+    {
+    return vtkMRMLAstroVolumeNode::LowConstantOpacityPreset;
+    }
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetVolumePropertyNode(vtkMRMLVolumePropertyNode *node)
+{
+  this->SetNodeReferenceID(this->GetVolumePropertyNodeReferenceRole(), (node ? node->GetID() : NULL));
+}
+
+//-----------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetVolumePropertyNode(vtkMRMLNode *node)
+{
+  this->SetVolumePropertyNode(vtkMRMLVolumePropertyNode::SafeDownCast(node));
+}
+
+//-----------------------------------------------------------
+vtkMRMLNode *vtkMRMLAstroVolumeNode::GetVolumePropertyNode()
+{
+  if (!this->Scene)
+    {
+    return NULL;
+    }
+
+  return this->GetNodeReference(this->GetVolumePropertyNodeReferenceRole());
 }
 
 //-----------------------------------------------------------

@@ -87,11 +87,37 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   /// Update Noise Attribute
    virtual bool UpdateNoiseAttributes();
 
+  enum
+     {
+     NoiseModifiedEvent = 71000,
+     };
+
   ///
   /// Set/Get reference to a Preset Node
   void SetPresetNode(vtkMRMLVolumePropertyNode* node);
   void SetPresetNode(vtkMRMLNode* node);
   vtkMRMLNode *GetPresetNode();
+
+  ///
+  /// Utility method to get the PresetComboBoxIndex from the PresetNode
+  int GetPresetIndex();
+
+  enum
+     {
+      LowConstantOpacityPreset,
+      MediumConstantOpacityPreset,
+      HighConstantOpacityPreset,
+      OneSurfacePreset,
+      OneSurfaceWhitePreset,
+      TwoSurfacesPreset,
+      ThreeSurfacesPreset
+     };
+
+  ///
+  /// Set/Get reference to the current VolumeProperty Node
+  void SetVolumePropertyNode(vtkMRMLVolumePropertyNode* node);
+  void SetVolumePropertyNode(vtkMRMLNode* node);
+  vtkMRMLNode *GetVolumePropertyNode();
 
 protected:
   vtkMRMLAstroVolumeNode();
@@ -99,6 +125,9 @@ protected:
 
   static const char* PRESET_REFERENCE_ROLE;
   const char *GetPresetNodeReferenceRole();
+
+  static const char* VOLUMEPROPERTY_REFERENCE_ROLE;
+  const char *GetVolumePropertyNodeReferenceRole();
 
   vtkMRMLAstroVolumeNode(const vtkMRMLAstroVolumeNode&);
   void operator=(const vtkMRMLAstroVolumeNode&);
