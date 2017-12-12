@@ -106,7 +106,7 @@ public:
   /// modifierLabelmap at many different positions.
   void updateBrushStencil(qMRMLWidget* viewWidget);
 
-  /// create a 3-D closed surface poly mask from the 2-D selection on the 3-D View
+  /// create a 3D closed surface poly mask from the 2D selection on the 3D View
   void createClosedSurfacePolyMask(qMRMLWidget* viewWidget);
 
 protected slots:

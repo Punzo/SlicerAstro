@@ -391,9 +391,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         return 0;
         }
       }
-    if (!strcmp(reader->GetHeaderValue("SlicerAstro.RMS"), "0."))
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.DisplayThreshold"), "0."))
       {
-      if (!volNode->UpdateNoiseAttributes())
+      if (!volNode->UpdateDisplayThresholdAttributes())
         {
         vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
                       "could not calculate noise attributes.");
@@ -425,10 +425,9 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         }
       }
 
-    if (!strcmp(reader->GetHeaderValue("SlicerAstro.RMS"), "0."))
+    if (!strcmp(reader->GetHeaderValue("SlicerAstro.DisplayThreshold"), "0."))
       {
-      double noise = 1.;
-      labvolNode->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
+      labvolNode->SetAttribute("SlicerAstro.DisplayThreshold", DoubleToString(1.).c_str());
       }
     }
 

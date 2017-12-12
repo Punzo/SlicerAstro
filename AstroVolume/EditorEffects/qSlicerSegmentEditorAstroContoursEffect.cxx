@@ -67,12 +67,14 @@ public:
   QFrame* AstroContournsFrame;
   QLabel* DataInfoLabel;
   QLabel* ContourLevelsLabel;
+  QLabel* ContoursNamePrefix;
   QLineEdit* ContourLevelsLineEdit;
+  QLineEdit* ContoursNamePrefixLineEdit;
   QPushButton* ApplyButton;
 
 protected slots:
 
-  void onRMSLevelsChanged(QString RMSLevels);
+  void onDisplayThresholdLevelsChanged(QString DisplayThresholdLevels);
 };
 
 namespace
@@ -84,6 +86,12 @@ template <typename T> T StringToNumber(const char* num)
   ss << num;
   T result;
   return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -128,7 +136,7 @@ qSlicerSegmentEditorAstroContoursEffectPrivate::~qSlicerSegmentEditorAstroContou
 {
 }
 
-//------------S-----------------------------------------------------------------
+//-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
 {
   Q_Q(qSlicerSegmentEditorAstroContoursEffect);
@@ -140,15 +148,22 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->DataInfoLabel = new QLabel("Data Info: ");
   q->addOptionsWidget(this->DataInfoLabel);
 
-  this->ContourLevelsLabel = new QLabel("Contour Levels: ");
+  this->ContoursNamePrefix = new QLabel("Contours name prefix: ");
+  q->addOptionsWidget(this->ContoursNamePrefix);
+  this->ContoursNamePrefixLineEdit = new QLineEdit("Galaxy");
+  q->addOptionsWidget(this->ContoursNamePrefixLineEdit);
+
+  this->ContourLevelsLabel = new QLabel("Contour levels: ");
   q->addOptionsWidget(this->ContourLevelsLabel);
 
-  this->ContourLevelsLineEdit = new QLineEdit("RMS -3;3;7;15");
-  this->ContourLevelsLineEdit->setToolTip("Contour Levels. The Levels can be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3') "
-                                          "or in the following format 'FISRT:LAST:SPACING'. "
-                                          "In the case of a list, it is possible also to specify for each Contour both the MIN and MAX intensity values of the level "
+  this->ContourLevelsLineEdit = new QLineEdit("DisplayThreshold -3;3;7;15");
+  this->ContourLevelsLineEdit->setToolTip("Contour levels: "
+                                          "to specify the levels use the following format: 'FISRT:LAST+SPACING' for linear spacing "
+                                          "or 'FISRT:LAST*SPACING' for non linear spacing. \n\n"
+                                          "The levels can also be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3'). "
+                                          "In the case of a list, it is possible also to specify for each contour both the MIN and MAX intensity values of the level "
                                           "(e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). \n\n "
-                                          "If the string is preceded by 'RMS', the levels are evaluated in units of RMS of the datacube. \n\n"
+                                          "If the string is preceded by 'DisplayThreshold', the levels are evaluated in units of the value of DisplayThreshold of the dataset. \n\n"
                                           "The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy "
                                           "to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.");
   q->addOptionsWidget(this->ContourLevelsLineEdit);
@@ -185,7 +200,7 @@ QIcon qSlicerSegmentEditorAstroContoursEffect::icon()
 //---------------------------------------------------------------------------
 QString const qSlicerSegmentEditorAstroContoursEffect::helpText()const
 {
-    return QString("Tool for the creation of Coutours.  ");
+    return QString("Tool for the creation of Contours.  ");
 }
 
 //-----------------------------------------------------------------------------
@@ -204,11 +219,13 @@ void qSlicerSegmentEditorAstroContoursEffect::setMRMLDefaults()
 {
   Q_D(qSlicerSegmentEditorAstroContoursEffect);
   Superclass::setMRMLDefaults();
-  this->setCommonParameterDefault("RMS", 0.);
+  this->setCommonParameterDefault("DisplayThreshold", 0.);
   this->setCommonParameterDefault("MIN", 0.);
   this->setCommonParameterDefault("MAX", 0.);
   this->setCommonParameterDefault("FluxUnit", "JY/BEAM");
-  this->setCommonParameterDefault("ContourLeveles", "RMS -3;3;7;15");
+  this->setCommonParameterDefault("ContourLeveles", "DisplayThreshold -3;3;7;15");
+  this->setCommonParameterDefault("NamePrefix", "Galaxy");
+  this->setCommonParameterDefault("NameIndex", "1");
 }
 
 //-----------------------------------------------------------------------------
@@ -230,18 +247,26 @@ void qSlicerSegmentEditorAstroContoursEffect::updateGUIFromMRML()
   Superclass::updateGUIFromMRML();
 
   QString Levels = this->parameter("ContourLeveles");
-
   d->ContourLevelsLineEdit->blockSignals(true);
   d->ContourLevelsLineEdit->setText(Levels);
   d->ContourLevelsLineEdit->blockSignals(false);
+
+  QString NamePrefix = this->parameter("NamePrefix");
+  d->ContoursNamePrefixLineEdit->blockSignals(true);
+  d->ContoursNamePrefixLineEdit->setText(NamePrefix);
+  d->ContoursNamePrefixLineEdit->blockSignals(false);
+
   std::string DataInfo;
   double MIN = this->doubleParameter("MIN");
   double MAX = this->doubleParameter("MAX");
-  double RMS = this->doubleParameter("RMS");
+  double DisplayThreshold = this->doubleParameter("DisplayThreshold");
 
-  DataInfo = "Data Info: MIN = " + DoubleToString(MIN) +
-             " ; MAX = " + DoubleToString(MAX) +
-             " ; RMS = " + DoubleToString(RMS) +
+  DataInfo = "Dataset info: \n"
+             "MIN = " + DoubleToString(MIN) +
+             " " + this->parameter("FluxUnit").toStdString()+ "\n"
+             "MAX = " + DoubleToString(MAX) +
+             " " + this->parameter("FluxUnit").toStdString()+ "\n"
+             "DisplayThreshold = " + DoubleToString(DisplayThreshold) +
              " " + this->parameter("FluxUnit").toStdString();
   d->DataInfoLabel->setText(QString::fromStdString(DataInfo));
 }
@@ -264,6 +289,35 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
   this->setParameter("ContourLeveles", ContourLevels);
   std::string LevelsStdString = ContourLevels.toStdString();
 
+  QString NamePrefix = d->ContoursNamePrefixLineEdit->text();
+  this->setParameter("NamePrefix", NamePrefix);
+  std::string NamePrefixStdString = NamePrefix.toStdString();
+
+  vtkMRMLSegmentationNode* segmentationNode = this->parameterSetNode()->GetSegmentationNode();
+
+  if (!segmentationNode->GetDisplayNode())
+    {
+    segmentationNode->CreateDefaultDisplayNodes();
+    }
+
+  bool duplicateName = false;
+  for (int ii = 1; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
+    {
+    std::string segmentID = segmentationNode->GetSegmentation()->GetNthSegmentID(ii);
+    if (segmentID.find(NamePrefixStdString) != std::string::npos)
+      {
+      duplicateName = true;
+      }
+    }
+
+  if (duplicateName)
+    {
+    NamePrefixStdString += this->parameter("NameIndex").toStdString();
+    int nameIndex = StringToInt(this->parameter("NameIndex").toStdString().c_str());
+    nameIndex++;
+    this->setParameter("NameIndex", IntToString(nameIndex).c_str());
+    }
+
   vtkNew<vtkDoubleArray> Levels;
   vtkNew<vtkDoubleArray> Delimiters;
   vtkNew<vtkStringArray> SegmentIDs;
@@ -272,10 +326,10 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
   double value;
   double MIN = this->doubleParameter("MIN");
   double MAX = this->doubleParameter("MAX");
-  double RMS = this->doubleParameter("RMS");
+  double DisplayThreshold = this->doubleParameter("DisplayThreshold");
 
   bool convert = false;
-  std::size_t found = LevelsStdString.find("RMS");
+  std::size_t found = LevelsStdString.find("DisplayThreshold");
   if (found != std::string::npos)
     {
     convert = true;
@@ -283,73 +337,63 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 
   bool list = false;
   bool increment = false;
+  bool linearIncrement = false;
+  bool nonLinearIncrement = false;
   bool renzogram = false;
   found = LevelsStdString.find(";");
-  if (found != std::string::npos)
-    {
-    found = LevelsStdString.find(",");
-    if (found != std::string::npos)
-      {
-      renzogram = true;
-      }
-    else
-      {
-      list = true;
-      }
-    found = LevelsStdString.find(":");
-    if (found != std::string::npos)
-      {
-      increment = true;
-      }
-    }
-  else
-    {
-    found = LevelsStdString.find(":");
-    if (found != std::string::npos)
-      {
-      increment = true;
-      }
-    found = LevelsStdString.find(",");
-    if (found != std::string::npos)
-      {
-      renzogram = true;
-      }
-    }
-
-  if (!list && !increment && !renzogram)
+  if (LevelsStdString.find(";") != std::string::npos)
     {
     list = true;
     }
+  if (LevelsStdString.find(",") != std::string::npos)
+    {
+    renzogram = true;
+    }
+  if (LevelsStdString.find(":") != std::string::npos)
+    {
+    increment = true;
+    }
+  if (LevelsStdString.find("+") != std::string::npos)
+    {
+    linearIncrement = true;
+    }
+  if (LevelsStdString.find("*") != std::string::npos)
+    {
+    nonLinearIncrement = true;
+    }
 
-  if ((list && increment) || (renzogram && increment))
+  if ((!list && !increment && !renzogram) || (list && increment) || (renzogram && increment)
+      || (increment && !linearIncrement && !nonLinearIncrement) ||
+      (list && (linearIncrement || nonLinearIncrement)))
     {
     QString message = QString("The input string defining the Contour Levels"
-                              " is formatted wrongly. Check the ToolTip.");
+                              " is wrongly formatted. Check the ToolTip.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to create Contours"), message);
     return;
     }
 
+  if (convert)
+    {
+    for (int ii = 0; ii < 16; ii++)
+      {
+      ss.ignore();
+      }
+    }
+
   if (list)
     { 
-    if (convert)
-      {
-      for (int ii = 0; ii < 3; ii++)
-        {
-        ss.ignore();
-        }
-      }
     while (ss >> value)
       {
       if (convert)
         {
-        Levels->InsertNextValue(value * RMS);
+        Levels->InsertNextValue(value * DisplayThreshold);
         }
       else
         {
         Levels->InsertNextValue(value);
         }
-      if (ss.peek() == ';' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
+      if (ss.peek() == ';')
         {
         ss.ignore();
         }
@@ -357,24 +401,17 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     }
   else if (renzogram)
     {
-    if (convert)
-      {
-      for (int ii = 0; ii < 3; ii++)
-        {
-        ss.ignore();
-        }
-      }
     while (ss >> value)
       {
       if (convert)
         {
-        Levels->InsertNextValue(value * RMS);
+        Levels->InsertNextValue(value * DisplayThreshold);
         }
       else
         {
         Levels->InsertNextValue(value);
         }
-      if (ss.peek() == ';' || ss.peek() == ',' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
+      if (ss.peek() == ';' || ss.peek() == ',')
         {
         ss.ignore();
         }
@@ -382,17 +419,10 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     }
   else if (increment)
     {
-    if (convert)
-      {
-      for (int ii = 0; ii < 3; ii++)
-        {
-        ss.ignore();
-        }
-      }
     while (ss >> value)
       {
       Delimiters->InsertNextValue(value);
-      if (ss.peek() == ':' || ss.peek() == 'R' || ss.peek() == 'M' || ss.peek() == 'S')
+      if (ss.peek() == ':' || ss.peek() == '+' || ss.peek() == '*')
         {
         ss.ignore();
         }
@@ -408,17 +438,26 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       }
 
     double iter = Delimiters->GetValue(0);
-    while (iter <= Delimiters->GetValue(1))
+    int cont = 1;
+    while (fabs(iter) <= fabs(Delimiters->GetValue(1)))
       {
       if (convert)
         {
-        Levels->InsertNextValue(iter * RMS);
+        Levels->InsertNextValue(iter * DisplayThreshold);
         }
       else
         {
         Levels->InsertNextValue(iter);
         }
-      iter += Delimiters->GetValue(2);
+      if (linearIncrement)
+        {
+        iter += Delimiters->GetValue(2);
+        }
+      else if (nonLinearIncrement)
+        {
+        iter += pow(Delimiters->GetValue(2), cont);
+        cont++;
+        }
       }
     }
   else
@@ -454,18 +493,16 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     qWarning() << Q_FUNC_INFO << ": " << message;
     }
 
-  vtkMRMLSegmentationNode* segmentationNode = this->parameterSetNode()->GetSegmentationNode();
-
-  if (!segmentationNode->GetDisplayNode())
-    {
-    segmentationNode->CreateDefaultDisplayNodes();
-    }
-
   // Create empty segment in current segmentation
   this->scene()->SaveStateForUndo();
 
   vtkMRMLAstroVolumeNode* masterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
     this->parameterSetNode()->GetMasterVolumeNode());
+
+  if (!masterVolume)
+    {
+    return;
+    }
 
   for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
     {
@@ -476,7 +513,7 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       ii++;
       ContourLevelNext = Levels->GetValue(ii);
       }
-    std::string SegmentID = masterVolume->GetName();
+    std::string SegmentID = NamePrefixStdString;
     SegmentID += "Contour" + IntToString(ii + 1);
     SegmentIDs->InsertNextValue(SegmentID.c_str());
     vtkSegment *Segment = segmentationNode->GetSegmentation()->GetSegment(SegmentID);
@@ -534,19 +571,24 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       }
     }
 
+  double color[3];
+  segmentationNode->GetSegmentation()->GetNthSegment(0)->GetColor(color);
+
+  for (int ii = 1; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
+    {
+    segmentationNode->GetSegmentation()->GetNthSegment(ii)->SetColor(color);
+    }
+
   for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
     SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-
-    for (int jj = 0; jj < SegmentIDs->GetNumberOfValues(); jj ++)
+    for (int jj = 0; jj < SegmentIDs->GetNumberOfValues(); jj++)
       {
       std::string SegmentID = SegmentIDs->GetValue(jj);
       SegmentationDisplayNode->SetSegmentVisibility(SegmentID, true);
-      SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, true);
-      double opacity = 0.5 + double((jj + 1.) / ( 2. * SegmentIDs->GetNumberOfValues()));
-      SegmentationDisplayNode->SetSegmentOpacity3D(SegmentID, opacity);
+      SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
       SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
       SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
       }
@@ -558,14 +600,21 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 //-----------------------------------------------------------------------------
 qSlicerSegmentEditorAbstractEffect* qSlicerSegmentEditorAstroContoursEffect::clone()
 {
-  return new qSlicerSegmentEditorAstroContoursEffect();
+    return new qSlicerSegmentEditorAstroContoursEffect();
+}
+
+void qSlicerSegmentEditorAstroContoursEffect::activate()
+{
+  Q_D(qSlicerSegmentEditorAstroContoursEffect);
+  Superclass::activate();
+  this->masterVolumeNodeChanged();
 }
 
 //---------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroContoursEffect::deactivate()
 {
   Q_D(qSlicerSegmentEditorAstroContoursEffect);
-    Superclass::deactivate();
+  Superclass::deactivate();
 }
 
 //---------------------------------------------------------------------------
@@ -585,15 +634,16 @@ void qSlicerSegmentEditorAstroContoursEffect::masterVolumeNodeChanged()
     return;
     }
 
-  double RMS = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.RMS"));
+  double DisplayThreshold = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
   double MAX = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
   double MIN = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
   QString unit(astroMasterVolume->GetAttribute("SlicerAstro.BUNIT"));
 
-  this->setCommonParameter("RMS", RMS);
+  this->setCommonParameter("DisplayThreshold", DisplayThreshold);
   this->setCommonParameter("MAX", MAX);
   this->setCommonParameter("MIN", MIN);
   this->setCommonParameter("FluxUnit", unit);
+  this->setCommonParameter("NamePrefix", masterVolume->GetName());
 }
 
 //---------------------------------------------------------------------------

@@ -369,13 +369,13 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(onLockToggled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->RMSLabel, SLOT(setEnabled(bool)));
+                   this->DisplayThresholdLabel, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->RMSDoubleSpinBox, SLOT(setEnabled(bool)));
+                   this->DisplayThresholdDoubleSpinBox, SLOT(setEnabled(bool)));
 
-  QObject::connect(this->RMSDoubleSpinBox, SIGNAL(valueChanged(double)),
-                   q, SLOT(onRMSValueChanged(double)));
+  QObject::connect(this->DisplayThresholdDoubleSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onDisplayThresholdValueChanged(double)));
 
   QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
                    this->CalculateRMSPushButton, SLOT(setEnabled(bool)));
@@ -810,7 +810,7 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
   if(!astroVolumeLogic->synchronizePresetsToVolumeNode(node))
     {
     qWarning() << "qSlicerAstroVolumeModuleWidget::updatePresets error : synchronizePresetsToVolumeNode failed;"
-                  " encountered in adjusting the Color Function for the 3-D display.";
+                  " encountered in adjusting the Color Function for the 3D display.";
     }
 
   if (inputVolume->GetPresetNode() != NULL)
@@ -1459,7 +1459,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onRMSValueChanged(double RMS)
+void qSlicerAstroVolumeModuleWidget::onDisplayThresholdValueChanged(double DisplayThreshold)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -1468,8 +1468,7 @@ void qSlicerAstroVolumeModuleWidget::onRMSValueChanged(double RMS)
     return;
     }
 
-  d->astroVolumeNode->SetAttribute("SlicerAstro.RMS", DoubleToString(RMS).c_str());
-  d->astroVolumeNode->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::NoiseModifiedEvent);
+  d->astroVolumeNode->SetDisplayThreshold(DisplayThreshold);
 }
 
 //---------------------------------------------------------------------------
@@ -1734,7 +1733,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS")) * 3.;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
     max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -1764,7 +1763,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
-    min = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.RMS")) * 3.;
+    min = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
     max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -2044,7 +2043,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -2075,7 +2074,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -2332,7 +2331,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     return;
     }
 
-  double rms = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS"));
+  double rms = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold"));
   if (d->PresetOffsetSlider)
     {
     d->PresetOffsetSlider->setValue((rms * ContourLevel) - (rms * 3.));
@@ -2389,7 +2388,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -2420,7 +2419,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.RMS")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -3391,7 +3390,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeRMSModified(bool forcePreset /*= true*/)
+void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset /*= true*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -3400,29 +3399,29 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeRMSModified(bool forcePrese
     return;
     }
 
-  double RMS = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.RMS"));
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DisplayThreshold"));
   if (forcePreset)
     {
-    d->RMSDoubleSpinBox->setValue(RMS);
+    d->DisplayThresholdDoubleSpinBox->setValue(DisplayThreshold);
     }
   else
     {
-    int status = d->RMSDoubleSpinBox->blockSignals(true);
-    d->RMSDoubleSpinBox->setValue(RMS);
-    d->RMSDoubleSpinBox->blockSignals(status);
+    int status = d->DisplayThresholdDoubleSpinBox->blockSignals(true);
+    d->DisplayThresholdDoubleSpinBox->setValue(DisplayThreshold);
+    d->DisplayThresholdDoubleSpinBox->blockSignals(status);
     }
   double max = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
-  d->RMSDoubleSpinBox->setMaximum(max);
+  d->DisplayThresholdDoubleSpinBox->setMaximum(max);
   double min = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
   if (min < 0.)
     {
     min = 0.;
     }
-  d->RMSDoubleSpinBox->setMinimum(min);
-  d->RMSDoubleSpinBox->setSingleStep((max - min) / 1000.);
-  QString rmsUnit = "  ";
-  rmsUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
-  d->RMSDoubleSpinBox->setSuffix(rmsUnit);
+  d->DisplayThresholdDoubleSpinBox->setMinimum(min);
+  d->DisplayThresholdDoubleSpinBox->setSingleStep((max - min) / 1000.);
+  QString DisplayThresholdUnit = "  ";
+  DisplayThresholdUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
+  d->DisplayThresholdDoubleSpinBox->setSuffix(DisplayThresholdUnit);
 
   this->resetOffset(d->astroVolumeNode);
   this->resetStretch(d->astroVolumeNode);
@@ -3494,9 +3493,9 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
       d->PresetsNodeComboBox->setCurrentNodeIndex(0);
       forcePreset = true;
       }
-    this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::NoiseModifiedEvent,
-                        this, SLOT(onMRMLVolumeNodeRMSModified()));
-    this->onMRMLVolumeNodeRMSModified(forcePreset);
+    this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent,
+                        this, SLOT(onMRMLVolumeNodeDisplayThresholdModified()));
+    this->onMRMLVolumeNodeDisplayThresholdModified(forcePreset);
     d->VisibilityCheckBox->setChecked(true);
     }
   this->qvtkReconnect(d->astroVolumeNode, vtkCommand::ModifiedEvent,

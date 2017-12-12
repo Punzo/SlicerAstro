@@ -1147,7 +1147,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
       int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
 
-      // Create an empty 2-D image
+      // Create an empty 2D image
       vtkNew<vtkImageData> imageDataTemp;
       imageDataTemp->SetDimensions(N1, N2, 1);
       imageDataTemp->SetSpacing(1.,1.,1.);
@@ -1175,7 +1175,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       ZeroMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
       ZeroMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
 
-      // copy 2-D image into the Astro Volume object
+      // copy 2D image into the Astro Volume object
       ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
       double Origin[3];
@@ -1238,7 +1238,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
       int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
 
-      // Create an empty 2-D image
+      // Create an empty 2D image
       vtkNew<vtkImageData> imageDataTemp;
       imageDataTemp->SetDimensions(N1, N2, 1);
       imageDataTemp->SetSpacing(1.,1.,1.);
@@ -1264,7 +1264,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       FirstMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
       FirstMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
 
-      // copy 2-D image into the Astro Volume object
+      // copy 2D image into the Astro Volume object
       FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
       double Origin[3];
@@ -1272,7 +1272,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       Origin[1] = 0.;
       FirstMomentVolume->SetOrigin(Origin);
 
-      // change colorMap of the 2-D image
+      // change colorMap of the 2D image
       vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
       displayNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileHotToColdRainbow.txt");
 
@@ -1330,7 +1330,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
       int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
 
-      // Create an empty 2-D image
+      // Create an empty 2D image
       vtkNew<vtkImageData> imageDataTemp;
       imageDataTemp->SetDimensions(N1, N2, 1);
       imageDataTemp->SetSpacing(1.,1.,1.);
@@ -1356,7 +1356,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       SecondMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
       SecondMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
 
-      // copy 2-D image into the Astro Volume object
+      // copy 2D image into the Astro Volume object
       SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
       double Origin[3];
@@ -1364,7 +1364,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       Origin[1] = 0.;
       SecondMomentVolume->SetOrigin(Origin);
 
-      // change colorMap of the 2-D image
+      // change colorMap of the 2D image
       vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();
       displayNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileColdToHotRainbow.txt");
 

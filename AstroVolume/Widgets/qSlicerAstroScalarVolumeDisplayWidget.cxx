@@ -36,6 +36,9 @@
 #include <vtkPointData.h>
 #include <vtkSmartPointer.h>
 
+// CTK includes
+#include <ctkPopupWidget.h>
+
 // STD includes
 #include <limits>
 
@@ -75,10 +78,28 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
 
   this->setupUi(q);
 
-  QObject::connect(this->InterpolateCheckbox, SIGNAL(toggled(bool)),
+  QObject::connect(this->InterpolatePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
+  QObject::connect(this->ThresholdPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(setThreshold(bool)));
   QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setColorNode(vtkMRMLNode*)));
+  QObject::connect(this->WindowLevelPopupButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onWindowLevelPopupShow(bool)));
+
+  QComboBox* AutoManualComboBoxWidget = this->MRMLWindowLevelWidget->findChild<QComboBox*>
+      (QString("AutoManualComboBox"));
+  if (AutoManualComboBoxWidget)
+    {
+    QObject::connect(AutoManualComboBoxWidget,
+                     SIGNAL(currentIndexChanged(int)),
+                     q, SLOT(onWindowLevelPopupShow(int)));
+    }
+
+  this->WindowLevelPopupButton->setChecked(false);
+  q->onWindowLevelPopupShow(false);
+  this->ThresholdPushButton->setChecked(false);
+  q->setThreshold(false);
 }
 
 // --------------------------------------------------------------------------
@@ -157,6 +178,58 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* node)
 }
 
 // --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onWindowLevelPopupShow(bool show)
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  ctkPopupWidget* PopupWidget = d->MRMLWindowLevelWidget->findChild<ctkPopupWidget*>
+      (QString("RangeWidgetPopup"));
+
+  if (!PopupWidget)
+    {
+    return;
+    }
+
+  if (show)
+    {
+    d->WindowLevelPopupButton->setIcon(QIcon(":Icons/PushPinIn.png"));
+    PopupWidget->setAutoShow(true);
+    PopupWidget->showPopup();
+    }
+  else
+    {
+    d->WindowLevelPopupButton->setIcon(QIcon(":Icons/PushPinOut.png"));
+    PopupWidget->setAutoShow(false);
+    PopupWidget->hidePopup();
+  }
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onWindowLevelPopupShow(int)
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  ctkPopupWidget* PopupWidget = d->MRMLWindowLevelWidget->findChild<ctkPopupWidget*>
+      (QString("RangeWidgetPopup"));
+
+  if (!PopupWidget)
+    {
+    return;
+    }
+
+  if (d->WindowLevelPopupButton->isChecked())
+    {
+    PopupWidget->setAutoShow(true);
+    PopupWidget->showPopup();
+    }
+  else
+    {
+    PopupWidget->setAutoShow(false);
+    PopupWidget->hidePopup();
+    }
+}
+
+// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
@@ -169,6 +242,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
   vtkMRMLAstroVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
   d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
   d->MRMLVolumeThresholdWidget->setMRMLVolumeNode(volumeNode);
+
+  d->WindowLevelPopupButton->setChecked(false);
+  this->onWindowLevelPopupShow(false);
+  d->ThresholdPushButton->setChecked(false);
+  this->setThreshold(false);
 
   qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
                 vtkCommand::ModifiedEvent,
@@ -186,7 +264,15 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
   if (displayNode)
     {
     d->ColorTableComboBox->setCurrentNode(displayNode->GetColorNode());
-    d->InterpolateCheckbox->setChecked(displayNode->GetInterpolate());
+    d->InterpolatePushButton->setChecked(displayNode->GetInterpolate());
+    if (displayNode->GetInterpolate())
+      {
+      d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOn.png"));
+      }
+    else
+      {
+      d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
+      }
     }
   if (this->isVisible())
     {
@@ -284,6 +370,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::showEvent( QShowEvent * event )
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::setInterpolate(bool interpolate)
 {
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
   if (!displayNode)
@@ -291,6 +379,23 @@ void qSlicerAstroScalarVolumeDisplayWidget::setInterpolate(bool interpolate)
     return;
     }
   displayNode->SetInterpolate(interpolate);
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::setThreshold(bool threshold)
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  if (threshold)
+    {
+    d->MRMLVolumeThresholdWidget->show();
+    d->MRMLVolumeThresholdWidget->setAutoThreshold(qMRMLVolumeThresholdWidget::Manual);
+    }
+  else
+    {
+    d->MRMLVolumeThresholdWidget->hide();
+    d->MRMLVolumeThresholdWidget->setAutoThreshold(qMRMLVolumeThresholdWidget::Off);
+    }
 }
 
 // --------------------------------------------------------------------------

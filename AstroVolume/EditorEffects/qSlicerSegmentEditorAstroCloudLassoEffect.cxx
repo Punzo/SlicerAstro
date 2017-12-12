@@ -355,7 +355,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::init()
   this->AutomaticThresholdCheckbox = new QCheckBox("Automatic Threshold Updating Mode");
   this->AutomaticThresholdCheckbox->setToolTip("Activate or deactivate automatic updating "
                                                "of the selection when chaning the threshold value. "
-                                               "If active: draw a 2-D or 3-D cloudlasso, then, change "
+                                               "If active: draw a 2D or 3D cloudlasso, then, change "
                                                "the threshold value. It is not possible to activate it "
                                                "in Erase Mode. The shortcut key is 'c'.");
   q->addOptionsWidget(this->AutomaticThresholdCheckbox);
@@ -516,12 +516,12 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
 
     this->WorldToXYTransformer->Update();
 
-    // Create a 2-D polyMaskImage from the FeedbackPolyData
+    // Create a 2D polyMaskImage from the FeedbackPolyData
     q->appendPolyMask(modifierLabelmap, this->WorldToXYTransformer->GetOutput(), sliceWidget);
     }
   if (threeDWidget)
     {
-    // Create a 3-D closed surface from the FeedbackPolyData (tube poly data) and store it in CloudLasso3DSelectionPolyData
+    // Create a 3D closed surface from the FeedbackPolyData (tube poly data) and store it in CloudLasso3DSelectionPolyData
     this->createClosedSurfacePolyMask(viewWidget);
 
     // Apply RAS -> IJK transform to CloudLasso3DSelectionPolyData and updating BrushPolyDataToStencil
@@ -1112,14 +1112,22 @@ QIcon qSlicerSegmentEditorAstroCloudLassoEffect::icon()
 //---------------------------------------------------------------------------
 QString const qSlicerSegmentEditorAstroCloudLassoEffect::helpText()const
 {
-  return QString("Left-click and drag in a slice or 3D view to use respectively a 2-D or 3-D cloud lasso selection tool. "
-                 "The initial lower threshold value is 3 RMS.");
+  return QString("Left-click and drag in a slice or 3D view to use respectively a 2D or 3D cloud lasso selection tool. "
+                 "The initial lower threshold value is 3 times the DisplayThreshold value set in the AstroVolume Module.");
 }
 
 //-----------------------------------------------------------------------------
 qSlicerSegmentEditorAbstractEffect* qSlicerSegmentEditorAstroCloudLassoEffect::clone()
 {
   return new qSlicerSegmentEditorAstroCloudLassoEffect();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  Superclass::activate();
+  this->masterVolumeNodeChanged();
 }
 
 //---------------------------------------------------------------------------
@@ -1419,7 +1427,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setMRMLDefaults()
   this->setCommonParameterDefault("ThresholdMinimumValue", 0.);
   this->setCommonParameterDefault("ThresholdMaximumValueLimit", 0.);
   this->setCommonParameterDefault("ThresholdMinimumValueLimit", 0.);
-  this->setCommonParameterDefault("Threshold3RMSValue", 0.);
+  this->setCommonParameterDefault("Threshold3DisplayThresholdValue", 0.);
   this->setCommonParameterDefault("ThresholdDecimals", 0);
 }
 
@@ -1461,19 +1469,19 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
     ->applicationLogic()->GetSelectionNode()->GetUnitNode("intensity");
   this->setCommonParameter("ThresholdDecimals", unitNodeIntensity->GetPrecision());
 
-  double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.RMS")) * 3.;
+  double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
 
   if (noise3 != 0.)
     {
     this->setCommonParameter("ThresholdMinimumValue", noise3);
-    this->setCommonParameter("Threshold3RMSValue", noise3);
+    this->setCommonParameter("Threshold3DisplayThresholdValue", noise3);
     d->ThresholdRangeWidget->setMinimumValue(noise3);
     d->ThresholdRangeWidget->setMaximumValue(max);
     }
   else
     {
     this->setCommonParameter("ThresholdMinimumValue", min);
-    this->setCommonParameter("Threshold3RMSValue", min);
+    this->setCommonParameter("Threshold3DisplayThresholdValue", min);
     d->ThresholdRangeWidget->setMinimumValue(min);
     d->ThresholdRangeWidget->setMaximumValue(max);
     }
@@ -1622,7 +1630,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged(bool mode)
     }
   else
     {
-    ThresholdValue = this->doubleParameter("Threshold3RMSValue");
+    ThresholdValue = this->doubleParameter("Threshold3DisplayThresholdValue");
     }
   this->setCommonParameter("ThresholdMinimumValue", ThresholdValue);
 

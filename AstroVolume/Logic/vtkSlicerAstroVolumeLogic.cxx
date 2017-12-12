@@ -946,10 +946,9 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
   delete outFPixel;
   delete outDPixel;
 
-  inputVolume->SetAttribute("SlicerAstro.RMS", DoubleToString(noise).c_str());
-  inputVolume->SetAttribute("SlicerAstro.RMSMEAN", DoubleToString(mean).c_str());
+  inputVolume->SetDisplayThreshold(noise);
+  inputVolume->SetAttribute("SlicerAstro.DisplayThresholdMean", DoubleToString(mean).c_str());
 
-  inputVolume->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::NoiseModifiedEvent);
   return noise;
 }
 
@@ -963,7 +962,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
 
   double max = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) * 2.;
   double min = StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN")) * 2.;
-  double noise = StringToDouble(node->GetAttribute("SlicerAstro.RMS"));
+  double noise = StringToDouble(node->GetAttribute("SlicerAstro.DisplayThreshold"));
   if (noise < 0.000000001)
     {
     noise = (max - min) / 100.;

@@ -56,6 +56,9 @@ public:
   /// Clone editor effect
   virtual qSlicerSegmentEditorAbstractEffect* clone();
 
+  /// Perform actions to activate the effect (show options frame, etc.)
+  Q_INVOKABLE virtual void activate();
+
   /// Perform actions to deactivate the effect (such as destroy actors, etc.)
   Q_INVOKABLE virtual void deactivate();
 

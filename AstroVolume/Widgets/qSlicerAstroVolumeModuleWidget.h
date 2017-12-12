@@ -114,12 +114,12 @@ protected slots:
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onMRMLVolumeNodeModified();
-  void onMRMLVolumeNodeRMSModified(bool forcePreset = true);
+  void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
   void onPresetsNodeChanged(vtkMRMLNode*);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
-  void onRMSValueChanged(double RMS);
+  void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
   void resetStretch(vtkMRMLNode* node);

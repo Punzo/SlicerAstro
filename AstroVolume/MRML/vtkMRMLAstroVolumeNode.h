@@ -84,13 +84,17 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   virtual bool UpdateRangeAttributes();
 
   ///
-  /// Update Noise Attribute
-   virtual bool UpdateNoiseAttributes();
+  /// Update DisplayThreshold Attribute
+   virtual bool UpdateDisplayThresholdAttributes();
 
   enum
      {
-     NoiseModifiedEvent = 71000,
+     DisplayThresholdModifiedEvent = 71000,
      };
+
+  ///
+  /// Set the SlicerAstro.DisplayThreshold keyword and fire the signal
+  void SetDisplayThreshold(double displayThreshold);
 
   ///
   /// Set/Get reference to a Preset Node

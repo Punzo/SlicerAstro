@@ -333,7 +333,7 @@ void vtkFITSWriter::WriteData()
         }
       break;
     case VTK_ASCII:
-     vtkErrorMacro("In 3-DSlicer FITS table are not supported");
+     vtkErrorMacro("In 3DSlicer FITS table are not supported");
     break;
   }
 

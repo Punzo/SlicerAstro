@@ -945,7 +945,7 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>Click to smooth the data. Two contours at 3 RMS level (the data and the filtered version) will be visualized in 2-D. On the 3-D views it will be shown: i) volume rendering of the data from 3RMS in View1; ii) volume rendering of the filtered output from 3RMS in View2; iii)  a segmentation of the filtered data at 3RMS in both Views</string>
+        <string>Click to smooth the data. Two contours at 3 RMS level (the data and the filtered version) will be visualized in 2D. On the 3D views it will be shown: i) volume rendering of the data from 3RMS in View1; ii) volume rendering of the filtered output from 3RMS in View2; iii)  a segmentation of the filtered data at 3RMS in both Views</string>
        </property>
        <property name="text">
         <string>Apply</string>
@@ -1825,7 +1825,7 @@
   </connection>
  </connections>
  <buttongroups>
-  <buttongroup name="buttonGroup"/>
   <buttongroup name="buttonGroup_2"/>
+  <buttongroup name="buttonGroup"/>
  </buttongroups>
 </ui>

@@ -68,7 +68,10 @@ public slots:
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLNode* node);
 
+  void onWindowLevelPopupShow(bool show);
+  void onWindowLevelPopupShow(int);
   void setInterpolate(bool interpolate);
+  void setThreshold(bool threshold);
   void setColorNode(vtkMRMLNode* colorNode);
 
 protected slots:

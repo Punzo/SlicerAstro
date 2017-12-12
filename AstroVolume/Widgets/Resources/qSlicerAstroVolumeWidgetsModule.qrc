@@ -16,6 +16,11 @@
         <file>Icons/Synchornize.png</file>
         <file>Icons/astrolock.png</file>
         <file>Icons/astrounlock.png</file>
+        <file>Icons/PushPinIn.png</file>
+        <file>Icons/PushPinOut.png</file>
+        <file>Icons/SliceInterpolationOff.png</file>
+        <file>Icons/SliceInterpolationOn.png</file>
+        <file>Icons/Threshold.png</file>
     </qresource>
     <qresource prefix="/presets"/>
 </RCC>

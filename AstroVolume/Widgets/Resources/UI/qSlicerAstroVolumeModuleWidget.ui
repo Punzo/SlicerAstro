@@ -42,7 +42,7 @@
       <string/>
      </property>
      <property name="text">
-      <string>Display</string>
+      <string>2D Display</string>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_3">
       <item>
@@ -81,8 +81,11 @@
        <height>0</height>
       </size>
      </property>
+     <property name="toolTip">
+      <string>This widget allows to convert mask (fits datacube) to a segmentation (see segmentations module for more information) and viceversa.</string>
+     </property>
      <property name="text">
-      <string>Mask Visualization</string>
+      <string>Mask/Segmentation Conversion</string>
      </property>
      <property name="checked">
       <bool>false</bool>
@@ -119,7 +122,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert a LabelMap Node (Masks) into the current Segmentation for editing it (NOTE: the last segment is not a sourceID, but it is needed by SlicerAstro for memory management reason)</string>
+             <string>Convert a mask (LabelMap node) into the current Segmentation for editing it (NOTE: the last segment is not a sourceID, but it is needed by SlicerAstro for memory management reason).</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -174,7 +177,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert the current Segmentation into a LabelMap Node (Masks) to write it into a FITS file.</string>
+             <string>Convert the current Segmentation into a mask (LabelMap node) to write it into a FITS file.</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -264,7 +267,7 @@
       </size>
      </property>
      <property name="text">
-      <string>WCS</string>
+      <string>WCS Coordinates</string>
      </property>
      <property name="checkable">
       <bool>true</bool>
@@ -524,7 +527,7 @@
       <string/>
      </property>
      <property name="text">
-      <string>Volume Information</string>
+      <string>Dataset Information</string>
      </property>
      <property name="checked">
       <bool>false</bool>
@@ -613,7 +616,7 @@
       <string/>
      </property>
      <property name="text">
-      <string>Rendering</string>
+      <string>3D Display</string>
      </property>
      <property name="collapsed">
       <bool>false</bool>
@@ -738,24 +741,24 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Click one of the presets to set its 3D color and opacity transfer functions to the active volume. </string>
+         <string>Click one of the presets to set its 3D color and opacity transfer functions to the active dataset. These presets are initialized with the Threshold display value.</string>
         </property>
        </widget>
       </item>
       <item row="3" column="0">
-       <widget class="QLabel" name="RMSLabel">
+       <widget class="QLabel" name="DisplayThresholdLabel">
         <property name="enabled">
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>RMS:</string>
+         <string>Threshold:</string>
         </property>
        </widget>
       </item>
       <item row="3" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_3">
         <item>
-         <widget class="ctkDoubleSpinBox" name="RMSDoubleSpinBox">
+         <widget class="ctkDoubleSpinBox" name="DisplayThresholdDoubleSpinBox">
           <property name="enabled">
            <bool>false</bool>
           </property>
@@ -766,7 +769,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Update the RMS value and the 3D color function presets.</string>
+           <string>Update the display threshold value used by the 3D color function presets. Its value is initialized with the RMS of the dataset.</string>
           </property>
           <property name="decimals">
            <number>9</number>
@@ -791,7 +794,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Calculate the RMS value in a ROI</string>
+           <string>Calculate the RMS value in a region of interest (ROI) and udpate the value of the threshold display with teh RMS.</string>
           </property>
           <property name="text">
            <string>Calculate RMS in ROI</string>
@@ -943,7 +946,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string/>
+           <string>Display the region of interest widget in both the 2D and 3D views.</string>
           </property>
           <property name="text">
            <string>Display ROI</string>
@@ -979,10 +982,10 @@
            </size>
           </property>
           <property name="toolTip">
-           <string/>
+           <string>Fit the region of interest (ROI) to the data.</string>
           </property>
           <property name="text">
-           <string>Fit to Volume</string>
+           <string>Fit to the Dataset</string>
           </property>
           <property name="icon">
            <iconset>
