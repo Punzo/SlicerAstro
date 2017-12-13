@@ -155,14 +155,14 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
 
   this->DataInfoLabel = new QLabel("Data Info: ");
   this->verticalLayout_1 = new QVBoxLayout();
-  this->verticalLayout_1->setObjectName(QStringLiteral("verticalLayout_1"));
+  this->verticalLayout_1->setObjectName(QLatin1String("verticalLayout_1"));
   this->verticalLayout_1->addWidget(this->DataInfoLabel);
   this->verticalSpacer_1 = new QSpacerItem(20, 20, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
   this->verticalLayout_1->addItem(this->verticalSpacer_1);
   q->addOptionsWidget(this->verticalLayout_1);
 
   this->horizontalLayout_1 = new QHBoxLayout();
-  this->horizontalLayout_1->setObjectName(QStringLiteral("horizontalLayout_1"));
+  this->horizontalLayout_1->setObjectName(QLatin1String("horizontalLayout_1"));
   this->ContoursNamePrefix = new QLabel("Contours name prefix: ");
   this->ContoursNamePrefix->setMinimumSize(QSize(140, 30));
   this->horizontalLayout_1->addWidget(this->ContoursNamePrefix);
@@ -170,14 +170,14 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->ContoursNamePrefixLineEdit->setMinimumSize(QSize(0, 30));
   this->horizontalLayout_1->addWidget(this->ContoursNamePrefixLineEdit);
   this->verticalLayout_2 = new QVBoxLayout();
-  this->verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
+  this->verticalLayout_2->setObjectName(QLatin1String("verticalLayout_2"));
   this->verticalLayout_2->addLayout(this->horizontalLayout_1);
   this->verticalSpacer_2 = new QSpacerItem(20, 5, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
   this->verticalLayout_2->addItem(this->verticalSpacer_2);
   q->addOptionsWidget(this->verticalLayout_2);
 
   this->horizontalLayout_2 = new QHBoxLayout();
-  this->horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
+  this->horizontalLayout_2->setObjectName(QLatin1String("horizontalLayout_2"));
   this->ContourLevelsLabel = new QLabel("Contour levels: ");
   this->ContourLevelsLabel->setMinimumSize(QSize(140, 30));
   this->horizontalLayout_2->addWidget(this->ContourLevelsLabel);
@@ -195,7 +195,7 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
                                           "to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.");
   this->horizontalLayout_2->addWidget(this->ContourLevelsLineEdit);
   this->verticalLayout_3 = new QVBoxLayout();
-  this->verticalLayout_3->setObjectName(QStringLiteral("verticalLayout_3"));
+  this->verticalLayout_3->setObjectName(QLatin1String("verticalLayout_3"));
   this->verticalLayout_3->addLayout(this->horizontalLayout_2);
   this->verticalSpacer_3 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
   this->verticalLayout_3->addItem(this->verticalSpacer_3);
