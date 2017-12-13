@@ -62,6 +62,7 @@ public:
   void setMRMLWindowLevelWidgetEnabled(bool);
 
 public slots:
+  void onColorChanged(QColor color);
   void onCreateContours();
   void onWindowLevelPopupShow(bool show);
   void onWindowLevelPopupShow(int);

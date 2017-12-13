@@ -35,11 +35,15 @@
 #include <vtkAlgorithm.h>
 #include <vtkAlgorithmOutput.h>
 #include <vtkCommand.h>
+#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 #include <vtkStringArray.h>
+
+//----------------------------------------------------------------------------
+const double vtkMRMLAstroVolumeDisplayNode::CONTOURSCOLOR_INVALID[3] = {1., 0.731, 0.078};
 
 //------------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeDisplayNode);
@@ -66,11 +70,20 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
                     "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
                     ": \n"<<WCS->err->msg<<"\n");
     }
+  this->ContoursColor = vtkDoubleArray::New();
+  this->ContoursColor->SetNumberOfValues(3);
+  this->ContoursColor->SetValue(0, CONTOURSCOLOR_INVALID[0]);
+  this->ContoursColor->SetValue(1, CONTOURSCOLOR_INVALID[1]);
+  this->ContoursColor->SetValue(2, CONTOURSCOLOR_INVALID[2]);
 }
 
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
 {
+  if (this->ContoursColor)
+    {
+    this->ContoursColor->Delete();
+    }
 
   if (this->SpaceQuantities)
     {
@@ -154,6 +167,18 @@ void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
   std::string quantities = "";
   int i,j,k;
 
+  if (this->ContoursColor)
+    {
+    for(i = 0; i < this->ContoursColor->GetNumberOfValues(); i++)
+      {
+      quantities +=  DoubleToString(this->ContoursColor->GetValue(i));
+      quantities += ";";
+      }
+    }
+
+  of << indent << " ContoursColor=\"" << quantities << "\"";
+
+  quantities.clear();
   if (this->SpaceQuantities)
     {
     for(i = 0; i < this->SpaceQuantities->GetNumberOfValues(); i++)
@@ -1013,6 +1038,19 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "ContoursColor"))
+      {
+      std::istringstream f(attValue);
+      std::string s;
+      int i = 0;
+      while (std::getline(f, s, ';'))
+        {
+        this->SetContoursColor(i, StringToDouble(s.c_str()));
+        i++;
+        }
+      continue;
+      }
+
     if (!strcmp(attName, "Space"))
       {
       this->SetSpace(attValue);
@@ -1512,6 +1550,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
     }
 
   this->SetInputImageDataConnection(node->GetInputImageDataConnection());
+  this->SetContoursColor(node->GetContoursColor());
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
   this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
@@ -1552,10 +1591,9 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 //----------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 {
-
   if (ind >= this->SpaceQuantities->GetNumberOfValues())
     {
-    this->SpaceQuantities->SetNumberOfValues(ind+1);
+    this->SpaceQuantities->SetNumberOfValues(ind + 1);
     }
 
   vtkStdString SpaceQuantities(name);
@@ -1566,6 +1604,18 @@ bool vtkMRMLAstroVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
     return true;
     }
   return false;
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeDisplayNode::SetContoursColor(int ind, double color)
+{
+    if (ind >= this->ContoursColor->GetNumberOfValues())
+      {
+      this->ContoursColor->SetNumberOfValues(ind + 1);
+      }
+
+   this->ContoursColor->SetValue(ind, color);
+   this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -1842,10 +1892,22 @@ std::string vtkMRMLAstroVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::
 void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
-
   std::string quantities = "";
   int i,j,k;
 
+
+  if (this->ContoursColor)
+    {
+    for(i = 0; i < this->ContoursColor->GetNumberOfValues(); i++)
+      {
+      quantities +=  DoubleToString(this->ContoursColor->GetValue(i));
+      quantities += ";";
+      }
+    }
+
+  os << indent << "ContoursColor=\"" << quantities << "\n";
+
+  quantities.clear();
   if (this->SpaceQuantities)
     {
     for(i = 0; i < this->SpaceQuantities->GetNumberOfValues(); i++)

@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>389</width>
-    <height>235</height>
+    <height>246</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -244,6 +244,35 @@
       </widget>
      </item>
      <item>
+      <widget class="ctkColorPickerButton" name="ColorPickerButton">
+       <property name="minimumSize">
+        <size>
+         <width>30</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Set the color of the contours.</string>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>30</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="color">
+        <color>
+         <red>255</red>
+         <green>187</green>
+         <blue>20</blue>
+        </color>
+       </property>
+       <property name="displayColorName">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="ContourPushButton">
        <property name="enabled">
         <bool>true</bool>
@@ -253,6 +282,9 @@
          <width>100</width>
          <height>30</height>
         </size>
+       </property>
+       <property name="toolTip">
+        <string>Create the contours. SlicerAstro contours are a full 3D segmentation (mSarching cubes alghoritm) and they may require few seconds to be computed.</string>
        </property>
        <property name="text">
         <string>Create</string>
@@ -294,6 +326,11 @@
    <extends>QWidget</extends>
    <header>qSlicerWidget.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>ctkColorPickerButton</class>
+   <extends>QPushButton</extends>
+   <header>ctkColorPickerButton.h</header>
   </customwidget>
  </customwidgets>
  <resources>

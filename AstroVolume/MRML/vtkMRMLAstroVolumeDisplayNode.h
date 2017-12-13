@@ -26,7 +26,8 @@
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
 // VTK includes
-#include "vtkStringArray.h"
+#include <vtkStringArray.h>
+#include <vtkDoubleArray.h>
 
 // WCS includes
 #include "wcslib.h"
@@ -38,6 +39,8 @@ class vtkMRMLUnitNode;
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarVolumeDisplayNode
 {
   public:
+  static const double CONTOURSCOLOR_INVALID[3];
+
   static vtkMRMLAstroVolumeDisplayNode *New();
   vtkTypeMacro(vtkMRMLAstroVolumeDisplayNode,vtkMRMLScalarVolumeDisplayNode);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
@@ -77,6 +80,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   ///
   /// Set the i-th SpaceQunatity name
   bool SetSpaceQuantity(int ind, const char *name);
+
+  ///
+  /// Set/Get the ContoursColor
+  /// \sa SetContoursColor(), GetContoursColor()
+  vtkGetObjectMacro(ContoursColor, vtkDoubleArray);
+  vtkSetObjectMacro(ContoursColor, vtkDoubleArray);
+
+  ///
+  /// Set the i-th SpaceQunatity name
+  void SetContoursColor(int ind, double color);
 
   ///
   /// Set WCSStruct
@@ -196,6 +209,7 @@ protected:
   vtkStringArray* SpaceQuantities;
   struct wcsprm* WCS;
   int WCSStatus;
+  vtkDoubleArray* ContoursColor;
 
   vtkMRMLAstroVolumeDisplayNode();
   ~vtkMRMLAstroVolumeDisplayNode();

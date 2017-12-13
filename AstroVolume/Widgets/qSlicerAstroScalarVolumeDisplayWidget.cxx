@@ -148,6 +148,9 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                      q, SLOT(onWindowLevelPopupShow(int)));
     }
 
+  QObject::connect(this->ColorPickerButton, SIGNAL(colorChanged(QColor)),
+                   q, SLOT(onColorChanged(QColor)));
+
   QObject::connect(this->ContourPushButton, SIGNAL(clicked()),
                    q, SLOT(onCreateContours()));
 
@@ -209,7 +212,23 @@ bool qSlicerAstroScalarVolumeDisplayWidget::isMRMLWindowLevelWidgetEnabled()cons
 void qSlicerAstroScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool enable)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-  d->MRMLWindowLevelWidget->setEnabled(enable);
+    d->MRMLWindowLevelWidget->setEnabled(enable);
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
+{
+  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode = this->volumeDisplayNode();
+  if (!astroDisplayNode)
+    {
+    QString message = QString("Display node not found.");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+    return;
+    }
+
+  astroDisplayNode->SetContoursColor(0, color.red() / 256.);
+  astroDisplayNode->SetContoursColor(1, color.green() / 256.);
+  astroDisplayNode->SetContoursColor(2, color.blue() / 256.);
 }
 
 // --------------------------------------------------------------------------
@@ -224,6 +243,14 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   if (!masterVolume)
     {
     QString message = QString("Master volume not found.");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode = this->volumeDisplayNode();
+  if (!astroDisplayNode)
+    {
+    QString message = QString("Display node not found.");
     qWarning() << Q_FUNC_INFO << ": " << message;
     return;
     }
@@ -523,12 +550,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       }
     }
 
-  double color[3];
-  segmentationNode->GetSegmentation()->GetNthSegment(0)->GetColor(color);
-
+  vtkDoubleArray* ContoursColor =  astroDisplayNode->GetContoursColor();
   for (int ii = 1; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
     {
-    segmentationNode->GetSegmentation()->GetNthSegment(ii)->SetColor(color);
+    segmentationNode->GetSegmentation()->GetNthSegment(ii)->SetColor(ContoursColor->GetValue(0),
+                                                                     ContoursColor->GetValue(1),
+                                                                     ContoursColor->GetValue(2));
     }
 
   segmentationNode->GetSegmentation()->CreateRepresentation(
@@ -672,6 +699,13 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
       {
       d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
       }
+
+    vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();
+    QColor color;
+    color.setRed(contoursColor->GetValue(0) * 256);
+    color.setGreen(contoursColor->GetValue(1) * 256);
+    color.setBlue(contoursColor->GetValue(2) * 256);
+    d->ColorPickerButton->setColor(color);
     }
   if (this->isVisible())
     {
