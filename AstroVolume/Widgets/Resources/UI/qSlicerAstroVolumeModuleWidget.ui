@@ -741,7 +741,7 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Click one of the presets to set its 3D color and opacity transfer functions to the active dataset. These presets are initialized with the Threshold display value.</string>
+         <string>Click one of the presets to set its 3D color and opacity transfer functions to the active dataset. These presets are initialized with the Threshold display value. For the preset BrightSurface is optimal to set the rendering quality to maximum and to use a black background.</string>
         </property>
        </widget>
       </item>

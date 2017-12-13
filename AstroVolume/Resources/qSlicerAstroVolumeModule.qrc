@@ -20,5 +20,6 @@
         <file alias="ThreeSurfaces">Icons/ThreeSurface.png</file>
         <file alias="TwoSurfaces">Icons/TwoSurface.png</file>
         <file alias="OneSurfaceWhite">Icons/OneSurfaceWhite.png</file>
+        <file alias="BrightSurfaces">Icons/BrightSurfaces.png</file>
     </qresource>
 </RCC>

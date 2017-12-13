@@ -967,9 +967,16 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
     {
     noise = (max - min) / 100.;
     }
+  double halfNoise = noise * 0.5;
   double noise3 = noise * 3.;
+  double noise6 = noise * 6.;
   double noise7 = noise * 7.;
+  double noise9 = noise * 9.;
+  double noise12 = noise * 12.;
   double noise15 = noise * 15.;
+  double noise18 = noise * 18.;
+  double noise21 = noise * 21.;
+  double noise24 = noise * 24.;
 
   vtkSmartPointer<vtkCollection> presets = vtkSmartPointer<vtkCollection>::Take(
       this->PresetsScene->GetNodesByClass("vtkMRMLVolumePropertyNode"));
@@ -978,188 +985,240 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
     {
     vtkMRMLVolumePropertyNode* volumePropertyNode =
         vtkMRMLVolumePropertyNode::SafeDownCast(presets->GetItemAsObject(i));
-    if (volumePropertyNode)
+    if (!volumePropertyNode)
       {
-      if(!strcmp(volumePropertyNode->GetName(),"LowConstantOpacity"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-             volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.2);
-         compositeOpacity->AddPoint(max, 0.2);
+      continue;
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"LowConstantOpacity"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+          volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.2);
+      compositeOpacity->AddPoint(max, 0.2);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 0., 0.3, 0.);
-         color->AddRGBPoint(max, 0., 1., 0.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 0., 0.3, 0.);
+      color->AddRGBPoint(max, 0., 1., 0.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
-      if(!strcmp(volumePropertyNode->GetName(),"MediumConstantOpacity"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-             volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.4);
-         compositeOpacity->AddPoint(max, 0.4);
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"MediumConstantOpacity"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+          volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.4);
+      compositeOpacity->AddPoint(max, 0.4);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 0., 0.3, 0.);
-         color->AddRGBPoint(max, 0., 1., 0.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 0., 0.3, 0.);
+      color->AddRGBPoint(max, 0., 1., 0.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
-      if(!strcmp(volumePropertyNode->GetName(),"HighConstantOpacity"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-             volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.7);
-         compositeOpacity->AddPoint(max, 0.7);
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"HighConstantOpacity"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+          volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.7);
+      compositeOpacity->AddPoint(max, 0.7);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 0., 0.3, 0.);
-         color->AddRGBPoint(max, 0., 1., 0.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 0., 0.3, 0.);
+      color->AddRGBPoint(max, 0., 1., 0.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
-      if(!strcmp(volumePropertyNode->GetName(),"OneSurface"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-             volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.6, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(max, 0.);
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"OneSurface"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+          volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.6, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(max, 0.);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 0., 1., 0.);
-         color->AddRGBPoint(max, 0., 1., 0.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 0., 1., 0.);
+      color->AddRGBPoint(max, 0., 1., 0.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
-      if(!strcmp(volumePropertyNode->GetName(),"OneSurfaceWhite"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-             volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.6, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(max, 0.);
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"OneSurfaceWhite"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+          volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.6, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(max, 0.);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 1., 1., 1.);
-         color->AddRGBPoint(max, 1., 1., 1.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 1., 1., 1.);
+      color->AddRGBPoint(max, 1., 1., 1.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
-      if(!strcmp(volumePropertyNode->GetName(),"TwoSurfaces"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-             volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.5, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise7, 0.8, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(max, 0.);
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"TwoSurfaces"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+          volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.5, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise7, 0.8, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(max, 0.);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 0., 1., 0.);
-         color->AddRGBPoint(noise7, 0., 0., 1.);
-         color->AddRGBPoint(max, 0., 0., 1.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 0., 1., 0.);
+      color->AddRGBPoint(noise7, 0., 0., 1.);
+      color->AddRGBPoint(max, 0., 0., 1.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
-      if(!strcmp(volumePropertyNode->GetName(),"ThreeSurfaces"))
-        {
-         vtkPiecewiseFunction *compositeOpacity =
-            volumePropertyNode->GetScalarOpacity();
-         compositeOpacity->RemoveAllPoints();
-         compositeOpacity->AddPoint(min, 0.);
-         compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3, 0.5, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise7, 0.65, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(noise15 - (noise15 / 5.), 0., 0.5, 0.2);
-         compositeOpacity->AddPoint(noise15, 0.8, 0.5, 0.2);
-         compositeOpacity->AddPoint(noise15 + (noise15 / 5.), 0., 0.5, 0.);
-         compositeOpacity->AddPoint(max, 0.);
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"ThreeSurfaces"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+         volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.5, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3 + (noise3 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise7 - (noise7 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise7, 0.65, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise7 + (noise7 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise15 - (noise15 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise15, 0.8, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise15 + (noise15 / 5.), 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(max, 0.);
 
-         vtkColorTransferFunction *color =
-             volumePropertyNode->GetColor();
-         color->RemoveAllPoints();
-         color->AddRGBPoint(min, 0., 0., 0.);
-         color->AddRGBPoint(noise3, 0., 1., 0.);
-         color->AddRGBPoint(noise7, 0., 0., 1.);
-         color->AddRGBPoint(noise15, 1., 0., 0.);
-         color->AddRGBPoint(max, 1., 0., 0.);
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 0., 0., 0.);
+      color->AddRGBPoint(noise3, 0., 1., 0.);
+      color->AddRGBPoint(noise7, 0., 0., 1.);
+      color->AddRGBPoint(noise15, 1., 0., 0.);
+      color->AddRGBPoint(max, 1., 0., 0.);
 
-         vtkPiecewiseFunction *gradientOpacity =
-             volumePropertyNode->GetGradientOpacity();
-         gradientOpacity->RemoveAllPoints();
-         gradientOpacity->AddPoint(min, 1.);
-         gradientOpacity->AddPoint(max, 1.);
-        }
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
+      }
+    if(!strcmp(volumePropertyNode->GetName(),"BrightSurfaces"))
+      {
+      vtkPiecewiseFunction *compositeOpacity =
+         volumePropertyNode->GetScalarOpacity();
+      compositeOpacity->RemoveAllPoints();
+      compositeOpacity->AddPoint(min, 0.);
+      compositeOpacity->AddPoint(noise3 - noise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3, 0.2, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise3 + noise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise6 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise6, 0.3, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise6 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise9 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise9, 0.4, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise9 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise12 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise12, 0.5, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise12 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise15 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise15, 0.6, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise15 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise18 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise18, 0.7, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise18 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise21 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise21, 0.8, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise21 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise24 - halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(noise24, 0.9, 0.5, 0.2);
+      compositeOpacity->AddPoint(noise24 + halfNoise, 0., 0.5, 0.2);
+      compositeOpacity->AddPoint(max, 0.);
+
+      vtkColorTransferFunction *color =
+          volumePropertyNode->GetColor();
+      color->RemoveAllPoints();
+      color->AddRGBPoint(min, 1., 0., 0.098);
+      color->AddRGBPoint(noise3, 1., 0., 0.098);
+      color->AddRGBPoint(noise6, 0.98, 0.631, 0.);
+      color->AddRGBPoint(noise9, 0.592, 0.996, 0.);
+      color->AddRGBPoint(noise12, 0., 0.945, 0.161);
+      color->AddRGBPoint(noise15, 0., 1., 0.906);
+      color->AddRGBPoint(noise18, 0., 0.326, 0.996);
+      color->AddRGBPoint(noise21, 0.435, 0., 0.988);
+      color->AddRGBPoint(noise24, 0.977, 0., 0.792);
+      color->AddRGBPoint(max, 0.977, 0., 0.792);
+
+      vtkPiecewiseFunction *gradientOpacity =
+          volumePropertyNode->GetGradientOpacity();
+      gradientOpacity->RemoveAllPoints();
+      gradientOpacity->AddPoint(min, 1.);
+      gradientOpacity->AddPoint(max, 1.);
       }
     }
-
     return true;
 }
 
