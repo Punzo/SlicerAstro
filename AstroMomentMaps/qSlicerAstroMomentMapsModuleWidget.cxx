@@ -1274,7 +1274,16 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
       // change colorMap of the 2D image
       vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
-      displayNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileHotToColdRainbow.txt");
+      vtkMRMLColorTableNode* velocityFieldColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+        (scene->GetFirstNodeByName("Velocity Field"));
+      if (!velocityFieldColorTableNode)
+        {
+        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : "
+                      "velocityFieldColorTableNode not found!";
+        d->parametersNode->SetStatus(0);
+        return;
+        }
+      displayNode->SetAndObserveColorNodeID(velocityFieldColorTableNode->GetID());
 
       FirstMomentVolume->SetName(outSS.str().c_str());
       d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
@@ -1366,7 +1375,16 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
       // change colorMap of the 2D image
       vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();
-      displayNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileColdToHotRainbow.txt");
+      vtkMRMLColorTableNode* RainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+        (scene->GetFirstNodeByName("Rainbow"));
+      if (!RainbowColorTableNode)
+        {
+        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : "
+                      "RainbowColorTableNode not found!";
+        d->parametersNode->SetStatus(0);
+        return;
+        }
+      displayNode->SetAndObserveColorNodeID(RainbowColorTableNode->GetID());
 
       SecondMomentVolume->SetName(outSS.str().c_str());
       d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
@@ -1398,7 +1416,8 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
   if (!logic->CalculateMomentMaps(d->parametersNode))
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : CalculateMomentMaps error!";
+    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
+                  "CalculateMomentMaps error!";
     if (d->parametersNode->GetGenerateSecond())
       {
       scene->RemoveNode(ZeroMomentVolume);
