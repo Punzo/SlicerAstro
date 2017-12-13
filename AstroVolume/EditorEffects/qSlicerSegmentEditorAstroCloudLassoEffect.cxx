@@ -1113,7 +1113,7 @@ QIcon qSlicerSegmentEditorAstroCloudLassoEffect::icon()
 QString const qSlicerSegmentEditorAstroCloudLassoEffect::helpText()const
 {
   return QString("Left-click and drag in a slice or 3D view to use respectively a 2D or 3D cloud lasso selection tool. "
-                 "The initial lower threshold value is 3 times the DisplayThreshold value set in the AstroVolume Module.");
+                 "The initial lower threshold value is 3 times the 3DDisplayThreshold value set in the AstroVolume Module.");
 }
 
 //-----------------------------------------------------------------------------
@@ -1469,7 +1469,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
     ->applicationLogic()->GetSelectionNode()->GetUnitNode("intensity");
   this->setCommonParameter("ThresholdDecimals", unitNodeIntensity->GetPrecision());
 
-  double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
+  double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.3DDisplayThreshold")) * 3.;
 
   if (noise3 != 0.)
     {

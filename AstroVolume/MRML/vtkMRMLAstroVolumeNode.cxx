@@ -255,11 +255,11 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 }
 
 //---------------------------------------------------------------------------
-bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
+bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
 {
   if (this->GetImageData() == NULL)
    {
-   vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes : "
+   vtkErrorMacro("vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes : "
                  "imageData not allocated.");
    return false;
    }
@@ -278,7 +278,7 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
       break;
     default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes : "
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes : "
                     "attempt to allocate scalars of type not allowed");
       return false;
     }
@@ -421,16 +421,16 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
   delete outFPixel;
   delete outDPixel;
 
-  this->SetDisplayThreshold(noise);
-  this->SetAttribute("SlicerAstro.DisplayThresholdMean", DoubleToString(mean).c_str());
+  this->Set3DDisplayThreshold(noise);
+  this->SetAttribute("SlicerAstro.3DDisplayThresholdMean", DoubleToString(mean).c_str());
 
   return true;
 }
 
 //-----------------------------------------------------------
-void vtkMRMLAstroVolumeNode::SetDisplayThreshold(double displayThreshold)
+void vtkMRMLAstroVolumeNode::Set3DDisplayThreshold(double DisplayThreshold)
 {
-  this->SetAttribute("SlicerAstro.DisplayThreshold", DoubleToString(displayThreshold).c_str());
+  this->SetAttribute("SlicerAstro.3DDisplayThreshold", DoubleToString(DisplayThreshold).c_str());
   this->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent);
 }
 

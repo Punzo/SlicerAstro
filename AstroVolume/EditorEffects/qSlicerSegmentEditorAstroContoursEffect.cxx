@@ -71,6 +71,14 @@ public:
   QLineEdit* ContourLevelsLineEdit;
   QLineEdit* ContoursNamePrefixLineEdit;
   QPushButton* ApplyButton;
+  QSpacerItem *verticalSpacer_1;
+  QSpacerItem *verticalSpacer_2;
+  QSpacerItem *verticalSpacer_3;
+  QHBoxLayout *horizontalLayout_1;
+  QHBoxLayout *horizontalLayout_2;
+  QVBoxLayout *verticalLayout_1;
+  QVBoxLayout *verticalLayout_2;
+  QVBoxLayout *verticalLayout_3;
 
 protected slots:
 
@@ -146,29 +154,55 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   q->addOptionsWidget(this->AstroContournsFrame);
 
   this->DataInfoLabel = new QLabel("Data Info: ");
-  q->addOptionsWidget(this->DataInfoLabel);
+  this->verticalLayout_1 = new QVBoxLayout();
+  this->verticalLayout_1->setObjectName(QStringLiteral("verticalLayout_1"));
+  this->verticalLayout_1->addWidget(this->DataInfoLabel);
+  this->verticalSpacer_1 = new QSpacerItem(20, 20, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
+  this->verticalLayout_1->addItem(this->verticalSpacer_1);
+  q->addOptionsWidget(this->verticalLayout_1);
 
+  this->horizontalLayout_1 = new QHBoxLayout();
+  this->horizontalLayout_1->setObjectName(QStringLiteral("horizontalLayout_1"));
   this->ContoursNamePrefix = new QLabel("Contours name prefix: ");
-  q->addOptionsWidget(this->ContoursNamePrefix);
+  this->ContoursNamePrefix->setMinimumSize(QSize(140, 30));
+  this->horizontalLayout_1->addWidget(this->ContoursNamePrefix);
   this->ContoursNamePrefixLineEdit = new QLineEdit("Galaxy");
-  q->addOptionsWidget(this->ContoursNamePrefixLineEdit);
+  this->ContoursNamePrefixLineEdit->setMinimumSize(QSize(0, 30));
+  this->horizontalLayout_1->addWidget(this->ContoursNamePrefixLineEdit);
+  this->verticalLayout_2 = new QVBoxLayout();
+  this->verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
+  this->verticalLayout_2->addLayout(this->horizontalLayout_1);
+  this->verticalSpacer_2 = new QSpacerItem(20, 5, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
+  this->verticalLayout_2->addItem(this->verticalSpacer_2);
+  q->addOptionsWidget(this->verticalLayout_2);
 
+  this->horizontalLayout_2 = new QHBoxLayout();
+  this->horizontalLayout_2->setObjectName(QStringLiteral("horizontalLayout_2"));
   this->ContourLevelsLabel = new QLabel("Contour levels: ");
-  q->addOptionsWidget(this->ContourLevelsLabel);
+  this->ContourLevelsLabel->setMinimumSize(QSize(140, 30));
+  this->horizontalLayout_2->addWidget(this->ContourLevelsLabel);
 
-  this->ContourLevelsLineEdit = new QLineEdit("DisplayThreshold -3;3;7;15");
+  this->ContourLevelsLineEdit = new QLineEdit("3DDisplayThreshold -3;3;7;15");
+  this->ContourLevelsLineEdit->setMinimumSize(QSize(0, 30));
   this->ContourLevelsLineEdit->setToolTip("Contour levels: "
                                           "to specify the levels use the following format: 'FISRT:LAST+SPACING' for linear spacing "
                                           "or 'FISRT:LAST*SPACING' for non linear spacing. \n\n"
                                           "The levels can also be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3'). "
                                           "In the case of a list, it is possible also to specify for each contour both the MIN and MAX intensity values of the level "
                                           "(e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). \n\n "
-                                          "If the string is preceded by 'DisplayThreshold', the levels are evaluated in units of the value of DisplayThreshold of the dataset. \n\n"
+                                          "If the string is preceded by '3DDisplayThreshold', the levels are evaluated in units of the value of 3DDisplayThreshold of the dataset. \n\n"
                                           "The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy "
                                           "to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.");
-  q->addOptionsWidget(this->ContourLevelsLineEdit);
+  this->horizontalLayout_2->addWidget(this->ContourLevelsLineEdit);
+  this->verticalLayout_3 = new QVBoxLayout();
+  this->verticalLayout_3->setObjectName(QStringLiteral("verticalLayout_3"));
+  this->verticalLayout_3->addLayout(this->horizontalLayout_2);
+  this->verticalSpacer_3 = new QSpacerItem(20, 10, QSizePolicy::Minimum, QSizePolicy::MinimumExpanding);
+  this->verticalLayout_3->addItem(this->verticalSpacer_3);
+  q->addOptionsWidget(this->verticalLayout_3);
 
   this->ApplyButton = new QPushButton("Create Contours");
+  this->ApplyButton->setMinimumSize(QSize(0, 35));
   q->addOptionsWidget(this->ApplyButton);
 
   QObject::connect(this->ApplyButton, SIGNAL(clicked()), q, SLOT(CreateContours()));
@@ -219,11 +253,11 @@ void qSlicerSegmentEditorAstroContoursEffect::setMRMLDefaults()
 {
   Q_D(qSlicerSegmentEditorAstroContoursEffect);
   Superclass::setMRMLDefaults();
-  this->setCommonParameterDefault("DisplayThreshold", 0.);
+  this->setCommonParameterDefault("3DDisplayThreshold", 0.);
   this->setCommonParameterDefault("MIN", 0.);
   this->setCommonParameterDefault("MAX", 0.);
   this->setCommonParameterDefault("FluxUnit", "JY/BEAM");
-  this->setCommonParameterDefault("ContourLeveles", "DisplayThreshold -3;3;7;15");
+  this->setCommonParameterDefault("ContourLeveles", "3DDisplayThreshold -3;3;7;15");
   this->setCommonParameterDefault("NamePrefix", "Galaxy");
   this->setCommonParameterDefault("NameIndex", "1");
 }
@@ -259,14 +293,14 @@ void qSlicerSegmentEditorAstroContoursEffect::updateGUIFromMRML()
   std::string DataInfo;
   double MIN = this->doubleParameter("MIN");
   double MAX = this->doubleParameter("MAX");
-  double DisplayThreshold = this->doubleParameter("DisplayThreshold");
+  double DisplayThreshold = this->doubleParameter("3DDisplayThreshold");
 
   DataInfo = "Dataset info: \n"
              "MIN = " + DoubleToString(MIN) +
              " " + this->parameter("FluxUnit").toStdString()+ "\n"
              "MAX = " + DoubleToString(MAX) +
              " " + this->parameter("FluxUnit").toStdString()+ "\n"
-             "DisplayThreshold = " + DoubleToString(DisplayThreshold) +
+             "3DDisplayThreshold = " + DoubleToString(DisplayThreshold) +
              " " + this->parameter("FluxUnit").toStdString();
   d->DataInfoLabel->setText(QString::fromStdString(DataInfo));
 }
@@ -326,10 +360,10 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
   double value;
   double MIN = this->doubleParameter("MIN");
   double MAX = this->doubleParameter("MAX");
-  double DisplayThreshold = this->doubleParameter("DisplayThreshold");
+  double DisplayThreshold = this->doubleParameter("3DDisplayThreshold");
 
   bool convert = false;
-  std::size_t found = LevelsStdString.find("DisplayThreshold");
+  std::size_t found = LevelsStdString.find("3DDisplayThreshold");
   if (found != std::string::npos)
     {
     convert = true;
@@ -375,7 +409,7 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 
   if (convert)
     {
-    for (int ii = 0; ii < 16; ii++)
+    for (int ii = 0; ii < 18; ii++)
       {
       ss.ignore();
       }
@@ -579,6 +613,9 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     segmentationNode->GetSegmentation()->GetNthSegment(ii)->SetColor(color);
     }
 
+  segmentationNode->GetSegmentation()->CreateRepresentation(
+    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
   for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
@@ -592,9 +629,11 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
       SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
       }
+    SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
-
-  this->CreateSurface(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -634,63 +673,14 @@ void qSlicerSegmentEditorAstroContoursEffect::masterVolumeNodeChanged()
     return;
     }
 
-  double DisplayThreshold = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
+  double DisplayThreshold = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.3DDisplayThreshold"));
   double MAX = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
   double MIN = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
   QString unit(astroMasterVolume->GetAttribute("SlicerAstro.BUNIT"));
 
-  this->setCommonParameter("DisplayThreshold", DisplayThreshold);
+  this->setCommonParameter("3DDisplayThreshold", DisplayThreshold);
   this->setCommonParameter("MAX", MAX);
   this->setCommonParameter("MIN", MIN);
   this->setCommonParameter("FluxUnit", unit);
   this->setCommonParameter("NamePrefix", masterVolume->GetName());
-}
-
-//---------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroContoursEffect::CreateSurface(bool on)
-{
-  if (!this->parameterSetNode())
-    {
-    qCritical() << Q_FUNC_INFO << ": Invalid segment editor parameter set node";
-    return;
-    }
-
-  vtkMRMLSegmentationNode* segmentationNode = this->parameterSetNode()->GetSegmentationNode();
-  if (!segmentationNode)
-    {
-    qCritical() << Q_FUNC_INFO << ": Invalid segmentationNode";
-    return;
-    }
-  vtkMRMLSegmentationDisplayNode* displayNode = vtkMRMLSegmentationDisplayNode::SafeDownCast(
-    segmentationNode->GetDisplayNode());
-  if (!displayNode)
-    {
-    qCritical() << Q_FUNC_INFO << ": Invalid segmentationDisplayNode";
-    return;
-    }
-
-  // If just have been checked, then create closed surface representation and show it
-  if (on)
-    {
-    // Make sure closed surface representation exists
-    if (segmentationNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() ))
-      {
-      // Set closed surface as displayed poly data representation
-      displayNode->SetPreferredDisplayRepresentationName3D(
-        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
-      // But keep binary labelmap for 2D
-      if (segmentationNode->GetSegmentation()->ContainsRepresentation(
-            vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName()))
-        {
-        displayNode->SetPreferredDisplayRepresentationName2D(
-          vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-        }
-      else
-        {
-        displayNode->SetPreferredDisplayRepresentationName2D(
-          vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-        }
-      }
-    }
 }

@@ -900,8 +900,8 @@ bool vtkFITSReader::AllocateHeader()
      HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
-   HeaderKeyValue["SlicerAstro.DisplayThreshold"] = "0.";
-   HeaderKeyValue["SlicerAstro.DisplayThresholdMean"] = "0.";
+   HeaderKeyValue["SlicerAstro.3DDisplayThreshold"] = "0.";
+   HeaderKeyValue["SlicerAstro.3DDisplayThresholdMean"] = "0.";
 
    if(HeaderKeyValue.count("SlicerAstro.DUNIT3") == 0)
      {

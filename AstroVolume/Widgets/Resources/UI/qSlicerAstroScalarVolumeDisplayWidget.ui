@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>389</width>
-    <height>220</height>
+    <height>235</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -57,6 +57,9 @@
        </item>
        <item row="2" column="0">
         <widget class="QPushButton" name="WindowLevelPopupButton">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="MinimumExpanding">
            <horstretch>0</horstretch>
@@ -131,6 +134,9 @@
     <layout class="QHBoxLayout" name="horizontalLayout_4">
      <item>
       <widget class="QPushButton" name="InterpolatePushButton">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -163,6 +169,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="ThresholdPushButton">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
          <horstretch>0</horstretch>
@@ -194,6 +203,67 @@
    </item>
    <item row="5" column="0" colspan="2">
     <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget"/>
+   </item>
+   <item row="6" column="0" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Contours:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="ContourLevelsLineEdit">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Contour levels: 
+    to specied as a list (e.g., 'VALUE1;VALUE2;VALUE3'). In the case of a list, it is possible also to specify for each contour both the MIN and MAX intensity values of the level (e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). 
+
+ If the string is preceded by '3DDisplayThreshold', the levels are evaluated in units of the value of 3DDisplayThreshold of the dataset. 
+
+        The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.</string>
+       </property>
+       <property name="text">
+        <string>3DDisplayThreshold -3;3;7;15</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="ContourPushButton">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>100</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Create</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../../../EditorEffects/Resources/qSlicerAstroVolumeEditorEffects.qrc">
+         <normaloff>:/Icons/AstroContours.png</normaloff>:/Icons/AstroContours.png</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
@@ -228,6 +298,7 @@
  </customwidgets>
  <resources>
   <include location="../qSlicerAstroVolumeWidgetsModule.qrc"/>
+  <include location="../../../EditorEffects/Resources/qSlicerAstroVolumeEditorEffects.qrc"/>
  </resources>
  <connections>
   <connection>

@@ -84,8 +84,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   virtual bool UpdateRangeAttributes();
 
   ///
-  /// Update DisplayThreshold Attribute
-   virtual bool UpdateDisplayThresholdAttributes();
+  /// Update 3DDisplayThreshold Attribute
+   virtual bool Update3DDisplayThresholdAttributes();
 
   enum
      {
@@ -93,8 +93,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
      };
 
   ///
-  /// Set the SlicerAstro.DisplayThreshold keyword and fire the signal
-  void SetDisplayThreshold(double displayThreshold);
+  /// Set the SlicerAstro.3DDisplayThreshold keyword and fire the signal
+  void Set3DDisplayThreshold(double DisplayThreshold);
 
   ///
   /// Set/Get reference to a Preset Node

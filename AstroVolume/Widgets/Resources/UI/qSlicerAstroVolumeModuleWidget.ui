@@ -751,7 +751,7 @@
          <bool>false</bool>
         </property>
         <property name="text">
-         <string>Threshold:</string>
+         <string>3D Threshold:</string>
         </property>
        </widget>
       </item>

@@ -4409,11 +4409,11 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
   if (d->parametersNode->GetFitSuccess())
     {
-    outputVolume->UpdateDisplayThresholdAttributes();
+    outputVolume->Update3DDisplayThresholdAttributes();
     outputVolume->UpdateRangeAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "MODEL");
 
-    residualVolume->UpdateDisplayThresholdAttributes();
+    residualVolume->Update3DDisplayThresholdAttributes();
     residualVolume->UpdateRangeAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
 
