@@ -79,6 +79,8 @@
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
+#include <vtkMRMLColorTableNode.h>
+#include <vtkMRMLProceduralColorNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLScene.h>
@@ -417,6 +419,46 @@ void qSlicerAstroVolumeModule::setup()
   // register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroContoursEffect());
+
+  // Setup 2D color functions
+  vtkSmartPointer<vtkCollection> ColorTableNodeCol =
+    vtkSmartPointer<vtkCollection>::Take(
+      this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+  for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+            (ColorTableNodeCol->GetItemAsObject(ii));
+    if (!tempColorTableNode)
+      {
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "Grey") ||
+        !strcmp(tempColorTableNode->GetName(), "Rainbow") ||
+        !strcmp(tempColorTableNode->GetName(), "GenericColors") ||
+        !strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
+      {
+      continue;
+      }
+    this->mrmlScene()->RemoveNode(tempColorTableNode);
+    }
+
+  vtkSmartPointer<vtkCollection> ProceduralColorTableNodeCol =
+    vtkSmartPointer<vtkCollection>::Take(
+      this->mrmlScene()->GetNodesByClass("vtkMRMLProceduralColorNode"));
+  for (int ii = 0; ii < ProceduralColorTableNodeCol->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLProceduralColorNode* tempProceduralColorTableNode = vtkMRMLProceduralColorNode::SafeDownCast
+            (ProceduralColorTableNodeCol->GetItemAsObject(ii));
+    if (!tempProceduralColorTableNode)
+      {
+      continue;
+      }
+    if (!strcmp(tempProceduralColorTableNode->GetName(), "RandomIntegers"))
+      {
+      continue;
+      }
+    this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
+    }
 }
 
 //-----------------------------------------------------------------------------
