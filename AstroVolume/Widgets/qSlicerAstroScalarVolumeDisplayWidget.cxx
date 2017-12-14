@@ -45,6 +45,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkImageThreshold.h>
+#include <vtkLookupTable.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkOrientedImageData.h>
@@ -134,14 +135,20 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
 
   this->setupUi(q);
 
+  QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setColorNode(vtkMRMLNode*)));
+  QObject::connect(this->ReversePushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(setReverse(bool)));
+  QObject::connect(this->InversePushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(setInverse(bool)));
+  QObject::connect(this->LogPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(setLog(bool)));
+  QObject::connect(this->WindowLevelPopupButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onWindowLevelPopupShow(bool)));
   QObject::connect(this->InterpolatePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
   QObject::connect(this->ThresholdPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setThreshold(bool)));
-  QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setColorNode(vtkMRMLNode*)));
-  QObject::connect(this->WindowLevelPopupButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onWindowLevelPopupShow(bool)));
 
   QComboBox* AutoManualComboBoxWidget = this->MRMLWindowLevelWidget->findChild<QComboBox*>
       (QString("AutoManualComboBox"));
@@ -154,7 +161,6 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
 
   QObject::connect(this->ColorPickerButton, SIGNAL(colorChanged(QColor)),
                    q, SLOT(onColorChanged(QColor)));
-
   QObject::connect(this->ContourPushButton, SIGNAL(clicked()),
                    q, SLOT(onCreateContours()));
 
@@ -608,6 +614,33 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* node)
 }
 
 // --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::setReverse(bool toggled)
+{
+  vtkMRMLAstroVolumeDisplayNode *displayNode = this->volumeDisplayNode();
+  if (!displayNode)
+    {
+    return;
+    }
+
+  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
+  if (!colorNode)
+    {
+    return;
+    }
+
+  if (toggled)
+    {
+    colorNode->SetAttribute("SlicerAstro.Reverse", "on");
+    }
+  else
+    {
+    colorNode->SetAttribute("SlicerAstro.Reverse", "off");
+    }
+
+  this->ReverseColorFunction(colorNode);
+}
+
+// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onWindowLevelPopupShow(bool show)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
@@ -660,14 +693,42 @@ void qSlicerAstroScalarVolumeDisplayWidget::onWindowLevelPopupShow(int)
 }
 
 // --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::ReverseColorFunction(vtkMRMLColorNode *colorNode)
+{
+  if (!colorNode)
+    {
+    return;
+    }
+
+  vtkLookupTable* lookupTable = colorNode->GetLookupTable();
+  if (!lookupTable)
+    {
+    return;
+    }
+
+  int wasModifying = colorNode->StartModify();
+  for (int ii = 0; ii < 128; ii++)
+    {
+    double RGBA1[4], RGBA2[4];
+    lookupTable->GetTableValue(ii, RGBA1);
+    lookupTable->GetTableValue(255 - ii, RGBA2);
+    lookupTable->SetTableValue(ii, RGBA2);
+    lookupTable->SetTableValue(255 - ii, RGBA1);
+    }
+
+  colorNode->SetNamesFromColors();
+  colorNode->EndModify(wasModifying);
+}
+
+// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
 
   if(!volumeNode)
-  {
+    {
     return;
-  }
+    }
 
   vtkMRMLAstroVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
   d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
@@ -706,10 +767,73 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
 
     vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();
     QColor color;
-    color.setRed(contoursColor->GetValue(0) * 256);
-    color.setGreen(contoursColor->GetValue(1) * 256);
-    color.setBlue(contoursColor->GetValue(2) * 256);
+    double red, green, blue;
+    red = contoursColor->GetValue(0) * 256;
+    green = contoursColor->GetValue(1) * 256;
+    blue = contoursColor->GetValue(2) * 256;
+    if (red > 255)
+      {
+      red = 255;
+      }
+    if (green > 255)
+      {
+      green = 255;
+      }
+    if (blue > 255)
+      {
+      blue = 255;
+      }
+    color.setRed(red);
+    color.setGreen(green);
+    color.setBlue(blue);
     d->ColorPickerButton->setColor(color);
+
+    vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
+    if (colorNode)
+      {
+      if (!strcmp(colorNode->GetAttribute("SlicerAstro.AddFunctions"), "on"))
+        {
+        d->ReversePushButton->show();
+        d->InversePushButton->show();
+        d->LogPushButton->show();
+        d->ReversePushButton->blockSignals(true);
+        d->InversePushButton->blockSignals(true);
+        d->LogPushButton->blockSignals(true);
+        if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
+          {
+          d->ReversePushButton->setChecked(true);
+          }
+        else
+          {
+          d->ReversePushButton->setChecked(false);
+          }
+        if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
+          {
+          d->InversePushButton->setChecked(true);
+          }
+        else
+          {
+          d->InversePushButton->setChecked(false);
+          }
+        if (!strcmp(colorNode->GetAttribute("SlicerAstro.Log"), "on"))
+          {
+          d->LogPushButton->setChecked(true);
+          }
+        else
+          {
+          d->LogPushButton->setChecked(false);
+          }
+        d->ReversePushButton->blockSignals(false);
+        d->InversePushButton->blockSignals(false);
+        d->LogPushButton->blockSignals(false);
+        }
+      else
+        {
+        d->ReversePushButton->hide();
+        d->InversePushButton->hide();
+        d->LogPushButton->hide();
+        }
+      }
     }
   if (this->isVisible())
     {
@@ -798,6 +922,35 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateTransferFunction()
 }
 
 // -----------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::InvertColorFunction(vtkMRMLColorNode *colorNode)
+{
+  if (!colorNode)
+    {
+    return;
+    }
+
+  vtkLookupTable* lookupTable = colorNode->GetLookupTable();
+  if (!lookupTable)
+    {
+    return;
+    }
+
+  int wasModifying = colorNode->StartModify();
+  for (int ii = 0; ii < 256; ii++)
+    {
+    double RGBA[4];
+    lookupTable->GetTableValue(ii, RGBA);
+    RGBA[0] = 1. - RGBA[0];
+    RGBA[1] = 1. - RGBA[1];
+    RGBA[2] = 1. - RGBA[2];
+    lookupTable->SetTableValue(ii, RGBA);
+    }
+
+  colorNode->SetNamesFromColors();
+  colorNode->EndModify(wasModifying);
+}
+
+// -----------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::showEvent( QShowEvent * event )
 {
   this->updateTransferFunction();
@@ -816,6 +969,66 @@ void qSlicerAstroScalarVolumeDisplayWidget::setInterpolate(bool interpolate)
     return;
     }
   displayNode->SetInterpolate(interpolate);
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::setInverse(bool toggled)
+{
+  vtkMRMLAstroVolumeDisplayNode *displayNode = this->volumeDisplayNode();
+  if (!displayNode)
+    {
+    return;
+    }
+
+  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
+  if (!colorNode)
+    {
+    return;
+    }
+
+  if (toggled)
+    {
+    colorNode->SetAttribute("SlicerAstro.Inverse", "on");
+    }
+  else
+    {
+    colorNode->SetAttribute("SlicerAstro.Inverse", "off");
+    }
+
+  this->InvertColorFunction(colorNode);
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::setLog(bool toggled)
+{
+  vtkMRMLAstroVolumeDisplayNode *displayNode = this->volumeDisplayNode();
+  if (!displayNode)
+    {
+    return;
+    }
+
+  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
+  if (!colorNode)
+    {
+    return;
+    }
+
+  if (toggled)
+    {
+    colorNode->SetAttribute("SlicerAstro.Log", "on");
+    if (colorNode->GetLookupTable())
+      {
+      colorNode->GetLookupTable()->SetScaleToLog10();
+      }
+    }
+  else
+    {
+    colorNode->SetAttribute("SlicerAstro.Log", "off");
+    if (colorNode->GetLookupTable())
+      {
+      colorNode->GetLookupTable()->SetScaleToLinear();
+      }
+    }
 }
 
 // --------------------------------------------------------------------------

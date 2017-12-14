@@ -699,6 +699,10 @@ void qSlicerAstroVolumeModule::setup()
         !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
         !strcmp(tempColorTableNode->GetName(), "Velocity Field"))
       {
+      tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+      tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+      tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+      tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
       continue;
       }
     if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
@@ -707,6 +711,7 @@ void qSlicerAstroVolumeModule::setup()
       vtkNew<vtkMRMLColorTableNode> tempTableNode;
       tempTableNode->Copy(tempColorTableNode);
       this->mrmlScene()->RemoveNode(tempColorTableNode);
+      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
       this->mrmlScene()->AddNode(tempTableNode);
       continue;
       }
@@ -726,6 +731,10 @@ void qSlicerAstroVolumeModule::setup()
       RainbowTableNode->GetLookupTable()->ForceBuild();
       RainbowTableNode->SetColor(0, 0, 0, 0);
       RainbowTableNode->SetNamesFromColors();
+      RainbowTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+      RainbowTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+      RainbowTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+      RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
       this->mrmlScene()->AddNode(RainbowTableNode);
       continue;
       }
@@ -748,6 +757,7 @@ void qSlicerAstroVolumeModule::setup()
       vtkNew<vtkMRMLProceduralColorNode> tempTableNode;
       tempTableNode->Copy(tempProceduralColorTableNode);
       this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
+      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
       this->mrmlScene()->AddNode(tempTableNode);
       continue;
       }

@@ -35,6 +35,7 @@
 class vtkMRMLNode;
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLColorNode;
 class qSlicerAstroScalarVolumeDisplayWidgetPrivate;
 class vtkImageData;
 
@@ -68,8 +69,11 @@ public slots:
   void onWindowLevelPopupShow(int);
   void setColorNode(vtkMRMLNode* colorNode);
   void setInterpolate(bool interpolate);
+  void setInverse(bool toggled);
+  void setLog(bool toggled);
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
   void setMRMLVolumeNode(vtkMRMLNode* node);
+  void setReverse(bool toggled);
   void setThreshold(bool threshold);
 
 protected slots:
@@ -77,8 +81,9 @@ protected slots:
   void updateTransferFunction();
 
 protected:
+  void InvertColorFunction(vtkMRMLColorNode *colorNode);
+  void ReverseColorFunction(vtkMRMLColorNode *colorNode);
   void showEvent(QShowEvent * event);
-protected:
   QScopedPointer<qSlicerAstroScalarVolumeDisplayWidgetPrivate> d_ptr;
 
 private:

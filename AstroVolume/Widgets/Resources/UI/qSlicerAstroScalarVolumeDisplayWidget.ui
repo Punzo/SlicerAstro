@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>389</width>
-    <height>246</height>
+    <height>280</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="margin">
     <number>0</number>
    </property>
-   <item row="4" column="0" colspan="2">
+   <item row="5" column="0" colspan="2">
     <widget class="QWidget" name="PresetsWidget" native="true">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
@@ -35,7 +35,7 @@
      </layout>
     </widget>
    </item>
-   <item row="2" column="0" colspan="2">
+   <item row="3" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
       <widget class="qMRMLWindowLevelWidget" name="MRMLWindowLevelWidget"/>
@@ -94,7 +94,7 @@
      </item>
     </layout>
    </item>
-   <item row="9" column="0" colspan="2">
+   <item row="10" column="0" colspan="2">
     <spacer name="verticalSpacer">
      <property name="orientation">
       <enum>Qt::Vertical</enum>
@@ -142,7 +142,7 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="0" colspan="2">
+   <item row="4" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_4">
      <item>
       <widget class="QPushButton" name="InterpolatePushButton">
@@ -213,10 +213,10 @@
      </item>
     </layout>
    </item>
-   <item row="5" column="0" colspan="2">
+   <item row="6" column="0" colspan="2">
     <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget"/>
    </item>
-   <item row="6" column="0" colspan="2">
+   <item row="7" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_5">
      <item>
       <widget class="QLabel" name="label">
@@ -304,6 +304,70 @@
        <property name="icon">
         <iconset resource="../../../EditorEffects/Resources/qSlicerAstroVolumeEditorEffects.qrc">
          <normaloff>:/Icons/AstroContours.png</normaloff>:/Icons/AstroContours.png</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="1" column="0" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="ReversePushButton">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Reverse</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+         <normaloff>:/Icons/ReverseIcon32x32.png</normaloff>:/Icons/ReverseIcon32x32.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="InversePushButton">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Invert</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+         <normaloff>:/Icons/InvertIcon32x32.png</normaloff>:/Icons/InvertIcon32x32.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="LogPushButton">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Log</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+         <normaloff>:/Icons/LogIcon32x32.png</normaloff>:/Icons/LogIcon32x32.png</iconset>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
