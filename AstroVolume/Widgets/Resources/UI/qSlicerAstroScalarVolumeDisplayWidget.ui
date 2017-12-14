@@ -112,6 +112,12 @@
    </item>
    <item row="0" column="0">
     <widget class="QLabel" name="LookupTableLabel">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>30</height>
+      </size>
+     </property>
      <property name="text">
       <string>Lookup Table:</string>
      </property>
@@ -119,6 +125,12 @@
    </item>
    <item row="0" column="1">
     <widget class="qMRMLColorTableComboBox" name="ColorTableComboBox">
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>30</height>
+      </size>
+     </property>
      <property name="showChildNodeTypes">
       <bool>true</bool>
      </property>

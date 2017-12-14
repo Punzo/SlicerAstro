@@ -42,11 +42,15 @@
 #include <vtkAlgorithm.h>
 #include <vtkAlgorithmOutput.h>
 #include <vtkColorTransferFunction.h>
+#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkImageThreshold.h>
 #include <vtkMatrix4x4.h>
+#include <vtkNew.h>
+#include <vtkOrientedImageData.h>
 #include <vtkPointData.h>
 #include <vtkSmartPointer.h>
+#include <vtkStringArray.h>
 
 // CTK includes
 #include <ctkPopupWidget.h>
