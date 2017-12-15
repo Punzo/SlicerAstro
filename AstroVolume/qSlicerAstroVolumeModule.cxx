@@ -712,7 +712,7 @@ void qSlicerAstroVolumeModule::setup()
       tempTableNode->Copy(tempColorTableNode);
       this->mrmlScene()->RemoveNode(tempColorTableNode);
       tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
-      this->mrmlScene()->AddNode(tempTableNode);
+      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
       continue;
       }
     if (!strcmp(tempColorTableNode->GetName(), "Rainbow"))
@@ -735,7 +735,7 @@ void qSlicerAstroVolumeModule::setup()
       RainbowTableNode->SetAttribute("SlicerAstro.Reverse", "off");
       RainbowTableNode->SetAttribute("SlicerAstro.Inverse", "off");
       RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
-      this->mrmlScene()->AddNode(RainbowTableNode);
+      this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
       continue;
       }
     this->mrmlScene()->RemoveNode(tempColorTableNode);
@@ -758,7 +758,7 @@ void qSlicerAstroVolumeModule::setup()
       tempTableNode->Copy(tempProceduralColorTableNode);
       this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
       tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
-      this->mrmlScene()->AddNode(tempTableNode);
+      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
       continue;
       }
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
