@@ -244,11 +244,12 @@
        </property>
        <property name="toolTip">
         <string>Contour levels: 
-    to specied as a list (e.g., 'VALUE1;VALUE2;VALUE3'). In the case of a list, it is possible also to specify for each contour both the MIN and MAX intensity values of the level (e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). 
 
- If the string is preceded by '3DDisplayThreshold', the levels are evaluated in units of the value of 3DDisplayThreshold of the dataset. 
+    to specify the levels use the following format: 'FISRT:LAST+SPACING' for linear spacing or 'FISRT:LAST*SPACING' for non linear spacing. 
 
-        The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.</string>
+    The levels can also be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3'). In the case of a list, it is possible also to specify for each contour both the MIN and MAX intensity values of the level (e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). 
+
+ If the string is preceded by '3DDisplayThreshold', the levels are evaluated in units of the value of 3DDisplayThreshold of the dataset. The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.</string>
        </property>
        <property name="text">
         <string>3DDisplayThreshold -3;3;7;15</string>
