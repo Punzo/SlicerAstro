@@ -3382,8 +3382,8 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->CDSliderWidget->setValue(d->parametersNode->GetColumnDensity());
   d->DistanceSliderWidget->setValue(d->parametersNode->GetDistance());
   d->PARadioButton->setChecked(d->parametersNode->GetPositionAngleFit());
-  d->DISPRadioButton->setChecked(d->parametersNode->GetRotationVelocityFit());
-  d->VROTRadioButton->setChecked(d->parametersNode->GetVelocityDispersionFit());
+  d->DISPRadioButton->setChecked(d->parametersNode->GetVelocityDispersionFit());
+  d->VROTRadioButton->setChecked(d->parametersNode->GetRotationVelocityFit());
   d->VRadRadioButton->setChecked(d->parametersNode->GetRadialVelocityFit());
   d->INCRadioButton->setChecked(d->parametersNode->GetInclinationFit());
   d->XCenterRadioButton->setChecked(d->parametersNode->GetXCenterFit());
