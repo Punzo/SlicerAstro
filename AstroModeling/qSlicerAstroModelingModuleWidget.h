@@ -105,7 +105,9 @@ protected slots:
   void onMRMLSliceNodeModified(vtkObject* sender);
   void onMRMLTableNodeModified();
   void onMRMLYellowSliceRotated();
-  void onNormalizeToggled(bool toggled);
+  void onNormalizeNoneChanged(bool toggled);
+  void onNormalizeLocalChanged(bool toggled);
+  void onNormalizeAzimChanged(bool toggled);
   void onNumberOfCloundsChanged(double value);
   void onNumberOfRingsChanged(double value);
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);

@@ -247,8 +247,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(FitSuccess,bool);
   vtkGetMacro(FitSuccess,bool);
 
-  vtkSetMacro(Normalize,bool);
-  vtkGetMacro(Normalize,bool);
+  vtkSetStringMacro(Normalize);
+  vtkGetStringMacro(Normalize);
 
   vtkSetMacro(ForceSliceUpdate,bool);
   vtkGetMacro(ForceSliceUpdate,bool);
@@ -289,6 +289,7 @@ protected:
   char *ResidualVolumeNodeID;
   char *MaskVolumeNodeID;
   char *Mode;
+  char *Normalize;
 
   bool MaskActive;
 
@@ -341,7 +342,6 @@ protected:
   int Operation;
 
   bool FitSuccess;
-  bool Normalize;
   bool ForceSliceUpdate;
 
   double ContourLevel;

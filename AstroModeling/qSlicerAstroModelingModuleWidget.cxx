@@ -23,6 +23,7 @@
 #include <QMessageBox>
 #include <QMutexLocker>
 #include <QPushButton>
+#include <QRadioButton>
 #include <QStringList>
 #include <QThread>
 #include <QTimer>
@@ -362,8 +363,14 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(EstimateInitialParametersPushButton, SIGNAL(clicked()),
                    q, SLOT(onEstimateInitialParameters()));
 
-  QObject::connect(NormalizeCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onNormalizeToggled(bool)));
+  QObject::connect(NormalizeNonePushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onNormalizeNoneChanged(bool)));
+
+  QObject::connect(NormalizeLocalPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onNormalizeLocalChanged(bool)));
+
+  QObject::connect(NormalizeAzimPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onNormalizeAzimChanged(bool)));
 
   QObject::connect(FitPushButton, SIGNAL(clicked()),
                    q, SLOT(onFit()));
@@ -2788,10 +2795,11 @@ void qSlicerAstroModelingModuleWidget::onMRMLYellowSliceRotated()
     d->YellowSliceSliderWidget->blockSignals(true);
     d->YellowSliceSliderWidget->setValue(0.);
     d->YellowSliceSliderWidget->blockSignals(false);
-    }
+  }
 }
 
-void qSlicerAstroModelingModuleWidget::onNormalizeToggled(bool toggled)
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onNormalizeNoneChanged(bool toggled)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
@@ -2799,7 +2807,43 @@ void qSlicerAstroModelingModuleWidget::onNormalizeToggled(bool toggled)
     {
     return;
     }
-  d->parametersNode->SetNormalize(toggled);
+
+  if (toggled)
+    {
+    d->parametersNode->SetNormalize("NONE");
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onNormalizeLocalChanged(bool toggled)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  if (toggled)
+    {
+    d->parametersNode->SetNormalize("LOCAL");
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onNormalizeAzimChanged(bool toggled)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  if (toggled)
+    {
+    d->parametersNode->SetNormalize("AZIM");
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -3354,7 +3398,30 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
 
   d->ContourSliderWidget->setValue(d->parametersNode->GetContourLevel());
 
-  d->NormalizeCheckBox->setChecked(d->parametersNode->GetNormalize());
+  d->NormalizeNonePushButton->blockSignals(true);
+  d->NormalizeLocalPushButton->blockSignals(true);
+  d->NormalizeAzimPushButton->blockSignals(true);
+  if (!strcmp(d->parametersNode->GetNormalize(), "NONE"))
+    {
+    d->NormalizeNonePushButton->setChecked(true);
+    d->NormalizeLocalPushButton->setChecked(false);
+    d->NormalizeAzimPushButton->setChecked(false);
+    }
+  else if (!strcmp(d->parametersNode->GetNormalize(), "LOCAL"))
+    {
+    d->NormalizeNonePushButton->setChecked(false);
+    d->NormalizeLocalPushButton->setChecked(true);
+    d->NormalizeAzimPushButton->setChecked(false);
+    }
+  else if (!strcmp(d->parametersNode->GetNormalize(), "AZIM"))
+    {
+    d->NormalizeNonePushButton->setChecked(false);
+    d->NormalizeLocalPushButton->setChecked(false);
+    d->NormalizeAzimPushButton->setChecked(true);
+    } 
+  d->NormalizeNonePushButton->blockSignals(false);
+  d->NormalizeLocalPushButton->blockSignals(false);
+  d->NormalizeAzimPushButton->blockSignals(false);
 
   d->TableView->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());

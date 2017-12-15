@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>497</width>
-    <height>1323</height>
+    <height>1489</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -952,22 +952,46 @@
          <item row="10" column="0">
           <widget class="QLabel" name="NormalizeLabel">
            <property name="text">
-            <string>Normalize:</string>
+            <string>Normalization:</string>
            </property>
           </widget>
          </item>
          <item row="10" column="1">
-          <widget class="QCheckBox" name="NormalizeCheckBox">
-           <property name="toolTip">
-            <string>If toggled the model will be normalized with the integrated line of sight intensity values of the data.</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="checked">
-            <bool>true</bool>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QPushButton" name="NormalizeNonePushButton">
+             <property name="text">
+              <string>None</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="NormalizeLocalPushButton">
+             <property name="text">
+              <string>Local</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="NormalizeAzimPushButton">
+             <property name="text">
+              <string>Azimuthal</string>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>
@@ -990,9 +1014,12 @@
            <bool>false</bool>
           </property>
           <property name="text">
-           <string>A&amp;utomatic</string>
+           <string>Automatic</string>
           </property>
           <property name="checked">
+           <bool>true</bool>
+          </property>
+          <property name="autoExclusive">
            <bool>true</bool>
           </property>
          </widget>
@@ -1007,6 +1034,9 @@
           </property>
           <property name="checked">
            <bool>false</bool>
+          </property>
+          <property name="autoExclusive">
+           <bool>true</bool>
           </property>
          </widget>
         </item>

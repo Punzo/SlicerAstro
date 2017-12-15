@@ -55,6 +55,8 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->OutputSerial = 1;
   this->Mode = NULL;
   this->SetMode("Automatic");
+  this->Normalize = NULL;
+  this->SetNormalize("LOCAL");
   this->SetRadSep(0.);
   this->SetXCenter(0.);
   this->SetYCenter(0.);
@@ -96,7 +98,6 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetStatus(0);
   this->SetOperation(vtkMRMLAstroModelingParametersNode::ESTIMATE);
   this->SetFitSuccess(false);
-  this->SetNormalize(true);
   this->SetForceSliceUpdate(true);
   this->SetNumberOfRings(0);
   this->SetContourLevel(3.);
@@ -133,6 +134,12 @@ vtkMRMLAstroModelingParametersNode::~vtkMRMLAstroModelingParametersNode()
     {
     delete [] this->Mode;
     this->Mode = NULL;
+    }
+
+  if (this->Normalize)
+    {
+    delete [] this->Normalize;
+    this->Normalize = NULL;
     }
 }
 
@@ -204,6 +211,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "Mode"))
       {
       this->SetMode(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Normalize"))
+      {
+      this->SetNormalize(attValue);
       continue;
       }
 
@@ -465,12 +478,6 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "Normalize"))
-      {
-      this->Normalize = StringToInt(attValue);
-      continue;
-      }
-
     if (!strcmp(attName, "MaskActive"))
       {
       this->MaskActive = StringToInt(attValue);
@@ -518,6 +525,11 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " Mode=\"" << this->Mode << "\"";
     }
 
+  if (this->Normalize != NULL)
+    {
+    of << indent << " Normalize=\"" << this->Normalize << "\"";
+    }
+
   of << indent << " MaskActive=\"" << this->MaskActive << "\"";
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
   of << indent << " NumberOfRings=\"" << this->NumberOfRings << "\"";
@@ -562,7 +574,6 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " Status=\"" << this->Status << "\"";
   of << indent << " Operation=\"" << this->GetOperationAsString(this->Operation) << "\"";
   of << indent << " FitSuccess=\"" << this->FitSuccess << "\"";
-  of << indent << " Normalize=\"" << this->Normalize << "\"";
   of << indent << " ContourLevel=\"" << this->ContourLevel << "\"";
 }
 
@@ -582,6 +593,7 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetMaskVolumeNodeID(node->GetMaskVolumeNodeID());
   this->SetMaskActive(node->GetMaskActive());
   this->SetMode(node->GetMode());
+  this->SetNormalize(node->GetNormalize());
   this->SetNumberOfRings(node->GetNumberOfRings());
   this->SetRadSep(node->GetRadSep());
   this->SetXCenter(node->GetXCenter());
@@ -616,7 +628,6 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetStatus(node->GetStatus());
   this->SetOperation(node->GetOperation());
   this->SetFitSuccess(node->GetFitSuccess());
-  this->SetNormalize(node->GetNormalize());
   this->SetContourLevel(node->GetContourLevel());
   this->SetXPosCenterIJK(node->GetXPosCenterIJK());
   this->SetYPosCenterIJK(node->GetYPosCenterIJK());
@@ -708,6 +719,7 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
   os << "MaskActive: " << this->MaskActive << "\n";
   os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
+  os << "Normalize: " << ( (this->Normalize) ? this->Normalize : "None" ) << "\n";
   os << "OutputSerial: " << this->OutputSerial << "\n";
   os << "NumberOfRings: " << this->NumberOfRings << "\n";
   os << "RadSep: " << this->RadSep << "\n";
@@ -741,7 +753,6 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "Status: " << this->Status << "\n";
   os << "Operation: " << this->GetOperationAsString(this->Operation) << "\n";
   os << "FitSuccess: " << this->FitSuccess << "\n";
-  os << "Normalize: " << this->Normalize << "\n";
   os << "ContourLevel: " << this->ContourLevel << "\n";
   os << "XPosCenterIJK: " << this->XPosCenterIJK << "\n";
   os << "YPosCenterIJK: " << this->YPosCenterIJK << "\n";

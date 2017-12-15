@@ -737,6 +737,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
     this->Internal->par->setSearch(true);
     }
 
+  this->Internal->par->setNORM(pnode->GetNormalize());
+
   // set header
   this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
   int numAxes = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
@@ -973,7 +975,6 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         pnode->SetStatus(80);
 
-        // Calculate the total flux inside last ring in data
         float *ringreg = this->Internal->fitF->getFinalRingsRegion();
         if (!ringreg)
           {
@@ -985,17 +986,81 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "Unable to find ringreg.");
           return 0;
           }
+
         float totflux_model = 0.;
         this->Internal->totflux_data = 0.;
         MomentMap<float> *totalmap = new MomentMap<float>;
         totalmap->input(this->Internal->cubeF);
         totalmap->SumMap(true);
 
+        // Calculate the total flux inside last ring in data
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
           {
           if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
             {
             this->Internal->totflux_data += totalmap->Array(ii);
+            }
+          }
+
+        float mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
+          * fabs(DeltaVel<float>(*this->Internal->head))
+          * this->Internal->par->getDistance() * this->Internal->par->getDistance();
+
+        // Calculate radial profile along the output rings
+        float meanPA = findMean<float>(&this->Internal->fitF->Outrings()->phi[0],
+                                       this->Internal->fitF->Outrings()->nr);
+        int nseg = 1;
+        float segments[4] = {0, 360., 0., 0};
+        if (this->Internal->par->getSIDE() != "A")
+          {
+          nseg = 2;
+          segments[2] = -90;
+          segments[3] = 90;
+          }
+        else if (this->Internal->par->getSIDE() == "R")
+          {
+          nseg = 2;
+          segments[2] = 90;
+          segments[3] = -90;
+          }
+        if (meanPA > 180)
+          {
+          std::swap(segments[2], segments[3]);
+          }
+
+        Tasks::Ellprof<float> ell(totalmap, this->Internal->fitF->Outrings(), nseg, segments);
+        ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
+        ell.RadialProfile();
+
+        if (!strcmp(pnode->GetNormalize(), "AZIM"))
+          {
+          double profmin = FLT_MAX;
+          for (size_t i = 0; i < (size_t)this->Internal->fitF->Outrings()->nr; i++)
+            {
+            double mean = ell.getMean(i);
+            if (!isNaN(mean) && profmin > mean && mean > 0)
+              {
+              profmin = mean;
+              }
+            }
+          float factor = 1;
+          while(profmin < 0.1)
+            {
+            profmin *= 10;
+            factor *= 10;
+            }
+          while (profmin > 10)
+            {
+            profmin /= 10;
+            factor /= 10;
+            }
+          for (size_t i = 0; i < (size_t)this->Internal->fitF->Outrings()->nr; i++)
+            {
+            this->Internal->fitF->Outrings()->dens[i] = factor * fabs(ell.getMean(i)) * 1E20;
+            if (this->Internal->fitF->Outrings()->dens[i] == 0)
+              {
+              this->Internal->fitF->Outrings()->dens[i] = profmin * 1E20;
+              }
             }
           }
 
@@ -1010,6 +1075,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "Unable to find modF.");
           return 0;
           }
+
+        this->Internal->modF->Out()->Head().setMinMax(0.,0.);
         float *outarray = this->Internal->modF->Out()->Array();
         if (!outarray)
           {
@@ -1022,8 +1089,12 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           return 0;
           }
 
-        if (pnode->GetNormalize())
+        if (!strcmp(pnode->GetNormalize(), "AZIM") ||
+            !strcmp(pnode->GetNormalize(), "NONE"))
           {
+          // The final model has been build from the azimuthal profile calculated before,
+          // thus just need to rescale the model to the total flux of data inside last ring.
+
           // Calculate total flux of model within last ring
           for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
             {
@@ -1041,7 +1112,9 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
             {
             outarray[ii] *= factor;
             }
-
+          }
+        if (!strcmp(pnode->GetNormalize(), "LOCAL"))
+          {
           // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
           // flux of observation and model is eventually equal.
 
@@ -1058,12 +1131,12 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                 modSum += outarray[Pix];
                 obsSum += this->Internal->cubeF->Array(Pix) * this->Internal->cubeF->Mask()[Pix];
                 }
-              if (modSum!=0)
+              if (modSum != 0)
                 {
-                factor = obsSum/modSum;
+                factor = obsSum / modSum;
                 }
 
-              for (int z=0; z<this->Internal->cubeF->DimZ(); z++)
+              for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
                 {
                 outarray[this->Internal->cubeF->nPix(x,y,z)] *= factor;
                 }
@@ -1116,6 +1189,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         delete ringreg;
         ringreg = NULL;
         outarray = NULL;
+        if (this->Internal->modF != NULL)
+          {
+          delete this->Internal->modF;
+          this->Internal->modF = NULL;
+          }
         outFPixel = NULL;
         inFPixel = NULL;
         residualFPixel = NULL;
@@ -1290,7 +1368,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           pnode->SetFitSuccess(false);
           inputVolumeDisplay->SetOpticalVelocityDefinition(false);
           vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "Unable to find ringreg pointer.");
+                        "Unable to find ringreg.");
           return 0;
           }
         double totflux_model = 0.;
@@ -1299,11 +1377,74 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         totalmap->input(this->Internal->cubeD);
         totalmap->SumMap(true);
 
+        // Calculate the total flux inside last ring in data
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
           {
           if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
             {
             this->Internal->totflux_data += totalmap->Array(ii);
+            }
+          }
+
+        double mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
+          * fabs(DeltaVel<double>(*this->Internal->head))
+          * this->Internal->par->getDistance() * this->Internal->par->getDistance();
+
+        // Calculate radial profile along the output rings
+        double meanPA = findMean<double>(&this->Internal->fitD->Outrings()->phi[0],
+                                         this->Internal->fitD->Outrings()->nr);
+        int nseg = 1;
+        float segments[4] = {0, 360., 0., 0};
+        if (this->Internal->par->getSIDE() != "A")
+          {
+          nseg = 2;
+          segments[2] = -90;
+          segments[3] = 90;
+          }
+        else if (this->Internal->par->getSIDE() == "R")
+          {
+          nseg = 2;
+          segments[2] = 90;
+          segments[3] = -90;
+          }
+        if (meanPA > 180)
+          {
+          std::swap(segments[2], segments[3]);
+          }
+
+        Tasks::Ellprof<double> ell(totalmap, this->Internal->fitD->Outrings(), nseg, segments);
+        ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
+        ell.RadialProfile();
+
+        if (!strcmp(pnode->GetNormalize(), "AZIM"))
+          {
+          double profmin = FLT_MAX;
+          for (size_t i = 0; i < (size_t)this->Internal->fitD->Outrings()->nr; i++)
+            {
+            double mean = ell.getMean(i);
+            if (!isNaN(mean) && profmin > mean && mean > 0)
+              {
+              profmin = mean;
+              }
+            }
+          float factor = 1;
+          while(profmin < 0.1)
+            {
+            profmin *= 10;
+            factor *= 10;
+            }
+          while (profmin > 10)
+            {
+            profmin /= 10;
+            factor /= 10;
+            }
+          for (size_t i = 0; i < (size_t)this->Internal->fitD->Outrings()->nr; i++)
+            {
+            this->Internal->fitD->Outrings()->dens[i] = factor * fabs(ell.getMean(i)) * 1E20;
+            if (this->Internal->fitD->Outrings()->dens[i] == 0)
+              {
+              this->Internal->fitD->Outrings()->dens[i] = profmin * 1E20;
+              }
             }
           }
 
@@ -1315,9 +1456,10 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           pnode->SetFitSuccess(false);
           inputVolumeDisplay->SetOpticalVelocityDefinition(false);
           vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "Unable to find modD pointer.");
+                        "Unable to find modF.");
           return 0;
           }
+        this->Internal->modD->Out()->Head().setMinMax(0.,0.);
         double *outarray = this->Internal->modD->Out()->Array();
         if (!outarray)
           {
@@ -1326,12 +1468,16 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           pnode->SetFitSuccess(false);
           inputVolumeDisplay->SetOpticalVelocityDefinition(false);
           vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "Unable to find modD array.");
+                        "Unable to find modF array.");
           return 0;
           }
 
-        if (pnode->GetNormalize())
+        if (!strcmp(pnode->GetNormalize(), "AZIM") ||
+            !strcmp(pnode->GetNormalize(), "NONE"))
           {
+          // The final model has been build from the azimuthal profile calculated before,
+          // thus just need to rescale the model to the total flux of data inside last ring.
+
           // Calculate total flux of model within last ring
           for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
             {
@@ -1344,12 +1490,14 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
               }
             }
 
-          double factor = this->Internal->totflux_data/totflux_model;
+          double factor = this->Internal->totflux_data / totflux_model;
           for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
             {
             outarray[ii] *= factor;
             }
-
+          }
+        if (!strcmp(pnode->GetNormalize(), "LOCAL"))
+          {
           // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
           // flux of observation and model is eventually equal.
 
@@ -1358,20 +1506,20 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
             for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
               {
               float factor = 0;
-              float modSum = 0;
-              float obsSum = 0;
+              double modSum = 0;
+              double obsSum = 0;
               for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
                 {
                 long Pix = this->Internal->cubeD->nPix(x,y,z);
                 modSum += outarray[Pix];
                 obsSum += this->Internal->cubeD->Array(Pix) * this->Internal->cubeD->Mask()[Pix];
                 }
-              if (modSum!=0)
+              if (modSum != 0)
                 {
-                factor = obsSum/modSum;
+                factor = obsSum / modSum;
                 }
 
-              for (int z=0; z<this->Internal->cubeD->DimZ(); z++)
+              for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
                 {
                 outarray[this->Internal->cubeD->nPix(x,y,z)] *= factor;
                 }
@@ -1424,6 +1572,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         delete ringreg;
         ringreg = NULL;
         outarray = NULL;
+        if (this->Internal->modD != NULL)
+          {
+          delete this->Internal->modD;
+          this->Internal->modD = NULL;
+          }
         outDPixel = NULL;
         inDPixel = NULL;
         residualDPixel = NULL;
@@ -2061,6 +2214,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->par->setBeamFWHM(this->Internal->par->getBeamFWHM()/3600.);
     this->Internal->par->setTOL(1.E-3);
 
+    this->Internal->par->setNORM(pnode->GetNormalize());
+
     // set header
     this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
     int numAxes = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
@@ -2290,7 +2445,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA")));
-      float *ringreg = this->Internal->fitF->getFinalRingsRegion();
+      float *ringreg = this->Internal->fitF->getFinalRingsRegion(); 
       if (!ringreg)
         {
         inputVolumeDisplay->SetOpticalVelocityDefinition();
@@ -2298,6 +2453,84 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                       "Unable to find ringreg pointer.");
         return 0;
         }
+
+      float totflux_model = 0.;
+      this->Internal->totflux_data = 0.;
+      MomentMap<float> *totalmap = new MomentMap<float>;
+      totalmap->input(this->Internal->cubeF);
+      totalmap->SumMap(true);
+
+      // Calculate the total flux inside last ring in data
+      for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+        {
+        if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+          {
+          this->Internal->totflux_data += totalmap->Array(ii);
+          }
+        }
+
+      float mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
+        * fabs(DeltaVel<float>(*this->Internal->head))
+        * this->Internal->par->getDistance() * this->Internal->par->getDistance();
+
+      // Calculate radial profile along the output rings
+      float meanPA = findMean<float>(&this->Internal->fitF->Outrings()->phi[0],
+                                     this->Internal->fitF->Outrings()->nr);
+      int nseg = 1;
+      float segments[4] = {0, 360., 0., 0};
+      if (this->Internal->par->getSIDE() != "A")
+        {
+        nseg = 2;
+        segments[2] = -90;
+        segments[3] = 90;
+        }
+      else if (this->Internal->par->getSIDE() == "R")
+        {
+        nseg = 2;
+        segments[2] = 90;
+        segments[3] = -90;
+        }
+      if (meanPA > 180)
+        {
+        std::swap(segments[2], segments[3]);
+        }
+
+      Tasks::Ellprof<float> ell(totalmap, this->Internal->fitF->Outrings(), nseg, segments);
+      ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
+      ell.RadialProfile();
+
+      if (!strcmp(pnode->GetNormalize(), "AZIM"))
+        {
+        double profmin = FLT_MAX;
+        for (size_t i = 0; i < (size_t)this->Internal->fitF->Outrings()->nr; i++)
+          {
+          double mean = ell.getMean(i);
+          if (!isNaN(mean) && profmin > mean && mean > 0)
+            {
+            profmin = mean;
+            }
+          }
+        float factor = 1;
+        while(profmin < 0.1)
+          {
+          profmin *= 10;
+          factor *= 10;
+          }
+        while (profmin > 10)
+          {
+          profmin /= 10;
+          factor /= 10;
+          }
+        for (size_t i = 0; i < (size_t)this->Internal->fitF->Outrings()->nr; i++)
+          {
+          this->Internal->fitF->Outrings()->dens[i] = factor * fabs(ell.getMean(i)) * 1E20;
+          if (this->Internal->fitF->Outrings()->dens[i] == 0)
+            {
+            this->Internal->fitF->Outrings()->dens[i] = profmin * 1E20;
+            }
+          }
+        }
+
       this->Internal->modF = this->Internal->fitF->getModel();
       if (!this->Internal->modF || !this->Internal->modF->Out())
         {
@@ -2306,6 +2539,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                       "Unable to find modF pointer.");
         return 0;
         }
+
+      this->Internal->modF->Out()->Head().setMinMax(0.,0.);
       float *outarray = this->Internal->modF->Out()->Array();
       if (!outarray)
         {
@@ -2314,10 +2549,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                       "Unable to find outarray pointer.");
         return 0;
         }
-      float totflux_model = 0.;
 
-      if (pnode->GetNormalize())
+      if (!strcmp(pnode->GetNormalize(), "AZIM") ||
+          !strcmp(pnode->GetNormalize(), "NONE"))
         {
+        // The final model has been build from the azimuthal profile calculated before,
+        // thus just need to rescale the model to the total flux of data inside last ring.
+
         // Calculate total flux of model within last ring
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
           {
@@ -2330,40 +2568,17 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             }
           }
 
-        if (this->Internal->totflux_data < 1.E-6)
-          {
-          MomentMap<float> *totalmap = new MomentMap<float>;
-          totalmap->input(this->Internal->cubeF);
-          totalmap->SumMap(true);
-
-          for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
-            {
-            if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
-              {
-              this->Internal->totflux_data += totalmap->Array(ii);
-              }
-            }
-
-          delete totalmap;
-          totalmap = NULL;
-          }
-
-        if (this->Internal->totflux_data < 1.E-6)
-          {
-          inputVolumeDisplay->SetOpticalVelocityDefinition();
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
-                        "this->Internal->totflux_data is zero!");
-          return 0;
-          }
-
         double factor = this->Internal->totflux_data/totflux_model;
         for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
           {
           outarray[ii] *= factor;
           }
-
+        }
+      if (!strcmp(pnode->GetNormalize(), "LOCAL"))
+        {
         // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
         // flux of observation and model is eventually equal.
+
         for (int y = 0; y < this->Internal->cubeF->DimY(); y++)
           {
           for (int x = 0; x < this->Internal->cubeF->DimX(); x++)
@@ -2377,12 +2592,12 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
               modSum += outarray[Pix];
               obsSum += this->Internal->cubeF->Array(Pix) * this->Internal->cubeF->Mask()[Pix];
               }
-            if (modSum!=0)
+            if (modSum != 0)
               {
-              factor = obsSum/modSum;
+              factor = obsSum / modSum;
               }
 
-            for (int z=0; z<this->Internal->cubeF->DimZ(); z++)
+            for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
               {
               outarray[this->Internal->cubeF->nPix(x,y,z)] *= factor;
               }
@@ -2427,6 +2642,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         residualFPixel = NULL;
         }
 
+      delete totalmap;
+      totalmap = NULL;
       delete ringreg;
       ringreg = NULL;
       outarray = NULL;
@@ -2533,26 +2750,109 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                       "Unable to find ringreg pointer.");
         return 0;
         }
+
+      double totflux_model = 0.;
+      this->Internal->totflux_data = 0.;
+      MomentMap<double> *totalmap = new MomentMap<double>;
+      totalmap->input(this->Internal->cubeD);
+      totalmap->SumMap(true);
+
+      // Calculate the total flux inside last ring in data
+      for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+        {
+        if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
+          {
+          this->Internal->totflux_data += totalmap->Array(ii);
+          }
+        }
+
+      double mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
+        * fabs(DeltaVel<double>(*this->Internal->head))
+        * this->Internal->par->getDistance() * this->Internal->par->getDistance();
+
+      // Calculate radial profile along the output rings
+      double meanPA = findMean<double>(&this->Internal->fitD->Outrings()->phi[0],
+                                       this->Internal->fitD->Outrings()->nr);
+      int nseg = 1;
+      float segments[4] = {0, 360., 0., 0};
+      if (this->Internal->par->getSIDE() != "A")
+        {
+        nseg = 2;
+        segments[2] = -90;
+        segments[3] = 90;
+        }
+      else if (this->Internal->par->getSIDE() == "R")
+        {
+        nseg = 2;
+        segments[2] = 90;
+        segments[3] = -90;
+        }
+      if (meanPA > 180)
+        {
+        std::swap(segments[2], segments[3]);
+        }
+
+      Tasks::Ellprof<double> ell(totalmap, this->Internal->fitD->Outrings(), nseg, segments);
+      ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
+      ell.RadialProfile();
+
+      if (!strcmp(pnode->GetNormalize(), "AZIM"))
+        {
+        double profmin = FLT_MAX;
+        for (size_t i = 0; i < (size_t)this->Internal->fitD->Outrings()->nr; i++)
+          {
+          double mean = ell.getMean(i);
+          if (!isNaN(mean) && profmin > mean && mean > 0)
+            {
+            profmin = mean;
+            }
+          }
+        double factor = 1;
+        while(profmin < 0.1)
+          {
+          profmin *= 10;
+          factor *= 10;
+          }
+        while (profmin > 10)
+          {
+          profmin /= 10;
+          factor /= 10;
+          }
+        for (size_t i = 0; i < (size_t)this->Internal->fitD->Outrings()->nr; i++)
+          {
+          this->Internal->fitD->Outrings()->dens[i] = factor * fabs(ell.getMean(i)) * 1E20;
+          if (this->Internal->fitD->Outrings()->dens[i] == 0)
+            {
+            this->Internal->fitD->Outrings()->dens[i] = profmin * 1E20;
+            }
+          }
+        }
+
       this->Internal->modD = this->Internal->fitD->getModel();
       if (!this->Internal->modD || !this->Internal->modD->Out())
         {
         inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
-                      "Unable to find modD pointer.");
+                      "Unable to find modF pointer.");
         return 0;
         }
+
+      this->Internal->modD->Out()->Head().setMinMax(0.,0.);
       double *outarray = this->Internal->modD->Out()->Array();
       if (!outarray)
         {
         inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
-                      "Unable to find modD array.");
+                      "Unable to find outarray pointer.");
         return 0;
         }
-      double totflux_model = 0.;
 
-      if (pnode->GetNormalize())
+      if (!strcmp(pnode->GetNormalize(), "AZIM") ||
+          !strcmp(pnode->GetNormalize(), "NONE"))
         {
+        // The final model has been build from the azimuthal profile calculated before,
+        // thus just need to rescale the model to the total flux of data inside last ring.
+
         // Calculate total flux of model within last ring
         for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
           {
@@ -2565,40 +2865,17 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             }
           }
 
-        if (this->Internal->totflux_data < 1.E-6)
-          {
-          MomentMap<double> *totalmap = new MomentMap<double>;
-          totalmap->input(this->Internal->cubeD);
-          totalmap->SumMap(true);
-
-          for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
-            {
-            if (!isNaN(ringreg[ii]) && !isNaN(totalmap->Array(ii)))
-              {
-              this->Internal->totflux_data += totalmap->Array(ii);
-              }
-            }
-
-          delete totalmap;
-          totalmap = NULL;
-          }
-
-        if (this->Internal->totflux_data < 1.E-6)
-          {
-          inputVolumeDisplay->SetOpticalVelocityDefinition();
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
-                        "this->Internal->totflux_data is zero!");
-          return 0;
-          }
-
-        double factor = this->Internal->totflux_data/totflux_model;
+        double factor = this->Internal->totflux_data / totflux_model;
         for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
           {
           outarray[ii] *= factor;
           }
-
+        }
+      if (!strcmp(pnode->GetNormalize(), "LOCAL"))
+        {
         // The final model is normalized pixel-by-pixel, i.e. in each spaxel, the total
         // flux of observation and model is eventually equal.
+
         for (int y = 0; y < this->Internal->cubeD->DimY(); y++)
           {
           for (int x = 0; x < this->Internal->cubeD->DimX(); x++)
@@ -2612,12 +2889,12 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
               modSum += outarray[Pix];
               obsSum += this->Internal->cubeD->Array(Pix) * this->Internal->cubeD->Mask()[Pix];
               }
-            if (modSum!=0)
+            if (modSum != 0)
               {
-              factor = obsSum/modSum;
+              factor = obsSum / modSum;
               }
 
-            for (int z=0; z<this->Internal->cubeD->DimZ(); z++)
+            for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
               {
               outarray[this->Internal->cubeD->nPix(x,y,z)] *= factor;
               }
@@ -2662,6 +2939,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         residualDPixel = NULL;
         }
 
+      delete totalmap;
+      totalmap = NULL;
       delete ringreg;
       ringreg = NULL;
       outarray = NULL;
