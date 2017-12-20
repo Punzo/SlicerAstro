@@ -203,6 +203,9 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
 
   this->ApplyButton = new QPushButton("Create Contours");
   this->ApplyButton->setMinimumSize(QSize(0, 35));
+  this->ApplyButton->setToolTip("Push to create and visualize new contours. The color of the "
+                                "contours will be set as current color of the first segment "
+                                "(the one manually created to enable and edit the effect).");
   q->addOptionsWidget(this->ApplyButton);
 
   QObject::connect(this->ApplyButton, SIGNAL(clicked()), q, SLOT(CreateContours()));
