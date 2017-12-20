@@ -554,7 +554,15 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     if(!Segment)
       {
       SegmentID = segmentationNode->GetSegmentation()->AddEmptySegment(SegmentID, SegmentID);
+      Segment = segmentationNode->GetSegmentation()->GetSegment(SegmentID);
       }
+
+    double color[3];
+    if (segmentationNode->GetSegmentation()->GetNthSegment(0))
+      {
+      segmentationNode->GetSegmentation()->GetNthSegment(0)->GetColor(color);
+      }
+    Segment->SetColor(color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(masterVolume->GetImageData());
@@ -603,14 +611,6 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
-    }
-
-  double color[3];
-  segmentationNode->GetSegmentation()->GetNthSegment(0)->GetColor(color);
-
-  for (int ii = 1; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
-    {
-    segmentationNode->GetSegmentation()->GetNthSegment(ii)->SetColor(color);
     }
 
   segmentationNode->GetSegmentation()->CreateRepresentation(

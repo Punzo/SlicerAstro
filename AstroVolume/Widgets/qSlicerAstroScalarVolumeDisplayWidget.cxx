@@ -509,7 +509,13 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     if(!Segment)
       {
       SegmentID = segmentationNode->GetSegmentation()->AddEmptySegment(SegmentID, SegmentID);
+      Segment = segmentationNode->GetSegmentation()->GetSegment(SegmentID);
       }
+
+    vtkDoubleArray* ContoursColor =  astroDisplayNode->GetContoursColor();
+    Segment->SetColor(ContoursColor->GetValue(0),
+                      ContoursColor->GetValue(1),
+                      ContoursColor->GetValue(2));
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(masterVolume->GetImageData());
@@ -558,14 +564,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
-    }
-
-  vtkDoubleArray* ContoursColor =  astroDisplayNode->GetContoursColor();
-  for (int ii = 1; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
-    {
-    segmentationNode->GetSegmentation()->GetNthSegment(ii)->SetColor(ContoursColor->GetValue(0),
-                                                                     ContoursColor->GetValue(1),
-                                                                     ContoursColor->GetValue(2));
     }
 
   segmentationNode->GetSegmentation()->CreateRepresentation(
