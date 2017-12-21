@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>389</width>
+    <width>443</width>
     <height>280</height>
    </rect>
   </property>
@@ -200,7 +200,7 @@
         <string>Toggle to enable widget for the thresholding of the 2D color function.</string>
        </property>
        <property name="text">
-        <string>2D Thresholding</string>
+        <string>2D Display Thresholding</string>
        </property>
        <property name="icon">
         <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -260,7 +260,7 @@
       <widget class="ctkColorPickerButton" name="ColorPickerButton">
        <property name="minimumSize">
         <size>
-         <width>30</width>
+         <width>45</width>
          <height>30</height>
         </size>
        </property>
@@ -292,15 +292,15 @@
        </property>
        <property name="minimumSize">
         <size>
-         <width>100</width>
+         <width>45</width>
          <height>30</height>
         </size>
        </property>
        <property name="toolTip">
-        <string>Create the contours. SlicerAstro contours are a full 3D segmentation (mSarching cubes alghoritm) and they may require few seconds to be computed.</string>
+        <string>Create the contours. SlicerAstro contours are full 3D segmentations (marching cubes algorithm) and they may require few seconds to be computed and visualized.</string>
        </property>
        <property name="text">
-        <string>Create</string>
+        <string/>
        </property>
        <property name="icon">
         <iconset resource="../../../EditorEffects/Resources/qSlicerAstroVolumeEditorEffects.qrc">
