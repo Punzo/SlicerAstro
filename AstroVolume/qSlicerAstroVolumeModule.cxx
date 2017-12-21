@@ -25,7 +25,6 @@
 
 //VTK includes
 #include <vtkCollection.h>
-#include <vtkInstantiator.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkLookupTable.h>
