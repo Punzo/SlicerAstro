@@ -794,7 +794,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Calculate the RMS value in a region of interest (ROI) and udpate the value of the threshold display with teh RMS.</string>
+           <string>Calculate the RMS value in a region of interest (ROI) and udpate the value of the 3D threshold display (= 3 RMS).</string>
           </property>
           <property name="text">
            <string>Calculate RMS in ROI</string>
