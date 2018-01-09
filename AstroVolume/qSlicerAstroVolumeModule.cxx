@@ -640,30 +640,22 @@ void qSlicerAstroVolumeModule::setup()
   BlueLookupTable->SetRampToLinear();
   BlueLookupTable->ForceBuild();
 
-  for (int ii = 0; ii < 128; ii++)
+  VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(0, 0, 0, 0);
+  for (int ii = 1; ii < 128; ii++)
     {
     double RGBBlue[3], RGBGreen[3], RGBA[4];
     int blueIndex = 128 - ii;
     BlueLookupTable->GetTableValue(blueIndex, RGBBlue);
     GreenLookupTable->GetTableValue(ii, RGBGreen);
 
-    if (ii == 0)
-      {
-      RGBA[0] = 0.;
-      RGBA[1] = 0.;
-      RGBA[2] = 0.;
-      RGBA[3] = 1.;
-      }
-    else
-      {
-      RGBA[0] = 0.;
-      RGBA[1] = RGBGreen[1];
-      RGBA[2] = RGBBlue[2];
-      RGBA[3] = 1.;
-      }
+    RGBA[0] = 0.;
+    RGBA[1] = RGBGreen[1];
+    RGBA[2] = RGBBlue[2];
+    RGBA[3] = 1.;
+
     VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
     }
-  for (int ii = 128; ii < 256; ii++)
+  for (int ii = 128; ii < 255; ii++)
     {
     double RGBGreen[3], RGBRed[3], RGBA[4];
     int redIndex = ii - 128;
@@ -675,9 +667,10 @@ void qSlicerAstroVolumeModule::setup()
     RGBA[1] = RGBGreen[1];
     RGBA[2] = 0.;
     RGBA[3] = 1.;
+
     VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
     }
-
+  VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(255, 0, 0, 0);
   VelocityFieldColorTableNode->SetNamesFromColors();
   this->mrmlScene()->AddNode(VelocityFieldColorTableNode.GetPointer());
 
@@ -707,6 +700,45 @@ void qSlicerAstroVolumeModule::setup()
     if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
         !strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
       {
+      continue;
+      }
+
+    this->mrmlScene()->RemoveNode(tempColorTableNode);
+    }
+
+  // Add Rainbow
+  vtkNew<vtkMRMLColorTableNode> RainbowTableNode;
+  RainbowTableNode->SetName("Rainbow");
+  RainbowTableNode->SetType(vtkMRMLColorTableNode::User);
+  RainbowTableNode->SetDescription("Goes from red to purple, passing through the colors of the rainbow in between.");
+  RainbowTableNode->SetNumberOfColors(256);
+  RainbowTableNode->GetLookupTable()->SetNumberOfTableValues(256);
+  RainbowTableNode->GetLookupTable()->SetHueRange(0., 0.8);
+  RainbowTableNode->GetLookupTable()->SetSaturationRange(1,1);
+  RainbowTableNode->GetLookupTable()->SetValueRange(1,1);
+  RainbowTableNode->GetLookupTable()->SetRampToLinear();
+  RainbowTableNode->GetLookupTable()->ForceBuild();
+  RainbowTableNode->SetColor(0, 0, 0, 0);
+  RainbowTableNode->SetColor(255, 0, 0, 0);
+  RainbowTableNode->SetNamesFromColors();
+  RainbowTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+  RainbowTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+  RainbowTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+  RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
+  this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
+
+  // Add Generic Colors
+  for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+            (ColorTableNodeCol->GetItemAsObject(ii));
+    if (!tempColorTableNode)
+      {
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
+        !strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
+      {
       vtkNew<vtkMRMLColorTableNode> tempTableNode;
       tempTableNode->Copy(tempColorTableNode);
       this->mrmlScene()->RemoveNode(tempColorTableNode);
@@ -714,30 +746,6 @@ void qSlicerAstroVolumeModule::setup()
       this->mrmlScene()->AddNode(tempTableNode.GetPointer());
       continue;
       }
-    if (!strcmp(tempColorTableNode->GetName(), "Rainbow"))
-      {
-      this->mrmlScene()->RemoveNode(tempColorTableNode);
-      vtkNew<vtkMRMLColorTableNode> RainbowTableNode;
-      RainbowTableNode->SetName("Rainbow");
-      RainbowTableNode->SetType(vtkMRMLColorTableNode::User);
-      RainbowTableNode->SetDescription("Goes from red to purple, passing through the colors of the rainbow in between.");
-      RainbowTableNode->SetNumberOfColors(256);
-      RainbowTableNode->GetLookupTable()->SetNumberOfTableValues(256);
-      RainbowTableNode->GetLookupTable()->SetHueRange(0., 0.8);
-      RainbowTableNode->GetLookupTable()->SetSaturationRange(1,1);
-      RainbowTableNode->GetLookupTable()->SetValueRange(1,1);
-      RainbowTableNode->GetLookupTable()->SetRampToLinear();
-      RainbowTableNode->GetLookupTable()->ForceBuild();
-      RainbowTableNode->SetColor(0, 0, 0, 0);
-      RainbowTableNode->SetNamesFromColors();
-      RainbowTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
-      RainbowTableNode->SetAttribute("SlicerAstro.Reverse", "off");
-      RainbowTableNode->SetAttribute("SlicerAstro.Inverse", "off");
-      RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
-      this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
-      continue;
-      }
-    this->mrmlScene()->RemoveNode(tempColorTableNode);
     }
 
   vtkSmartPointer<vtkCollection> ProceduralColorTableNodeCol =
