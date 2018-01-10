@@ -388,7 +388,8 @@ void vtkFITSReader::ExecuteInformation()
            !dataModel.compare("MODEL") ||
            !dataModel.compare("ZEROMOMENTMAP") ||
            !dataModel.compare("FIRSTMOMENTMAP") ||
-           !dataModel.compare("SECONDMOMENTMAP"))
+           !dataModel.compare("SECONDMOMENTMAP") ||
+           !dataModel.compare("PROFILE"))
     {
     switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
       {
@@ -851,6 +852,7 @@ bool vtkFITSReader::AllocateHeader()
      QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
      QRegExp modelName("(\\b|_)([Mm]odel)(\\b|_)");
      QRegExp modelNamesShort("(\\b|_)([Mm]od)(\\b|_)");
+     QRegExp profileName("(\\b|_)([Pp]rofile)(\\b|_)");
      QRegExp zeroMomentMapName("(\\b|_)(0(th)?[Mm]omentMap)(\\b|_)");
      QRegExp zeroMomentMapNameShort("(\\b|_)([Mm]om0(th)?)(\\b|_)");
      QRegExp firstMomentMapName("(\\b|_)(1(st)?[Mm]omentMap)(\\b|_)");
@@ -868,6 +870,10 @@ bool vtkFITSReader::AllocateHeader()
               fileInfo.baseName().contains(modelNamesShort))
        {
        HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MODEL";
+       }
+     else if (fileInfo.baseName().contains(profileName))
+       {
+       HeaderKeyValue["SlicerAstro.DATAMODEL"] = "PROFILE";
        }
      else if (fileInfo.baseName().contains(zeroMomentMapName) ||
               fileInfo.baseName().contains(zeroMomentMapNameShort))

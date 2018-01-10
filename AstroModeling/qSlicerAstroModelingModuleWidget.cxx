@@ -1735,7 +1735,7 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
   if (d->selectionNode)
     {
     d->selectionNode->SetActivePlotChartID(NULL);
-  }
+    }
 }
 
 //-----------------------------------------------------------------------------

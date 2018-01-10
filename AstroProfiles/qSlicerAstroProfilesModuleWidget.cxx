@@ -33,9 +33,11 @@
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
+#include <vtkFloatArray.h>
 #include <vtkNew.h>
 #include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
+#include <vtkTable.h>
 #include <vtksys/SystemTools.hxx>
 
 // SlicerQt includes
@@ -46,13 +48,13 @@
 #include <qSlicerModuleManager.h>
 #include <qSlicerUtils.h>
 
-// AstroMomentMaps includes
-#include "qSlicerAstroMomentMapsModuleWidget.h"
-#include "ui_qSlicerAstroMomentMapsModuleWidget.h"
+// AstroProfiles includes
+#include "qSlicerAstroProfilesModuleWidget.h"
+#include "ui_qSlicerAstroProfilesModuleWidget.h"
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerAstroMomentMapsLogic.h>
+#include <vtkSlicerAstroProfilesLogic.h>
 #include <vtkSlicerSegmentationsModuleLogic.h>
 
 // qMRML includes
@@ -66,12 +68,15 @@
 // MRML includes
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
-#include <vtkMRMLAstroMomentMapsParametersNode.h>
+#include <vtkMRMLAstroProfilesParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
+#include <vtkMRMLPlotChartNode.h>
+#include <vtkMRMLPlotDataNode.h>
+#include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentationNode.h>
@@ -79,6 +84,7 @@
 #include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
+#include <vtkMRMLTableNode.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
@@ -86,22 +92,23 @@
 #include <sys/time.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroMomentMaps
-class qSlicerAstroMomentMapsModuleWidgetPrivate: public Ui_qSlicerAstroMomentMapsModuleWidget
+/// \ingroup Slicer_QtModules_AstroProfiles
+class qSlicerAstroProfilesModuleWidgetPrivate: public Ui_qSlicerAstroProfilesModuleWidget
 {
-  Q_DECLARE_PUBLIC(qSlicerAstroMomentMapsModuleWidget);
+  Q_DECLARE_PUBLIC(qSlicerAstroProfilesModuleWidget);
 protected:
-  qSlicerAstroMomentMapsModuleWidget* const q_ptr;
+  qSlicerAstroProfilesModuleWidget* const q_ptr;
 public:
 
-  qSlicerAstroMomentMapsModuleWidgetPrivate(qSlicerAstroMomentMapsModuleWidget& object);
-  ~qSlicerAstroMomentMapsModuleWidgetPrivate();
+  qSlicerAstroProfilesModuleWidgetPrivate(qSlicerAstroProfilesModuleWidget& object);
+  ~qSlicerAstroProfilesModuleWidgetPrivate();
 
   void init();
   void cleanPointers();
 
-  vtkSlicerAstroMomentMapsLogic* logic() const;
-  vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode> parametersNode;
+  vtkSlicerAstroProfilesLogic* logic() const;
+  vtkSmartPointer<vtkMRMLAstroProfilesParametersNode> parametersNode;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeProfile;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
   vtkSmartPointer<vtkMRMLUnitNode> unitNodeIntensity;
@@ -109,28 +116,29 @@ public:
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroMomentMapsModuleWidgetPrivate methods
+// qSlicerAstroProfilesModuleWidgetPrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModuleWidgetPrivate::qSlicerAstroMomentMapsModuleWidgetPrivate(qSlicerAstroMomentMapsModuleWidget& object)
+qSlicerAstroProfilesModuleWidgetPrivate::qSlicerAstroProfilesModuleWidgetPrivate(qSlicerAstroProfilesModuleWidget& object)
   : q_ptr(&object)
 {
   this->parametersNode = 0;
   this->selectionNode = 0;
+  this->plotChartNodeProfile = 0;
   this->segmentEditorNode = 0;
   this->unitNodeIntensity = 0;
   this->unitNodeVelocity = 0;
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModuleWidgetPrivate::~qSlicerAstroMomentMapsModuleWidgetPrivate()
+qSlicerAstroProfilesModuleWidgetPrivate::~qSlicerAstroProfilesModuleWidgetPrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
+void qSlicerAstroProfilesModuleWidgetPrivate::init()
 {
-  Q_Q(qSlicerAstroMomentMapsModuleWidget);
+  Q_Q(qSlicerAstroProfilesModuleWidget);
 
   this->setupUi(q);
 
@@ -138,24 +146,18 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
 
   if(!app)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidgetPrivate::init(): could not find qSlicerApplication!";
+    qCritical() << "qSlicerAstroProfilesModuleWidgetPrivate::init(): could not find qSlicerApplication!";
     return;
     }
 
   QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setMRMLAstroMomentMapsParametersNode(vtkMRMLNode*)));
+                   q, SLOT(setMRMLAstroProfilesParametersNode(vtkMRMLNode*)));
 
   QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(ZeroMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onZeroMomentVolumeChanged(vtkMRMLNode*)));
-
-  QObject::connect(FirstMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onFirstMomentVolumeChanged(vtkMRMLNode*)));
-
-  QObject::connect(SecondMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onSecondMomentVolumeChanged(vtkMRMLNode*)));
+  QObject::connect(ProfileVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onProfileVolumeChanged(vtkMRMLNode*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
@@ -164,15 +166,6 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
 
   QObject::connect(MaskCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onMaskActiveToggled(bool)));
-
-  QObject::connect(ZeroMomentRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onGenerateZeroToggled(bool)));
-
-  QObject::connect(FirstMomentRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onGenerateFirstToggled(bool)));
-
-  QObject::connect(SecondMomentRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onGenerateSecondToggled(bool)));
 
   QObject::connect(ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
                    q, SLOT(onThresholdRangeChanged(double, double)));
@@ -195,32 +188,32 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidgetPrivate::cleanPointers()
+void qSlicerAstroProfilesModuleWidgetPrivate::cleanPointers()
 {
   this->parametersNode = 0;
 }
 
 //-----------------------------------------------------------------------------
-vtkSlicerAstroMomentMapsLogic* qSlicerAstroMomentMapsModuleWidgetPrivate::logic() const
+vtkSlicerAstroProfilesLogic* qSlicerAstroProfilesModuleWidgetPrivate::logic() const
 {
-  Q_Q(const qSlicerAstroMomentMapsModuleWidget);
-  return vtkSlicerAstroMomentMapsLogic::SafeDownCast(q->logic());
+  Q_Q(const qSlicerAstroProfilesModuleWidget);
+  return vtkSlicerAstroProfilesLogic::SafeDownCast(q->logic());
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroMomentMapsModuleWidget methods
+// qSlicerAstroProfilesModuleWidget methods
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModuleWidget::qSlicerAstroMomentMapsModuleWidget(QWidget* _parent)
+qSlicerAstroProfilesModuleWidget::qSlicerAstroProfilesModuleWidget(QWidget* _parent)
   : Superclass( _parent )
-  , d_ptr( new qSlicerAstroMomentMapsModuleWidgetPrivate(*this) )
+  , d_ptr( new qSlicerAstroProfilesModuleWidgetPrivate(*this) )
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
   d->init();
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModuleWidget::~qSlicerAstroMomentMapsModuleWidget()
+qSlicerAstroProfilesModuleWidget::~qSlicerAstroProfilesModuleWidget()
 {
 }
 
@@ -266,9 +259,9 @@ std::string IntToString(int Value)
 } // end namespace
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
+void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!scene)
     {
@@ -280,18 +273,18 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : selectionNode not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::setMRMLScene : selectionNode not found!";
     return;
     }
 
-  this->initializeParameterNode(scene);
+  this->initializeNodes();
 
   this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
                       this, SLOT(onEndCloseEvent()));
@@ -309,9 +302,7 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->onMRMLSelectionNodeModified(d->selectionNode);
   this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-  this->onMRMLAstroMomentMapsParametersNodeModified();
-
-  this->initializeSegmentations(scene);
+  this->onMRMLAstroProfilesParametersNodeModified();
 
   d->InputSegmentCollapsibleButton->setCollapsed(false);
 
@@ -326,113 +317,161 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->onUnitNodeVelocityChanged(d->unitNodeVelocity);
 }
 
-//-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onEndCloseEvent()
+void qSlicerAstroProfilesModuleWidget::initializeNodes(bool forceNew  /*= false*/)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  this->initializeParameterNode(forceNew);
+
+  this->initializeSegmentations(forceNew);
+
+  this->initializePlotNodes(forceNew);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onEndCloseEvent()
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onMRMLSceneEndImportEvent"
                    " : selectionNode not found!";
     return;
     }
 
-  this->initializeParameterNode(this->mrmlScene());
-  this->onMRMLAstroMomentMapsParametersNodeModified();
-  this->initializeSegmentations(this->mrmlScene());
+  this->initializeNodes();
+  this->onMRMLAstroProfilesParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onEndImportEvent()
+void qSlicerAstroProfilesModuleWidget::onEndImportEvent()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::setMRMLScene : appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onMRMLSceneEndImportEvent"
                    " : selectionNode not found!";
     return;
     }
 
-  this->initializeParameterNode(this->mrmlScene());
-  this->onMRMLAstroMomentMapsParametersNodeModified();
-  this->initializeSegmentations(this->mrmlScene());
+  this->initializeNodes();
+  this->onMRMLAstroProfilesParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::initializeParameterNode(vtkMRMLScene* scene)
+void qSlicerAstroProfilesModuleWidget::initializeParameterNode(bool forceNew /*= false*/)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!scene || !d->selectionNode)
+  if (!this->mrmlScene() || !d->selectionNode)
     {
     return;
     }
 
-  vtkMRMLAstroMomentMapsParametersNode *astroParametersNode = NULL;
-  unsigned int numNodes = scene->GetNumberOfNodesByClass("vtkMRMLAstroMomentMapsParametersNode");
-  if(numNodes > 0)
+  vtkMRMLAstroProfilesParametersNode *astroParametersNode = NULL;
+  unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroProfilesParametersNode");
+  if(numNodes > 0 && !forceNew)
     {
-    astroParametersNode = vtkMRMLAstroMomentMapsParametersNode::SafeDownCast
-      (scene->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroMomentMapsParametersNode"));
+    astroParametersNode = vtkMRMLAstroProfilesParametersNode::SafeDownCast
+      (this->mrmlScene()->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroProfilesParametersNode"));
     }
   else
     {
     vtkSmartPointer<vtkMRMLNode> parametersNode;
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLAstroMomentMapsParametersNode");
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLAstroProfilesParametersNode");
     parametersNode.TakeReference(foo);
-    scene->AddNode(parametersNode);
+    this->mrmlScene()->AddNode(parametersNode);
 
-    astroParametersNode = vtkMRMLAstroMomentMapsParametersNode::SafeDownCast(parametersNode);
+    astroParametersNode = vtkMRMLAstroProfilesParametersNode::SafeDownCast(parametersNode);
     int wasModifying = astroParametersNode->StartModify();
     astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
     astroParametersNode->SetMaskActive(false);
-    astroParametersNode->SetGenerateZero(true);
-    astroParametersNode->SetGenerateFirst(true);
-    astroParametersNode->SetGenerateSecond(true);
     astroParametersNode->EndModify(wasModifying);
     }
 
   d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
 }
 
-//-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::initializeSegmentations(vtkMRMLScene *scene)
+void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= false*/)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!scene)
+  if (!this->mrmlScene() || !d->parametersNode)
+    {
+    return;
+    }
+
+  // Check (and create) PlotChart node
+  if (!d->plotChartNodeProfile)
+    {
+    vtkSmartPointer<vtkCollection> plotChartNodeProfileCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotChartNode", "ProfileChart"));
+
+    if (plotChartNodeProfileCol->GetNumberOfItems() == 0 || forceNew)
+      {
+      d->plotChartNodeProfile.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+      this->mrmlScene()->AddNode(d->plotChartNodeProfile);
+      d->plotChartNodeProfile->SetAttribute("TitleName", "Profile");
+      d->plotChartNodeProfile->SetAttribute("XAxisLabelName", "Velocity (km/s)");
+      d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Intensity (mJy/beam)");
+      d->plotChartNodeProfile->SetAttribute("Type", "Line");
+      d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongX", "off");
+      d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongY", "off");
+      }
+    else
+      {
+      d->plotChartNodeProfile = vtkMRMLPlotChartNode::SafeDownCast
+        (plotChartNodeProfileCol->GetItemAsObject(plotChartNodeProfileCol->GetNumberOfItems() - 1));
+      }
+    }
+
+  // Select NULL Chart
+  if (d->selectionNode)
+    {
+    d->selectionNode->SetActivePlotChartID(NULL);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::initializeSegmentations(bool forceNew /*= false*/)
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  if (!this->mrmlScene())
     {
     return;
     }
 
   std::string segmentEditorSingletonTag = "SegmentEditor";
   vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    scene->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
+    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
 
-  if (!segmentEditorNodeSingleton)
+  if (!segmentEditorNodeSingleton || forceNew)
     {
     d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
     d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
     d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-    scene->AddNode(d->segmentEditorNode));
+    this->mrmlScene()->AddNode(d->segmentEditorNode));
     }
   else
     {
@@ -444,21 +483,21 @@ void qSlicerAstroMomentMapsModuleWidget::initializeSegmentations(vtkMRMLScene *s
 
   this->onSegmentEditorNodeModified(d->segmentEditorNode);
 
-  if (!d->segmentEditorNode->GetSegmentationNode())
+  if (!d->segmentEditorNode->GetSegmentationNode() || forceNew)
     {
     vtkSmartPointer<vtkMRMLNode> segmentationNode;
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLSegmentationNode");
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     segmentationNode.TakeReference(foo);
-    scene->AddNode(segmentationNode);
+    this->mrmlScene()->AddNode(segmentationNode);
     d->segmentEditorNode->SetAndObserveSegmentationNode
       (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
     }
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
+bool qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->segmentEditorNode)
     {
@@ -518,19 +557,19 @@ bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
 
   if (activeVolumeNode)
     {
-    vtkSlicerAstroMomentMapsLogic* astroMomentMapslogic =
-      vtkSlicerAstroMomentMapsLogic::SafeDownCast(this->logic());
-    if (!astroMomentMapslogic)
+    vtkSlicerAstroProfilesLogic* astroProfileslogic =
+      vtkSlicerAstroProfilesLogic::SafeDownCast(this->logic());
+    if (!astroProfileslogic)
       {
-      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap :"
-                    " astroMomentMapslogic not found!";
+      qCritical() <<"qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap :"
+                    " astroProfileslogic not found!";
       return false;
       }
     vtkSlicerAstroVolumeLogic* astroVolumelogic =
-      vtkSlicerAstroVolumeLogic::SafeDownCast(astroMomentMapslogic->GetAstroVolumeLogic());
+      vtkSlicerAstroVolumeLogic::SafeDownCast(astroProfileslogic->GetAstroVolumeLogic());
     if (!astroVolumelogic)
       {
-      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap :"
+      qCritical() <<"qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap :"
                     " vtkSlicerAstroVolumeLogic not found!";
       return false;
       }
@@ -656,9 +695,9 @@ bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObject *sender)
+void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObject *sender)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!sender)
     {
@@ -685,9 +724,9 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkOb
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObject *sender)
+void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObject *sender)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!sender)
     {
@@ -714,43 +753,30 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtk
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onSecondMomentVolumeChanged(vtkMRMLNode *mrmlNode)
+void qSlicerAstroProfilesModuleWidget::setMRMLAstroProfilesParametersNode(vtkMRMLNode* mrmlNode)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
-
-  if (!d->parametersNode || !mrmlNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetSecondMomentVolumeNodeID(mrmlNode->GetID());
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::setMRMLAstroMomentMapsParametersNode(vtkMRMLNode* mrmlNode)
-{
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!mrmlNode)
     {
     return;
     }
 
-  vtkMRMLAstroMomentMapsParametersNode* AstroMomentMapsParaNode =
-      vtkMRMLAstroMomentMapsParametersNode::SafeDownCast(mrmlNode);
+  vtkMRMLAstroProfilesParametersNode* AstroProfilesParaNode =
+      vtkMRMLAstroProfilesParametersNode::SafeDownCast(mrmlNode);
 
-  this->qvtkReconnect(d->parametersNode, AstroMomentMapsParaNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLAstroMomentMapsParametersNodeModified()));
+  this->qvtkReconnect(d->parametersNode, AstroProfilesParaNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLAstroProfilesParametersNodeModified()));
 
-  d->parametersNode = AstroMomentMapsParaNode;
+  d->parametersNode = AstroProfilesParaNode;
 
-  this->onMRMLAstroMomentMapsParametersNodeModified();
+  this->onMRMLAstroProfilesParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
+void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode || !d->selectionNode)
     {
@@ -783,9 +809,9 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
+void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode || !this->mrmlScene() ||
      this->mrmlScene()->IsClosing() || this->mrmlScene()->IsBatchProcessing() ||
@@ -814,7 +840,7 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
   struct wcsprm* WCS = astroMrmlDisplayNode->GetWCSStruct();
   if (!WCS)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified :"
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onInputVolumeModified :"
                    " WCS not found!";
     return;
     }
@@ -875,58 +901,9 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onFirstMomentVolumeChanged(vtkMRMLNode *mrmlNode)
+void qSlicerAstroProfilesModuleWidget::onMaskActiveToggled(bool active)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
-
-  if (!d->parametersNode || !mrmlNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetFirstMomentVolumeNodeID(mrmlNode->GetID());
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onGenerateFirstToggled(bool generate)
-{
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-  d->parametersNode->SetGenerateFirst(generate);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onGenerateSecondToggled(bool generate)
-{
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-  d->parametersNode->SetGenerateSecond(generate);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onGenerateZeroToggled(bool generate)
-{
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-  d->parametersNode->SetGenerateZero(generate);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onMaskActiveToggled(bool active)
-{
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -936,9 +913,9 @@ void qSlicerAstroMomentMapsModuleWidget::onMaskActiveToggled(bool active)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModified()
+void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -953,53 +930,26 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModi
     d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
     }
 
-  char *zeroMomentVolumeNodeID = d->parametersNode->GetZeroMomentVolumeNodeID();
-  vtkMRMLAstroVolumeNode *zeroMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(zeroMomentVolumeNodeID));
-  if (zeroMomentVolumeNode)
+  char *ProfileVolumeNodeID = d->parametersNode->GetProfileVolumeNodeID();
+  vtkMRMLAstroVolumeNode *ProfileVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(ProfileVolumeNodeID));
+  if (ProfileVolumeNode)
     {
-    d->ZeroMomentVolumeNodeSelector->setCurrentNode(zeroMomentVolumeNode);
-    }
-
-  char *firstMomentVolumeNodeID = d->parametersNode->GetFirstMomentVolumeNodeID();
-  vtkMRMLAstroVolumeNode *firstMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(firstMomentVolumeNodeID));
-  if (firstMomentVolumeNode)
-    {
-    d->FirstMomentVolumeNodeSelector->setCurrentNode(firstMomentVolumeNode);
-    }
-
-  char *secondMomentVolumeNodeID = d->parametersNode->GetSecondMomentVolumeNodeID();
-  vtkMRMLAstroVolumeNode *secondMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(secondMomentVolumeNodeID));
-  if (secondMomentVolumeNode)
-    {
-    d->SecondMomentVolumeNodeSelector->setCurrentNode(secondMomentVolumeNode);
+    d->ProfileVolumeNodeSelector->setCurrentNode(ProfileVolumeNode);
     }
 
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
   if (d->parametersNode->GetMaskActive())
-    {  
-    d->VelocityRangeLabel->hide();
-    d->VelocityRangeWidget->hide();
-    d->VelocityUnitLabel->hide();
-    d->ThresholdRangeLabel->hide();
-    d->ThresholdRangeWidget->hide();
-    d->ThresholdUnitLabel->hide();
+    {
+    d->ParametersCollapsibleButton->setChecked(false);
+    d->ParametersCollapsibleButton->setEnabled(false);
     }
   else
     {
-    d->VelocityRangeLabel->show();
-    d->VelocityRangeWidget->show();
-    d->VelocityUnitLabel->show();
-    d->ThresholdRangeLabel->show();
-    d->ThresholdRangeWidget->show();
-    d->ThresholdUnitLabel->show();
+    d->ParametersCollapsibleButton->setChecked(true);
+    d->ParametersCollapsibleButton->setEnabled(true);
     }
-  d->ZeroMomentRadioButton->setChecked(d->parametersNode->GetGenerateZero());
-  d->FirstMomentRadioButton->setChecked(d->parametersNode->GetGenerateFirst());
-  d->SecondMomentRadioButton->setChecked(d->parametersNode->GetGenerateSecond());
 
   bool wasBlocked = d->VelocityRangeWidget->blockSignals(true);
   d->VelocityRangeWidget->setMinimumValue(d->parametersNode->GetVelocityMin());
@@ -1032,9 +982,9 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModi
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onMRMLSelectionNodeModified(vtkObject *sender)
+void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeModified(vtkObject *sender)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!sender)
     {
@@ -1055,21 +1005,21 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLSelectionNodeModified(vtkObject *
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onCalculate()
+void qSlicerAstroProfilesModuleWidget::onCalculate()
 {
-  Q_D(const qSlicerAstroMomentMapsModuleWidget);
+  Q_D(const qSlicerAstroProfilesModuleWidget);
 
-  vtkSlicerAstroMomentMapsLogic *logic = d->logic();
+  vtkSlicerAstroProfilesLogic *logic = d->logic();
   if (!logic)
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : vtkSlicerAstroMomentMapsLogic not found!";
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : vtkSlicerAstroProfilesLogic not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (!d->parametersNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate() : parametersNode not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate() : parametersNode not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1079,7 +1029,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : scene not found!";
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : scene not found!";
     }
 
   vtkMRMLAstroVolumeNode *inputVolume =
@@ -1087,7 +1037,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : inputVolume not found!";
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : inputVolume not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1108,7 +1058,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     {
     if (!this->convertFirstSegmentToLabelMap())
       {
-      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : convertFirstSegmentToLabelMap failed!";
+      qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : convertFirstSegmentToLabelMap failed!";
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -1117,326 +1067,116 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   int serial = d->parametersNode->GetOutputSerial();
 
   // Create 0thMomentMapVolume
-  vtkMRMLAstroVolumeNode *ZeroMomentVolume =
+  vtkMRMLAstroVolumeNode *ProfileVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetZeroMomentVolumeNodeID()));
+      GetNodeByID(d->parametersNode->GetProfileVolumeNodeID()));
 
-  if (d->parametersNode->GetGenerateZero()  ||
-      d->parametersNode->GetGenerateFirst() ||
-      d->parametersNode->GetGenerateSecond())
+  if (!ProfileVolume)
     {
-    if (!ZeroMomentVolume)
-      {
-      ZeroMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-                 GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-      }
-
-    std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_mom0th";
-    outSS <<"_"<< IntToString(serial);
-
-    // Check Moment volume
-    if (!strcmp(inputVolume->GetID(), ZeroMomentVolume->GetID()) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-        StringToInt(ZeroMomentVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-        StringToInt(ZeroMomentVolume->GetAttribute("SlicerAstro.NAXIS2"))))
-      {
-
-      // Get dimensions
-      int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
-      int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-
-      // Create an empty 2D image
-      vtkNew<vtkImageData> imageDataTemp;
-      imageDataTemp->SetDimensions(N1, N2, 1);
-      imageDataTemp->SetSpacing(1.,1.,1.);
-      imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-      // create Astro Volume for the moment map
-      ZeroMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-         (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-      // modify fits attributes
-      ZeroMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-      std::string Bunit = ZeroMomentVolume->GetAttribute("SlicerAstro.BUNIT");
-      Bunit += " km/s";
-      ZeroMomentVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
-      std::string Btype = "";
-      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-      ZeroMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-      // copy 2D image into the Astro Volume object
-      ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-      double Origin[3];
-      inputVolume->GetOrigin(Origin);
-      Origin[1] = 0.;
-      ZeroMomentVolume->SetOrigin(Origin);
-
-      ZeroMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
-
-      // Remove old rendering Display
-      int ndnodes = ZeroMomentVolume->GetNumberOfDisplayNodes();
-      for (int ii = 0; ii < ndnodes; ii++)
-        {
-        vtkMRMLVolumeRenderingDisplayNode *dnode =
-          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-            ZeroMomentVolume->GetNthDisplayNode(ii));
-        if (dnode)
-          {
-          ZeroMomentVolume->RemoveNthDisplayNodeID(ii);
-          }
-        }
-      }
-    else
-      {
-      ZeroMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
-      }
-
-    ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMENTMAP");
+    ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+               GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
     }
 
-  // Create 1stMomentMapVolume
-  vtkMRMLAstroVolumeNode *FirstMomentVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetFirstMomentVolumeNodeID()));
+  std::ostringstream outSS;
+  outSS << inputVolume->GetName() << "_profile";
+  outSS <<"_"<< IntToString(serial);
 
-  if (d->parametersNode->GetGenerateFirst() ||
-      d->parametersNode->GetGenerateSecond())
+  // Check Profile volume
+  if (!strcmp(inputVolume->GetID(), ProfileVolume->GetID()) ||
+     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3")) !=
+      StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1"))))
     {
-    if (!FirstMomentVolume)
+
+    // Get dimensions
+    int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+
+    // Create an empty 2D image
+    vtkNew<vtkImageData> imageDataTemp;
+    imageDataTemp->SetDimensions(N1, 1, 1);
+    imageDataTemp->SetSpacing(1.,1.,1.);
+    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
+
+    // create Astro Volume for the moment map
+    ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
+
+    // modify fits attributes
+    ProfileVolume->SetAttribute("SlicerAstro.NAXIS", "1");
+    std::string Bunit = ProfileVolume->GetAttribute("SlicerAstro.BUNIT");
+    Bunit += " km/s";
+    ProfileVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
+    std::string Btype = "";
+    Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+    ProfileVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
+    ProfileVolume->SetAttribute("SlicerAstro.NAXIS1", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+    ProfileVolume->SetAttribute("SlicerAstro.CROTA1", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
+    ProfileVolume->SetAttribute("SlicerAstro.CRPIX1", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
+    ProfileVolume->SetAttribute("SlicerAstro.CRVAL1", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
+    ProfileVolume->SetAttribute("SlicerAstro.CTYPE1", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
+    ProfileVolume->SetAttribute("SlicerAstro.CUNIT1", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
+    ProfileVolume->SetAttribute("SlicerAstro.DTYPE1", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
+    ProfileVolume->SetAttribute("SlicerAstro.DRVAL1", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
+    ProfileVolume->SetAttribute("SlicerAstro.DUNIT1", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
+
+    ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CROTA2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT2");
+    ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CROTA3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL3");
+    ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+
+    // copy 1D image into the Astro Volume object
+    ProfileVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+
+    double Origin[3];
+    inputVolume->GetOrigin(Origin);
+    Origin[1] = 0.;
+    ProfileVolume->SetOrigin(Origin);
+
+    ProfileVolume->SetName(outSS.str().c_str());
+    d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
+
+    // Remove old rendering Display
+    int ndnodes = ProfileVolume->GetNumberOfDisplayNodes();
+    for (int ii = 0; ii < ndnodes; ii++)
       {
-      FirstMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-                 GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-      }
-
-    std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_mom1st";
-    outSS <<"_"<< IntToString(serial);
-
-    // Check Moment volume
-    if (!strcmp(inputVolume->GetID(), FirstMomentVolume->GetID()) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-        StringToInt(FirstMomentVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-        StringToInt(FirstMomentVolume->GetAttribute("SlicerAstro.NAXIS2"))))
-      {
-
-      // Get dimensions
-      int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
-      int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-
-      // Create an empty 2D image
-      vtkNew<vtkImageData> imageDataTemp;
-      imageDataTemp->SetDimensions(N1, N2, 1);
-      imageDataTemp->SetSpacing(1.,1.,1.);
-      imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-      // create Astro Volume for the moment map
-      FirstMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-         (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-      // modify fits attributes
-      FirstMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-      FirstMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
-      std::string Btype = "";
-      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-      FirstMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-      // copy 2D image into the Astro Volume object
-      FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-      double Origin[3];
-      inputVolume->GetOrigin(Origin);
-      Origin[1] = 0.;
-      FirstMomentVolume->SetOrigin(Origin);
-
-      // change colorMap of the 2D image
-      vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
-      vtkMRMLColorTableNode* velocityFieldColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-        (scene->GetFirstNodeByName("Velocity Field"));
-      if (!velocityFieldColorTableNode)
+      vtkMRMLVolumeRenderingDisplayNode *dnode =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+          ProfileVolume->GetNthDisplayNode(ii));
+      if (dnode)
         {
-        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : "
-                      "velocityFieldColorTableNode not found!";
-        d->parametersNode->SetStatus(0);
-        return;
-        }
-      displayNode->SetAndObserveColorNodeID(velocityFieldColorTableNode->GetID());
-
-      FirstMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
-
-      // Remove old rendering Display
-      int ndnodes = FirstMomentVolume->GetNumberOfDisplayNodes();
-      for (int ii = 0; ii < ndnodes; ii++)
-        {
-        vtkMRMLVolumeRenderingDisplayNode *dnode =
-          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-            FirstMomentVolume->GetNthDisplayNode(ii));
-        if (dnode)
-          {
-          FirstMomentVolume->RemoveNthDisplayNodeID(ii);
-          }
+        ProfileVolume->RemoveNthDisplayNodeID(ii);
         }
       }
-    else
-      {
-      FirstMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
-      }
-
-    FirstMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "FIRSTMOMENTMAP");
+    }
+  else
+    {
+    ProfileVolume->SetName(outSS.str().c_str());
+    d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
     }
 
-  // Create 2ndMomentMapVolume
-  vtkMRMLAstroVolumeNode *SecondMomentVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetSecondMomentVolumeNodeID()));
+  ProfileVolume->SetAttribute("SlicerAstro.DATAMODEL", "PROFILE");
 
-  if (d->parametersNode->GetGenerateSecond())
+  if (!logic->CalculateProfile(d->parametersNode))
     {
-    if (!SecondMomentVolume)
-      {
-      SecondMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-                 GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-      }
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
+                  "CalculateProfiles error!";
 
-    std::ostringstream outSS;
-    outSS << inputVolume->GetName() << "_mom2nd";
-    outSS <<"_"<< IntToString(serial);
-
-    // Check Moment volume
-    if (!strcmp(inputVolume->GetID(), SecondMomentVolume->GetID()) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-        StringToInt(SecondMomentVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-        StringToInt(SecondMomentVolume->GetAttribute("SlicerAstro.NAXIS2"))))
-      {
-
-      // Get dimensions
-      int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
-      int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-
-      // Create an empty 2D image
-      vtkNew<vtkImageData> imageDataTemp;
-      imageDataTemp->SetDimensions(N1, N2, 1);
-      imageDataTemp->SetSpacing(1.,1.,1.);
-      imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-      // create Astro Volume for the moment map
-      SecondMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-         (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-      // modify fits attributes
-      SecondMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-      SecondMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
-      std::string Btype = "";
-      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-      SecondMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-      // copy 2D image into the Astro Volume object
-      SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-      double Origin[3];
-      inputVolume->GetOrigin(Origin);
-      Origin[1] = 0.;
-      SecondMomentVolume->SetOrigin(Origin);
-
-      // change colorMap of the 2D image
-      vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();
-      vtkMRMLColorTableNode* RainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-        (scene->GetFirstNodeByName("Rainbow"));
-      if (!RainbowColorTableNode)
-        {
-        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : "
-                      "RainbowColorTableNode not found!";
-        d->parametersNode->SetStatus(0);
-        return;
-        }
-      displayNode->SetAndObserveColorNodeID(RainbowColorTableNode->GetID());
-
-      SecondMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
-
-      // Remove old rendering Display
-      int ndnodes = SecondMomentVolume->GetNumberOfDisplayNodes();
-      for (int ii = 0; ii < ndnodes; ii++)
-        {
-        vtkMRMLVolumeRenderingDisplayNode *dnode =
-          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-            SecondMomentVolume->GetNthDisplayNode(ii));
-        if (dnode)
-          {
-          SecondMomentVolume->RemoveNthDisplayNodeID(ii);
-          }
-        }
-      }
-    else
-      {
-      SecondMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
-      }
-
-    SecondMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "SECONDMOMENTMAP");
-    }
-
-  serial++;
-  d->parametersNode->SetOutputSerial(serial);
-
-  if (!logic->CalculateMomentMaps(d->parametersNode))
-    {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
-                  "CalculateMomentMaps error!";
-    if (d->parametersNode->GetGenerateSecond())
-      {
-      scene->RemoveNode(ZeroMomentVolume);
-      scene->RemoveNode(FirstMomentVolume);
-      scene->RemoveNode(SecondMomentVolume);
-      }
-    else if (d->parametersNode->GetGenerateFirst())
-      {
-      scene->RemoveNode(ZeroMomentVolume);
-      scene->RemoveNode(FirstMomentVolume);
-      }
-    else if(d->parametersNode->GetGenerateZero())
-      {
-      scene->RemoveNode(ZeroMomentVolume);
-      }
+    scene->RemoveNode(ProfileVolume);
     d->parametersNode->SetStatus(0);
-    d->parametersNode->SetZeroMomentVolumeNodeID("");
-    d->parametersNode->SetFirstMomentVolumeNodeID("");
-    d->parametersNode->SetSecondMomentVolumeNodeID("");
+    d->parametersNode->SetProfileVolumeNodeID("");
     return;
     }
 
@@ -1451,31 +1191,14 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       }
     }
 
-  if (!d->parametersNode->GetGenerateZero())
-    {
-    scene->RemoveNode(ZeroMomentVolume);
-    }
-
-  if (!d->parametersNode->GetGenerateFirst())
-    {
-    scene->RemoveNode(FirstMomentVolume);
-    }
-
-  if (!d->parametersNode->GetGenerateSecond())
-    {
-    scene->RemoveNode(SecondMomentVolume);
-    }
-
-  d->parametersNode->SetZeroMomentVolumeNodeID("");
-  d->parametersNode->SetFirstMomentVolumeNodeID("");
-  d->parametersNode->SetSecondMomentVolumeNodeID("");
+  d->parametersNode->SetProfileVolumeNodeID("");
 
   // Setting the Layout for the Output
   qSlicerApplication* app = qSlicerApplication::application();
 
   if(!app)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate : qSlicerApplication not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate : qSlicerApplication not found!";
     return;
     }
 
@@ -1483,98 +1206,121 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
   if(!app)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate : layoutManager not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate : layoutManager not found!";
     return;
     }
 
-  layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
+  // Plot the profile
+  layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
 
-  if (d->parametersNode->GetGenerateZero())
+  vtkNew<vtkTable> table;
+  vtkNew<vtkMRMLTableNode> tableNode;
+
+  int wasModifying = tableNode->StartModify();
+  tableNode->SetAndObserveTable(table.GetPointer());
+  tableNode->RemoveAllColumns();
+  tableNode->SetUseColumnNameAsColumnHeader(true);
+  tableNode->SetDefaultColumnType("double");
+
+  vtkDoubleArray* Velocity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
+  if (!Velocity)
     {
-    vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
-    redSliceComposite->SetLabelVolumeID("");
-    redSliceComposite->SetForegroundVolumeID("");
-    redSliceComposite->SetForegroundOpacity(0.);
-    redSliceComposite->SetBackgroundVolumeID(ZeroMomentVolume->GetID());
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
+                  "Unable to find the Velocity Column.";
+    return;
+    }
+  Velocity->SetName("Velocity");
+  tableNode->SetColumnUnitLabel("Velocity", "km/s");
+  tableNode->SetColumnLongName("Velocity", "Velocity axes");
 
-    vtkMRMLSliceNode *redSlice = vtkMRMLSliceNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
-    // setting to the XZ orientation is needed in order to force the refresh
-    redSlice->SetOrientation("XZ");
-    redSlice->SetOrientation("XY");
-    redSlice->SetSliceOffset(0.);
+  std::string name = inputVolume->GetName();
+  name += "_Profile_" + IntToString(serial);
+  vtkDoubleArray* Intensity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
+  if (!Intensity)
+    {
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
+                  "Unable to find the Intensity Column.";
+    return;
+    }
+  Intensity->SetName(name.c_str());
+  tableNode->SetColumnUnitLabel(name.c_str(), "Jy/beam");
+  tableNode->SetColumnLongName(name.c_str(), "Intensity axes");
+
+  table->SetNumberOfRows(StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1")));
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate :"
+                  " astroDisplay not found!";
+    return;
+    }
+  double ijk[3], world[3], VelFactor;
+  struct wcsprm* WCS = astroDisplay->GetWCSStruct();
+  if (!WCS)
+    {
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate :"
+                  " WCS not found!";
+    return;
+    }
+  if (!strcmp(WCS->cunit[2], "m/s"))
+    {
+    VelFactor = 0.001;
+    }
+  ijk[0] = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
+  ijk[1] = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
+
+  for (int ii = 0; ii < StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1")); ii++)
+     {
+     ijk[2] = ii;
+     astroDisplay->GetReferenceSpace(ijk, world);
+     table->SetValue(ii, 0, world[2] * VelFactor);
+     table->SetValue(ii, 1, ProfileVolume->GetImageData()->GetScalarComponentAsDouble(ii,0,0,0));
+     }
+
+  tableNode->EndModify(wasModifying);
+
+  scene->AddNode(tableNode.GetPointer());
+  if (d->selectionNode)
+    {
+    d->selectionNode->SetActiveTableID(tableNode->GetID());
     }
 
-  if (d->parametersNode->GetGenerateFirst())
-    {
-    vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
-    yellowSliceComposite->SetLabelVolumeID("");
-    yellowSliceComposite->SetForegroundVolumeID("");
-    yellowSliceComposite->SetForegroundOpacity(0.);
-    yellowSliceComposite->SetBackgroundVolumeID(FirstMomentVolume->GetID());
+  vtkNew<vtkMRMLPlotDataNode> plotDataNode;
+  plotDataNode->SetName(name.c_str());
+  plotDataNode->SetAndObserveTableNodeID(tableNode->GetID());
+  plotDataNode->SetXColumnName(tableNode->GetColumnName(0));
+  plotDataNode->SetYColumnName(tableNode->GetColumnName(tableNode->GetNumberOfColumns() - 1));
+  scene->AddNode(plotDataNode.GetPointer());
 
-    vtkMRMLSliceNode *yellowSlice = vtkMRMLSliceNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-    yellowSlice->SetOrientation("XZ");
-    yellowSlice->SetOrientation("XY");
-    yellowSlice->SetSliceOffset(0.);
+  if (d->plotChartNodeProfile)
+    {
+    d->plotChartNodeProfile->AddAndObservePlotDataNodeID(plotDataNode->GetID());
     }
 
-  if (d->parametersNode->GetGenerateSecond())
+  if (d->selectionNode)
     {
-    vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
-    greenSliceComposite->SetLabelVolumeID("");
-    greenSliceComposite->SetForegroundVolumeID("");
-    greenSliceComposite->SetForegroundOpacity(0.);
-    greenSliceComposite->SetBackgroundVolumeID(SecondMomentVolume->GetID());
-
-    vtkMRMLSliceNode *greenSlice = vtkMRMLSliceNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-    greenSlice->SetOrientation("XZ");
-    greenSlice->SetOrientation("XY");
-    greenSlice->SetSliceOffset(0.);
+    d->selectionNode->SetActivePlotChartID(d->plotChartNodeProfile->GetID());
+    d->selectionNode->SetActiveTableID(tableNode->GetID());
     }
 
-  vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
-    {
-    vtkSmartPointer<vtkMRMLSegmentationNode> newSegmentationNode =
-      vtkSmartPointer<vtkMRMLSegmentationNode>::New();
-    this->mrmlScene()->AddNode(newSegmentationNode);
-    d->segmentEditorNode->SetAndObserveSegmentationNode(newSegmentationNode);
-    currentSegmentationNode = newSegmentationNode;
-    }
-
-  if (!currentSegmentationNode->GetDisplayNode())
-    {
-    currentSegmentationNode->CreateDefaultDisplayNodes();
-    }
-
-  for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
-    {
-    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
-    SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-    }
-
+  serial++;
+  d->parametersNode->SetOutputSerial(serial);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onComputationFinished()
+void qSlicerAstroProfilesModuleWidget::onComputationFinished()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
   d->CancelButton->hide();
   d->progressBar->hide();
   d->ApplyButton->show();
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onSegmentEditorNodeModified(vtkObject *sender)
+void qSlicerAstroProfilesModuleWidget::onSegmentEditorNodeModified(vtkObject *sender)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!sender)
     {
@@ -1610,9 +1356,9 @@ void qSlicerAstroMomentMapsModuleWidget::onSegmentEditorNodeModified(vtkObject *
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onStartImportEvent()
+void qSlicerAstroProfilesModuleWidget::onStartImportEvent()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!this->mrmlScene())
     {
@@ -1645,9 +1391,9 @@ void qSlicerAstroMomentMapsModuleWidget::onStartImportEvent()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onThresholdRangeChanged(double min, double max)
+void qSlicerAstroProfilesModuleWidget::onThresholdRangeChanged(double min, double max)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -1661,9 +1407,9 @@ void qSlicerAstroMomentMapsModuleWidget::onThresholdRangeChanged(double min, dou
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onUnitNodeIntensityChanged(vtkObject *sender)
+void qSlicerAstroProfilesModuleWidget::onUnitNodeIntensityChanged(vtkObject *sender)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!sender)
     {
@@ -1677,9 +1423,9 @@ void qSlicerAstroMomentMapsModuleWidget::onUnitNodeIntensityChanged(vtkObject *s
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onUnitNodeVelocityChanged(vtkObject *sender)
+void qSlicerAstroProfilesModuleWidget::onUnitNodeVelocityChanged(vtkObject *sender)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!sender)
     {
@@ -1693,9 +1439,9 @@ void qSlicerAstroMomentMapsModuleWidget::onUnitNodeVelocityChanged(vtkObject *se
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onVelocityRangeChanged(double min, double max)
+void qSlicerAstroProfilesModuleWidget::onVelocityRangeChanged(double min, double max)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -1709,46 +1455,46 @@ void qSlicerAstroMomentMapsModuleWidget::onVelocityRangeChanged(double min, doub
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onZeroMomentVolumeChanged(vtkMRMLNode *mrmlNode)
+void qSlicerAstroProfilesModuleWidget::onProfileVolumeChanged(vtkMRMLNode *mrmlNode)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode || !mrmlNode)
     {
     return;
     }
 
-  d->parametersNode->SetZeroMomentVolumeNodeID(mrmlNode->GetID());
+  d->parametersNode->SetProfileVolumeNodeID(mrmlNode->GetID());
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onComputationCancelled()
+void qSlicerAstroProfilesModuleWidget::onComputationCancelled()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
   d->parametersNode->SetStatus(-1);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::updateProgress(int value)
+void qSlicerAstroProfilesModuleWidget::updateProgress(int value)
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
   d->progressBar->setValue(value);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::onComputationStarted()
+void qSlicerAstroProfilesModuleWidget::onComputationStarted()
 {
-  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
   d->ApplyButton->hide();
   d->progressBar->show();
   d->CancelButton->show();
 }
 
 //---------------------------------------------------------------------------
-vtkMRMLAstroMomentMapsParametersNode* qSlicerAstroMomentMapsModuleWidget::
-mrmlAstroMomentMapsParametersNode()const
+vtkMRMLAstroProfilesParametersNode* qSlicerAstroProfilesModuleWidget::
+mrmlAstroProfilesParametersNode()const
 {
-  Q_D(const qSlicerAstroMomentMapsModuleWidget);
+  Q_D(const qSlicerAstroProfilesModuleWidget);
   return d->parametersNode;
 }
 
