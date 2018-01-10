@@ -191,6 +191,9 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
 void qSlicerAstroProfilesModuleWidgetPrivate::cleanPointers()
 {
   this->parametersNode = 0;
+  this->selectionNode = 0;
+  this->plotChartNodeProfile = 0;
+  this->segmentEditorNode = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -348,7 +351,7 @@ void qSlicerAstroProfilesModuleWidget::onEndCloseEvent()
     return;
     }
 
-  this->initializeNodes();
+  this->initializeNodes(true);
   this->onMRMLAstroProfilesParametersNodeModified();
 }
 
@@ -420,7 +423,7 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
     }
 
   // Check (and create) PlotChart node
-  if (!d->plotChartNodeProfile)
+  if (!d->plotChartNodeProfile || forceNew)
     {
     vtkSmartPointer<vtkCollection> plotChartNodeProfileCol =
       vtkSmartPointer<vtkCollection>::Take(
