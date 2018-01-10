@@ -437,7 +437,7 @@
         </size>
        </property>
        <property name="toolTip">
-        <string/>
+        <string>Click to generate the profile. The profile will be shown in the plotting. The data are stored in 1D astrovolume dataset (fits file) and in a table (table nodes are available in the Table module)</string>
        </property>
        <property name="text">
         <string>Apply</string>
