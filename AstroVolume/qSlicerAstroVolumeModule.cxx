@@ -69,8 +69,9 @@
 #include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerAstroVolumeReader.h>
 
-// AstroVolume MRML includes
+// AstroVolume MRMLDM includes
 #include <vtkMRMLAstroTwoDAxesDisplayableManager.h>
+#include <vtkMRMLAstroBeamDisplayableManager.h>
 
 // Segment editor effects includes
 #include "qSlicerSegmentEditorEffectFactory.h"
@@ -415,6 +416,10 @@ void qSlicerAstroVolumeModule::setup()
   // register AstroTwoDAxesDisplayableManager
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroTwoDAxesDisplayableManager");
+
+  // register AstroTwoDAxesDisplayableManager
+  vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
+    RegisterDisplayableManager("vtkMRMLAstroBeamDisplayableManager");
 
   // register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());

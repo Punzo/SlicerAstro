@@ -242,6 +242,8 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     sliceNode->SetAxisLabel(4,"S");
     sliceNode->SetAxisLabel(5,"N");
 
+    sliceNode->SetAttribute("SlicerAstro.Beam", "off");
+
     sliceNode->DisableModifiedEventOff();
 
     //unregister RulerDisplayableManager
@@ -390,6 +392,8 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         sliceNode->SetAxisLabel(3,"z");
         sliceNode->SetAxisLabel(4,"S");
         sliceNode->SetAxisLabel(5,"N");
+
+        sliceNode->SetAttribute("SlicerAstro.Beam", "off");
 
         sliceNode->DisableModifiedEventOff();
         }

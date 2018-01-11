@@ -290,8 +290,6 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   vtkMRMLSliceLogic* sliceLogic =
     this->app->applicationLogic()->GetSliceLogic(sliceNode);
 
-  bool hasDisplay = false;
-
   if (!sliceLogic)
     {
     vtkErrorWithObjectMacro(this->External,
@@ -305,11 +303,18 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   this->col->AddItem(sliceLogic->GetForegroundLayer());
   this->col->AddItem(sliceLogic->GetLabelLayer());
 
-  for (int i = 0; i < this->col->GetNumberOfItems(); i++)
+  bool hasDisplay = false;
+
+  for (int layer = 0; layer < this->col->GetNumberOfItems(); layer++)
     {
     vtkMRMLSliceLayerLogic* sliceLayerLogic =
       vtkMRMLSliceLayerLogic::SafeDownCast
-        (this->col->GetItemAsObject(i));
+        (this->col->GetItemAsObject(layer));
+
+    if(!sliceLayerLogic)
+      {
+      return;
+      }
 
     vtkMRMLAstroVolumeDisplayNode* displayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast
@@ -840,19 +845,14 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     delete xyzDisplay;
     delete temp;
 
+    this->ShowActors(true);
     break;
     }
 
   if (!hasDisplay)
     {
-    vtkErrorWithObjectMacro(this->External,
-                            "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes()"
-                            " failed: display nodes are invalid (no WCS found).");
     this->ShowActors(false);
-    return;
     }
-
-  this->ShowActors(true);
 }
 
 //---------------------------------------------------------------------------
