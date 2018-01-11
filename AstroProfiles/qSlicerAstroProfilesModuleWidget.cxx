@@ -436,7 +436,7 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       this->mrmlScene()->AddNode(d->plotChartNodeProfile);
       d->plotChartNodeProfile->SetAttribute("TitleName", "Profile");
       d->plotChartNodeProfile->SetAttribute("XAxisLabelName", "Velocity (km/s)");
-      d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Intensity (mJy/beam)");
+      d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Intensity (Jy/beam)");
       d->plotChartNodeProfile->SetAttribute("Type", "Line");
       d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongY", "off");

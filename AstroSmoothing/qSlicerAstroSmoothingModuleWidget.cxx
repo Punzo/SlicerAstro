@@ -100,6 +100,7 @@ public:
   vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
+  vtkSmartPointer<vtkMRMLCameraNode> cameraNodeOne;
   vtkSmartPointer<vtkParametricEllipsoid> parametricVTKEllipsoid;
   vtkSmartPointer<vtkParametricFunctionSource> parametricFunctionSource;
   vtkSmartPointer<vtkMatrix4x4> transformationMatrix;
@@ -120,6 +121,7 @@ qSlicerAstroSmoothingModuleWidgetPrivate::qSlicerAstroSmoothingModuleWidgetPriva
   this->astroVolumeWidget = 0;
   this->parametersNode = 0;
   this->selectionNode = 0;
+  this->cameraNodeOne = 0;
   this->parametricVTKEllipsoid = vtkSmartPointer<vtkParametricEllipsoid>::New();
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
@@ -168,6 +170,15 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    OutputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
+
+  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   FilterCollapsibleButton, SLOT(setEnabled(bool)));
+
+  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   NodesCollapsibleButton, SLOT(setEnabled(bool)));
+
+  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   AutoRunCheckBox, SLOT(setEnabled(bool)));
 
   QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setMRMLAstroSmoothingParametersNode(vtkMRMLNode*)));
@@ -247,6 +258,11 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
   KSpinBox->hide();
   TimeStepLabel->hide();
   TimeStepSpinBox->hide();
+  OldBeamInfoLabel->hide();
+  OldBeamInfoLineEdit->hide();
+  NewBeamInfoLabel->hide();
+  NewBeamInfoLineEdit->hide();
+  GaussianKernelView->setOrientationWidgetVisible(true);
   vtkCamera* camera = GaussianKernelView->activeCamera();
   double eyePosition[3];
   eyePosition[0] = 0.;
@@ -259,6 +275,7 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 void qSlicerAstroSmoothingModuleWidgetPrivate::cleanPointers()
 {
   this->parametersNode = 0;
+  this->cameraNodeOne = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -324,6 +341,12 @@ std::string IntToString(int Value)
   return NumberToString<int>(Value);
 }
 
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
+}
+
 } // end namespace
 
 //-----------------------------------------------------------------------------
@@ -360,6 +383,8 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     }
 
   this->initializeParameterNode(scene);
+
+  this->setCameraNode(scene);
 
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
@@ -405,6 +430,7 @@ void qSlicerAstroSmoothingModuleWidget::onEndCloseEvent()
   this->initializeParameterNode(this->mrmlScene());
   this->onMRMLAstroSmoothingParametersNodeModified();
   this->initializeSegmentations(this->mrmlScene());
+  this->setCameraNode(this->mrmlScene());
 }
 
 //-----------------------------------------------------------------------------
@@ -430,6 +456,7 @@ void qSlicerAstroSmoothingModuleWidget::onEndImportEvent()
   this->initializeParameterNode(this->mrmlScene());
   this->onMRMLAstroSmoothingParametersNodeModified();
   this->initializeSegmentations(this->mrmlScene());
+  this->setCameraNode(this->mrmlScene());
 }
 
 //-----------------------------------------------------------------------------
@@ -612,6 +639,34 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLAstroSmoothingParametersNode(vtkM
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::setCameraNode(vtkMRMLScene* scene)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!scene)
+    {
+    return;
+    }
+
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
+    (scene->GetNodesByClass("vtkMRMLCameraNode"));
+  for(int ii = 0; ii < cameraNodes->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLCameraNode *cameraNode =
+        vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(ii));
+    if (!cameraNode || cameraNode == d->cameraNodeOne)
+      {
+      continue;
+      }
+    d->cameraNodeOne = cameraNode;
+    this->qvtkReconnect(d->cameraNodeOne, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLCameraNodeModified()));
+    this->onMRMLCameraNodeModified();
+    break;
+    }
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
@@ -632,6 +687,10 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
+    this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onInputVolumeModified()));
+
+    this->onInputVolumeModified();
     }
   else
     {
@@ -639,6 +698,129 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     d->selectionNode->SetActiveVolumeID(NULL);
     }
   appLogic->PropagateVolumeSelection();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onInputVolumeModified()
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!d->parametersNode || !this->mrmlScene() ||
+     this->mrmlScene()->IsClosing() || this->mrmlScene()->IsBatchProcessing() ||
+     this->mrmlScene()->IsImporting())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode* astroMrmlNode = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if (!astroMrmlNode)
+    {
+    return;
+    }
+
+  if (!strcmp(astroMrmlNode->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
+      !strcmp(astroMrmlNode->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
+      !strcmp(astroMrmlNode->GetAttribute("SlicerAstro.BPA"), "UNDEFINED"))
+    {
+    d->OldBeamInfoLineEdit->setText("UNDEFINED");
+    d->NewBeamInfoLineEdit->setText("UNDEFINED");
+    }
+
+  const double degtorad = atan(1.) / 45.;
+  const double radtodeg = 45. / atan(1.);
+  double degFactor = 1.;
+  if (!strcmp(astroMrmlNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE") ||
+      !strcmp(astroMrmlNode->GetAttribute("SlicerAstro.CUNIT1"), "degree") ||
+      !strcmp(astroMrmlNode->GetAttribute("SlicerAstro.CUNIT1"), "DEG") ||
+      !strcmp(astroMrmlNode->GetAttribute("SlicerAstro.CUNIT1"), "deg"))
+    {
+    degFactor = 3600.;
+    }
+
+  double OldBeamMaj = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.BMAJ")) * degFactor;
+  double OldBeamMin = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.BMIN")) * degFactor;
+  double OldBeamPa = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.BPA"));
+
+  double Kernel2DMaj, Kernel2DMin, Kernel2DPA;
+  Kernel2DMaj = d->parametersNode->GetParameterX() * degFactor *
+                StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.CDELT1"));
+  Kernel2DMin = d->parametersNode->GetParameterY() * degFactor *
+                StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.CDELT2"));
+  Kernel2DPA = d->parametersNode->GetRz();
+
+  double a2, b2, a0, b0, th2, th0;
+
+  if (OldBeamMaj > Kernel2DMaj)
+    {
+    a2  = OldBeamMaj * 0.5;
+    b2  = OldBeamMin * 0.5;
+    a0  = Kernel2DMaj;
+    b0  = Kernel2DMin;
+    th2 = OldBeamPa * degtorad;
+    th0 = Kernel2DPA * degtorad;
+    }
+  else
+    {
+    a2  = Kernel2DMaj;
+    b2  = Kernel2DMin;
+    a0  = OldBeamMaj * 0.5;
+    b0  = OldBeamMin * 0.5;
+    th2 = Kernel2DPA * degtorad;
+    th0 = OldBeamPa * degtorad;
+    }
+  double D0  = a0 * a0 - b0 * b0;
+  double D2  = a2 * a2 - b2 * b2;
+  double D1  = sqrt(D0 * D0 + D2 * D2 - 2 * D0 * D2 * cos(2 * (th0 - th2)));
+
+  double a1, b1, th1;
+
+  double arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 + D1);
+  if (arg < 0)
+    {
+    return;
+    }
+  else
+    {
+    a1 = sqrt(arg);
+    }
+
+  arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 - D1);
+  if (arg < 0)
+    {
+    return;
+    }
+  else
+    {
+    b1 = sqrt(arg);
+    }
+
+  double nom   = D0 * sin(2 * th0) - D2 * sin(2 * th2);
+  double denom = D0 * cos(2 * th0) - D2 * cos(2 * th2);
+  if (denom == 0 && nom == 0)
+    {
+    th1 = 0.;
+    }
+  else
+    {
+    double twoth1 = atan2(nom, denom);
+    th1 = twoth1 * 0.5;
+    }
+
+  double NewBeamMaj = 2 * a1;
+  double NewBeamMin = 2 * b1;
+  double NewBeamPa = th1 * radtodeg;
+
+  std::string OldBeamString;
+  OldBeamString = "BMAJ: " + DoubleToString(OldBeamMaj) + "\x22" +
+                  "; BMIN: " + DoubleToString(OldBeamMin) + "\x22" +
+                  "; BPA: " + DoubleToString(OldBeamPa) + "\u00B0 ";
+  d->OldBeamInfoLineEdit->setText(OldBeamString.c_str());
+  std::string NewBeamString;
+  NewBeamString = "BMAJ: " + DoubleToString(NewBeamMaj) + "\x22" +
+                  "; BMIN: " + DoubleToString(NewBeamMin) + "\x22" +
+                  "; BPA: " + DoubleToString(NewBeamPa) + "\u00B0 ";
+  d->NewBeamInfoLineEdit->setText(NewBeamString.c_str());
 }
 
 //-----------------------------------------------------------------------------
@@ -703,10 +885,42 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
   if (!(strcmp(d->parametersNode->GetMode(), "Automatic")))
     {
     d->AutomaticModeRadioButton->setChecked(true);
+    d->FilterLabel->setEnabled(false);
+    d->FilterComboBox->setEnabled(false);
+    d->HardwareLabel->setEnabled(false);
+    d->HardwareComboBox->setEnabled(false);
+    d->LinkLabel->setEnabled(false);
+    d->LinkCheckBox->setEnabled(false);
+    d->SigmaXLabel->setEnabled(false);
+    d->DoubleSpinBoxX->setEnabled(false);
+    d->SigmaYLabel->setEnabled(false);
+    d->DoubleSpinBoxY->setEnabled(false);
+    d->SigmaZLabel->setEnabled(false);
+    d->DoubleSpinBoxZ->setEnabled(false);
+    d->KLabel->setEnabled(false);
+    d->KSpinBox->setEnabled(false);
+    d->TimeStepLabel->setEnabled(false);
+    d->TimeStepSpinBox->setEnabled(false);
     }
   else
     {
     d->ManualModeRadioButton->setChecked(true);
+    d->FilterLabel->setEnabled(true);
+    d->FilterComboBox->setEnabled(true);
+    d->HardwareLabel->setEnabled(true);
+    d->HardwareComboBox->setEnabled(true);
+    d->LinkLabel->setEnabled(true);
+    d->LinkCheckBox->setEnabled(true);
+    d->SigmaXLabel->setEnabled(true);
+    d->DoubleSpinBoxX->setEnabled(true);
+    d->SigmaYLabel->setEnabled(true);
+    d->DoubleSpinBoxY->setEnabled(true);
+    d->SigmaZLabel->setEnabled(true);
+    d->DoubleSpinBoxZ->setEnabled(true);
+    d->KLabel->setEnabled(true);
+    d->KSpinBox->setEnabled(true);
+    d->TimeStepLabel->setEnabled(true);
+    d->TimeStepSpinBox->setEnabled(true);
     }
 
   if (!(strcmp(d->parametersNode->GetMasksCommand(), "Generate")))
@@ -730,6 +944,10 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
       {
       case 0:
         {
+        d->OldBeamInfoLabel->hide();
+        d->OldBeamInfoLineEdit->hide();
+        d->NewBeamInfoLabel->hide();
+        d->NewBeamInfoLineEdit->hide();
         d->AccuracyLabel->hide();
         d->AccuracySpinBox->hide();
         d->AccuracyValueLabel->hide();
@@ -774,6 +992,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->SigmaYLabel->setText("N<sub>Y</sub>:");
         d->SigmaZLabel->setText("N<sub>Z</sub>:");
         d->DoubleSpinBoxX->setSingleStep(2);
+        d->DoubleSpinBoxX->setPageStep(4);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxX->blockSignals(true);
@@ -786,6 +1005,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           }
         d->DoubleSpinBoxX->setToolTip("Number of pixel of the Box kernel in the X direction.");
         d->DoubleSpinBoxY->setSingleStep(2);
+        d->DoubleSpinBoxY->setPageStep(4);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxY->blockSignals(true);
@@ -798,6 +1018,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           }
         d->DoubleSpinBoxY->setToolTip("Number of pixel of the Box kernel in the Y direction.");
         d->DoubleSpinBoxZ->setSingleStep(2);
+        d->DoubleSpinBoxZ->setPageStep(4);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxZ->blockSignals(true);
@@ -819,6 +1040,10 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         }
       case 1:
         {
+        d->OldBeamInfoLabel->show();
+        d->OldBeamInfoLineEdit->show();
+        d->NewBeamInfoLabel->show();
+        d->NewBeamInfoLineEdit->show();
         d->AccuracyLabel->show();
         d->AccuracySpinBox->show();
         d->AccuracyValueLabel->show();
@@ -855,7 +1080,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");
         d->SigmaZLabel->setText("FWHM<sub>Z</sub>:");
-        d->DoubleSpinBoxX->setSingleStep(2);
+        d->DoubleSpinBoxX->setSingleStep(0.01);
+        d->DoubleSpinBoxX->setPageStep(2);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxX->blockSignals(true);
@@ -867,7 +1093,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
           }
         d->DoubleSpinBoxX->setToolTip("Full width at half maximum in pixel in the X direction.");
-        d->DoubleSpinBoxY->setSingleStep(2);
+        d->DoubleSpinBoxY->setSingleStep(0.01);
+        d->DoubleSpinBoxY->setPageStep(2);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxY->blockSignals(true);
@@ -879,7 +1106,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
           }
         d->DoubleSpinBoxY->setToolTip("Full width at half maximum in pixel in the Y direction.");
-        d->DoubleSpinBoxZ->setSingleStep(2);
+        d->DoubleSpinBoxZ->setSingleStep(0.01);
+        d->DoubleSpinBoxZ->setPageStep(2);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxZ->blockSignals(true);
@@ -1003,7 +1231,6 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           d->parametricFunctionSource->Update();
 
           //Configuration of the rotation
-
           Rx *= d->DegToRad;
           Ry *= d->DegToRad;
           Rz *= d->DegToRad;
@@ -1037,71 +1264,124 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           renderer->AddActor(d->actor);
           renderer->SetBackground(0., 0., 0.);
 
-          vtkCamera* camera = d->GaussianKernelView->activeCamera();
-
-          vtkCollection *coll = this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode");
-          vtkMRMLCameraNode *cameraNodeOne =
-            vtkMRMLCameraNode::SafeDownCast(coll->GetItemAsObject(0));
-          if (cameraNodeOne)
-            {
-            double VectorThree[3];
-            double temp, viewFactor, scaleFactor;
-            cameraNodeOne->GetPosition(VectorThree);
-            //Ry(90)
-            temp = VectorThree[1];
-            VectorThree[1] = -VectorThree[2];
-            VectorThree[2] = temp;
-            //Rz(-180)
-            VectorThree[0] *= -1.;
-            VectorThree[1] *= -1.;
-            viewFactor = 200.;
-            scaleFactor = 4.;
-            while(fabs(VectorThree[0]) > viewFactor ||
-                  fabs(VectorThree[1]) > viewFactor ||
-                  fabs(VectorThree[2]) > viewFactor)
-              {
-              VectorThree[0] /= scaleFactor;
-              VectorThree[1] /= scaleFactor;
-              VectorThree[2] /= scaleFactor;
-              }
-            camera->SetPosition(VectorThree);
-            cameraNodeOne->GetFocalPoint(VectorThree);
-            //Ry(90)
-            temp = VectorThree[1];
-            VectorThree[1] = -VectorThree[2];
-            VectorThree[2] = temp;
-            //Rz(-180)
-            VectorThree[0] *= -1;
-            VectorThree[1] *= -1;
-            viewFactor = 15.;
-            scaleFactor = 2.;
-            while(fabs(VectorThree[0]) > viewFactor ||
-                  fabs(VectorThree[1]) > viewFactor ||
-                  fabs(VectorThree[2]) > viewFactor)
-              {
-              VectorThree[0] /= scaleFactor;
-              VectorThree[1] /= scaleFactor;
-              VectorThree[2] /= scaleFactor;
-              }
-            camera->SetFocalPoint(VectorThree);
-            cameraNodeOne->GetViewUp(VectorThree);
-            //Ry(90)
-            temp = VectorThree[1];
-            VectorThree[1] = -VectorThree[2];
-            VectorThree[2] = temp;
-            //Rz(-180)
-            VectorThree[0] *= -1;
-            VectorThree[1] *= -1;
-            camera->SetViewUp(VectorThree);
-            }
-          coll->RemoveAllItems();
-          coll->Delete();
+          this->onMRMLCameraNodeModified();
           d->GaussianKernelView->forceRender();
+          }
+
+        // Beam info
+        if (inputVolumeNode)
+          {
+          if (!strcmp(inputVolumeNode->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
+              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
+              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.BPA"), "UNDEFINED"))
+            {
+            d->OldBeamInfoLineEdit->setText("UNDEFINED");
+            d->NewBeamInfoLineEdit->setText("UNDEFINED");
+            }
+
+          const double degtorad = atan(1.) / 45.;
+          const double radtodeg = 45. / atan(1.);
+          double degFactor = 1.;
+          if (!strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE") ||
+              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "degree") ||
+              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEG") ||
+              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "deg"))
+            {
+            degFactor = 3600.;
+            }
+
+          double OldBeamMaj = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.BMAJ")) * degFactor;
+          double OldBeamMin = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.BMIN")) * degFactor;
+          double OldBeamPa = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.BPA"));
+
+          double Kernel2DMaj, Kernel2DMin, Kernel2DPA;
+          Kernel2DMaj = d->parametersNode->GetParameterX() * degFactor *
+                        StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
+          Kernel2DMin = d->parametersNode->GetParameterY() * degFactor *
+                        StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
+          Kernel2DPA = d->parametersNode->GetRz();
+
+          double a2, b2, a0, b0, th2, th0;
+
+          if (OldBeamMaj > Kernel2DMaj)
+            {
+            a2  = OldBeamMaj * 0.5;
+            b2  = OldBeamMin * 0.5;
+            a0  = Kernel2DMaj;
+            b0  = Kernel2DMin;
+            th2 = OldBeamPa * degtorad;
+            th0 = Kernel2DPA * degtorad;
+            }
+          else
+            {
+            a2  = Kernel2DMaj;
+            b2  = Kernel2DMin;
+            a0  = OldBeamMaj * 0.5;
+            b0  = OldBeamMin * 0.5;
+            th2 = Kernel2DPA * degtorad;
+            th0 = OldBeamPa * degtorad;
+            }
+          double D0  = a0 * a0 - b0 * b0;
+          double D2  = a2 * a2 - b2 * b2;
+          double D1  = sqrt(D0 * D0 + D2 * D2 - 2 * D0 * D2 * cos(2 * (th0 - th2)));
+
+          double a1, b1, th1;
+
+          double arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 + D1);
+          if (arg < 0)
+            {
+            return;
+            }
+          else
+            {
+            a1 = sqrt(arg);
+            }
+
+          arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 - D1);
+          if (arg < 0)
+            {
+            return;
+            }
+          else
+            {
+            b1 = sqrt(arg);
+            }
+
+          double nom   = D0 * sin(2 * th0) - D2 * sin(2 * th2);
+          double denom = D0 * cos(2 * th0) - D2 * cos(2 * th2);
+          if (denom == 0 && nom == 0)
+            {
+            th1 = 0.;
+            }
+          else
+            {
+            double twoth1 = atan2(nom, denom);
+            th1 = twoth1 * 0.5;
+            }
+
+          double NewBeamMaj = 2 * a1;
+          double NewBeamMin = 2 * b1;
+          double NewBeamPa = th1 * radtodeg;
+
+          std::string OldBeamString;
+          OldBeamString = "BMAJ: " + DoubleToString(OldBeamMaj) + "\x22" +
+                          "; BMIN: " + DoubleToString(OldBeamMin) + "\x22" +
+                          "; BPA: " + DoubleToString(OldBeamPa) + "\u00B0 ";
+          d->OldBeamInfoLineEdit->setText(OldBeamString.c_str());
+          std::string NewBeamString;
+          NewBeamString = "BMAJ: " + DoubleToString(NewBeamMaj) + "\x22" +
+                          "; BMIN: " + DoubleToString(NewBeamMin) + "\x22" +
+                          "; BPA: " + DoubleToString(NewBeamPa) + "\u00B0 ";
+          d->NewBeamInfoLineEdit->setText(NewBeamString.c_str());
           }
         break;
         }
       case 2:
         {
+        d->OldBeamInfoLabel->hide();
+        d->OldBeamInfoLineEdit->hide();
+        d->NewBeamInfoLabel->hide();
+        d->NewBeamInfoLineEdit->hide();
         d->AccuracyLabel->show();
         d->AccuracySpinBox->show();
         d->AccuracyValueLabel->hide();
@@ -1137,7 +1417,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->DoubleSpinBoxX->setToolTip("");
         d->DoubleSpinBoxY->setToolTip("");
         d->DoubleSpinBoxZ->setToolTip("");
-        d->DoubleSpinBoxX->setSingleStep(1);
+        d->DoubleSpinBoxX->setSingleStep(0.1);
+        d->DoubleSpinBoxX->setPageStep(1);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxX->blockSignals(true);
@@ -1148,7 +1429,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxX->setValue(d->parametersNode->GetParameterX());
           }
-        d->DoubleSpinBoxY->setSingleStep(1);
+        d->DoubleSpinBoxY->setSingleStep(0.1);
+        d->DoubleSpinBoxY->setPageStep(1);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxY->blockSignals(true);
@@ -1159,7 +1441,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           d->DoubleSpinBoxY->setValue(d->parametersNode->GetParameterY());
           }
-        d->DoubleSpinBoxZ->setSingleStep(1);
+        d->DoubleSpinBoxZ->setSingleStep(0.1);
+        d->DoubleSpinBoxZ->setPageStep(1);
         if(d->parametersNode->GetLink())
           {
           d->DoubleSpinBoxZ->blockSignals(true);
@@ -1212,7 +1495,74 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
       this->updateProgress(status);
       qSlicerApplication::application()->processEvents();
       }
+  }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onMRMLCameraNodeModified()
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  if (!d->GaussianKernelView || !d->cameraNodeOne)
+    {
+    return;
     }
+
+  vtkCamera* camera = d->GaussianKernelView->activeCamera();
+  if (!camera)
+    {
+    return;
+    }
+  double VectorThree[3];
+  double temp, viewFactor, scaleFactor;
+  d->cameraNodeOne->GetPosition(VectorThree);
+  //Ry(90)
+  temp = VectorThree[1];
+  VectorThree[1] = -VectorThree[2];
+  VectorThree[2] = temp;
+  //Rz(-180)
+  VectorThree[0] *= -1.;
+  VectorThree[1] *= -1.;
+  viewFactor = 200.;
+  scaleFactor = 4.;
+  while(fabs(VectorThree[0]) > viewFactor ||
+        fabs(VectorThree[1]) > viewFactor ||
+        fabs(VectorThree[2]) > viewFactor)
+    {
+    VectorThree[0] /= scaleFactor;
+    VectorThree[1] /= scaleFactor;
+    VectorThree[2] /= scaleFactor;
+    }
+  camera->SetPosition(VectorThree);
+  d->cameraNodeOne->GetFocalPoint(VectorThree);
+  //Ry(90)
+  temp = VectorThree[1];
+  VectorThree[1] = -VectorThree[2];
+  VectorThree[2] = temp;
+  //Rz(-180)
+  VectorThree[0] *= -1;
+  VectorThree[1] *= -1;
+  viewFactor = 15.;
+  scaleFactor = 2.;
+  while(fabs(VectorThree[0]) > viewFactor ||
+        fabs(VectorThree[1]) > viewFactor ||
+        fabs(VectorThree[2]) > viewFactor)
+    {
+    VectorThree[0] /= scaleFactor;
+    VectorThree[1] /= scaleFactor;
+    VectorThree[2] /= scaleFactor;
+    }
+  camera->SetFocalPoint(VectorThree);
+  d->cameraNodeOne->GetViewUp(VectorThree);
+  //Ry(90)
+  temp = VectorThree[1];
+  VectorThree[1] = -VectorThree[2];
+  VectorThree[2] = temp;
+  //Rz(-180)
+  VectorThree[0] *= -1;
+  VectorThree[1] *= -1;
+  camera->SetViewUp(VectorThree);
+  d->GaussianKernelView->forceRender();
 }
 
 //-----------------------------------------------------------------------------
@@ -1284,9 +1634,6 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   if (index == 0)
     {
-    d->parametersNode->SetParameterX(5);
-    d->parametersNode->SetParameterY(5);
-    d->parametersNode->SetParameterZ(5);
     d->parametersNode->SetKernelLengthX(5);
     d->parametersNode->SetKernelLengthY(5);
     d->parametersNode->SetKernelLengthZ(5);
@@ -1295,9 +1642,6 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
   if (index == 1)
     {
     d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetParameterX(5);
-    d->parametersNode->SetParameterY(5);
-    d->parametersNode->SetParameterZ(5);
     d->parametersNode->SetRx(0);
     d->parametersNode->SetRy(0);
     d->parametersNode->SetRz(0);
@@ -1315,10 +1659,11 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
       }
     d->parametersNode->SetTimeStep(0.0325);
     d->parametersNode->SetK(1.5);
-    d->parametersNode->SetParameterX(5);
-    d->parametersNode->SetParameterY(5);
-    d->parametersNode->SetParameterZ(5);
     }
+
+  d->parametersNode->SetParameterX(5);
+  d->parametersNode->SetParameterY(5);
+  d->parametersNode->SetParameterZ(5);
 
   d->parametersNode->SetFilter(index);
 

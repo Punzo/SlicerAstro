@@ -65,10 +65,12 @@ protected slots:
   void onEndImportEvent();
   void onHardwareChanged(int index);
   void onInputVolumeChanged(vtkMRMLNode*);
+  void onInputVolumeModified();
   void onKChanged(double value);
   void onLinkChanged(bool value);
   void onMasksCommandChanged();
   void onMRMLAstroSmoothingParametersNodeModified();
+  void onMRMLCameraNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
@@ -85,6 +87,7 @@ protected slots:
   void onTimeStepChanged(double value);
   void updateProgress(int value);
   void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
+  void setCameraNode(vtkMRMLScene* scene);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroSmoothingModuleWidget);
