@@ -127,6 +127,7 @@ template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
   std::stringstream strstream;
+
   strstream << V;
   strstream >> stringValue;
   return stringValue;
@@ -142,6 +143,22 @@ std::string IntToString(int Value)
 std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
+}
+
+std::string ZeroPadNumber(int num)
+{
+  std::stringstream ss;
+
+  // the number is converted to string with the help of stringstream
+  ss << num;
+  std::string ret;
+  ss >> ret;
+
+  // Append zero chars
+  int str_length = ret.length();
+  for (int ii = 0; ii < 7 - str_length; ii++)
+    ret = "0" + ret;
+  return ret;
 }
 
 }// end namespace
@@ -544,37 +561,69 @@ bool vtkFITSReader::AllocateHeader()
        {
        str = card;
        str = str.substr(8);
-       if (str.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_-*+/=!<>,.?/;:'|#()[]{} ") != std::string::npos)
+
+       if (str.find_first_of('@') != std::string::npos)
          {
-         vtkWarningMacro("vtkFITSReader::AllocateHeader: "
-                         "found a COMMENT keyword with a special unsupported characters: \n"
-                         <<str<<" \n"<<
-                         "The keyword will be ignored. \n");
-         continue;
+         std::replace(str.begin(), str.end(), '@', 'a');
          }
+       if (str.find_first_of('$') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '$', 's');
+         }
+       if (str.find_first_of('%') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '%', 't');
+         }
+       if (str.find_first_of('&') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '&', 'e');
+         }
+       if (str.find_first_of('"') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '"', '|');
+         }
+
        commCont++;
-       strkey = "SlicerAstro._" + strkey + IntToString(commCont);
+       strkey = "SlicerAstro._" + strkey + ZeroPadNumber(commCont);
        HeaderKeyValue[strkey] = str;
        }
      else if (!strkey.compare("HISTORY"))
        {
        str = card;
        str = str.substr(8);
-       if (str.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890_-*+/=!<>,.?/;:'|#()[]{} ") != std::string::npos)
+
+       if (str.find_first_of('@') != std::string::npos)
          {
-         vtkWarningMacro("vtkFITSReader::AllocateHeader: "
-                         "found a HISTORY keyword with a special unsupported characters. \n"
-                         <<str<<" \n"<<
-                         "The keyword will be ignored. \n");
-         continue;
+         std::replace(str.begin(), str.end(), '@', 'a');
          }
+       if (str.find_first_of('$') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '$', 's');
+         }
+       if (str.find_first_of('%') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '%', 't');
+         }
+       if (str.find_first_of('&') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '&', 'e');
+         }
+       if (str.find_first_of('"') != std::string::npos)
+         {
+         std::replace(str.begin(), str.end(), '"', '|');
+         }
+
        histCont++;
-       strkey = "SlicerAstro._" + strkey + IntToString(histCont);
+       strkey = "SlicerAstro._" + strkey + ZeroPadNumber(histCont);
        HeaderKeyValue[strkey] = str;
        }
      else
        {
        str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
+       if (str.empty())
+         {
+         continue;
+         }
        strkey = "SlicerAstro." + strkey;
        HeaderKeyValue[strkey] = str;
        }
@@ -595,6 +644,30 @@ bool vtkFITSReader::AllocateHeader()
      if(n4 == 1)
        {
        HeaderKeyValue["SlicerAstro.NAXIS"] = "3";
+       HeaderKeyValue.erase("SlicerAstro.NAXIS4");
+       if (!(HeaderKeyValue.count("SlicerAstro.CDELT4")) == 0)
+         {
+         HeaderKeyValue.erase("SlicerAstro.CDELT4");
+         }
+       if (!(HeaderKeyValue.count("SlicerAstro.CRPIX4")) == 0)
+         {
+         HeaderKeyValue.erase("SlicerAstro.CRPIX4");
+         }
+       if (!(HeaderKeyValue.count("SlicerAstro.CRVAL4")) == 0)
+         {
+         HeaderKeyValue.erase("SlicerAstro.CRVAL4");
+         }
+       if (!(HeaderKeyValue.count("SlicerAstro.CTYPE4")) == 0)
+         {
+         HeaderKeyValue.erase("SlicerAstro.CTYPE4");
+         }
+       if (!(HeaderKeyValue.count("SlicerAstro.CUNIT4")) == 0)
+         {
+         HeaderKeyValue.erase("SlicerAstro.CUNIT4");
+         }
+       vtkWarningMacro("vtkFITSReader::ExecuteInformation:"
+                       " the 4th dimension keywords have been removed. \n");
+
        n = 3;
        }
      else
@@ -653,84 +726,84 @@ bool vtkFITSReader::AllocateHeader()
    if(HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation:"
-                     " The fits header is missing the CDELT1 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CDELT1 keyword. \n");
      HeaderKeyValue["SlicerAstro.CDELT1"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation:"
-                     " The fits header is missing the CDELT2 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CDELT2 keyword. \n");
      HeaderKeyValue["SlicerAstro.CDELT2"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation:"
-                     " The fits header is missing the CDELT3 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CDELT3 keyword. \n");
      HeaderKeyValue["SlicerAstro.CDELT3"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CRPIX1 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CRPIX1 keyword. \n");
      HeaderKeyValue["SlicerAstro.CRPIX1"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CRPIX2 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CRPIX2 keyword. \n");
      HeaderKeyValue["SlicerAstro.CRPIX2"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CRPIX3 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CRPIX3 keyword. \n");
      HeaderKeyValue["SlicerAstro.CRPIX3"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL1") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CRVAL1 keyword. Odd behaviors may show up.");
+                     " The fits header is missing the CRVAL1 keyword. \n");
      HeaderKeyValue["SlicerAstro.CRVAL1"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL2") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CRVAL2 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CRVAL2 keyword. \n");
      HeaderKeyValue["SlicerAstro.CRVAL2"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CRVAL3") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CRVAL3 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CRVAL3 keyword. \n");
      HeaderKeyValue["SlicerAstro.CRVAL3"] = "UNDEFINED";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE1") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CTYPE1 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CTYPE1 keyword. \n");
      HeaderKeyValue["SlicerAstro.CTYPE1"] = "NONE";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE2") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CTYPE2 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CTYPE2 keyword. \n");
      HeaderKeyValue["SlicerAstro.CTYPE2"] = "NONE";
      }
 
    if(HeaderKeyValue.count("SlicerAstro.CTYPE3") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the CTYPE3 keyword. Odd behaviors may show up. \n");
+                     " The fits header is missing the CTYPE3 keyword. \n");
      HeaderKeyValue["SlicerAstro.CTYPE3"] = "NONE";
      }
 
@@ -793,99 +866,288 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
      {
-     if (HeaderKeyValue.count("SlicerAstro.BMMAJ") != 0)
-       {
-       HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BMMAJ"];
-       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from alternative keywords \n"
-                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
-                        << " It is recommended to check these values. \n\n");
-       }
-     else if (HeaderKeyValue.count("SlicerAstro.BBMAJ") != 0)
+     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                     " The fits header is missing the BMAJ keyword. \n");
+     HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
+     }
+
+   if (!strcmp(HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED"))
+     {
+     // 3DBAROLO
+     if (HeaderKeyValue.count("SlicerAstro.BBMAJ") != 0)
        {
        HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BBMAJ"];
        vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from alternative keywords \n"
-                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
-                        << " It is recommended to check these values. \n\n");
+                        " Beam information recovered from alternative keywords (3DBAROLO) \n"
+                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
+                        << " It is recommended to check the value.");
+       }
+     // GIPSY
+     else if (HeaderKeyValue.count("SlicerAstro.BMMAJ") != 0)
+       {
+       double BMMAJ = StringToDouble(HeaderKeyValue["SlicerAstro.BMMAJ"].c_str());
+       BMMAJ /= 3600.;
+       HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMMAJ);
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords (GIPSY) \n"
+                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
+                        << " It is recommended to check the value.");
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                       " The fits header is missing the BMAJ keyword. \n");
-       HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
+       for (std::map<std::string,std::string>::iterator it = HeaderKeyValue.begin(); it != HeaderKeyValue.end(); ++it)
+         {
+         // CASA
+         //> restoration: 37.5693 by 19.9686 (arcsec) at pa -54.7538 (deg)
+         std::string HistoryKeyword = it->second;
+         size_t found = HistoryKeyword.find("restoration:");
+         if (found != std::string::npos)
+           {
+           std::string BMAJString = HistoryKeyword.substr(found + 12, HistoryKeyword.find("by") - found - 12);
+           double BMAJ = StringToDouble(BMAJString.c_str());
+           if (HistoryKeyword.find("arcsec") != std::string::npos)
+             {
+             BMAJ /= 3600.;
+             }
+           HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMAJ);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (CASA) \n"
+                            << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+
+         // MIRIAD
+         // RESTOR: Beam =  5.303E+01 x  3.266E+01 arcsec, pa =  6.485E+00 degrees
+         found = HistoryKeyword.find("RESTOR: Beam");
+         if (found != std::string::npos)
+           {
+           std::string BMAJString = HistoryKeyword.substr(HistoryKeyword.find("Beam =") + 6,
+                                                          HistoryKeyword.find("x") - HistoryKeyword.find("Beam =") - 6);
+           double BMAJ = StringToDouble(BMAJString.c_str());
+           if (HistoryKeyword.find("arcsec") != std::string::npos)
+             {
+             BMAJ /= 3600.;
+             }
+           HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMAJ);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (MIRIAD) \n"
+                            << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+
+         // AIPS
+         // AIPS   CLEAN BMAJ=  8.3333E-03 BMIN=  8.3333E-03 BPA=   0.00
+         found = HistoryKeyword.find("BMAJ=");
+         if (found != std::string::npos)
+           {
+           std::string BMAJString = HistoryKeyword.substr(found + 5, HistoryKeyword.find("BMIN") - found - 5);
+           double BMAJ = StringToDouble(BMAJString.c_str());
+           if (HistoryKeyword.find("arcsec") != std::string::npos)
+             {
+             BMAJ /= 3600.;
+             }
+           HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMAJ);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (MIRIAD) \n"
+                            << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+         }
        }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
      {
-     if (HeaderKeyValue.count("SlicerAstro.BMMIN") != 0)
-       {
-       HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BMMIN"];
-       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from alternative keywords \n"
-                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
-                        << " It is recommended to check these values. \n\n");
-       }
-     else if (HeaderKeyValue.count("SlicerAstro.BBMIN") != 0)
+     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                     " The fits header is missing the BMIN keyword. \n");
+     HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
+     }
+
+   if (!strcmp(HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED"))
+     {
+     // 3DBAROLO
+     if (HeaderKeyValue.count("SlicerAstro.BBMIN") != 0)
        {
        HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BBMIN"];
        vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from alternative keywords \n"
-                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
-                        << " It is recommended to check these values. \n\n");
+                        " Beam information recovered from alternative keywords (3DBAROLO) \n"
+                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
+                        << " It is recommended to check the value.");
+       }
+     // GIPSY
+     else if (HeaderKeyValue.count("SlicerAstro.BMMIN") != 0)
+       {
+       double BMMIN = StringToDouble(HeaderKeyValue["SlicerAstro.BMMIN"].c_str());
+       BMMIN /= 3600.;
+       HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMMIN);
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords (GIPSY) \n"
+                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
+                        << " It is recommended to check the value.");
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                       " The fits header is missing the BMIN keyword. \n");
-       HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
+       for (std::map<std::string,std::string>::iterator it = HeaderKeyValue.begin(); it != HeaderKeyValue.end(); ++it)
+         {
+         // CASA
+         //> restoration: 37.5693 by 19.9686 (arcsec) at pa -54.7538 (deg)
+         std::string HistoryKeyword = it->second;
+         size_t found = HistoryKeyword.find("restoration:");
+         if (found != std::string::npos)
+           {
+           std::string BMINString = HistoryKeyword.substr(HistoryKeyword.find("by") + 2,
+                                                          HistoryKeyword.find_first_of("(") - HistoryKeyword.find("by") - 2);
+           double BMIN = StringToDouble(BMINString.c_str());
+           if (HistoryKeyword.find("arcsec") != std::string::npos)
+             {
+             BMIN /= 3600.;
+             }
+           HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMIN);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (CASA) \n"
+                            << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+
+         // MIRIAD
+         // RESTOR: Beam =  5.303E+01 x  3.266E+01 arcsec, pa =  6.485E+00 degrees
+         found = HistoryKeyword.find("RESTOR: Beam");
+         if (found != std::string::npos)
+           {
+           std::string BMINString = HistoryKeyword.substr(HistoryKeyword.find("x") + 1,
+                                                          HistoryKeyword.find(",") - 7 - HistoryKeyword.find("x") - 1);
+           double BMIN = StringToDouble(BMINString.c_str());
+           if (HistoryKeyword.find("arcsec") != std::string::npos)
+             {
+             BMIN /= 3600.;
+             }
+           HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMIN);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (MIRIAD) \n"
+                            << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+
+         // AIPS
+         // AIPS   CLEAN BMAJ=  8.3333E-03 BMIN=  8.3333E-03 BPA=   0.00
+         found = HistoryKeyword.find("BMIN=");
+         if (found != std::string::npos)
+           {
+           std::string BMINString = HistoryKeyword.substr(found + 5, HistoryKeyword.find("BPA=") - found - 5);
+           double BMIN = StringToDouble(BMINString.c_str());
+           if (HistoryKeyword.find("arcsec") != std::string::npos)
+             {
+             BMIN /= 3600.;
+             }
+           HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMIN);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (MIRIAD) \n"
+                            << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+         }
        }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
      {
-     if (HeaderKeyValue.count("SlicerAstro.BMPA") != 0)
-       {
-       HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BMPA"];
-       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from alternative keywords \n"
-                        << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE"
-                        << " It is recommended to check these values. \n\n");
-       }
-     else if (HeaderKeyValue.count("SlicerAstro.BBPA") != 0)
+     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                     " The fits header is missing the BPA keyword. \n");
+     HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
+     }
+
+   if (!strcmp(HeaderKeyValue["SlicerAstro.BPA"].c_str(), "UNDEFINED"))
+     {
+     double RadToDeg = 45. / atan(1.);
+     // 3DBAROLO
+     if (HeaderKeyValue.count("SlicerAstro.BBPA") != 0)
        {
        HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BBPA"];
        vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from alternative keywords \n"
-                        << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE"
-                        << " It is recommended to check these values. \n\n");
+                        " Beam information recovered from alternative keywords (3DBAROLO) \n"
+                        << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
+                        << " It is recommended to check the value.");
+       }
+     // GIPSY
+     else if (HeaderKeyValue.count("SlicerAstro.BMPA") != 0)
+       {
+       double BMPA = StringToDouble(HeaderKeyValue["SlicerAstro.BMPA"].c_str());
+       BMPA /= 3600.;
+       HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BMPA);
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords (GIPSY) \n"
+                        << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
+                        << " It is recommended to check the value.");
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                       " The fits header is missing the BPA keyword. \n");
-       HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
-       }
-     }
+       for (std::map<std::string,std::string>::iterator it = HeaderKeyValue.begin(); it != HeaderKeyValue.end(); ++it)
+         {
+         // CASA
+         //> restoration: 37.5693 by 19.9686 (arcsec) at pa -54.7538 (deg)
+         std::string HistoryKeyword = it->second;
+         size_t found = HistoryKeyword.find("restoration:");
+         if (found != std::string::npos)
+           {
+           std::string BPAString = HistoryKeyword.substr(HistoryKeyword.find("pa") + 2,
+                                                         HistoryKeyword.find_last_of("(") - HistoryKeyword.find("pa") - 2);
+           double BPA = StringToDouble(BPAString.c_str());
+           if (HistoryKeyword.find("rad") != std::string::npos)
+             {
+             BPA *= RadToDeg;
+             }
+           HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BPA);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (CASA) \n"
+                            << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
 
-   if (!strcmp(HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED") ||
-       !strcmp(HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED") ||
-       !strcmp(HeaderKeyValue["SlicerAstro.BPA"].c_str(), "UNDEFINED"))
-     {
+         // MIRIAD
+         // RESTOR: Beam =  5.303E+01 x  3.266E+01 arcsec, pa =  6.485E+00 degrees
+         found = HistoryKeyword.find("RESTOR: Beam");
+         if (found != std::string::npos)
+           {
+           std::string BPAString = HistoryKeyword.substr(HistoryKeyword.find("pa =") + 4);
+           double BPA = StringToDouble(BPAString.c_str());
+           if (HistoryKeyword.find("rad") != std::string::npos)
+             {
+             BPA *= RadToDeg;
+             }
+           HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BPA);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (MIRIAD) \n"
+                            << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
 
-     // TO DO: restore BMAJ, BMIN and BPA from History
-
-     if (strcmp(HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED") &&
-         strcmp(HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED") &&
-         strcmp(HeaderKeyValue["SlicerAstro.BPA"].c_str(), "UNDEFINED"))
-       {
-       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
-                        " Beam information recovered from HISTORY keywords: \n"
-                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
-                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
-                        << " BPA = "  << HeaderKeyValue["SlicerAstro.BPA"]  << " DEGREE\n"
-                        << " It is recommended to check these values. \n\n");
+         // AIPS
+         // AIPS   CLEAN BMAJ=  8.3333E-03 BMIN=  8.3333E-03 BPA=   0.00
+         found = HistoryKeyword.find("BPA=");
+         if (found != std::string::npos)
+           {
+           std::string BPAString = HistoryKeyword.substr(found + 4);
+           double BPA = StringToDouble(BPAString.c_str());
+           if (HistoryKeyword.find("rad") != std::string::npos)
+             {
+             BPA *= RadToDeg;
+             }
+           HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BPA);
+           vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                            " Beam information recovered from alternative keywords (MIRIAD) \n"
+                            << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
+                            << " It is recommended to check the value.");
+           break;
+           }
+         }
        }
      }
 
