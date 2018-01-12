@@ -261,7 +261,7 @@ class AstroSampleDataLogic:
   def registerBuiltInSampleDataSources(self):
     """Fills in the pre-define sample data sources"""
     sourceArguments = (
-        ('WEIN069', 'http://slicer.kitware.com/midas3/download/item/266401/WEIN069.fits', 'WEIN069.fits', 'WEIN069'),
+        ('WEIN069', 'http://slicer.kitware.com/midas3/download/item/337752/WEIN069.fits', 'WEIN069.fits', 'WEIN069'),
         ('WEIN069_MASK', 'http://slicer.kitware.com/midas3/download/item/266403/WEIN069_mask.fits', 'WEIN069_mask.fits', 'WEIN069_mask'),
         ('NGC2403', 'http://slicer.kitware.com/midas3/download/item/287185/NGC2403.fits', 'NGC2403.fits', 'NGC2403'),
         ('NGC4111', 'http://slicer.kitware.com/midas3/download/item/242880/NGC4111.fits', 'NGC4111.fits', 'NGC4111'),
