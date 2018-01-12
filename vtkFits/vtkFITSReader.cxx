@@ -760,7 +760,7 @@ bool vtkFITSReader::AllocateHeader()
      else
        {
        vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                       " The fits header is missing the CUNIT3 keyword. Assuming m/s. \n");
+                       " The fits header is missing the CUNIT3 keyword. Assuming km/s. \n");
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
        }
      }
@@ -793,23 +793,44 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the BMAJ keyword. \n");
-     HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
+     if (HeaderKeyValue.count("SlicerAstro.BBMAJ") == 0)
+       {
+       vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                       " The fits header is missing the BMAJ keyword. \n");
+       HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
+       }
+     else
+       {
+       HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BBMAJ"];
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the BMIN keyword. \n");
-     HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
+     if (HeaderKeyValue.count("SlicerAstro.BBMIN") == 0)
+       {
+       vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                       " The fits header is missing the BMIN keyword. \n");
+       HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
+       }
+     else
+       {
+       HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BBMIN"];
+       };
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
-                     " The fits header is missing the BPA keyword. \n");
-     HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
+     if (HeaderKeyValue.count("SlicerAstro.BBPA") == 0)
+       {
+       vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
+                       " The fits header is missing the BPA keyword. \n");
+       HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
+       }
+     else
+       {
+       HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BBPA"];
+       };
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BZERO") == 0)

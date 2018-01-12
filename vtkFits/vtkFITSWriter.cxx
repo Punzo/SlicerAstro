@@ -212,7 +212,8 @@ void vtkFITSWriter::WriteData()
       }
     std::string tmp = ait->first.substr(pos+12);
     if ((!tmp.compare(0,6,"SIMPLE")) ||
-        (!tmp.compare(0,7,"RMSMEAN")) ||
+        (!tmp.compare(0,18,"3DDisplayThreshold")) ||
+        (!tmp.compare(0,22,"3DDisplayThresholdMean")) ||
         (!tmp.compare(0,9,"DATAMODEL")))
       {
       continue;
