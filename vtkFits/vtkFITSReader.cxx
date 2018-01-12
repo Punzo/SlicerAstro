@@ -793,60 +793,80 @@ bool vtkFITSReader::AllocateHeader()
 
    if(HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
      {
-     if (HeaderKeyValue.count("SlicerAstro.BBMAJ") == 0)
+     if (HeaderKeyValue.count("SlicerAstro.BMMAJ") != 0)
+       {
+       HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BMMAJ"];
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords \n"
+                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
+                        << " It is recommended to check these values. \n\n");
+       }
+     else if (HeaderKeyValue.count("SlicerAstro.BBMAJ") != 0)
+       {
+       HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BBMAJ"];
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords \n"
+                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
+                        << " It is recommended to check these values. \n\n");
+       }
+     else
        {
        vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
                        " The fits header is missing the BMAJ keyword. \n");
        HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
        }
-     else
-       {
-         std::string bmstr = HeaderKeyValue["SlicerAstro.BBMAJ"];
-         size_t found = bmstr.find("D");
-         if (found != std::string::npos)
-           {
-           double bmvalue = StringToDouble(bmstr.c_str());
-           bmvalue /= 3600.;
-           HeaderKeyValue["SlicerAstro.BBMAJ"] = DoubleToString(bmvalue).c_str();
-           }
-         HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BBMAJ"];
-       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
      {
-     if (HeaderKeyValue.count("SlicerAstro.BBMIN") == 0)
+     if (HeaderKeyValue.count("SlicerAstro.BMMIN") != 0)
+       {
+       HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BMMIN"];
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords \n"
+                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
+                        << " It is recommended to check these values. \n\n");
+       }
+     else if (HeaderKeyValue.count("SlicerAstro.BBMIN") != 0)
+       {
+       HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BBMIN"];
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords \n"
+                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
+                        << " It is recommended to check these values. \n\n");
+       }
+     else
        {
        vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
                        " The fits header is missing the BMIN keyword. \n");
        HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
        }
-     else
-       {
-       std::string bmstr = HeaderKeyValue["SlicerAstro.BBMIN"];
-       size_t found = bmstr.find("D");
-       if (found != std::string::npos)
-         {
-         double bmvalue = StringToDouble(bmstr.c_str());
-         bmvalue /= 3600.;
-         HeaderKeyValue["SlicerAstro.BBMIN"] = DoubleToString(bmvalue).c_str();
-         }
-       HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BBMIN"];
-       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
      {
-     if (HeaderKeyValue.count("SlicerAstro.BBPA") == 0)
+     if (HeaderKeyValue.count("SlicerAstro.BMPA") != 0)
+       {
+       HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BMPA"];
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords \n"
+                        << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE"
+                        << " It is recommended to check these values. \n\n");
+       }
+     else if (HeaderKeyValue.count("SlicerAstro.BBPA") != 0)
+       {
+       HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BBPA"];
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from alternative keywords \n"
+                        << " BPA = " << HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE"
+                        << " It is recommended to check these values. \n\n");
+       }
+     else
        {
        vtkWarningMacro("vtkFITSReader::ExecuteInformation: "
                        " The fits header is missing the BPA keyword. \n");
        HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
        }
-     else
-       {
-       HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BBPA"];
-       };
      }
 
    if (!strcmp(HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED") ||
@@ -860,7 +880,8 @@ bool vtkFITSReader::AllocateHeader()
          strcmp(HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED") &&
          strcmp(HeaderKeyValue["SlicerAstro.BPA"].c_str(), "UNDEFINED"))
        {
-       vtkWarningMacro( << " Beam information recovered from HISTORY keywords: \n"
+       vtkWarningMacro( "vtkFITSReader::ExecuteInformation: "
+                        " Beam information recovered from HISTORY keywords: \n"
                         << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
                         << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
                         << " BPA = "  << HeaderKeyValue["SlicerAstro.BPA"]  << " DEGREE\n"
