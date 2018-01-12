@@ -139,7 +139,8 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   BeamButton->setVisible(false);
   BeamButton->setChecked(false);
   BeamButton->setCheckable(true);
-  this->horizontalLayout_2->addWidget(BeamButton);
+  this->horizontalLayout_2->addWidget(BeamButton,0,Qt::AlignLeft);
+  this->horizontalLayout_2->addStretch(1);
   QObject::connect(MoreButton, SIGNAL(toggled(bool)),
                    BeamButton, SLOT(setVisible(bool)));
   QObject::connect(BeamButton, SIGNAL(toggled(bool)),
