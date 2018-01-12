@@ -128,6 +128,24 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   this->BarLayout->addWidget(this->WCSDisplay);
   this->app = 0;
   this->col = vtkSmartPointer<vtkCollection>::New();
+
+  BeamButton = new QToolButton(SliceFrame);
+  BeamButton->setObjectName(QStringLiteral("BeamButton"));
+  QIcon icon;
+  icon.addFile(QStringLiteral(":/Icons/Beam.png"), QSize(), QIcon::Normal, QIcon::Off);
+  BeamButton->setIcon(icon);
+  BeamButton->setAutoRaise(true);
+  BeamButton->setToolTip("Show/hide the beam in the 2D view.");
+  BeamButton->setVisible(false);
+  BeamButton->setChecked(false);
+  BeamButton->setCheckable(true);
+  this->horizontalLayout_2->addWidget(BeamButton);
+  QObject::connect(MoreButton, SIGNAL(toggled(bool)),
+                   BeamButton, SLOT(setVisible(bool)));
+  QObject::connect(BeamButton, SIGNAL(toggled(bool)),
+                   this, SLOT(onBeamToggled(bool)));
+
+  RulerButton->setToolTip("Show/hide 2D axis in the 2D view.");
 }
 
 //---------------------------------------------------------------------------
@@ -143,19 +161,19 @@ void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSli
   this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(updateWidgetFromMRMLSliceNode()));
   this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(updateCoordinateWidgetFromMRMLSliceNode()));
+                      this, SLOT(updateAstroWidgetFromMRMLSliceNode()));
 
   this->MRMLSliceNode = newSliceNode;
 
   // Update widget state given the new slice node
   this->updateWidgetFromMRMLSliceNode();
-  this->updateCoordinateWidgetFromMRMLSliceNode();
+  this->updateAstroWidgetFromMRMLSliceNode();
   // Enable/disable widget
   q->setDisabled(newSliceNode == 0);
 }
 
 //---------------------------------------------------------------------------
-void qMRMLSliceAstroControllerWidgetPrivate::updateCoordinateWidgetFromMRMLSliceNode()
+void qMRMLSliceAstroControllerWidgetPrivate::updateAstroWidgetFromMRMLSliceNode()
 {
   Q_Q(qMRMLSliceAstroControllerWidget);
 
@@ -165,6 +183,48 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateCoordinateWidgetFromMRMLSlice
     }
 
   q->setWCSDisplay();
+
+  if (!this->MRMLSliceNode->GetAttribute("SlicerAstro.Beam"))
+    {
+    return;
+    }
+
+  if (!strcmp(this->MRMLSliceNode->GetAttribute("SlicerAstro.Beam"), "on"))
+    {
+    BeamButton->setChecked(true);
+    }
+  else
+    {
+    BeamButton->setChecked(false);
+    }
+}
+
+//---------------------------------------------------------------------------
+void qMRMLSliceAstroControllerWidgetPrivate::onBeamToggled(bool toggled)
+{
+  Q_Q(qMRMLSliceAstroControllerWidget);
+
+  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+    (q->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+
+  for (int ii = 0; ii < sliceNodes->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLSliceNode* sliceNode =
+      vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(ii));
+    if (!sliceNode)
+      {
+      return;
+      }
+
+    if ((sliceNode == this->MRMLSliceNode || q->isLinked()) && toggled)
+      {
+      sliceNode->SetAttribute("SlicerAstro.Beam", "on");
+      }
+    else if ((sliceNode == this->MRMLSliceNode || q->isLinked()) && !toggled)
+      {
+      sliceNode->SetAttribute("SlicerAstro.Beam", "off");
+      }
+    }
 }
 
 //---------------------------------------------------------------------------

@@ -24,6 +24,7 @@
         <file>Icons/ReverseIcon32x32.png</file>
         <file>Icons/astrounlock.png</file>
         <file>Icons/astrolock.png</file>
+        <file>Icons/Beam.png</file>
     </qresource>
     <qresource prefix="/presets"/>
 </RCC>

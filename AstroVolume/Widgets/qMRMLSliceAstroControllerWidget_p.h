@@ -41,6 +41,7 @@
 
 // Qt includes
 #include <QLabel>
+#include <QToolButton>
 
 // vtk includes
 #include <vtkCollection.h>
@@ -58,7 +59,10 @@ class qMRMLSliceAstroControllerWidgetPrivate
 
 public slots:
   /// Update widget state using the associated MRML slice node
-  void updateCoordinateWidgetFromMRMLSliceNode();
+  void updateAstroWidgetFromMRMLSliceNode();
+
+protected slots:
+  void onBeamToggled(bool toggled);
 
 protected:
   void onMRMLSelectionNodeModified(vtkObject* sender);
@@ -71,7 +75,9 @@ public:
 
   virtual void init();
 
-  QLabel*     WCSDisplay;
+  QLabel*      WCSDisplay;
+  QToolButton* BeamButton;
+
   qSlicerApplication* app;
   vtkSmartPointer<vtkCollection> col;
   vtkSmartPointer<vtkMRMLSliceLogic> sliceLogic;
