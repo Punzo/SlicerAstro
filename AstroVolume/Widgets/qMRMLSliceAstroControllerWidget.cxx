@@ -135,7 +135,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   icon.addFile(QStringLiteral(":/Icons/Beam.png"), QSize(), QIcon::Normal, QIcon::Off);
   BeamButton->setIcon(icon);
   BeamButton->setAutoRaise(true);
-  BeamButton->setToolTip("Show/hide the beam in the 2D view.");
+  BeamButton->setToolTip("Show/hide the beam in the 2D XY view.");
   BeamButton->setVisible(false);
   BeamButton->setChecked(false);
   BeamButton->setCheckable(true);
