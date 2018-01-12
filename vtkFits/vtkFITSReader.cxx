@@ -801,7 +801,15 @@ bool vtkFITSReader::AllocateHeader()
        }
      else
        {
-       HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BBMAJ"];
+         std::string bmstr = HeaderKeyValue["SlicerAstro.BBMAJ"];
+         size_t found = bmstr.find("D");
+         if (found != std::string::npos)
+           {
+           double bmvalue = StringToDouble(bmstr.c_str());
+           bmvalue /= 3600.;
+           HeaderKeyValue["SlicerAstro.BBMAJ"] = DoubleToString(bmvalue).c_str();
+           }
+         HeaderKeyValue["SlicerAstro.BMAJ"] = HeaderKeyValue["SlicerAstro.BBMAJ"];
        }
      }
 
@@ -815,8 +823,16 @@ bool vtkFITSReader::AllocateHeader()
        }
      else
        {
+       std::string bmstr = HeaderKeyValue["SlicerAstro.BBMIN"];
+       size_t found = bmstr.find("D");
+       if (found != std::string::npos)
+         {
+         double bmvalue = StringToDouble(bmstr.c_str());
+         bmvalue /= 3600.;
+         HeaderKeyValue["SlicerAstro.BBMIN"] = DoubleToString(bmvalue).c_str();
+         }
        HeaderKeyValue["SlicerAstro.BMIN"] = HeaderKeyValue["SlicerAstro.BBMIN"];
-       };
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BPA") == 0)
@@ -831,6 +847,25 @@ bool vtkFITSReader::AllocateHeader()
        {
        HeaderKeyValue["SlicerAstro.BPA"] = HeaderKeyValue["SlicerAstro.BBPA"];
        };
+     }
+
+   if (!strcmp(HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED") ||
+       !strcmp(HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED") ||
+       !strcmp(HeaderKeyValue["SlicerAstro.BPA"].c_str(), "UNDEFINED"))
+     {
+
+     // TO DO: restore BMAJ, BMIN and BPA from History
+
+     if (strcmp(HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED") &&
+         strcmp(HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED") &&
+         strcmp(HeaderKeyValue["SlicerAstro.BPA"].c_str(), "UNDEFINED"))
+       {
+       vtkWarningMacro( << " Beam information recovered from HISTORY keywords: \n"
+                        << " BMAJ = " << HeaderKeyValue["SlicerAstro.BMAJ"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
+                        << " BMIN = " << HeaderKeyValue["SlicerAstro.BMIN"] << " " << HeaderKeyValue["SlicerAstro.CUNIT1"]
+                        << " BPA = "  << HeaderKeyValue["SlicerAstro.BPA"]  << " DEGREE\n"
+                        << " It is recommended to check these values. \n\n");
+       }
      }
 
    if(HeaderKeyValue.count("SlicerAstro.BZERO") == 0)
