@@ -199,7 +199,7 @@ wcsprm *vtkMRMLAstroLabelMapVolumeDisplayNode::GetWCSStruct()
 //----------------------------------------------------------------------------
 bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition(bool update /*= true*/)
 {
-  if (!this->WCS)
+  if (!this->WCS || this->WCSStatus != 0)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition :"
                   " WCS not found.");
@@ -246,7 +246,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition(bool upda
 //----------------------------------------------------------------------------
 bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition(bool update /*= true*/)
 {
-  if (!WCS)
+  if (!this->WCS || this->WCSStatus != 0)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition :"
                   " WCS not found.");
@@ -293,7 +293,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition(bool up
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetVelocityDefinition()
 {
-  if (!this->WCS)
+  if (!this->WCS || this->WCSStatus != 0)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetVelocityDefinition :"
                   " WCS not found.");
@@ -307,7 +307,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetVelocityDefinition()
 bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
                                                               double SpaceCoordinates[3])
 {
-  if (!this->WCS || !this->Space)
+  if (!this->WCS || !this->Space || this->WCSStatus != 0)
     {
     return false;
     }
@@ -343,7 +343,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3
 bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3],
                                                         double ijk[3])
 {
-  if (!this->WCS || !this->Space)
+  if (!this->WCS || !this->Space || this->WCSStatus != 0)
     {
     return false;
     }
@@ -378,7 +378,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordi
 bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordinates,
                                                         double ijk[3])
 {
-  if (!this->WCS || !this->Space)
+  if (!this->WCS || !this->Space || this->WCSStatus != 0)
     {
     return false;
     }
@@ -729,7 +729,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->SetSpace(node->GetSpace());
   this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
 
-  if (!this->WCS)
+  if (!this->WCS || !node->GetWCSStruct() || node->GetWCSStatus() != 0)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::Copy :"
                   " WCS not found.");
@@ -746,6 +746,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
                   " of file "<<this->WCS->err->file<<
                   ": \n"<<this->WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
+    return;
     }
 
   if ((this->WCSStatus = wcsset(this->WCS)))
@@ -757,6 +758,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
                   " of file "<<this->WCS->err->file<<
                   ": \n"<<this->WCS->err->msg<<"\n");
     this->SetWCSStatus(node->GetWCSStatus());
+    return;
     }
 
   this->EndModify(disabledModify);
@@ -1014,7 +1016,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromVal
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::string value)
 {
-  if (!WCS)
+  if (!this->WCS || this->WCSStatus != 0)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStringZ : "
                   "WCS not found!");

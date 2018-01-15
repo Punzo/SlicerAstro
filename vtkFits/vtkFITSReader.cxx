@@ -1707,7 +1707,7 @@ bool vtkFITSReader::AllocateWCS(){
       }
     }
 
-  if (WCSStatus!=0)
+  if (WCSStatus != 0)
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: WCSlib failed to create WCSstruct."<< "\n"<<
                   "World coordinates will not be displayed. "<< "\n");

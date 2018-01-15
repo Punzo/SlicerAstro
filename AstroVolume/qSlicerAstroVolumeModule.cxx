@@ -764,15 +764,6 @@ void qSlicerAstroVolumeModule::setup()
       {
       continue;
       }
-    if (!strcmp(tempProceduralColorTableNode->GetName(), "RandomIntegers"))
-      {
-      vtkNew<vtkMRMLProceduralColorNode> tempTableNode;
-      tempTableNode->Copy(tempProceduralColorTableNode);
-      this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
-      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
-      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
-      continue;
-      }
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
     }
 }

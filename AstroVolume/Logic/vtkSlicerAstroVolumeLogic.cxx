@@ -276,45 +276,32 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     col->RemoveAllItems();
     }
 
-  //check WCS and update unit nodes
+  // update unit nodes
   if (node->IsA("vtkMRMLAstroVolumeNode"))
     {
     vtkSmartPointer<vtkCollection> listAstroVolumes = vtkSmartPointer<vtkCollection>::Take(
       this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
 
-    bool WCS = false;
     double min = std::numeric_limits<double>::max(), max = -std::numeric_limits<double>::max();
     for(int i = 0; i < listAstroVolumes->GetNumberOfItems(); i++)
       {
       vtkMRMLAstroVolumeNode* astroVolumeNode =
         vtkMRMLAstroVolumeNode::SafeDownCast(listAstroVolumes->GetItemAsObject(i));
-      if (astroVolumeNode)
+      if (!astroVolumeNode)
         {
-        double mint = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
-        if (mint < min)
-          {
-          min = mint;
-          }
-        double maxt = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
-        if (maxt > max)
-          {
-          max = maxt;
-          }
-        vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplayNode =
-             astroVolumeNode->GetAstroVolumeDisplayNode();
-        if(!astroVolumeDisplayNode)
-          {
-          continue;
-          }
-        if(astroVolumeDisplayNode->GetWCSStatus() != 0 && WCS)
-          {
-          vtkWarningMacro("Both WCS and non-WCS compatible Volumes have been added to the Scene."<<endl
-                           <<"It may results in odd behaviours."<<endl);
-          }
-        if(astroVolumeDisplayNode->GetWCSStatus() == 0)
-          {
-          WCS = true;
-          }
+        continue;
+        }
+
+      double mint = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+      if (mint < min)
+        {
+        min = mint;
+        }
+
+      double maxt = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+      if (maxt > max)
+        {
+        max = maxt;
         }
       }
 
@@ -465,61 +452,67 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
   ArchetypeVolumeNodeSet nodeSet(scene);
 
   // set up the Astro node's support nodes
-  vtkNew<vtkMRMLAstroVolumeNode> astroNode;
-  astroNode->SetName(volumeName.c_str());
-  nodeSet.Scene->AddNode(astroNode.GetPointer());
+  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeNode>().GetPointer());
+  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeDisplayNode>().GetPointer());
+  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
 
-  vtkNew<vtkMRMLAstroVolumeDisplayNode> adisplayNode;
+  vtkMRMLAstroVolumeDisplayNode* adisplayNode =
+      vtkMRMLAstroVolumeDisplayNode::SafeDownCast(
+        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroVolumeDisplayNode"));
   adisplayNode->SetAutoWindowLevel(0);
-  nodeSet.Scene->AddNode(adisplayNode.GetPointer());
+
+  vtkMRMLAstroVolumeNode* astroNode =
+      vtkMRMLAstroVolumeNode::SafeDownCast(
+        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroVolumeNode", volumeName));
   astroNode->SetAndObserveDisplayNodeID(adisplayNode->GetID());
 
-  vtkNew<vtkMRMLAstroVolumeStorageNode> storageNode;
+  vtkMRMLAstroVolumeStorageNode* storageNode =
+      vtkMRMLAstroVolumeStorageNode::SafeDownCast(
+        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroVolumeStorageNode"));
   storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
-  nodeSet.Scene->AddNode(storageNode.GetPointer());
   astroNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
-  nodeSet.StorageNode = storageNode.GetPointer();
-  nodeSet.DisplayNode = adisplayNode.GetPointer();
-  nodeSet.Node = astroNode.GetPointer();
+  nodeSet.StorageNode = storageNode;
+  nodeSet.DisplayNode = adisplayNode;
+  nodeSet.Node = astroNode;
 
   return nodeSet;
 }
 
-};
-
-
-namespace
-{
 //----------------------------------------------------------------------------
 ArchetypeVolumeNodeSet AstroLabelMapVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
 {
   ArchetypeVolumeNodeSet nodeSet(scene);
 
   // set up the AstroLabelMap node's support nodes
-  vtkNew<vtkMRMLAstroLabelMapVolumeNode> astroLabelMapNode;
-  astroLabelMapNode->SetName(volumeName.c_str());
-  nodeSet.Scene->AddNode(astroLabelMapNode.GetPointer());
+  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
+  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
+  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
 
-  vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode> lmdisplayNode;
-  nodeSet.Scene->AddNode(lmdisplayNode.GetPointer());
-  astroLabelMapNode->SetAndObserveDisplayNodeID(lmdisplayNode->GetID());
+  vtkMRMLAstroLabelMapVolumeDisplayNode* adisplayNode =
+      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(
+        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroLabelMapVolumeDisplayNode"));
 
-  vtkNew<vtkMRMLAstroVolumeStorageNode> storageNode;
+  vtkMRMLAstroLabelMapVolumeNode* astroNode =
+      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(
+        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroLabelMapVolumeNode", volumeName));
+  astroNode->SetAndObserveDisplayNodeID(adisplayNode->GetID());
+
+  vtkMRMLAstroVolumeStorageNode* storageNode =
+      vtkMRMLAstroVolumeStorageNode::SafeDownCast(
+        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroVolumeStorageNode"));
   storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
-  nodeSet.Scene->AddNode(storageNode.GetPointer());
-  astroLabelMapNode->SetAndObserveStorageNodeID(storageNode->GetID());
+  astroNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
-  nodeSet.StorageNode = storageNode.GetPointer();
-  nodeSet.DisplayNode = lmdisplayNode.GetPointer();
-  nodeSet.Node = astroLabelMapNode.GetPointer();
-
+  nodeSet.StorageNode = storageNode;
+  nodeSet.DisplayNode = adisplayNode;
+  nodeSet.Node = astroNode;
   nodeSet.LabelMap = true;
 
   return nodeSet;
 }
 
-};
+} // end of anonymous namespace
 
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic)
@@ -538,11 +531,13 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
     {
     return;
     }
+
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeDisplayNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
+
   if (!this->PresetsScene)
     {
     this->PresetsScene = vtkMRMLScene::New();

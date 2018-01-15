@@ -144,6 +144,7 @@ protected:
   virtual void setup();
   virtual void setMRMLScene(vtkMRMLScene*);
   void initializeSegmentations(vtkMRMLScene* scene);
+  void initializeColorNodes();
 
   /// Update master representation in segmentation to a given representation.
   /// Used before adding a certain segment to a segmentation, making sure the user knows if data loss is possible.
