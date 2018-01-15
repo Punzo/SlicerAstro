@@ -340,8 +340,8 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     double BPA = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BPA"));
     transform->RotateZ(BPA);
     const double degtorad = atan(1.) / 45.;
-    vtkGeneralTransform* ijkToXY =
-        sliceLayerLogic->GetXYToIJKTransform();
+    vtkNew<vtkGeneralTransform> ijkToXY;
+    ijkToXY->DeepCopy(sliceLayerLogic->GetXYToIJKTransform());
     ijkToXY->Inverse();
 
     double BMAJ = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMAJ"));
