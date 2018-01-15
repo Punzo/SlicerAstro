@@ -611,8 +611,36 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushStencil(qMRMLW
   this->WorldOriginToModifierLabelmapIjkTransformer->Update();
   vtkPolyData* brushModel_ModifierLabelmapIjk = this->WorldOriginToModifierLabelmapIjkTransformer->GetOutput();
   double* boundsIjk = brushModel_ModifierLabelmapIjk->GetBounds();
-  this->BrushPolyDataToStencil->SetOutputWholeExtent(floor(boundsIjk[0])-1, ceil(boundsIjk[1])+1,
-          floor(boundsIjk[2])-1, ceil(boundsIjk[3])+1, floor(boundsIjk[4])-1, ceil(boundsIjk[5])+1);
+
+  int Extent[6];
+  modifierLabelmap->GetExtent(Extent);
+
+  if (fabs(Extent[0]) > fabs(floor(boundsIjk[0])-1))
+    {
+    Extent[0] = floor(boundsIjk[0])-1;
+    }
+  if (fabs(Extent[1]) > fabs(ceil(boundsIjk[1])+1))
+    {
+    Extent[1] = ceil(boundsIjk[1])+1;
+    }
+  if (fabs(Extent[2]) > fabs(floor(boundsIjk[2])-1))
+    {
+    Extent[2] = floor(boundsIjk[2])-1;
+    }
+  if (fabs(Extent[3]) > fabs(ceil(boundsIjk[3])+1))
+    {
+    Extent[3] = ceil(boundsIjk[3])+1;
+    }
+  if (fabs(Extent[4]) > fabs(floor(boundsIjk[4])-1))
+    {
+    Extent[4] = floor(boundsIjk[4])-1;
+    }
+  if (fabs(Extent[5]) > fabs(ceil(boundsIjk[5])+1))
+    {
+    Extent[5] = ceil(boundsIjk[5])+1;
+    }
+
+  this->BrushPolyDataToStencil->SetOutputWholeExtent(Extent);
 }
 
 //----------------------------------------------------------------------------
