@@ -81,6 +81,7 @@
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
 #include <vtkMRMLColorTableNode.h>
+#include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLProceduralColorNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
@@ -328,11 +329,11 @@ void qSlicerAstroVolumeModule::setup()
       (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
   if (!defaultNode)
     {
-    vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSliceNode");
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSliceNode");
     defaultNode.TakeReference(foo);
     this->mrmlScene()->AddDefaultNode(defaultNode);
     }
-  vtkMRMLSliceNode * defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
+  vtkMRMLSliceNode *defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
   defaultSliceNode->RenameSliceOrientationPreset("Axial", "XZ");
   defaultSliceNode->RenameSliceOrientationPreset("Sagittal", "ZY");
   defaultSliceNode->RenameSliceOrientationPreset("Coronal", "XY");
@@ -733,6 +734,7 @@ void qSlicerAstroVolumeModule::setup()
   this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
 
   // Add Generic Colors
+  std::string MediumChartColorsID;
   for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
     {
     vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
@@ -741,14 +743,23 @@ void qSlicerAstroVolumeModule::setup()
       {
       continue;
       }
-    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
-        !strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
+    if (!strcmp(tempColorTableNode->GetName(), "GenericColors"))
       {
       vtkNew<vtkMRMLColorTableNode> tempTableNode;
       tempTableNode->Copy(tempColorTableNode);
       this->mrmlScene()->RemoveNode(tempColorTableNode);
       tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
       this->mrmlScene()->AddNode(tempTableNode.GetPointer());
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
+      {
+      vtkNew<vtkMRMLColorTableNode> tempTableNode;
+      tempTableNode->Copy(tempColorTableNode);
+      this->mrmlScene()->RemoveNode(tempColorTableNode);
+      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
+      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
+      MediumChartColorsID = tempTableNode->GetID();
       continue;
       }
     }
@@ -765,6 +776,32 @@ void qSlicerAstroVolumeModule::setup()
       continue;
       }
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
+    }
+
+  // set PlotChart Default Node
+  defaultNode = vtkMRMLPlotChartNode::SafeDownCast
+      (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLPlotChartNode"));
+  if (!defaultNode)
+    {
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode");
+    defaultNode.TakeReference(foo);
+    this->mrmlScene()->AddDefaultNode(defaultNode);
+    }
+  vtkMRMLPlotChartNode *plotChartDefaultNode = vtkMRMLPlotChartNode::SafeDownCast(defaultNode);
+  plotChartDefaultNode->SetAttribute("LookupTable", MediumChartColorsID.c_str());
+
+  // modify PlotChartNodes already allocated
+  vtkSmartPointer<vtkCollection> plotChartNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLPlotChartNode"));
+
+  for(int i = 0; i < plotChartNodes->GetNumberOfItems(); i++)
+    {
+    vtkMRMLPlotChartNode* plotChartNode =
+        vtkMRMLPlotChartNode::SafeDownCast(plotChartNodes->GetItemAsObject(i));
+    if (plotChartNode)
+      {
+      plotChartDefaultNode->SetAttribute("LookupTable", MediumChartColorsID.c_str());
+      }
     }
 }
 

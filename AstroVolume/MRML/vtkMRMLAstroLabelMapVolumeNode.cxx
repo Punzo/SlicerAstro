@@ -80,8 +80,6 @@ bool ShortIsNaN(double Value)
 void vtkMRMLAstroLabelMapVolumeNode::ReadXMLAttributes(const char** atts)
 {
   this->Superclass::ReadXMLAttributes(atts);
-
-  this->WriteXML(std::cout,0);
 }
 
 //----------------------------------------------------------------------------
