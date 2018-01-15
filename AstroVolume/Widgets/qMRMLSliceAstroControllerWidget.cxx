@@ -130,9 +130,9 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   this->col = vtkSmartPointer<vtkCollection>::New();
 
   BeamButton = new QToolButton(SliceFrame);
-  BeamButton->setObjectName(QStringLiteral("BeamButton"));
+  BeamButton->setObjectName(QLatin1String("BeamButton"));
   QIcon icon;
-  icon.addFile(QStringLiteral(":/Icons/Beam.png"), QSize(), QIcon::Normal, QIcon::Off);
+  icon.addFile(QLatin1String(":/Icons/Beam.png"), QSize(), QIcon::Normal, QIcon::Off);
   BeamButton->setIcon(icon);
   BeamButton->setAutoRaise(true);
   BeamButton->setToolTip("Show/hide the beam in the 2D XY view.");
