@@ -192,6 +192,13 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     return false;
     }
 
+  double BMAJ = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMAJ"));
+  double BMIN = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMIN"));
+  double CDELT1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
+  double CDELT2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
+
+  double unitBeamConv = fabs((CDELT1 * CDELT2) / (1.13 * BMAJ * BMIN));
+
   const int *dims = inputVolume->GetImageData()->GetDimensions();
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numSlice = dims[0] * dims[1] * numComponents;
@@ -327,12 +334,14 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
         switch (DataType)
           {
           case VTK_FLOAT:
+            *(outProfileFPixel + elemCnt) *= unitBeamConv;
             if (*(outProfileFPixel + elemCnt) < FLOATPRECISION)
               {
               *(outProfileFPixel + elemCnt) = NaN;
               }
             break;
           case VTK_DOUBLE:
+            *(outProfileDPixel + elemCnt) *= unitBeamConv;
             if (*(outProfileDPixel + elemCnt) < DOUBLEPRECISION)
               {
               *(outProfileDPixel + elemCnt) = NaN;
@@ -454,12 +463,14 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
         switch (DataType)
           {
           case VTK_FLOAT:
+            *(outProfileFPixel + elemCnt) *= unitBeamConv;
             if (*(outProfileFPixel + elemCnt) < FLOATPRECISION)
               {
               *(outProfileFPixel + elemCnt) = NaN;
               }
             break;
           case VTK_DOUBLE:
+            *(outProfileDPixel + elemCnt) *= unitBeamConv;
             if (*(outProfileDPixel + elemCnt) < DOUBLEPRECISION)
               {
               *(outProfileDPixel + elemCnt) = NaN;
