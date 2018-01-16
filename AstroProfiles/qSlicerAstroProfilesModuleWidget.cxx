@@ -417,7 +417,7 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!this->mrmlScene() || !d->parametersNode)
+  if (!this->mrmlScene())
     {
     return;
     }
@@ -433,13 +433,14 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       {
       d->plotChartNodeProfile.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeProfile);
+      d->plotChartNodeProfile->SetName("ProfileChart");
       d->plotChartNodeProfile->SetAttribute("TitleName", "Profile");
       d->plotChartNodeProfile->SetAttribute("XAxisLabelName", "Velocity (km/s)");
       d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Intensity (Jy/beam)");
       d->plotChartNodeProfile->SetAttribute("Type", "Line");
       d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongY", "off");
+      this->mrmlScene()->AddNode(d->plotChartNodeProfile);
       }
     else
       {
@@ -469,7 +470,7 @@ void qSlicerAstroProfilesModuleWidget::initializeSegmentations(bool forceNew /*=
   vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
     this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
 
-  if (!segmentEditorNodeSingleton || forceNew)
+  if (!segmentEditorNodeSingleton )
     {
     d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
     d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());

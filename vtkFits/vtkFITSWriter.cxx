@@ -214,6 +214,8 @@ void vtkFITSWriter::WriteData()
     if ((!tmp.compare(0,6,"SIMPLE")) ||
         (!tmp.compare(0,18,"3DDisplayThreshold")) ||
         (!tmp.compare(0,22,"3DDisplayThresholdMean")) ||
+        (!tmp.compare(0,11,"HistoMinSel")) ||
+        (!tmp.compare(0,11,"HistoMaxSel")) ||
         (!tmp.compare(0,9,"DATAMODEL")))
       {
       continue;

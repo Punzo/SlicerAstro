@@ -70,7 +70,7 @@ template <typename T> bool isNaN(T value)
 }
 
 //----------------------------------------------------------------------------
-bool ShortIsNaN(double Value)
+bool ShortIsNaN(short Value)
 {
   return isNaN<short>(Value);
 }

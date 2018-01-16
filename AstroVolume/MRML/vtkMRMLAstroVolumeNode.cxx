@@ -110,13 +110,13 @@ bool DoubleIsNaN(double Value)
 }
 
 //----------------------------------------------------------------------------
-bool FloatIsNaN(double Value)
+bool FloatIsNaN(float Value)
 {
   return isNaN<float>(Value);
 }
 
 //----------------------------------------------------------------------------
-bool ShortIsNaN(double Value)
+bool ShortIsNaN(short Value)
 {
   return isNaN<short>(Value);
 }

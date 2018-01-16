@@ -150,6 +150,7 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
   QObject::connect(this->ThresholdPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setThreshold(bool)));
 
+
   QComboBox* AutoManualComboBoxWidget = this->MRMLWindowLevelWidget->findChild<QComboBox*>
       (QString("AutoManualComboBox"));
   if (AutoManualComboBoxWidget)
@@ -332,6 +333,13 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     convert = true;
     }
 
+  bool histo = false;
+  found = LevelsStdString.find("Histogram");
+  if (found != std::string::npos)
+    {
+    histo = true;
+    }
+
   bool list = false;
   bool increment = false;
   bool linearIncrement = false;
@@ -359,9 +367,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     nonLinearIncrement = true;
     }
 
-  if ((!list && !increment && !renzogram) || (list && increment) || (renzogram && increment)
+  if ((!list && !increment && !renzogram && !histo) || (list && increment) || (renzogram && increment)
       || (increment && !linearIncrement && !nonLinearIncrement) ||
-      (list && (linearIncrement || nonLinearIncrement)))
+      (list && (linearIncrement || nonLinearIncrement)) ||
+      (histo && (list || renzogram || increment || linearIncrement || nonLinearIncrement)))
     {
     QString message = QString("The input string defining the Contour Levels"
                               " is wrongly formatted. Check the ToolTip.");
@@ -456,6 +465,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
         cont++;
         }
       }
+    }
+  else if (histo)
+    {
+    Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMinSel")));
+    Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMaxSel")));
     }
   else
     {
@@ -578,9 +592,17 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       {
       std::string SegmentID = SegmentIDs->GetValue(jj);
       SegmentationDisplayNode->SetSegmentVisibility(SegmentID, true);
-      SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
+      if (histo)
+        {
+        SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, true);
+        SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, true);
+        }
+      else
+        {
+        SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
+        SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
+        }
       SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
-      SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
       }
     SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
