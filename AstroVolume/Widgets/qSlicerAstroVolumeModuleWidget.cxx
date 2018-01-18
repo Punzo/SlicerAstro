@@ -3783,8 +3783,6 @@ void qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged(vtkStringArray *mrml
 
   if (!histoTable)
     {
-    qCritical() <<"qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged : "
-                  "Unable to find the Histogram.";
     return;
     }
 
