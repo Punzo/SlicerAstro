@@ -128,7 +128,7 @@ bool DoubleIsNaN(double Value)
 }
 
 //----------------------------------------------------------------------------
-bool FloatIsNaN(double Value)
+bool FloatIsNaN(float Value)
 {
   return isNaN<float>(Value);
 }

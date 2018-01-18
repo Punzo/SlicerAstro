@@ -188,11 +188,17 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
                                           "to specify the levels use the following format: 'FISRT:LAST+SPACING' for linear spacing "
                                           "or 'FISRT:LAST*SPACING' for non linear spacing. \n\n"
                                           "The levels can also be specified as a list (e.g., 'VALUE1;VALUE2;VALUE3'). "
-                                          "In the case of a list, it is possible also to specify for each contour both the MIN and MAX intensity values of the level "
+                                          "In the case of a list, it is possible also to specify for each contour"
+                                          " both the MIN and MAX intensity values of the level "
                                           "(e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). \n\n "
-                                          "If the string is preceded by '3DDisplayThreshold', the levels are evaluated in units of the value of 3DDisplayThreshold of the dataset. \n\n"
-                                          "The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy "
-                                          "to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.");
+                                          "If the string is preceded by '3DDisplayThreshold', the levels are evaluated"
+                                          " in units of the value of 3DDisplayThreshold of the dataset. \n\n"
+                                          "If the Histogram is active in the plot view and a selection is made, by typing the string"
+                                          " 'Histogram' will create a segmentation around the selection.  \n\n"
+                                          "The contours in SlicerAstro are a full 3D segmentation. "
+                                          "Therefore it can be computationally heavy to segment "
+                                          "(marching cubes algorithm) and visualize around the noise "
+                                          "range [-2, 2] RMS for large datacubes.");
   this->horizontalLayout_2->addWidget(this->ContourLevelsLineEdit);
   this->verticalLayout_3 = new QVBoxLayout();
   this->verticalLayout_3->setObjectName(QLatin1String("verticalLayout_3"));
@@ -372,6 +378,13 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     convert = true;
     }
 
+  bool histo = false;
+  found = LevelsStdString.find("Histogram");
+  if (found != std::string::npos)
+    {
+    histo = true;
+    }
+
   bool list = false;
   bool increment = false;
   bool linearIncrement = false;
@@ -399,14 +412,23 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
     nonLinearIncrement = true;
     }
 
-  if ((!list && !increment && !renzogram) || (list && increment) || (renzogram && increment)
+  if ((!list && !increment && !renzogram && !histo) || (list && increment) || (renzogram && increment)
       || (increment && !linearIncrement && !nonLinearIncrement) ||
-      (list && (linearIncrement || nonLinearIncrement)))
+      (list && (linearIncrement || nonLinearIncrement)) ||
+      (histo && (list || renzogram || increment || linearIncrement || nonLinearIncrement)))
     {
     QString message = QString("The input string defining the Contour Levels"
                               " is wrongly formatted. Check the ToolTip.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to create Contours"), message);
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode* masterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
+    this->parameterSetNode()->GetMasterVolumeNode());
+
+  if (!masterVolume)
+    {
     return;
     }
 
@@ -497,6 +519,11 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
         }
       }
     }
+  else if (histo)
+    {
+    Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMinSel")));
+    Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMaxSel")));
+    }
   else
     {
     qCritical() << Q_FUNC_INFO << ": the input string defining the Contour Levels is formatted wrongly ";
@@ -532,14 +559,6 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 
   // Create empty segment in current segmentation
   this->scene()->SaveStateForUndo();
-
-  vtkMRMLAstroVolumeNode* masterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
-    this->parameterSetNode()->GetMasterVolumeNode());
-
-  if (!masterVolume)
-    {
-    return;
-    }
 
   for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
     {
@@ -628,9 +647,17 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
       {
       std::string SegmentID = SegmentIDs->GetValue(jj);
       SegmentationDisplayNode->SetSegmentVisibility(SegmentID, true);
-      SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
+      if (histo)
+        {
+        SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, true);
+        SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, true);
+        }
+      else
+        {
+        SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
+        SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
+        }
       SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
-      SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
       }
     SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());

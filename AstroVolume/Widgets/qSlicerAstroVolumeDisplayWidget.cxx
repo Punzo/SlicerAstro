@@ -120,14 +120,11 @@ qSlicerAstroVolumeDisplayWidget::~qSlicerAstroVolumeDisplayWidget()
 void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
 {
    Q_D(qSlicerAstroVolumeDisplayWidget);
-   qvtkDisconnect(0, vtkCommand::ModifiedEvent,
-                  this, SLOT(updateFromMRML(vtkObject*)));
 
-  if (VolumeNode == 0)
-    {
-    d->setCurrentDisplayWidget(0);
-    return;
-    }
+   if (!VolumeNode)
+     {
+     return;
+     }
 
   vtkMRMLScene* scene = VolumeNode->GetScene();
   vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
@@ -136,16 +133,16 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
     vtkMRMLAstroVolumeNode::SafeDownCast(VolumeNode);
   if (astroVolumeNode)
     {
-    qvtkConnect(VolumeNode, vtkCommand::ModifiedEvent,
-              this, SLOT(updateFromMRML(vtkObject*)));
+    qvtkReconnect(VolumeNode, vtkCommand::ModifiedEvent,
+                  this, SLOT(updateFromMRML(vtkObject*)));
     d->ScalarVolumeDisplayWidget->setMRMLScene(scene);
     d->ScalarVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
     d->setCurrentDisplayWidget(d->ScalarVolumeDisplayWidget);
     }
   else if (labelMapVolumeNode)
    {
-   qvtkConnect(VolumeNode, vtkCommand::ModifiedEvent,
-             this, SLOT(updateFromMRML(vtkObject*)));
+   qvtkReconnect(VolumeNode, vtkCommand::ModifiedEvent,
+                 this, SLOT(updateFromMRML(vtkObject*)));
    d->LabelMapVolumeDisplayWidget->setMRMLScene(scene);
    d->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
    d->setCurrentDisplayWidget(d->LabelMapVolumeDisplayWidget);

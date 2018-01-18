@@ -350,12 +350,12 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     double CDELT2 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT2"));
     double NAXIS1 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.NAXIS1"));
 
-    double aCosPixel = BMAJ * cos(BPA * degtorad) / CDELT1;
-    double aSinPixel = BMAJ * sin(BPA * degtorad) / CDELT2;
+    double aCosPixel = BMIN * cos(BPA * degtorad) / CDELT1;
+    double aSinPixel = BMIN * sin(BPA * degtorad) / CDELT2;
     double a = sqrt(aCosPixel * aCosPixel + aSinPixel * aSinPixel);
 
-    double bCosPixel = BMIN * cos((BPA + 90) * degtorad) / CDELT1;
-    double bSinPixel = BMIN * sin((BPA + 90) * degtorad) / CDELT2;
+    double bCosPixel = BMAJ * cos((BPA + 90) * degtorad) / CDELT1;
+    double bSinPixel = BMAJ * sin((BPA + 90) * degtorad) / CDELT2;
     double b = sqrt(bCosPixel * bCosPixel + bSinPixel * bSinPixel);
 
     double centerX = NAXIS1 - a * 3;

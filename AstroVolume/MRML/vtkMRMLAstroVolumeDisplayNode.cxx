@@ -882,19 +882,26 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
     {
     vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
                 this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-    if (selectionNode)
+    if (!selectionNode)
       {
-      vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
-
-      for(int i = 0; i < numberOfComponents; i++)
-        {
-        double component = this->GetVolumeNode()->GetImageData()->
-            GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
-        pixel += unitNode->GetDisplayStringFromValue(component);
-        pixel += ",";
-        }
-        pixel.erase(pixel.size()-1);
+      return " ";
       }
+
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
+    if (!unitNode)
+      {
+      return " ";
+      }
+
+    for(int i = 0; i < numberOfComponents; i++)
+      {
+      double component = this->GetVolumeNode()->GetImageData()->
+          GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
+      pixel += unitNode->GetDisplayStringFromValue(component);
+      pixel += ",";
+      }
+
+    pixel.erase(pixel.size()-1);
     }
 
   return pixel;

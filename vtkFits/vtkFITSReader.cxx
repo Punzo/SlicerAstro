@@ -1248,6 +1248,9 @@ bool vtkFITSReader::AllocateHeader()
    HeaderKeyValue["SlicerAstro.3DDisplayThreshold"] = "0.";
    HeaderKeyValue["SlicerAstro.3DDisplayThresholdMean"] = "0.";
 
+   HeaderKeyValue["SlicerAstro.HistoMinSel"] = "0.";
+   HeaderKeyValue["SlicerAstro.HistoMaxSel"] = "0.";
+
    if(HeaderKeyValue.count("SlicerAstro.DUNIT3") == 0)
      {
      vtkWarningMacro("vtkFITSReader::ExecuteInformation: "

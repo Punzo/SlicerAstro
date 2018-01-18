@@ -29,18 +29,25 @@
 #include <ctkVTKVolumePropertyWidget.h>
 
 // VTK includes
+#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
+#include <vtkImageHistogram.h>
 #include <vtkImageReslice.h>
 #include <vtkImageThreshold.h>
 #include <vtkLookupTable.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
+#include <vtkPlotPoints.h>
 #include <vtkPointData.h>
+#include <vtkTable.h>
 #include <vtkTransform.h>
+#include <vtkVariant.h>
 
 // qMRMLWidgets include
 #include <qMRMLAstroVolumeInfoWidget.h>
+#include <qMRMLPlotView.h>
+#include <qMRMLPlotWidget.h>
 #include <qMRMLThreeDViewControllerWidget.h>
 #include <qMRMLThreeDWidget.h>
 
@@ -67,12 +74,16 @@
 #include <vtkMRMLColorTableNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
+#include <vtkMRMLPlotDataNode.h>
+#include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLProceduralColorNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLTableNode.h>
+#include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
@@ -100,6 +111,13 @@ public:
   qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget;
   qMRMLAstroVolumeInfoWidget *MRMLAstroVolumeInfoWidget;
   vtkSlicerSegmentationsModuleLogic* segmentationsLogic;
+  vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeHistogram;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeMinLine;
+  vtkSmartPointer<vtkMRMLTableNode> TableMinNode;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeMaxLine;
+  vtkSmartPointer<vtkMRMLTableNode> TableMaxNode;
+  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeThresholdLine;
+  vtkSmartPointer<vtkMRMLTableNode> TableThresholdNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;  
   vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelVolumeNode;
@@ -121,7 +139,17 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   this->MRMLAstroVolumeInfoWidget = 0;
   this->segmentationsLogic = 0;
   this->volumeRenderingWidget = 0;
+  this->plotChartNodeHistogram = 0;
+  this->astroVolumeNode = 0;
+  this->astroLabelVolumeNode = 0;
   this->selectionNode = 0;
+  this->segmentEditorNode = 0;
+  this->plotDataNodeMinLine = 0;
+  this->TableMinNode = 0;
+  this->plotDataNodeMaxLine = 0;
+  this->TableMaxNode = 0;
+  this->plotDataNodeThresholdLine = 0;
+  this->TableThresholdNode = 0;
   this->stretchOldValue = 0.;
   this->offsetOldValue = 0.;
   this->Lock = false;
@@ -177,12 +205,30 @@ std::string DoubleToString(double Value)
   return NumberToString<double>(Value);
 }
 
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T Value)
+{
+  return Value != Value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsInf(double Value)
+{
+  return !DoubleIsNaN(Value) && DoubleIsNaN(Value - Value);
+}
+
 } // end namespace
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidget* q)
 {
-  this->Ui_qSlicerAstroVolumeModuleWidget::setupUi(q);
+  this->Ui_qSlicerAstroVolumeModuleWidget::setupUi(q); 
 
   this->MRMLAstroVolumeInfoWidget = new qMRMLAstroVolumeInfoWidget(InfoCollapsibleButton);
   this->MRMLAstroVolumeInfoWidget->setObjectName(QLatin1String("MRMLAstroVolumeInfoWidget"));
@@ -223,100 +269,73 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
     return;
     }
 
-  this->SynchronizeScalarDisplayNodeButton->setEnabled(false);
-
-  QObject::connect(this->VisibilityCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onVisibilityChanged(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   this->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+  //Enable widgets
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->InfoCollapsibleButton, SLOT(setEnabled(bool)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->AstroVolumeDisplayWidget, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeRenderingDisplayNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setDisplayConnection(vtkMRMLNode*)));
-
-  QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->VisibilityCheckBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->SynchronizeScalarDisplayNodeButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->RenderingMethodComboBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->QualityControlComboBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->PresetOffsetSlider, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->PresetStretchSlider, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->LockPushButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->PresetsNodeComboBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->activateLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->synchLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->PresetsLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->shiftLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->StretchLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->CropLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->RenderingMethodLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->qualityLabel, SLOT(setEnabled(bool)));
+                   this->WCSCollapsibleButton, SLOT(setEnabled(bool)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->OpticalVelocityButton, SLOT(setEnabled(bool)));
+                   this->HistoCollapsibleButton, SLOT(setEnabled(bool)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->RadioVelocityButton, SLOT(setEnabled(bool)));
+                   this->DisplayCollapsibleButton, SLOT(setEnabled(bool)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->VelocityLabel, SLOT(setEnabled(bool)));
+                   this->CollapsibleButton_CopyMoveSegment, SLOT(setEnabled(bool)));
 
+  // WCS widget connections
   QObject::connect(this->OpticalVelocityButton, SIGNAL(clicked()),
                    q, SLOT(setOpticalVelocity()));
 
   QObject::connect(this->RadioVelocityButton, SIGNAL(clicked()),
                    q, SLOT(setRadioVelocity()));
 
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->DegreeUnitButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->SexagesimalUnitButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->RightAscensionUnitLabel, SLOT(setEnabled(bool)));
-
   QObject::connect(this->DegreeUnitButton, SIGNAL(clicked()),
                    q, SLOT(setRADegreeUnit()));
 
   QObject::connect(this->SexagesimalUnitButton, SIGNAL(clicked()),
                    q, SLOT(setRASexagesimalUnit()));
+
+  // Histogram widget connections
+  QObject::connect(this->HistoPushButtonPreset1, SIGNAL(clicked()),
+                   q, SLOT(onHistoClippingChanged1()));
+
+  QObject::connect(this->HistoPushButtonPreset2, SIGNAL(clicked()),
+                   q, SLOT(onHistoClippingChanged2()));
+
+  QObject::connect(this->HistoPushButtonPreset3, SIGNAL(clicked()),
+                   q, SLOT(onHistoClippingChanged3()));
+
+  QObject::connect(this->HistoPushButtonPreset4, SIGNAL(clicked()),
+                   q, SLOT(onHistoClippingChanged4()));
+
+  QObject::connect(this->HistoPushButtonPreset5, SIGNAL(clicked()),
+                   q, SLOT(onHistoClippingChanged5()));
+
+  QObject::connect(this->CreateHistoPushButton, SIGNAL(clicked()),
+                   q, SLOT(onCreateHistogram()));
+
+  // 2D Display widget connections
+  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   this->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
+
+  // 3D Display widget connections
+  QObject::connect(q, SIGNAL(deactivate3DLabelMapVolumeNode(bool)),
+                   q, SLOT(onDeactivate3DLabelMapVolumeNode(bool)));
+
+  QObject::connect(q, SIGNAL(activate3DAstroVolumeNode(bool)),
+                   q, SLOT(onActivate3DAstroVolumeNode(bool)));
+
+  QObject::connect(this->VisibilityCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onVisibilityChanged(bool)));
+
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeRenderingDisplayNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setDisplayConnection(vtkMRMLNode*)));
+
+  QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
 
   vtkSlicerVolumeRenderingLogic* volumeRenderingLogic =
     vtkSlicerVolumeRenderingLogic::SafeDownCast(volumeRendering->logic());
@@ -371,30 +390,6 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->LockPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onLockToggled(bool)));
 
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->DisplayThresholdLabel, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->DisplayThresholdDoubleSpinBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->DisplayThresholdDoubleSpinBox, SIGNAL(valueChanged(double)),
-                   q, SLOT(onDisplayThresholdValueChanged(double)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->CalculateRMSPushButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->CalculateRMSPushButton, SIGNAL(clicked()),
-                   q, SLOT(onCalculateRMS()));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->ROICropCheckBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->ROICropDisplayCheckBox, SLOT(setEnabled(bool)));
-
-  QObject::connect(q, SIGNAL(astroVolumeNodeChanged(bool)),
-                   this->ROIFitPushButton, SLOT(setEnabled(bool)));
-
   QObject::connect(this->ROICropDisplayCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(setDisplayROIEnabled(bool)));
 
@@ -413,23 +408,18 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->SynchronizeScalarDisplayNodeButton, SIGNAL(clicked()),
                    q, SLOT(clearPresets()));
 
+  QObject::connect(this->DisplayThresholdSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onDisplayThresholdValueChanged(double)));
+
+  QObject::connect(this->CalculateRMSPushButton, SIGNAL(clicked()),
+                   q, SLOT(onCalculateRMS()));
+
+  // Segmentations widget connections
   qSlicerAbstractCoreModule* segmentations= app->moduleManager()->module("Segmentations");
   if (segmentations)
     {
     this->segmentationsLogic = vtkSlicerSegmentationsModuleLogic::SafeDownCast(segmentations->logic());
     }
-
-  QObject::connect(q, SIGNAL(astroLabelMapVolumeNodeChanged(bool)),
-                   this->pushButtonCovertLabelMapToSegmentation, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->pushButtonConvertSegmentationToLabelMap, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->CreateSurfaceButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->pushButton_EditSelected, SLOT(setEnabled(bool)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    this->SegmentsTableView_2, SLOT(setMRMLScene(vtkMRMLScene*)));
@@ -499,7 +489,8 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
 
-  this->initializeSegmentations(scene);
+  this->initializeSegmentations();
+  this->initializePlotNodes();
 
   if(!d->PresetsNodeComboBox)
     {
@@ -522,25 +513,25 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::initializeSegmentations(vtkMRMLScene *scene)
+void qSlicerAstroVolumeModuleWidget::initializeSegmentations(bool forceNew /*= false*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if (!scene)
+  if (!this->mrmlScene())
     {
     return;
     }
 
   std::string segmentEditorSingletonTag = "SegmentEditor";
   vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    scene->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
+    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
 
-  if (!segmentEditorNodeSingleton)
+  if (!segmentEditorNodeSingleton || forceNew)
     {
     d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
     d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
     d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-    scene->AddNode(d->segmentEditorNode));
+    this->mrmlScene()->AddNode(d->segmentEditorNode));
     }
   else
     {
@@ -552,12 +543,12 @@ void qSlicerAstroVolumeModuleWidget::initializeSegmentations(vtkMRMLScene *scene
 
   this->onSegmentEditorNodeModified(d->segmentEditorNode);
 
-  if (!d->segmentEditorNode->GetSegmentationNode())
+  if (!d->segmentEditorNode->GetSegmentationNode() || forceNew)
     {
     vtkSmartPointer<vtkMRMLNode> segmentationNode;
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLSegmentationNode");
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     segmentationNode.TakeReference(foo);
-    scene->AddNode(segmentationNode);
+    this->mrmlScene()->AddNode(segmentationNode);
     d->segmentEditorNode->SetAndObserveSegmentationNode
       (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
   }
@@ -916,6 +907,284 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       continue;
       }
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= false*/)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!this->mrmlScene())
+    {
+    return;
+    }
+
+  // Check (and create) PlotChart node
+  if (!d->plotChartNodeHistogram || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> plotChartNodeHistogramCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotChartNode", "HistogramChart"));
+
+    if (plotChartNodeHistogramCol->GetNumberOfItems() == 0)
+      {
+      d->plotChartNodeHistogram.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
+      d->plotChartNodeHistogram->SetName("HistogramChart");
+      d->plotChartNodeHistogram->SetAttribute("TitleName", "Histogram");
+      d->plotChartNodeHistogram->SetAttribute("XAxisLabelName", "Intensity (Jy/beam)");
+      d->plotChartNodeHistogram->SetAttribute("YAxisLabelName", "Log10(#)");
+      d->plotChartNodeHistogram->SetAttribute("Type", "Custom");
+      d->plotChartNodeHistogram->SetAttribute("ClickAndDragAlongX", "on");
+      d->plotChartNodeHistogram->SetAttribute("ClickAndDragAlongY", "off");
+      this->mrmlScene()->AddNode(d->plotChartNodeHistogram);
+      }
+    else
+      {
+      d->plotChartNodeHistogram = vtkMRMLPlotChartNode::SafeDownCast
+        (plotChartNodeHistogramCol->GetItemAsObject(0));
+      }
+    }
+
+  // Select NULL Chart
+  if (d->selectionNode)
+    {
+    d->selectionNode->SetActivePlotChartID(NULL);
+    }
+
+  // Check (and create) TableMinNode
+  if (!d->TableMinNode || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> TableMinNodeCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLTableNode", "MinTable"));
+
+    if (TableMinNodeCol->GetNumberOfItems() == 0)
+      {
+      d->TableMinNode.TakeReference(vtkMRMLTableNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode")));
+      d->TableMinNode->SetName("MinTable");
+      d->TableMinNode->RemoveAllColumns();
+      d->TableMinNode->SetUseColumnNameAsColumnHeader(true);
+      d->TableMinNode->SetDefaultColumnType("double");
+
+      vtkDoubleArray* xAxis = vtkDoubleArray::SafeDownCast(d->TableMinNode->AddColumn());
+      if (!xAxis)
+        {
+        qCritical() <<"qSlicerAstroVolumeModuleWidget::initializePlotNodes : "
+                      "Unable to find the xAxis Column.";
+        return;
+        }
+      xAxis->SetName("xAxis");
+
+      vtkDoubleArray* yAxis = vtkDoubleArray::SafeDownCast(d->TableMinNode->AddColumn());
+      if (!yAxis)
+        {
+        qCritical() <<"qSlicerAstroVolumeModuleWidget::initializePlotNodes : "
+                      "Unable to find the yAxis Column.";
+        return;
+        }
+      yAxis->SetName("Min");
+
+      d->TableMinNode->GetTable()->SetNumberOfRows(3);
+      for (int ii = 0; ii < 3; ii++)
+        {
+        d->TableMinNode->GetTable()->SetValue(ii, 0, 0.);
+        d->TableMinNode->GetTable()->SetValue(ii, 1, 0.);
+        }
+      this->mrmlScene()->AddNode(d->TableMinNode);
+      }
+    else
+      {
+      d->TableMinNode = vtkMRMLTableNode::SafeDownCast
+        (TableMinNodeCol->GetItemAsObject(0));
+      }
+    }
+
+  this->qvtkReconnect(d->TableMinNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableMinNodeModified()));
+
+  // Check (and create) plotDataNodeMinLine
+  if (!d->plotDataNodeMinLine || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> plotDataNodeMinLineCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "MinLine"));
+
+    if (plotDataNodeMinLineCol->GetNumberOfItems() == 0)
+      {
+      d->plotDataNodeMinLine.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+      d->plotDataNodeMinLine->SetName("MinLine");
+      d->plotDataNodeMinLine->SetType(vtkMRMLPlotDataNode::LINE);
+      d->plotDataNodeMinLine->SetMarkerStyle(vtkPlotPoints::CIRCLE);
+      d->plotDataNodeMinLine->SetAndObserveTableNodeID(d->TableMinNode->GetID());
+      d->plotDataNodeMinLine->SetXColumnName(d->TableMinNode->GetColumnName(0));
+      d->plotDataNodeMinLine->SetYColumnName(d->TableMinNode->GetColumnName(1));
+      this->mrmlScene()->AddNode(d->plotDataNodeMinLine);
+      }
+    else
+      {
+      d->plotDataNodeMinLine = vtkMRMLPlotDataNode::SafeDownCast
+        (plotDataNodeMinLineCol->GetItemAsObject(0));
+      }
+    }
+
+  // Check (and create) TableMaxNode
+  if (!d->TableMaxNode || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> TableMaxNodeCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLTableNode", "MaxTable"));
+
+    if (TableMaxNodeCol->GetNumberOfItems() == 0)
+      {
+      d->TableMaxNode.TakeReference(vtkMRMLTableNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode")));
+      d->TableMaxNode->SetName("MaxTable");
+      d->TableMaxNode->RemoveAllColumns();
+      d->TableMaxNode->SetUseColumnNameAsColumnHeader(true);
+      d->TableMaxNode->SetDefaultColumnType("double");
+
+      vtkDoubleArray* xAxis = vtkDoubleArray::SafeDownCast(d->TableMaxNode->AddColumn());
+      if (!xAxis)
+        {
+        qCritical() <<"qSlicerAstroVolumeModuleWidget::initializePlotNodes : "
+                      "Unable to find the xAxis Column.";
+        return;
+        }
+      xAxis->SetName("xAxis");
+
+      vtkDoubleArray* yAxis = vtkDoubleArray::SafeDownCast(d->TableMaxNode->AddColumn());
+      if (!yAxis)
+        {
+        qCritical() <<"qSlicerAstroVolumeModuleWidget::initializePlotNodes : "
+                      "Unable to find the yAxis Column.";
+        return;
+        }
+      yAxis->SetName("Max");
+
+      d->TableMaxNode->GetTable()->SetNumberOfRows(3);
+      for (int ii = 0; ii < 3; ii++)
+        {
+        d->TableMaxNode->GetTable()->SetValue(ii, 0, 0.);
+        d->TableMaxNode->GetTable()->SetValue(ii, 1, 0.);
+        }
+      this->mrmlScene()->AddNode(d->TableMaxNode);
+      }
+    else
+      {
+      d->TableMaxNode = vtkMRMLTableNode::SafeDownCast
+        (TableMaxNodeCol->GetItemAsObject(0));
+      }
+    }
+
+  this->qvtkReconnect(d->TableMaxNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableMaxNodeModified()));
+
+  // Check (and create) plotDataNodeMaxLine
+  if (!d->plotDataNodeMaxLine || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> plotDataNodeMaxLineCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "MaxLine"));
+
+    if (plotDataNodeMaxLineCol->GetNumberOfItems() == 0)
+      {
+      d->plotDataNodeMaxLine.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+      d->plotDataNodeMaxLine->SetName("MaxLine");
+      d->plotDataNodeMaxLine->SetType(vtkMRMLPlotDataNode::LINE);
+      d->plotDataNodeMaxLine->SetMarkerStyle(vtkPlotPoints::CIRCLE);
+      d->plotDataNodeMaxLine->SetAndObserveTableNodeID(d->TableMaxNode->GetID());
+      d->plotDataNodeMaxLine->SetXColumnName(d->TableMaxNode->GetColumnName(0));
+      d->plotDataNodeMaxLine->SetYColumnName(d->TableMaxNode->GetColumnName(1));
+      this->mrmlScene()->AddNode(d->plotDataNodeMaxLine);
+      }
+    else
+      {
+      d->plotDataNodeMaxLine = vtkMRMLPlotDataNode::SafeDownCast
+        (plotDataNodeMaxLineCol->GetItemAsObject(0));
+      }
+    }
+
+  // Check (and create) TableThresholdNode
+  if (!d->TableThresholdNode || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> TableThresholdNodeCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLTableNode", "ThresholdTable"));
+
+    if (TableThresholdNodeCol->GetNumberOfItems() == 0)
+      {
+      d->TableThresholdNode.TakeReference(vtkMRMLTableNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode")));
+      d->TableThresholdNode->SetName("ThresholdTable");
+      d->TableThresholdNode->RemoveAllColumns();
+      d->TableThresholdNode->SetUseColumnNameAsColumnHeader(true);
+      d->TableThresholdNode->SetDefaultColumnType("double");
+
+      vtkDoubleArray* xAxis = vtkDoubleArray::SafeDownCast(d->TableThresholdNode->AddColumn());
+      if (!xAxis)
+        {
+        qCritical() <<"qSlicerAstroVolumeModuleWidget::initializePlotNodes : "
+                      "Unable to find the xAxis Column.";
+        return;
+        }
+      xAxis->SetName("xAxis");
+
+      vtkDoubleArray* yAxis = vtkDoubleArray::SafeDownCast(d->TableThresholdNode->AddColumn());
+      if (!yAxis)
+        {
+        qCritical() <<"qSlicerAstroVolumeModuleWidget::initializePlotNodes : "
+                      "Unable to find the yAxis Column.";
+        return;
+        }
+      yAxis->SetName("3DDiplayThreshold");
+
+      d->TableThresholdNode->GetTable()->SetNumberOfRows(3);
+      for (int ii = 0; ii < 3; ii++)
+        {
+        d->TableThresholdNode->GetTable()->SetValue(ii, 0, 0.);
+        d->TableThresholdNode->GetTable()->SetValue(ii, 1, 0.);
+        }
+      this->mrmlScene()->AddNode(d->TableThresholdNode);
+      }
+    else
+      {
+      d->TableThresholdNode = vtkMRMLTableNode::SafeDownCast
+        (TableThresholdNodeCol->GetItemAsObject(0));
+      }
+    }
+
+  this->qvtkReconnect(d->TableThresholdNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableThresholdNodeModified()));
+
+  // Check (and create) plotDataNodeThresholdLine
+  if (!d->plotDataNodeThresholdLine || forceNew)
+    {
+    vtkSmartPointer<vtkCollection> plotDataNodeThresholdLineCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "ThresholdLine"));
+
+    if (plotDataNodeThresholdLineCol->GetNumberOfItems() == 0)
+      {
+      d->plotDataNodeThresholdLine.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
+      d->plotDataNodeThresholdLine->SetName("ThresholdLine");
+      d->plotDataNodeThresholdLine->SetType(vtkMRMLPlotDataNode::LINE);
+      d->plotDataNodeThresholdLine->SetMarkerStyle(vtkPlotPoints::CIRCLE);
+      d->plotDataNodeThresholdLine->SetAndObserveTableNodeID(d->TableThresholdNode->GetID());
+      d->plotDataNodeThresholdLine->SetXColumnName(d->TableThresholdNode->GetColumnName(0));
+      d->plotDataNodeThresholdLine->SetYColumnName(d->TableThresholdNode->GetColumnName(1));
+      this->mrmlScene()->AddNode(d->plotDataNodeThresholdLine);
+      }
+    else
+      {
+      d->plotDataNodeThresholdLine = vtkMRMLPlotDataNode::SafeDownCast
+        (plotDataNodeThresholdLineCol->GetItemAsObject(0));
+      }
     }
 }
 
@@ -1004,8 +1273,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 
   if (!node)
     {
-    emit astroLabelMapVolumeNodeChanged(false);
-    emit astroVolumeNodeChanged(false);
+    emit activate3DAstroVolumeNode(false);
     }
 
   vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
@@ -1024,38 +1292,36 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     return;
     }
 
-  bool renderingActive = false;
-
   if (astroVolumeNode)
     {
     int n = StringToInt(astroVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
     // Check Input volume dimensionality
     if (n == 3)
       {
-      renderingActive = true;
+      emit activate3DAstroVolumeNode(true);
       }
-    emit astroLabelMapVolumeNodeChanged(false);
-    emit astroVolumeNodeChanged(true);
+    else
+      {
+      emit activate3DAstroVolumeNode(false);
+      }
 
+    astroVolumeNode->Modified();
     std::string type = astroVolumeNode->GetAttribute("SlicerAstro.DATAMODEL");
     size_t found = type.find("MOMENTMAP");
-    if (!(found != std::string::npos))
+    if (found == std::string::npos)
       {
       d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
       d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
       appLogic->PropagateBackgroundVolumeSelection(1);
       }
-    astroVolumeNode->Modified();
     }
   else if (labelMapVolumeNode)
     {
-    renderingActive = false;
-    emit astroLabelMapVolumeNodeChanged(true);
-    emit astroVolumeNodeChanged(false);
+    emit deactivate3DLabelMapVolumeNode(true);
+    labelMapVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
     appLogic->PropagateLabelVolumeSelection(1);
-    labelMapVolumeNode->Modified();
     }
   else
     {
@@ -1067,19 +1333,15 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     appLogic->PropagateLabelVolumeSelection(1);
     }
 
-  if (!d->RenderingFrame ||
-      !d->ActiveVolumeNodeSelector ||
-      !d->volumeRenderingWidget ||
-      !d->PresetsNodeComboBox)
+  if (d->plotChartNodeHistogram)
     {
-    return;
+    d->plotChartNodeHistogram->RemoveAllPlotDataNodeIDs();
     }
 
-  if (!renderingActive && !astroVolumeNode)
+  if (d->selectionNode)
     {
-    d->RenderingFrame->setEnabled(false);
-    d->RenderingFrame->setCollapsed(true);
-    d->VisibilityCheckBox->setChecked(false);
+    d->selectionNode->SetActivePlotChartID("");
+    d->selectionNode->SetActiveTableID("");
     }
 
   if (!this->mrmlScene())
@@ -3020,6 +3282,27 @@ void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
   if (d->Lock)
     {
     d->PresetStretchSlider->setValue(offsetValue);
+  }
+}
+
+void qSlicerAstroVolumeModuleWidget::onActivate3DAstroVolumeNode(bool activate)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->RenderingFrame)
+    {
+    return;
+    }
+
+  if (activate)
+    {
+    d->RenderingFrame->setEnabled(true);
+    d->RenderingFrame->setCollapsed(false);
+    }
+  else
+    {
+    d->RenderingFrame->setEnabled(false);
+    d->RenderingFrame->setCollapsed(true);
     }
 }
 
@@ -3047,6 +3330,225 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     }
 
   astroVolumeLogic->CalculateRMSinROI(roiNode, d->astroVolumeNode);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLScene *scene = this->mrmlScene();
+
+  if(!d->astroVolumeNode || !d->astroVolumeNode->GetImageData()
+     || !scene)
+    {
+    return;
+    }
+
+  double DATAMAX = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
+  double DATAMIN = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double nBins = d->BinSliderWidget->value();
+  double binFlux = (DATAMAX - DATAMIN) / (nBins - 1);
+
+  vtkNew<vtkImageHistogram> histogram;
+  histogram->SetAutomaticBinning(false);
+  histogram->SetHistogramImageScale(vtkImageHistogram::Log);
+  histogram->SetInputData(d->astroVolumeNode->GetImageData());
+  histogram->SetBinSpacing(binFlux);
+  histogram->SetBinOrigin(DATAMIN);
+  histogram->SetNumberOfBins(nBins);
+  histogram->Update();
+
+  vtkNew<vtkTable> table;
+  vtkNew<vtkMRMLTableNode> tableNode;
+
+  int wasModifying = tableNode->StartModify();
+  tableNode->SetAndObserveTable(table.GetPointer());
+  tableNode->RemoveAllColumns();
+  tableNode->SetUseColumnNameAsColumnHeader(true);
+  tableNode->SetDefaultColumnType("double");
+
+  vtkDoubleArray* Intensity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
+  if (!Intensity)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                  "Unable to find the Intensity Column.";
+    return;
+    }
+  Intensity->SetName("Intensity");
+  tableNode->SetColumnUnitLabel("Intensity", "Jy/beam");
+  tableNode->SetColumnLongName("Intensity", "Intensity axes");
+
+  std::string name = d->astroVolumeNode->GetName();
+  name += "_Histogram";
+  vtkDoubleArray* Counts = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
+  if (!Counts)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                  "Unable to find the Counts Column.";
+    return;
+    }
+  Counts->SetName(name.c_str());
+  tableNode->SetColumnUnitLabel(name.c_str(), "Log10(#)");
+  tableNode->SetColumnLongName(name.c_str(), "Counts");
+
+  table->SetNumberOfRows(histogram->GetNumberOfBins());
+  vtkIdTypeArray* histoArray = histogram->GetHistogram();
+  if (!histoArray)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                  "Unable to find the Histogram Array.";
+    return;
+    }
+
+  double histoMaxValue = 0;
+  for (int ii = 0; ii < histogram->GetNumberOfBins(); ii++)
+     {
+     table->SetValue(ii, 0, DATAMIN + ii * binFlux);
+     double histoValue = log10(histoArray->GetValue(ii));
+     if (DoubleIsInf(histoValue))
+       {
+       table->SetValue(ii, 1, 0.);
+       }
+     else
+       {
+       table->SetValue(ii, 1, histoValue);
+       if (histoValue > histoMaxValue)
+         {
+         histoMaxValue = histoValue;
+         }
+       }
+     }
+
+  tableNode->EndModify(wasModifying);
+  scene->AddNode(tableNode.GetPointer());
+
+  if (d->selectionNode)
+    {
+    d->selectionNode->SetActiveTableID(tableNode->GetID());
+    }
+
+  vtkSmartPointer<vtkCollection> PlotDataNodes = vtkSmartPointer<vtkCollection>::Take
+      (scene->GetNodesByClassByName("vtkMRMLPlotDataNode", name.c_str()));
+  vtkMRMLPlotDataNode *plotDataNode = NULL;
+  if (PlotDataNodes->GetNumberOfItems() == 0)
+    {
+    vtkNew<vtkMRMLPlotDataNode> newPlotDataNode;
+    newPlotDataNode->SetName(name.c_str());
+    newPlotDataNode->SetType(vtkMRMLPlotDataNode::BAR);
+    scene->AddNode(newPlotDataNode.GetPointer());
+    plotDataNode = newPlotDataNode;
+    }
+  else
+    {
+    plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+      (PlotDataNodes->GetItemAsObject(0));
+    }
+
+  plotDataNode->SetAndObserveTableNodeID(tableNode->GetID());
+  plotDataNode->SetXColumnName(tableNode->GetColumnName(0));
+  plotDataNode->SetYColumnName(tableNode->GetColumnName(1));
+
+  // Connect PlotWidget with AstroVolumeWidget
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                   "qSlicerApplication not found!";
+    return;
+    }
+
+  qSlicerLayoutManager* layoutManager = app->layoutManager();
+
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                   "layoutManager not found!";
+    return;
+    }
+
+  vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
+    scene->GetFirstNodeByClass("vtkMRMLLayoutNode"));
+  if (!layoutNode)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                   "layoutNode not found!";
+    return;
+    }
+  int viewArra = layoutNode->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView  &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotView        &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpPlotTableView   &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutOneUpPlotView         &&
+      viewArra != vtkMRMLLayoutNode::SlicerLayoutThreeOverThreePlotView)
+    {
+    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+    }
+
+  qMRMLPlotWidget* plotWidget = layoutManager->plotWidget(0);
+
+  if(!plotWidget)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                   "plotWidget not found!";
+    return;
+    }
+
+  qMRMLPlotView* plotView = plotWidget->plotView();
+  if(!plotWidget)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
+                   "plotView not found!";
+    return;
+    }
+
+  QObject::connect(plotView, SIGNAL(dataSelected(vtkStringArray*, vtkCollection*)),
+                   this, SLOT(onPlotSelectionChanged(vtkStringArray*, vtkCollection*)));
+
+  if (d->TableMinNode && d->TableMaxNode && d->TableThresholdNode)
+    {
+    d->TableMinNode->GetTable()->SetValue(0, 0, DATAMIN);
+    d->TableMinNode->GetTable()->SetValue(0, 1, 0.);
+    d->TableMinNode->GetTable()->SetValue(1, 0, DATAMIN);
+    d->TableMinNode->GetTable()->SetValue(1, 1, histoMaxValue * 0.5);
+    d->TableMinNode->GetTable()->SetValue(2, 0, DATAMIN);
+    d->TableMinNode->GetTable()->SetValue(2, 1, histoMaxValue);
+
+    d->TableMaxNode->GetTable()->SetValue(0, 0, DATAMAX);
+    d->TableMaxNode->GetTable()->SetValue(0, 1, 0.);
+    d->TableMaxNode->GetTable()->SetValue(1, 0, DATAMAX);
+    d->TableMaxNode->GetTable()->SetValue(1, 1, histoMaxValue * 0.5);
+    d->TableMaxNode->GetTable()->SetValue(2, 0, DATAMAX);
+    d->TableMaxNode->GetTable()->SetValue(2, 1, histoMaxValue);
+
+    d->TableThresholdNode->GetTable()->SetValue(0, 0, DisplayThreshold);
+    d->TableThresholdNode->GetTable()->SetValue(0, 1, 0.);
+    d->TableThresholdNode->GetTable()->SetValue(1, 0, DisplayThreshold);
+    d->TableThresholdNode->GetTable()->SetValue(1, 1, histoMaxValue * 0.5);
+    d->TableThresholdNode->GetTable()->SetValue(2, 0, DisplayThreshold);
+    d->TableThresholdNode->GetTable()->SetValue(2, 1, histoMaxValue);
+    }
+
+  if (d->plotChartNodeHistogram)
+    {
+    d->plotChartNodeHistogram->RemoveAllPlotDataNodeIDs();
+    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(plotDataNode->GetID());
+    }
+
+  if (d->selectionNode)
+    {
+    d->selectionNode->SetActivePlotChartID(d->plotChartNodeHistogram->GetID());
+    d->selectionNode->SetActiveTableID(tableNode->GetID());
+    }
+
+  if (d->plotChartNodeHistogram)
+    {
+    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeMinLine->GetID());
+    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeMaxLine->GetID());
+    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeThresholdLine->GetID());
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -3142,7 +3644,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent()
     }
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->initializeSegmentations(this->mrmlScene());
+  this->initializeSegmentations();
+  this->initializePlotNodes();
   this->initializeColorNodes();
 }
 
@@ -3166,7 +3669,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndCloseEvent()
     return;
   }
 
-  this->initializeSegmentations(this->mrmlScene());
+  this->initializeSegmentations(true);
+  this->initializePlotNodes(true);
   this->initializeColorNodes();
 }
 
@@ -3233,6 +3737,69 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
     QString(displayNode->GetClassName()) : defaultRenderingMethod;
   d->RenderingMethodComboBox->setCurrentIndex(
               d->RenderingMethodComboBox->findData(currentVolumeMapper) );
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged(vtkStringArray *mrmlPlotDataIDs,
+                                                            vtkCollection *selectionCol)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+  if (!this->mrmlScene() || !d->astroVolumeNode ||
+      !mrmlPlotDataIDs || !selectionCol)
+    {
+    return;
+    }
+
+  vtkTable *histoTable = NULL;
+  int minIndex = 0;
+  int maxIndex = 0;
+  for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
+    {
+    vtkMRMLPlotDataNode* plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(mrmlPlotDataIDs->GetValue(mrmlPlotDataIndex)));
+    if (!plotDataNode)
+      {
+      continue;
+      }
+
+    std::string name = plotDataNode->GetName();
+    if (name.find("_Histogram") != std::string::npos &&
+        plotDataNode->GetTableNode())
+      {
+      histoTable = plotDataNode->GetTableNode()->GetTable();
+
+      vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
+        (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
+      if (!selectionArray)
+        {
+        return;
+        }
+
+      minIndex = selectionArray->GetValue(0);
+      maxIndex = selectionArray->GetValue(selectionArray->GetNumberOfValues() - 1);
+      break;
+      }
+    }
+
+  if (!histoTable)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged : "
+                  "Unable to find the Histogram.";
+    return;
+    }
+
+  vtkDoubleArray *fluxArray = vtkDoubleArray::SafeDownCast(histoTable->GetColumn(0));
+  if (!fluxArray)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged : "
+                  "Unable to find the flux Histogram Array.";
+    return;
+    }
+
+  d->astroVolumeNode->SetAttribute("SlicerAstro.HistoMinSel",
+                                   DoubleToString(fluxArray->GetValue(minIndex)).c_str());
+  d->astroVolumeNode->SetAttribute("SlicerAstro.HistoMaxSel",
+                                   DoubleToString(fluxArray->GetValue(maxIndex)).c_str());
 }
 
 //---------------------------------------------------------------------------
@@ -3523,6 +4090,28 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onDeactivate3DLabelMapVolumeNode(bool deactivate)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->RenderingFrame)
+    {
+    return;
+    }
+
+  if (deactivate)
+    {
+    d->RenderingFrame->setEnabled(false);
+    d->RenderingFrame->setCollapsed(true);
+    }
+  else
+    {
+    d->RenderingFrame->setEnabled(true);
+    d->RenderingFrame->setCollapsed(false);
+    }
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onEditSelectedSegment()
 {
   qSlicerModuleManager * moduleManager = qSlicerCoreApplication::application()->moduleManager();
@@ -3547,6 +4136,129 @@ void qSlicerAstroVolumeModuleWidget::onEditSelectedSegment()
   layoutManager->setCurrentModule("SegmentEditor");
 }
 
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged(double percentage)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->plotChartNodeHistogram ||
+      !d->TableMaxNode || !d->TableMinNode)
+    {
+    return;
+    }
+
+  vtkTable *histoTable = NULL;
+  for (int ii = 0; ii < d->plotChartNodeHistogram->GetNumberOfPlotDataNodes(); ii++)
+    {
+    vtkMRMLPlotDataNode *plotDataNode = d->plotChartNodeHistogram->GetNthPlotDataNode(ii);
+    if (!plotDataNode)
+      {
+      continue;
+      }
+    std::string name = plotDataNode->GetName();
+    if (name.find("_Histogram") != std::string::npos &&
+        plotDataNode->GetTableNode())
+      {
+      histoTable = plotDataNode->GetTableNode()->GetTable();
+      break;
+      }
+    }
+
+  if (!histoTable)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onHistoClippingChanged : "
+                  "Unable to find the Histogram.";
+    return;
+    }
+
+  vtkDoubleArray *fluxArray = vtkDoubleArray::SafeDownCast(histoTable->GetColumn(0));
+  if (!fluxArray)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onHistoClippingChanged : "
+                  "Unable to find the flux Histogram Array.";
+    return;
+    }
+
+  vtkDoubleArray *histoArray = vtkDoubleArray::SafeDownCast(histoTable->GetColumn(1));
+  if (!histoArray)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::onHistoClippingChanged : "
+                  "Unable to find the Histogram Array.";
+    return;
+    }
+
+  double totContsLeft = 0;
+  int iiLeft = 0;
+  while (fluxArray->GetValue(iiLeft) < 0.)
+    {
+    totContsLeft += pow(10,histoArray->GetValue(iiLeft));
+    iiLeft++;
+    }
+
+  double parContsLeft = 0;
+  iiLeft = 0;
+  while (parContsLeft / totContsLeft < (1 - percentage))
+    {
+    parContsLeft += pow(10,histoArray->GetValue(iiLeft));
+    iiLeft++;
+    }
+
+  double totContsRight = 0;
+  int iiRight = histoArray->GetNumberOfValues() - 1;
+  while (fluxArray->GetValue(iiRight) > 0.)
+    {
+    totContsRight += pow(10,histoArray->GetValue(iiRight));
+    iiRight--;
+    }
+
+  double parContsRight = 0;
+  iiRight = histoArray->GetNumberOfValues() - 1;
+  while (parContsRight / totContsRight < (1 - percentage))
+    {
+    parContsRight += pow(10,histoArray->GetValue(iiRight));
+    iiRight--;
+    }
+
+  double TwoDColorFunctionMax = fluxArray->GetValue(iiRight);
+  double TwoDColorFunctionMin = fluxArray->GetValue(iiLeft);
+
+  d->TableMaxNode->GetTable()->SetValue(1, 0, TwoDColorFunctionMax);
+  d->TableMaxNode->GetTable()->Modified();
+
+  d->TableMinNode->GetTable()->SetValue(1, 0, TwoDColorFunctionMin);
+  d->TableMinNode->GetTable()->Modified();
+
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged1()
+{
+  this->onHistoClippingChanged(0.95);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged2()
+{
+  this->onHistoClippingChanged(0.98);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged3()
+{
+  this->onHistoClippingChanged(0.99);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged4()
+{
+  this->onHistoClippingChanged(0.995);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged5()
+{
+  this->onHistoClippingChanged(0.999);
+}
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setDisplayConnection(vtkMRMLNode *node)
 {
@@ -3612,7 +4324,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
     {
     if(activeVolumeNode->GetMTime() > activeLabelMapVolumeNode->GetMTime())
       {
-      this->setMRMLVolumeNode(activeVolumeNode);       
+      this->setMRMLVolumeNode(activeVolumeNode);
       }
     else
       {
@@ -3702,6 +4414,280 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObje
 }
 
 //--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->TableThresholdNode || !d->astroVolumeNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = d->astroVolumeNode->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    return;
+    }
+
+  // click and drag can shift only one points
+  // here we check which one has been shifted
+  // and we shift the other two as well
+
+  double max = astroDisplay->GetWindowLevelMax();
+  double min = astroDisplay->GetWindowLevelMin();
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+
+  double value1 = d->TableMaxNode->GetTable()->GetValue(0, 0).ToDouble();
+  double value2 = d->TableMaxNode->GetTable()->GetValue(1, 0).ToDouble();
+  double value3 = d->TableMaxNode->GetTable()->GetValue(2, 0).ToDouble();
+
+  if (fabs(value1 - value2) > 1.E-9 &&
+      fabs(value1 - value3) > 1.E-9)
+    {
+    if ((value1 - DisplayThreshold) < 1.E-9)
+      {
+      DisplayThreshold = value1;
+      }
+    if ((value1 - min) < 1.E-9)
+      {
+      value1 = min;
+      }
+    d->TableMaxNode->GetTable()->SetValue(0, 0, value1);
+    d->TableMaxNode->GetTable()->SetValue(1, 0, value1);
+    d->TableMaxNode->GetTable()->SetValue(2, 0, value1);
+    max = value1;
+    }
+  else if (fabs(value2 - value1) > 1.E-9 &&
+           fabs(value2 - value3) > 1.E-9)
+    {
+    if ((value2 - DisplayThreshold) < 1.E-9)
+      {
+      DisplayThreshold = value2;
+      }
+    if ((value2 - min) < 1.E-9)
+      {
+      value2 = min;
+      }
+    d->TableMaxNode->GetTable()->SetValue(0, 0, value2);
+    d->TableMaxNode->GetTable()->SetValue(1, 0, value2);
+    d->TableMaxNode->GetTable()->SetValue(2, 0, value2);
+    max = value2;
+    }
+  else if (fabs(value3 - value1) > 1.E-9 &&
+           fabs(value3 - value2) > 1.E-9)
+    {
+    if ((value3 - DisplayThreshold) < 1.E-9)
+      {
+      DisplayThreshold = value3;
+      }
+    if ((value3 - min) < 1.E-9)
+      {
+      value3 = min;
+      }
+    d->TableMaxNode->GetTable()->SetValue(0, 0, value3);
+    d->TableMaxNode->GetTable()->SetValue(1, 0, value3);
+    d->TableMaxNode->GetTable()->SetValue(2, 0, value3);
+    max = value3;
+    }
+  else
+    {
+    return;
+    }
+
+  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
+
+  double window = max - min;
+  double level = 0.5 * (max + min);
+
+  astroDisplay->SetWindowLevel(window, level);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->TableThresholdNode || !d->astroVolumeNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = d->astroVolumeNode->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    return;
+    }
+
+  // click and drag can shift only one points
+  // here we check which one has been shifted
+  // and we shift the other two as well
+
+  double min = astroDisplay->GetWindowLevelMin();
+  double max = astroDisplay->GetWindowLevelMax();
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+
+  double value1 = d->TableMinNode->GetTable()->GetValue(0, 0).ToDouble();
+  double value2 = d->TableMinNode->GetTable()->GetValue(1, 0).ToDouble();
+  double value3 = d->TableMinNode->GetTable()->GetValue(2, 0).ToDouble();
+
+  if (fabs(value1 - value2) > 1.E-9 &&
+      fabs(value1 - value3) > 1.E-9)
+    {
+    if ((value1 - DisplayThreshold) > 1.E-9)
+      {
+      DisplayThreshold = value1;
+      }
+    if ((value1 - max) > 1.E-9)
+      {
+      value1 = max;
+      }
+    d->TableMinNode->GetTable()->SetValue(0, 0, value1);
+    d->TableMinNode->GetTable()->SetValue(1, 0, value1);
+    d->TableMinNode->GetTable()->SetValue(2, 0, value1);
+    min = value1;
+    }
+  else if (fabs(value2 - value1) > 1.E-9 &&
+           fabs(value2 - value3) > 1.E-9)
+    {
+    if ((value2 - DisplayThreshold) > 1.E-9)
+      {
+      DisplayThreshold = value2;
+      }
+    if ((value2 - max) > 1.E-9)
+      {
+      value2 = max;
+      }
+    d->TableMinNode->GetTable()->SetValue(0, 0, value2);
+    d->TableMinNode->GetTable()->SetValue(1, 0, value2);
+    d->TableMinNode->GetTable()->SetValue(2, 0, value2);
+    min = value2;
+    }
+  else if (fabs(value3 - value1) > 1.E-9 &&
+           fabs(value3 - value2) > 1.E-9)
+    {
+    if ((value3 - DisplayThreshold) > 1.E-9)
+      {
+      DisplayThreshold = value3;
+      }
+    if ((value3 - max) > 1.E-9)
+      {
+      value3 = max;
+      }
+    d->TableMinNode->GetTable()->SetValue(0, 0, value3);
+    d->TableMinNode->GetTable()->SetValue(1, 0, value3);
+    d->TableMinNode->GetTable()->SetValue(2, 0, value3);
+    min = value3;
+    }
+  else
+    {
+    return;
+    }
+
+  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
+
+  double window = max - min;
+  double level = 0.5 * (max + min);
+
+  astroDisplay->SetWindowLevel(window, level);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->TableThresholdNode || !d->astroVolumeNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = d->astroVolumeNode->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    return;
+    }
+
+  // click and drag can shift only one points
+  // here we check which one has been shifted
+  // and we shift the other two as well
+
+  double min = astroDisplay->GetWindowLevelMin();
+  double max = astroDisplay->GetWindowLevelMax();
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+
+  double value1 = d->TableThresholdNode->GetTable()->GetValue(0, 0).ToDouble();
+  double value2 = d->TableThresholdNode->GetTable()->GetValue(1, 0).ToDouble();
+  double value3 = d->TableThresholdNode->GetTable()->GetValue(2, 0).ToDouble();
+
+  if (fabs(value1 - value2) > 1.E-9 &&
+      fabs(value1 - value3) > 1.E-9)
+    {
+    if ((value1 - max) > 1.E-9)
+      {
+      value1 = max;
+      }
+    if ((value1 - min) < 1.E-9)
+      {
+      value1 = min;
+      }
+    if (value1 < 0.)
+      {
+      value1 = 0.;
+      }
+    d->TableThresholdNode->GetTable()->SetValue(0, 0, value1);
+    d->TableThresholdNode->GetTable()->SetValue(1, 0, value1);
+    d->TableThresholdNode->GetTable()->SetValue(2, 0, value1);
+    DisplayThreshold = value1;
+    }
+  else if (fabs(value2 - value1) > 1.E-9 &&
+           fabs(value2 - value3) > 1.E-9)
+    {
+    if ((value2 - max) > 1.E-9)
+      {
+      value2 = max;
+      }
+    if ((value2 - min) < 1.E-9)
+      {
+      value2 = min;
+      }
+    if (value2 < 0.)
+      {
+      value2 = 0.;
+      }
+    d->TableThresholdNode->GetTable()->SetValue(0, 0, value2);
+    d->TableThresholdNode->GetTable()->SetValue(1, 0, value2);
+    d->TableThresholdNode->GetTable()->SetValue(2, 0, value2);
+    DisplayThreshold = value2;
+    }
+  else if (fabs(value3 - value1) > 1.E-9 &&
+           fabs(value3 - value2) > 1.E-9)
+    {
+    if ((value3 - max) > 1.E-9)
+      {
+      value3 = max;
+      }
+    if ((value3 - min) < 1.E-9)
+      {
+      value3 = min;
+      }
+    if (value3 < 0.)
+      {
+      value3 = 0.;
+      }
+    d->TableThresholdNode->GetTable()->SetValue(0, 0, value3);
+    d->TableThresholdNode->GetTable()->SetValue(1, 0, value3);
+    d->TableThresholdNode->GetTable()->SetValue(2, 0, value3);
+    DisplayThreshold = value3;
+    }
+  else
+    {
+    return;
+    }
+
+  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
+}
+
+//--------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -3748,6 +4734,47 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
     }
   d->DegreeUnitButton->blockSignals(DegreeState);
   d->SexagesimalUnitButton->blockSignals(SexagesimalState);
+
+  vtkMRMLUnitNode* unitNode = d->selectionNode->GetUnitNode("intensity");
+  std::string MIN = d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN");
+  std::string MAX = d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX");
+  if (unitNode)
+    {
+    double DataMin = StringToDouble(MIN.c_str());
+    double DataMax = StringToDouble(MAX.c_str());
+    d->DataMinDisplay->setText(unitNode->GetDisplayStringFromValue(DataMin));
+    d->DataMaxDisplay->setText(unitNode->GetDisplayStringFromValue(DataMax));
+    }
+  else
+    {
+    d->DataMinDisplay->setText(MIN.c_str());
+    d->DataMaxDisplay->setText(MAX.c_str());
+    }
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLVolumeDisplayNodeModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = d->astroVolumeNode->GetAstroVolumeDisplayNode();
+  if (!astroDisplay || !d->TableMaxNode || !d->TableMinNode)
+    {
+    return;
+    }
+
+  double TwoDColorFunctionMax = astroDisplay->GetWindowLevelMax();
+  d->TableMaxNode->GetTable()->SetValue(1, 0, TwoDColorFunctionMax);
+  d->TableMaxNode->GetTable()->Modified();
+
+  double TwoDColorFunctionMin = astroDisplay->GetWindowLevelMin();
+  d->TableMinNode->GetTable()->SetValue(1, 0, TwoDColorFunctionMin);
+  d->TableMinNode->GetTable()->Modified();
 }
 
 //--------------------------------------------------------------------------
@@ -3763,26 +4790,26 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
   double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
   if (forcePreset)
     {
-    d->DisplayThresholdDoubleSpinBox->setValue(DisplayThreshold);
+    d->DisplayThresholdSliderWidget->setValue(DisplayThreshold);
     }
   else
     {
-    int status = d->DisplayThresholdDoubleSpinBox->blockSignals(true);
-    d->DisplayThresholdDoubleSpinBox->setValue(DisplayThreshold);
-    d->DisplayThresholdDoubleSpinBox->blockSignals(status);
+    int status = d->DisplayThresholdSliderWidget->blockSignals(true);
+    d->DisplayThresholdSliderWidget->setValue(DisplayThreshold);
+    d->DisplayThresholdSliderWidget->blockSignals(status);
     }
   double max = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
-  d->DisplayThresholdDoubleSpinBox->setMaximum(max);
+  d->DisplayThresholdSliderWidget->setMaximum(max);
   double min = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
   if (min < 0.)
     {
     min = 0.;
     }
-  d->DisplayThresholdDoubleSpinBox->setMinimum(min);
-  d->DisplayThresholdDoubleSpinBox->setSingleStep((max - min) / 1000.);
+  d->DisplayThresholdSliderWidget->setMinimum(min);
+  d->DisplayThresholdSliderWidget->setSingleStep((max - min) / 10000.);
   QString DisplayThresholdUnit = "  ";
   DisplayThresholdUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
-  d->DisplayThresholdDoubleSpinBox->setSuffix(DisplayThresholdUnit);
+  d->DisplayThresholdSliderWidget->setSuffix(DisplayThresholdUnit);
 
   this->resetOffset(d->astroVolumeNode);
   this->resetStretch(d->astroVolumeNode);
@@ -3796,6 +4823,12 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
   else if (d->astroVolumeNode->GetVolumePropertyNode())
     {
     this->applyPreset(d->astroVolumeNode->GetVolumePropertyNode());
+    }
+
+  if (d->TableThresholdNode)
+    {
+    d->TableThresholdNode->GetTable()->SetValue(1, 0, DisplayThreshold);
+    d->TableThresholdNode->GetTable()->Modified();
     }
 }
 
@@ -3862,6 +4895,9 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
   this->qvtkReconnect(d->astroVolumeNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLVolumeNodeModified()));
   this->onMRMLVolumeNodeModified();
+  this->qvtkReconnect(d->astroVolumeNode->GetAstroVolumeDisplayNode(), vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLVolumeDisplayNodeModified()));
+  this->onMRMLVolumeDisplayNodeModified();
 
   d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
 

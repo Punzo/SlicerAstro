@@ -99,10 +99,20 @@ public slots:
 protected slots:
   void applyPreset(vtkMRMLNode* volumePropertyNode);
   void offsetPreset(double offsetValue);
+  void onActivate3DAstroVolumeNode(bool activate);
   void onCalculateRMS();
+  void onCreateHistogram();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
+  void onDeactivate3DLabelMapVolumeNode(bool deactivate);
+  void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
+  void onHistoClippingChanged(double percentage);
+  void onHistoClippingChanged1();
+  void onHistoClippingChanged2();
+  void onHistoClippingChanged3();
+  void onHistoClippingChanged4();
+  void onHistoClippingChanged5();
   void onInputVolumeChanged(vtkMRMLNode *node);
   void onLockToggled(bool toggled);
   void onMRMLDisplayROINodeModified(vtkObject*);
@@ -113,13 +123,17 @@ protected slots:
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+  void onMRMLTableMaxNodeModified();
+  void onMRMLTableMinNodeModified();
+  void onMRMLTableThresholdNodeModified();
   void onMRMLVolumeNodeModified();
+  void onMRMLVolumeDisplayNodeModified();
   void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
+  void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
   void onPresetsNodeChanged(vtkMRMLNode*);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
-  void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
   void resetStretch(vtkMRMLNode* node);
@@ -134,8 +148,8 @@ protected slots:
   void updatePresets(vtkMRMLNode* node);
 
 signals:
-  void astroLabelMapVolumeNodeChanged(bool enabled);
-  void astroVolumeNodeChanged(bool enabled);
+  void deactivate3DLabelMapVolumeNode(bool deactivate);
+  void activate3DAstroVolumeNode(bool activate);
   void segmentEditorNodeChanged(bool enabled);
 
 protected:
@@ -143,8 +157,10 @@ protected:
 
   virtual void setup();
   virtual void setMRMLScene(vtkMRMLScene*);
-  void initializeSegmentations(vtkMRMLScene* scene);
+
   void initializeColorNodes();
+  void initializePlotNodes(bool forceNew = false);
+  void initializeSegmentations(bool forceNew = false);
 
   /// Update master representation in segmentation to a given representation.
   /// Used before adding a certain segment to a segmentation, making sure the user knows if data loss is possible.

@@ -1428,13 +1428,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeVRot.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeVRot);
       d->plotChartNodeVRot->SetName("VRotChart");
       d->plotChartNodeVRot->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeVRot->SetAttribute("YAxisLabelName", "Rotational Velocity (km/s)");
       d->plotChartNodeVRot->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeVRot->SetAttribute("Type", "Line");
       d->plotChartNodeVRot->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeVRot);
       }
     else
       {
@@ -1457,13 +1457,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeVRad.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeVRad);
       d->plotChartNodeVRad->SetName("VRadChart");
       d->plotChartNodeVRad->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeVRad->SetAttribute("YAxisLabelName", "Radial Velocity (km/s)");
       d->plotChartNodeVRad->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeVRad->SetAttribute("Type", "Line");
       d->plotChartNodeVRad->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeVRad);
       }
     else
       {
@@ -1486,13 +1486,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeInc.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeInc);
       d->plotChartNodeInc->SetName("IncChart");
       d->plotChartNodeInc->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeInc->SetAttribute("YAxisLabelName", "Inclination (degree)");
       d->plotChartNodeInc->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeInc->SetAttribute("Type", "Line");
       d->plotChartNodeInc->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeInc);
       }
     else
       {
@@ -1515,13 +1515,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodePhi.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodePhi);
       d->plotChartNodePhi->SetName("PhiChart");
       d->plotChartNodePhi->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodePhi->SetAttribute("YAxisLabelName", "Orientation Angle (degree)");
       d->plotChartNodePhi->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodePhi->SetAttribute("Type", "Line");
       d->plotChartNodePhi->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodePhi);
       }
     else
       {
@@ -1544,13 +1544,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeVSys.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeVSys);
       d->plotChartNodeVSys->SetName("VSysChart");
       d->plotChartNodeVSys->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeVSys->SetAttribute("YAxisLabelName", "Systemic Velocity (km/s)");
       d->plotChartNodeVSys->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeVSys->SetAttribute("Type", "Line");
       d->plotChartNodeVSys->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeVSys);
       }
     else
       {
@@ -1573,13 +1573,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeVDisp.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeVDisp);
       d->plotChartNodeVDisp->SetName("VDispChart");
       d->plotChartNodeVDisp->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeVDisp->SetAttribute("YAxisLabelName", "Dispersion Velocity (km/s)");
       d->plotChartNodeVDisp->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeVDisp->SetAttribute("Type", "Line");
       d->plotChartNodeVDisp->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeVDisp);
       }
     else
       {
@@ -1602,13 +1602,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeDens.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeDens);
       d->plotChartNodeDens->SetName("DensChart");
       d->plotChartNodeDens->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeDens->SetAttribute("YAxisLabelName", "Column Density (10^20 cm^-2)");
       d->plotChartNodeDens->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeDens->SetAttribute("Type", "Line");
       d->plotChartNodeDens->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeDens);
       }
     else
       {
@@ -1631,13 +1631,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeZ0.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeZ0);
       d->plotChartNodeZ0->SetName("Z0Chart");
       d->plotChartNodeZ0->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeZ0->SetAttribute("YAxisLabelName", "Scale Heigth (Kpc)");
       d->plotChartNodeZ0->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeZ0->SetAttribute("Type", "Line");
       d->plotChartNodeZ0->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeZ0);
       }
     else
       {
@@ -1660,13 +1660,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeXPos.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeXPos);
       d->plotChartNodeXPos->SetName("XPosChart");
       d->plotChartNodeXPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeXPos->SetAttribute("YAxisLabelName", "X Center (pixels)");
       d->plotChartNodeXPos->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeXPos->SetAttribute("Type", "Line");
       d->plotChartNodeXPos->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeXPos);
       }
     else
       {
@@ -1689,13 +1689,13 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       {
       d->plotChartNodeYPos.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
-      this->mrmlScene()->AddNode(d->plotChartNodeYPos);
       d->plotChartNodeYPos->SetName("YPosChart");
       d->plotChartNodeYPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
       d->plotChartNodeYPos->SetAttribute("YAxisLabelName", "Y Center (pixels)");
       d->plotChartNodeYPos->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeYPos->SetAttribute("Type", "Line");
       d->plotChartNodeYPos->SetAttribute("Markers", "Circle");
+      this->mrmlScene()->AddNode(d->plotChartNodeYPos);
       }
     else
       {
@@ -3111,7 +3111,7 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
     if (!strcmp(plotDataNode->GetName(), "VRot") ||
         !strcmp(plotDataNode->GetName(), "VRad") ||
         !strcmp(plotDataNode->GetName(), "Inc") ||
-        !strcmp(plotDataNode->GetName(), "Phi"))
+        !strcmp(plotDataNode->GetName(), "VSys"))
       {
       vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
         (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
