@@ -3438,7 +3438,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     newPlotDataNode->SetName(name.c_str());
     newPlotDataNode->SetType(vtkMRMLPlotDataNode::BAR);
     scene->AddNode(newPlotDataNode.GetPointer());
-    plotDataNode = newPlotDataNode;
+    plotDataNode = newPlotDataNode.GetPointer();
     }
   else
     {
