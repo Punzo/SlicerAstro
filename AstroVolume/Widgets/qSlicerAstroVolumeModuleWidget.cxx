@@ -3933,7 +3933,7 @@ void qSlicerAstroVolumeModuleWidget::setOpticalVelocity()
         sliceNode->Modified();
         }
       }
-  }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -4006,64 +4006,64 @@ void qSlicerAstroVolumeModuleWidget::setRASexagesimalUnit()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-   if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
-     {
-     return;
-     }
+  if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
+    {
+    return;
+    }
 
-   vtkMRMLNode *node = d->ActiveVolumeNodeSelector->currentNode();
-   vtkMRMLAstroVolumeNode *volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
-   vtkMRMLAstroLabelMapVolumeNode *volumeLabelNode =
-     vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
-   if (!volumeNode && !volumeLabelNode)
-     {
-     return;
-     }
+  vtkMRMLNode *node = d->ActiveVolumeNodeSelector->currentNode();
+  vtkMRMLAstroVolumeNode *volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  vtkMRMLAstroLabelMapVolumeNode *volumeLabelNode =
+    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
+  if (!volumeNode && !volumeLabelNode)
+    {
+    return;
+    }
 
-   bool updateSlice = false;
-   if (volumeNode)
-     {
-     vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
-       volumeNode->GetAstroVolumeDisplayNode();
-     if (!volumeDisplayNode)
-       {
-       qCritical() <<"qSlicerAstroVolumeModuleWidget::setRADegreeUnit : "
-                     "volumeDisplayNode not found.";
-       return;
-       }
-     volumeDisplayNode->SetSpaceQuantity(0, "time");
-     volumeNode->Modified();
-     updateSlice = true;
-     }
-   else if (volumeLabelNode)
-     {
-     vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
-       volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
-     if (!volumeLabelDisplayNode)
-       {
-       qCritical() <<"qSlicerAstroVolumeModuleWidget::setRADegreeUnit : "
-                     "volumeLabelDisplayNode not found.";
-       return;
-       }
-     volumeLabelDisplayNode->SetSpaceQuantity(0, "time");
-     volumeLabelNode->Modified();
-     updateSlice = true;
-     }
+  bool updateSlice = false;
+  if (volumeNode)
+    {
+    vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode =
+      volumeNode->GetAstroVolumeDisplayNode();
+    if (!volumeDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRADegreeUnit : "
+                    "volumeDisplayNode not found.";
+      return;
+      }
+    volumeDisplayNode->SetSpaceQuantity(0, "time");
+    volumeNode->Modified();
+    updateSlice = true;
+    }
+  else if (volumeLabelNode)
+    {
+    vtkMRMLAstroLabelMapVolumeDisplayNode* volumeLabelDisplayNode =
+      volumeLabelNode->GetAstroLabelMapVolumeDisplayNode();
+    if (!volumeLabelDisplayNode)
+      {
+      qCritical() <<"qSlicerAstroVolumeModuleWidget::setRADegreeUnit : "
+                    "volumeLabelDisplayNode not found.";
+      return;
+      }
+    volumeLabelDisplayNode->SetSpaceQuantity(0, "time");
+    volumeLabelNode->Modified();
+    updateSlice = true;
+    }
 
-   if (updateSlice)
-     {
-     vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
-         (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
-     for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
-       {
-       vtkMRMLSliceNode* sliceNode =
-           vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
-       if (sliceNode)
-         {
-         sliceNode->Modified();
-         }
-       }
-     }
+  if (updateSlice)
+    {
+    vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+    for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+      {
+      vtkMRMLSliceNode* sliceNode =
+          vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+      if (sliceNode)
+        {
+        sliceNode->Modified();
+        }
+      }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -4881,13 +4881,14 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     bool forcePreset = false;
     if (d->astroVolumeNode->GetVolumePropertyNode() == NULL)
       {
+      d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
       d->PresetsNodeComboBox->setCurrentNodeIndex(0);
       forcePreset = true;
       }
     this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent,
                         this, SLOT(onMRMLVolumeNodeDisplayThresholdModified()));
     this->onMRMLVolumeNodeDisplayThresholdModified(forcePreset);
-    d->VisibilityCheckBox->setChecked(true);
+    this->onVisibilityChanged(true);
     }
   this->qvtkReconnect(d->astroVolumeNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLVolumeNodeModified()));
