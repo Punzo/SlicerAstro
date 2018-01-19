@@ -190,10 +190,42 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidgetPrivate::cleanPointers()
 {
+  Q_Q(const qSlicerAstroProfilesModuleWidget);
+
+  if (!q->mrmlScene())
+    {
+    return;
+    }
+
+  if (this->segmentEditorNode)
+    {
+    if (this->segmentEditorNode->GetSegmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
+      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
+    }
+  if (this->SegmentsTableView)
+    {
+    if (this->SegmentsTableView->segmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
+      this->SegmentsTableView->setSegmentationNode(NULL);
+      }
+    }
+
+  if (this->parametersNode)
+    {
+    q->mrmlScene()->RemoveNode(this->parametersNode);
+    }
   this->parametersNode = 0;
-  this->selectionNode = 0;
+
+  if (this->plotChartNodeProfile)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeProfile);
+    }
   this->plotChartNodeProfile = 0;
-  this->segmentEditorNode = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1363,33 +1395,6 @@ void qSlicerAstroProfilesModuleWidget::onSegmentEditorNodeModified(vtkObject *se
 void qSlicerAstroProfilesModuleWidget::onStartImportEvent()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
-
-  if (!this->mrmlScene())
-    {
-    return;
-    }
-
-  if (d->parametersNode)
-    {
-    this->mrmlScene()->RemoveNode(d->parametersNode);
-    }
-
-  if (d->segmentEditorNode)
-    {
-    if (d->segmentEditorNode->GetSegmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
-      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
-      }
-    }
-  if (d->SegmentsTableView)
-    {
-    if (d->SegmentsTableView->segmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->SegmentsTableView->segmentationNode());
-      d->SegmentsTableView->setSegmentationNode(NULL);
-      }
-    }
 
   d->cleanPointers();
 }

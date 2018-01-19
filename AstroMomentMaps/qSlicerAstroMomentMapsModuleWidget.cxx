@@ -197,6 +197,35 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
 //-----------------------------------------------------------------------------
 void qSlicerAstroMomentMapsModuleWidgetPrivate::cleanPointers()
 {
+  Q_Q(const qSlicerAstroMomentMapsModuleWidget);
+
+  if (!q->mrmlScene())
+    {
+    return;
+    }
+
+  if (this->segmentEditorNode)
+    {
+    if (this->segmentEditorNode->GetSegmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
+      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
+    }
+  if (this->SegmentsTableView)
+    {
+    if (this->SegmentsTableView->segmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
+      this->SegmentsTableView->setSegmentationNode(NULL);
+      }
+    }
+
+  if (this->parametersNode)
+    {
+    q->mrmlScene()->RemoveNode(this->parametersNode);
+    }
   this->parametersNode = 0;
 }
 
@@ -1613,33 +1642,6 @@ void qSlicerAstroMomentMapsModuleWidget::onSegmentEditorNodeModified(vtkObject *
 void qSlicerAstroMomentMapsModuleWidget::onStartImportEvent()
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
-
-  if (!this->mrmlScene())
-    {
-    return;
-    }
-
-  if (d->parametersNode)
-    {
-    this->mrmlScene()->RemoveNode(d->parametersNode);
-    }
-
-  if (d->segmentEditorNode)
-    {
-    if (d->segmentEditorNode->GetSegmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
-      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
-      }
-    }
-  if (d->SegmentsTableView)
-    {
-    if (d->SegmentsTableView->segmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->SegmentsTableView->segmentationNode());
-      d->SegmentsTableView->setSegmentationNode(NULL);
-      }
-    }
 
   d->cleanPointers();
 }

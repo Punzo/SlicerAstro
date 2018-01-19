@@ -424,30 +424,179 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidgetPrivate::cleanPointers()
 {
+  Q_Q(const qSlicerAstroModelingModuleWidget);
+
+  if (!q->mrmlScene())
+    {
+    return;
+    }
+
+  if (this->segmentEditorNode)
+    {
+    if (this->segmentEditorNode->GetSegmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
+      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
+    }
+  if (this->SegmentsTableView)
+    {
+    if (this->SegmentsTableView->segmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
+      this->SegmentsTableView->setSegmentationNode(NULL);
+      }
+    }
+
+  if (this->parametersNode)
+    {
+    q->mrmlScene()->RemoveNode(this->parametersNode);
+    }
   this->parametersNode = 0;
+
+  if (this->internalTableNode)
+    {
+    q->mrmlScene()->RemoveNode(this->internalTableNode);
+    }
+  this->internalTableNode = 0;
+
+  if (this->astroTableNode)
+    {
+    q->mrmlScene()->RemoveNode(this->astroTableNode);
+    }
   this->astroTableNode = 0;
-  this->segmentEditorNode = 0;
+
+  if (this->plotChartNodeVRot)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeVRot);
+    }
   this->plotChartNodeVRot = 0;
+
+  if (this->plotChartNodeVRad)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeVRad);
+    }
   this->plotChartNodeVRad = 0;
+
+  if (this->plotChartNodeInc)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeInc);
+    }
   this->plotChartNodeInc = 0;
+
+  if (this->plotChartNodePhi)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodePhi);
+    }
   this->plotChartNodePhi = 0;
+
+  if (this->plotChartNodeVSys)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeVSys);
+    }
   this->plotChartNodeVSys = 0;
+
+  if (this->plotChartNodeVDisp)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeVDisp);
+    }
   this->plotChartNodeVDisp = 0;
+
+  if (this->plotChartNodeDens)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeDens);
+    }
   this->plotChartNodeDens = 0;
+
+  if (this->plotChartNodeZ0)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeZ0);
+    }
   this->plotChartNodeZ0 = 0;
+
+  if (this->plotChartNodeXPos)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeXPos);
+    }
   this->plotChartNodeXPos = 0;
+
+  if (this->plotChartNodeYPos)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeYPos);
+    }
   this->plotChartNodeYPos = 0;
+
+  if (this->plotDataNodeVRot)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeVRot);
+    }
   this->plotDataNodeVRot = 0;
+
+  if (this->plotDataNodeVRad)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeVRad);
+    }
   this->plotDataNodeVRad = 0;
+
+  if (this->plotDataNodeInc)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeInc);
+    }
   this->plotDataNodeInc = 0;
+
+  if (this->plotDataNodePhi)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodePhi);
+    }
   this->plotDataNodePhi = 0;
+
+  if (this->plotDataNodeVSys)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeVSys);
+    }
   this->plotDataNodeVSys = 0;
+
+  if (this->plotDataNodeVDisp)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeVDisp);
+    }
   this->plotDataNodeVDisp = 0;
+
+  if (this->plotDataNodeDens)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeDens);
+    }
   this->plotDataNodeDens = 0;
+
+  if (this->plotDataNodeZ0)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeZ0);
+    }
   this->plotDataNodeZ0 = 0;
+
+  if (this->plotDataNodeXPos)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeXPos);
+    }
   this->plotDataNodeXPos = 0;
+
+  if (this->plotDataNodeYPos)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeYPos);
+    }
   this->plotDataNodeYPos = 0;
+
+  if (this->fiducialNodeMajor)
+    {
+    q->mrmlScene()->RemoveNode(this->fiducialNodeMajor);
+    }
   this->fiducialNodeMajor = 0;
+
+  if (this->fiducialNodeMinor)
+    {
+    q->mrmlScene()->RemoveNode(this->fiducialNodeMinor);
+    }
   this->fiducialNodeMinor = 0;
 }
 
@@ -3626,148 +3775,6 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
 void qSlicerAstroModelingModuleWidget::onMRMLSceneStartImportEvent()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
-
-  if (!this->mrmlScene())
-    {
-    return;
-    }
-
-  if (d->parametersNode)
-    {
-    this->mrmlScene()->RemoveNode(d->parametersNode);
-    }
-
-  if (d->astroTableNode)
-    {
-    this->mrmlScene()->RemoveNode(d->astroTableNode);
-    }
-
-  if (d->plotChartNodeVRot)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeVRot);
-    }
-
-  if (d->plotChartNodeVRad)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeVRad);
-    }
-
-  if (d->plotChartNodeInc)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeInc);
-    }
-
-  if (d->plotChartNodePhi)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodePhi);
-    }
-
-  if (d->plotChartNodeVSys)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeVSys);
-    }
-
-  if (d->plotChartNodeVDisp)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeVDisp);
-    }
-
-  if (d->plotChartNodeDens)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeDens);
-    }
-
-  if (d->plotChartNodeZ0)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeZ0);
-    }
-
-  if (d->plotChartNodeXPos)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeXPos);
-    }
-
-  if (d->plotChartNodeYPos)
-    {
-    this->mrmlScene()->RemoveNode(d->plotChartNodeYPos);
-    }
-
-  if (d->plotDataNodeVRot)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeVRot);
-    }
-
-  if (d->plotDataNodeVRad)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeVRad);
-    }
-
-  if (d->plotDataNodeInc)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeInc);
-    }
-
-  if (d->plotDataNodePhi)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodePhi);
-    }
-
-  if (d->plotDataNodeVSys)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeVSys);
-    }
-
-  if (d->plotDataNodeVDisp)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeVDisp);
-    }
-
-  if (d->plotDataNodeDens)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeDens);
-    }
-
-  if (d->plotDataNodeZ0)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeZ0);
-    }
-
-  if (d->plotDataNodeXPos)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeXPos);
-    }
-
-  if (d->plotDataNodeYPos)
-    {
-    this->mrmlScene()->RemoveNode(d->plotDataNodeYPos);
-    }
-
-  if (d->fiducialNodeMajor)
-    {
-    this->mrmlScene()->RemoveNode(d->fiducialNodeMajor);
-    }
-
-  if (d->fiducialNodeMinor)
-    {
-    this->mrmlScene()->RemoveNode(d->fiducialNodeMinor);
-    }
-
-  if (d->segmentEditorNode)
-    {
-    if (d->segmentEditorNode->GetSegmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
-      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
-      }
-    }
-  if (d->SegmentsTableView)
-    {
-    if (d->SegmentsTableView->segmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->SegmentsTableView->segmentationNode());
-      d->SegmentsTableView->setSegmentationNode(NULL);
-      }
-    }
 
   d->cleanPointers();
 }

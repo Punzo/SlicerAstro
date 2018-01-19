@@ -122,6 +122,7 @@ qSlicerAstroSmoothingModuleWidgetPrivate::qSlicerAstroSmoothingModuleWidgetPriva
   this->parametersNode = 0;
   this->selectionNode = 0;
   this->cameraNodeOne = 0;
+  this->segmentEditorNode = 0;
   this->parametricVTKEllipsoid = vtkSmartPointer<vtkParametricEllipsoid>::New();
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
@@ -274,7 +275,41 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
 //-----------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidgetPrivate::cleanPointers()
 {
+  Q_Q(const qSlicerAstroSmoothingModuleWidget);
+
+  if (!q->mrmlScene())
+    {
+    return;
+    }
+
+  if (this->segmentEditorNode)
+    {
+    if (this->segmentEditorNode->GetSegmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
+      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
+    }
+  if (this->SegmentsTableView)
+    {
+    if (this->SegmentsTableView->segmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
+      this->SegmentsTableView->setSegmentationNode(NULL);
+      }
+    }
+
+  if (this->parametersNode)
+    {
+    q->mrmlScene()->RemoveNode(this->parametersNode);
+    }
   this->parametersNode = 0;
+
+  if (this->cameraNodeOne)
+    {
+    q->mrmlScene()->RemoveNode(this->cameraNodeOne);
+    }
   this->cameraNodeOne = 0;
 }
 
@@ -1728,33 +1763,6 @@ void qSlicerAstroSmoothingModuleWidget::onSegmentEditorNodeModified(vtkObject *s
 void qSlicerAstroSmoothingModuleWidget::onStartImportEvent()
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
-
-  if (!this->mrmlScene())
-    {
-    return;
-    }
-
-  if (d->parametersNode)
-    {
-    this->mrmlScene()->RemoveNode(d->parametersNode);
-    }
-
-  if (d->segmentEditorNode)
-    {
-    if (d->segmentEditorNode->GetSegmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
-      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
-      }
-    }
-  if (d->SegmentsTableView)
-    {
-    if (d->SegmentsTableView->segmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->SegmentsTableView->segmentationNode());
-      d->SegmentsTableView->setSegmentationNode(NULL);
-      }
-    }
 
   d->cleanPointers();
 }

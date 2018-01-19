@@ -107,6 +107,7 @@ public:
   virtual ~qSlicerAstroVolumeModuleWidgetPrivate();
 
   virtual void setupUi(qSlicerAstroVolumeModuleWidget*);
+  void cleanPointers();
 
   qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget;
   qMRMLAstroVolumeInfoWidget *MRMLAstroVolumeInfoWidget;
@@ -437,6 +438,92 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(onEditSelectedSegment()));
 
   this->SegmentsTableView_2->setSelectionMode(QAbstractItemView::SingleSelection);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
+{
+  Q_Q(qSlicerAstroVolumeModuleWidget);
+
+  if (!q->mrmlScene())
+    {
+    return;
+    }
+
+  if (this->segmentEditorNode)
+    {
+    if (this->segmentEditorNode->GetSegmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
+      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      }
+    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
+    }
+
+  this->segmentEditorNode = 0;
+
+  if (this->SegmentsTableView_2)
+    {
+    if (this->SegmentsTableView_2->segmentationNode())
+      {
+      q->mrmlScene()->RemoveNode(this->SegmentsTableView_2->segmentationNode());
+      this->SegmentsTableView_2->setSegmentationNode(NULL);
+      }
+    }
+
+  if (this->plotChartNodeHistogram)
+    {
+    q->mrmlScene()->RemoveNode(this->plotChartNodeHistogram);
+    }
+  this->plotChartNodeHistogram = 0;
+
+  if (this->plotDataNodeMinLine)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeMinLine);
+    }
+  this->plotDataNodeMinLine = 0;
+
+  if (this->TableMinNode)
+    {
+    q->mrmlScene()->RemoveNode(this->TableMinNode);
+    }
+  this->TableMinNode = 0;
+
+  if (this->plotDataNodeMaxLine)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeMaxLine);
+    }
+  this->plotDataNodeMaxLine = 0;
+
+  if (this->TableMaxNode)
+    {
+    q->mrmlScene()->RemoveNode(this->TableMaxNode);
+    }
+  this->TableMaxNode = 0;
+
+  if (this->plotDataNodeThresholdLine)
+    {
+    q->mrmlScene()->RemoveNode(this->plotDataNodeThresholdLine);
+    }
+  this->plotDataNodeThresholdLine = 0;
+
+  if (this->TableThresholdNode)
+    {
+    q->mrmlScene()->RemoveNode(this->TableThresholdNode);
+    }
+  this->TableThresholdNode = 0;
+
+  if (this->astroVolumeNode)
+    {
+    q->mrmlScene()->RemoveNode(this->astroVolumeNode);
+    }
+  this->astroVolumeNode = 0;
+
+  if (this->astroLabelVolumeNode)
+    {
+    q->mrmlScene()->RemoveNode(this->astroLabelVolumeNode);
+    }
+  this->astroLabelVolumeNode = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -3679,27 +3766,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSceneStartImportEvent()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if (!this->mrmlScene())
-    {
-    return;
-    }
-
-  if (d->segmentEditorNode)
-    {
-    if (d->segmentEditorNode->GetSegmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->segmentEditorNode->GetSegmentationNode());
-      d->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
-      }
-    }
-  if (d->SegmentsTableView_2)
-    {
-    if (d->SegmentsTableView_2->segmentationNode())
-      {
-      this->mrmlScene()->RemoveNode(d->SegmentsTableView_2->segmentationNode());
-      d->SegmentsTableView_2->setSegmentationNode(NULL);
-      }
-    }
+  d->cleanPointers();
 }
 
 //---------------------------------------------------------------------------
@@ -4912,8 +4979,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolum
     return;
     }
 
-  d->astroLabelVolumeNode =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(volumeNode);
+  d->astroLabelVolumeNode = vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(volumeNode);
   this->qvtkReconnect(d->astroLabelVolumeNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLLabelVolumeNodeModified()));
   this->onMRMLLabelVolumeNodeModified();
