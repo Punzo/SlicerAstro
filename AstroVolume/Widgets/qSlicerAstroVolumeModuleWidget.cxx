@@ -1436,7 +1436,7 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
 
   if (inputVolume->GetPresetNode() != NULL)
     {
-    d->PresetsNodeComboBox->setCurrentNode(inputVolume->GetPresetNode());
+    d->PresetsNodeComboBox->setCurrentNodeIndex(d->astroVolumeNode->GetPresetIndex());
     }
   else
     {
@@ -4815,7 +4815,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
   if (forcePreset)
     {
     this->updatePresets(d->astroVolumeNode);
-    d->PresetsNodeComboBox->setCurrentNodeIndex(d->astroVolumeNode->GetPresetIndex());
     this->applyPreset(d->astroVolumeNode->GetPresetNode());
     }
   else if (d->astroVolumeNode->GetVolumePropertyNode())
