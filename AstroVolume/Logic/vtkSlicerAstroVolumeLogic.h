@@ -75,18 +75,24 @@ public:
                                                           vtkMRMLAstroVolumeNode *volumeNode,
                                                           const char *name);
 
-  /// Fill in a label map volume to match the given input volume node, under
-  /// the assumption that the given label map node is already added to the scene.
-  /// A display node will be added to it if the label node doesn't already have
-  /// one, and the image data associated with the label node will be allocated
-  /// according to the template volumeNode.
-  vtkMRMLAstroLabelMapVolumeNode *CreateLabelVolumeFromVolume(vtkMRMLScene *scene,
-                                                              vtkMRMLAstroLabelMapVolumeNode *labelNode,
-                                                              vtkMRMLAstroVolumeNode *inputVolume);
+  /// Sets ROI to fit to input volume.
+  /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.
+  virtual bool FitROIToInputVolume(vtkMRMLAnnotationROINode* roiNode,
+                                   vtkMRMLAstroVolumeNode *inputVolume);
 
-  /// Calculate RMS (as standard deviation) given a ROI node
-  double CalculateRMSinROI(vtkMRMLAnnotationROINode* roiNode,
-                           vtkMRMLAstroVolumeNode *inputVolume);
+  virtual void SnapROIToVoxelGrid(vtkMRMLAnnotationROINode* roiNode,
+                                  vtkMRMLAstroVolumeNode *inputVolume);
+
+  virtual bool IsROIAlignedWithInputVolume(vtkMRMLAnnotationROINode* roiNode,
+                                           vtkMRMLAstroVolumeNode *inputVolume);
+
+  virtual bool CalculateROICropVolumeBounds(vtkMRMLAnnotationROINode* roiNode,
+                                            vtkMRMLAstroVolumeNode *inputVolume,
+                                            double outputExtent[6]);
+
+  /// Calculate STD given a ROI node
+  virtual double Calculate3DDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,
+                                                  vtkMRMLAstroVolumeNode *inputVolume);
 
 protected:
   vtkSlicerAstroVolumeLogic();

@@ -142,56 +142,56 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
     return;
     }
 
-  QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setMRMLAstroMomentMapsParametersNode(vtkMRMLNode*)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(ZeroMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ZeroMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onZeroMomentVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(FirstMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->FirstMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onFirstMomentVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(SecondMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->SecondMomentVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onSecondMomentVolumeChanged(vtkMRMLNode*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
 
-  QObject::connect(MaskCheckBox, SIGNAL(toggled(bool)),
+  QObject::connect(this->MaskCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onMaskActiveToggled(bool)));
 
-  QObject::connect(ZeroMomentRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->ZeroMomentRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onGenerateZeroToggled(bool)));
 
-  QObject::connect(FirstMomentRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->FirstMomentRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onGenerateFirstToggled(bool)));
 
-  QObject::connect(SecondMomentRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->SecondMomentRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onGenerateSecondToggled(bool)));
 
-  QObject::connect(ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
+  QObject::connect(this->ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
                    q, SLOT(onThresholdRangeChanged(double, double)));
 
-  QObject::connect(VelocityRangeWidget, SIGNAL(valuesChanged(double,double)),
+  QObject::connect(this->VelocityRangeWidget, SIGNAL(valuesChanged(double,double)),
                    q, SLOT(onVelocityRangeChanged(double, double)));
 
-  QObject::connect(ApplyButton, SIGNAL(clicked()),
+  QObject::connect(this->ApplyButton, SIGNAL(clicked()),
                    q, SLOT(onCalculate()));
 
-  QObject::connect(CancelButton, SIGNAL(clicked()),
+  QObject::connect(this->CancelButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  InputSegmentCollapsibleButton->setCollapsed(false);
+  this->InputSegmentCollapsibleButton->setCollapsed(false);
 
-  progressBar->hide();
-  progressBar->setMinimum(0);
-  progressBar->setMaximum(100);
-  CancelButton->hide();
+  this->progressBar->hide();
+  this->progressBar->setMinimum(0);
+  this->progressBar->setMaximum(100);
+  this->CancelButton->hide();
 }
 
 //-----------------------------------------------------------------------------
@@ -320,7 +320,7 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     return;
     }
 
-  this->initializeParameterNode(scene);
+  this->initializeNodes();
 
   this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
                       this, SLOT(onEndCloseEvent()));
@@ -340,8 +340,6 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
   this->onMRMLAstroMomentMapsParametersNodeModified();
 
-  this->initializeSegmentations(scene);
-
   d->InputSegmentCollapsibleButton->setCollapsed(false);
 
   d->unitNodeIntensity = d->selectionNode->GetUnitNode("intensity");
@@ -353,6 +351,16 @@ void qSlicerAstroMomentMapsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->qvtkReconnect(d->unitNodeVelocity, vtkCommand::ModifiedEvent,
                       this, SLOT(onUnitNodeVelocityChanged(vtkObject*)));
   this->onUnitNodeVelocityChanged(d->unitNodeVelocity);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMomentMapsModuleWidget::initializeNodes(bool forceNew)
+{
+  Q_D(qSlicerAstroMomentMapsModuleWidget);
+
+  this->initializeParameterNode(forceNew);
+
+  this->initializeSegmentations(forceNew);
 }
 
 //-----------------------------------------------------------------------------
@@ -375,9 +383,8 @@ void qSlicerAstroMomentMapsModuleWidget::onEndCloseEvent()
     return;
     }
 
-  this->initializeParameterNode(this->mrmlScene());
+  this->initializeNodes(true);
   this->onMRMLAstroMomentMapsParametersNodeModified();
-  this->initializeSegmentations(this->mrmlScene());
 }
 
 //-----------------------------------------------------------------------------
@@ -400,34 +407,33 @@ void qSlicerAstroMomentMapsModuleWidget::onEndImportEvent()
     return;
     }
 
-  this->initializeParameterNode(this->mrmlScene());
+  this->initializeNodes();
   this->onMRMLAstroMomentMapsParametersNodeModified();
-  this->initializeSegmentations(this->mrmlScene());
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::initializeParameterNode(vtkMRMLScene* scene)
+void qSlicerAstroMomentMapsModuleWidget::initializeParameterNode(bool forceNew /*= false*/)
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
 
-  if (!scene || !d->selectionNode)
+  if (!this->mrmlScene() || !d->selectionNode)
     {
     return;
     }
 
   vtkMRMLAstroMomentMapsParametersNode *astroParametersNode = NULL;
-  unsigned int numNodes = scene->GetNumberOfNodesByClass("vtkMRMLAstroMomentMapsParametersNode");
-  if(numNodes > 0)
+  unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroMomentMapsParametersNode");
+  if(numNodes > 0 && !forceNew)
     {
     astroParametersNode = vtkMRMLAstroMomentMapsParametersNode::SafeDownCast
-      (scene->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroMomentMapsParametersNode"));
+      (this->mrmlScene()->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroMomentMapsParametersNode"));
     }
   else
     {
     vtkSmartPointer<vtkMRMLNode> parametersNode;
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLAstroMomentMapsParametersNode");
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLAstroMomentMapsParametersNode");
     parametersNode.TakeReference(foo);
-    scene->AddNode(parametersNode);
+    this->mrmlScene()->AddNode(parametersNode);
 
     astroParametersNode = vtkMRMLAstroMomentMapsParametersNode::SafeDownCast(parametersNode);
     int wasModifying = astroParametersNode->StartModify();
@@ -443,25 +449,25 @@ void qSlicerAstroMomentMapsModuleWidget::initializeParameterNode(vtkMRMLScene* s
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModuleWidget::initializeSegmentations(vtkMRMLScene *scene)
+void qSlicerAstroMomentMapsModuleWidget::initializeSegmentations(bool forceNew /*= false*/)
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
 
-  if (!scene)
+  if (!this->mrmlScene())
     {
     return;
     }
 
   std::string segmentEditorSingletonTag = "SegmentEditor";
   vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    scene->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
+    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
 
   if (!segmentEditorNodeSingleton)
     {
     d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
     d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
     d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-    scene->AddNode(d->segmentEditorNode));
+    this->mrmlScene()->AddNode(d->segmentEditorNode));
     }
   else
     {
@@ -473,19 +479,19 @@ void qSlicerAstroMomentMapsModuleWidget::initializeSegmentations(vtkMRMLScene *s
 
   this->onSegmentEditorNodeModified(d->segmentEditorNode);
 
-  if (!d->segmentEditorNode->GetSegmentationNode())
+  if (!d->segmentEditorNode->GetSegmentationNode() || forceNew)
     {
     vtkSmartPointer<vtkMRMLNode> segmentationNode;
-    vtkMRMLNode *foo = scene->CreateNodeByClass("vtkMRMLSegmentationNode");
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     segmentationNode.TakeReference(foo);
-    scene->AddNode(segmentationNode);
+    this->mrmlScene()->AddNode(segmentationNode);
     d->segmentEditorNode->SetAndObserveSegmentationNode
       (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
     }
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
+bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroMomentMapsModuleWidget);
 
@@ -524,8 +530,7 @@ bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
   std::vector<std::string> segmentIDs;
   currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
-  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode =
-    vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
+  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode;
 
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
 
@@ -551,16 +556,14 @@ bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
       vtkSlicerAstroMomentMapsLogic::SafeDownCast(this->logic());
     if (!astroMomentMapslogic)
       {
-      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap :"
-                    " astroMomentMapslogic not found!";
+      qCritical()  << Q_FUNC_INFO << ": astroMomentMapslogic not found!";
       return false;
       }
     vtkSlicerAstroVolumeLogic* astroVolumelogic =
       vtkSlicerAstroVolumeLogic::SafeDownCast(astroMomentMapslogic->GetAstroVolumeLogic());
     if (!astroVolumelogic)
       {
-      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap :"
-                    " vtkSlicerAstroVolumeLogic not found!";
+      qCritical()  << Q_FUNC_INFO << ": vtkSlicerAstroVolumeLogic not found!";
       return false;
       }
     std::string name(activeVolumeNode->GetName());
@@ -587,8 +590,6 @@ bool qSlicerAstroMomentMapsModuleWidget::convertFirstSegmentToLabelMap()
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
-
-  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
 
   double storedOrigin[3] = { 0., 0., 0. };
   labelMapNode->GetOrigin(storedOrigin);
@@ -1091,14 +1092,16 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   vtkSlicerAstroMomentMapsLogic *logic = d->logic();
   if (!logic)
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : vtkSlicerAstroMomentMapsLogic not found!";
+    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate :"
+                  " vtkSlicerAstroMomentMapsLogic not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (!d->parametersNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate() : parametersNode not found!";
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate :"
+                   " parametersNode not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1108,7 +1111,8 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : scene not found!";
+    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate :"
+                  " scene not found!";
     }
 
   vtkMRMLAstroVolumeNode *inputVolume =
@@ -1116,7 +1120,8 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
-    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : inputVolume not found!";
+    qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate :"
+                  " inputVolume not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1135,9 +1140,10 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
   if (d->parametersNode->GetMaskActive())
     {
-    if (!this->convertFirstSegmentToLabelMap())
+    if (!this->convertSelectedSegmentToLabelMap())
       {
-      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : convertFirstSegmentToLabelMap failed!";
+      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
+                    "convertSelectedSegmentToLabelMap failed!";
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -1307,7 +1313,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
         (scene->GetFirstNodeByName("Velocity Field"));
       if (!velocityFieldColorTableNode)
         {
-        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : "
+        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
                       "velocityFieldColorTableNode not found!";
         d->parametersNode->SetStatus(0);
         return;
@@ -1408,7 +1414,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
         (scene->GetFirstNodeByName("Rainbow"));
       if (!RainbowColorTableNode)
         {
-        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate() : "
+        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
                       "RainbowColorTableNode not found!";
         d->parametersNode->SetStatus(0);
         return;
@@ -1589,6 +1595,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     SegmentationDisplayNode->SetAllSegmentsVisibility(false);
     }
 
+  d->parametersNode->SetStatus(0);
 }
 
 //-----------------------------------------------------------------------------

@@ -8,6 +8,7 @@ set(module_mrml_name "vtkSlicer${MODULE_NAME}ModuleMRML")
 set(module_mrml_include_directory
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
+  ${CMAKE_CURRENT_BINARY_DIR}/../../
   ${MRMLCore_INCLUDE_DIRS}
   ${WCSLIB_INCLUDE_DIR}
   ${CFITSIO_INCLUDE_DIR}
@@ -32,6 +33,8 @@ set(module_mrml_SRCS
     vtkMRMLAstroProfilesParametersNode.h
     vtkMRMLAstroSmoothingParametersNode.cxx
     vtkMRMLAstroSmoothingParametersNode.h
+    vtkMRMLAstroStatisticsParametersNode.cxx
+    vtkMRMLAstroStatisticsParametersNode.h
     vtkMRMLAstroVolumeDisplayNode.cxx
     vtkMRMLAstroVolumeDisplayNode.h
     vtkMRMLAstroVolumeNode.cxx

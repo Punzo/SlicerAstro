@@ -57,8 +57,8 @@
 #include <iostream>
 #include <sys/time.h>
 
-#define FLOATPRECISION 0.000001
-#define DOUBLEPRECISION 0.000000000000001
+#define FLOATPRECISION 0.0000001
+#define DOUBLEPRECISION 0.0000000000000001
 
 namespace
 {
@@ -77,6 +77,24 @@ double StringToDouble(const char* str)
   return StringToNumber<double>(str);
 }
 
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool FloatIsNaN(float Value)
+{
+  return isNaN<float>(Value);
+}
+
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -87,14 +105,12 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
-  vtkSmartPointer<vtkImageData> tempVolumeData;
 };
 
 //----------------------------------------------------------------------------
 vtkSlicerAstroProfilesLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
-  this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
+  this->AstroVolumeLogic = 0;
 }
 
 //---------------------------------------------------------------------------
@@ -162,7 +178,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if(!inputVolume)
+  if(!inputVolume || !inputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " inputVolume not found!");
@@ -172,7 +188,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   vtkMRMLAstroVolumeNode *ProfileVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetProfileVolumeNodeID()));
-  if(!ProfileVolume)
+  if(!ProfileVolume || !ProfileVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " ProfileVolume not found!");
@@ -185,7 +201,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   bool maskActive = pnode->GetMaskActive();
 
-  if(!maskVolume && maskActive)
+  if((!maskVolume || !maskVolume->GetImageData()) && maskActive)
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " maskVolume not found!");
@@ -197,7 +213,20 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   double CDELT1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
   double CDELT2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
 
-  double unitBeamConv = fabs((CDELT1 * CDELT2) / (1.13 * BMAJ * BMIN));
+  double unitBeamConv = 1.;
+  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), "UNDEFINED") ||
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), "UNDEFINED"))
+    {
+    vtkWarningMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
+                    " Beam or CDELT information are not available."
+                    " The total flux per channel will be the simple sum!");
+    }
+  else
+    {
+    unitBeamConv = fabs((CDELT1 * CDELT2) / (1.13 * BMAJ * BMIN));
+    }
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -214,11 +243,11 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     {
     case VTK_FLOAT:
       inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        outProfileFPixel = static_cast<float*> (ProfileVolume->GetImageData()->GetScalarPointer(0,0,0));
+      outProfileFPixel = static_cast<float*> (ProfileVolume->GetImageData()->GetScalarPointer(0,0,0));
       break;
     case VTK_DOUBLE:
       inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        outProfileDPixel = static_cast<double*> (ProfileVolume->GetImageData()->GetScalarPointer(0,0,0));
+      outProfileDPixel = static_cast<double*> (ProfileVolume->GetImageData()->GetScalarPointer(0,0,0));
       break;
     default:
       vtkErrorMacro("Attempt to allocate scalars of type not allowed");
@@ -319,12 +348,20 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
             case VTK_FLOAT:
               if (*(maskPixel + posData) > 0.001)
                 {
+                if (FloatIsNaN(*(inFPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outProfileFPixel + elemCnt) += *(inFPixel + posData);
                 }
               break;
             case VTK_DOUBLE:
               if (*(maskPixel + posData) > 0.001)
                 {
+                if (DoubleIsNaN(*(inDPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outProfileDPixel + elemCnt) += *(inDPixel + posData);
                 }
               break;
@@ -447,6 +484,10 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
               if (*(inFPixel + posData) > pnode->GetIntensityMin() &&
                   *(inFPixel + posData) < pnode->GetIntensityMax())
                 {
+                if (FloatIsNaN(*(inFPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outProfileFPixel + elemCnt) += *(inFPixel + posData);
                 }
               break;
@@ -454,6 +495,10 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
               if (*(inDPixel + posData) > pnode->GetIntensityMin() &&
                   *(inDPixel + posData) < pnode->GetIntensityMax())
                 {
+                if (DoubleIsNaN(*(inDPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outProfileDPixel + elemCnt) += *(inDPixel + posData);
                 }
               break;
@@ -525,8 +570,6 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     delete maskPixel;
     }
 
-  pnode->SetStatus(0);
-
   if (cancel)
     {
     return false;
@@ -546,6 +589,8 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   ProfileVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
   ProfileVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
   ProfileVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);;
 

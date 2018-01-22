@@ -578,6 +578,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->initializeSegmentations();
   this->initializePlotNodes();
+  this->initializeColorNodes();
 
   if(!d->PresetsNodeComboBox)
     {
@@ -644,38 +645,7 @@ void qSlicerAstroVolumeModuleWidget::initializeSegmentations(bool forceNew /*= f
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
 {
-  // Remove unwanted 2D color functions
-  vtkSmartPointer<vtkCollection> ColorTableNodeCol =
-    vtkSmartPointer<vtkCollection>::Take(
-      this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
-  for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
-    {
-    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-            (ColorTableNodeCol->GetItemAsObject(ii));
-    if (!tempColorTableNode)
-      {
-      continue;
-      }
-    if (!strcmp(tempColorTableNode->GetName(), "Grey"))
-      {
-      tempColorTableNode->SetTypeToBlue();
-      tempColorTableNode->SetTypeToGrey();
-      tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
-      tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
-      tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
-      tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
-      continue;
-      }
-    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
-        !strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
-      {
-      continue;
-      }
-
-    this->mrmlScene()->RemoveNode(tempColorTableNode);
-    }
-
-  // Readd Astro 2D color functions
+  // Add Astro 2D color functions
   vtkNew<vtkMRMLColorTableNode> HeatColorTableNode;
   HeatColorTableNode->SetType(vtkMRMLColorTableNode::User);
   HeatColorTableNode->SetName("Heat");
@@ -928,6 +898,64 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
   VelocityFieldColorTableNode->SetNamesFromColors();
   this->mrmlScene()->AddNode(VelocityFieldColorTableNode.GetPointer());
 
+  // Remove unwanted 2D color functions
+  vtkSmartPointer<vtkCollection> ColorTableNodeCol =
+    vtkSmartPointer<vtkCollection>::Take(
+      this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+  for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+            (ColorTableNodeCol->GetItemAsObject(ii));
+    if (!tempColorTableNode)
+      {
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "Grey"))
+      {
+      tempColorTableNode->SetTypeToBlue();
+      tempColorTableNode->SetTypeToGrey();
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "Grey") ||
+        !strcmp(tempColorTableNode->GetName(), "Heat") ||
+        !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
+        !strcmp(tempColorTableNode->GetName(), "Velocity Field"))
+      {
+      tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+      tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+      tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+      tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
+        !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
+      {
+      continue;
+      }
+
+    //this->mrmlScene()->RemoveNode(tempColorTableNode->GetStorageNode());
+    this->mrmlScene()->RemoveNode(tempColorTableNode);
+    }
+
+  vtkSmartPointer<vtkCollection> ProceduralColorTableNodeCol =
+    vtkSmartPointer<vtkCollection>::Take(
+      this->mrmlScene()->GetNodesByClass("vtkMRMLProceduralColorNode"));
+  for (int ii = 0; ii < ProceduralColorTableNodeCol->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLProceduralColorNode* tempProceduralColorTableNode = vtkMRMLProceduralColorNode::SafeDownCast
+            (ProceduralColorTableNodeCol->GetItemAsObject(ii));
+    if (!tempProceduralColorTableNode)
+      {
+      continue;
+      }
+    if (!strcmp(tempProceduralColorTableNode->GetName(), "RandomIntegers"))
+      {
+      continue;
+      }
+
+    //this->mrmlScene()->RemoveNode(tempProceduralColorTableNode->GetStorageNode());
+    this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
+    }
+
   // Add Rainbow
   vtkNew<vtkMRMLColorTableNode> RainbowTableNode;
   RainbowTableNode->SetName("Rainbow");
@@ -949,9 +977,10 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
   RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
   this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
 
-  // Add Generic Colors
+  // ReAdd Generic and MediumChart Colors
+  std::string DarkBrightChartColorsID;
   ColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+      this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
   for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
     {
     vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
@@ -960,18 +989,7 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       {
       continue;
       }
-    if (!strcmp(tempColorTableNode->GetName(), "Heat") ||
-        !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
-        !strcmp(tempColorTableNode->GetName(), "Velocity Field"))
-      {
-      tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
-      tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
-      tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
-      tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
-      continue;
-      }
-    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
-        !strcmp(tempColorTableNode->GetName(), "MediumChartColors"))
+    if (!strcmp(tempColorTableNode->GetName(), "GenericColors"))
       {
       vtkNew<vtkMRMLColorTableNode> tempTableNode;
       tempTableNode->Copy(tempColorTableNode);
@@ -980,10 +998,20 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       this->mrmlScene()->AddNode(tempTableNode.GetPointer());
       continue;
       }
+    if (!strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
+      {
+      vtkNew<vtkMRMLColorTableNode> tempTableNode;
+      tempTableNode->Copy(tempColorTableNode);
+      this->mrmlScene()->RemoveNode(tempColorTableNode);
+      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
+      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
+      DarkBrightChartColorsID = tempTableNode->GetID();
+      continue;
+      }
     }
 
-  vtkSmartPointer<vtkCollection> ProceduralColorTableNodeCol =
-    vtkSmartPointer<vtkCollection>::Take(
+  // ReAdd RandomIntegers Colors
+  ProceduralColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
       this->mrmlScene()->GetNodesByClass("vtkMRMLProceduralColorNode"));
   for (int ii = 0; ii < ProceduralColorTableNodeCol->GetNumberOfItems(); ii++)
     {
@@ -993,8 +1021,16 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       {
       continue;
       }
-    this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
-  }
+    if (!strcmp(tempProceduralColorTableNode->GetName(), "RandomIntegers"))
+      {
+      vtkNew<vtkMRMLColorTableNode> tempTableNode;
+      tempTableNode->Copy(tempProceduralColorTableNode);
+      this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
+      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
+      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
+      continue;
+      }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1705,7 +1741,7 @@ void qSlicerAstroVolumeModuleWidget::onROICropDisplayCheckBoxToggled(bool toggle
   if (toggle)
     {
     d->ROICropCheckBox->setChecked(true);
-  }
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -1942,8 +1978,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   std::vector<std::string> segmentIDs;
   currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
-  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode =
-    vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
+  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode;
 
   if (segmentIDs.size() < 1)
     {
@@ -1995,6 +2030,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 
   if(activelabelMapNode)
     {
+    labelMapNode = vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
     labelMapNode->Copy(activelabelMapNode);
     std::string name(activelabelMapNode->GetName());
     std::string str1("Copy_mask");
@@ -2019,8 +2055,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     vtkSlicerAstroVolumeLogic* logic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
     if (!logic)
       {
-      qCritical() <<"qSlicerAstroVolumeModuleWidget::convertFirstSegmentToLabelMap :"
-                    " astroVolumelogic not found!";
+      qCritical() << Q_FUNC_INFO <<" : astroVolumelogic not found!";
       return;
       }
     std::string name(activeVolumeNode->GetName());
@@ -2055,8 +2090,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
-
-  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
 
   double storedOrigin[3] = { 0., 0., 0. };
   labelMapNode->GetOrigin(storedOrigin);
@@ -3416,7 +3449,7 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     return;
     }
 
-  astroVolumeLogic->CalculateRMSinROI(roiNode, d->astroVolumeNode);
+  astroVolumeLogic->Calculate3DDisplayThresholdInROI(roiNode, d->astroVolumeNode);
 }
 
 //---------------------------------------------------------------------------

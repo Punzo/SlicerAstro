@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>554</width>
+    <width>459</width>
     <height>515</height>
    </rect>
   </property>
@@ -14,7 +14,16 @@
    <string>MomentMaps</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -24,10 +33,16 @@
        <property name="enabled">
         <bool>true</bool>
        </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>0</height>
+         <height>30</height>
         </size>
        </property>
        <property name="text">
@@ -39,6 +54,12 @@
       <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector">
        <property name="enabled">
         <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
        </property>
        <property name="nodeTypes">
         <stringlist>
@@ -58,7 +79,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="minimumSize">
       <size>
@@ -82,7 +103,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="ParametersLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Parameters Node:</string>
@@ -92,7 +113,7 @@
       <item row="0" column="1">
        <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="nodeTypes">
          <stringlist>
@@ -116,7 +137,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="ZeroMomentLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>0th Moment Volume:</string>
@@ -126,7 +147,7 @@
       <item row="1" column="1">
        <widget class="qMRMLNodeComboBox" name="ZeroMomentVolumeNodeSelector">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
@@ -153,7 +174,7 @@
       <item row="2" column="0">
        <widget class="QLabel" name="FirstMomentLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>1th Moment Volume</string>
@@ -163,7 +184,7 @@
       <item row="2" column="1">
        <widget class="qMRMLNodeComboBox" name="FirstMomentVolumeNodeSelector">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
@@ -190,7 +211,7 @@
       <item row="3" column="1">
        <widget class="qMRMLNodeComboBox" name="SecondMomentVolumeNodeSelector">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
@@ -217,7 +238,7 @@
       <item row="3" column="0">
        <widget class="QLabel" name="SecondMomentLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>2th Moment Volume</string>
@@ -230,7 +251,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="InputSegmentCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -253,14 +274,20 @@
      <property name="collapsed">
       <bool>true</bool>
      </property>
-     <property name="contentsFrameShape">
-      <enum>QFrame::StyledPanel</enum>
-     </property>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>4</number>
+      </property>
+      <property name="topMargin">
+       <number>4</number>
+      </property>
+      <property name="rightMargin">
+       <number>4</number>
+      </property>
+      <property name="bottomMargin">
        <number>4</number>
       </property>
       <item>
@@ -290,7 +317,7 @@
            <item>
             <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
@@ -317,7 +344,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="ParametersCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -353,10 +380,10 @@
         <item>
          <widget class="QRadioButton" name="ZeroMomentRadioButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="text">
-           <string>0th</string>
+           <string>&amp;0th</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -369,10 +396,10 @@
         <item>
          <widget class="QRadioButton" name="FirstMomentRadioButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="text">
-           <string>1th</string>
+           <string>&amp;1th</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -384,8 +411,11 @@
         </item>
         <item>
          <widget class="QRadioButton" name="SecondMomentRadioButton">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
           <property name="text">
-           <string>2th</string>
+           <string>&amp;2th</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -400,7 +430,7 @@
       <item row="5" column="0">
        <widget class="QLabel" name="VelocityRangeLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Velocity range:</string>
@@ -461,7 +491,7 @@
       <item row="6" column="0">
        <widget class="QLabel" name="ThresholdRangeLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Threshold range:</string>
@@ -726,54 +756,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ParametersNodeComboBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>291</x>
-     <y>68</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ParametersLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>57</x>
-     <y>68</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ZeroMomentLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>50</x>
-     <y>95</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>qSlicerAstroMomentMapsModuleWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>ZeroMomentVolumeNodeSelector</receiver>
@@ -786,70 +768,6 @@
     <hint type="destinationlabel">
      <x>291</x>
      <y>95</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ZeroMomentVolumeNodeSelector</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>291</x>
-     <y>95</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>MomentsLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>262</x>
-     <y>14</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>84</x>
-     <y>452</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ZeroMomentRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>262</x>
-     <y>14</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>186</x>
-     <y>452</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>FirstMomentRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>262</x>
-     <y>14</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>351</x>
-     <y>452</y>
     </hint>
    </hints>
   </connection>
@@ -870,38 +788,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>FirstMomentLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>55</x>
-     <y>62</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>SecondMomentLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>65</x>
-     <y>64</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>qSlicerAstroMomentMapsModuleWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>FirstMomentVolumeNodeSelector</receiver>
@@ -930,118 +816,6 @@
     <hint type="destinationlabel">
      <x>341</x>
      <y>64</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>SecondMomentRadioButton</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>475</x>
-     <y>392</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>SecondMomentVolumeNodeSelector</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>341</x>
-     <y>64</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>FirstMomentVolumeNodeSelector</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>341</x>
-     <y>61</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>VelocityRangeLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>84</x>
-     <y>821</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ThresholdRangeLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>55</x>
-     <y>456</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>VelocityRangeWidget</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>329</x>
-     <y>428</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ThresholdRangeWidget</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>329</x>
-     <y>457</y>
     </hint>
    </hints>
   </connection>
@@ -1090,38 +864,6 @@
     <hint type="destinationlabel">
      <x>359</x>
      <y>496</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ThresholdUnitLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>523</x>
-     <y>457</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>VelocityUnitLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>523</x>
-     <y>428</y>
     </hint>
    </hints>
   </connection>

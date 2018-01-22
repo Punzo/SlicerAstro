@@ -32,8 +32,10 @@
 
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
+class vtkMRMLAnnotationROINode;
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroLabelMapVolumeNode;
+class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
@@ -78,6 +80,14 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   ///
   /// Get AstroVolume display node
   virtual vtkMRMLAstroVolumeDisplayNode* GetAstroVolumeDisplayNode();
+
+  vtkMRMLAnnotationROINode* GetROINode();
+  void SetROINode(vtkMRMLAnnotationROINode* node);
+
+  vtkMRMLTransformNode* GetROIAlignmentTransformNode();
+  void SetROIAlignmentTransformNodeID(const char *nodeID);
+  void SetROIAlignmentTransformNode(vtkMRMLTransformNode* node);
+  void DeleteROIAlignmentTransformNode();
 
   ///
   /// Update Max and Min Attributes
@@ -132,6 +142,12 @@ protected:
 
   static const char* VOLUMEPROPERTY_REFERENCE_ROLE;
   const char *GetVolumePropertyNodeReferenceRole();
+
+  static const char* ROI_REFERENCE_ROLE;
+  const char *GetROINodeReferenceRole();
+
+  static const char* ROI_ALIGNMENTTRANSFORM_REFERENCE_ROLE;
+  const char *GetROIAlignmentTransformNodeReferenceRole();
 
   vtkMRMLAstroVolumeNode(const vtkMRMLAstroVolumeNode&);
   void operator=(const vtkMRMLAstroVolumeNode&);

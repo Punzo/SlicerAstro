@@ -58,7 +58,7 @@ protected:
   void initializeParameterNode(bool forceNew = false);
   void initializePlotNodes(bool forceNew = false);
   void initializeSegmentations(bool forceNew = false);
-  bool convertFirstSegmentToLabelMap();
+  bool convertSelectedSegmentToLabelMap();
 
 protected slots:
   void onComputationStarted();

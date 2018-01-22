@@ -1,4 +1,3 @@
-
 #-----------------------------------------------------------------------------
 set(MODULE_NAME AstroWelcome)
 set(MODULE_TITLE "Welcome to SlicerAstro")

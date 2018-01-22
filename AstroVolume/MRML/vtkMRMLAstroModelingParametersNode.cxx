@@ -28,8 +28,6 @@
 #include <vtkObjectFactory.h>
 
 // MRML includes
-#include <vtkMRMLChartNode.h>
-#include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkMRMLVolumeNode.h>
 

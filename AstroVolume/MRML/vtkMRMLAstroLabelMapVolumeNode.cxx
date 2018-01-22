@@ -17,6 +17,7 @@
 
 ==============================================================================*/
 
+// STD includes
 #include <string>
 
 // MRML includes
@@ -25,12 +26,20 @@
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLScene.h>
 
+// AstroVolume includes
+#include <vtkSlicerAstroConfigure.h>
+
 // VTK includes
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 #include <vtkVolume.h>
+
+// OpenMP includes
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+#include <omp.h>
+#endif
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroLabelMapVolumeNode);
@@ -119,7 +128,7 @@ void vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes()
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes failed: scene is invalid");
     return;
     }
-  vtkNew<vtkMRMLLabelMapVolumeDisplayNode> dispNode;
+  vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode> dispNode;
   this->GetScene()->AddNode(dispNode.GetPointer());
   dispNode->SetDefaultColorMap();
   this->SetAndObserveDisplayNodeID(dispNode->GetID());
@@ -157,8 +166,6 @@ bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
 {
   if (this->GetImageData() == NULL)
    {
-   vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes : "
-                 "imageData not allocated.");
    return false;
    }
 
@@ -166,41 +173,47 @@ bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
   int *dims = this->GetImageData()->GetDimensions();
   int numElements = dims[0] * dims[1] * dims[2];
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  double max = this->GetImageData()->GetScalarTypeMin(), min = this->GetImageData()->GetScalarTypeMax();
-  short *outSPixel = NULL;
+  double max_val = this->GetImageData()->GetScalarTypeMin(), min_val = this->GetImageData()->GetScalarTypeMax();
+  short *inSPixel = NULL;
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  omp_set_num_threads(omp_get_num_procs());
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   switch (DataType)
     {
   case VTK_SHORT:
-    outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
+    inSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
+    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+    #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
+    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
       {
-      if (ShortIsNaN(*(outSPixel + elementCnt)))
+      if (ShortIsNaN(*(inSPixel + elementCnt)))
         {
         continue;
         }
-      if (*(outSPixel + elementCnt) > max)
+      if (*(inSPixel + elementCnt) > max_val)
         {
-        max =  *(outSPixel + elementCnt);
+        max_val = *(inSPixel + elementCnt);
         }
-      if (*(outSPixel + elementCnt) < min)
+      if (*(inSPixel + elementCnt) < min_val)
         {
-        min =  *(outSPixel + elementCnt);
+        min_val = *(inSPixel + elementCnt);
         }
       }
     break;
     default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes() : "
+      vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes : "
                     "attempt to allocate scalars of type not allowed");
       return false;
     }
 
-  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
-  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max_val).c_str());
+  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());
 
-  outSPixel = NULL;
-  delete outSPixel;
+  inSPixel = NULL;
+  delete inSPixel;
 
   return true;
 }
-

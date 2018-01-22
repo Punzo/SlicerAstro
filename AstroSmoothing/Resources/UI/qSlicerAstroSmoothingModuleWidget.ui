@@ -33,10 +33,16 @@
        <property name="enabled">
         <bool>true</bool>
        </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>0</height>
+         <height>30</height>
         </size>
        </property>
        <property name="text">
@@ -45,19 +51,25 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector" native="true">
+      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector">
        <property name="enabled">
         <bool>true</bool>
        </property>
-       <property name="nodeTypes" stdset="0">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="nodeTypes">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
         </stringlist>
        </property>
-       <property name="addEnabled" stdset="0">
+       <property name="addEnabled">
         <bool>false</bool>
        </property>
-       <property name="renameEnabled" stdset="0">
+       <property name="renameEnabled">
         <bool>true</bool>
        </property>
       </widget>
@@ -65,7 +77,7 @@
     </layout>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -75,13 +87,13 @@
        <height>0</height>
       </size>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Nodes</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QFormLayout" name="formLayout">
@@ -99,25 +111,25 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox" native="true">
+       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox">
         <property name="enabled">
          <bool>true</bool>
         </property>
-        <property name="nodeTypes" stdset="0">
+        <property name="nodeTypes">
          <stringlist>
           <string>vtkMRMLAstroSmoothingParametersNode</string>
          </stringlist>
         </property>
-        <property name="showHidden" stdset="0">
+        <property name="showHidden">
          <bool>true</bool>
         </property>
-        <property name="addEnabled" stdset="0">
+        <property name="addEnabled">
          <bool>false</bool>
         </property>
-        <property name="editEnabled" stdset="0">
+        <property name="editEnabled">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled" stdset="0">
+        <property name="renameEnabled">
          <bool>true</bool>
         </property>
        </widget>
@@ -133,28 +145,28 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="OutputVolumeNodeSelector" native="true">
+       <widget class="qMRMLNodeComboBox" name="OutputVolumeNodeSelector">
         <property name="enabled">
          <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
         </property>
-        <property name="nodeTypes" stdset="0">
+        <property name="nodeTypes">
          <stringlist>
           <string>vtkMRMLAstroVolumeNode</string>
          </stringlist>
         </property>
-        <property name="addEnabled" stdset="0">
+        <property name="addEnabled">
          <bool>false</bool>
         </property>
-        <property name="editEnabled" stdset="0">
+        <property name="editEnabled">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled" stdset="0">
+        <property name="renameEnabled">
          <bool>true</bool>
         </property>
-        <property name="noneDisplay" stdset="0">
+        <property name="noneDisplay">
          <string>None</string>
         </property>
        </widget>
@@ -163,7 +175,7 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="FilterCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="FilterCollapsibleButton">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -173,13 +185,13 @@
        <height>30</height>
       </size>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Filter Parameters</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>true</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
@@ -592,7 +604,7 @@
        </widget>
       </item>
       <item row="6" column="1">
-       <widget class="ctkSliderWidget" name="DoubleSpinBoxX" native="true">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxX">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -611,22 +623,22 @@
         <property name="toolTip">
          <string>Full width at half maximum in pixel</string>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>2</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>1.000000000000000</double>
         </property>
-        <property name="pageStep" stdset="0">
+        <property name="pageStep">
          <double>20.000000000000000</double>
         </property>
-        <property name="minimum" stdset="0">
+        <property name="minimum">
          <double>0.000000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>20.000000000000000</double>
         </property>
-        <property name="value" stdset="0">
+        <property name="value">
          <double>5.000000000000000</double>
         </property>
        </widget>
@@ -698,7 +710,7 @@
        </widget>
       </item>
       <item row="8" column="1">
-       <widget class="ctkSliderWidget" name="DoubleSpinBoxY" native="true">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxY">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -717,22 +729,22 @@
         <property name="toolTip">
          <string>Full width at half maximum in pixel</string>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>2</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>1.000000000000000</double>
         </property>
-        <property name="pageStep" stdset="0">
+        <property name="pageStep">
          <double>20.000000000000000</double>
         </property>
-        <property name="minimum" stdset="0">
+        <property name="minimum">
          <double>0.000000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>20.000000000000000</double>
         </property>
-        <property name="value" stdset="0">
+        <property name="value">
          <double>5.000000000000000</double>
         </property>
        </widget>
@@ -804,7 +816,7 @@
        </widget>
       </item>
       <item row="10" column="1">
-       <widget class="ctkSliderWidget" name="DoubleSpinBoxZ" native="true">
+       <widget class="ctkSliderWidget" name="DoubleSpinBoxZ">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -823,22 +835,22 @@
         <property name="toolTip">
          <string>Full width at half maximum in pixel</string>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>2</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>1.000000000000000</double>
         </property>
-        <property name="pageStep" stdset="0">
+        <property name="pageStep">
          <double>20.000000000000000</double>
         </property>
-        <property name="minimum" stdset="0">
+        <property name="minimum">
          <double>0.000000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>20.000000000000000</double>
         </property>
-        <property name="value" stdset="0">
+        <property name="value">
          <double>5.000000000000000</double>
         </property>
        </widget>
@@ -866,7 +878,7 @@
        </widget>
       </item>
       <item row="11" column="1">
-       <widget class="ctkSliderWidget" name="RxSpinBox" native="true">
+       <widget class="ctkSliderWidget" name="RxSpinBox">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -885,16 +897,16 @@
         <property name="toolTip">
          <string>First Eulerian angle for rotating the Guassian kernel</string>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>0</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>20.000000000000000</double>
         </property>
-        <property name="pageStep" stdset="0">
+        <property name="pageStep">
          <double>45.000000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>360.000000000000000</double>
         </property>
        </widget>
@@ -922,7 +934,7 @@
        </widget>
       </item>
       <item row="12" column="1">
-       <widget class="ctkSliderWidget" name="RySpinBox" native="true">
+       <widget class="ctkSliderWidget" name="RySpinBox">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -941,16 +953,16 @@
         <property name="toolTip">
          <string>Second Eulerian angle for rotating the Guassian kernel</string>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>0</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>20.000000000000000</double>
         </property>
-        <property name="pageStep" stdset="0">
+        <property name="pageStep">
          <double>45.000000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>360.000000000000000</double>
         </property>
        </widget>
@@ -978,7 +990,7 @@
        </widget>
       </item>
       <item row="13" column="1">
-       <widget class="ctkSliderWidget" name="RzSpinBox" native="true">
+       <widget class="ctkSliderWidget" name="RzSpinBox">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -997,16 +1009,16 @@
         <property name="toolTip">
          <string>Third Eulerian angle for rotating the Guassian kernel</string>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>0</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>20.000000000000000</double>
         </property>
-        <property name="pageStep" stdset="0">
+        <property name="pageStep">
          <double>45.000000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>360.000000000000000</double>
         </property>
        </widget>
@@ -1034,7 +1046,7 @@
        </widget>
       </item>
       <item row="14" column="1">
-       <widget class="ctkSliderWidget" name="KSpinBox" native="true">
+       <widget class="ctkSliderWidget" name="KSpinBox">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -1050,16 +1062,16 @@
           <height>20</height>
          </size>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>0.500000000000000</double>
         </property>
-        <property name="minimum" stdset="0">
+        <property name="minimum">
          <double>0.500000000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>10.000000000000000</double>
         </property>
-        <property name="value" stdset="0">
+        <property name="value">
          <double>2.000000000000000</double>
         </property>
        </widget>
@@ -1087,7 +1099,7 @@
        </widget>
       </item>
       <item row="15" column="1">
-       <widget class="ctkSliderWidget" name="TimeStepSpinBox" native="true">
+       <widget class="ctkSliderWidget" name="TimeStepSpinBox">
         <property name="enabled">
          <bool>true</bool>
         </property>
@@ -1103,25 +1115,25 @@
           <height>20</height>
          </size>
         </property>
-        <property name="decimals" stdset="0">
+        <property name="decimals">
          <number>4</number>
         </property>
-        <property name="singleStep" stdset="0">
+        <property name="singleStep">
          <double>0.003000000000000</double>
         </property>
-        <property name="minimum" stdset="0">
+        <property name="minimum">
          <double>0.002500000000000</double>
         </property>
-        <property name="maximum" stdset="0">
+        <property name="maximum">
          <double>0.062500000000000</double>
         </property>
-        <property name="value" stdset="0">
+        <property name="value">
          <double>0.032500000000000</double>
         </property>
-        <property name="tracking" stdset="0">
+        <property name="tracking">
          <bool>true</bool>
         </property>
-        <property name="spinBoxVisible" stdset="0">
+        <property name="spinBoxVisible">
          <bool>true</bool>
         </property>
        </widget>
@@ -1157,7 +1169,7 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkSliderWidget" name="AccuracySpinBox" native="true">
+         <widget class="ctkSliderWidget" name="AccuracySpinBox">
           <property name="enabled">
            <bool>true</bool>
           </property>
@@ -1173,16 +1185,16 @@
             <height>20</height>
            </size>
           </property>
-          <property name="decimals" stdset="0">
+          <property name="decimals">
            <number>0</number>
           </property>
-          <property name="minimum" stdset="0">
+          <property name="minimum">
            <double>1.000000000000000</double>
           </property>
-          <property name="maximum" stdset="0">
+          <property name="maximum">
            <double>5.000000000000000</double>
           </property>
-          <property name="value" stdset="0">
+          <property name="value">
            <double>3.000000000000000</double>
           </property>
          </widget>
@@ -1212,7 +1224,7 @@
        </layout>
       </item>
       <item row="17" column="1">
-       <widget class="ctkVTKRenderView" name="GaussianKernelView" native="true">
+       <widget class="ctkVTKRenderView" name="GaussianKernelView">
         <property name="enabled">
          <bool>false</bool>
         </property>
@@ -1326,7 +1338,7 @@
     </spacer>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="OutputSegmentCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="OutputSegmentCollapsibleButton">
      <property name="enabled">
       <bool>false</bool>
      </property>
@@ -1336,10 +1348,10 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Output Masks</string>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -1370,7 +1382,7 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView" native="true">
+            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
              <property name="enabled">
               <bool>false</bool>
              </property>
@@ -1386,7 +1398,6 @@
                <height>0</height>
               </size>
              </property>
-             <zorder>FilterCollapsibleButton</zorder>
             </widget>
            </item>
           </layout>

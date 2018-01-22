@@ -1,11 +1,8 @@
-
 #-----------------------------------------------------------------------------
 set(MODULE_NAME AstroMomentMaps)
-set(MODULE_TITLE "${MODULE_NAME}")
+set(MODULE_TITLE "Astro MomentMaps")
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
-
-set(MODULE_TITLE "Astro MomentMaps")
 
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)

@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>554</width>
+    <width>473</width>
     <height>515</height>
    </rect>
   </property>
@@ -33,10 +33,16 @@
        <property name="enabled">
         <bool>true</bool>
        </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>0</height>
+         <height>30</height>
         </size>
        </property>
        <property name="text">
@@ -45,19 +51,25 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector" native="true">
+      <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector">
        <property name="enabled">
         <bool>true</bool>
        </property>
-       <property name="nodeTypes" stdset="0">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="nodeTypes">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
         </stringlist>
        </property>
-       <property name="addEnabled" stdset="0">
+       <property name="addEnabled">
         <bool>false</bool>
        </property>
-       <property name="renameEnabled" stdset="0">
+       <property name="renameEnabled">
         <bool>true</bool>
        </property>
       </widget>
@@ -65,9 +77,9 @@
     </layout>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="minimumSize">
       <size>
@@ -75,13 +87,13 @@
        <height>0</height>
       </size>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Nodes</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QFormLayout" name="formLayout">
@@ -91,7 +103,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="ParametersLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Parameters Node:</string>
@@ -99,25 +111,25 @@
        </widget>
       </item>
       <item row="0" column="1">
-       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox" native="true">
+       <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
-        <property name="nodeTypes" stdset="0">
+        <property name="nodeTypes">
          <stringlist>
           <string>vtkMRMLAstroProfilesParametersNode</string>
          </stringlist>
         </property>
-        <property name="showHidden" stdset="0">
+        <property name="showHidden">
          <bool>true</bool>
         </property>
-        <property name="addEnabled" stdset="0">
+        <property name="addEnabled">
          <bool>false</bool>
         </property>
-        <property name="editEnabled" stdset="0">
+        <property name="editEnabled">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled" stdset="0">
+        <property name="renameEnabled">
          <bool>true</bool>
         </property>
        </widget>
@@ -125,7 +137,7 @@
       <item row="1" column="0">
        <widget class="QLabel" name="ProfileLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Profile Volume:</string>
@@ -133,28 +145,28 @@
        </widget>
       </item>
       <item row="1" column="1">
-       <widget class="qMRMLNodeComboBox" name="ProfileVolumeNodeSelector" native="true">
+       <widget class="qMRMLNodeComboBox" name="ProfileVolumeNodeSelector">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
         </property>
-        <property name="nodeTypes" stdset="0">
+        <property name="nodeTypes">
          <stringlist>
           <string>vtkMRMLAstroVolumeNode</string>
          </stringlist>
         </property>
-        <property name="addEnabled" stdset="0">
+        <property name="addEnabled">
          <bool>false</bool>
         </property>
-        <property name="editEnabled" stdset="0">
+        <property name="editEnabled">
          <bool>false</bool>
         </property>
-        <property name="renameEnabled" stdset="0">
+        <property name="renameEnabled">
          <bool>true</bool>
         </property>
-        <property name="noneDisplay" stdset="0">
+        <property name="noneDisplay">
          <string>None</string>
         </property>
        </widget>
@@ -163,9 +175,9 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="InputSegmentCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="InputSegmentCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
@@ -179,13 +191,13 @@
        <height>0</height>
       </size>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Input Mask</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>false</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout_8">
@@ -226,9 +238,9 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView" native="true">
+            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
               <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
@@ -253,9 +265,9 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="ParametersCollapsibleButton" native="true">
+    <widget class="ctkCollapsibleButton" name="ParametersCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -263,13 +275,13 @@
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <property name="text" stdset="0">
+     <property name="text">
       <string>Parameters</string>
      </property>
-     <property name="checked" stdset="0">
+     <property name="checked">
       <bool>true</bool>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>false</bool>
      </property>
      <layout class="QFormLayout" name="formLayout_2">
@@ -279,7 +291,7 @@
       <item row="4" column="0">
        <widget class="QLabel" name="VelocityRangeLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Velocity range:</string>
@@ -295,23 +307,23 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkRangeWidget" name="VelocityRangeWidget" native="true">
-          <property name="decimals" stdset="0">
+         <widget class="ctkRangeWidget" name="VelocityRangeWidget">
+          <property name="decimals">
            <number>3</number>
           </property>
-          <property name="singleStep" stdset="0">
+          <property name="singleStep">
            <double>10.000000000000000</double>
           </property>
-          <property name="minimum" stdset="0">
+          <property name="minimum">
            <double>-5000.000000000000000</double>
           </property>
-          <property name="maximum" stdset="0">
+          <property name="maximum">
            <double>20000.000000000000000</double>
           </property>
-          <property name="minimumValue" stdset="0">
+          <property name="minimumValue">
            <double>-5000.000000000000000</double>
           </property>
-          <property name="maximumValue" stdset="0">
+          <property name="maximumValue">
            <double>20000.000000000000000</double>
           </property>
          </widget>
@@ -340,7 +352,7 @@
       <item row="5" column="0">
        <widget class="QLabel" name="ThresholdRangeLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Threshold range:</string>
@@ -356,23 +368,23 @@
          <number>0</number>
         </property>
         <item>
-         <widget class="ctkRangeWidget" name="ThresholdRangeWidget" native="true">
-          <property name="decimals" stdset="0">
+         <widget class="ctkRangeWidget" name="ThresholdRangeWidget">
+          <property name="decimals">
            <number>3</number>
           </property>
-          <property name="singleStep" stdset="0">
+          <property name="singleStep">
            <double>0.001000000000000</double>
           </property>
-          <property name="minimum" stdset="0">
+          <property name="minimum">
            <double>-1000.000000000000000</double>
           </property>
-          <property name="maximum" stdset="0">
+          <property name="maximum">
            <double>1000.000000000000000</double>
           </property>
-          <property name="minimumValue" stdset="0">
+          <property name="minimumValue">
            <double>-1000.000000000000000</double>
           </property>
-          <property name="maximumValue" stdset="0">
+          <property name="maximumValue">
            <double>1000.000000000000000</double>
           </property>
          </widget>
@@ -605,54 +617,6 @@
    </hints>
   </connection>
   <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ParametersNodeComboBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>291</x>
-     <y>68</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ParametersLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>57</x>
-     <y>68</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ProfileLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>50</x>
-     <y>95</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>qSlicerAstroProfilesModuleWidget</sender>
    <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
    <receiver>ProfileVolumeNodeSelector</receiver>
@@ -661,22 +625,6 @@
     <hint type="sourcelabel">
      <x>236</x>
      <y>577</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>291</x>
-     <y>95</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ProfileVolumeNodeSelector</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>279</x>
-     <y>12</y>
     </hint>
     <hint type="destinationlabel">
      <x>291</x>
@@ -697,70 +645,6 @@
     <hint type="destinationlabel">
      <x>191</x>
      <y>607</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>VelocityRangeLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>84</x>
-     <y>821</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ThresholdRangeLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>55</x>
-     <y>456</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>VelocityRangeWidget</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>329</x>
-     <y>428</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ThresholdRangeWidget</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>329</x>
-     <y>457</y>
     </hint>
    </hints>
   </connection>
@@ -809,38 +693,6 @@
     <hint type="destinationlabel">
      <x>359</x>
      <y>496</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>ThresholdUnitLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>523</x>
-     <y>457</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>InputVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>VelocityUnitLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>320</x>
-     <y>12</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>523</x>
-     <y>428</y>
     </hint>
    </hints>
   </connection>

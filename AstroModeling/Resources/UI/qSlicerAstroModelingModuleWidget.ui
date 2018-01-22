@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>497</width>
+    <width>480</width>
     <height>1489</height>
    </rect>
   </property>
@@ -14,7 +14,16 @@
    <string>Model Fitting</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item>
@@ -24,10 +33,16 @@
        <property name="enabled">
         <bool>true</bool>
        </property>
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
        <property name="minimumSize">
         <size>
          <width>0</width>
-         <height>0</height>
+         <height>30</height>
         </size>
        </property>
        <property name="text">
@@ -39,6 +54,12 @@
       <widget class="qMRMLNodeComboBox" name="InputVolumeNodeSelector">
        <property name="enabled">
         <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
        </property>
        <property name="nodeTypes">
         <stringlist>
@@ -251,7 +272,16 @@
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>4</number>
+      </property>
+      <property name="topMargin">
+       <number>4</number>
+      </property>
+      <property name="rightMargin">
+       <number>4</number>
+      </property>
+      <property name="bottomMargin">
        <number>4</number>
       </property>
       <item>
@@ -1014,7 +1044,7 @@
            <bool>false</bool>
           </property>
           <property name="text">
-           <string>Automatic</string>
+           <string>A&amp;utomatic</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -1030,7 +1060,7 @@
            <bool>false</bool>
           </property>
           <property name="text">
-           <string>Manual</string>
+           <string>Manua&amp;l</string>
           </property>
           <property name="checked">
            <bool>false</bool>
@@ -2033,7 +2063,7 @@
          <number>3</number>
         </property>
         <item>
-         <widget class="QToolButton" name="CopyButton">
+         <widget class="QToolButton" name="AstroModelingCopyButton">
           <property name="toolTip">
            <string>Copy</string>
           </property>
@@ -2047,7 +2077,7 @@
          </widget>
         </item>
         <item>
-         <widget class="QToolButton" name="PasteButton">
+         <widget class="QToolButton" name="AstroModelingPasteButton">
           <property name="toolTip">
            <string>Paste</string>
           </property>
@@ -2081,13 +2111,22 @@
            <property name="spacing">
             <number>0</number>
            </property>
-           <property name="margin">
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
             <number>0</number>
            </property>
            <item>
-            <widget class="QToolButton" name="PlotButton">
+            <widget class="QToolButton" name="AstroModelingPlotButton">
              <property name="toolTip">
-              <string>Generate an Interactive Plot based on user-selection of the columns of the table. The First (from left to right) Column will be used as X-Axis and each additional Column will be plotted in the same Plot as Y-Axis.</string>
+              <string>Generate an Interactive Plot based on user-selection of the columns of the table. The First (from left to right) Column will be used as X-Axis and each additional Column will be plotted in the same Plot as Y-Axis. If the selection is only one Column, the Column will be used as Y-Axis and the X-Axis will be indexes.</string>
              </property>
              <property name="text">
               <string/>

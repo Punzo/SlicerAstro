@@ -383,7 +383,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     volNode->SetImageDataConnection(ici->GetOutputPort());
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
-      {
+      {  
       if (!volNode->UpdateRangeAttributes())
         {
         vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal :"
