@@ -760,8 +760,6 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     return;
     }
 
-  this->initializeNodes();
-
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
   this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
@@ -770,6 +768,7 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
+  this->initializeNodes();
   this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
   this->onMRMLAstroModelingParametersNodeModified();
@@ -1105,10 +1104,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     if (tableNode)
       {
       d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
-      d->parametersNode->SetParamsTableNode(d->astroTableNode);
       if (d->selectionNode)
         {
         d->selectionNode->SetActiveTableID(d->astroTableNode->GetID());
+        d->selectionNode->Modified();
         }
       return;
       }
@@ -1248,11 +1247,10 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
   d->astroTableNode->SetColumnLongName("YPos", "Y center");
   d->astroTableNode->EndModify(wasModifying);
 
-  d->parametersNode->SetParamsTableNode(d->astroTableNode);
-
   if (d->selectionNode)
     {
     d->selectionNode->SetActiveTableID(d->astroTableNode->GetID());
+    d->selectionNode->Modified();
     }
 }
 
@@ -2306,10 +2304,13 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeModified(vtkObject* se
   d->parametersNode->SetOutputVolumeNodeID(selectionNode->GetSecondaryVolumeID());
   vtkMRMLTableNode* tableNode = vtkMRMLTableNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(selectionNode->GetActiveTableID()));
-  d->astroTableNode = tableNode;
-  this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLTableNodeModified()));
-  d->parametersNode->SetParamsTableNode(d->astroTableNode);
+  if (tableNode)
+    {
+    d->parametersNode->SetParamsTableNode(tableNode);
+    d->astroTableNode = tableNode;
+    this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLTableNodeModified()));
+    }
   d->parametersNode->EndModify(wasModifying);
 }
 
@@ -3113,7 +3114,6 @@ void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
     d->XcenterSliderWidget->setMaximum(StringToInt(mrmlNode->GetAttribute("SlicerAstro.NAXIS1")));
     d->YcenterSliderWidget->setMaximum(StringToInt(mrmlNode->GetAttribute("SlicerAstro.NAXIS2")));
     }
@@ -4491,7 +4491,16 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     residualVolume->UpdateRangeAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
 
-    d->parametersNode->GetParamsTableNode()->Copy(d->internalTableNode);
+    if (!d->internalTableNode || !d->internalTableNode->GetTable())
+      {
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onWorkFinished : "
+                    "tables not found!";
+      d->TableView->resizeColumnsToContents();
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+
+    d->parametersNode->GetParamsTableNode()->GetTable()->DeepCopy(d->internalTableNode->GetTable());
 
     vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
       (d->parametersNode->GetParamsTableNode()
