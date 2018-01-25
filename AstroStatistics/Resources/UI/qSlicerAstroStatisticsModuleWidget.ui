@@ -776,7 +776,7 @@
         <string/>
        </property>
        <property name="text">
-        <string>Apply</string>
+        <string>Calculate Statistics</string>
        </property>
        <property name="iconSize">
         <size>
