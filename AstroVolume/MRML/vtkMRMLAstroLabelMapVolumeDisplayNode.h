@@ -64,6 +64,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroLabelMapVolumeDisplay";};
 
   ///
+  /// set default labels colormap
+  virtual void SetDefaultColorMap() VTK_OVERRIDE;
+
+  ///
   /// Set/Get the CoordinateSystem.
   /// Default is "WCS".
   /// \sa SetSpace(), GetSpace()

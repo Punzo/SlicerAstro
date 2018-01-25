@@ -765,6 +765,12 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
+void vtkMRMLAstroLabelMapVolumeDisplayNode::SetDefaultColorMap()
+{
+  this->SetAndObserveColorNodeID("vtkMRMLColorTableNodeRandomIntegers");
+}
+
+//----------------------------------------------------------------------------
 bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetSpaceQuantity(int ind, const char *name)
 {
   if (ind >= this->SpaceQuantities->GetNumberOfValues())

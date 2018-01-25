@@ -54,9 +54,10 @@ protected:
   QScopedPointer<qSlicerAstroMomentMapsModuleWidgetPrivate> d_ptr;
 
   virtual void setMRMLScene(vtkMRMLScene*);
-  void initializeParameterNode(vtkMRMLScene*);
-  void initializeSegmentations(vtkMRMLScene* scene);
-  bool convertFirstSegmentToLabelMap();
+  void initializeNodes(bool forceNew = false);
+  void initializeParameterNode(bool forceNew = false);
+  void initializeSegmentations(bool forceNew = false);
+  bool convertSelectedSegmentToLabelMap();
 
 protected slots:
   void onComputationStarted();

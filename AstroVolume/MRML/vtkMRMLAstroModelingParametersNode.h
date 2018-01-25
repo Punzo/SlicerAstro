@@ -32,8 +32,6 @@
 // Export includes
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
-class vtkMRMLChartNode;
-class vtkMRMLDoubleArrayNode;
 class vtkMRMLTableNode;
 
 /// \ingroup Slicer_QtModules_AstroModeling

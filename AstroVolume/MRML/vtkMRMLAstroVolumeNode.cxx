@@ -17,6 +17,7 @@
 
 ==============================================================================*/
 
+// STD includes
 #include <string>
 #include <cstdlib>
 #include <math.h>
@@ -27,17 +28,29 @@
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
 
+// AstroVolume includes
+#include <vtkSlicerAstroConfigure.h>
+
 // MRML includes
+#include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLVolumeNode.h>
+#include <vtkMRMLTransformNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
+
+// OpenMP includes
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+#include <omp.h>
+#endif
 
 //------------------------------------------------------------------------------
 const char* vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE = "preset";
 const char* vtkMRMLAstroVolumeNode::VOLUMEPROPERTY_REFERENCE_ROLE = "volumeProperty";
+const char* vtkMRMLAstroVolumeNode::ROI_REFERENCE_ROLE = "ROI";
+const char* vtkMRMLAstroVolumeNode::ROI_ALIGNMENTTRANSFORM_REFERENCE_ROLE = "roiAlignmentTransform";
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
@@ -62,6 +75,18 @@ const char *vtkMRMLAstroVolumeNode::GetPresetNodeReferenceRole()
 const char *vtkMRMLAstroVolumeNode::GetVolumePropertyNodeReferenceRole()
 {
   return vtkMRMLAstroVolumeNode::VOLUMEPROPERTY_REFERENCE_ROLE;
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroVolumeNode::GetROINodeReferenceRole()
+{
+  return vtkMRMLAstroVolumeNode::ROI_REFERENCE_ROLE;
+}
+
+//----------------------------------------------------------------------------
+const char *vtkMRMLAstroVolumeNode::GetROIAlignmentTransformNodeReferenceRole()
+{
+  return vtkMRMLAstroVolumeNode::ROI_ALIGNMENTTRANSFORM_REFERENCE_ROLE;
 }
 
 namespace
@@ -161,93 +186,105 @@ vtkMRMLAstroVolumeDisplayNode* vtkMRMLAstroVolumeNode::GetAstroVolumeDisplayNode
 
 //---------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
-{
-  if (this->GetImageData() == NULL)
+{     
+  if (!this->GetImageData())
    {
-   vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes : "
-                 "imageData not allocated.");
    return false;
    }
+
   this->GetImageData()->Modified();
   int *dims = this->GetImageData()->GetDimensions();
   int numElements = dims[0] * dims[1] * dims[2];
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  double max = this->GetImageData()->GetScalarTypeMin(), min = this->GetImageData()->GetScalarTypeMax();
-  short *outSPixel = NULL;
-  float *outFPixel = NULL;
-  double *outDPixel = NULL;
+  double max_val = this->GetImageData()->GetScalarTypeMin(), min_val = this->GetImageData()->GetScalarTypeMax();
+  short *inSPixel = NULL;
+  float *inFPixel = NULL;
+  double *inDPixel = NULL;
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  omp_set_num_threads(omp_get_num_procs());
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   switch (DataType)
     {
-  case VTK_SHORT:
-    outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
-    for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
-      {
-      if (ShortIsNaN(*(outSPixel + elementCnt)))
-        {
-        continue;
-        }
-      if (*(outSPixel + elementCnt) > max)
-        {
-        max =  *(outSPixel + elementCnt);
-        }
-      if (*(outSPixel + elementCnt) < min)
-        {
-        min =  *(outSPixel + elementCnt);
-        }
-      }
-    break;
-    case VTK_FLOAT:
-      outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
+    case VTK_SHORT:
+      inSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-       if (FloatIsNaN(*(outFPixel + elementCnt)))
+        if (ShortIsNaN(*(inSPixel + elementCnt)))
           {
           continue;
           }
-        if (*(outFPixel + elementCnt) > max)
+        if (*(inSPixel + elementCnt) > max_val)
           {
-          max =  *(outFPixel + elementCnt);
+          max_val = *(inSPixel + elementCnt);
           }
-        if (*(outFPixel + elementCnt) < min)
+        if (*(inSPixel + elementCnt) < min_val)
           {
-          min =  *(outFPixel + elementCnt);
+          min_val = *(inSPixel + elementCnt);
+          }
+        }
+    break;
+    case VTK_FLOAT:
+      inFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+        {
+        if (FloatIsNaN(*(inFPixel + elementCnt)))
+          {
+          continue;
+          }
+        if (*(inFPixel + elementCnt) > max_val)
+          {
+          max_val = *(inFPixel + elementCnt);
+          }
+        if (*(inFPixel + elementCnt) < min_val)
+          {
+          min_val = *(inFPixel + elementCnt);
           }
         }
       break;
     case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
+      inDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-        if (DoubleIsNaN(*(outDPixel + elementCnt)))
+        if (DoubleIsNaN(*(inDPixel + elementCnt)))
           {
           continue;
           }
-        if (*(outDPixel + elementCnt) > max)
+        if (*(inDPixel + elementCnt) > max_val)
           {
-          max =  *(outDPixel + elementCnt);
+          max_val = *(inDPixel + elementCnt);
           }
-        if (*(outDPixel + elementCnt) < min)
+        if (*(inDPixel + elementCnt) < min_val)
           {
-          min =  *(outDPixel + elementCnt);
+          min_val = *(inDPixel + elementCnt);
           }
         }
       break;
     default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateRangeAttributes() : "
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::UpdateRangeAttributes : "
                     "attempt to allocate scalars of type not allowed");
       return false;
     }
 
-  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max).c_str());
-  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min).c_str());
+  this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max_val).c_str());
+  this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());
 
-  outSPixel = NULL;
-  outFPixel = NULL;
-  outDPixel = NULL;
-  delete outSPixel;
-  delete outFPixel;
-  delete outDPixel;
+  inSPixel = NULL;
+  inFPixel = NULL;
+  inDPixel = NULL;
+  delete inSPixel;
+  delete inFPixel;
+  delete inDPixel;
 
   return true;
 }
@@ -255,20 +292,24 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 //---------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
 {
-  if (this->GetImageData() == NULL)
+  if (!this->GetImageData())
    {
-   vtkErrorMacro("vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes : "
-                 "imageData not allocated.");
    return false;
    }
 
-  //We calculate the noise as the std of 6 slices of the datacube.
+  // Calculate the noise as the std of 6 slices of the datacube.
+  // The 3DDisplayThreshold = noise
+  // 3D color function starts from 3 times the value of 3DDisplayThreshold.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  short *outSPixel = NULL;
   float *outFPixel = NULL;
   double *outDPixel = NULL;
   switch (DataType)
     {
+    case VTK_SHORT:
+      outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer(0,0,0));
+      break;
     case VTK_FLOAT:
       outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer(0,0,0));
       break;
@@ -301,10 +342,45 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
     }
 
   int cont = highBoundary - lowBoundary;
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  omp_set_num_threads(omp_get_num_procs());
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
   switch (DataType)
     {
+    case VTK_SHORT:
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:sum)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+        {
+        if (ShortIsNaN(*(outSPixel + elemCnt)))
+           {
+           continue;
+           }
+        sum += *(outSPixel + elemCnt);
+        }
+      sum /= cont;
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+        {
+        if (ShortIsNaN(*(outSPixel + elemCnt)))
+           {
+           continue;
+           }
+        noise1 += (*(outSPixel + elemCnt) - sum) * (*(outSPixel + elemCnt) - sum);
+        }
+      noise1 = sqrt(noise1 / cont);
+      break;
     case VTK_FLOAT:
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:sum)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
@@ -313,18 +389,25 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
         sum += *(outFPixel + elemCnt);
         }
       sum /= cont;
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
            continue;
            }
-        noise1 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel+elemCnt) - sum);
+        noise1 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel + elemCnt) - sum);
         }
       noise1 = sqrt(noise1 / cont);
       break;
     case VTK_DOUBLE:
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:sum)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
@@ -333,13 +416,17 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
         sum += *(outDPixel + elemCnt);
         }
       sum /= cont;
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise1)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
            continue;
            }
-        noise1 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel+elemCnt) - sum);
+        noise1 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel + elemCnt) - sum);
         }
       noise1 = sqrt(noise1 / cont);
       break;
@@ -367,8 +454,38 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
 
   switch (DataType)
     {
+    case VTK_SHORT:
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:sum)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+        {
+        if (ShortIsNaN(*(outSPixel + elemCnt)))
+           {
+           continue;
+           }
+        sum += *(outSPixel + elemCnt);
+        }
+      sum /= cont;
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise2)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+        {
+        if (ShortIsNaN(*(outSPixel + elemCnt)))
+           {
+           continue;
+           }
+        noise2 += (*(outSPixel + elemCnt) - sum) * (*(outSPixel + elemCnt) - sum);
+        }
+      noise2 = sqrt(noise2 / cont);
+      break;
     case VTK_FLOAT:
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:sum)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
@@ -377,18 +494,25 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
         sum += *(outFPixel + elemCnt);
         }
       sum /= cont;
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise2)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (FloatIsNaN(*(outFPixel + elemCnt)))
            {
            continue;
            }
-        noise2 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel+elemCnt) - sum);
+        noise2 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel + elemCnt) - sum);
         }
       noise2 = sqrt(noise2 / cont);
       break;
     case VTK_DOUBLE:
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:sum)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
@@ -397,13 +521,17 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
         sum += *(outDPixel + elemCnt);
         }
       sum /= cont;
-      for( int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise2)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
         {
         if (DoubleIsNaN(*(outDPixel + elemCnt)))
            {
            continue;
            }
-        noise2 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel+elemCnt) - sum);
+        noise2 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel + elemCnt) - sum);
         }
       noise2 = sqrt(noise2 / cont);
       break;
@@ -414,8 +542,10 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
   noise = (noise1 + noise2) * 0.5;
   mean = (mean1 + mean2) * 0.5;
 
+  outSPixel = NULL;
   outFPixel = NULL;
   outDPixel = NULL;
+  delete outSPixel;
   delete outFPixel;
   delete outDPixel;
 
@@ -430,6 +560,61 @@ void vtkMRMLAstroVolumeNode::Set3DDisplayThreshold(double DisplayThreshold)
 {
   this->SetAttribute("SlicerAstro.3DDisplayThreshold", DoubleToString(DisplayThreshold).c_str());
   this->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetROINode(vtkMRMLAnnotationROINode* node)
+{
+  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : NULL));
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAnnotationROINode *vtkMRMLAstroVolumeNode::GetROINode()
+{
+  if (!this->Scene)
+    {
+    return NULL;
+    }
+
+  return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetROIAlignmentTransformNode(vtkMRMLTransformNode* node)
+{
+  this->SetNodeReferenceID(this->GetROIAlignmentTransformNodeReferenceRole(), (node ? node->GetID() : NULL));
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeNode::DeleteROIAlignmentTransformNode()
+{
+  vtkMRMLTransformNode* transformNode = this->GetROIAlignmentTransformNode();
+  if (transformNode)
+    {
+    this->SetROIAlignmentTransformNodeID(NULL);
+    if (this->GetScene())
+      {
+      this->GetScene()->RemoveNode(transformNode);
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLTransformNode *vtkMRMLAstroVolumeNode::GetROIAlignmentTransformNode()
+{
+  if (!this->Scene)
+    {
+    return NULL;
+    }
+
+  return vtkMRMLTransformNode::SafeDownCast(this->GetNodeReference
+                                            (this->GetROIAlignmentTransformNodeReferenceRole()));
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeNode::SetROIAlignmentTransformNodeID(const char *nodeID)
+{
+  this->SetNodeReferenceID(this->GetROIAlignmentTransformNodeReferenceRole(), nodeID);
 }
 
 //-----------------------------------------------------------

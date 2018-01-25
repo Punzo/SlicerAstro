@@ -18,9 +18,9 @@
 ==============================================================================*/
 
 // Logic includes
-#include "vtkSlicerAstroVolumeLogic.h"
-#include "vtkSlicerAstroSmoothingLogic.h"
-#include "vtkSlicerAstroConfigure.h"
+#include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerAstroSmoothingLogic.h>
+#include <vtkSlicerAstroConfigure.h>
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
@@ -76,7 +76,7 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroSmoothingLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
+  this->AstroVolumeLogic = 0;
   this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
 }
 
@@ -127,6 +127,24 @@ template <typename T> T StringToNumber(const char* num)
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool FloatIsNaN(float Value)
+{
+  return isNaN<float>(Value);
 }
 
 }// end namespace
@@ -227,7 +245,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume)
+  if (!inputVolume || !inputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
                   "inputVolume not found.");
@@ -237,7 +255,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume)
+  if (!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
                   "outputVolume not found.");
@@ -392,9 +410,17 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
             switch (DataType)
               {
               case VTK_FLOAT:
+                if (FloatIsNaN(*(inFPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outFPixel + elemCnt) += *(inFPixel + posData);
                 break;
               case VTK_DOUBLE:
+                if (DoubleIsNaN(*(inDPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outDPixel + elemCnt) += *(inDPixel + posData);
                 break;
               }
@@ -460,6 +486,8 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   outputVolume->UpdateRangeAttributes();
   outputVolume->Update3DDisplayThresholdAttributes();
 
+  pnode->SetStatus(100);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -486,7 +514,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume)
+  if (!inputVolume || !inputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
                   "inputVolume not found.");
@@ -496,7 +524,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume)
+  if (!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
                   "outputVolume not found.");
@@ -571,8 +599,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (pnode->GetParameterX() > 0.001)
     {
-    pnode->SetStatus(10);
-
     #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
     #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
@@ -606,24 +632,32 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
         for (int i = -is; i <= is; i++)
           {
-          int ii = elemCnt + i;
+          int posData = elemCnt + i;
           int ref = (int) floor(elemCnt / dims[0]);
           ref *= dims[0];
-          if(ii < ref)
+          if(posData < ref)
             {
             continue;
             }
-          if(ii >= ref + dims[0])
+          if(posData >= ref + dims[0])
             {
             break;
             }
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) += *(tempFPixel + ii);
+              if (FloatIsNaN(*(tempFPixel + posData)))
+                {
+                continue;
+                }
+              *(outFPixel + elemCnt) += *(tempFPixel + posData);
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) += *(tempDPixel + ii);
+              if (DoubleIsNaN(*(tempDPixel + posData)))
+                {
+                continue;
+                }
+              *(outDPixel + elemCnt) += *(tempDPixel + posData);
               break;
             }
           }
@@ -637,6 +671,23 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
             *(outDPixel + elemCnt) /= nItems;
             break;
           }
+
+         #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+         if (omp_get_thread_num() == 0)
+           {
+           if(elemCnt / (numElements / (numProcs * 33.)) > status)
+             {
+             status += 10;
+             pnode->SetStatus(status);
+             }
+           }
+         #else
+         if(elemCnt / (numElements / 33.) > status)
+           {
+           status += 10;
+           pnode->SetStatus(status);
+           }
+         #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -660,7 +711,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (pnode->GetParameterY() > 0.001)
     {
-    pnode->SetStatus(40);
     #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
     #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
@@ -694,24 +744,32 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
         for (int i = -is; i <= is; i++)
           {
-          int ii = elemCnt + (i * dims[0]);
+          int posData = elemCnt + (i * dims[0]);
           int ref = (int) floor(elemCnt / numSlice);
           ref *= numSlice;
-          if(ii < ref)
+          if(posData < ref)
             {
             continue;
             }
-          if(ii >= ref + numSlice)
+          if(posData >= ref + numSlice)
             {
             break;
             }
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(tempFPixel + elemCnt) += *(outFPixel + ii);
+              if (FloatIsNaN(*(outFPixel + posData)))
+                {
+                continue;
+                }
+              *(tempFPixel + elemCnt) += *(outFPixel + posData);
               break;
             case VTK_DOUBLE:
-              *(tempDPixel + elemCnt) += *(outDPixel + ii);
+              if (DoubleIsNaN(*(outDPixel + posData)))
+                {
+                continue;
+                }
+              *(tempDPixel + elemCnt) += *(outDPixel + posData);
               break;
             }
           }
@@ -725,6 +783,23 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
             *(tempDPixel + elemCnt) /= nItems;
             break;
           }
+
+        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (omp_get_thread_num() == 0)
+          {
+          if(33. + (elemCnt / (numElements / (numProcs * 33.))) > status)
+            {
+            status += 10;
+            pnode->SetStatus(status);
+            }
+          }
+        #else
+        if(33. + (elemCnt / (numElements / 33.)) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -767,7 +842,6 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (pnode->GetParameterZ() > 0.001)
     {
-    pnode->SetStatus(70);
     #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
     #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
     #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
@@ -801,22 +875,30 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
         for (int i = -is; i <= is; i++)
           {
-          int ii = elemCnt + (i * numSlice);
-          if(ii < 0)
+          int posData = elemCnt + (i * numSlice);
+          if(posData < 0)
             {
             continue;
             }
-          if(ii >= numElements)
+          if(posData >= numElements)
             {
             break;
             }
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) += *(tempFPixel + ii);
+              if (FloatIsNaN(*(tempFPixel + posData)))
+                {
+                continue;
+                }
+              *(outFPixel + elemCnt) += *(tempFPixel + posData);
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) += *(tempDPixel + ii);
+              if (DoubleIsNaN(*(tempDPixel + posData)))
+                {
+                continue;
+                }
+              *(outDPixel + elemCnt) += *(tempDPixel + posData);
               break;
             }
           }
@@ -830,6 +912,23 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
             *(outDPixel + elemCnt) /= nItems;
             break;
           }
+
+        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (omp_get_thread_num() == 0)
+          {
+          if(66. + (elemCnt / (numElements / (numProcs * 33.))) > status)
+            {
+            status += 10;
+            pnode->SetStatus(status);
+            }
+          }
+        #else
+        if(66. + (elemCnt / (numElements / 33.)) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -868,6 +967,8 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   outputVolume->UpdateRangeAttributes();
   outputVolume->Update3DDisplayThresholdAttributes();
 
+  pnode->SetStatus(100);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -903,8 +1004,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  if (!outputVolume)
+  if (!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
                   "outputVolume not found.");
@@ -925,36 +1025,6 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
                           pnode->GetParameterY(),
                           pnode->GetParameterZ());
   filter->SetRenderWindow(renderWindow);
-
-  // check if iterative filters are allowed by the GPU
-  const unsigned char* glver = glGetString(GL_VERSION);
-
-  std::string check;
-  check = std::string( reinterpret_cast< const char* >(glver));
-  std::size_t found = check.find("Mesa");
-  if (found!=std::string::npos)
-    {
-    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
-      {
-      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
-                      "The GPU implementation of the isotropic Box filter (3-pass filter using 1-D Kernels) "
-                      "is not available with the specifications of the machine in use. "
-                      "A 3D Kernel will be used. ");
-      filter->SetIterative(false);
-      }
-    else
-      {
-      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
-                      "The GPU implementation of the isotropic Box filter has not been tested on these specifications, "
-                      "please report the success or the failure (punzodavide@hotmail.it).");
-      }
-    }
-
-#ifdef __APPLE__
-  vtkWarningMacro("Using Mac OpenGL version."
-                  "The GPU implementation of the isotropic Box filter has not been tested on these specifications, "
-                  "please report the success or the failure (punzodavide@hotmail.it).");
-#endif
 
   pnode->SetStatus(20);
 
@@ -1019,7 +1089,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
    vtkMRMLAstroVolumeNode *inputVolume =
      vtkMRMLAstroVolumeNode::SafeDownCast
        (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-   if (!inputVolume)
+   if (!inputVolume || !inputVolume->GetImageData())
      {
      vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
                    "inputVolume not found.");
@@ -1029,7 +1099,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
    vtkMRMLAstroVolumeNode *outputVolume =
      vtkMRMLAstroVolumeNode::SafeDownCast
        (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-   if (!outputVolume)
+   if (!outputVolume || !outputVolume->GetImageData())
      {
      vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
                    "outputVolume not found.");
@@ -1174,15 +1244,24 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
             switch (DataType)
               {
               case VTK_FLOAT:
+                if (FloatIsNaN(*(inFPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outFPixel + elemCnt) += *(inFPixel + posData) * *(GaussKernel + posKernel);
                 break;
               case VTK_DOUBLE:
+                if (DoubleIsNaN(*(inDPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outDPixel + elemCnt) += *(inDPixel + posData) * *(GaussKernel + posKernel);
                 break;
               }
             }
           }
         }
+
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (omp_get_thread_num() == 0)
         {
@@ -1230,6 +1309,8 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   outputVolume->UpdateRangeAttributes();
   outputVolume->Update3DDisplayThresholdAttributes();
 
+  pnode->SetStatus(100);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -1255,7 +1336,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume)
+  if (!inputVolume || !inputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
                   "inputVolume not found.");
@@ -1265,7 +1346,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume)
+  if (!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
                   "outputVolume not found.");
@@ -1361,6 +1442,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
       if (!cancel)
         {
         switch (DataType)
@@ -1375,27 +1457,52 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
         for (int i = 0; i <= is; i++)
           {
-          int ii = elemCnt + i + is2;
+          int posData = elemCnt + i + is2;
           int ref = (int) floor(elemCnt / dims[0]);
           ref *= dims[0];
-          if(ii < ref)
+          if(posData < ref)
             {
             continue;
             }
-          if(ii >= ref + dims[0])
+          if(posData >= ref + dims[0])
             {
             break;
             }
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) += *(tempFPixel + ii) * *(GaussKernel1D + i);
+              if (FloatIsNaN(*(tempFPixel + posData)))
+                {
+                continue;
+                }
+              *(outFPixel + elemCnt) += *(tempFPixel + posData) * *(GaussKernel1D + i);
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) += *(tempDPixel + ii) * *(GaussKernel1D + i);
+              if (DoubleIsNaN(*(tempDPixel + posData)))
+                {
+                continue;
+                }
+              *(outDPixel + elemCnt) += *(tempDPixel + posData) * *(GaussKernel1D + i);
               break;
             }
           }
+
+        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (omp_get_thread_num() == 0)
+          {
+          if(elemCnt / (numElements / (numProcs * 33.)) > status)
+            {
+            status += 10;
+            pnode->SetStatus(status);
+            }
+          }
+        #else
+        if(elemCnt / (numElements / 33.) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -1440,6 +1547,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp flush (cancel)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
       if (!cancel)
         {
         switch (DataType)
@@ -1451,29 +1559,55 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
             *(tempDPixel + elemCnt) = 0.;
             break;
           }
+
         for (int i = 0; i <= is; i++)
           {
-          int ii = elemCnt + ((i + is2) * dims[0]);
+          int posData = elemCnt + ((i + is2) * dims[0]);
           int ref = (int) floor(elemCnt / numSlice);
           ref *= numSlice;
-          if(ii < ref)
+          if(posData < ref)
             {
             continue;
             }
-          if(ii >= ref + numSlice)
+          if(posData >= ref + numSlice)
             {
             break;
             }
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(tempFPixel + elemCnt) += *(outFPixel + ii) * *(GaussKernel1D + i);
+              if (FloatIsNaN(*(outFPixel + posData)))
+                {
+                continue;
+                }
+              *(tempFPixel + elemCnt) += *(outFPixel + posData) * *(GaussKernel1D + i);
               break;
             case VTK_DOUBLE:
-              *(tempDPixel + elemCnt) += *(outDPixel + ii) * *(GaussKernel1D + i);
+              if (DoubleIsNaN(*(outDPixel + posData)))
+                {
+                continue;
+                }
+              *(tempDPixel + elemCnt) += *(outDPixel + posData) * *(GaussKernel1D + i);
               break;
             }
           }
+
+        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (omp_get_thread_num() == 0)
+          {
+          if(33. + (elemCnt / (numElements / (numProcs * 33.))) > status)
+            {
+            status += 10;
+            pnode->SetStatus(status);
+            }
+          }
+        #else
+        if(33. + (elemCnt / (numElements / 33.)) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -1548,27 +1682,53 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
             *(outDPixel + elemCnt) = 0.;
             break;
           }
+
         for (int i = 0; i <= is; i++)
           {
-          int ii = elemCnt + ((i + is2) * numSlice);
-          if(ii < 0)
+          int posData = elemCnt + ((i + is2) * numSlice);
+          if(posData < 0)
             {
             continue;
             }
-          if(ii >= numElements)
+          if(posData >= numElements)
             {
             break;
             }
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) += *(tempFPixel + ii) * *(GaussKernel1D + i);
+              if (FloatIsNaN(*(tempFPixel + posData)))
+                {
+                continue;
+                }
+              *(outFPixel + elemCnt) += *(tempFPixel + posData) * *(GaussKernel1D + i);
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) += *(tempDPixel + ii) * *(GaussKernel1D + i);
+              if (DoubleIsNaN(*(tempDPixel + posData)))
+                {
+                continue;
+                }
+              *(outDPixel + elemCnt) += *(tempDPixel + posData) * *(GaussKernel1D + i);
               break;
             }
           }
+
+        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (omp_get_thread_num() == 0)
+          {
+          if(66. + (elemCnt / (numElements / (numProcs * 33.))) > status)
+            {
+            status += 10;
+            pnode->SetStatus(status);
+            }
+          }
+        #else
+        if(66. + (elemCnt / (numElements / 33.)) > status)
+          {
+          status += 10;
+          pnode->SetStatus(status);
+          }
+        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -1607,6 +1767,8 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   outputVolume->UpdateRangeAttributes();
   outputVolume->Update3DDisplayThresholdAttributes();
 
+  pnode->SetStatus(100);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -1642,8 +1804,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  if (!outputVolume)
+  if (!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
                   "outputVolume not found.");
@@ -1670,36 +1831,6 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
                             pnode->GetRy(),
                             pnode->GetRz());
   filter->SetRenderWindow(renderWindow);
-
-  // check if iterative filters are allowed by the GPU
-  const unsigned char* glver = glGetString(GL_VERSION);
-
-  std::string check;
-  check = std::string( reinterpret_cast< const char* >(glver));
-  std::size_t found = check.find("Mesa");
-  if (found!=std::string::npos)
-    {
-    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
-      {
-      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
-                      "The GPU implementation of the isotropic Gaussian filter (3-pass filter using 1-D Kernels) "
-                      "is not available with the specifications of the machine in use. "
-                      "A 3D Kernel will be used. ");
-      filter->SetIterative(false);
-      }
-    else
-      {
-      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
-                      "The GPU implementation of the isotropic Gaussian filter has not been tested on these specifications, "
-                      "please report the success or the failure (punzodavide@hotmail.it).");
-      }
-    }
-
-#ifdef __APPLE__
-  vtkWarningMacro("Using Mac OpenGL version."
-                  "The GPU implementation of the Gaussian filter has not been tested on these specifications, "
-                  "please report the success or the failure (punzodavide@hotmail.it).");
-#endif
 
   pnode->SetStatus(20);
 
@@ -1761,7 +1892,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
    vtkMRMLAstroVolumeNode *inputVolume =
      vtkMRMLAstroVolumeNode::SafeDownCast
        (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-   if (!inputVolume)
+   if (!inputVolume || !inputVolume->GetImageData())
      {
      vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
                    "inputVolume not found.");
@@ -1771,7 +1902,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
    vtkMRMLAstroVolumeNode *outputVolume =
      vtkMRMLAstroVolumeNode::SafeDownCast
        (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-   if (!outputVolume)
+   if (!outputVolume || !outputVolume->GetImageData())
      {
      vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
                    "outputVolume not found.");
@@ -1905,6 +2036,17 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
         switch (DataType)
           {
           case VTK_FLOAT:
+            if (FloatIsNaN(*(outFPixel + elemCnt)) ||
+                FloatIsNaN(*(outFPixel + x1)) ||
+                FloatIsNaN(*(outFPixel + x2)) ||
+                FloatIsNaN(*(outFPixel + y1)) ||
+                FloatIsNaN(*(outFPixel + y2)) ||
+                FloatIsNaN(*(outFPixel + z1)) ||
+                FloatIsNaN(*(outFPixel + z2)))
+              {
+              continue;
+              }
+
             Pixel2 = *(outFPixel + elemCnt) * *(outFPixel + elemCnt);
             norm = 1. + (Pixel2 / noise2);
             cX = ((*(outFPixel + x1) - *(outFPixel + elemCnt)) +
@@ -1918,6 +2060,17 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
                                       pnode->GetTimeStep() * (cX + cY + cZ) / norm;
             break;
           case VTK_DOUBLE:
+            if (DoubleIsNaN(*(outDPixel + elemCnt)) ||
+                DoubleIsNaN(*(outDPixel + x1)) ||
+                DoubleIsNaN(*(outDPixel + x2)) ||
+                DoubleIsNaN(*(outDPixel + y1)) ||
+                DoubleIsNaN(*(outDPixel + y2)) ||
+                DoubleIsNaN(*(outDPixel + z1)) ||
+                DoubleIsNaN(*(outDPixel + z2)))
+              {
+              continue;
+              }
+
             Pixel2 = *(outDPixel + elemCnt) * *(outDPixel + elemCnt);
             norm = 1. + (Pixel2 / noise2);
             cX = ((*(outDPixel + x1) - *(outDPixel + elemCnt)) +
@@ -2002,6 +2155,8 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   outputVolume->UpdateRangeAttributes();
   outputVolume->Update3DDisplayThresholdAttributes();
 
+  pnode->SetStatus(100);
+
   gettimeofday(&end, NULL);
 
   seconds  = end.tv_sec  - start.tv_sec;
@@ -2038,35 +2193,6 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   return 0;
   #else
 
-  // check if iterative filters are allowed by the GPU
-  const unsigned char* glver = glGetString(GL_VERSION);
-
-  std::string check;
-  check = std::string( reinterpret_cast< const char* >(glver));
-  std::size_t found = check.find("Mesa");
-  if (found!=std::string::npos)
-    {
-    if (StringToDouble(check.substr(0, 1).c_str()) < 4.)
-      {
-      vtkWarningMacro("Using Mesa driver with OpenGL version < 4."
-                      "The GPU implementation of the Intensity-Driven Gradient filter "
-                      "is not available with the specifications of the machine in use.");
-      return 0;
-      }
-    else
-      {
-      vtkWarningMacro("Using Mesa driver with OpenGL version >= 4."
-                      "The GPU implementation of the Intensity-Driven Gradient filter has not been tested on these specifications, "
-                      "please report the success or the failure (punzodavide@hotmail.it).");
-      }
-    }
-
-#ifdef __APPLE__
-  vtkWarningMacro("Using Mac OpenGL version."
-                  "The GPU implementation of the Intensity-Driven Gradient filter has not been tested on these specifications, "
-                  "please report the success or the failure (punzodavide@hotmail.it).");
-#endif
-
   pnode->SetStatus(1);
 
   bool cancel = false;
@@ -2078,8 +2204,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-
-  if (!outputVolume)
+  if (!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
                   "outputVolume not found.");

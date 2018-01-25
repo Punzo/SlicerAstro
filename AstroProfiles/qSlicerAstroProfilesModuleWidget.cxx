@@ -150,41 +150,41 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
     return;
     }
 
-  QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setMRMLAstroProfilesParametersNode(vtkMRMLNode*)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(ProfileVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ProfileVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onProfileVolumeChanged(vtkMRMLNode*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
 
-  QObject::connect(MaskCheckBox, SIGNAL(toggled(bool)),
+  QObject::connect(this->MaskCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onMaskActiveToggled(bool)));
 
-  QObject::connect(ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
+  QObject::connect(this->ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
                    q, SLOT(onThresholdRangeChanged(double, double)));
 
-  QObject::connect(VelocityRangeWidget, SIGNAL(valuesChanged(double,double)),
+  QObject::connect(this->VelocityRangeWidget, SIGNAL(valuesChanged(double,double)),
                    q, SLOT(onVelocityRangeChanged(double, double)));
 
-  QObject::connect(ApplyButton, SIGNAL(clicked()),
+  QObject::connect(this->ApplyButton, SIGNAL(clicked()),
                    q, SLOT(onCalculate()));
 
-  QObject::connect(CancelButton, SIGNAL(clicked()),
+  QObject::connect(this->CancelButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  InputSegmentCollapsibleButton->setCollapsed(false);
+  this->InputSegmentCollapsibleButton->setCollapsed(false);
 
-  progressBar->hide();
-  progressBar->setMinimum(0);
-  progressBar->setMaximum(100);
-  CancelButton->hide();
+  this->progressBar->hide();
+  this->progressBar->setMinimum(0);
+  this->progressBar->setMaximum(100);
+  this->CancelButton->hide();
 }
 
 //-----------------------------------------------------------------------------
@@ -468,7 +468,7 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       d->plotChartNodeProfile->SetName("ProfileChart");
       d->plotChartNodeProfile->SetAttribute("TitleName", "Profile");
       d->plotChartNodeProfile->SetAttribute("XAxisLabelName", "Velocity (km/s)");
-      d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Intensity (Jy/beam)");
+      d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Total flux per channel (Jy)");
       d->plotChartNodeProfile->SetAttribute("Type", "Line");
       d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongX", "off");
       d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongY", "off");
@@ -531,7 +531,7 @@ void qSlicerAstroProfilesModuleWidget::initializeSegmentations(bool forceNew /*=
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap()
+bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
@@ -570,8 +570,7 @@ bool qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap()
   std::vector<std::string> segmentIDs;
   currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
-  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode =
-    vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
+  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode;
 
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
 
@@ -597,16 +596,14 @@ bool qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap()
       vtkSlicerAstroProfilesLogic::SafeDownCast(this->logic());
     if (!astroProfileslogic)
       {
-      qCritical() <<"qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap :"
-                    " astroProfileslogic not found!";
+      qCritical() << Q_FUNC_INFO << ": astroProfileslogic not found!";
       return false;
       }
     vtkSlicerAstroVolumeLogic* astroVolumelogic =
       vtkSlicerAstroVolumeLogic::SafeDownCast(astroProfileslogic->GetAstroVolumeLogic());
     if (!astroVolumelogic)
       {
-      qCritical() <<"qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap :"
-                    " vtkSlicerAstroVolumeLogic not found!";
+      qCritical() << Q_FUNC_INFO << ": vtkSlicerAstroVolumeLogic not found!";
       return false;
       }
     std::string name(activeVolumeNode->GetName());
@@ -633,8 +630,6 @@ bool qSlicerAstroProfilesModuleWidget::convertFirstSegmentToLabelMap()
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
-
-  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
 
   double storedOrigin[3] = { 0., 0., 0. };
   labelMapNode->GetOrigin(storedOrigin);
@@ -1048,14 +1043,16 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   vtkSlicerAstroProfilesLogic *logic = d->logic();
   if (!logic)
     {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : vtkSlicerAstroProfilesLogic not found!";
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
+                  " : vtkSlicerAstroProfilesLogic not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (!d->parametersNode)
     {
-    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate() : parametersNode not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate"
+                   " : parametersNode not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1065,7 +1062,8 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   vtkMRMLScene *scene = this->mrmlScene();
   if(!scene)
     {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : scene not found!";
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
+                  " : scene not found!";
     }
 
   vtkMRMLAstroVolumeNode *inputVolume =
@@ -1073,7 +1071,8 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : inputVolume not found!";
+    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
+                  " : inputVolume not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1085,16 +1084,17 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     QString message = QString("It is possible to create Moment Maps only"
                               " for datacubes with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to create the Moment Maps"), message);
+    QMessageBox::warning(NULL, tr("Failed to create the Profile"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (d->parametersNode->GetMaskActive())
     {
-    if (!this->convertFirstSegmentToLabelMap())
+    if (!this->convertSelectedSegmentToLabelMap())
       {
-      qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate() : convertFirstSegmentToLabelMap failed!";
+      qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
+                    "convertSelectedSegmentToLabelMap failed!";
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -1234,7 +1234,8 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   if(!app)
     {
-    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate : qSlicerApplication not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate :"
+                   " qSlicerApplication not found!";
     return;
     }
 
@@ -1242,7 +1243,8 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   if(!app)
     {
-    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate : layoutManager not found!";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate :"
+                   " layoutManager not found!";
     return;
     }
 
@@ -1253,6 +1255,13 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   vtkNew<vtkMRMLTableNode> tableNode;
 
   int wasModifying = tableNode->StartModify();
+
+  std::string name = inputVolume->GetName();
+  name += "_Profile_" + IntToString(serial);
+
+  std::string nameTable = name;
+  nameTable += "Table";
+  tableNode->SetName(nameTable.c_str());
   tableNode->SetAndObserveTable(table.GetPointer());
   tableNode->RemoveAllColumns();
   tableNode->SetUseColumnNameAsColumnHeader(true);
@@ -1269,8 +1278,6 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   tableNode->SetColumnUnitLabel("Velocity", "km/s");
   tableNode->SetColumnLongName("Velocity", "Velocity axes");
 
-  std::string name = inputVolume->GetName();
-  name += "_Profile_" + IntToString(serial);
   vtkDoubleArray* Intensity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
   if (!Intensity)
     {
@@ -1279,7 +1286,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     return;
     }
   Intensity->SetName(name.c_str());
-  tableNode->SetColumnUnitLabel(name.c_str(), "Jy/beam");
+  tableNode->SetColumnUnitLabel(name.c_str(), "Jy");
   tableNode->SetColumnLongName(name.c_str(), "Intensity axes");
 
   table->SetNumberOfRows(StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1")));
@@ -1342,6 +1349,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   serial++;
   d->parametersNode->SetOutputSerial(serial);
+  d->parametersNode->SetStatus(0);
 }
 
 //-----------------------------------------------------------------------------

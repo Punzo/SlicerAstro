@@ -363,7 +363,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if(!inputVolume)
+  if(!inputVolume || !inputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " inputVolume not found!");
@@ -373,7 +373,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if(!outputVolume)
+  if(!outputVolume || !outputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " outputVolume not found!");
@@ -383,7 +383,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   vtkMRMLAstroVolumeNode *residualVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetResidualVolumeNodeID()));
-  if(!residualVolume)
+  if(!residualVolume || !residualVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " residualVolume not found!");
@@ -396,7 +396,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
   bool maskActive = pnode->GetMaskActive();
 
-  if(!maskVolume && maskActive)
+  if((!maskVolume || !maskVolume->GetImageData()) && maskActive)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
                   " maskVolume not found!");

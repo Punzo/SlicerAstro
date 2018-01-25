@@ -164,107 +164,107 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
     (astroVolume->widgetRepresentation());
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   ParametersNodeComboBox, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->ParametersNodeComboBox, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   InputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->InputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   OutputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->OutputVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   FilterCollapsibleButton, SLOT(setEnabled(bool)));
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->FilterCollapsibleButton, SLOT(setEnabled(bool)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   NodesCollapsibleButton, SLOT(setEnabled(bool)));
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->NodesCollapsibleButton, SLOT(setEnabled(bool)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   AutoRunCheckBox, SLOT(setEnabled(bool)));
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
+                   this->AutoRunCheckBox, SLOT(setEnabled(bool)));
 
-  QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setMRMLAstroSmoothingParametersNode(vtkMRMLNode*)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(ManualModeRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->ManualModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onModeChanged()));
 
-  QObject::connect(AutomaticModeRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->AutomaticModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onModeChanged()));
 
-  QObject::connect(MasksGenerateModeRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->MasksGenerateModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onMasksCommandChanged()));
 
-  QObject::connect(MasksSkipModeRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->MasksSkipModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onMasksCommandChanged()));
 
-  QObject::connect(FilterComboBox, SIGNAL(currentIndexChanged(int)),
+  QObject::connect(this->FilterComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onCurrentFilterChanged(int)));
 
-  QObject::connect(DoubleSpinBoxX, SIGNAL(valueChanged(double)),
+  QObject::connect(this->DoubleSpinBoxX, SIGNAL(valueChanged(double)),
                    q, SLOT(onParameterXChanged(double)));
 
-  QObject::connect(DoubleSpinBoxY, SIGNAL(valueChanged(double)),
+  QObject::connect(this->DoubleSpinBoxY, SIGNAL(valueChanged(double)),
                    q, SLOT(onParameterYChanged(double)));
 
-  QObject::connect(DoubleSpinBoxZ, SIGNAL(valueChanged(double)),
+  QObject::connect(this->DoubleSpinBoxZ, SIGNAL(valueChanged(double)),
                    q, SLOT(onParameterZChanged(double)));
 
-  QObject::connect(AccuracySpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->AccuracySpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onAccuracyChanged(double)));
 
-  QObject::connect(KSpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->KSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onKChanged(double)));
 
-  QObject::connect(TimeStepSpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->TimeStepSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onTimeStepChanged(double)));
 
-  QObject::connect(RxSpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RxSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onRxChanged(double)));
 
-  QObject::connect(RySpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RySpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onRyChanged(double)));
 
-  QObject::connect(RzSpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RzSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onRzChanged(double)));
 
-  QObject::connect(ApplyButton, SIGNAL(clicked()),
+  QObject::connect(this->ApplyButton, SIGNAL(clicked()),
                    q, SLOT(onApply()));
 
-  QObject::connect(CancelButton, SIGNAL(clicked()),
+  QObject::connect(this->CancelButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  QObject::connect(HardwareComboBox, SIGNAL(currentIndexChanged(int)),
+  QObject::connect(this->HardwareComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onHardwareChanged(int)));
 
-  QObject::connect(LinkCheckBox, SIGNAL(toggled(bool)),
+  QObject::connect(this->LinkCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onLinkChanged(bool)));
 
-  QObject::connect(AutoRunCheckBox, SIGNAL(toggled(bool)),
+  QObject::connect(this->AutoRunCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onAutoRunChanged(bool)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
 
-  progressBar->hide();
-  progressBar->setMinimum(0);
-  progressBar->setMaximum(100);
-  CancelButton->hide();
-  KLabel->hide();
-  KSpinBox->hide();
-  TimeStepLabel->hide();
-  TimeStepSpinBox->hide();
-  OldBeamInfoLabel->hide();
-  OldBeamInfoLineEdit->hide();
-  NewBeamInfoLabel->hide();
-  NewBeamInfoLineEdit->hide();
-  GaussianKernelView->setOrientationWidgetVisible(true);
-  vtkCamera* camera = GaussianKernelView->activeCamera();
+  this->progressBar->hide();
+  this->progressBar->setMinimum(0);
+  this->progressBar->setMaximum(100);
+  this->CancelButton->hide();
+  this->KLabel->hide();
+  this->KSpinBox->hide();
+  this->TimeStepLabel->hide();
+  this->TimeStepSpinBox->hide();
+  this->OldBeamInfoLabel->hide();
+  this->OldBeamInfoLineEdit->hide();
+  this->NewBeamInfoLabel->hide();
+  this->NewBeamInfoLineEdit->hide();
+  this->GaussianKernelView->setOrientationWidgetVisible(true);
+  vtkCamera* camera = this->GaussianKernelView->activeCamera();
   double eyePosition[3];
   eyePosition[0] = 0.;
   eyePosition[1] = 0.;
@@ -380,6 +380,18 @@ std::string IntToString(int Value)
 std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
 }
 
 } // end namespace
@@ -811,24 +823,10 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeModified()
   double a1, b1, th1;
 
   double arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 + D1);
-  if (arg < 0)
-    {
-    return;
-    }
-  else
-    {
-    a1 = sqrt(arg);
-    }
+  a1 = sqrt(arg);
 
   arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 - D1);
-  if (arg < 0)
-    {
-    return;
-    }
-  else
-    {
-    b1 = sqrt(arg);
-    }
+  b1 = sqrt(arg);
 
   double nom   = D0 * sin(2 * th0) - D2 * sin(2 * th2);
   double denom = D0 * cos(2 * th0) - D2 * cos(2 * th2);
@@ -852,9 +850,16 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeModified()
                   "; BPA: " + DoubleToString(OldBeamPa) + "\u00B0 ";
   d->OldBeamInfoLineEdit->setText(OldBeamString.c_str());
   std::string NewBeamString;
-  NewBeamString = "BMAJ: " + DoubleToString(NewBeamMaj) + "\x22" +
-                  "; BMIN: " + DoubleToString(NewBeamMin) + "\x22" +
-                  "; BPA: " + DoubleToString(NewBeamPa) + "\u00B0 ";
+  if (DoubleIsNaN(NewBeamMaj) || DoubleIsNaN(NewBeamMin))
+    {
+    NewBeamString = "BMAJ: UNDEFINED; BMIN: UNDEFINED; BPA: UNDEFINED";
+    }
+  else
+    {
+    NewBeamString = "BMAJ: " + DoubleToString(NewBeamMaj) + "\x22" +
+                    "; BMIN: " + DoubleToString(NewBeamMin) + "\x22" +
+                    "; BPA: " + DoubleToString(NewBeamPa) + "\u00B0 ";
+    }
   d->NewBeamInfoLineEdit->setText(NewBeamString.c_str());
 }
 
@@ -1304,111 +1309,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           }
 
         // Beam info
-        if (inputVolumeNode)
-          {
-          if (!strcmp(inputVolumeNode->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
-              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
-              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.BPA"), "UNDEFINED"))
-            {
-            d->OldBeamInfoLineEdit->setText("UNDEFINED");
-            d->NewBeamInfoLineEdit->setText("UNDEFINED");
-            }
-
-          const double degtorad = atan(1.) / 45.;
-          const double radtodeg = 45. / atan(1.);
-          double degFactor = 1.;
-          if (!strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEGREE") ||
-              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "degree") ||
-              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "DEG") ||
-              !strcmp(inputVolumeNode->GetAttribute("SlicerAstro.CUNIT1"), "deg"))
-            {
-            degFactor = 3600.;
-            }
-
-          double OldBeamMaj = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.BMAJ")) * degFactor;
-          double OldBeamMin = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.BMIN")) * degFactor;
-          double OldBeamPa = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.BPA"));
-
-          double Kernel2DMaj, Kernel2DMin, Kernel2DPA;
-          Kernel2DMaj = d->parametersNode->GetParameterX() * degFactor *
-                        StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
-          Kernel2DMin = d->parametersNode->GetParameterY() * degFactor *
-                        StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
-          Kernel2DPA = d->parametersNode->GetRz();
-
-          double a2, b2, a0, b0, th2, th0;
-
-          if (OldBeamMaj > Kernel2DMaj)
-            {
-            a2  = OldBeamMaj * 0.5;
-            b2  = OldBeamMin * 0.5;
-            a0  = Kernel2DMaj;
-            b0  = Kernel2DMin;
-            th2 = OldBeamPa * degtorad;
-            th0 = Kernel2DPA * degtorad;
-            }
-          else
-            {
-            a2  = Kernel2DMaj;
-            b2  = Kernel2DMin;
-            a0  = OldBeamMaj * 0.5;
-            b0  = OldBeamMin * 0.5;
-            th2 = Kernel2DPA * degtorad;
-            th0 = OldBeamPa * degtorad;
-            }
-          double D0  = a0 * a0 - b0 * b0;
-          double D2  = a2 * a2 - b2 * b2;
-          double D1  = sqrt(D0 * D0 + D2 * D2 - 2 * D0 * D2 * cos(2 * (th0 - th2)));
-
-          double a1, b1, th1;
-
-          double arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 + D1);
-          if (arg < 0)
-            {
-            return;
-            }
-          else
-            {
-            a1 = sqrt(arg);
-            }
-
-          arg = 0.5 * (a0 * a0 + b0 * b0 - a2 * a2 - b2 * b2 - D1);
-          if (arg < 0)
-            {
-            return;
-            }
-          else
-            {
-            b1 = sqrt(arg);
-            }
-
-          double nom   = D0 * sin(2 * th0) - D2 * sin(2 * th2);
-          double denom = D0 * cos(2 * th0) - D2 * cos(2 * th2);
-          if (denom == 0 && nom == 0)
-            {
-            th1 = 0.;
-            }
-          else
-            {
-            double twoth1 = atan2(nom, denom);
-            th1 = twoth1 * 0.5;
-            }
-
-          double NewBeamMaj = 2 * a1;
-          double NewBeamMin = 2 * b1;
-          double NewBeamPa = th1 * radtodeg;
-
-          std::string OldBeamString;
-          OldBeamString = "BMAJ: " + DoubleToString(OldBeamMaj) + "\x22" +
-                          "; BMIN: " + DoubleToString(OldBeamMin) + "\x22" +
-                          "; BPA: " + DoubleToString(OldBeamPa) + "\u00B0 ";
-          d->OldBeamInfoLineEdit->setText(OldBeamString.c_str());
-          std::string NewBeamString;
-          NewBeamString = "BMAJ: " + DoubleToString(NewBeamMaj) + "\x22" +
-                          "; BMIN: " + DoubleToString(NewBeamMin) + "\x22" +
-                          "; BPA: " + DoubleToString(NewBeamPa) + "\u00B0 ";
-          d->NewBeamInfoLineEdit->setText(NewBeamString.c_str());
-          }
+        this->onInputVolumeModified();
         break;
         }
       case 2:

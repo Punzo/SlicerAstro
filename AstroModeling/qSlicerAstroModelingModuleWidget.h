@@ -59,10 +59,6 @@ public slots:
   void onVisualize();
 
 protected:
-
-  virtual void setup();
-
-protected:
   QScopedPointer<qSlicerAstroModelingModuleWidgetPrivate> d_ptr;
 
   virtual void setMRMLScene(vtkMRMLScene* scene);
@@ -73,6 +69,7 @@ protected:
   void initializeSegmentations(bool forceNew = false);
   void initializeTableNode(bool forceNew = false);
   bool convertSelectedSegmentToLabelMap();
+  virtual void setup();
 
 protected slots:
   void centerPVOffset();

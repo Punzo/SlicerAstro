@@ -25,6 +25,7 @@
 
 // AstroVolume includes
 #include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerAstroConfigure.h>
 
 // MRML nodes includes
 #include <vtkMRMLAnnotationROINode.h>
@@ -35,20 +36,25 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLColorTableNode.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLNode.h>
+#include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
 #include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
+#include <vtkMRMLTransformNode.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
 
 //VTK includes
+#include <vtkAddonMathUtilities.h>
+#include <vtkBoundingBox.h>
 #include <vtkCacheManager.h>
 #include <vtkCollection.h>
 #include <vtkColorTransferFunction.h>
@@ -63,6 +69,11 @@
 
 // WCS includes
 #include "wcslib.h"
+
+// OpenMP includes
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+#include <omp.h>
+#endif
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -199,9 +210,38 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
 {
-  if (!node)
+  if (!node || !this->GetMRMLScene())
     {
     return;
+    }
+
+  //set plotchartnode color
+  if (node->IsA("vtkMRMLPlotChartNode"))
+    {
+    vtkMRMLPlotChartNode *plotChartNode =
+      vtkMRMLPlotChartNode::SafeDownCast(node);
+
+    vtkSmartPointer<vtkCollection> ColorTableNodeCol =
+      vtkSmartPointer<vtkCollection>::Take(
+        this->GetMRMLScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+
+    std::string DarkBrightChartColorsID;
+    for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
+      {
+      vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+              (ColorTableNodeCol->GetItemAsObject(ii));
+      if (!tempColorTableNode)
+        {
+        continue;
+        }
+      if (!strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
+        {
+        DarkBrightChartColorsID = tempColorTableNode->GetID();
+        break;
+        }
+      }
+
+    plotChartNode->SetAttribute("LookupTable", DarkBrightChartColorsID.c_str());
     }
 
   //change axes label names
@@ -610,164 +650,402 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
                                                                                    vtkMRMLAstroVolumeNode *volumeNode,
                                                                                    const char *name)
 {
-  if (scene == NULL || volumeNode == NULL || name == NULL)
-    {
-    return NULL;
-    }
-
-  // Create a volume node as copy of source volume
-  vtkNew<vtkMRMLAstroLabelMapVolumeNode> labelNode;
-  std::string uname = this->GetMRMLScene()->GetUniqueNameByString(name);
-  labelNode->SetName(uname.c_str());
-  scene->AddNode(labelNode.GetPointer());
-
-  this->CreateLabelVolumeFromVolume(scene, labelNode.GetPointer(), volumeNode);
-
-  // Make an image data of the same size and shape as the input volume, but filled with zeros
-  vtkSlicerVolumesLogic::ClearVolumeImageData(labelNode.GetPointer());
-
-  return labelNode.GetPointer();
-}
-
-//---------------------------------------------------------------------------
-vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume(vtkMRMLScene *scene,
-                                                                                       vtkMRMLAstroLabelMapVolumeNode *labelNode,
-                                                                                       vtkMRMLAstroVolumeNode *inputVolume)
-{
-  if (scene == NULL || labelNode == NULL || inputVolume == NULL)
+  if (!scene || !volumeNode || !name)
     {
     return NULL;
     }
 
   // Create a display node if the label node does not have one
-  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeDisplayNode> labelDisplayNode =
-    vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(labelNode->GetDisplayNode());
-  if (labelDisplayNode.GetPointer() == NULL)
+  vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode> labelDisplayNode;
+  // Set Generic Colors
+  labelDisplayNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
+
+  vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplay = volumeNode->GetAstroVolumeDisplayNode();
+  // Copy from astroVolumeDisplayNode
+  labelDisplayNode->SetSpaceQuantities(astroVolumeDisplay->GetSpaceQuantities());
+  labelDisplayNode->SetSpace(astroVolumeDisplay->GetSpace());
+  labelDisplayNode->SetAttribute("SlicerAstro.NAXIS", volumeNode->GetAttribute("SlicerAstro.NAXIS"));
+
+  struct wcsprm* labelWCS;
+  struct wcsprm* volumeWCS;
+
+  labelWCS = labelDisplayNode->GetWCSStruct();
+  volumeWCS = astroVolumeDisplay->GetWCSStruct();
+
+  if (!labelWCS || !volumeWCS)
     {
-    vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplay = inputVolume->GetAstroVolumeDisplayNode();
-    labelDisplayNode = vtkSmartPointer<vtkMRMLAstroLabelMapVolumeDisplayNode>::New();
-    labelDisplayNode->SetSpaceQuantities(astroVolumeDisplay->GetSpaceQuantities());
-    labelDisplayNode->SetSpace(astroVolumeDisplay->GetSpace());
-    labelDisplayNode->SetAttribute("SlicerAstro.NAXIS", inputVolume->GetAttribute("SlicerAstro.NAXIS"));
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
+                  "WCS not found!");
+    return NULL;
+    }
+  labelWCS->flag=-1;
 
-    struct wcsprm* labelWCS;
-    struct wcsprm* volumeWCS;
-
-    labelWCS = labelDisplayNode->GetWCSStruct();
-    volumeWCS = astroVolumeDisplay->GetWCSStruct();
-
-    if (!labelWCS || !volumeWCS)
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
-                    "WCS not found!");
-      return NULL;
-      }
-    labelWCS->flag=-1;
-
-    labelDisplayNode->SetWCSStatus(wcscopy(1, volumeWCS, labelWCS));
-    if (labelDisplayNode->GetWCSStatus())
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
-                    "wcscopy ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
-                    "Message from "<<labelWCS->err->function<<
-                    "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
-                    ": \n"<<labelWCS->err->msg<<"\n");
-      return NULL;
-      }
-
-    labelDisplayNode->SetWCSStatus(wcsset(labelWCS));
-    if (labelDisplayNode->GetWCSStatus())
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume :"
-                    "wcsset ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
-                    "Message from "<<labelWCS->err->function<<
-                    "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
-                    ": \n"<<labelWCS->err->msg<<"\n");
-      return NULL;
-      }
-
-    scene->AddNode(labelDisplayNode);
+  labelDisplayNode->SetWCSStatus(wcscopy(1, volumeWCS, labelWCS));
+  if (labelDisplayNode->GetWCSStatus())
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
+                  "wcscopy ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
+                  "Message from "<<labelWCS->err->function<<
+                  "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
+                  ": \n"<<labelWCS->err->msg<<"\n");
+    return NULL;
     }
 
+  labelDisplayNode->SetWCSStatus(wcsset(labelWCS));
+  if (labelDisplayNode->GetWCSStatus())
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume :"
+                  "wcsset ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
+                  "Message from "<<labelWCS->err->function<<
+                  "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
+                  ": \n"<<labelWCS->err->msg<<"\n");
+    return NULL;
+    }
+
+  scene->AddNode(labelDisplayNode);
+
+  // Create a label node as copy of source volume
+  vtkNew<vtkMRMLAstroLabelMapVolumeNode> labelNode;
+  std::string uname = this->GetMRMLScene()->GetUniqueNameByString(name);
+  labelNode->SetName(uname.c_str());
+  labelNode->SetAndObserveDisplayNodeID(labelDisplayNode->GetID());
+
   // We need to copy from the volume node to get required attributes, but
-  // the copy copies inputVolume's name as well.  So save the original name
+  // the copy copies volumeNode's name as well.  So save the original name
   // and re-set the name after the copy.
   std::string origName(labelNode->GetName());
-  labelNode->Copy(inputVolume);
+  labelNode->Copy(volumeNode);
   labelNode->SetAndObserveStorageNodeID(NULL);
   labelNode->SetName(origName.c_str());
   labelNode->SetAndObserveDisplayNodeID(labelDisplayNode->GetID());
 
-  // Associate labelmap with the source volume
-  //TODO: Obsolete, replace mechanism with node references
-  if (inputVolume->GetID())
-    {
-    labelNode->SetAttribute("AssociatedNodeID", inputVolume->GetID());
-    }
-
-  std::vector<std::string> keys = inputVolume->GetAttributeNames();
+  std::vector<std::string> keys = volumeNode->GetAttributeNames();
   for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
     {
-    labelNode->SetAttribute((*kit).c_str(), inputVolume->GetAttribute((*kit).c_str()));
+    labelNode->SetAttribute((*kit).c_str(), volumeNode->GetAttribute((*kit).c_str()));
     }
   labelNode->SetAttribute("SlicerAstro.DATAMODEL", "MASK");
   labelNode->SetAttribute("SlicerAstro.BITPIX", "16");
 
-  // Set the display node to have a label map lookup table
-  this->SetAndObserveColorToDisplayNode(labelDisplayNode,
-                                        /* labelMap = */ 1, /* filename= */ 0);
-
   // Copy and set image data of the input volume to the label volume
   vtkNew<vtkImageData> imageData;
-  imageData->DeepCopy(inputVolume->GetImageData());
+  imageData->DeepCopy(volumeNode->GetImageData());
   labelNode->SetAndObserveImageData(imageData.GetPointer());
 
-  return labelNode;
+  // Make an image data of the same size and shape as the input volume, but filled with zeros
+  vtkSlicerVolumesLogic::ClearVolumeImageData(labelNode.GetPointer());
+  labelNode->Modified();
+  scene->AddNode(labelNode.GetPointer());
+
+  vtkMRMLAstroVolumeStorageNode* storageNode =
+      vtkMRMLAstroVolumeStorageNode::SafeDownCast(
+        scene->AddNewNodeByClass("vtkMRMLAstroVolumeStorageNode"));
+  storageNode->SetCenterImage(vtkSlicerVolumesLogic::CenterImage);
+  labelNode->SetAndObserveStorageNodeID(storageNode->GetID());
+
+  return labelNode.GetPointer();
 }
 
 //---------------------------------------------------------------------------
-double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *roiNode,
-                                                    vtkMRMLAstroVolumeNode *inputVolume)
+bool vtkSlicerAstroVolumeLogic::FitROIToInputVolume(vtkMRMLAnnotationROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
+{
+  if (!roiNode || !inputVolume)
+    {
+    return false;
+    }
+
+  vtkMRMLTransformNode* roiTransform = roiNode->GetParentTransformNode();
+  if (roiTransform && !roiTransform->IsTransformToWorldLinear())
+    {
+    roiTransform = NULL;
+    roiNode->SetAndObserveTransformNodeID(NULL);
+    inputVolume->DeleteROIAlignmentTransformNode();
+    }
+  vtkNew<vtkMatrix4x4> worldToROI;
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(NULL, roiTransform, worldToROI.GetPointer());
+
+  double volumeBounds_ROI[6] = { 0 }; // volume bounds in ROI's coordinate system
+  inputVolume->GetSliceBounds(volumeBounds_ROI, worldToROI.GetPointer());
+
+  double roiCenter[3] = { 0 };
+  double roiRadius[3] = { 0 };
+  for (int i = 0; i < 3; i++)
+    {
+    roiCenter[i] = (volumeBounds_ROI[i * 2 + 1] + volumeBounds_ROI[i * 2]) / 2;
+    roiRadius[i] = (volumeBounds_ROI[i * 2 + 1] - volumeBounds_ROI[i * 2]) / 2;
+    }
+  roiNode->SetXYZ(roiCenter);
+  roiNode->SetRadiusXYZ(roiRadius);
+
+  return true;
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLAnnotationROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
+{
+  if (!roiNode || !inputVolume)
+    {
+    return;
+    }
+
+  // Is it already aligned?
+  if (this->IsROIAlignedWithInputVolume(roiNode, inputVolume))
+    {
+    // already aligned, nothing to do
+    return;
+    }
+
+  double originalBounds_World[6] = { 0, -1, 0, -1, 0, -1 };
+  roiNode->GetRASBounds(originalBounds_World);
+
+  // If we don't transform it, is it aligned?
+  if (roiNode->GetParentTransformNode() != NULL)
+    {
+    roiNode->SetAndObserveTransformNodeID(NULL);
+    if (IsROIAlignedWithInputVolume(roiNode, inputVolume))
+      {
+      // ROI is aligned if it's not transformed, no need for ROI alignment transform
+      inputVolume->DeleteROIAlignmentTransformNode();
+      // Update ROI to approximately match original region
+      roiNode->SetXYZ((originalBounds_World[1] + originalBounds_World[0]) / 2.0,
+        (originalBounds_World[3] + originalBounds_World[2]) / 2.0,
+        (originalBounds_World[5] + originalBounds_World[4]) / 2.0);
+      roiNode->SetRadiusXYZ((originalBounds_World[1] - originalBounds_World[0]) / 2.0,
+        (originalBounds_World[3] - originalBounds_World[2]) / 2.0,
+        (originalBounds_World[5] - originalBounds_World[4]) / 2.0);
+      return;
+      }
+    }
+
+  // It's a non-trivial rotation, use the ROI alignment transform node to align
+  vtkNew<vtkMatrix4x4> volumeRasToWorld;
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(inputVolume->GetParentTransformNode(),
+    NULL, volumeRasToWorld.GetPointer());
+  vtkNew<vtkMatrix4x4> volumeIJKToRAS;
+  inputVolume->GetIJKToRASMatrix(volumeIJKToRAS.GetPointer());
+  vtkNew<vtkMatrix4x4> volumeIJKToWorld;
+  vtkMatrix4x4::Multiply4x4(volumeRasToWorld.GetPointer(), volumeIJKToRAS.GetPointer(), volumeIJKToWorld.GetPointer());
+  double scale[3] = { 1.0 };
+  vtkAddonMathUtilities::NormalizeOrientationMatrixColumns(volumeIJKToWorld.GetPointer(), scale);
+
+  // Apply transform to ROI alignment transform
+  if (!inputVolume->GetROIAlignmentTransformNode())
+    {
+    vtkNew<vtkMRMLTransformNode> roiTransformNode;
+    roiTransformNode->SetName("Crop volume ROI alignment");
+    inputVolume->GetScene()->AddNode(roiTransformNode.GetPointer());
+    inputVolume->SetROIAlignmentTransformNodeID(roiTransformNode->GetID());
+    }
+  inputVolume->GetROIAlignmentTransformNode()->SetAndObserveTransformNodeID(NULL);
+  inputVolume->GetROIAlignmentTransformNode()->SetMatrixTransformToParent(volumeIJKToWorld.GetPointer());
+  roiNode->SetAndObserveTransformNodeID(inputVolume->GetROIAlignmentTransformNode()->GetID());
+
+  vtkNew<vtkMatrix4x4> worldToROITransformMatrix;
+  inputVolume->GetROIAlignmentTransformNode()->GetMatrixTransformFromWorld(worldToROITransformMatrix.GetPointer());
+
+  // Update ROI to approximately match original region
+  const int numberOfCornerPoints = 8;
+  double cornerPoints_World[numberOfCornerPoints][4] =
+    {
+    { originalBounds_World[0], originalBounds_World[2], originalBounds_World[4], 1 },
+    { originalBounds_World[0], originalBounds_World[2], originalBounds_World[5], 1 },
+    { originalBounds_World[0], originalBounds_World[3], originalBounds_World[4], 1 },
+    { originalBounds_World[0], originalBounds_World[3], originalBounds_World[5], 1 },
+    { originalBounds_World[1], originalBounds_World[2], originalBounds_World[4], 1 },
+    { originalBounds_World[1], originalBounds_World[2], originalBounds_World[5], 1 },
+    { originalBounds_World[1], originalBounds_World[3], originalBounds_World[4], 1 },
+    { originalBounds_World[1], originalBounds_World[3], originalBounds_World[5], 1 }
+    };
+  vtkBoundingBox boundingBox_ROI;
+  for (int i = 0; i < numberOfCornerPoints; i++)
+    {
+    double* cornerPoint_ROI = worldToROITransformMatrix->MultiplyDoublePoint(cornerPoints_World[i]);
+    boundingBox_ROI.AddPoint(cornerPoint_ROI);
+    }
+  double center_ROI[3] = { 0 };
+  boundingBox_ROI.GetCenter(center_ROI);
+  roiNode->SetXYZ(center_ROI);
+  double diameters_ROI[3] = { 0 };
+  boundingBox_ROI.GetLengths(diameters_ROI);
+  roiNode->SetRadiusXYZ(diameters_ROI[0] / 2, diameters_ROI[1] / 2, diameters_ROI[2] / 2);
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsROIAlignedWithInputVolume(vtkMRMLAnnotationROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
+{
+  if (!roiNode || !inputVolume)
+    {
+    return false;
+    }
+
+  if (inputVolume->GetParentTransformNode()
+    && !inputVolume->GetParentTransformNode()->IsTransformToWorldLinear())
+    {
+    // no misalignment, as if input volume is under a non-linear transform then we cannot align a ROI
+    return true;
+    }
+
+  if (roiNode->GetParentTransformNode()
+    && !roiNode->GetParentTransformNode()->IsTransformToWorldLinear())
+    {
+    // misaligned, as ROI node is under non-linear transform
+    return false;
+    }
+
+  vtkNew<vtkMatrix4x4> volumeRasToROI;
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(inputVolume->GetParentTransformNode(),
+    roiNode->GetParentTransformNode(), volumeRasToROI.GetPointer());
+  vtkNew<vtkMatrix4x4> volumeIJKToRAS;
+  inputVolume->GetIJKToRASMatrix(volumeIJKToRAS.GetPointer());
+  vtkNew<vtkMatrix4x4> volumeIJKToROI;
+  vtkMatrix4x4::Multiply4x4(volumeRasToROI.GetPointer(), volumeIJKToRAS.GetPointer(), volumeIJKToROI.GetPointer());
+
+  double scale[3] = { 1.0 };
+  vtkAddonMathUtilities::NormalizeOrientationMatrixColumns(volumeIJKToROI.GetPointer(), scale);
+
+  double tolerance = 0.001;
+  for (int row = 0; row < 3; row++)
+    {
+    for (int column = 0; column < 3; column++)
+      {
+        double elemAbs = fabs(volumeIJKToROI->GetElement(row, column));
+      if (elemAbs > tolerance && elemAbs < 1 - tolerance)
+        {
+        // axes are neither orthogonal nor parallel
+        return false;
+        }
+      }
+    }
+  return true;
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLAnnotationROINode *roiNode,
+                                                             vtkMRMLAstroVolumeNode *inputVolume,
+                                                             double outputExtent[6])
+{
+  outputExtent[0] = outputExtent[2] = outputExtent[4] = 0;
+  outputExtent[1] = outputExtent[3] = outputExtent[5] = -1;
+  if (!roiNode || !inputVolume || !inputVolume->GetImageData())
+    {
+    return false;
+    }
+
+  int originalImageExtents[6] = { 0 };
+  inputVolume->GetImageData()->GetExtent(originalImageExtents);
+
+  vtkMRMLTransformNode* roiTransform = roiNode->GetParentTransformNode();
+  if (roiTransform && !roiTransform->IsTransformToWorldLinear())
+    {
+    vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds :"
+                           "  ROI is transformed using a non-linear transform. The transformation will be ignored");
+    roiTransform = NULL;
+    }
+
+  if (inputVolume->GetParentTransformNode() && !inputVolume->GetParentTransformNode()->IsTransformToWorldLinear())
+    {
+    vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds :"
+                           " voxel-based cropping of non-linearly transformed input volume is not supported");
+    return -1;
+    }
+
+  vtkNew<vtkMatrix4x4> roiToVolumeTransformMatrix;
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(roiTransform, inputVolume->GetParentTransformNode(),
+    roiToVolumeTransformMatrix.GetPointer());
+
+  vtkNew<vtkMatrix4x4> rasToIJK;
+  inputVolume->GetRASToIJKMatrix(rasToIJK.GetPointer());
+
+  vtkNew<vtkMatrix4x4> roiToVolumeIJKTransformMatrix;
+  vtkMatrix4x4::Multiply4x4(rasToIJK.GetPointer(), roiToVolumeTransformMatrix.GetPointer(),
+    roiToVolumeIJKTransformMatrix.GetPointer());
+
+  double roiXYZ[3] = { 0 };
+  roiNode->GetXYZ(roiXYZ);
+  double roiRadius[3] = { 0 };
+  roiNode->GetRadiusXYZ(roiRadius);
+
+  const int numberOfCorners = 8;
+  double volumeCorners_ROI[numberOfCorners][4] =
+    {
+    { roiXYZ[0] - roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
+    { roiXYZ[0] + roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
+    { roiXYZ[0] - roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
+    { roiXYZ[0] + roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
+    { roiXYZ[0] - roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
+    { roiXYZ[0] + roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
+    { roiXYZ[0] - roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
+    { roiXYZ[0] + roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
+    };
+
+  // Get ROI extent in IJK coordinate system
+  double outputExtentDouble[6] = { 0 };
+  for (int cornerPointIndex = 0; cornerPointIndex < numberOfCorners; cornerPointIndex++)
+    {
+    double volumeCorner_IJK[4] = { 0, 0, 0, 1 };
+    roiToVolumeIJKTransformMatrix->MultiplyPoint(volumeCorners_ROI[cornerPointIndex], volumeCorner_IJK);
+    for (int axisIndex = 0; axisIndex < 3; ++axisIndex)
+      {
+      if (cornerPointIndex == 0 || volumeCorner_IJK[axisIndex] < outputExtentDouble[axisIndex * 2])
+        {
+        outputExtentDouble[axisIndex * 2] = volumeCorner_IJK[axisIndex];
+        }
+      if (cornerPointIndex == 0 || volumeCorner_IJK[axisIndex] > outputExtentDouble[axisIndex * 2 + 1])
+        {
+        outputExtentDouble[axisIndex * 2 + 1] = volumeCorner_IJK[axisIndex];
+        }
+      }
+    }
+
+  // Limit output extent to input extent
+  int* inputExtent = inputVolume->GetImageData()->GetExtent();
+  double tolerance = 0.001;
+  for (int axisIndex = 0; axisIndex < 3; ++axisIndex)
+    {
+    outputExtent[axisIndex * 2] = std::max(inputExtent[axisIndex * 2], int(ceil(outputExtentDouble[axisIndex * 2]+0.5-tolerance)));
+    outputExtent[axisIndex * 2 + 1] = std::min(inputExtent[axisIndex * 2 + 1], int(floor(outputExtentDouble[axisIndex * 2 + 1]-0.5+tolerance)));
+    }
+
+  return true;
+}
+
+//---------------------------------------------------------------------------
+double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnotationROINode *roiNode,
+                                                                   vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode)
     {
     return 0.;
     }
 
-  if (inputVolume == NULL)
+  if (!inputVolume || !inputVolume->GetImageData())
    {
-   vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
-                 "inputVolume not found.");
-   return false;
+   return 0.;
    }
 
-  if (inputVolume->GetImageData() == NULL)
-   {
-   vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
-                 "imageData not allocated.");
-   return false;
-   }
+  // Calculate the noise as the std in a roi.
+  // The 3DDisplayThreshold = noise
+  // 3D color function starts from 3 times the value of 3DDisplayThreshold.
 
-  //We calculate the noise as the std of 6 slices of the datacube.
   int *dims = inputVolume->GetImageData()->GetDimensions();
   int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateSTDinROI : "
                   "imageData with more than one components.");
     return 0.;
     }
   int numSlice = dims[0] * dims[1];
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  float *outFPixel = NULL;
-  double *outDPixel = NULL;
+  float *inFPixel = NULL;
+  double *inDPixel = NULL;
   switch (DataType)
     {
     case VTK_FLOAT:
-      outFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
       break;
     case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
       break;
     default:
       vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
@@ -775,71 +1053,14 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
       return false;
     }
 
-  double noise = 0., mean = 0., roiBounds[6], volumeBounds[6];
-  int cont = 0;
+  double noise = 0., mean = 0., roiBounds[6];
+  int cont = 0, firstElement, lastElement;
 
-  roiNode->GetRASBounds(roiBounds);
-  inputVolume->GetRASBounds(volumeBounds);
-
-  for (int ii = 0; ii < 6; ii++)
-    {
-    if (fabs(roiBounds[ii]) - fabs(volumeBounds[ii]) > 1E-06)
-      {
-      roiBounds[ii] = volumeBounds[ii];
-      }
-    }
-
-  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
-  RAStoIJKTransform->Identity();
-  RAStoIJKTransform->PostMultiply();
-  vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
-  inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
-  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
-
-  double ijkMin[3], RASMin[3], ijkMax[3], RASMax[3];
-  RASMin[0] = roiBounds[0];
-  RASMin[1] = roiBounds[2];
-  RASMin[2] = roiBounds[4];
-  RASMax[0] = roiBounds[1];
-  RASMax[1] = roiBounds[3];
-  RASMax[2] = roiBounds[5];
-
-  RAStoIJKTransform->TransformPoint(RASMin, ijkMin);
-  RAStoIJKTransform->TransformPoint(RASMax, ijkMax);
-
-  roiBounds[0] = (int) ijkMin[0];
-  roiBounds[2] = (int) ijkMin[1];
-  roiBounds[4] = (int) ijkMin[2];
-  roiBounds[1] = (int) ijkMax[0];
-  roiBounds[3] = (int) ijkMax[1];
-  roiBounds[5] = (int) ijkMax[2];
-
-  if (roiBounds[0] > roiBounds[1])
-    {
-    int temp = roiBounds[0];
-    roiBounds[0] = roiBounds[1];
-    roiBounds[1] = temp;
-    }
-
-  if (roiBounds[2] > roiBounds[3])
-    {
-    int temp = roiBounds[2];
-    roiBounds[2] = roiBounds[3];
-    roiBounds[3] = temp;
-    }
-
-  if (roiBounds[4] > roiBounds[5])
-    {
-    int temp = roiBounds[4];
-    roiBounds[4] = roiBounds[5];
-    roiBounds[5] = temp;
-    }
+  this->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
 
   cont = (roiBounds[1] - roiBounds[0]) *
          (roiBounds[3] - roiBounds[2]) *
          (roiBounds[5] - roiBounds[4]);
-
-  int firstElement, lastElement;
 
   firstElement = roiBounds[0] + roiBounds[2] * dims[0] +
                  roiBounds[4] * numSlice;
@@ -847,10 +1068,16 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
   lastElement = roiBounds[1] + roiBounds[3] * dims[0] +
                 roiBounds[5] * numSlice;
 
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  omp_set_num_threads(omp_get_num_procs());
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   switch (DataType)
     {
     case VTK_FLOAT:
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:mean)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
         { 
         int ref  = (int) floor(elemCnt / dims[0]);
@@ -865,13 +1092,17 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
           {
           continue;
           }
-        if (FloatIsNaN(*(outFPixel + elemCnt)))
+        if (FloatIsNaN(*(inFPixel + elemCnt)))
           {
           continue;
           }
-        mean += *(outFPixel + elemCnt);
+        mean += *(inFPixel + elemCnt);
         }
       mean /= cont;
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / dims[0]);
@@ -886,15 +1117,18 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
           {
           continue;
           }
-        if (FloatIsNaN(*(outFPixel + elemCnt)))
+        if (FloatIsNaN(*(inFPixel + elemCnt)))
           {
           continue;
           }
-        noise += (*(outFPixel + elemCnt) - mean) * (*(outFPixel+elemCnt) - mean);
+        noise += (*(inFPixel + elemCnt) - mean) * (*(inFPixel + elemCnt) - mean);
         }
       noise = sqrt(noise / cont);
       break;
     case VTK_DOUBLE:
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:mean)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / dims[0]);
@@ -909,13 +1143,17 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
           {
           continue;
           }
-        if (DoubleIsNaN(*(outDPixel + elemCnt)))
+        if (DoubleIsNaN(*(inDPixel + elemCnt)))
           {
           continue;
           }
-        mean += *(outDPixel + elemCnt);
+        mean += *(inDPixel + elemCnt);
         }
       mean /= cont;
+
+      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      #pragma omp parallel for schedule(static) reduction(+:noise)
+      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / dims[0]);
@@ -930,20 +1168,20 @@ double vtkSlicerAstroVolumeLogic::CalculateRMSinROI(vtkMRMLAnnotationROINode *ro
           {
           continue;
           }
-        if (DoubleIsNaN(*(outDPixel + elemCnt)))
+        if (DoubleIsNaN(*(inDPixel + elemCnt)))
           {
           continue;
           }
-        noise += (*(outDPixel + elemCnt) - mean) * (*(outDPixel+elemCnt) - mean);
+        noise += (*(inDPixel + elemCnt) - mean) * (*(inDPixel + elemCnt) - mean);
         }
       noise = sqrt(noise / cont);
       break;
     }
 
-  outFPixel = NULL;
-  outDPixel = NULL;
-  delete outFPixel;
-  delete outDPixel;
+  inFPixel = NULL;
+  inDPixel = NULL;
+  delete inFPixel;
+  delete inDPixel;
 
   inputVolume->Set3DDisplayThreshold(noise);
   inputVolume->SetAttribute("SlicerAstro.3DDisplayThresholdMean", DoubleToString(mean).c_str());

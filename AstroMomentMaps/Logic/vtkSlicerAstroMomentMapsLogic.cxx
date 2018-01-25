@@ -57,8 +57,8 @@
 #include <iostream>
 #include <sys/time.h>
 
-#define FLOATPRECISION 0.000001
-#define DOUBLEPRECISION 0.000000000000001
+#define FLOATPRECISION 0.0000001
+#define DOUBLEPRECISION 0.0000000000000001
 
 namespace
 {
@@ -77,6 +77,24 @@ double StringToDouble(const char* str)
   return StringToNumber<double>(str);
 }
 
+//----------------------------------------------------------------------------
+template <typename T> bool isNaN(T value)
+{
+  return value != value;
+}
+
+//----------------------------------------------------------------------------
+bool DoubleIsNaN(double Value)
+{
+  return isNaN<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+bool FloatIsNaN(float Value)
+{
+  return isNaN<float>(Value);
+}
+
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -87,14 +105,12 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
-  vtkSmartPointer<vtkImageData> tempVolumeData;
 };
 
 //----------------------------------------------------------------------------
 vtkSlicerAstroMomentMapsLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = vtkSmartPointer<vtkSlicerAstroVolumeLogic>::New();
-  this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
+  this->AstroVolumeLogic = 0;
 }
 
 //---------------------------------------------------------------------------
@@ -162,7 +178,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if(!inputVolume)
+  if(!inputVolume || !inputVolume->GetImageData())
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " inputVolume not found!");
@@ -172,7 +188,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   vtkMRMLAstroVolumeNode *ZeroMomentVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetZeroMomentVolumeNodeID()));
-  if(!ZeroMomentVolume && pnode->GetGenerateZero())
+  if((!ZeroMomentVolume || !ZeroMomentVolume->GetImageData()) && pnode->GetGenerateZero())
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " ZeroMomentVolume not found!");
@@ -182,7 +198,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   vtkMRMLAstroVolumeNode *FirstMomentVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetFirstMomentVolumeNodeID()));
-  if(!FirstMomentVolume && pnode->GetGenerateFirst())
+  if((!FirstMomentVolume || !FirstMomentVolume->GetImageData()) && pnode->GetGenerateFirst())
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " FirstMomentVolume not found!");
@@ -192,7 +208,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   vtkMRMLAstroVolumeNode *SecondMomentVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetSecondMomentVolumeNodeID()));
-  if(!SecondMomentVolume && pnode->GetGenerateSecond())
+  if((!SecondMomentVolume || !SecondMomentVolume->GetImageData()) && pnode->GetGenerateSecond())
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " SecondMomentVolume not found!");
@@ -205,7 +221,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   bool maskActive = pnode->GetMaskActive();
 
-  if(!maskVolume && maskActive)
+  if((!maskVolume || !maskVolume->GetImageData()) && maskActive)
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " maskVolume not found!");
@@ -386,6 +402,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_FLOAT:
               if (*(maskPixel + posData) > 0.001)
                 {
+                if (FloatIsNaN(*(inFPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outZeroFPixel + elemCnt) += *(inFPixel + posData);
                 if (forceGenerateFirst)
                   {
@@ -396,6 +416,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             case VTK_DOUBLE:
               if (*(maskPixel + posData) > 0.001)
                 {
+                if (DoubleIsNaN(*(inDPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outZeroDPixel + elemCnt) += *(inDPixel + posData);
                 if (forceGenerateFirst)
                   {
@@ -446,6 +470,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               case VTK_FLOAT:
                 if (*(maskPixel + posData) > 0.001)
                   {
+                  if (FloatIsNaN(*(inFPixel + posData)))
+                    {
+                    continue;
+                    }
                   *(outSecondFPixel + elemCnt) += *(inFPixel + posData) * (SpaceCoordinates[2] - *(outFirstFPixel + elemCnt))
                                                                         * (SpaceCoordinates[2] - *(outFirstFPixel + elemCnt));
                   }
@@ -453,6 +481,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               case VTK_DOUBLE:
                 if (*(maskPixel + posData) > 0.001)
                   {
+                  if (DoubleIsNaN(*(inDPixel + posData)))
+                    {
+                    continue;
+                    }
                   *(outSecondDPixel + elemCnt) += *(inDPixel + posData) * (SpaceCoordinates[2] - *(outFirstDPixel + elemCnt))
                                                                         * (SpaceCoordinates[2] - *(outFirstDPixel + elemCnt));
                   }
@@ -636,6 +668,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               if (*(inFPixel + posData) > pnode->GetIntensityMin() &&
                   *(inFPixel + posData) < pnode->GetIntensityMax())
                 {
+                if (FloatIsNaN(*(inFPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outZeroFPixel + elemCnt) += *(inFPixel + posData);
                 if (forceGenerateFirst)
                   {
@@ -647,6 +683,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               if (*(inDPixel + posData) > pnode->GetIntensityMin() &&
                   *(inDPixel + posData) < pnode->GetIntensityMax())
                 {
+                if (DoubleIsNaN(*(inDPixel + posData)))
+                  {
+                  continue;
+                  }
                 *(outZeroDPixel + elemCnt) += *(inDPixel + posData);
                 if (forceGenerateFirst)
                   {
@@ -699,6 +739,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 if (*(inFPixel + posData) > pnode->GetIntensityMin() &&
                     *(inFPixel + posData) < pnode->GetIntensityMax())
                   {
+                  if (FloatIsNaN(*(inFPixel + posData)))
+                    {
+                    continue;
+                    }
                   *(outSecondFPixel + elemCnt) += *(inFPixel + posData) * (SpaceCoordinates[2] - *(outFirstFPixel + elemCnt))
                                                                         * (SpaceCoordinates[2] - *(outFirstFPixel + elemCnt));
                   }
@@ -707,6 +751,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 if (*(inDPixel + posData) > pnode->GetIntensityMin() &&
                     *(inDPixel + posData) < pnode->GetIntensityMax())
                   {
+                  if (DoubleIsNaN(*(inDPixel + posData)))
+                    {
+                    continue;
+                    }
                   *(outSecondDPixel + elemCnt) += *(inDPixel + posData) * (SpaceCoordinates[2] - *(outFirstDPixel + elemCnt))
                                                                         * (SpaceCoordinates[2] - *(outFirstDPixel + elemCnt));
                   }
@@ -820,8 +868,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     delete maskPixel;
     }
 
-  pnode->SetStatus(0);
-
   if (cancel)
     {
     return false;
@@ -874,6 +920,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     SecondMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
     }
+
+  pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);;
 

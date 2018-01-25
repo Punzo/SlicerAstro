@@ -1,11 +1,8 @@
-
 #-----------------------------------------------------------------------------
 set(MODULE_NAME AstroProfiles)
-set(MODULE_TITLE "${MODULE_NAME}")
+set(MODULE_TITLE "Astro Profiles")
 
 string(TOUPPER ${MODULE_NAME} MODULE_NAME_UPPER)
-
-set(MODULE_TITLE "Astro Profiles")
 
 #-----------------------------------------------------------------------------
 add_subdirectory(Logic)

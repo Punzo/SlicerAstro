@@ -468,6 +468,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     }
   else if (histo)
     {
+    renzogram = true;
     Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMinSel")));
     Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMaxSel")));
     }
@@ -506,6 +507,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
+
+  int LevelDim = 0;
 
   for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
     {
@@ -578,10 +581,40 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
+
+    int dims[3];
+    modifierLabelmap->GetDimensions(dims);
+    if (LevelDim < dims[0] * dims[1] * dims[2])
+      {
+      LevelDim = dims[0] * dims[1] * dims[2];
+      }
     }
 
-  segmentationNode->GetSegmentation()->CreateRepresentation(
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+  const int DataType = masterVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  double datacubeDim = 0;
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      datacubeDim = LevelDim * 4;
+      break;
+    case VTK_DOUBLE:
+      datacubeDim = LevelDim * 8;
+      break;
+    default:
+      qCritical() << Q_FUNC_INFO << ": attempt to allocate scalars of type not allowed.";
+      return;
+    }
+
+  if (datacubeDim < 1.E+7)
+    {
+    segmentationNode->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    }
+  else
+    {
+    segmentationNode->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    }
 
   for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
@@ -595,19 +628,27 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       if (histo)
         {
         SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, true);
-        SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, true);
         }
       else
         {
         SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
-        SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
         }
+      SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
       SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
       }
     SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-    SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
+    if (datacubeDim < 1.E+7)
+      {
+      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+      }
+    else
+      {
+      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+      }
     }
 }
 

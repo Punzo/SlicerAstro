@@ -69,12 +69,12 @@ protected slots:
   void onKChanged(double value);
   void onLinkChanged(bool value);
   void onMasksCommandChanged();
+  void onModeChanged();
   void onMRMLAstroSmoothingParametersNodeModified();
   void onMRMLCameraNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-  void onModeChanged();
   void onOutputVolumeChanged(vtkMRMLNode*);
   void onParameterXChanged(double value);
   void onParameterYChanged(double value);

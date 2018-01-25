@@ -238,170 +238,170 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   this->astroVolumeWidget = dynamic_cast<qSlicerAstroVolumeModuleWidget*>
     (astroVolume->widgetRepresentation());
 
-  QObject::connect(ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setMRMLAstroModelingParametersNode(vtkMRMLNode*)));
 
-  QObject::connect(TableNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->TableNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onTableNodeChanged(vtkMRMLNode*)));
 
-  QObject::connect(InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
 
-  QObject::connect(ResidualVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  QObject::connect(this->ResidualVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onResidualVolumeChanged(vtkMRMLNode*)));
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
 
-  QObject::connect(MaskCheckBox, SIGNAL(toggled(bool)),
+  QObject::connect(this->MaskCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onMaskActiveToggled(bool)));
 
-  QObject::connect(ManualModeRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->ManualModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onModeChanged()));
 
-  QObject::connect(AutomaticModeRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->AutomaticModeRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onModeChanged()));
 
-  QObject::connect(RingsSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RingsSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onNumberOfRingsChanged(double)));
 
-  QObject::connect(RingWidthSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RingWidthSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onRadSepChanged(double)));
 
-  QObject::connect(XcenterSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->XcenterSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onXCenterChanged(double)));
 
-  QObject::connect(YcenterSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->YcenterSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onYCenterChanged(double)));
 
-  QObject::connect(SysVelSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->SysVelSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onSystemicVelocityChanged(double)));
 
-  QObject::connect(RotVelSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RotVelSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onRotationVelocityChanged(double)));
 
-  QObject::connect(RadVelSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->RadVelSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onRadialVelocityChanged(double)));
 
-  QObject::connect(VelDispSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->VelDispSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onVelocityDispersionChanged(double)));
 
-  QObject::connect(InclinationSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->InclinationSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onInclinationChanged(double)));
 
-  QObject::connect(InclinationErrorSpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->InclinationErrorSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onInclinationErrorChanged(double)));
 
-  QObject::connect(PASliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->PASliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onPositionAngleChanged(double)));
 
-  QObject::connect(PAErrorSpinBox, SIGNAL(valueChanged(double)),
+  QObject::connect(this->PAErrorSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onPositionAngleErrorChanged(double)));
 
-  QObject::connect(SHSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->SHSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onScaleHeightChanged(double)));
 
-  QObject::connect(CDSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->CDSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onColumnDensityChanged(double)));
 
-  QObject::connect(DistanceSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->DistanceSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onDistanceChanged(double)));
 
-  QObject::connect(PARadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->PARadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onPositionAngleFitChanged(bool)));
 
-  QObject::connect(VROTRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->VROTRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onRotationVelocityFitChanged(bool)));
 
-  QObject::connect(VRadRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->VRadRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onRadialVelocityFitChanged(bool)));
 
-  QObject::connect(DISPRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->DISPRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onVelocityDispersionFitChanged(bool)));
 
-  QObject::connect(INCRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->INCRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onInclinationFitChanged(bool)));
 
-  QObject::connect(XCenterRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->XCenterRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onXCenterFitChanged(bool)));
 
-  QObject::connect(YCenterRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->YCenterRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onYCenterFitChanged(bool)));
 
-  QObject::connect(VSYSRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->VSYSRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onSystemicVelocityFitChanged(bool)));
 
-  QObject::connect(SCRadioButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->SCRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onScaleHeightFitChanged(bool)));
 
-  QObject::connect(LayerTypeComboBox, SIGNAL(currentIndexChanged(int)),
+  QObject::connect(this->LayerTypeComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onLayerTypeChanged(int)));
 
-  QObject::connect(FittingFunctionComboBox, SIGNAL(currentIndexChanged(int)),
+  QObject::connect(this->FittingFunctionComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onFittingFunctionChanged(int)));
 
-  QObject::connect(WeightingFunctionComboBox, SIGNAL(currentIndexChanged(int)),
+  QObject::connect(this->WeightingFunctionComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onWeightingFunctionChanged(int)));
 
-  QObject::connect(NumCloudsSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->NumCloudsSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onNumberOfCloundsChanged(double)));
 
-  QObject::connect(CloudCDSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->CloudCDSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onCloudsColumnDensityChanged(double)));
 
-  QObject::connect(ContourSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->ContourSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onContourLevelChanged(double)));
 
-  QObject::connect(CleanInitialParametersPushButton, SIGNAL(clicked()),
+  QObject::connect(this->CleanInitialParametersPushButton, SIGNAL(clicked()),
                    q, SLOT(onCleanInitialParameters()));
 
-  QObject::connect(EstimateInitialParametersPushButton, SIGNAL(clicked()),
+  QObject::connect(this->EstimateInitialParametersPushButton, SIGNAL(clicked()),
                    q, SLOT(onEstimateInitialParameters()));
 
-  QObject::connect(NormalizeNonePushButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->NormalizeNonePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onNormalizeNoneChanged(bool)));
 
-  QObject::connect(NormalizeLocalPushButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->NormalizeLocalPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onNormalizeLocalChanged(bool)));
 
-  QObject::connect(NormalizeAzimPushButton, SIGNAL(toggled(bool)),
+  QObject::connect(this->NormalizeAzimPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onNormalizeAzimChanged(bool)));
 
-  QObject::connect(FitPushButton, SIGNAL(clicked()),
+  QObject::connect(this->FitPushButton, SIGNAL(clicked()),
                    q, SLOT(onFit()));
 
-  QObject::connect(CreatePushButton, SIGNAL(clicked()),
+  QObject::connect(this->CreatePushButton, SIGNAL(clicked()),
                    q, SLOT(onCreate()));
 
-  QObject::connect(CancelPushButton, SIGNAL(clicked()),
+  QObject::connect(this->CancelPushButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  QObject::connect(VisualizePushButton, SIGNAL(clicked()),
+  QObject::connect(this->VisualizePushButton, SIGNAL(clicked()),
                    q, SLOT(onVisualize()));
 
-  QObject::connect(CalculatePushButton, SIGNAL(clicked()),
+  QObject::connect(this->CalculatePushButton, SIGNAL(clicked()),
                    q, SLOT(onCalculateAndVisualize()));
 
-  QObject::connect(YellowSliceSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->YellowSliceSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onYellowSliceRotated(double)));
 
-  QObject::connect(GreenSliceSliderWidget, SIGNAL(valueChanged(double)),
+  QObject::connect(this->GreenSliceSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onGreenSliceRotated(double)));
 
-  InputSegmentCollapsibleButton->setCollapsed(true);
-  FittingParametersCollapsibleButton->setCollapsed(false);
-  OutputCollapsibleButton->setCollapsed(true);
-  OutputCollapsibleButton_2->setCollapsed(true);
+  this->InputSegmentCollapsibleButton->setCollapsed(true);
+  this->FittingParametersCollapsibleButton->setCollapsed(false);
+  this->OutputCollapsibleButton->setCollapsed(true);
+  this->OutputCollapsibleButton_2->setCollapsed(true);
 
-  progressBar->hide();
-  progressBar->setMinimum(0);
-  progressBar->setMaximum(100);
-  CancelPushButton->hide();
+  this->progressBar->hide();
+  this->progressBar->setMinimum(0);
+  this->progressBar->setMaximum(100);
+  this->CancelPushButton->hide();
 
   this->thread = new QThread();
   this->worker = new qSlicerAstroModelingModuleWorker();
@@ -1104,11 +1104,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     if (tableNode)
       {
       d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
-      if (d->selectionNode)
-        {
-        d->selectionNode->SetActiveTableID(d->astroTableNode->GetID());
-        d->selectionNode->Modified();
-        }
+      d->parametersNode->SetParamsTableNode(d->astroTableNode);
       return;
       }
     }
@@ -1247,11 +1243,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
   d->astroTableNode->SetColumnLongName("YPos", "Y center");
   d->astroTableNode->EndModify(wasModifying);
 
-  if (d->selectionNode)
-    {
-    d->selectionNode->SetActiveTableID(d->astroTableNode->GetID());
-    d->selectionNode->Modified();
-    }
+  d->parametersNode->SetParamsTableNode(d->astroTableNode);
 }
 
 //-----------------------------------------------------------------------------
@@ -1967,8 +1959,7 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
   std::vector<std::string> segmentIDs;
   currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
-  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode =
-    vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode>::New();
+  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode;
 
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
 
@@ -2029,9 +2020,6 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
-
-  labelMapNode->GetAstroLabelMapVolumeDisplayNode()->
-    SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
 
   double storedOrigin[3] = { 0., 0., 0. };
   labelMapNode->GetOrigin(storedOrigin);
@@ -2302,15 +2290,6 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeModified(vtkObject* se
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
   d->parametersNode->SetOutputVolumeNodeID(selectionNode->GetSecondaryVolumeID());
-  vtkMRMLTableNode* tableNode = vtkMRMLTableNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(selectionNode->GetActiveTableID()));
-  if (tableNode)
-    {
-    d->parametersNode->SetParamsTableNode(tableNode);
-    d->astroTableNode = tableNode;
-    this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onMRMLTableNodeModified()));
-    }
   d->parametersNode->EndModify(wasModifying);
 }
 
@@ -3577,9 +3556,9 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->ContourLabel->setEnabled(d->parametersNode->GetFitSuccess());
   d->VisualizePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->CalculatePushButton->setEnabled(d->parametersNode->GetFitSuccess());
-  d->CopyButton->setEnabled(d->parametersNode->GetFitSuccess());
-  d->PasteButton->setEnabled(d->parametersNode->GetFitSuccess());
-  d->PlotButton->setEnabled(d->parametersNode->GetFitSuccess());
+  d->AstroModelingCopyButton->setEnabled(d->parametersNode->GetFitSuccess());
+  d->AstroModelingPasteButton->setEnabled(d->parametersNode->GetFitSuccess());
+  d->AstroModelingPlotButton->setEnabled(d->parametersNode->GetFitSuccess());
 
   d->OutputCollapsibleButton_2->setEnabled(d->parametersNode->GetFitSuccess());
   d->YellowSliceLabel->setEnabled(d->parametersNode->GetFitSuccess());
@@ -4170,6 +4149,11 @@ void qSlicerAstroModelingModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
   vtkMRMLTableNode *tableNode = vtkMRMLTableNode::SafeDownCast(mrmlNode);
   if (d->astroTableNode == tableNode)
     {
@@ -4177,20 +4161,10 @@ void qSlicerAstroModelingModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
     }
 
   d->astroTableNode = tableNode;
+  this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableNodeModified()));
 
-  if (!d->selectionNode)
-    {
-    return;
-    }
-
-  if(d->astroTableNode)
-    {
-    d->selectionNode->SetActiveTableID(d->astroTableNode->GetID());
-    }
-  else
-    {
-    d->selectionNode->SetActiveTableID(NULL);
-    }
+  d->parametersNode->SetParamsTableNode(tableNode);
 }
 
 //--------------------------------------------------------------------------
@@ -4314,16 +4288,20 @@ void qSlicerAstroModelingModuleWidget::setup()
   d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   // set CTRL+P shortcut
   d->PlotAction->setShortcuts(QKeySequence::Print);
-  d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection"
-                               " of the columns of the table."));
+  d->PasteAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
+                                " the columns of the table. The First (from left to right)"
+                                " Column will be used as X-Axis and each additional Column"
+                                " will be plotted in the same Plot as Y-Axis. "
+                                "If the selection is only one Column, the Column will be"
+                                " used as Y-Axis and the X-Axis will be indexes."));
   this->addAction(d->PlotAction);
 
   // Connect copy, paste and plot actions
-  d->CopyButton->setDefaultAction(d->CopyAction);
+  d->AstroModelingCopyButton->setDefaultAction(d->CopyAction);
   this->connect(d->CopyAction, SIGNAL(triggered()), d->TableView, SLOT(copySelection()));
-  d->PasteButton->setDefaultAction(d->PasteAction);
+  d->AstroModelingPasteButton->setDefaultAction(d->PasteAction);
   this->connect(d->PasteAction, SIGNAL(triggered()), d->TableView, SLOT(pasteSelection()));
-  d->PlotButton->setDefaultAction(d->PlotAction);
+  d->AstroModelingPlotButton->setDefaultAction(d->PlotAction);
   this->connect(d->PlotAction, SIGNAL(triggered()), d->TableView, SLOT(plotSelection()));
 
   // Table View resize options
