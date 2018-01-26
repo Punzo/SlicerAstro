@@ -702,7 +702,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
     return NULL;
     }
 
-  scene->AddNode(labelDisplayNode);
+  scene->AddNode(labelDisplayNode.GetPointer());
 
   // Create a label node as copy of source volume
   vtkNew<vtkMRMLAstroLabelMapVolumeNode> labelNode;
