@@ -37,7 +37,9 @@
 class vtkMRMLAnnotationROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeNode;
+class vtkSegment;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerVolumesLogic
@@ -86,9 +88,16 @@ public:
   virtual bool IsROIAlignedWithInputVolume(vtkMRMLAnnotationROINode* roiNode,
                                            vtkMRMLAstroVolumeNode *inputVolume);
 
+  /// Calculate the Bounds of a ROI within a Volume in IJK coordinates
   virtual bool CalculateROICropVolumeBounds(vtkMRMLAnnotationROINode* roiNode,
                                             vtkMRMLAstroVolumeNode *inputVolume,
                                             double outputExtent[6]);
+
+  /// Calculate the Bounds of a Segment within a Volume in IJK coordinates
+  virtual bool CalculateSegmentCropVolumeBounds(vtkMRMLSegmentationNode *segmentationNode,
+                                                vtkSegment* segment,
+                                                vtkMRMLAstroVolumeNode *inputVolume,
+                                                double outputExtent[6]);
 
   /// Calculate STD given a ROI node
   virtual double Calculate3DDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,

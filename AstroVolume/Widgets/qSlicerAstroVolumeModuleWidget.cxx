@@ -40,6 +40,7 @@
 #include <vtkNew.h>
 #include <vtkPlotPoints.h>
 #include <vtkPointData.h>
+#include <vtkRenderer.h>
 #include <vtkTable.h>
 #include <vtkTransform.h>
 #include <vtkVariant.h>
@@ -50,6 +51,7 @@
 #include <qMRMLPlotWidget.h>
 #include <qMRMLThreeDViewControllerWidget.h>
 #include <qMRMLThreeDWidget.h>
+#include <qMRMLThreeDView.h>
 
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
@@ -72,16 +74,19 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLColorTableNode.h>
+#include <vtkMRMLColorTableStorageNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLPlotDataNode.h>
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLProceduralColorNode.h>
+#include <vtkMRMLProceduralColorStorageNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
@@ -170,12 +175,6 @@ template <typename T> T StringToNumber(const char* num)
   ss << num;
   T result;
   return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-short StringToShort(const char* str)
-{
-  return StringToNumber<short>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -645,258 +644,283 @@ void qSlicerAstroVolumeModuleWidget::initializeSegmentations(bool forceNew /*= f
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
 {
+  if (!this->mrmlScene())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::initializeColorNodes error :"
+                     " scene not found!"<<endl;
+    return;
+    }
+
   // Add Astro 2D color functions
-  vtkNew<vtkMRMLColorTableNode> HeatColorTableNode;
-  HeatColorTableNode->SetType(vtkMRMLColorTableNode::User);
-  HeatColorTableNode->SetName("Heat");
-  HeatColorTableNode->SetDescription("A scale from red to yellow.");
-  HeatColorTableNode->SetNumberOfColors(256);
-
-  // Red component
-  vtkNew<vtkLookupTable> RedLookupTable;
-  RedLookupTable->SetNumberOfTableValues(85);
-  RedLookupTable->SetTableRange(0, 85);
-  RedLookupTable->SetHueRange(0, 0);
-  RedLookupTable->SetSaturationRange(1,1);
-  RedLookupTable->SetValueRange(0.,1);
-  RedLookupTable->SetRampToLinear();
-  RedLookupTable->ForceBuild();
-
-  // Green component
-  vtkNew<vtkLookupTable> GreenLookupTable;
-  GreenLookupTable->SetNumberOfTableValues(256);
-  GreenLookupTable->SetTableRange(0, 256);
-  GreenLookupTable->SetHueRange(0.333, 0.333);
-  GreenLookupTable->SetSaturationRange(1,1);
-  GreenLookupTable->SetValueRange(0.,1);
-  GreenLookupTable->SetRampToLinear();
-  GreenLookupTable->ForceBuild();
-
-  // Blue component
-  vtkNew<vtkLookupTable> BlueLookupTable;
-  BlueLookupTable->SetNumberOfTableValues(85);
-  BlueLookupTable->SetTableRange(0, 85);
-  BlueLookupTable->SetHueRange(0.667, 0.667);
-  BlueLookupTable->SetSaturationRange(1,1);
-  BlueLookupTable->SetValueRange(0,1);
-  BlueLookupTable->SetRampToLinear();
-  BlueLookupTable->ForceBuild();
-
-  for (int ii = 0; ii < 85; ii++)
+  vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Heat"));
+  if (colorNodes->GetNumberOfItems() == 0)
     {
-    double RGBRed[3], RGBGreen[3], RGBA[4];
-    RedLookupTable->GetTableValue(ii, RGBRed);
-    GreenLookupTable->GetTableValue(ii, RGBGreen);
+    vtkNew<vtkMRMLColorTableNode> HeatColorTableNode;
+    HeatColorTableNode->SetType(vtkMRMLColorTableNode::User);
+    HeatColorTableNode->SetName("Heat");
+    HeatColorTableNode->SetDescription("A scale from red to yellow.");
+    HeatColorTableNode->SetNumberOfColors(256);
 
-    RGBA[0] = RGBRed[0];
-    RGBA[1] = RGBGreen[1];
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 85; ii < 171; ii++)
-    {
-    double RGBGreen[3], RGBA[4];
-    GreenLookupTable->GetTableValue(ii, RGBGreen);
+    // Red component
+    vtkNew<vtkLookupTable> RedLookupTable;
+    RedLookupTable->SetNumberOfTableValues(85);
+    RedLookupTable->SetTableRange(0, 85);
+    RedLookupTable->SetHueRange(0, 0);
+    RedLookupTable->SetSaturationRange(1,1);
+    RedLookupTable->SetValueRange(0.,1);
+    RedLookupTable->SetRampToLinear();
+    RedLookupTable->ForceBuild();
 
-    RGBA[0] = 1.;
-    RGBA[1] = RGBGreen[1];
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 171; ii < 256; ii++)
-    {
-    double RGBGreen[3], RGBBlue[3], RGBA[4];
-    GreenLookupTable->GetTableValue(ii, RGBGreen);
-    BlueLookupTable->GetTableValue(ii - 171, RGBBlue);
+    // Green component
+    vtkNew<vtkLookupTable> GreenLookupTable;
+    GreenLookupTable->SetNumberOfTableValues(256);
+    GreenLookupTable->SetTableRange(0, 256);
+    GreenLookupTable->SetHueRange(0.333, 0.333);
+    GreenLookupTable->SetSaturationRange(1,1);
+    GreenLookupTable->SetValueRange(0.,1);
+    GreenLookupTable->SetRampToLinear();
+    GreenLookupTable->ForceBuild();
 
-    RGBA[0] = 1.;
-    RGBA[1] = RGBGreen[1];
-    RGBA[2] = RGBBlue[2];
-    RGBA[3] = 1.;
-    HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
+    // Blue component
+    vtkNew<vtkLookupTable> BlueLookupTable;
+    BlueLookupTable->SetNumberOfTableValues(85);
+    BlueLookupTable->SetTableRange(0, 85);
+    BlueLookupTable->SetHueRange(0.667, 0.667);
+    BlueLookupTable->SetSaturationRange(1,1);
+    BlueLookupTable->SetValueRange(0,1);
+    BlueLookupTable->SetRampToLinear();
+    BlueLookupTable->ForceBuild();
 
-  HeatColorTableNode->SetNamesFromColors();
-  this->mrmlScene()->AddNode(HeatColorTableNode.GetPointer());
+    for (int ii = 0; ii < 85; ii++)
+      {
+      double RGBRed[3], RGBGreen[3], RGBA[4];
+      RedLookupTable->GetTableValue(ii, RGBRed);
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
 
-  vtkNew<vtkMRMLColorTableNode> RonekersColorTableNode;
-  RonekersColorTableNode->SetType(vtkMRMLColorTableNode::User);
-  RonekersColorTableNode->SetName("Ronekers");
-  RonekersColorTableNode->SetDescription("Discrete rainbow color function. Very useful to visualize for Astro HI datasets.");
-  RonekersColorTableNode->SetNumberOfColors(256);
+      RGBA[0] = RGBRed[0];
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 85; ii < 171; ii++)
+      {
+      double RGBGreen[3], RGBA[4];
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
 
-  for (int ii = 0; ii < 28; ii++)
-    {
-    double RGBA[4];
+      RGBA[0] = 1.;
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 171; ii < 256; ii++)
+      {
+      double RGBGreen[3], RGBBlue[3], RGBA[4];
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
+      BlueLookupTable->GetTableValue(ii - 171, RGBBlue);
 
-    RGBA[0] = 0.199;
-    RGBA[1] = 0.199;
-    RGBA[2] = 0.199;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 28; ii < 53; ii++)
-    {
-    double RGBA[4];
+      RGBA[0] = 1.;
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = RGBBlue[2];
+      RGBA[3] = 1.;
+      HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
 
-    RGBA[0] = 0.473;
-    RGBA[1] = 0.;
-    RGBA[2] = 0.606;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 53; ii < 78; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 0.;
-    RGBA[1] = 0.;
-    RGBA[2] = 0.781;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 78; ii < 103; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 0.371;
-    RGBA[1] = 0.652;
-    RGBA[2] = 0.922;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 103; ii < 128; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 0.;
-    RGBA[1] = 0.566;
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 128; ii < 153; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 0.;
-    RGBA[1] = 0.961;
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 153; ii < 178; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 1.;
-    RGBA[1] = 1.;
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 178; ii < 203; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 1.;
-    RGBA[1] = 0.691;
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 203; ii < 228; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 1.;
-    RGBA[1] = 0.;
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
-    }
-  for (int ii = 228; ii < 256; ii++)
-    {
-    double RGBA[4];
-
-    RGBA[0] = 1.;
-    RGBA[1] = 1.;
-    RGBA[2] = 1.;
-    RGBA[3] = 1.;
-    RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+    HeatColorTableNode->SetNamesFromColors();
+    this->mrmlScene()->AddNode(HeatColorTableNode.GetPointer());
     }
 
-  RonekersColorTableNode->SetNamesFromColors();
-  this->mrmlScene()->AddNode(RonekersColorTableNode.GetPointer());
-
-  vtkNew<vtkMRMLColorTableNode> VelocityFieldColorTableNode;
-  VelocityFieldColorTableNode->SetType(vtkMRMLColorTableNode::User);
-  VelocityFieldColorTableNode->SetName("Velocity Field");
-  VelocityFieldColorTableNode->SetDescription("A scale from blue to red.");
-  VelocityFieldColorTableNode->SetNumberOfColors(256);
-
-  // Red component
-  RedLookupTable->SetNumberOfTableValues(128);
-  RedLookupTable->SetTableRange(0, 128);
-  RedLookupTable->SetHueRange(0, 0);
-  RedLookupTable->SetSaturationRange(1,1);
-  RedLookupTable->SetValueRange(0.,1);
-  RedLookupTable->SetRampToLinear();
-  RedLookupTable->ForceBuild();
-
-  // Green component
-  GreenLookupTable->SetNumberOfTableValues(128);
-  GreenLookupTable->SetTableRange(0, 128);
-  GreenLookupTable->SetHueRange(0.333, 0.333);
-  GreenLookupTable->SetSaturationRange(1,1);
-  GreenLookupTable->SetValueRange(0.,1);
-  GreenLookupTable->SetRampToLinear();
-  GreenLookupTable->ForceBuild();
-
-  // Blue component
-  BlueLookupTable->SetNumberOfTableValues(128);
-  BlueLookupTable->SetTableRange(0, 128);
-  BlueLookupTable->SetHueRange(0.667, 0.667);
-  BlueLookupTable->SetSaturationRange(1,1);
-  BlueLookupTable->SetValueRange(0,1);
-  BlueLookupTable->SetRampToLinear();
-  BlueLookupTable->ForceBuild();
-
-  VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(0, 0, 0, 0);
-  for (int ii = 1; ii < 128; ii++)
+  colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Ronekers"));
+  if (colorNodes->GetNumberOfItems() == 0)
     {
-    double RGBBlue[3], RGBGreen[3], RGBA[4];
-    int blueIndex = 128 - ii;
-    BlueLookupTable->GetTableValue(blueIndex, RGBBlue);
-    GreenLookupTable->GetTableValue(ii, RGBGreen);
+    vtkNew<vtkMRMLColorTableNode> RonekersColorTableNode;
+    RonekersColorTableNode->SetType(vtkMRMLColorTableNode::User);
+    RonekersColorTableNode->SetName("Ronekers");
+    RonekersColorTableNode->SetDescription("Discrete rainbow color function. Very useful to visualize for Astro HI datasets.");
+    RonekersColorTableNode->SetNumberOfColors(256);
 
-    RGBA[0] = 0.;
-    RGBA[1] = RGBGreen[1];
-    RGBA[2] = RGBBlue[2];
-    RGBA[3] = 1.;
+    for (int ii = 0; ii < 28; ii++)
+      {
+      double RGBA[4];
 
-    VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      RGBA[0] = 0.199;
+      RGBA[1] = 0.199;
+      RGBA[2] = 0.199;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 28; ii < 53; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.473;
+      RGBA[1] = 0.;
+      RGBA[2] = 0.606;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 53; ii < 78; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.;
+      RGBA[1] = 0.;
+      RGBA[2] = 0.781;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 78; ii < 103; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.371;
+      RGBA[1] = 0.652;
+      RGBA[2] = 0.922;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 103; ii < 128; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.;
+      RGBA[1] = 0.566;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 128; ii < 153; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.;
+      RGBA[1] = 0.961;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 153; ii < 178; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 1.;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 178; ii < 203; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 0.691;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 203; ii < 228; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 0.;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 228; ii < 256; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 1.;
+      RGBA[2] = 1.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+
+    RonekersColorTableNode->SetNamesFromColors();
+    this->mrmlScene()->AddNode(RonekersColorTableNode.GetPointer());
     }
-  for (int ii = 128; ii < 255; ii++)
+
+  colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode","VelocityField"));
+  if (colorNodes->GetNumberOfItems() == 0)
     {
-    double RGBGreen[3], RGBRed[3], RGBA[4];
-    int redIndex = ii - 128;
-    int greeIndex = 128 - (redIndex);
-    GreenLookupTable->GetTableValue(greeIndex, RGBGreen);
-    RedLookupTable->GetTableValue(redIndex, RGBRed);
+    vtkNew<vtkMRMLColorTableNode> VelocityFieldColorTableNode;
+    VelocityFieldColorTableNode->SetType(vtkMRMLColorTableNode::User);
+    VelocityFieldColorTableNode->SetName("VelocityField");
+    VelocityFieldColorTableNode->SetDescription("A scale from blue to red.");
+    VelocityFieldColorTableNode->SetNumberOfColors(256);
 
-    RGBA[0] = RGBRed[0];
-    RGBA[1] = RGBGreen[1];
-    RGBA[2] = 0.;
-    RGBA[3] = 1.;
+    // Red component
+    vtkNew<vtkLookupTable> RedLookupTable;
+    RedLookupTable->SetNumberOfTableValues(128);
+    RedLookupTable->SetTableRange(0, 128);
+    RedLookupTable->SetHueRange(0, 0);
+    RedLookupTable->SetSaturationRange(1,1);
+    RedLookupTable->SetValueRange(0.,1);
+    RedLookupTable->SetRampToLinear();
+    RedLookupTable->ForceBuild();
 
-    VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+    // Green component
+    vtkNew<vtkLookupTable> GreenLookupTable;
+    GreenLookupTable->SetNumberOfTableValues(128);
+    GreenLookupTable->SetTableRange(0, 128);
+    GreenLookupTable->SetHueRange(0.333, 0.333);
+    GreenLookupTable->SetSaturationRange(1,1);
+    GreenLookupTable->SetValueRange(0.,1);
+    GreenLookupTable->SetRampToLinear();
+    GreenLookupTable->ForceBuild();
+
+    // Blue component
+    vtkNew<vtkLookupTable> BlueLookupTable;
+    BlueLookupTable->SetNumberOfTableValues(128);
+    BlueLookupTable->SetTableRange(0, 128);
+    BlueLookupTable->SetHueRange(0.667, 0.667);
+    BlueLookupTable->SetSaturationRange(1,1);
+    BlueLookupTable->SetValueRange(0,1);
+    BlueLookupTable->SetRampToLinear();
+    BlueLookupTable->ForceBuild();
+
+    VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(0, 0, 0, 0);
+    for (int ii = 1; ii < 128; ii++)
+      {
+      double RGBBlue[3], RGBGreen[3], RGBA[4];
+      int blueIndex = 128 - ii;
+      BlueLookupTable->GetTableValue(blueIndex, RGBBlue);
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
+
+      RGBA[0] = 0.;
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = RGBBlue[2];
+      RGBA[3] = 1.;
+
+      VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 128; ii < 255; ii++)
+      {
+      double RGBGreen[3], RGBRed[3], RGBA[4];
+      int redIndex = ii - 128;
+      int greeIndex = 128 - (redIndex);
+      GreenLookupTable->GetTableValue(greeIndex, RGBGreen);
+      RedLookupTable->GetTableValue(redIndex, RGBRed);
+
+      RGBA[0] = RGBRed[0];
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+
+      VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(255, 0, 0, 0);
+    VelocityFieldColorTableNode->SetNamesFromColors();
+    this->mrmlScene()->AddNode(VelocityFieldColorTableNode.GetPointer());
     }
-  VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(255, 0, 0, 0);
-  VelocityFieldColorTableNode->SetNamesFromColors();
-  this->mrmlScene()->AddNode(VelocityFieldColorTableNode.GetPointer());
 
   // Remove unwanted 2D color functions
   vtkSmartPointer<vtkCollection> ColorTableNodeCol =
@@ -918,7 +942,7 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     if (!strcmp(tempColorTableNode->GetName(), "Grey") ||
         !strcmp(tempColorTableNode->GetName(), "Heat") ||
         !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
-        !strcmp(tempColorTableNode->GetName(), "Velocity Field"))
+        !strcmp(tempColorTableNode->GetName(), "VelocityField"))
       {
       tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
       tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
@@ -932,7 +956,10 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       continue;
       }
 
-    //this->mrmlScene()->RemoveNode(tempColorTableNode->GetStorageNode());
+    vtkMRMLColorTableStorageNode* tempColorTableStorageNode =
+      vtkMRMLColorTableStorageNode::SafeDownCast
+        (tempColorTableNode->GetStorageNode());
+    this->mrmlScene()->RemoveNode(tempColorTableStorageNode);
     this->mrmlScene()->RemoveNode(tempColorTableNode);
     }
 
@@ -952,30 +979,40 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       continue;
       }
 
-    //this->mrmlScene()->RemoveNode(tempProceduralColorTableNode->GetStorageNode());
+    vtkMRMLProceduralColorStorageNode* tempProceduralColorTableStorageNode =
+      vtkMRMLProceduralColorStorageNode::SafeDownCast
+        (tempProceduralColorTableNode->GetStorageNode());
+    this->mrmlScene()->RemoveNode(tempProceduralColorTableStorageNode);
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
     }
 
-  // Add Rainbow
-  vtkNew<vtkMRMLColorTableNode> RainbowTableNode;
-  RainbowTableNode->SetName("Rainbow");
-  RainbowTableNode->SetType(vtkMRMLColorTableNode::User);
-  RainbowTableNode->SetDescription("Goes from red to purple, passing through the colors of the rainbow in between.");
-  RainbowTableNode->SetNumberOfColors(256);
-  RainbowTableNode->GetLookupTable()->SetNumberOfTableValues(256);
-  RainbowTableNode->GetLookupTable()->SetHueRange(0., 0.8);
-  RainbowTableNode->GetLookupTable()->SetSaturationRange(1,1);
-  RainbowTableNode->GetLookupTable()->SetValueRange(1,1);
-  RainbowTableNode->GetLookupTable()->SetRampToLinear();
-  RainbowTableNode->GetLookupTable()->ForceBuild();
-  RainbowTableNode->SetColor(0, 0, 0, 0);
-  RainbowTableNode->SetColor(255, 0, 0, 0);
-  RainbowTableNode->SetNamesFromColors();
-  RainbowTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
-  RainbowTableNode->SetAttribute("SlicerAstro.Reverse", "off");
-  RainbowTableNode->SetAttribute("SlicerAstro.Inverse", "off");
-  RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
-  this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
+  this->mrmlScene()->RemoveUnusedNodeReferences();
+
+  colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Rainbow"));
+  if (colorNodes->GetNumberOfItems() == 0)
+    {
+    // Add Rainbow
+    vtkNew<vtkMRMLColorTableNode> RainbowTableNode;
+    RainbowTableNode->SetName("Rainbow");
+    RainbowTableNode->SetType(vtkMRMLColorTableNode::User);
+    RainbowTableNode->SetDescription("Goes from red to purple, passing through the colors of the rainbow in between.");
+    RainbowTableNode->SetNumberOfColors(256);
+    RainbowTableNode->GetLookupTable()->SetNumberOfTableValues(256);
+    RainbowTableNode->GetLookupTable()->SetHueRange(0., 0.8);
+    RainbowTableNode->GetLookupTable()->SetSaturationRange(1,1);
+    RainbowTableNode->GetLookupTable()->SetValueRange(1,1);
+    RainbowTableNode->GetLookupTable()->SetRampToLinear();
+    RainbowTableNode->GetLookupTable()->ForceBuild();
+    RainbowTableNode->SetColor(0, 0, 0, 0);
+    RainbowTableNode->SetColor(255, 0, 0, 0);
+    RainbowTableNode->SetNamesFromColors();
+    RainbowTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+    RainbowTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+    RainbowTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+    RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
+    this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
+    }
 
   // ReAdd Generic and MediumChart Colors
   std::string DarkBrightChartColorsID;
@@ -1264,7 +1301,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
                       "Unable to find the yAxis Column.";
         return;
         }
-      yAxis->SetName("3DDiplayThreshold");
+      yAxis->SetName("3DDisplayThreshold");
 
       d->TableThresholdNode->GetTable()->SetNumberOfRows(3);
       for (int ii = 0; ii < 3; ii++)
@@ -1818,24 +1855,8 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
 
   if (!d->segmentEditorNode)
     {
-    std::string segmentEditorSingletonTag = "SegmentEditor";
-    vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-    if (!segmentEditorNodeSingleton)
-      {
-      d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-      d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-      d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-        this->mrmlScene()->AddNode(d->segmentEditorNode));
-      }
-    else
-      {
-      d->segmentEditorNode = segmentEditorNodeSingleton;
-      }
-    emit segmentEditorNodeChanged(true);
-    this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+    qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
+    return;
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
@@ -1862,17 +1883,9 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     return;
     }
 
-  // Add a segment of 4 voxels to ensure the segmentation Bounds are the same of the LabelMap
-  // (however, it will be present a segement more which it is not ideal)
-  int* dims = labelMapNode->GetImageData()->GetDimensions();
-  const int numElements = dims[0] * dims[1] * dims[2];
-  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
-  short val = StringToShort(labelMapNode->GetAttribute("SlicerAstro.DATAMAX")) + 1;
-
-  *(voxelPtr) = val;
-  *(voxelPtr + numElements - 1) = val;
-
   labelMapNode->UpdateRangeAttributes();
+
+  currentSegmentationNode->SetReferenceImageGeometryParameterFromVolumeNode(labelMapNode);
 
   if (this->updateMasterRepresentationInSegmentation(currentSegmentationNode->GetSegmentation(), vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName()))
     {
@@ -1887,9 +1900,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
       return;
       }
     }
-
-  *(voxelPtr) = 0;
-  *(voxelPtr + numElements - 1) = 0;
 
   labelMapNode->UpdateRangeAttributes();
 
@@ -1942,24 +1952,8 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 
   if (!d->segmentEditorNode)
     {
-    std::string segmentEditorSingletonTag = "SegmentEditor";
-    vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-    if (!segmentEditorNodeSingleton)
-      {
-      d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-      d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-      d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-        this->mrmlScene()->AddNode(d->segmentEditorNode));
-      }
-    else
-      {
-      d->segmentEditorNode = segmentEditorNodeSingleton;
-      }
-    emit segmentEditorNodeChanged(true);
-    this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+    qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
+    return;
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
@@ -2072,10 +2066,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     return;
     }
 
-  int Extents[6] = { 0, 0, 0, 0, 0, 0 };
-  labelMapNode->GetImageData()->GetExtent(Extents);
-
-  bool exportSuccess = vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode);
+  bool exportSuccess = vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode);
 
   if (!exportSuccess)
     {
@@ -2089,94 +2080,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
     d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
-    }
-
-  double storedOrigin[3] = { 0., 0., 0. };
-  labelMapNode->GetOrigin(storedOrigin);
-
-  // restore original Extents
-  vtkNew<vtkImageReslice> reslice;
-  reslice->SetOutputExtent(Extents);
-  reslice->SetOutputOrigin(0., 0., 0.);
-  reslice->SetOutputScalarType(VTK_SHORT);
-  reslice->SetInputData(labelMapNode->GetImageData());
-
-  reslice->Update();
-  labelMapNode->GetImageData()->DeepCopy(reslice->GetOutput());
-
-  // restore original Origins
-  int *dims = labelMapNode->GetImageData()->GetDimensions();
-  double dimsH[4];
-  dimsH[0] = dims[0] - 1;
-  dimsH[1] = dims[1] - 1;
-  dimsH[2] = dims[2] - 1;
-  dimsH[3] = 0.;
-
-  vtkNew<vtkMatrix4x4> ijkToRAS;
-  labelMapNode->GetIJKToRASMatrix(ijkToRAS.GetPointer());
-  double rasCorner[4];
-  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
-
-  double Origin[3] = { 0., 0., 0. };
-  Origin[0] = -0.5 * rasCorner[0];
-  Origin[1] = -0.5 * rasCorner[1];
-  Origin[2] = -0.5 * rasCorner[2];
-
-  labelMapNode->SetOrigin(Origin);
-
-  // translate data to original location (linear translation supported only)
-  storedOrigin[0] -= Origin[0];
-  storedOrigin[1] -= Origin[1];
-  storedOrigin[2] -= Origin[2];
-
-  vtkNew<vtkImageData> tempVolumeData;
-  tempVolumeData->Initialize();
-  tempVolumeData->DeepCopy(labelMapNode->GetImageData());
-  tempVolumeData->Modified();
-  tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-  dims = labelMapNode->GetImageData()->GetDimensions();
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int shiftX = (int) fabs(storedOrigin[0]);
-  int shiftY = (int) fabs(storedOrigin[2]) * dims[0];
-  int shiftZ = (int) fabs(storedOrigin[1]) * numSlice;
-  short* tempVoxelPtr = static_cast<short*>(tempVolumeData->GetScalarPointer());
-  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(voxelPtr + elemCnt) = 0;
-    }
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-
-    int X = elemCnt + shiftX;
-    int ref = (int) floor(elemCnt / dims[0]);
-    ref *= dims[0];
-    if(X < ref || X >= ref + dims[0])
-      {
-      continue;
-      }
-
-    int Y = elemCnt + shiftY;
-    ref = (int) floor(elemCnt / numSlice);
-    ref *= numSlice;
-    if(Y < ref || Y >= ref + numSlice)
-      {
-      continue;
-      }
-
-    int Z = elemCnt + shiftZ;
-    if(Z < 0 || Z >= numElements)
-      {
-      continue;
-      }
-
-    int shift = elemCnt + shiftX + shiftY + shiftZ;
-
-    *(voxelPtr + shift) = *(tempVoxelPtr + elemCnt);
     }
 
   labelMapNode->UpdateRangeAttributes();
@@ -2237,7 +2140,8 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNodeOneID,
                                                            const char* volumeNodeTwoID,
-                                                           bool generateMasks)
+                                                           bool generateMasks /* = false */,
+                                                           bool overlay2D /* = true*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -2253,6 +2157,13 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
           (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
 
+  if (!this->mrmlScene())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews :"
+                   " scene not found.";
+    return;
+    }
+
   vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
@@ -2260,7 +2171,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   if(!volumeOne || !volumeTwo)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : volumes not valid.";
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews :"
+                   " volumes not valid.";
     return;
     }
 
@@ -2283,7 +2195,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
 
-  d->selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeOne->GetID());
 
   unsigned int numViewNodes = col->GetNumberOfItems();
   int n = volumeOne->GetNumberOfDisplayNodes();
@@ -2315,12 +2227,12 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   if(!d->PresetsNodeComboBox)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView error :"
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews error :"
                    " PresetsNodeComboBox not found!"<<endl;
     return;
     }
 
-  d->selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeTwo->GetID());
 
   n = volumeTwo->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -2354,8 +2266,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   if(!d->PresetsNodeComboBox)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView error :"
-                   " PresetsNodeComboBox not found!"<<endl;
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews error :"
+                   " PresetsNodeComboBox not found!";
     return;
     }
 
@@ -2363,8 +2275,15 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   d->PresetsNodeComboBox->setCurrentNodeIndex(0);
   this->applyPreset(d->PresetsNodeComboBox->currentNode());
 
-  d->selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
-  d->selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeOne->GetID());
+  if (overlay2D)
+    {
+    d->selectionNode->SetSecondaryVolumeID(volumeTwo->GetID());
+    }
+  else
+    {
+    d->selectionNode->SetSecondaryVolumeID("");
+    }
 
   vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
@@ -2418,12 +2337,60 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   volumeTwo->SetDisplayVisibility(1);
   volumeOne->SetDisplayVisibility(1);
 
+  if (overlay2D)
+    {
+    vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
+      this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
+    yellowSliceComposite->SetForegroundOpacity(1.);
+
+    vtkMRMLSliceNode *yellowSlice = vtkMRMLSliceNode::SafeDownCast(
+      this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+    // setting to the XZ orientation is needed in order to force the refresh
+    yellowSlice->SetOrientation("XZ");
+    yellowSlice->SetOrientation("XY");
+    yellowSlice->SetSliceOffset(0.);
+    }
+
   appLogic->PropagateVolumeSelection();
 
-  if (!generateMasks)
+  // reset the 3D rendering boundaries
+  qMRMLThreeDWidget* ThreeDWidget1 = app->layoutManager()->threeDWidget(0);
+  if(!ThreeDWidget1)
     {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "ThreeDWidget1 not found!";
     return;
     }
+
+  qMRMLThreeDView* ThreeDView1 = ThreeDWidget1->threeDView();
+  if(!ThreeDView1 || !ThreeDView1->renderer())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "ThreeDView1 not found!";
+    return;
+    }
+
+  ThreeDView1->renderer()->ResetCameraClippingRange();
+  ThreeDView1->renderer()->Render();
+
+  qMRMLThreeDWidget* ThreeDWidget2 = app->layoutManager()->threeDWidget(1);
+  if(!ThreeDWidget2)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "ThreeDWidget2 not found!";
+    return;
+    }
+
+  qMRMLThreeDView* ThreeDView2 = ThreeDWidget2->threeDView();
+  if(!ThreeDView2 || !ThreeDView2->renderer())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "ThreeDView2 not found!";
+    return;
+    }
+
+  ThreeDView2->renderer()->ResetCameraClippingRange();
+  ThreeDView2->renderer()->Render();
 
   if (!d->segmentEditorNode)
     {
@@ -2459,6 +2426,22 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   if (!currentSegmentationNode->GetDisplayNode())
     {
     currentSegmentationNode->CreateDefaultDisplayNodes();
+    }
+
+  for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+    {
+    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
+    SegmentationDisplayNode->SetAllSegmentsVisibility(false);
+    }
+
+  if (!generateMasks)
+    {
+    return;
     }
 
   // Create empty segment in current segmentation
@@ -2528,9 +2511,19 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
-    SegmentationDisplayNode->SetAllSegmentsVisibility(false);
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
+    SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
+    SegmentationDisplayNode->SetSegmentVisibility(SegmentTwoID, true);
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentOneID, false);
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentTwoID, false);
+    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentOneID, true);
+    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentTwoID, true);
+    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentOneID, false);
+    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentTwoID, true);
+    SegmentationDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.8);
     }
 
   this->onCreateSurfaceButtonToggled(true);
@@ -2549,6 +2542,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   if (!this->mrmlScene())
     {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView :"
+                   " scene not found.";
     return;
     }
 
@@ -2608,7 +2603,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   unsigned int numViewNodes = col->GetNumberOfItems();
 
-  d->selectionNode->SetReferenceActiveVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeTwo->GetID());
 
   int n = volumeTwo->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -2634,7 +2629,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
   this->updatePresets(volumeTwo);
 
-  d->selectionNode->SetReferenceActiveVolumeID(volumeThree->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeThree->GetID());
 
   n = volumeThree->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -2660,8 +2655,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
   this->updatePresets(volumeThree);
 
-  d->selectionNode->SetReferenceSecondaryVolumeID(volumeTwo->GetID());
-  d->selectionNode->SetReferenceActiveVolumeID(volumeOne->GetID());
+  d->selectionNode->SetSecondaryVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeOne->GetID());
 
   n = volumeOne->GetNumberOfDisplayNodes();
   for (int i = 0; i < n; i++)
@@ -2726,6 +2721,35 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   volumeTwo->SetDisplayVisibility(1);
   volumeThree->SetDisplayVisibility(1);
   volumeOne->SetDisplayVisibility(1);
+
+  // reset the 3D rendering boundaries
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                   "qSlicerApplication not found!";
+    return;
+    }
+
+  qMRMLThreeDWidget* ThreeDWidget = app->layoutManager()->threeDWidget(0);
+  if(!ThreeDWidget)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                   "ThreeDWidget not found!";
+    return;
+    }
+
+  qMRMLThreeDView* ThreeDView = ThreeDWidget->threeDView();
+  if(!ThreeDView || !ThreeDView->renderer())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                   "ThreeDView not found!";
+    return;
+    }
+
+  ThreeDView->renderer()->ResetCameraClippingRange();
+  ThreeDView->renderer()->Render();
 
   // Create Segmentations
   if (!d->segmentEditorNode)
@@ -3040,6 +3064,8 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
 
   if (!this->mrmlScene())
     {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView :"
+                   " scene not found.";
     return;
     }
 
@@ -3776,7 +3802,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndImportEvent()
   this->onMRMLSelectionNodeModified(d->selectionNode);
   this->initializeSegmentations();
   this->initializePlotNodes();
-  this->initializeColorNodes();
 }
 
 //---------------------------------------------------------------------------
@@ -4543,7 +4568,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
 
   double max = astroDisplay->GetWindowLevelMax();
   double min = astroDisplay->GetWindowLevelMin();
-  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
 
   double value1 = d->TableMaxNode->GetTable()->GetValue(0, 0).ToDouble();
   double value2 = d->TableMaxNode->GetTable()->GetValue(1, 0).ToDouble();
@@ -4552,10 +4576,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
   if (fabs(value1 - value2) > 1.E-9 &&
       fabs(value1 - value3) > 1.E-9)
     {
-    if ((value1 - DisplayThreshold) < 1.E-9)
-      {
-      DisplayThreshold = value1;
-      }
     if ((value1 - min) < 1.E-9)
       {
       value1 = min;
@@ -4568,10 +4588,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
   else if (fabs(value2 - value1) > 1.E-9 &&
            fabs(value2 - value3) > 1.E-9)
     {
-    if ((value2 - DisplayThreshold) < 1.E-9)
-      {
-      DisplayThreshold = value2;
-      }
     if ((value2 - min) < 1.E-9)
       {
       value2 = min;
@@ -4584,10 +4600,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
   else if (fabs(value3 - value1) > 1.E-9 &&
            fabs(value3 - value2) > 1.E-9)
     {
-    if ((value3 - DisplayThreshold) < 1.E-9)
-      {
-      DisplayThreshold = value3;
-      }
     if ((value3 - min) < 1.E-9)
       {
       value3 = min;
@@ -4601,8 +4613,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
     {
     return;
     }
-
-  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
 
   double window = max - min;
   double level = 0.5 * (max + min);
@@ -4632,7 +4642,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
 
   double min = astroDisplay->GetWindowLevelMin();
   double max = astroDisplay->GetWindowLevelMax();
-  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
 
   double value1 = d->TableMinNode->GetTable()->GetValue(0, 0).ToDouble();
   double value2 = d->TableMinNode->GetTable()->GetValue(1, 0).ToDouble();
@@ -4641,10 +4650,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
   if (fabs(value1 - value2) > 1.E-9 &&
       fabs(value1 - value3) > 1.E-9)
     {
-    if ((value1 - DisplayThreshold) > 1.E-9)
-      {
-      DisplayThreshold = value1;
-      }
     if ((value1 - max) > 1.E-9)
       {
       value1 = max;
@@ -4657,10 +4662,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
   else if (fabs(value2 - value1) > 1.E-9 &&
            fabs(value2 - value3) > 1.E-9)
     {
-    if ((value2 - DisplayThreshold) > 1.E-9)
-      {
-      DisplayThreshold = value2;
-      }
     if ((value2 - max) > 1.E-9)
       {
       value2 = max;
@@ -4673,10 +4674,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
   else if (fabs(value3 - value1) > 1.E-9 &&
            fabs(value3 - value2) > 1.E-9)
     {
-    if ((value3 - DisplayThreshold) > 1.E-9)
-      {
-      DisplayThreshold = value3;
-      }
     if ((value3 - max) > 1.E-9)
       {
       value3 = max;
@@ -4690,8 +4687,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
     {
     return;
     }
-
-  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
 
   double window = max - min;
   double level = 0.5 * (max + min);
@@ -4719,8 +4714,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
   // here we check which one has been shifted
   // and we shift the other two as well
 
-  double min = astroDisplay->GetWindowLevelMin();
-  double max = astroDisplay->GetWindowLevelMax();
   double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
 
   double value1 = d->TableThresholdNode->GetTable()->GetValue(0, 0).ToDouble();
@@ -4730,14 +4723,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
   if (fabs(value1 - value2) > 1.E-9 &&
       fabs(value1 - value3) > 1.E-9)
     {
-    if ((value1 - max) > 1.E-9)
-      {
-      value1 = max;
-      }
-    if ((value1 - min) < 1.E-9)
-      {
-      value1 = min;
-      }
     if (value1 < 0.)
       {
       value1 = 0.;
@@ -4750,14 +4735,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
   else if (fabs(value2 - value1) > 1.E-9 &&
            fabs(value2 - value3) > 1.E-9)
     {
-    if ((value2 - max) > 1.E-9)
-      {
-      value2 = max;
-      }
-    if ((value2 - min) < 1.E-9)
-      {
-      value2 = min;
-      }
     if (value2 < 0.)
       {
       value2 = 0.;
@@ -4770,14 +4747,6 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
   else if (fabs(value3 - value1) > 1.E-9 &&
            fabs(value3 - value2) > 1.E-9)
     {
-    if ((value3 - max) > 1.E-9)
-      {
-      value3 = max;
-      }
-    if ((value3 - min) < 1.E-9)
-      {
-      value3 = min;
-      }
     if (value3 < 0.)
       {
       value3 = 0.;

@@ -66,11 +66,13 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
+#include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroProfilesParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
@@ -250,6 +252,18 @@ qSlicerAstroProfilesModuleWidget::qSlicerAstroProfilesModuleWidget(QWidget* _par
 //-----------------------------------------------------------------------------
 qSlicerAstroProfilesModuleWidget::~qSlicerAstroProfilesModuleWidget()
 {
+}
+
+//----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::enter()
+{
+  this->Superclass::enter();
+}
+
+//----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::exit()
+{
+  this->Superclass::exit();
 }
 
 namespace
@@ -537,23 +551,8 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
 
   if (!d->segmentEditorNode)
     {
-    std::string segmentEditorSingletonTag = "SegmentEditor";
-    vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-      {
-      d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-      d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-      d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-        this->mrmlScene()->AddNode(d->segmentEditorNode));
-      }
-    else
-      {
-      d->segmentEditorNode = segmentEditorNodeSingleton;
-      }
-    this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+    qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
+    return false;
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
@@ -617,10 +616,7 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
     return false;
     }
 
-  int Extents[6] = { 0, 0, 0, 0, 0, 0 };
-  labelMapNode->GetImageData()->GetExtent(Extents);
-
-  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode))
+  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
@@ -629,93 +625,6 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
-    }
-
-  double storedOrigin[3] = { 0., 0., 0. };
-  labelMapNode->GetOrigin(storedOrigin);
-
-  // restore original Extents
-  vtkNew<vtkImageReslice> reslice;
-  reslice->SetOutputExtent(Extents);
-  reslice->SetOutputOrigin(0., 0., 0.);
-  reslice->SetOutputScalarType(VTK_SHORT);
-  reslice->SetInputData(labelMapNode->GetImageData());
-
-  reslice->Update();
-  labelMapNode->GetImageData()->DeepCopy(reslice->GetOutput());
-
-  // restore original Origins
-  int *dims = labelMapNode->GetImageData()->GetDimensions();
-  double dimsH[4];
-  dimsH[0] = dims[0] - 1;
-  dimsH[1] = dims[1] - 1;
-  dimsH[2] = dims[2] - 1;
-  dimsH[3] = 0.;
-
-  vtkNew<vtkMatrix4x4> ijkToRAS;
-  labelMapNode->GetIJKToRASMatrix(ijkToRAS.GetPointer());
-  double rasCorner[4];
-  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
-
-  double Origin[3] = { 0., 0., 0. };
-  Origin[0] = -0.5 * rasCorner[0];
-  Origin[1] = -0.5 * rasCorner[1];
-  Origin[2] = -0.5 * rasCorner[2];
-
-  labelMapNode->SetOrigin(Origin);
-
-  // translate data to original location (linear translation supported only)
-  storedOrigin[0] -= Origin[0];
-  storedOrigin[1] -= Origin[1];
-  storedOrigin[2] -= Origin[2];
-
-  vtkNew<vtkImageData> tempVolumeData;
-  tempVolumeData->Initialize();
-  tempVolumeData->DeepCopy(labelMapNode->GetImageData());
-  tempVolumeData->Modified();
-  tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-  dims = labelMapNode->GetImageData()->GetDimensions();
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int shiftX = (int) fabs(storedOrigin[0]);
-  int shiftY = (int) fabs(storedOrigin[2]) * dims[0];
-  int shiftZ = (int) fabs(storedOrigin[1]) * numSlice;
-  short* tempVoxelPtr = static_cast<short*>(tempVolumeData->GetScalarPointer());
-  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(voxelPtr + elemCnt) = 0;
-    }
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int X = elemCnt + shiftX;
-    int ref = (int) floor(elemCnt / dims[0]);
-    ref *= dims[0];
-    if(X < ref || X >= ref + dims[0])
-      {
-      continue;
-      }
-
-    int Y = elemCnt + shiftY;
-    ref = (int) floor(elemCnt / numSlice);
-    ref *= numSlice;
-    if(Y < ref || Y >= ref + numSlice)
-      {
-      continue;
-      }
-
-    int Z = elemCnt + shiftZ;
-    if(Z < 0 || Z >= numElements)
-      {
-      continue;
-      }
-
-    int shift = elemCnt + shiftX + shiftY + shiftZ;
-
-    *(voxelPtr + shift) = *(tempVoxelPtr + elemCnt);
     }
 
   labelMapNode->UpdateRangeAttributes();
@@ -824,8 +733,6 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
-
     this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onInputVolumeModified()));
 
@@ -1040,19 +947,18 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 {
   Q_D(const qSlicerAstroProfilesModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate"
+                   " : parametersNode not found!";
+    return;
+    }
+
   vtkSlicerAstroProfilesLogic *logic = d->logic();
   if (!logic)
     {
     qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
                   " : vtkSlicerAstroProfilesLogic not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  if (!d->parametersNode)
-    {
-    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate"
-                   " : parametersNode not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1069,7 +975,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-  if(!inputVolume)
+  if(!inputVolume || !inputVolume->GetImageData())
     {
     qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
                   " : inputVolume not found!";
@@ -1102,105 +1008,104 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   int serial = d->parametersNode->GetOutputSerial();
 
-  // Create 0thMomentMapVolume
-  vtkMRMLAstroVolumeNode *ProfileVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetProfileVolumeNodeID()));
-
-  if (!ProfileVolume)
-    {
-    ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-               GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-    }
-
   std::ostringstream outSS;
   outSS << inputVolume->GetName() << "_profile";
   outSS <<"_"<< IntToString(serial);
 
-  // Check Profile volume
-  if (!strcmp(inputVolume->GetID(), ProfileVolume->GetID()) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3")) !=
-      StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1"))))
+  vtkMRMLAstroVolumeNode *ProfileVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetProfileVolumeNodeID()));
+
+  if (ProfileVolume && strcmp(inputVolume->GetID(), ProfileVolume->GetID()))
     {
+    vtkMRMLAstroVolumeStorageNode* astroStorage =
+      vtkMRMLAstroVolumeStorageNode::SafeDownCast(ProfileVolume->GetStorageNode());
+    scene->RemoveNode(astroStorage);
+    scene->RemoveNode(ProfileVolume->GetDisplayNode());
 
-    // Get dimensions
-    int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-
-    // Create an empty 2D image
-    vtkNew<vtkImageData> imageDataTemp;
-    imageDataTemp->SetDimensions(N1, 1, 1);
-    imageDataTemp->SetSpacing(1.,1.,1.);
-    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-    // create Astro Volume for the moment map
-    ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-       (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-    // modify fits attributes
-    ProfileVolume->SetAttribute("SlicerAstro.NAXIS", "1");
-    std::string Bunit = ProfileVolume->GetAttribute("SlicerAstro.BUNIT");
-    Bunit += " km/s";
-    ProfileVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
-    std::string Btype = "";
-    Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-    ProfileVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-    ProfileVolume->SetAttribute("SlicerAstro.NAXIS1", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-    ProfileVolume->SetAttribute("SlicerAstro.CROTA1", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
-    ProfileVolume->SetAttribute("SlicerAstro.CRPIX1", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
-    ProfileVolume->SetAttribute("SlicerAstro.CRVAL1", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
-    ProfileVolume->SetAttribute("SlicerAstro.CTYPE1", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
-    ProfileVolume->SetAttribute("SlicerAstro.CUNIT1", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
-    ProfileVolume->SetAttribute("SlicerAstro.DTYPE1", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
-    ProfileVolume->SetAttribute("SlicerAstro.DRVAL1", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
-    ProfileVolume->SetAttribute("SlicerAstro.DUNIT1", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
-
-    ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CROTA2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT2");
-    ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CROTA3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-    ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-    // copy 1D image into the Astro Volume object
-    ProfileVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-    double Origin[3];
-    inputVolume->GetOrigin(Origin);
-    Origin[1] = 0.;
-    ProfileVolume->SetOrigin(Origin);
-
-    ProfileVolume->SetName(outSS.str().c_str());
-    d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
-
-    // Remove old rendering Display
-    int ndnodes = ProfileVolume->GetNumberOfDisplayNodes();
-    for (int ii = 0; ii < ndnodes; ii++)
+    vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ProfileVolume->GetDisplayNode());
+    if (volumeRenderingDisplay)
       {
-      vtkMRMLVolumeRenderingDisplayNode *dnode =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-          ProfileVolume->GetNthDisplayNode(ii));
-      if (dnode)
-        {
-        ProfileVolume->RemoveNthDisplayNodeID(ii);
-        }
+      scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+      scene->RemoveNode(volumeRenderingDisplay);
       }
+    scene->RemoveNode(ProfileVolume->GetVolumePropertyNode());
+    scene->RemoveNode(ProfileVolume);
     }
-  else
+
+  // Get dimensions
+  int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+
+  // Create an empty 2D image
+  vtkNew<vtkImageData> imageDataTemp;
+  imageDataTemp->SetDimensions(N1, 1, 1);
+  imageDataTemp->SetSpacing(1.,1.,1.);
+  imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
+
+  // create Astro Volume for the moment map
+  ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+     (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
+
+  // modify fits attributes
+  ProfileVolume->SetAttribute("SlicerAstro.NAXIS", "1");
+  std::string Bunit = ProfileVolume->GetAttribute("SlicerAstro.BUNIT");
+  Bunit += " km/s";
+  ProfileVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
+  std::string Btype = "";
+  Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+  ProfileVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
+  ProfileVolume->SetAttribute("SlicerAstro.NAXIS1", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+  ProfileVolume->SetAttribute("SlicerAstro.CROTA1", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
+  ProfileVolume->SetAttribute("SlicerAstro.CRPIX1", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
+  ProfileVolume->SetAttribute("SlicerAstro.CRVAL1", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
+  ProfileVolume->SetAttribute("SlicerAstro.CTYPE1", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
+  ProfileVolume->SetAttribute("SlicerAstro.CUNIT1", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
+  ProfileVolume->SetAttribute("SlicerAstro.DTYPE1", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
+  ProfileVolume->SetAttribute("SlicerAstro.DRVAL1", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
+  ProfileVolume->SetAttribute("SlicerAstro.DUNIT1", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
+
+  ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CROTA2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CROTA3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+
+  // copy 1D image into the Astro Volume object
+  ProfileVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+
+  double Origin[3];
+  inputVolume->GetOrigin(Origin);
+  Origin[1] = 0.;
+  ProfileVolume->SetOrigin(Origin);
+
+  ProfileVolume->SetName(outSS.str().c_str());
+  d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
+
+  // Remove old rendering Display
+  int ndnodes = ProfileVolume->GetNumberOfDisplayNodes();
+  for (int ii = 0; ii < ndnodes; ii++)
     {
-    ProfileVolume->SetName(outSS.str().c_str());
-    d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
+    vtkMRMLVolumeRenderingDisplayNode *dnode =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+        ProfileVolume->GetNthDisplayNode(ii));
+    if (dnode)
+      {
+      ProfileVolume->RemoveNthDisplayNodeID(ii);
+      }
     }
 
   ProfileVolume->SetAttribute("SlicerAstro.DATAMODEL", "PROFILE");
@@ -1213,6 +1118,18 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     scene->RemoveNode(ProfileVolume);
     d->parametersNode->SetStatus(0);
     d->parametersNode->SetProfileVolumeNodeID("");
+
+    if (d->parametersNode->GetMaskActive())
+      {
+      vtkMRMLAstroLabelMapVolumeNode *maskVolume =
+        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+          (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMaskVolumeNodeID()));
+      if(maskVolume)
+        {
+        scene->RemoveNode(maskVolume);
+        }
+      }
+
     return;
     }
 
@@ -1345,6 +1262,12 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     {
     d->selectionNode->SetActivePlotChartID(d->plotChartNodeProfile->GetID());
     d->selectionNode->SetActiveTableID(tableNode->GetID());
+    }
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (appLogic)
+    {
+    appLogic->PropagatePlotChartSelection();
     }
 
   serial++;

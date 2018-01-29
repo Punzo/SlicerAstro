@@ -79,7 +79,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="NodesCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="minimumSize">
       <size>
@@ -103,7 +103,7 @@
       <item row="0" column="0">
        <widget class="QLabel" name="ParametersLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Parameters Node:</string>
@@ -113,7 +113,7 @@
       <item row="0" column="1">
        <widget class="qMRMLNodeComboBox" name="ParametersNodeComboBox">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="nodeTypes">
          <stringlist>
@@ -140,7 +140,7 @@
       <item row="2" column="0">
        <widget class="QLabel" name="OutputLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Output Volume:</string>
@@ -150,7 +150,7 @@
       <item row="2" column="1">
        <widget class="qMRMLNodeComboBox" name="OutputVolumeNodeSelector">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
@@ -171,6 +171,9 @@
         </property>
         <property name="renameEnabled">
          <bool>true</bool>
+        </property>
+        <property name="selectNodeUponCreation">
+         <bool>false</bool>
         </property>
         <property name="noneDisplay">
          <string>None</string>
@@ -180,7 +183,7 @@
       <item row="3" column="0">
        <widget class="QLabel" name="ResidualLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Residual Volume:</string>
@@ -190,7 +193,7 @@
       <item row="3" column="1">
        <widget class="qMRMLNodeComboBox" name="ResidualVolumeNodeSelector">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="toolTip">
          <string>If the input and output Volumes are the same, the results will be delivered on a copy of the input Volume</string>
@@ -211,6 +214,9 @@
         </property>
         <property name="renameEnabled">
          <bool>true</bool>
+        </property>
+        <property name="selectNodeUponCreation">
+         <bool>false</bool>
         </property>
         <property name="noneDisplay">
          <string>None</string>
@@ -226,6 +232,9 @@
       </item>
       <item row="1" column="1">
        <widget class="qMRMLNodeComboBox" name="TableNodeComboBox">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
         <property name="nodeTypes">
          <stringlist>
           <string>vtkMRMLTableNode</string>
@@ -251,7 +260,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="InputSegmentCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="MinimumExpanding">
@@ -314,7 +323,7 @@
            <item>
             <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
               <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
@@ -341,7 +350,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="FittingParametersCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="text">
       <string>Model Fitting Parameters</string>
@@ -383,7 +392,7 @@
         <item>
          <widget class="QPushButton" name="FitPushButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -414,7 +423,7 @@
         <item>
          <widget class="QPushButton" name="CancelPushButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="minimumSize">
            <size>
@@ -430,7 +439,7 @@
         <item>
          <widget class="QProgressBar" name="progressBar">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="minimumSize">
            <size>
@@ -454,7 +463,7 @@
       <item row="20" column="0" colspan="2">
        <widget class="ctkCollapsibleButton" name="AdvancedCollapsibleButton">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Advanced</string>
@@ -472,7 +481,13 @@
          <item row="1" column="0">
           <widget class="QLabel" name="FreeParametersLabel">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
            <property name="text">
             <string>Free parameters:</string>
@@ -487,7 +502,13 @@
            <item>
             <widget class="QRadioButton" name="PARadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>PA</string>
@@ -503,7 +524,13 @@
            <item>
             <widget class="QRadioButton" name="DISPRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>&amp;DISP</string>
@@ -519,7 +546,13 @@
            <item>
             <widget class="QRadioButton" name="VROTRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>VRO&amp;T</string>
@@ -535,7 +568,13 @@
            <item>
             <widget class="QRadioButton" name="INCRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>INC</string>
@@ -552,6 +591,12 @@
          </item>
          <item row="4" column="0">
           <widget class="QLabel" name="DistanceLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="text">
             <string>Distance:</string>
            </property>
@@ -568,10 +613,10 @@
            <item>
             <widget class="ctkSliderWidget" name="DistanceSliderWidget">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
-              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -603,6 +648,12 @@
          </item>
          <item row="5" column="0">
           <widget class="QLabel" name="LayerTypeLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="text">
             <string>Layer Type:</string>
            </property>
@@ -619,7 +670,13 @@
            <item>
             <widget class="ctkComboBox" name="LayerTypeComboBox">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="editable">
               <bool>false</bool>
@@ -659,7 +716,13 @@
          <item row="6" column="0">
           <widget class="QLabel" name="CloudCDLabel">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
            <property name="text">
             <string>Cloud CD:</string>
@@ -677,10 +740,10 @@
            <item>
             <widget class="ctkSliderWidget" name="CloudCDSliderWidget">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
-              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -735,7 +798,13 @@
          <item row="7" column="0">
           <widget class="QLabel" name="NumCloudsLabel">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
            <property name="text">
             <string>Num of Clouds:</string>
@@ -753,10 +822,10 @@
            <item>
             <widget class="ctkSliderWidget" name="NumCloudsSliderWidget">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="sizePolicy">
-              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+              <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
                <horstretch>0</horstretch>
                <verstretch>0</verstretch>
               </sizepolicy>
@@ -792,7 +861,13 @@
          <item row="8" column="0">
           <widget class="QLabel" name="FittingFunctionLabel">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
            <property name="text">
             <string>Fitting Function:</string>
@@ -810,7 +885,13 @@
            <item>
             <widget class="ctkComboBox" name="FittingFunctionComboBox">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="editable">
               <bool>false</bool>
@@ -840,7 +921,13 @@
          <item row="9" column="0">
           <widget class="QLabel" name="WeightingFunctionLabel">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
            <property name="text">
             <string>Weighting Function:</string>
@@ -858,7 +945,13 @@
            <item>
             <widget class="ctkComboBox" name="WeightingFunctionComboBox">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="editable">
               <bool>false</bool>
@@ -893,7 +986,13 @@
            <item>
             <widget class="QRadioButton" name="VRadRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>VRAD</string>
@@ -909,7 +1008,13 @@
            <item>
             <widget class="QRadioButton" name="VSYSRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>VSYS</string>
@@ -925,7 +1030,13 @@
            <item>
             <widget class="QRadioButton" name="SCRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>Sca&amp;le Height</string>
@@ -948,7 +1059,13 @@
            <item>
             <widget class="QRadioButton" name="XCenterRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>&amp;XCenter</string>
@@ -964,7 +1081,13 @@
            <item>
             <widget class="QRadioButton" name="YCenterRadioButton">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
+             </property>
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
              </property>
              <property name="text">
               <string>&amp;YCenter</string>
@@ -981,6 +1104,12 @@
          </item>
          <item row="10" column="0">
           <widget class="QLabel" name="NormalizeLabel">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="text">
             <string>Normalization:</string>
            </property>
@@ -990,6 +1119,12 @@
           <layout class="QHBoxLayout" name="horizontalLayout_4">
            <item>
             <widget class="QPushButton" name="NormalizeNonePushButton">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="text">
               <string>None</string>
              </property>
@@ -1000,6 +1135,12 @@
            </item>
            <item>
             <widget class="QPushButton" name="NormalizeLocalPushButton">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="text">
               <string>Local</string>
              </property>
@@ -1013,6 +1154,12 @@
            </item>
            <item>
             <widget class="QPushButton" name="NormalizeAzimPushButton">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
              <property name="text">
               <string>Azimuthal</string>
              </property>
@@ -1028,6 +1175,12 @@
       </item>
       <item row="1" column="0">
        <widget class="QLabel" name="ModeLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="text">
          <string>Mode:</string>
         </property>
@@ -1041,7 +1194,13 @@
         <item>
          <widget class="QRadioButton" name="AutomaticModeRadioButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
           <property name="text">
            <string>A&amp;utomatic</string>
@@ -1057,7 +1216,13 @@
         <item>
          <widget class="QRadioButton" name="ManualModeRadioButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
           <property name="text">
            <string>Manua&amp;l</string>
@@ -1080,10 +1245,10 @@
         <item>
          <widget class="QPushButton" name="CleanInitialParametersPushButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1102,10 +1267,10 @@
         <item>
          <widget class="QPushButton" name="EstimateInitialParametersPushButton">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1134,10 +1299,10 @@
         <item>
          <widget class="ctkSliderWidget" name="RingsSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1173,7 +1338,13 @@
       <item row="3" column="0">
        <widget class="QLabel" name="RingsLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Numer of Rings:</string>
@@ -1191,10 +1362,10 @@
         <item>
          <widget class="ctkSliderWidget" name="RingWidthSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1235,10 +1406,10 @@
         <item>
          <widget class="ctkSliderWidget" name="XcenterSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1271,7 +1442,13 @@
       <item row="4" column="0">
        <widget class="QLabel" name="RingWidthLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Ring Width:</string>
@@ -1281,7 +1458,13 @@
       <item row="5" column="0">
        <widget class="QLabel" name="XcenterLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>X center:</string>
@@ -1299,10 +1482,10 @@
         <item>
          <widget class="ctkSliderWidget" name="YcenterSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1343,10 +1526,10 @@
         <item>
          <widget class="ctkSliderWidget" name="SysVelSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1387,10 +1570,10 @@
         <item>
          <widget class="ctkSliderWidget" name="RotVelSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1423,7 +1606,13 @@
       <item row="6" column="0">
        <widget class="QLabel" name="YcenterLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Y center:</string>
@@ -1433,7 +1622,13 @@
       <item row="7" column="0">
        <widget class="QLabel" name="SysVelLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Systemic Velocity:</string>
@@ -1443,7 +1638,13 @@
       <item row="8" column="0">
        <widget class="QLabel" name="RotVelLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Rotation Velocity:</string>
@@ -1461,10 +1662,10 @@
         <item>
          <widget class="ctkSliderWidget" name="RadVelSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1500,7 +1701,13 @@
       <item row="9" column="0">
        <widget class="QLabel" name="VRadLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Radial Velocity:</string>
@@ -1518,10 +1725,10 @@
         <item>
          <widget class="ctkSliderWidget" name="VelDispSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1565,10 +1772,10 @@
         <item>
          <widget class="ctkSliderWidget" name="InclinationSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1589,6 +1796,12 @@
         </item>
         <item>
          <spacer name="horizontalSpacer">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -1606,7 +1819,7 @@
         <item>
          <widget class="QLabel" name="InclinationLabelMiddle">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -1621,6 +1834,12 @@
         </item>
         <item>
          <spacer name="horizontalSpacer_2">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -1638,10 +1857,10 @@
         <item>
          <widget class="ctkDoubleSpinBox" name="InclinationErrorSpinBox">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1679,10 +1898,10 @@
         <item>
          <widget class="ctkSliderWidget" name="PASliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1700,6 +1919,12 @@
         </item>
         <item>
          <spacer name="horizontalSpacer_3">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -1717,7 +1942,7 @@
         <item>
          <widget class="QLabel" name="PALabelMiddle">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -1732,6 +1957,12 @@
         </item>
         <item>
          <spacer name="horizontalSpacer_4">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -1749,10 +1980,10 @@
         <item>
          <widget class="ctkDoubleSpinBox" name="PAErrorSpinBox">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1787,10 +2018,10 @@
         <item>
          <widget class="ctkSliderWidget" name="SHSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1831,10 +2062,10 @@
         <item>
          <widget class="ctkSliderWidget" name="CDSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
-           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1865,7 +2096,7 @@
         <item>
          <widget class="QLabel" name="CDLabelUnit">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -1889,7 +2120,13 @@
       <item row="10" column="0">
        <widget class="QLabel" name="VelDispLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Velocity Dispersion:</string>
@@ -1899,7 +2136,13 @@
       <item row="11" column="0">
        <widget class="QLabel" name="InclinationLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Inclination:</string>
@@ -1909,7 +2152,13 @@
       <item row="12" column="0">
        <widget class="QLabel" name="PALabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Position Angle:</string>
@@ -1919,7 +2168,13 @@
       <item row="13" column="0">
        <widget class="QLabel" name="SHLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Scale Height:</string>
@@ -1929,7 +2184,13 @@
       <item row="14" column="0">
        <widget class="QLabel" name="CDLabel">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
         </property>
         <property name="text">
          <string>Column Density:</string>
@@ -1942,7 +2203,7 @@
    <item>
     <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
      </property>
      <property name="sizePolicy">
       <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
@@ -1993,7 +2254,7 @@
         <item>
          <widget class="ctkSliderWidget" name="ContourSliderWidget">
           <property name="enabled">
-           <bool>false</bool>
+           <bool>true</bool>
           </property>
           <property name="sizePolicy">
            <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -2226,7 +2487,7 @@
       <item row="7" column="1">
        <widget class="ctkCollapsibleButton" name="OutputCollapsibleButton_2">
         <property name="enabled">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <property name="sizePolicy">
          <sizepolicy hsizetype="Minimum" vsizetype="Expanding">

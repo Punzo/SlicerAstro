@@ -11,7 +11,6 @@
         <file>HTML/AstroAcknowledgment.html</file>
         <file>Images/SlicerAstroIcon.png</file>
         <file>Images/SlicerAdvancedGear-Original.png</file>
-        <file>Icons/SlicerWelcome.png</file>
         <file>Icons/SlicerAstroWelcome.png</file>
     </qresource>
 </RCC>

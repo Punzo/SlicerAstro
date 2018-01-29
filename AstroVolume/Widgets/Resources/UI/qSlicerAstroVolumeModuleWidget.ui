@@ -21,7 +21,16 @@
    <string/>
   </property>
   <layout class="QGridLayout" name="gridLayout">
-   <property name="margin">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
     <number>0</number>
    </property>
    <item row="21" column="1" colspan="2">
@@ -83,7 +92,16 @@
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>4</number>
+      </property>
+      <property name="topMargin">
+       <number>4</number>
+      </property>
+      <property name="rightMargin">
+       <number>4</number>
+      </property>
+      <property name="bottomMargin">
        <number>4</number>
       </property>
       <item>
@@ -460,7 +478,16 @@
       <property name="spacing">
        <number>9</number>
       </property>
-      <property name="margin">
+      <property name="leftMargin">
+       <number>4</number>
+      </property>
+      <property name="topMargin">
+       <number>4</number>
+      </property>
+      <property name="rightMargin">
+       <number>4</number>
+      </property>
+      <property name="bottomMargin">
        <number>4</number>
       </property>
       <item>
@@ -485,7 +512,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert a mask (LabelMap node) into the current Segmentation for editing it (NOTE: the last segment is not a sourceID, but it is needed by SlicerAstro for memory management reason).</string>
+             <string>Convert a mask (LabelMap node) into a segmentation (which can be manually edited).</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -552,7 +579,7 @@
              </size>
             </property>
             <property name="toolTip">
-             <string>Convert the current Segmentation into a mask (LabelMap node) to write it into a FITS file.</string>
+             <string>Convert the current segmentation into a mask (A segmentation can not be written into a FITS file).</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -681,7 +708,7 @@
         </stringlist>
        </property>
        <property name="noneEnabled">
-        <bool>true</bool>
+        <bool>false</bool>
        </property>
        <property name="addEnabled">
         <bool>false</bool>
@@ -877,7 +904,7 @@
          <string/>
         </property>
         <property name="text">
-         <string>Synchornize</string>
+         <string>Synchronize</string>
         </property>
         <property name="icon">
          <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">

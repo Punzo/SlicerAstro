@@ -25,6 +25,8 @@ set(module_mrml_SRCS
     vtkMRMLAstroLabelMapVolumeDisplayNode.h
     vtkMRMLAstroLabelMapVolumeNode.cxx
     vtkMRMLAstroLabelMapVolumeNode.h
+    vtkMRMLAstroMaskingParametersNode.cxx
+    vtkMRMLAstroMaskingParametersNode.h
     vtkMRMLAstroModelingParametersNode.cxx
     vtkMRMLAstroModelingParametersNode.h
     vtkMRMLAstroMomentMapsParametersNode.cxx

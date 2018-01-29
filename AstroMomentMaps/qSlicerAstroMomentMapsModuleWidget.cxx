@@ -64,11 +64,13 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
+#include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
@@ -251,6 +253,18 @@ qSlicerAstroMomentMapsModuleWidget::qSlicerAstroMomentMapsModuleWidget(QWidget* 
 //-----------------------------------------------------------------------------
 qSlicerAstroMomentMapsModuleWidget::~qSlicerAstroMomentMapsModuleWidget()
 {
+}
+
+//----------------------------------------------------------------------------
+void qSlicerAstroMomentMapsModuleWidget::enter()
+{
+  this->Superclass::enter();
+}
+
+//----------------------------------------------------------------------------
+void qSlicerAstroMomentMapsModuleWidget::exit()
+{
+  this->Superclass::exit();
 }
 
 namespace
@@ -497,23 +511,8 @@ bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
 
   if (!d->segmentEditorNode)
     {
-    std::string segmentEditorSingletonTag = "SegmentEditor";
-    vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-      {
-      d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-      d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-      d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-        this->mrmlScene()->AddNode(d->segmentEditorNode));
-      }
-    else
-      {
-      d->segmentEditorNode = segmentEditorNodeSingleton;
-      }
-    this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+    qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
+    return false;
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
@@ -577,10 +576,7 @@ bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
     return false;
     }
 
-  int Extents[6] = { 0, 0, 0, 0, 0, 0 };
-  labelMapNode->GetImageData()->GetExtent(Extents);
-
-  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode))
+  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
@@ -589,93 +585,6 @@ bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
-    }
-
-  double storedOrigin[3] = { 0., 0., 0. };
-  labelMapNode->GetOrigin(storedOrigin);
-
-  // restore original Extents
-  vtkNew<vtkImageReslice> reslice;
-  reslice->SetOutputExtent(Extents);
-  reslice->SetOutputOrigin(0., 0., 0.);
-  reslice->SetOutputScalarType(VTK_SHORT);
-  reslice->SetInputData(labelMapNode->GetImageData());
-
-  reslice->Update();
-  labelMapNode->GetImageData()->DeepCopy(reslice->GetOutput());
-
-  // restore original Origins
-  int *dims = labelMapNode->GetImageData()->GetDimensions();
-  double dimsH[4];
-  dimsH[0] = dims[0] - 1;
-  dimsH[1] = dims[1] - 1;
-  dimsH[2] = dims[2] - 1;
-  dimsH[3] = 0.;
-
-  vtkNew<vtkMatrix4x4> ijkToRAS;
-  labelMapNode->GetIJKToRASMatrix(ijkToRAS.GetPointer());
-  double rasCorner[4];
-  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
-
-  double Origin[3] = { 0., 0., 0. };
-  Origin[0] = -0.5 * rasCorner[0];
-  Origin[1] = -0.5 * rasCorner[1];
-  Origin[2] = -0.5 * rasCorner[2];
-
-  labelMapNode->SetOrigin(Origin);
-
-  // translate data to original location (linear translation supported only)
-  storedOrigin[0] -= Origin[0];
-  storedOrigin[1] -= Origin[1];
-  storedOrigin[2] -= Origin[2];
-
-  vtkNew<vtkImageData> tempVolumeData;
-  tempVolumeData->Initialize();
-  tempVolumeData->DeepCopy(labelMapNode->GetImageData());
-  tempVolumeData->Modified();
-  tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-  dims = labelMapNode->GetImageData()->GetDimensions();
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int shiftX = (int) fabs(storedOrigin[0]);
-  int shiftY = (int) fabs(storedOrigin[2]) * dims[0];
-  int shiftZ = (int) fabs(storedOrigin[1]) * numSlice;
-  short* tempVoxelPtr = static_cast<short*>(tempVolumeData->GetScalarPointer());
-  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(voxelPtr + elemCnt) = 0;
-    }
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int X = elemCnt + shiftX;
-    int ref = (int) floor(elemCnt / dims[0]);
-    ref *= dims[0];
-    if(X < ref || X >= ref + dims[0])
-      {
-      continue;
-      }
-
-    int Y = elemCnt + shiftY;
-    ref = (int) floor(elemCnt / numSlice);
-    ref *= numSlice;
-    if(Y < ref || Y >= ref + numSlice)
-      {
-      continue;
-      }
-
-    int Z = elemCnt + shiftZ;
-    if(Z < 0 || Z >= numElements)
-      {
-      continue;
-      }
-
-    int shift = elemCnt + shiftX + shiftY + shiftZ;
-
-    *(voxelPtr + shift) = *(tempVoxelPtr + elemCnt);
     }
 
   labelMapNode->UpdateRangeAttributes();
@@ -1089,19 +998,18 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 {
   Q_D(const qSlicerAstroMomentMapsModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate :"
+                   " parametersNode not found!";
+    return;
+    }
+
   vtkSlicerAstroMomentMapsLogic *logic = d->logic();
   if (!logic)
     {
     qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate :"
                   " vtkSlicerAstroMomentMapsLogic not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  if (!d->parametersNode)
-    {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate :"
-                   " parametersNode not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1118,7 +1026,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-  if(!inputVolume)
+  if(!inputVolume || !inputVolume->GetImageData())
     {
     qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate :"
                   " inputVolume not found!";
@@ -1160,84 +1068,82 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       d->parametersNode->GetGenerateFirst() ||
       d->parametersNode->GetGenerateSecond())
     {
-    if (!ZeroMomentVolume)
-      {
-      ZeroMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-                 GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-      }
-
     std::ostringstream outSS;
     outSS << inputVolume->GetName() << "_mom0th";
     outSS <<"_"<< IntToString(serial);
 
-    // Check Moment volume
-    if (!strcmp(inputVolume->GetID(), ZeroMomentVolume->GetID()) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-        StringToInt(ZeroMomentVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-        StringToInt(ZeroMomentVolume->GetAttribute("SlicerAstro.NAXIS2"))))
+    if (ZeroMomentVolume && strcmp(inputVolume->GetID(), ZeroMomentVolume->GetID()))
       {
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(ZeroMomentVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(ZeroMomentVolume->GetDisplayNode());
 
-      // Get dimensions
-      int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
-      int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-
-      // Create an empty 2D image
-      vtkNew<vtkImageData> imageDataTemp;
-      imageDataTemp->SetDimensions(N1, N2, 1);
-      imageDataTemp->SetSpacing(1.,1.,1.);
-      imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-      // create Astro Volume for the moment map
-      ZeroMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-         (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-      // modify fits attributes
-      ZeroMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-      std::string Bunit = ZeroMomentVolume->GetAttribute("SlicerAstro.BUNIT");
-      Bunit += " km/s";
-      ZeroMomentVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
-      std::string Btype = "";
-      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-      ZeroMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-      ZeroMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-      // copy 2D image into the Astro Volume object
-      ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-      double Origin[3];
-      inputVolume->GetOrigin(Origin);
-      Origin[1] = 0.;
-      ZeroMomentVolume->SetOrigin(Origin);
-
-      ZeroMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
-
-      // Remove old rendering Display
-      int ndnodes = ZeroMomentVolume->GetNumberOfDisplayNodes();
-      for (int ii = 0; ii < ndnodes; ii++)
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ZeroMomentVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
         {
-        vtkMRMLVolumeRenderingDisplayNode *dnode =
-          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-            ZeroMomentVolume->GetNthDisplayNode(ii));
-        if (dnode)
-          {
-          ZeroMomentVolume->RemoveNthDisplayNodeID(ii);
-          }
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
         }
+      scene->RemoveNode(ZeroMomentVolume->GetVolumePropertyNode());
+      scene->RemoveNode(ZeroMomentVolume);
       }
-    else
+
+    // Get dimensions
+    int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
+    int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
+
+    // Create an empty 2D image
+    vtkNew<vtkImageData> imageDataTemp;
+    imageDataTemp->SetDimensions(N1, N2, 1);
+    imageDataTemp->SetSpacing(1.,1.,1.);
+    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
+
+    // create Astro Volume for the moment map
+    ZeroMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
+
+    // modify fits attributes
+    ZeroMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
+    std::string Bunit = ZeroMomentVolume->GetAttribute("SlicerAstro.BUNIT");
+    Bunit += " km/s";
+    ZeroMomentVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
+    std::string Btype = "";
+    Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+    ZeroMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+
+    // copy 2D image into the Astro Volume object
+    ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+
+    double Origin[3];
+    inputVolume->GetOrigin(Origin);
+    Origin[1] = 0.;
+    ZeroMomentVolume->SetOrigin(Origin);
+
+    ZeroMomentVolume->SetName(outSS.str().c_str());
+    d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
+
+    // Remove old rendering Display
+    int ndnodes = ZeroMomentVolume->GetNumberOfDisplayNodes();
+    for (int ii = 0; ii < ndnodes; ii++)
       {
-      ZeroMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
+      vtkMRMLVolumeRenderingDisplayNode *dnode =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+          ZeroMomentVolume->GetNthDisplayNode(ii));
+      if (dnode)
+        {
+        ZeroMomentVolume->RemoveNthDisplayNodeID(ii);
+        }
       }
 
     ZeroMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMENTMAP");
@@ -1251,95 +1157,93 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   if (d->parametersNode->GetGenerateFirst() ||
       d->parametersNode->GetGenerateSecond())
     {
-    if (!FirstMomentVolume)
-      {
-      FirstMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-                 GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-      }
-
     std::ostringstream outSS;
     outSS << inputVolume->GetName() << "_mom1st";
     outSS <<"_"<< IntToString(serial);
 
-    // Check Moment volume
-    if (!strcmp(inputVolume->GetID(), FirstMomentVolume->GetID()) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-        StringToInt(FirstMomentVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-        StringToInt(FirstMomentVolume->GetAttribute("SlicerAstro.NAXIS2"))))
+    if (FirstMomentVolume && strcmp(inputVolume->GetID(), FirstMomentVolume->GetID()))
       {
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(FirstMomentVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(FirstMomentVolume->GetDisplayNode());
 
-      // Get dimensions
-      int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
-      int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-
-      // Create an empty 2D image
-      vtkNew<vtkImageData> imageDataTemp;
-      imageDataTemp->SetDimensions(N1, N2, 1);
-      imageDataTemp->SetSpacing(1.,1.,1.);
-      imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-      // create Astro Volume for the moment map
-      FirstMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-         (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-      // modify fits attributes
-      FirstMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-      FirstMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
-      std::string Btype = "";
-      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-      FirstMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-      FirstMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-      // copy 2D image into the Astro Volume object
-      FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-      double Origin[3];
-      inputVolume->GetOrigin(Origin);
-      Origin[1] = 0.;
-      FirstMomentVolume->SetOrigin(Origin);
-
-      // change colorMap of the 2D image
-      vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
-      vtkMRMLColorTableNode* velocityFieldColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-        (scene->GetFirstNodeByName("Velocity Field"));
-      if (!velocityFieldColorTableNode)
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(FirstMomentVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
         {
-        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
-                      "velocityFieldColorTableNode not found!";
-        d->parametersNode->SetStatus(0);
-        return;
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
         }
-      displayNode->SetAndObserveColorNodeID(velocityFieldColorTableNode->GetID());
-
-      FirstMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
-
-      // Remove old rendering Display
-      int ndnodes = FirstMomentVolume->GetNumberOfDisplayNodes();
-      for (int ii = 0; ii < ndnodes; ii++)
-        {
-        vtkMRMLVolumeRenderingDisplayNode *dnode =
-          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-            FirstMomentVolume->GetNthDisplayNode(ii));
-        if (dnode)
-          {
-          FirstMomentVolume->RemoveNthDisplayNodeID(ii);
-          }
-        }
+      scene->RemoveNode(FirstMomentVolume->GetVolumePropertyNode());
+      scene->RemoveNode(FirstMomentVolume);
       }
-    else
+
+    // Get dimensions
+    int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
+    int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
+
+    // Create an empty 2D image
+    vtkNew<vtkImageData> imageDataTemp;
+    imageDataTemp->SetDimensions(N1, N2, 1);
+    imageDataTemp->SetSpacing(1.,1.,1.);
+    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
+
+    // create Astro Volume for the moment map
+    FirstMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
+
+    // modify fits attributes
+    FirstMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
+    FirstMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
+    std::string Btype = "";
+    Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+    FirstMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+
+    // copy 2D image into the Astro Volume object
+    FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+
+    double Origin[3];
+    inputVolume->GetOrigin(Origin);
+    Origin[1] = 0.;
+    FirstMomentVolume->SetOrigin(Origin);
+
+    // change colorMap of the 2D image
+    vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
+    vtkMRMLColorTableNode* velocityFieldColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+      (scene->GetFirstNodeByName("Velocity Field"));
+    if (!velocityFieldColorTableNode)
       {
-      FirstMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
+      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
+                    "velocityFieldColorTableNode not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+    displayNode->SetAndObserveColorNodeID(velocityFieldColorTableNode->GetID());
+
+    FirstMomentVolume->SetName(outSS.str().c_str());
+    d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
+
+    // Remove old rendering Display
+    int ndnodes = FirstMomentVolume->GetNumberOfDisplayNodes();
+    for (int ii = 0; ii < ndnodes; ii++)
+      {
+      vtkMRMLVolumeRenderingDisplayNode *dnode =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+          FirstMomentVolume->GetNthDisplayNode(ii));
+      if (dnode)
+        {
+        FirstMomentVolume->RemoveNthDisplayNodeID(ii);
+        }
       }
 
     FirstMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "FIRSTMOMENTMAP");
@@ -1352,95 +1256,93 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
   if (d->parametersNode->GetGenerateSecond())
     {
-    if (!SecondMomentVolume)
-      {
-      SecondMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-                 GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-      }
-
     std::ostringstream outSS;
     outSS << inputVolume->GetName() << "_mom2nd";
     outSS <<"_"<< IntToString(serial);
 
-    // Check Moment volume
-    if (!strcmp(inputVolume->GetID(), SecondMomentVolume->GetID()) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-        StringToInt(SecondMomentVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-       (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-        StringToInt(SecondMomentVolume->GetAttribute("SlicerAstro.NAXIS2"))))
+    if (SecondMomentVolume && strcmp(inputVolume->GetID(), SecondMomentVolume->GetID()))
       {
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(SecondMomentVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(SecondMomentVolume->GetDisplayNode());
 
-      // Get dimensions
-      int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
-      int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-
-      // Create an empty 2D image
-      vtkNew<vtkImageData> imageDataTemp;
-      imageDataTemp->SetDimensions(N1, N2, 1);
-      imageDataTemp->SetSpacing(1.,1.,1.);
-      imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-      // create Astro Volume for the moment map
-      SecondMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-         (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-      // modify fits attributes
-      SecondMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-      SecondMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
-      std::string Btype = "";
-      Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
-      SecondMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-      SecondMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-      // copy 2D image into the Astro Volume object
-      SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-      double Origin[3];
-      inputVolume->GetOrigin(Origin);
-      Origin[1] = 0.;
-      SecondMomentVolume->SetOrigin(Origin);
-
-      // change colorMap of the 2D image
-      vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();
-      vtkMRMLColorTableNode* RainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-        (scene->GetFirstNodeByName("Rainbow"));
-      if (!RainbowColorTableNode)
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(SecondMomentVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
         {
-        qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
-                      "RainbowColorTableNode not found!";
-        d->parametersNode->SetStatus(0);
-        return;
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
         }
-      displayNode->SetAndObserveColorNodeID(RainbowColorTableNode->GetID());
-
-      SecondMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
-
-      // Remove old rendering Display
-      int ndnodes = SecondMomentVolume->GetNumberOfDisplayNodes();
-      for (int ii = 0; ii < ndnodes; ii++)
-        {
-        vtkMRMLVolumeRenderingDisplayNode *dnode =
-          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-            SecondMomentVolume->GetNthDisplayNode(ii));
-        if (dnode)
-          {
-          SecondMomentVolume->RemoveNthDisplayNodeID(ii);
-          }
-        }
+      scene->RemoveNode(SecondMomentVolume->GetVolumePropertyNode());
+      scene->RemoveNode(SecondMomentVolume);
       }
-    else
+
+    // Get dimensions
+    int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
+    int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
+
+    // Create an empty 2D image
+    vtkNew<vtkImageData> imageDataTemp;
+    imageDataTemp->SetDimensions(N1, N2, 1);
+    imageDataTemp->SetSpacing(1.,1.,1.);
+    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
+
+    // create Astro Volume for the moment map
+    SecondMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
+
+    // modify fits attributes
+    SecondMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
+    SecondMomentVolume->SetAttribute("SlicerAstro.BUNIT", "km/s");
+    std::string Btype = "";
+    Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+    SecondMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.CTYPE3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.CUNIT3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+
+    // copy 2D image into the Astro Volume object
+    SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+
+    double Origin[3];
+    inputVolume->GetOrigin(Origin);
+    Origin[1] = 0.;
+    SecondMomentVolume->SetOrigin(Origin);
+
+    // change colorMap of the 2D image
+    vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();
+    vtkMRMLColorTableNode* RainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+      (scene->GetFirstNodeByName("Rainbow"));
+    if (!RainbowColorTableNode)
       {
-      SecondMomentVolume->SetName(outSS.str().c_str());
-      d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
+      qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
+                    "RainbowColorTableNode not found!";
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+    displayNode->SetAndObserveColorNodeID(RainbowColorTableNode->GetID());
+
+    SecondMomentVolume->SetName(outSS.str().c_str());
+    d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
+
+    // Remove old rendering Display
+    int ndnodes = SecondMomentVolume->GetNumberOfDisplayNodes();
+    for (int ii = 0; ii < ndnodes; ii++)
+      {
+      vtkMRMLVolumeRenderingDisplayNode *dnode =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+          SecondMomentVolume->GetNthDisplayNode(ii));
+      if (dnode)
+        {
+        SecondMomentVolume->RemoveNthDisplayNodeID(ii);
+        }
       }
 
     SecondMomentVolume->SetAttribute("SlicerAstro.DATAMODEL", "SECONDMOMENTMAP");
@@ -1472,6 +1374,18 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     d->parametersNode->SetZeroMomentVolumeNodeID("");
     d->parametersNode->SetFirstMomentVolumeNodeID("");
     d->parametersNode->SetSecondMomentVolumeNodeID("");
+
+    if (d->parametersNode->GetMaskActive())
+      {
+      vtkMRMLAstroLabelMapVolumeNode *maskVolume =
+        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+          (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMaskVolumeNodeID()));
+      if(maskVolume)
+        {
+        scene->RemoveNode(maskVolume);
+        }
+      }
+
     return;
     }
 

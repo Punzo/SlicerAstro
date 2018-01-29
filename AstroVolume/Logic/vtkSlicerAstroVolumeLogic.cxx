@@ -42,6 +42,7 @@
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
@@ -65,6 +66,7 @@
 #include <vtkObjectFactory.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkPointData.h>
+#include <vtkSegment.h>
 #include <vtkSmartPointer.h>
 
 // WCS includes
@@ -931,7 +933,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLAnnotationRO
     return false;
     }
 
-  int originalImageExtents[6] = { 0 };
+  int originalImageExtents[6] = {0};
   inputVolume->GetImageData()->GetExtent(originalImageExtents);
 
   vtkMRMLTransformNode* roiTransform = roiNode->GetParentTransformNode();
@@ -960,9 +962,9 @@ bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLAnnotationRO
   vtkMatrix4x4::Multiply4x4(rasToIJK.GetPointer(), roiToVolumeTransformMatrix.GetPointer(),
     roiToVolumeIJKTransformMatrix.GetPointer());
 
-  double roiXYZ[3] = { 0 };
+  double roiXYZ[3] = {0};
   roiNode->GetXYZ(roiXYZ);
-  double roiRadius[3] = { 0 };
+  double roiRadius[3] = {0};
   roiNode->GetRadiusXYZ(roiRadius);
 
   const int numberOfCorners = 8;
@@ -979,11 +981,100 @@ bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLAnnotationRO
     };
 
   // Get ROI extent in IJK coordinate system
-  double outputExtentDouble[6] = { 0 };
+  double outputExtentDouble[6] = {0};
   for (int cornerPointIndex = 0; cornerPointIndex < numberOfCorners; cornerPointIndex++)
     {
-    double volumeCorner_IJK[4] = { 0, 0, 0, 1 };
+    double volumeCorner_IJK[4] = {0, 0, 0, 1};
     roiToVolumeIJKTransformMatrix->MultiplyPoint(volumeCorners_ROI[cornerPointIndex], volumeCorner_IJK);
+    for (int axisIndex = 0; axisIndex < 3; ++axisIndex)
+      {
+      if (cornerPointIndex == 0 || volumeCorner_IJK[axisIndex] < outputExtentDouble[axisIndex * 2])
+        {
+        outputExtentDouble[axisIndex * 2] = volumeCorner_IJK[axisIndex];
+        }
+      if (cornerPointIndex == 0 || volumeCorner_IJK[axisIndex] > outputExtentDouble[axisIndex * 2 + 1])
+        {
+        outputExtentDouble[axisIndex * 2 + 1] = volumeCorner_IJK[axisIndex];
+        }
+      }
+    }
+
+  // Limit output extent to input extent
+  int* inputExtent = inputVolume->GetImageData()->GetExtent();
+  double tolerance = 0.001;
+  for (int axisIndex = 0; axisIndex < 3; ++axisIndex)
+    {
+    outputExtent[axisIndex * 2] = std::max(inputExtent[axisIndex * 2], int(ceil(outputExtentDouble[axisIndex * 2]+0.5-tolerance)));
+    outputExtent[axisIndex * 2 + 1] = std::min(inputExtent[axisIndex * 2 + 1], int(floor(outputExtentDouble[axisIndex * 2 + 1]-0.5+tolerance)));
+    }
+
+  return true;
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmentationNode *segmentationNode,
+                                                                 vtkSegment *segment,
+                                                                 vtkMRMLAstroVolumeNode *inputVolume,
+                                                                 double outputExtent[])
+{
+  outputExtent[0] = outputExtent[2] = outputExtent[4] = 0;
+  outputExtent[1] = outputExtent[3] = outputExtent[5] = -1;
+  if (!segmentationNode || !segment || !inputVolume || !inputVolume->GetImageData())
+    {
+    return false;
+    }
+
+  int originalImageExtents[6] = {0};
+  inputVolume->GetImageData()->GetExtent(originalImageExtents);
+
+  vtkMRMLTransformNode* segmentTransform = segmentationNode->GetParentTransformNode();
+  if (segmentTransform && !segmentTransform->IsTransformToWorldLinear())
+    {
+    vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds :"
+                           "  segment is transformed using a non-linear transform. The transformation will be ignored");
+    segmentTransform = NULL;
+    }
+
+  if (inputVolume->GetParentTransformNode() && !inputVolume->GetParentTransformNode()->IsTransformToWorldLinear())
+    {
+    vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds :"
+                           " voxel-based cropping of non-linearly transformed input volume is not supported");
+    return -1;
+    }
+
+  vtkNew<vtkMatrix4x4> segmentToVolumeTransformMatrix;
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(segmentTransform, inputVolume->GetParentTransformNode(),
+    segmentToVolumeTransformMatrix.GetPointer());
+
+  vtkNew<vtkMatrix4x4> rasToIJK;
+  inputVolume->GetRASToIJKMatrix(rasToIJK.GetPointer());
+
+  vtkNew<vtkMatrix4x4> segmentToVolumeIJKTransformMatrix;
+  vtkMatrix4x4::Multiply4x4(rasToIJK.GetPointer(), segmentToVolumeTransformMatrix.GetPointer(),
+    segmentToVolumeIJKTransformMatrix.GetPointer());
+
+  double SegmentExtent[6] = {0};
+  segment->GetBounds(SegmentExtent);
+
+  const int numberOfCorners = 8;
+  double volumeCorners_Segment[numberOfCorners][4] =
+    {
+    { SegmentExtent[0], SegmentExtent[2], SegmentExtent[4], 1. },
+    { SegmentExtent[1], SegmentExtent[2], SegmentExtent[4], 1. },
+    { SegmentExtent[0], SegmentExtent[3], SegmentExtent[4], 1. },
+    { SegmentExtent[1], SegmentExtent[3], SegmentExtent[4], 1. },
+    { SegmentExtent[0], SegmentExtent[2], SegmentExtent[5], 1. },
+    { SegmentExtent[1], SegmentExtent[2], SegmentExtent[5], 1. },
+    { SegmentExtent[0], SegmentExtent[3], SegmentExtent[5], 1. },
+    { SegmentExtent[1], SegmentExtent[3], SegmentExtent[5], 1. },
+    };
+
+  // Get ROI extent in IJK coordinate system
+  double outputExtentDouble[6] = {0};
+  for (int cornerPointIndex = 0; cornerPointIndex < numberOfCorners; cornerPointIndex++)
+    {
+    double volumeCorner_IJK[4] = {0, 0, 0, 1};
+    segmentToVolumeIJKTransformMatrix->MultiplyPoint(volumeCorners_Segment[cornerPointIndex], volumeCorner_IJK);
     for (int axisIndex = 0; axisIndex < 3; ++axisIndex)
       {
       if (cornerPointIndex == 0 || volumeCorner_IJK[axisIndex] < outputExtentDouble[axisIndex * 2])
@@ -1065,8 +1156,8 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
   firstElement = roiBounds[0] + roiBounds[2] * dims[0] +
                  roiBounds[4] * numSlice;
 
-  lastElement = roiBounds[1] + roiBounds[3] * dims[0] +
-                roiBounds[5] * numSlice;
+  lastElement = (roiBounds[1] + roiBounds[3] * dims[0] +
+                roiBounds[5] * numSlice) + 1;
 
   #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   omp_set_num_threads(omp_get_num_procs());
@@ -1078,7 +1169,7 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp parallel for schedule(static) reduction(+:mean)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
         { 
         int ref  = (int) floor(elemCnt / dims[0]);
         ref *= dims[0];
@@ -1087,8 +1178,8 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
         ref *= numSlice;
         ref = elemCnt - ref;
         int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] ||  x > roiBounds[1] ||
-            y < roiBounds[2] ||  y > roiBounds[3])
+        if (x < roiBounds[0] || x > roiBounds[1] ||
+            y < roiBounds[2] || y > roiBounds[3])
           {
           continue;
           }
@@ -1103,7 +1194,7 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp parallel for schedule(static) reduction(+:noise)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / dims[0]);
         ref *= dims[0];
@@ -1112,8 +1203,8 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
         ref *= numSlice;
         ref = elemCnt - ref;
         int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] ||  x > roiBounds[1] ||
-            y < roiBounds[2] ||  y > roiBounds[3])
+        if (x < roiBounds[0] || x > roiBounds[1] ||
+            y < roiBounds[2] || y > roiBounds[3])
           {
           continue;
           }
@@ -1129,7 +1220,7 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp parallel for schedule(static) reduction(+:mean)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / dims[0]);
         ref *= dims[0];
@@ -1138,8 +1229,8 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
         ref *= numSlice;
         ref = elemCnt - ref;
         int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] ||  x > roiBounds[1] ||
-            y < roiBounds[2] ||  y > roiBounds[3])
+        if (x < roiBounds[0] || x > roiBounds[1] ||
+            y < roiBounds[2] || y > roiBounds[3])
           {
           continue;
           }
@@ -1154,7 +1245,7 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp parallel for schedule(static) reduction(+:noise)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt <= lastElement; elemCnt++)
+      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / dims[0]);
         ref *= dims[0];
@@ -1163,8 +1254,8 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
         ref *= numSlice;
         ref = elemCnt - ref;
         int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] ||  x > roiBounds[1] ||
-            y < roiBounds[2] ||  y > roiBounds[3])
+        if (x < roiBounds[0] || x > roiBounds[1] ||
+            y < roiBounds[2] || y > roiBounds[3])
           {
           continue;
           }

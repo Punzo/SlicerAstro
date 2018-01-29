@@ -549,6 +549,10 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
   delete outFPixel;
   delete outDPixel;
 
+  if (DoubleIsNaN(noise))
+    {
+    noise = 0.;
+    }
   this->Set3DDisplayThreshold(noise);
   this->SetAttribute("SlicerAstro.3DDisplayThresholdMean", DoubleToString(mean).c_str());
 

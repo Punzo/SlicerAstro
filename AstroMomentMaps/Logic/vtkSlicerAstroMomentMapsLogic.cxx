@@ -175,6 +175,20 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                   "the AstroMomentMaps algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+   if (!pnode)
+     {
+     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps : "
+                   "parameterNode not found.");
+     return 0;
+     }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
+                  " scene not found.");
+    return false;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -870,6 +884,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   if (cancel)
     {
+    pnode->SetStatus(100);
     return false;
     }
 

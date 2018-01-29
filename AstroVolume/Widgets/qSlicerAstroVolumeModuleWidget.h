@@ -74,7 +74,8 @@ public slots:
   void onVisibilityChanged(bool visibility);
   void setComparative3DViews(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
-                             bool generateMasks);
+                             bool generateMasks = false,
+                             bool overlay2D = true);
   void setQuantitative3DView(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
                              const char* volumeNodeThreeID,

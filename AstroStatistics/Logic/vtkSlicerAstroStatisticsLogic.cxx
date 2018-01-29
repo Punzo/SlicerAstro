@@ -37,7 +37,6 @@
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
-#include <vtkImageHistogramStatistics.h>
 #include <vtkIntArray.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -247,6 +246,20 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
                   "the AstroStatistics algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
+                  "parameterNode not found.");
+    return false;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
+                  " scene not found.");
+    return false;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -337,7 +350,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   const int *dims = inputVolume->GetImageData()->GetDimensions();
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numSlice = dims[0] * dims[1] * numComponents;
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
 
   float *inFPixel = NULL;
   double *inDPixel = NULL;
@@ -357,7 +370,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       break;
     default:
       vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-      return 0;
+      return false;
     }
 
   bool cancel = false;
@@ -667,11 +680,13 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     double roiBounds[6];
     this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
 
-    int firstElement = roiBounds[0] + roiBounds[2] * dims[0] +
-                       roiBounds[4] * numSlice;
+    int firstElement = (roiBounds[0] + roiBounds[2] * dims[0] +
+                       roiBounds[4] * numSlice);
 
-    int lastElement = roiBounds[1] + roiBounds[3] * dims[0] +
-                      roiBounds[5] * numSlice;
+    int lastElement = (roiBounds[1] + roiBounds[3] * dims[0] +
+                      roiBounds[5] * numSlice) + 1;
+
+    numElements = lastElement - firstElement;
 
     // Calculate Max, Min, NPixels, Sum
     if (pnode->GetMax() || pnode->GetMin() ||
@@ -682,7 +697,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp parallel for schedule(static) shared(pnode, cancel, status) reduction(max : Max), reduction(min : Min), reduction(+:Sum), reduction(+:Npixels)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = firstElement; elementCnt <= lastElement; elementCnt++)
+      for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
         {
         int stat = pnode->GetStatus();
 
@@ -707,8 +722,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           ref *= numSlice;
           ref = elementCnt - ref;
           int y = (int) floor(ref / dims[0]);
-          if (x < roiBounds[0] ||  x > roiBounds[1] ||
-              y < roiBounds[2] ||  y > roiBounds[3])
+          if (x < roiBounds[0] || x > roiBounds[1] ||
+              y < roiBounds[2] || y > roiBounds[3])
             {
             continue;
             }
@@ -752,14 +767,14 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
           if (omp_get_thread_num() == 0)
             {
-            if(elementCnt / (numElements / (numProcs * 33.)) > status)
+            if((elementCnt - firstElement) / (numElements / (numProcs * 33.)) > status)
               {
               status += 10;
               pnode->SetStatus(status);
               }
             }
           #else
-          if(elementCnt / (numElements / 33.) > status)
+          if((elementCnt - firstElement) / (numElements / 33.) > status)
             {
             status += 10;
             pnode->SetStatus(status);
@@ -800,7 +815,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
       #pragma omp parallel for schedule(static) shared(pnode, cancel, status) reduction(+:Std)
       #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = firstElement; elementCnt <= lastElement; elementCnt++)
+      for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
         {
         int stat = pnode->GetStatus();
 
@@ -825,8 +840,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           ref *= numSlice;
           ref = elementCnt - ref;
           int y = (int) floor(ref / dims[0]);
-          if (x < roiBounds[0] ||  x > roiBounds[1] ||
-              y < roiBounds[2] ||  y > roiBounds[3])
+          if (x < roiBounds[0] || x > roiBounds[1] ||
+              y < roiBounds[2] || y > roiBounds[3])
             {
             continue;
             }
@@ -852,14 +867,14 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
           if (omp_get_thread_num() == 0)
             {
-            if(33. + (elementCnt / (numElements / (numProcs * 33.))) > status)
+            if(33. + ((elementCnt - firstElement) / (numElements / (numProcs * 33.))) > status)
               {
               status += 10;
               pnode->SetStatus(status);
               }
             }
           #else
-          if(33. + (elementCnt / (numElements / 33.)) > status)
+          if(33. + ((elementCnt - firstElement) / (numElements / 33.)) > status)
             {
             status += 10;
             pnode->SetStatus(status);
@@ -892,7 +907,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       float *TempPixel = static_cast<float*> (this->Internal->MedianTempArray->GetPointer(0));
       int TempCnt = 0;
-      for (int elementCnt = firstElement; elementCnt <= lastElement; elementCnt++)
+      for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
         {
         int status = pnode->GetStatus();
         if (status < 0)
@@ -908,8 +923,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         ref *= numSlice;
         ref = elementCnt - ref;
         int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] ||  x > roiBounds[1] ||
-            y < roiBounds[2] ||  y > roiBounds[3])
+        if (x < roiBounds[0] || x > roiBounds[1] ||
+            y < roiBounds[2] || y > roiBounds[3])
           {
           continue;
           }
@@ -934,7 +949,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
         TempCnt++;
 
-        if(66. + (elementCnt / (numElements / 16.)) > status)
+        if(66. + ((elementCnt - firstElement) / (numElements / 16.)) > status)
           {
           status += 10;
           pnode->SetStatus(status);
