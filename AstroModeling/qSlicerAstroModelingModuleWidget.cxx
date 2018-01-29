@@ -3691,6 +3691,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent()
 
   // Select VRot in the plotting window
   d->selectionNode->SetActivePlotChartID(d->plotChartNodeVRot->GetID());
+  appLogic->PropagatePlotChartSelection();
 }
 
 //---------------------------------------------------------------------------
@@ -4585,6 +4586,16 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       {
       d->selectionNode->SetActivePlotChartID(d->plotChartNodeVRot->GetID());
       }
+
+    vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+    if (!appLogic)
+      {
+      qCritical() << "qSlicerAstroModelingModuleWidget::onWorkFinished"
+                     " : appLogic not found!";
+      return;
+      }
+
+    appLogic->PropagatePlotChartSelection();
 
     // Force again the offset of the PV
     // It will be good to understand why the active node

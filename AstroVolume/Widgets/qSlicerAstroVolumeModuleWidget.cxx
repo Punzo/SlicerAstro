@@ -3663,6 +3663,16 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     d->selectionNode->SetActiveTableID(tableNode->GetID());
     }
 
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onCreateHistogram"
+                   " : appLogic not found!";
+    return;
+    }
+
+  appLogic->PropagatePlotChartSelection();
+
   if (d->plotChartNodeHistogram)
     {
     d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeMinLine->GetID());
