@@ -1293,7 +1293,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
   double noise = StringToDouble(node->GetAttribute("SlicerAstro.3DDisplayThreshold"));
   if (noise < 0.000000001)
     {
-    noise = (max - min) / 100.;
+    noise = (max - min) / 1000.;
     }
   double halfNoise = noise * 0.5;
   double noise3 = noise * 3.;
