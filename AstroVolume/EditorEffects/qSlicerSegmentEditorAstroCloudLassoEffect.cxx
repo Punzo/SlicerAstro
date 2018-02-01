@@ -1280,6 +1280,10 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       {
       brushPosition_World[ii] = worldCoords[ii];
       }
+
+    // reset the 3D rendering boundaries
+    renderer->ResetCameraClippingRange();
+    renderer->Render();
     }
 
   if (eid == vtkCommand::LeftButtonPressEvent)

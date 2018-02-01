@@ -67,10 +67,12 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
+#include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroSmoothingParametersNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
@@ -337,6 +339,18 @@ qSlicerAstroSmoothingModuleWidget::~qSlicerAstroSmoothingModuleWidget()
 {
 }
 
+//----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::enter()
+{
+  this->Superclass::enter();
+}
+
+//----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::exit()
+{
+  this->Superclass::exit();
+}
+
 namespace
 {
 //----------------------------------------------------------------------------
@@ -533,7 +547,6 @@ void qSlicerAstroSmoothingModuleWidget::initializeParameterNode(vtkMRMLScene* sc
     astroParametersNode = vtkMRMLAstroSmoothingParametersNode::SafeDownCast(parametersNode);
     int wasModifying = astroParametersNode->StartModify();
     astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
-    astroParametersNode->SetOutputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
     astroParametersNode->EndModify(wasModifying);
     }
 
@@ -602,7 +615,6 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLSelectionNodeModified(vtkObject* s
 
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-  d->parametersNode->SetOutputVolumeNodeID(selectionNode->GetActiveVolumeID());
   d->parametersNode->EndModify(wasModifying);
 }
 
@@ -733,7 +745,6 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
     this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onInputVolumeModified()));
 
@@ -868,29 +879,12 @@ void qSlicerAstroSmoothingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !mrmlNode)
     {
     return;
     }
 
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    return;
-    }
-
-  if (mrmlNode)
-    {
-    d->selectionNode->SetReferenceSecondaryVolumeID(mrmlNode->GetID());
-    d->selectionNode->SetSecondaryVolumeID(mrmlNode->GetID());
-    d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
-    }
-  else
-    {
-    d->selectionNode->SetReferenceSecondaryVolumeID(NULL);
-    d->selectionNode->SetSecondaryVolumeID(NULL);
-    }
-  appLogic->PropagateVolumeSelection();
+  d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
 }
 
 //-----------------------------------------------------------------------------
@@ -1893,6 +1887,13 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
 {
   Q_D(const qSlicerAstroSmoothingModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : "
+                   "parametersNode not found!";
+    return;
+    }
+
   vtkSlicerAstroSmoothingLogic *logic = d->logic();
   if (!logic)
     {
@@ -1901,21 +1902,28 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     return;
     }
 
-  if (!d->parametersNode)
+  d->parametersNode->SetStatus(1);
+
+  vtkMRMLScene *scene = this->mrmlScene();
+  if(!scene)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : parametersNode not found!";
+    qCritical() <<"qSlicerAstroSmoothingModuleWidget::onApply"
+                  " : scene not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
-
-  d->parametersNode->SetStatus(1);
-
-  vtkMRMLScene *scene = this->mrmlScene();
-
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    qCritical() <<"qSlicerAstroSmoothingModuleWidget::onApply"
+                  " : inputVolume not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
 
   int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
   // Check Input volume
@@ -1927,16 +1935,6 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     QMessageBox::warning(NULL, tr("Failed to run the filter"), message);
     d->parametersNode->SetStatus(0);
     return;
-    }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
-
-  if (!outputVolume)
-    {
-    outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-          GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
     }
 
   std::ostringstream outSS;
@@ -1966,64 +1964,44 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   serial++;
   d->parametersNode->SetOutputSerial(serial);
 
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : appLogic not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-  vtkMRMLSelectionNode *selectionNode = appLogic->GetSelectionNode();
-  if (!selectionNode)
-    {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::onApply() : selectionNode not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  vtkMRMLAstroVolumeNode *secondaryVolume =
+  vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(selectionNode->GetSecondaryVolumeID()));
+      GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
-  if (secondaryVolume && d->parametersNode->GetAutoRun())
+  if (outputVolume && strcmp(inputVolume->GetID(), outputVolume->GetID()))
     {
-    scene->RemoveNode(secondaryVolume);
-    }
+    vtkMRMLAstroVolumeStorageNode* astroStorage =
+      vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
+    scene->RemoveNode(astroStorage);
+    scene->RemoveNode(outputVolume->GetDisplayNode());
 
-  // check Output volume
-  if (!strcmp(inputVolume->GetID(), outputVolume->GetID()) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-      StringToInt(outputVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-      StringToInt(outputVolume->GetAttribute("SlicerAstro.NAXIS2"))) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3")) !=
-      StringToInt(outputVolume->GetAttribute("SlicerAstro.NAXIS3"))))
-    {
-
-    vtkSlicerAstroSmoothingLogic* logic =
-      vtkSlicerAstroSmoothingLogic::SafeDownCast(this->logic());
-   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-       (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
-
-    outputVolume->SetName(outSS.str().c_str());
-    d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
-
-    int ndnodes = outputVolume->GetNumberOfDisplayNodes();
-    for (int i=0; i<ndnodes; i++)
+    vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
+    if (volumeRenderingDisplay)
       {
-      vtkMRMLVolumeRenderingDisplayNode *dnode =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-          outputVolume->GetNthDisplayNode(i));
-      if (dnode)
-        {
-        outputVolume->RemoveNthDisplayNodeID(i);
-        }
-      } 
+      scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+      scene->RemoveNode(volumeRenderingDisplay);
+      }
+    scene->RemoveNode(outputVolume->GetVolumePropertyNode());
+    scene->RemoveNode(outputVolume);
     }
-  else
+
+  outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
+
+  outputVolume->SetName(outSS.str().c_str());
+  d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
+
+  int ndnodes = outputVolume->GetNumberOfDisplayNodes();
+  for (int i=0; i<ndnodes; i++)
     {
-    outputVolume->SetName(outSS.str().c_str());
-    d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
+    vtkMRMLVolumeRenderingDisplayNode *dnode =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+        outputVolume->GetNthDisplayNode(i));
+    if (dnode)
+      {
+      outputVolume->RemoveNthDisplayNodeID(i);
+      }
     }
 
   vtkNew<vtkMatrix4x4> transformationMatrix;
@@ -2031,7 +2009,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
-  // Necessary to guarantee taht the renderWindow is initialize
+  // Necessary to guarantee that the renderWindow is initialized
   d->GaussianKernelView->show();
   d->GaussianKernelView->hide();
 

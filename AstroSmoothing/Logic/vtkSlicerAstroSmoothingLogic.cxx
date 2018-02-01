@@ -173,6 +173,20 @@ void vtkSlicerAstroSmoothingLogic::RegisterNodes()
 int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pnode,
                                         vtkRenderWindow* renderWindow)
 {
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::Apply : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!renderWindow)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::Apply : "
+                  "renderWindow not found.");
+    return 0;
+    }
+
   int success = 0;
   switch (pnode->GetFilter())
     {
@@ -242,6 +256,20 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
                   "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -262,8 +290,8 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     return 0;
     }
 
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int *dims = inputVolume->GetImageData()->GetDimensions();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
@@ -295,7 +323,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   float *outFPixel = NULL;
   double *inDPixel = NULL;
   double *outDPixel = NULL;
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -478,6 +506,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   if (cancel)
     {
+    pnode->SetStatus(100);
     return 0;
     }
 
@@ -511,6 +540,20 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
                   "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -532,12 +575,12 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     }
 
   this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+  this->Internal->tempVolumeData->DeepCopy(inputVolume->GetImageData());
   this->Internal->tempVolumeData->Modified();
   this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
 
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int *dims = inputVolume->GetImageData()->GetDimensions();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
@@ -557,7 +600,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   float *tempFPixel = NULL;
   double *outDPixel = NULL;
   double *tempDPixel = NULL;
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -706,6 +749,8 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
     this->Internal->tempVolumeData->Initialize();
 
+    pnode->SetStatus(100);
+
     return 0;
     }
 
@@ -837,6 +882,8 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
     this->Internal->tempVolumeData->Initialize();
 
+    pnode->SetStatus(100);
+
     return 0;
     }
 
@@ -959,6 +1006,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (cancel)
     {
+    pnode->SetStatus(100);
     return 0;
     }
 
@@ -993,6 +1041,20 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   return 0;
   #else
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
   pnode->SetStatus(1);
 
   bool cancel = false;
@@ -1001,6 +1063,17 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   long mtime, seconds, useconds;
   gettimeofday(&start, NULL);
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if (!inputVolume || !inputVolume->GetImageData())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
+                  "inputVolume not found.");
+    pnode->SetStatus(100);
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1008,18 +1081,21 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
                   "outputVolume not found.");
+    pnode->SetStatus(100);
     return 0;
     }
 
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
                   "imageData with more than one components.");
+    pnode->SetStatus(100);
     return 0;
     }
 
   vtkNew<vtkAstroOpenGLImageBox> filter;
+  outputVolume->GetImageData()->DeepCopy(inputVolume->GetImageData());
   filter->SetInputData(outputVolume->GetImageData());
   filter->SetKernelLength(pnode->GetParameterX(),
                           pnode->GetParameterY(),
@@ -1086,6 +1162,20 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
                   "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+   if (!pnode)
+     {
+     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
+                   "parameterNode not found.");
+     return 0;
+     }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
    vtkMRMLAstroVolumeNode *inputVolume =
      vtkMRMLAstroVolumeNode::SafeDownCast
        (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -1106,8 +1196,8 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
      return 0;
      }
 
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int *dims = inputVolume->GetImageData()->GetDimensions();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
@@ -1124,7 +1214,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   float *outFPixel = NULL;
   double *inDPixel = NULL;
   double *outDPixel = NULL;
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -1301,6 +1391,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 
   if (cancel)
     {
+    pnode->SetStatus(100);
     return 0;
     }
 
@@ -1333,6 +1424,20 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
                   "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -1354,12 +1459,12 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     }
 
   this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+  this->Internal->tempVolumeData->DeepCopy(inputVolume->GetImageData());
   this->Internal->tempVolumeData->Modified();
   this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
 
-  const int *dims = outputVolume->GetImageData()->GetDimensions();
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int *dims = inputVolume->GetImageData()->GetDimensions();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
@@ -1378,7 +1483,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   float *tempFPixel = NULL;
   double *outDPixel = NULL;
   double *tempDPixel = NULL;
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -1521,6 +1626,8 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
     this->Internal->tempVolumeData->Initialize();
 
+    pnode->SetStatus(100);
+
     return 0;
     }
 
@@ -1645,6 +1752,8 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
     this->Internal->tempVolumeData->Initialize();
 
+    pnode->SetStatus(100);
+
     return 0;
     }
 
@@ -1759,6 +1868,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   if (cancel)
     {
+    pnode->SetStatus(100);
     return 0;
     }
 
@@ -1793,6 +1903,20 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   return 0;
   #else
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
   pnode->SetStatus(1);
 
   bool cancel = false;
@@ -1801,6 +1925,17 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   long mtime, seconds, useconds;
   gettimeofday(&start, NULL);
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if (!inputVolume || !inputVolume->GetImageData())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
+                  "inputVolume not found.");
+    pnode->SetStatus(100);
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -1808,18 +1943,21 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
                   "outputVolume not found.");
+    pnode->SetStatus(100);
     return 0;
     }
 
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
                   "imageData with more than one components.");
+    pnode->SetStatus(100);
     return 0;
     }
 
   vtkNew<vtkAstroOpenGLImageGaussian> filter;
+  outputVolume->GetImageData()->DeepCopy(inputVolume->GetImageData());
   filter->SetInputData(outputVolume->GetImageData());
   filter->SetKernelLength(pnode->GetKernelLengthX(),
                           pnode->GetKernelLengthY(),
@@ -1889,6 +2027,20 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
                   "the AstroSmoothing algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+   if (!pnode)
+     {
+     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
+                   "parameterNode not found.");
+     return 0;
+     }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
    vtkMRMLAstroVolumeNode *inputVolume =
      vtkMRMLAstroVolumeNode::SafeDownCast
        (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -1910,12 +2062,13 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
      }
 
   this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
+  this->Internal->tempVolumeData->DeepCopy(inputVolume->GetImageData());
   this->Internal->tempVolumeData->Modified();
   this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
+  outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
 
-  int *dims = outputVolume->GetImageData()->GetDimensions();
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  int *dims = inputVolume->GetImageData()->GetDimensions();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
@@ -1924,13 +2077,13 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     }
   const int numElements = dims[0] * dims[1] * dims[2];
   const int numSlice = dims[0] * dims[1];
-  const double noise = StringToDouble(outputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  const double noise = StringToDouble(inputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold"));
   const double noise2 = noise * noise * pnode->GetK() * pnode->GetK();
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
   double *outDPixel = NULL;
   double *tempDPixel = NULL;
-  const int DataType = outputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -2101,6 +2254,8 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
       this->Internal->tempVolumeData->Initialize();
 
+      pnode->SetStatus(100);
+
       return 0;
       }
 
@@ -2193,6 +2348,20 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   return 0;
   #else
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter :"
+                  " scene not found.");
+    return 0;
+    }
+
   pnode->SetStatus(1);
 
   bool cancel = false;
@@ -2201,6 +2370,17 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   long mtime, seconds, useconds;
   gettimeofday(&start, NULL);
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if (!inputVolume || !inputVolume->GetImageData())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
+                  "inputVolume not found.");
+    pnode->SetStatus(100);
+    return 0;
+    }
+
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
@@ -2208,18 +2388,21 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
                   "outputVolume not found.");
+    pnode->SetStatus(100);
     return 0;
     }
 
-  const int numComponents = outputVolume->GetImageData()->GetNumberOfScalarComponents();
+  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   if (numComponents > 1)
     {
     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
                   "imageData with more than one components.");
+    pnode->SetStatus(100);
     return 0;
     }
 
   vtkNew<vtkAstroOpenGLImageGradient> filter;
+  outputVolume->GetImageData()->DeepCopy(inputVolume->GetImageData());
   filter->SetInputData(outputVolume->GetImageData());
   filter->SetCl(pnode->GetParameterX(),
                 pnode->GetParameterY(),
@@ -2227,7 +2410,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetK(pnode->GetK());
   filter->SetAccuracy(pnode->GetAccuracy());
   filter->SetTimeStep(pnode->GetTimeStep());
-  filter->SetRMS(StringToDouble(outputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold")));
+  filter->SetRMS(StringToDouble(inputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold")));
 
   filter->SetRenderWindow(renderWindow);
 

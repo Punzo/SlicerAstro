@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Icons/AstroMasking.png</file>
+        <file>Icons/Inside.png</file>
+        <file>Icons/Outside.png</file>
+    </qresource>
+</RCC>

@@ -175,6 +175,20 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
                   "the AstroProfiles algorithm will show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
+  if (!pnode)
+    {
+    vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile : "
+                  "parameterNode not found.");
+    return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
+                  " scene not found.");
+    return false;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -572,6 +586,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   if (cancel)
     {
+    pnode->SetStatus(100);
     return false;
     }
 

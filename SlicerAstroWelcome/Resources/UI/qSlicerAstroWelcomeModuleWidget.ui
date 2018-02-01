@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>615</width>
-    <height>1487</height>
+    <width>367</width>
+    <height>599</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -118,12 +118,15 @@
           <bold>true</bold>
          </font>
         </property>
+        <property name="toolTip">
+         <string>Link to SlicerAstro wiki page</string>
+        </property>
         <property name="text">
          <string>       Tutorials</string>
         </property>
         <property name="icon">
          <iconset resource="../qSlicerAstroWelcomeModule.qrc">
-          <normaloff>:/Icons/SlicerWelcome.png</normaloff>:/Icons/SlicerWelcome.png</iconset>
+          <normaloff>:/Icons/SlicerAstroWelcome.png</normaloff>:/Icons/SlicerAstroWelcome.png</iconset>
         </property>
         <property name="iconSize">
          <size>
@@ -170,11 +173,11 @@
     </spacer>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="FeedbackCollapsibleWidget" native="true">
-     <property name="text" stdset="0">
+    <widget class="ctkCollapsibleButton" name="FeedbackCollapsibleWidget">
+     <property name="text">
       <string>Feedback</string>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_13">
@@ -213,11 +216,11 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="WelcomeAndAboutCollapsibleWidget" native="true">
-     <property name="text" stdset="0">
+    <widget class="ctkCollapsibleButton" name="WelcomeAndAboutCollapsibleWidget">
+     <property name="text">
       <string>About</string>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout">
@@ -256,11 +259,11 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="OverviewCollapsibleWidget" native="true">
-     <property name="text" stdset="0">
+    <widget class="ctkCollapsibleButton" name="OverviewCollapsibleWidget">
+     <property name="text">
       <string>Overview</string>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -299,11 +302,11 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="AcknowledgmentCollapsibleWidget" native="true">
-     <property name="text" stdset="0">
+    <widget class="ctkCollapsibleButton" name="AcknowledgmentCollapsibleWidget">
+     <property name="text">
       <string>Acknowledgment</string>
      </property>
-     <property name="collapsed" stdset="0">
+     <property name="collapsed">
       <bool>true</bool>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_11">

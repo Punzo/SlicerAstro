@@ -765,23 +765,8 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
 
   if (!d->segmentEditorNode)
     {
-    std::string segmentEditorSingletonTag = "SegmentEditor";
-    vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-      this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-      {
-      d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-      d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-      d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-        this->mrmlScene()->AddNode(d->segmentEditorNode));
-      }
-    else
-      {
-      d->segmentEditorNode = segmentEditorNodeSingleton;
-      }
-    this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
-                        this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
+    qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
+    return false;
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
@@ -845,10 +830,7 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
     return false;
     }
 
-  int Extents[6] = { 0, 0, 0, 0, 0, 0 };
-  labelMapNode->GetImageData()->GetExtent(Extents);
-
-  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode))
+  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
@@ -857,93 +839,6 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
-    }
-
-  double storedOrigin[3] = { 0., 0., 0. };
-  labelMapNode->GetOrigin(storedOrigin);
-
-  // restore original Extents
-  vtkNew<vtkImageReslice> reslice;
-  reslice->SetOutputExtent(Extents);
-  reslice->SetOutputOrigin(0., 0., 0.);
-  reslice->SetOutputScalarType(VTK_SHORT);
-  reslice->SetInputData(labelMapNode->GetImageData());
-
-  reslice->Update();
-  labelMapNode->GetImageData()->DeepCopy(reslice->GetOutput());
-
-  // restore original Origins
-  int *dims = labelMapNode->GetImageData()->GetDimensions();
-  double dimsH[4];
-  dimsH[0] = dims[0] - 1;
-  dimsH[1] = dims[1] - 1;
-  dimsH[2] = dims[2] - 1;
-  dimsH[3] = 0.;
-
-  vtkNew<vtkMatrix4x4> ijkToRAS;
-  labelMapNode->GetIJKToRASMatrix(ijkToRAS.GetPointer());
-  double rasCorner[4];
-  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
-
-  double Origin[3] = { 0., 0., 0. };
-  Origin[0] = -0.5 * rasCorner[0];
-  Origin[1] = -0.5 * rasCorner[1];
-  Origin[2] = -0.5 * rasCorner[2];
-
-  labelMapNode->SetOrigin(Origin);
-
-  // translate data to original location (linear translation supported only)
-  storedOrigin[0] -= Origin[0];
-  storedOrigin[1] -= Origin[1];
-  storedOrigin[2] -= Origin[2];
-
-  vtkNew<vtkImageData> tempVolumeData;
-  tempVolumeData->Initialize();
-  tempVolumeData->DeepCopy(labelMapNode->GetImageData());
-  tempVolumeData->Modified();
-  tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-  dims = labelMapNode->GetImageData()->GetDimensions();
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int shiftX = (int) fabs(storedOrigin[0]);
-  int shiftY = (int) fabs(storedOrigin[2]) * dims[0];
-  int shiftZ = (int) fabs(storedOrigin[1]) * numSlice;
-  short* tempVoxelPtr = static_cast<short*>(tempVolumeData->GetScalarPointer());
-  short* voxelPtr = static_cast<short*>(labelMapNode->GetImageData()->GetScalarPointer());
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    *(voxelPtr + elemCnt) = 0;
-    }
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int X = elemCnt + shiftX;
-    int ref = (int) floor(elemCnt / dims[0]);
-    ref *= dims[0];
-    if(X < ref || X >= ref + dims[0])
-      {
-      continue;
-      }
-
-    int Y = elemCnt + shiftY;
-    ref = (int) floor(elemCnt / numSlice);
-    ref *= numSlice;
-    if(Y < ref || Y >= ref + numSlice)
-      {
-      continue;
-      }
-
-    int Z = elemCnt + shiftZ;
-    if(Z < 0 || Z >= numElements)
-      {
-      continue;
-      }
-
-    int shift = elemCnt + shiftX + shiftY + shiftZ;
-
-    *(voxelPtr + shift) = *(tempVoxelPtr + elemCnt);
     }
 
   labelMapNode->UpdateRangeAttributes();
@@ -978,7 +873,7 @@ void qSlicerAstroStatisticsModuleWidget::setup()
   d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   // set CTRL+P shortcut
   d->PlotAction->setShortcuts(QKeySequence::Print);
-  d->PasteAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
+  d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
                                 " the columns of the table. The First (from left to right)"
                                 " Column will be used as X-Axis and each additional Column"
                                 " will be plotted in the same Plot as Y-Axis. "
@@ -1267,12 +1162,48 @@ void qSlicerAstroStatisticsModuleWidget::onMRMLAstroStatisticsParametersNodeModi
       {
       this->onROIVisibilityChanged(false);
       }
+
+    if (d->segmentEditorNode)
+      {
+      vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
+      if (currentSegmentationNode && this->isEntered())
+        {
+        for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+          {
+          vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
+            vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+          if (!SegmentationDisplayNode)
+            {
+            continue;
+            }
+          SegmentationDisplayNode->SetAllSegmentsVisibility(false);
+          }
+        }
+      }
     }
-  else
+  else if (!(strcmp(d->parametersNode->GetMode(), "Segmentation")))
     {
     d->SegmentationModeRadioButton->setChecked(true);
     d->SegmentsTableView->show();
     this->onROIVisibilityChanged(false);
+
+    if (d->segmentEditorNode)
+      {
+      vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
+      if (currentSegmentationNode && this->isEntered())
+        {
+        for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+          {
+          vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
+            vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+          if (!SegmentationDisplayNode)
+            {
+            continue;
+            }
+          SegmentationDisplayNode->SetAllSegmentsVisibility(true);
+          }
+        }
+      }
     }
 
   d->TableView->setMRMLTableNode(d->parametersNode->GetTableNode());
@@ -1336,6 +1267,13 @@ void qSlicerAstroStatisticsModuleWidget::onCalculate()
 {
   Q_D(const qSlicerAstroStatisticsModuleWidget);
 
+  if (!d->parametersNode)
+    {
+    qCritical() << "qSlicerAstroStatisticsModuleWidget::onCalculate : "
+                   "parametersNode not found!";
+    return;
+    }
+
   vtkSlicerAstroStatisticsLogic *logic = d->logic();
   if (!logic)
     {
@@ -1345,10 +1283,10 @@ void qSlicerAstroStatisticsModuleWidget::onCalculate()
     return;
     }
 
-  if (!d->parametersNode)
+  if (!this->mrmlScene())
     {
     qCritical() << "qSlicerAstroStatisticsModuleWidget::onCalculate : "
-                   "parametersNode not found!";
+                   "scene not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1370,6 +1308,17 @@ void qSlicerAstroStatisticsModuleWidget::onCalculate()
     {
     qCritical() <<"qSlicerAstroStatisticsModuleWidget::onCalculate : "
                   "CalculateStatistics error!";
+    }
+
+  if (!(strcmp(d->parametersNode->GetMode(), "Segmentation")))
+    {
+    vtkMRMLAstroLabelMapVolumeNode *maskVolume =
+      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+        (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMaskVolumeNodeID()));
+    if(maskVolume)
+      {
+      this->mrmlScene()->RemoveNode(maskVolume);
+      }
     }
 
   d->parametersNode->SetStatus(0);

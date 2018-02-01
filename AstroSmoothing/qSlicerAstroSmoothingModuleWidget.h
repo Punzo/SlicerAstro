@@ -41,6 +41,9 @@ public:
   qSlicerAstroSmoothingModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroSmoothingModuleWidget();
 
+  virtual void enter();
+  virtual void exit();
+
   /// Get vtkMRMLAstroSmoothingParametersNode
   Q_INVOKABLE vtkMRMLAstroSmoothingParametersNode* mrmlAstroSmoothingParametersNode()const;
 
@@ -64,7 +67,7 @@ protected slots:
   void onEndCloseEvent();
   void onEndImportEvent();
   void onHardwareChanged(int index);
-  void onInputVolumeChanged(vtkMRMLNode*);
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onInputVolumeModified();
   void onKChanged(double value);
   void onLinkChanged(bool value);
@@ -75,7 +78,7 @@ protected slots:
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
   void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-  void onOutputVolumeChanged(vtkMRMLNode*);
+  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onParameterXChanged(double value);
   void onParameterYChanged(double value);
   void onParameterZChanged(double value);

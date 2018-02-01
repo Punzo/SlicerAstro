@@ -44,6 +44,9 @@ public:
   qSlicerAstroMomentMapsModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroMomentMapsModuleWidget();
 
+  virtual void enter();
+  virtual void exit();
+
   /// Get vtkMRMLAstroMomentMapsParametersNode
   Q_INVOKABLE vtkMRMLAstroMomentMapsParametersNode* mrmlAstroMomentMapsParametersNode()const;
 

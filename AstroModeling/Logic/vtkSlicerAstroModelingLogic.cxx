@@ -360,6 +360,13 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
     return 0;
     }
 
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+                  " scene not found.");
+    return false;
+    }
+
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
@@ -1866,6 +1873,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                     " parameter node not found!");
     return 0;
+    }
+
+  if (!this->GetMRMLScene())
+    {
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                  " scene not found.");
+    return false;
     }
 
   vtkMRMLAstroVolumeNode *inputVolume =

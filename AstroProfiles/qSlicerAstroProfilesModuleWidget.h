@@ -44,6 +44,9 @@ public:
   qSlicerAstroProfilesModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroProfilesModuleWidget();
 
+  virtual void enter();
+  virtual void exit();
+
   /// Get vtkMRMLAstroProfilesParametersNode
   Q_INVOKABLE vtkMRMLAstroProfilesParametersNode* mrmlAstroProfilesParametersNode()const;
 
