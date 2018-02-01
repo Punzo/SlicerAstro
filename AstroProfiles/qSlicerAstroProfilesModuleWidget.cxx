@@ -558,10 +558,9 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
   if (!currentSegmentationNode)
     {
-    QString message = QString("No segments selected! Please provide a mask or unCheck the input"
-                              " mask option.");
+    QString message = QString("No segmentation node selected! Please create a segmentation.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -575,11 +574,9 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
 
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
-                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    QString message = QString("No segment selected from the segmentation node! Please provide a segment.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
     return false;
     }
 

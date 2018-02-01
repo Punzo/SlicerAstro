@@ -1954,7 +1954,7 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
 
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("No mask selected from teh segmentation node! Please provide a mask or untoggle the input"
+    QString message = QString("No segment selected from the segmentation node! Please provide a mask or untoggle the input"
                               " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to select a mask"), message);
@@ -3898,7 +3898,8 @@ void qSlicerAstroModelingModuleWidget::onApply()
     {
     if (!this->convertSelectedSegmentToLabelMap())
       {
-      qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : convertSelectedSegmentToLabelMap failed!";
+      qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                    "convertSelectedSegmentToLabelMap failed!";
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -3906,9 +3907,15 @@ void qSlicerAstroModelingModuleWidget::onApply()
   else if (!d->parametersNode->GetMaskActive() && d->parametersNode->GetNumberOfRings() == 0)
     {
     QString message = QString("No mask has been provided. 3DBarolo will search and fit the"
-                              " largest source in the datacube.");
+                              " largest source in the datacube. Do you wish to continue?");
     qWarning() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("3DBarolo"), message);
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(NULL, tr("3DBarolo"), message);
+    if (reply != QMessageBox::Yes)
+      {
+      d->parametersNode->SetStatus(0);
+      return;
+      }
     }
 
   d->worker->SetTableNode(d->internalTableNode);
