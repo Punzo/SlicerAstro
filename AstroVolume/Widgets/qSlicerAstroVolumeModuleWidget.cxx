@@ -1603,7 +1603,6 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
     d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
     d->PresetsNodeComboBox->setCurrentNodeIndex(0);
     }
-
   d->PresetsNodeComboBox->update();
 }
 
@@ -2225,13 +2224,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   this->updatePresets(volumeOne);
 
-  if(!d->PresetsNodeComboBox)
-    {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews error :"
-                   " PresetsNodeComboBox not found!"<<endl;
-    return;
-    }
-
   d->selectionNode->SetActiveVolumeID(volumeTwo->GetID());
 
   n = volumeTwo->GetNumberOfDisplayNodes();
@@ -2263,17 +2255,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       }
     }
   this->updatePresets(volumeTwo);
-
-  if(!d->PresetsNodeComboBox)
-    {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews error :"
-                   " PresetsNodeComboBox not found!";
-    return;
-    }
-
-  d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-  d->PresetsNodeComboBox->setCurrentNodeIndex(0);
-  this->applyPreset(d->PresetsNodeComboBox->currentNode());
 
   d->selectionNode->SetActiveVolumeID(volumeOne->GetID());
   if (overlay2D)
@@ -2682,12 +2663,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
 
   this->updatePresets(volumeOne);
-  if(!d->PresetsNodeComboBox)
-    {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView error :"
-                   " PresetsNodeComboBox not found!"<<endl;
-    return;
-    }
 
   vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));

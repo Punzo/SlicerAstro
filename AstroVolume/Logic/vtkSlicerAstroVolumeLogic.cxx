@@ -1291,20 +1291,102 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
   double max = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) * 2.;
   double min = StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN")) * 2.;
   double noise = StringToDouble(node->GetAttribute("SlicerAstro.3DDisplayThreshold"));
-  if (noise < 0.000000001)
+
+  if (noise < 0.000000001 || DoubleIsNaN(noise))
     {
     noise = (max - min) / 1000.;
     }
+
   double halfNoise = noise * 0.5;
   double noise3 = noise * 3.;
+  if ((noise3 - halfNoise) < min)
+    {
+    noise3 = min + halfNoise;
+    }
+  if ((noise3 + halfNoise) > max)
+    {
+    noise3 = max - halfNoise;
+    }
+
   double noise6 = noise * 6.;
+  if ((noise6 - halfNoise) < min)
+    {
+    noise6 = min + halfNoise;
+    }
+  if ((noise6 + halfNoise) > max)
+    {
+    noise6 = max - halfNoise;
+    }
+
   double noise7 = noise * 7.;
+  if ((noise7 - halfNoise) < min)
+    {
+    noise7 = min + halfNoise;
+    }
+  if ((noise7 + halfNoise) > max)
+    {
+    noise7 = max - halfNoise;
+    }
+
   double noise9 = noise * 9.;
+  if ((noise9 - halfNoise) < min)
+    {
+    noise9 = min + halfNoise;
+    }
+  if ((noise9 + halfNoise) > max)
+    {
+    noise9 = max - halfNoise;
+    }
+
   double noise12 = noise * 12.;
+  if ((noise12 - halfNoise) < min)
+    {
+    noise12 = min + halfNoise;
+    }
+  if ((noise12 + halfNoise) > max)
+    {
+    noise12 = max - halfNoise;
+    }
+
   double noise15 = noise * 15.;
+  if ((noise15 - halfNoise) < min)
+    {
+    noise15 = min + halfNoise;
+    }
+  if ((noise15 + halfNoise) > max)
+    {
+    noise15 = max - halfNoise;
+    }
+
   double noise18 = noise * 18.;
+  if ((noise18 - halfNoise) < min)
+    {
+    noise18 = min + halfNoise;
+    }
+  if ((noise18 + halfNoise) > max)
+    {
+    noise18 = max - halfNoise;
+    }
+
   double noise21 = noise * 21.;
+  if ((noise21 - halfNoise) < min)
+    {
+    noise21 = min + halfNoise;
+    }
+  if ((noise21 + halfNoise) > max)
+    {
+    noise21 = max - halfNoise;
+    }
+
   double noise24 = noise * 24.;
+  if ((noise24 - halfNoise) < min)
+    {
+    noise24 = min + halfNoise;
+    }
+  if ((noise24 + halfNoise) > max)
+    {
+    noise24 = max - halfNoise;
+    }
 
   vtkSmartPointer<vtkCollection> presets = vtkSmartPointer<vtkCollection>::Take(
       this->PresetsScene->GetNodesByClass("vtkMRMLVolumePropertyNode"));
