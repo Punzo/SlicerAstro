@@ -414,7 +414,9 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
                       roiBounds[5] * numSlice) + 1;
 
     if (firstElement == 0 && lastElement == numElements &&
-        BlankString.find("NaN") != std::string::npos &&
+        (BlankString.find("NaN") != std::string::npos ||
+         !strcmp(BlankString.c_str(), "0") ||
+         !strcmp(BlankString.c_str(), "0.")) &&
         regionInside)
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
