@@ -1217,7 +1217,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     // change colorMap of the 2D image
     vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
     vtkMRMLColorTableNode* velocityFieldColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-      (scene->GetFirstNodeByName("Velocity Field"));
+      (scene->GetFirstNodeByName("VelocityField"));
     if (!velocityFieldColorTableNode)
       {
       qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "
