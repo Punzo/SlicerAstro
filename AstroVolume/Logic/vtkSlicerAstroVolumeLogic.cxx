@@ -217,35 +217,6 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     return;
     }
 
-  //set plotchartnode color
-  if (node->IsA("vtkMRMLPlotChartNode"))
-    {
-    vtkMRMLPlotChartNode *plotChartNode =
-      vtkMRMLPlotChartNode::SafeDownCast(node);
-
-    vtkSmartPointer<vtkCollection> ColorTableNodeCol =
-      vtkSmartPointer<vtkCollection>::Take(
-        this->GetMRMLScene()->GetNodesByClass("vtkMRMLColorTableNode"));
-
-    std::string DarkBrightChartColorsID;
-    for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
-      {
-      vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-              (ColorTableNodeCol->GetItemAsObject(ii));
-      if (!tempColorTableNode)
-        {
-        continue;
-        }
-      if (!strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
-        {
-        DarkBrightChartColorsID = tempColorTableNode->GetID();
-        break;
-        }
-      }
-
-    plotChartNode->SetAttribute("LookupTable", DarkBrightChartColorsID.c_str());
-    }
-
   //change axes label names
   if (node->IsA("vtkMRMLViewNode"))
     {

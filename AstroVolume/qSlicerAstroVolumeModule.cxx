@@ -441,8 +441,7 @@ void qSlicerAstroVolumeModule::setup()
   colorTableDefaultNode->SetAttribute("SlicerAstro.Inverse", "on");
   colorTableDefaultNode->SetAttribute("SlicerAstro.Log", "on");
 
-  // Modify ColorNodeTable already allocated and find DarkBrightChartColorsID
-  std::string DarkBrightChartColorsID;
+  // Modify ColorNodeTable already allocated
   vtkSmartPointer<vtkCollection> ColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
       this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
   for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
@@ -458,38 +457,6 @@ void qSlicerAstroVolumeModule::setup()
     tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "on");
     tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "on");
     tempColorTableNode->SetAttribute("SlicerAstro.Log", "on");
-
-    if (!strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
-      {
-      DarkBrightChartColorsID = tempColorTableNode->GetID();
-      continue;
-      }
-    }
-
-  // set PlotChart Default Node
-  defaultNode = vtkMRMLPlotChartNode::SafeDownCast
-      (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLPlotChartNode"));
-  if (!defaultNode)
-    {
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode");
-    defaultNode.TakeReference(foo);
-    this->mrmlScene()->AddDefaultNode(defaultNode);
-    }
-  vtkMRMLPlotChartNode *plotChartDefaultNode = vtkMRMLPlotChartNode::SafeDownCast(defaultNode);
-  plotChartDefaultNode->SetAttribute("LookupTable", DarkBrightChartColorsID.c_str());
-
-  // modify PlotChartNodes already allocated
-  vtkSmartPointer<vtkCollection> plotChartNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLPlotChartNode"));
-
-  for(int i = 0; i < plotChartNodes->GetNumberOfItems(); i++)
-    {
-    vtkMRMLPlotChartNode* plotChartNode =
-        vtkMRMLPlotChartNode::SafeDownCast(plotChartNodes->GetItemAsObject(i));
-    if (plotChartNode)
-      {
-      plotChartDefaultNode->SetAttribute("LookupTable", DarkBrightChartColorsID.c_str());
-      }
     }
 }
 
