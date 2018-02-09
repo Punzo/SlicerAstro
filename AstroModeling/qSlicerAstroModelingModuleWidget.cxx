@@ -89,7 +89,7 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLMarkupsFiducialNode.h>
-#include <vtkMRMLPlotDataNode.h>
+#include <vtkMRMLPlotSeriesNode.h>
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
@@ -132,16 +132,16 @@ public:
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeZ0;
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeXPos;
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeYPos;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVRot;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVRad;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeInc;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodePhi;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVSys;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeVDisp;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeDens;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeZ0;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeXPos;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeYPos;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeVRot;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeVRad;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeInc;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodePhi;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeVSys;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeVDisp;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeDens;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeZ0;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeXPos;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeYPos;
   vtkSmartPointer<vtkMRMLMarkupsFiducialNode> fiducialNodeMajor;
   vtkSmartPointer<vtkMRMLMarkupsFiducialNode> fiducialNodeMinor;
 
@@ -175,16 +175,16 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
   this->plotChartNodeZ0 = 0;
   this->plotChartNodeXPos = 0;
   this->plotChartNodeYPos = 0;
-  this->plotDataNodeVRot = 0;
-  this->plotDataNodeVRad = 0;
-  this->plotDataNodeInc = 0;
-  this->plotDataNodePhi = 0;
-  this->plotDataNodeVSys = 0;
-  this->plotDataNodeVDisp = 0;
-  this->plotDataNodeDens = 0;
-  this->plotDataNodeZ0 = 0;
-  this->plotDataNodeXPos = 0;
-  this->plotDataNodeYPos = 0;
+  this->PlotSeriesNodeVRot = 0;
+  this->PlotSeriesNodeVRad = 0;
+  this->PlotSeriesNodeInc = 0;
+  this->PlotSeriesNodePhi = 0;
+  this->PlotSeriesNodeVSys = 0;
+  this->PlotSeriesNodeVDisp = 0;
+  this->PlotSeriesNodeDens = 0;
+  this->PlotSeriesNodeZ0 = 0;
+  this->PlotSeriesNodeXPos = 0;
+  this->PlotSeriesNodeYPos = 0;
   this->fiducialNodeMajor = 0;
   this->fiducialNodeMinor = 0;
   this->worker = 0;
@@ -532,65 +532,65 @@ void qSlicerAstroModelingModuleWidgetPrivate::cleanPointers()
     }
   this->plotChartNodeYPos = 0;
 
-  if (this->plotDataNodeVRot)
+  if (this->PlotSeriesNodeVRot)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeVRot);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeVRot);
     }
-  this->plotDataNodeVRot = 0;
+  this->PlotSeriesNodeVRot = 0;
 
-  if (this->plotDataNodeVRad)
+  if (this->PlotSeriesNodeVRad)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeVRad);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeVRad);
     }
-  this->plotDataNodeVRad = 0;
+  this->PlotSeriesNodeVRad = 0;
 
-  if (this->plotDataNodeInc)
+  if (this->PlotSeriesNodeInc)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeInc);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeInc);
     }
-  this->plotDataNodeInc = 0;
+  this->PlotSeriesNodeInc = 0;
 
-  if (this->plotDataNodePhi)
+  if (this->PlotSeriesNodePhi)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodePhi);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodePhi);
     }
-  this->plotDataNodePhi = 0;
+  this->PlotSeriesNodePhi = 0;
 
-  if (this->plotDataNodeVSys)
+  if (this->PlotSeriesNodeVSys)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeVSys);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeVSys);
     }
-  this->plotDataNodeVSys = 0;
+  this->PlotSeriesNodeVSys = 0;
 
-  if (this->plotDataNodeVDisp)
+  if (this->PlotSeriesNodeVDisp)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeVDisp);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeVDisp);
     }
-  this->plotDataNodeVDisp = 0;
+  this->PlotSeriesNodeVDisp = 0;
 
-  if (this->plotDataNodeDens)
+  if (this->PlotSeriesNodeDens)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeDens);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeDens);
     }
-  this->plotDataNodeDens = 0;
+  this->PlotSeriesNodeDens = 0;
 
-  if (this->plotDataNodeZ0)
+  if (this->PlotSeriesNodeZ0)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeZ0);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeZ0);
     }
-  this->plotDataNodeZ0 = 0;
+  this->PlotSeriesNodeZ0 = 0;
 
-  if (this->plotDataNodeXPos)
+  if (this->PlotSeriesNodeXPos)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeXPos);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeXPos);
     }
-  this->plotDataNodeXPos = 0;
+  this->PlotSeriesNodeXPos = 0;
 
-  if (this->plotDataNodeYPos)
+  if (this->PlotSeriesNodeYPos)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeYPos);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeYPos);
     }
-  this->plotDataNodeYPos = 0;
+  this->PlotSeriesNodeYPos = 0;
 
   if (this->fiducialNodeMajor)
     {
@@ -1270,294 +1270,354 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
     }
 
   // Check (and create) PlotData nodes
-  if (!d->plotDataNodeVRot)
+  if (!d->PlotSeriesNodeVRot)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeVRotCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeVRotCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "VRot"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "VRot"));
 
-    if (plotDataNodeVRotCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeVRotCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeVRot.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeVRot);
-      d->plotDataNodeVRot->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeVRot->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVRot.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeVRot);
+      d->PlotSeriesNodeVRot->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeVRot->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeVRot->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeVRot->SetMarkerSize(9);
+      d->PlotSeriesNodeVRot->SetLineWidth(3);
+      d->PlotSeriesNodeVRot->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeVRot->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeVRot->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeVRot->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVRot->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnVRot));
-      d->plotDataNodeVRot->SetName("VRot");
+      d->PlotSeriesNodeVRot->SetName("VRot");
       }
     else
       {
-      d->plotDataNodeVRot = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeVRotCol->GetItemAsObject(plotDataNodeVRotCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeVRot = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeVRotCol->GetItemAsObject(PlotSeriesNodeVRotCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeVRot->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeVRot->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeVRot);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeVRot);
     }
 
-  if (!d->plotDataNodeVRad)
+  if (!d->PlotSeriesNodeVRad)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeVRadCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeVRadCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "VRad"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "VRad"));
 
-    if (plotDataNodeVRadCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeVRadCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeVRad.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeVRad);
-      d->plotDataNodeVRad->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeVRad->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVRad.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeVRad);
+      d->PlotSeriesNodeVRad->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeVRad->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeVRad->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeVRad->SetMarkerSize(9);
+      d->PlotSeriesNodeVRad->SetLineWidth(3);
+      d->PlotSeriesNodeVRad->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeVRad->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeVRad->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeVRad->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVRad->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnVRad));
-      d->plotDataNodeVRad->SetName("VRad");
+      d->PlotSeriesNodeVRad->SetName("VRad");
       }
     else
       {
-      d->plotDataNodeVRad = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeVRadCol->GetItemAsObject(plotDataNodeVRadCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeVRad = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeVRadCol->GetItemAsObject(PlotSeriesNodeVRadCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeVRad->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeVRad->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeVRad);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeVRad);
     }
 
-  if (!d->plotDataNodeInc)
+  if (!d->PlotSeriesNodeInc)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeIncCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeIncCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "Inc"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "Inc"));
 
-    if (plotDataNodeIncCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeIncCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeInc.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeInc);
-      d->plotDataNodeInc->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeInc->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeInc.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeInc);
+      d->PlotSeriesNodeInc->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeInc->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeInc->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeInc->SetMarkerSize(9);
+      d->PlotSeriesNodeInc->SetLineWidth(3);
+      d->PlotSeriesNodeInc->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeInc->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeInc->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeInc->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeInc->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnInc));
-      d->plotDataNodeInc->SetName("Inc");
+      d->PlotSeriesNodeInc->SetName("Inc");
       }
     else
       {
-      d->plotDataNodeInc = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeIncCol->GetItemAsObject(plotDataNodeIncCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeInc = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeIncCol->GetItemAsObject(PlotSeriesNodeIncCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeInc->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeInc->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeInc);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeInc);
     }
 
-  if (!d->plotDataNodePhi)
+  if (!d->PlotSeriesNodePhi)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodePhiCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodePhiCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "Phi"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "Phi"));
 
-    if (plotDataNodePhiCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodePhiCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodePhi.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodePhi);
-      d->plotDataNodePhi->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodePhi->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodePhi.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodePhi);
+      d->PlotSeriesNodePhi->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodePhi->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodePhi->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodePhi->SetMarkerSize(9);
+      d->PlotSeriesNodePhi->SetLineWidth(3);
+      d->PlotSeriesNodePhi->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodePhi->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodePhi->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodePhi->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodePhi->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnPhi));
-      d->plotDataNodePhi->SetName("Phi");
+      d->PlotSeriesNodePhi->SetName("Phi");
       }
     else
       {
-      d->plotDataNodePhi = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodePhiCol->GetItemAsObject(plotDataNodePhiCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodePhi = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodePhiCol->GetItemAsObject(PlotSeriesNodePhiCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodePhi->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodePhi->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodePhi);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodePhi);
     }
 
-  if (!d->plotDataNodeVSys)
+  if (!d->PlotSeriesNodeVSys)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeVSysCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeVSysCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "VSys"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "VSys"));
 
-    if (plotDataNodeVSysCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeVSysCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeVSys.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeVSys);
-      d->plotDataNodeVSys->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeVSys->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVSys.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeVSys);
+      d->PlotSeriesNodeVSys->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeVSys->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeVSys->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeVSys->SetMarkerSize(9);
+      d->PlotSeriesNodeVSys->SetLineWidth(3);
+      d->PlotSeriesNodeVSys->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeVSys->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeVSys->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeVSys->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVSys->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnVSys));
-      d->plotDataNodeVSys->SetName("VSys");
+      d->PlotSeriesNodeVSys->SetName("VSys");
       }
     else
       {
-      d->plotDataNodeVSys = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeVSysCol->GetItemAsObject(plotDataNodeVSysCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeVSys = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeVSysCol->GetItemAsObject(PlotSeriesNodeVSysCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeVSys->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeVSys->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeVSys);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeVSys);
     }
 
-  if (!d->plotDataNodeVDisp)
+  if (!d->PlotSeriesNodeVDisp)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeVDispCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeVDispCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "VDisp"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "VDisp"));
 
-    if (plotDataNodeVDispCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeVDispCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeVDisp.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeVDisp);
-      d->plotDataNodeVDisp->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeVDisp->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVDisp.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeVDisp);
+      d->PlotSeriesNodeVDisp->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeVDisp->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeVDisp->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeVDisp->SetMarkerSize(9);
+      d->PlotSeriesNodeVDisp->SetLineWidth(3);
+      d->PlotSeriesNodeVDisp->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeVDisp->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeVDisp->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeVDisp->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeVDisp->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp));
-      d->plotDataNodeVDisp->SetName("VDisp");
+      d->PlotSeriesNodeVDisp->SetName("VDisp");
       }
     else
       {
-      d->plotDataNodeVDisp = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeVDispCol->GetItemAsObject(plotDataNodeVDispCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeVDisp = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeVDispCol->GetItemAsObject(PlotSeriesNodeVDispCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeVDisp->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeVDisp->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeVDisp);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeVDisp);
     }
 
-  if (!d->plotDataNodeDens)
+  if (!d->PlotSeriesNodeDens)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeDensCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeDensCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "Dens"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "Dens"));
 
-    if (plotDataNodeDensCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeDensCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeDens.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeDens);
-      d->plotDataNodeDens->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeDens->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeDens.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeDens);
+      d->PlotSeriesNodeDens->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeDens->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeDens->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeDens->SetMarkerSize(9);
+      d->PlotSeriesNodeDens->SetLineWidth(3);
+      d->PlotSeriesNodeDens->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeDens->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeDens->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeDens->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeDens->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnDens));
-      d->plotDataNodeDens->SetName("Dens");
+      d->PlotSeriesNodeDens->SetName("Dens");
       }
     else
       {
-      d->plotDataNodeDens = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeDensCol->GetItemAsObject(plotDataNodeDensCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeDens = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeDensCol->GetItemAsObject(PlotSeriesNodeDensCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeDens->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeDens->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeDens);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeDens);
     }
 
-  if (!d->plotDataNodeZ0)
+  if (!d->PlotSeriesNodeZ0)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeZ0Col =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeZ0Col =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "Z0"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "Z0"));
 
-    if (plotDataNodeZ0Col->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeZ0Col->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeZ0.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeZ0);
-      d->plotDataNodeZ0->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeZ0->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeZ0.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeZ0);
+      d->PlotSeriesNodeZ0->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeZ0->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeZ0->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeZ0->SetMarkerSize(9);
+      d->PlotSeriesNodeZ0->SetLineWidth(3);
+      d->PlotSeriesNodeZ0->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeZ0->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeZ0->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeZ0->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeZ0->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnZ0));
-      d->plotDataNodeZ0->SetName("Z0");
+      d->PlotSeriesNodeZ0->SetName("Z0");
       }
     else
       {
-      d->plotDataNodeZ0 = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeZ0Col->GetItemAsObject(plotDataNodeZ0Col->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeZ0 = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeZ0Col->GetItemAsObject(PlotSeriesNodeZ0Col->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeZ0->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeZ0->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeZ0);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeZ0);
     }
 
-  if (!d->plotDataNodeXPos)
+  if (!d->PlotSeriesNodeXPos)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeXPosCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeXPosCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "XPos"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "XPos"));
 
-    if (plotDataNodeXPosCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeXPosCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeXPos.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeXPos);
-      d->plotDataNodeXPos->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeXPos->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeXPos.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeXPos);
+      d->PlotSeriesNodeXPos->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeXPos->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeXPos->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeXPos->SetMarkerSize(9);
+      d->PlotSeriesNodeXPos->SetLineWidth(3);
+      d->PlotSeriesNodeXPos->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeXPos->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeXPos->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeXPos->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeXPos->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnXPos));
-      d->plotDataNodeXPos->SetName("XPos");
+      d->PlotSeriesNodeXPos->SetName("XPos");
       }
     else
       {
-      d->plotDataNodeXPos = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeXPosCol->GetItemAsObject(plotDataNodeXPosCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeXPos = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeXPosCol->GetItemAsObject(PlotSeriesNodeXPosCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeXPos->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeXPos->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeXPos);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeXPos);
     }
 
-  if (!d->plotDataNodeYPos)
+  if (!d->PlotSeriesNodeYPos)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeYPosCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeYPosCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "YPos"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "YPos"));
 
-    if (plotDataNodeYPosCol->GetNumberOfItems() == 0 || forceNew)
+    if (PlotSeriesNodeYPosCol->GetNumberOfItems() == 0 || forceNew)
       {
-      d->plotDataNodeYPos.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      this->mrmlScene()->AddNode(d->plotDataNodeYPos);
-      d->plotDataNodeYPos->SetAndObserveTableNodeID(tableNode->GetID());
-      d->plotDataNodeYPos->SetXColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeYPos.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeYPos);
+      d->PlotSeriesNodeYPos->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeYPos->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeYPos->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeYPos->SetMarkerSize(9);
+      d->PlotSeriesNodeYPos->SetLineWidth(3);
+      d->PlotSeriesNodeYPos->SetUniqueColor("vtkMRMLColorTableNodeFileDarkBrightChartColors.txt");
+      d->PlotSeriesNodeYPos->SetAndObserveTableNodeID(tableNode->GetID());
+      d->PlotSeriesNodeYPos->SetXColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
-      d->plotDataNodeYPos->SetYColumnName(tableNode->GetColumnName
+      d->PlotSeriesNodeYPos->SetYColumnName(tableNode->GetColumnName
         (vtkMRMLAstroModelingParametersNode::ParamsColumnYPos));
-      d->plotDataNodeYPos->SetName("YPos");
+      d->PlotSeriesNodeYPos->SetName("YPos");
       }
     else
       {
-      d->plotDataNodeYPos = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeYPosCol->GetItemAsObject(plotDataNodeYPosCol->GetNumberOfItems() - 1));
+      d->PlotSeriesNodeYPos = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeYPosCol->GetItemAsObject(PlotSeriesNodeYPosCol->GetNumberOfItems() - 1));
       }
     }
-  else if (!this->mrmlScene()->GetNodeByID(d->plotDataNodeYPos->GetID()))
+  else if (!this->mrmlScene()->GetNodeByID(d->PlotSeriesNodeYPos->GetID()))
     {
-    this->mrmlScene()->AddNode(d->plotDataNodeYPos);
+    this->mrmlScene()->AddNode(d->PlotSeriesNodeYPos);
     }
 
   // Check (and create) PlotChart nodes
@@ -1572,11 +1632,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeVRot.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeVRot->SetName("VRotChart");
-      d->plotChartNodeVRot->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeVRot->SetAttribute("YAxisLabelName", "Rotational Velocity (km/s)");
-      d->plotChartNodeVRot->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeVRot->SetAttribute("Type", "Line");
-      d->plotChartNodeVRot->SetAttribute("Markers", "Circle");
+      d->plotChartNodeVRot->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeVRot->SetYAxisTitle("Rotational Velocity (km/s)");
+      d->plotChartNodeVRot->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeVRot);
       }
     else
@@ -1601,11 +1659,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeVRad.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeVRad->SetName("VRadChart");
-      d->plotChartNodeVRad->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeVRad->SetAttribute("YAxisLabelName", "Radial Velocity (km/s)");
-      d->plotChartNodeVRad->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeVRad->SetAttribute("Type", "Line");
-      d->plotChartNodeVRad->SetAttribute("Markers", "Circle");
+      d->plotChartNodeVRad->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeVRad->SetYAxisTitle("Radial Velocity (km/s)");
+      d->plotChartNodeVRad->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeVRad);
       }
     else
@@ -1630,11 +1686,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeInc.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeInc->SetName("IncChart");
-      d->plotChartNodeInc->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeInc->SetAttribute("YAxisLabelName", "Inclination (degree)");
-      d->plotChartNodeInc->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeInc->SetAttribute("Type", "Line");
-      d->plotChartNodeInc->SetAttribute("Markers", "Circle");
+      d->plotChartNodeInc->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeInc->SetYAxisTitle("Inclination (degree)");
+      d->plotChartNodeInc->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeInc);
       }
     else
@@ -1659,11 +1713,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodePhi.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodePhi->SetName("PhiChart");
-      d->plotChartNodePhi->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodePhi->SetAttribute("YAxisLabelName", "Orientation Angle (degree)");
-      d->plotChartNodePhi->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodePhi->SetAttribute("Type", "Line");
-      d->plotChartNodePhi->SetAttribute("Markers", "Circle");
+      d->plotChartNodePhi->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodePhi->SetYAxisTitle("Orientation Angle (degree)");
+      d->plotChartNodePhi->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodePhi);
       }
     else
@@ -1688,11 +1740,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeVSys.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeVSys->SetName("VSysChart");
-      d->plotChartNodeVSys->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeVSys->SetAttribute("YAxisLabelName", "Systemic Velocity (km/s)");
-      d->plotChartNodeVSys->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeVSys->SetAttribute("Type", "Line");
-      d->plotChartNodeVSys->SetAttribute("Markers", "Circle");
+      d->plotChartNodeVSys->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeVSys->SetYAxisTitle("Systemic Velocity (km/s)");
+      d->plotChartNodeVSys->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeVSys);
       }
     else
@@ -1717,11 +1767,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeVDisp.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeVDisp->SetName("VDispChart");
-      d->plotChartNodeVDisp->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeVDisp->SetAttribute("YAxisLabelName", "Dispersion Velocity (km/s)");
-      d->plotChartNodeVDisp->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeVDisp->SetAttribute("Type", "Line");
-      d->plotChartNodeVDisp->SetAttribute("Markers", "Circle");
+      d->plotChartNodeVDisp->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeVDisp->SetYAxisTitle("Dispersion Velocity (km/s)");
+      d->plotChartNodeVDisp->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeVDisp);
       }
     else
@@ -1746,11 +1794,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeDens.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeDens->SetName("DensChart");
-      d->plotChartNodeDens->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeDens->SetAttribute("YAxisLabelName", "Column Density (10^20 cm^-2)");
-      d->plotChartNodeDens->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeDens->SetAttribute("Type", "Line");
-      d->plotChartNodeDens->SetAttribute("Markers", "Circle");
+      d->plotChartNodeDens->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeDens->SetYAxisTitle("Column Density (10^20 cm^-2)");
+      d->plotChartNodeDens->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeDens);
       }
     else
@@ -1775,11 +1821,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeZ0.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeZ0->SetName("Z0Chart");
-      d->plotChartNodeZ0->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeZ0->SetAttribute("YAxisLabelName", "Scale Heigth (Kpc)");
-      d->plotChartNodeZ0->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeZ0->SetAttribute("Type", "Line");
-      d->plotChartNodeZ0->SetAttribute("Markers", "Circle");
+      d->plotChartNodeZ0->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeZ0->SetYAxisTitle("Scale Heigth (Kpc)");
+      d->plotChartNodeZ0->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeZ0);
       }
     else
@@ -1804,11 +1848,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeXPos.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeXPos->SetName("XPosChart");
-      d->plotChartNodeXPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeXPos->SetAttribute("YAxisLabelName", "X Center (pixels)");
-      d->plotChartNodeXPos->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeXPos->SetAttribute("Type", "Line");
-      d->plotChartNodeXPos->SetAttribute("Markers", "Circle");
+      d->plotChartNodeXPos->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeXPos->SetYAxisTitle("X Center (pixels)");
+      d->plotChartNodeXPos->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeXPos);
       }
     else
@@ -1833,11 +1875,9 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
       d->plotChartNodeYPos.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeYPos->SetName("YPosChart");
-      d->plotChartNodeYPos->SetAttribute("XAxisLabelName", "Radii (arcsec)");
-      d->plotChartNodeYPos->SetAttribute("YAxisLabelName", "Y Center (pixels)");
-      d->plotChartNodeYPos->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeYPos->SetAttribute("Type", "Line");
-      d->plotChartNodeYPos->SetAttribute("Markers", "Circle");
+      d->plotChartNodeYPos->SetXAxisTitle("Radii (arcsec)");
+      d->plotChartNodeYPos->SetYAxisTitle("Y Center (pixels)");
+      d->plotChartNodeYPos->SetEnablePointMoveAlongX(false);
       this->mrmlScene()->AddNode(d->plotChartNodeYPos);
       }
     else
@@ -1851,28 +1891,28 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
     this->mrmlScene()->AddNode(d->plotChartNodeYPos);
     }
 
-  // Add PlotDataNodes to PlotChartNodes
-  d->plotChartNodeVRot->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeVRad->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeInc->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodePhi->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeVSys->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeVDisp->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeDens->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeZ0->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeXPos->RemoveAllPlotDataNodeIDs();
-  d->plotChartNodeYPos->RemoveAllPlotDataNodeIDs();
+  // Add PlotSeriesNodes to PlotChartNodes
+  d->plotChartNodeVRot->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeVRad->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeInc->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodePhi->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeVSys->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeVDisp->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeDens->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeZ0->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeXPos->RemoveAllPlotSeriesNodeIDs();
+  d->plotChartNodeYPos->RemoveAllPlotSeriesNodeIDs();
 
-  d->plotChartNodeVRot->AddAndObservePlotDataNodeID(d->plotDataNodeVRot->GetID());
-  d->plotChartNodeVRad->AddAndObservePlotDataNodeID(d->plotDataNodeVRad->GetID());
-  d->plotChartNodeInc->AddAndObservePlotDataNodeID(d->plotDataNodeInc->GetID());
-  d->plotChartNodePhi->AddAndObservePlotDataNodeID(d->plotDataNodePhi->GetID());
-  d->plotChartNodeVSys->AddAndObservePlotDataNodeID(d->plotDataNodeVSys->GetID());
-  d->plotChartNodeVDisp->AddAndObservePlotDataNodeID(d->plotDataNodeVDisp->GetID());
-  d->plotChartNodeDens->AddAndObservePlotDataNodeID(d->plotDataNodeDens->GetID());
-  d->plotChartNodeZ0->AddAndObservePlotDataNodeID(d->plotDataNodeZ0->GetID());
-  d->plotChartNodeXPos->AddAndObservePlotDataNodeID(d->plotDataNodeXPos->GetID());
-  d->plotChartNodeYPos->AddAndObservePlotDataNodeID(d->plotDataNodeYPos->GetID());
+  d->plotChartNodeVRot->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeVRot->GetID());
+  d->plotChartNodeVRad->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeVRad->GetID());
+  d->plotChartNodeInc->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeInc->GetID());
+  d->plotChartNodePhi->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodePhi->GetID());
+  d->plotChartNodeVSys->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeVSys->GetID());
+  d->plotChartNodeVDisp->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeVDisp->GetID());
+  d->plotChartNodeDens->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeDens->GetID());
+  d->plotChartNodeZ0->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeZ0->GetID());
+  d->plotChartNodeXPos->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeXPos->GetID());
+  d->plotChartNodeYPos->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeYPos->GetID());
 
   //Select NULL Chart
   if (d->selectionNode)
@@ -3111,16 +3151,16 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
 
   for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
     {
-    vtkMRMLPlotDataNode* plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+    vtkMRMLPlotSeriesNode* PlotSeriesNode = vtkMRMLPlotSeriesNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(mrmlPlotDataIDs->GetValue(mrmlPlotDataIndex)));
-    if (!plotDataNode)
+    if (!PlotSeriesNode)
       {
       continue;
       }
-    if (!strcmp(plotDataNode->GetName(), "VRot") ||
-        !strcmp(plotDataNode->GetName(), "VRad") ||
-        !strcmp(plotDataNode->GetName(), "Inc") ||
-        !strcmp(plotDataNode->GetName(), "VSys"))
+    if (!strcmp(PlotSeriesNode->GetName(), "VRot") ||
+        !strcmp(PlotSeriesNode->GetName(), "VRad") ||
+        !strcmp(PlotSeriesNode->GetName(), "Inc") ||
+        !strcmp(PlotSeriesNode->GetName(), "VSys"))
       {
       vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
         (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
@@ -3145,16 +3185,16 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
 
   for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
     {
-    vtkMRMLPlotDataNode* plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+    vtkMRMLPlotSeriesNode* PlotSeriesNode = vtkMRMLPlotSeriesNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(mrmlPlotDataIDs->GetValue(mrmlPlotDataIndex)));
-    if (!plotDataNode)
+    if (!PlotSeriesNode)
       {
       continue;
       }
-    if (!strcmp(plotDataNode->GetName(), "VRot") ||
-        !strcmp(plotDataNode->GetName(), "VRad") ||
-        !strcmp(plotDataNode->GetName(), "Inc") ||
-        !strcmp(plotDataNode->GetName(), "Phi"))
+    if (!strcmp(PlotSeriesNode->GetName(), "VRot") ||
+        !strcmp(PlotSeriesNode->GetName(), "VRad") ||
+        !strcmp(PlotSeriesNode->GetName(), "Inc") ||
+        !strcmp(PlotSeriesNode->GetName(), "Phi"))
       {
       vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
         (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
@@ -4164,7 +4204,7 @@ void qSlicerAstroModelingModuleWidget::setup()
   d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   // set CTRL+P shortcut
   d->PlotAction->setShortcuts(QKeySequence::Print);
-  d->PasteAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
+  d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
                                 " the columns of the table. The First (from left to right)"
                                 " Column will be used as X-Axis and each additional Column"
                                 " will be plotted in the same Plot as Y-Axis. "

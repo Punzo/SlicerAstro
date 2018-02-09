@@ -77,7 +77,7 @@
 #include <vtkMRMLColorTableStorageNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
-#include <vtkMRMLPlotDataNode.h>
+#include <vtkMRMLPlotSeriesNode.h>
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLProceduralColorNode.h>
 #include <vtkMRMLProceduralColorStorageNode.h>
@@ -118,11 +118,11 @@ public:
   qMRMLAstroVolumeInfoWidget *MRMLAstroVolumeInfoWidget;
   vtkSlicerSegmentationsModuleLogic* segmentationsLogic;
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeHistogram;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeMinLine;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeMinLine;
   vtkSmartPointer<vtkMRMLTableNode> TableMinNode;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeMaxLine;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeMaxLine;
   vtkSmartPointer<vtkMRMLTableNode> TableMaxNode;
-  vtkSmartPointer<vtkMRMLPlotDataNode> plotDataNodeThresholdLine;
+  vtkSmartPointer<vtkMRMLPlotSeriesNode> PlotSeriesNodeThresholdLine;
   vtkSmartPointer<vtkMRMLTableNode> TableThresholdNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;  
   vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
@@ -150,11 +150,11 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   this->astroLabelVolumeNode = 0;
   this->selectionNode = 0;
   this->segmentEditorNode = 0;
-  this->plotDataNodeMinLine = 0;
+  this->PlotSeriesNodeMinLine = 0;
   this->TableMinNode = 0;
-  this->plotDataNodeMaxLine = 0;
+  this->PlotSeriesNodeMaxLine = 0;
   this->TableMaxNode = 0;
-  this->plotDataNodeThresholdLine = 0;
+  this->PlotSeriesNodeThresholdLine = 0;
   this->TableThresholdNode = 0;
   this->stretchOldValue = 0.;
   this->offsetOldValue = 0.;
@@ -476,11 +476,11 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
     }
   this->plotChartNodeHistogram = 0;
 
-  if (this->plotDataNodeMinLine)
+  if (this->PlotSeriesNodeMinLine)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeMinLine);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeMinLine);
     }
-  this->plotDataNodeMinLine = 0;
+  this->PlotSeriesNodeMinLine = 0;
 
   if (this->TableMinNode)
     {
@@ -488,11 +488,11 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
     }
   this->TableMinNode = 0;
 
-  if (this->plotDataNodeMaxLine)
+  if (this->PlotSeriesNodeMaxLine)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeMaxLine);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeMaxLine);
     }
-  this->plotDataNodeMaxLine = 0;
+  this->PlotSeriesNodeMaxLine = 0;
 
   if (this->TableMaxNode)
     {
@@ -500,11 +500,11 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
     }
   this->TableMaxNode = 0;
 
-  if (this->plotDataNodeThresholdLine)
+  if (this->PlotSeriesNodeThresholdLine)
     {
-    q->mrmlScene()->RemoveNode(this->plotDataNodeThresholdLine);
+    q->mrmlScene()->RemoveNode(this->PlotSeriesNodeThresholdLine);
     }
-  this->plotDataNodeThresholdLine = 0;
+  this->PlotSeriesNodeThresholdLine = 0;
 
   if (this->TableThresholdNode)
     {
@@ -952,7 +952,8 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       continue;
       }
     if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
-        !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
+        !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors") ||
+        !strcmp(tempColorTableNode->GetName(), "Random"))
       {
       continue;
       }
@@ -972,10 +973,6 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     vtkMRMLProceduralColorNode* tempProceduralColorTableNode = vtkMRMLProceduralColorNode::SafeDownCast
             (ProceduralColorTableNodeCol->GetItemAsObject(ii));
     if (!tempProceduralColorTableNode)
-      {
-      continue;
-      }
-    if (!strcmp(tempProceduralColorTableNode->GetName(), "RandomIntegers"))
       {
       continue;
       }
@@ -1015,8 +1012,7 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
     }
 
-  // ReAdd Generic and MediumChart Colors
-  std::string DarkBrightChartColorsID;
+  // ReAdd Generic, Random and DarkBrightChart Colors
   ColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
       this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
   for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
@@ -1027,44 +1023,19 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
       {
       continue;
       }
-    if (!strcmp(tempColorTableNode->GetName(), "GenericColors"))
+    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
+        !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors") ||
+        !strcmp(tempColorTableNode->GetName(), "Random"))
       {
       vtkNew<vtkMRMLColorTableNode> tempTableNode;
       tempTableNode->Copy(tempColorTableNode);
       this->mrmlScene()->RemoveNode(tempColorTableNode);
       tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
-      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
-      continue;
-      }
-    if (!strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
-      {
-      vtkNew<vtkMRMLColorTableNode> tempTableNode;
-      tempTableNode->Copy(tempColorTableNode);
-      this->mrmlScene()->RemoveNode(tempColorTableNode);
-      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
-      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
-      DarkBrightChartColorsID = tempTableNode->GetID();
-      continue;
-      }
-    }
-
-  // ReAdd RandomIntegers Colors
-  ProceduralColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
-      this->mrmlScene()->GetNodesByClass("vtkMRMLProceduralColorNode"));
-  for (int ii = 0; ii < ProceduralColorTableNodeCol->GetNumberOfItems(); ii++)
-    {
-    vtkMRMLProceduralColorNode* tempProceduralColorTableNode = vtkMRMLProceduralColorNode::SafeDownCast
-            (ProceduralColorTableNodeCol->GetItemAsObject(ii));
-    if (!tempProceduralColorTableNode)
-      {
-      continue;
-      }
-    if (!strcmp(tempProceduralColorTableNode->GetName(), "RandomIntegers"))
-      {
-      vtkNew<vtkMRMLColorTableNode> tempTableNode;
-      tempTableNode->Copy(tempProceduralColorTableNode);
-      this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
-      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
+      if (!strcmp(tempColorTableNode->GetName(), "Random"))
+        {
+        tempTableNode->GetLookupTable()->SetTableValue(0, 0.047, 0.063, 0.635);
+        tempTableNode->SetNamesFromColors();
+        }
       this->mrmlScene()->AddNode(tempTableNode.GetPointer());
       continue;
       }
@@ -1093,12 +1064,11 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
       d->plotChartNodeHistogram.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeHistogram->SetName("HistogramChart");
-      d->plotChartNodeHistogram->SetAttribute("TitleName", "Histogram");
-      d->plotChartNodeHistogram->SetAttribute("XAxisLabelName", "Intensity (Jy/beam)");
-      d->plotChartNodeHistogram->SetAttribute("YAxisLabelName", "Log10(#)");
-      d->plotChartNodeHistogram->SetAttribute("Type", "Custom");
-      d->plotChartNodeHistogram->SetAttribute("ClickAndDragAlongX", "on");
-      d->plotChartNodeHistogram->SetAttribute("ClickAndDragAlongY", "off");
+      d->plotChartNodeHistogram->SetTitle("Histogram");
+      d->plotChartNodeHistogram->SetXAxisTitle("Intensity (Jy/beam)");
+      d->plotChartNodeHistogram->SetYAxisTitle("Log10(#)");
+      d->plotChartNodeHistogram->SetEnablePointMoveAlongX(true);
+      d->plotChartNodeHistogram->SetEnablePointMoveAlongY(false);
       this->mrmlScene()->AddNode(d->plotChartNodeHistogram);
       }
     else
@@ -1166,29 +1136,34 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
   this->qvtkReconnect(d->TableMinNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLTableMinNodeModified()));
 
-  // Check (and create) plotDataNodeMinLine
-  if (!d->plotDataNodeMinLine || forceNew)
+  // Check (and create) PlotSeriesNodeMinLine
+  if (!d->PlotSeriesNodeMinLine || forceNew)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeMinLineCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeMinLineCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "MinLine"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "MinLine"));
 
-    if (plotDataNodeMinLineCol->GetNumberOfItems() == 0)
+    if (PlotSeriesNodeMinLineCol->GetNumberOfItems() == 0)
       {
-      d->plotDataNodeMinLine.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      d->plotDataNodeMinLine->SetName("MinLine");
-      d->plotDataNodeMinLine->SetType(vtkMRMLPlotDataNode::LINE);
-      d->plotDataNodeMinLine->SetMarkerStyle(vtkPlotPoints::CIRCLE);
-      d->plotDataNodeMinLine->SetAndObserveTableNodeID(d->TableMinNode->GetID());
-      d->plotDataNodeMinLine->SetXColumnName(d->TableMinNode->GetColumnName(0));
-      d->plotDataNodeMinLine->SetYColumnName(d->TableMinNode->GetColumnName(1));
-      this->mrmlScene()->AddNode(d->plotDataNodeMinLine);
+      d->PlotSeriesNodeMinLine.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      d->PlotSeriesNodeMinLine->SetName("MinLine");
+      d->PlotSeriesNodeMinLine->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeMinLine->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeMinLine->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeMinLine->SetMarkerSize(11);
+      d->PlotSeriesNodeMinLine->SetLineWidth(4);
+      double color[4] = {0.071, 0.545, 0.290, 1.};
+      d->PlotSeriesNodeMinLine->SetColor(color);
+      d->PlotSeriesNodeMinLine->SetAndObserveTableNodeID(d->TableMinNode->GetID());
+      d->PlotSeriesNodeMinLine->SetXColumnName(d->TableMinNode->GetColumnName(0));
+      d->PlotSeriesNodeMinLine->SetYColumnName(d->TableMinNode->GetColumnName(1));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeMinLine);
       }
     else
       {
-      d->plotDataNodeMinLine = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeMinLineCol->GetItemAsObject(0));
+      d->PlotSeriesNodeMinLine = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeMinLineCol->GetItemAsObject(0));
       }
     }
 
@@ -1244,29 +1219,34 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
   this->qvtkReconnect(d->TableMaxNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLTableMaxNodeModified()));
 
-  // Check (and create) plotDataNodeMaxLine
-  if (!d->plotDataNodeMaxLine || forceNew)
+  // Check (and create) PlotSeriesNodeMaxLine
+  if (!d->PlotSeriesNodeMaxLine || forceNew)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeMaxLineCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeMaxLineCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "MaxLine"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "MaxLine"));
 
-    if (plotDataNodeMaxLineCol->GetNumberOfItems() == 0)
+    if (PlotSeriesNodeMaxLineCol->GetNumberOfItems() == 0)
       {
-      d->plotDataNodeMaxLine.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      d->plotDataNodeMaxLine->SetName("MaxLine");
-      d->plotDataNodeMaxLine->SetType(vtkMRMLPlotDataNode::LINE);
-      d->plotDataNodeMaxLine->SetMarkerStyle(vtkPlotPoints::CIRCLE);
-      d->plotDataNodeMaxLine->SetAndObserveTableNodeID(d->TableMaxNode->GetID());
-      d->plotDataNodeMaxLine->SetXColumnName(d->TableMaxNode->GetColumnName(0));
-      d->plotDataNodeMaxLine->SetYColumnName(d->TableMaxNode->GetColumnName(1));
-      this->mrmlScene()->AddNode(d->plotDataNodeMaxLine);
+      d->PlotSeriesNodeMaxLine.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      d->PlotSeriesNodeMaxLine->SetName("MaxLine");
+      d->PlotSeriesNodeMaxLine->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeMaxLine->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeMaxLine->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeMaxLine->SetMarkerSize(11);
+      d->PlotSeriesNodeMaxLine->SetLineWidth(4);
+      double color[4] = {0.086, 0.365, 0.655, 1.};
+      d->PlotSeriesNodeMaxLine->SetColor(color);
+      d->PlotSeriesNodeMaxLine->SetAndObserveTableNodeID(d->TableMaxNode->GetID());
+      d->PlotSeriesNodeMaxLine->SetXColumnName(d->TableMaxNode->GetColumnName(0));
+      d->PlotSeriesNodeMaxLine->SetYColumnName(d->TableMaxNode->GetColumnName(1));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeMaxLine);
       }
     else
       {
-      d->plotDataNodeMaxLine = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeMaxLineCol->GetItemAsObject(0));
+      d->PlotSeriesNodeMaxLine = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeMaxLineCol->GetItemAsObject(0));
       }
     }
 
@@ -1322,29 +1302,34 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
   this->qvtkReconnect(d->TableThresholdNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLTableThresholdNodeModified()));
 
-  // Check (and create) plotDataNodeThresholdLine
-  if (!d->plotDataNodeThresholdLine || forceNew)
+  // Check (and create) PlotSeriesNodeThresholdLine
+  if (!d->PlotSeriesNodeThresholdLine || forceNew)
     {
-    vtkSmartPointer<vtkCollection> plotDataNodeThresholdLineCol =
+    vtkSmartPointer<vtkCollection> PlotSeriesNodeThresholdLineCol =
       vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotDataNode", "ThresholdLine"));
+        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotSeriesNode", "ThresholdLine"));
 
-    if (plotDataNodeThresholdLineCol->GetNumberOfItems() == 0)
+    if (PlotSeriesNodeThresholdLineCol->GetNumberOfItems() == 0)
       {
-      d->plotDataNodeThresholdLine.TakeReference(vtkMRMLPlotDataNode::SafeDownCast
-        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotDataNode")));
-      d->plotDataNodeThresholdLine->SetName("ThresholdLine");
-      d->plotDataNodeThresholdLine->SetType(vtkMRMLPlotDataNode::LINE);
-      d->plotDataNodeThresholdLine->SetMarkerStyle(vtkPlotPoints::CIRCLE);
-      d->plotDataNodeThresholdLine->SetAndObserveTableNodeID(d->TableThresholdNode->GetID());
-      d->plotDataNodeThresholdLine->SetXColumnName(d->TableThresholdNode->GetColumnName(0));
-      d->plotDataNodeThresholdLine->SetYColumnName(d->TableThresholdNode->GetColumnName(1));
-      this->mrmlScene()->AddNode(d->plotDataNodeThresholdLine);
+      d->PlotSeriesNodeThresholdLine.TakeReference(vtkMRMLPlotSeriesNode::SafeDownCast
+        (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotSeriesNode")));
+      d->PlotSeriesNodeThresholdLine->SetName("ThresholdLine");
+      d->PlotSeriesNodeThresholdLine->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+      d->PlotSeriesNodeThresholdLine->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleCircle);
+      d->PlotSeriesNodeThresholdLine->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+      d->PlotSeriesNodeThresholdLine->SetMarkerSize(11);
+      d->PlotSeriesNodeThresholdLine->SetLineWidth(4);
+      double color[4] = {0.949, 0.481, 0.176, 1.};
+      d->PlotSeriesNodeThresholdLine->SetColor(color);
+      d->PlotSeriesNodeThresholdLine->SetAndObserveTableNodeID(d->TableThresholdNode->GetID());
+      d->PlotSeriesNodeThresholdLine->SetXColumnName(d->TableThresholdNode->GetColumnName(0));
+      d->PlotSeriesNodeThresholdLine->SetYColumnName(d->TableThresholdNode->GetColumnName(1));
+      this->mrmlScene()->AddNode(d->PlotSeriesNodeThresholdLine);
       }
     else
       {
-      d->plotDataNodeThresholdLine = vtkMRMLPlotDataNode::SafeDownCast
-        (plotDataNodeThresholdLineCol->GetItemAsObject(0));
+      d->PlotSeriesNodeThresholdLine = vtkMRMLPlotSeriesNode::SafeDownCast
+        (PlotSeriesNodeThresholdLineCol->GetItemAsObject(0));
       }
     }
 }
@@ -1496,7 +1481,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 
   if (d->plotChartNodeHistogram)
     {
-    d->plotChartNodeHistogram->RemoveAllPlotDataNodeIDs();
+    d->plotChartNodeHistogram->RemoveAllPlotSeriesNodeIDs();
     }
 
   if (d->selectionNode)
@@ -3551,26 +3536,28 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     d->selectionNode->SetActiveTableID(tableNode->GetID());
     }
 
-  vtkSmartPointer<vtkCollection> PlotDataNodes = vtkSmartPointer<vtkCollection>::Take
-      (scene->GetNodesByClassByName("vtkMRMLPlotDataNode", name.c_str()));
-  vtkMRMLPlotDataNode *plotDataNode = NULL;
-  if (PlotDataNodes->GetNumberOfItems() == 0)
+  vtkSmartPointer<vtkCollection> PlotSeriesNodes = vtkSmartPointer<vtkCollection>::Take
+      (scene->GetNodesByClassByName("vtkMRMLPlotSeriesNode", name.c_str()));
+  vtkMRMLPlotSeriesNode *PlotSeriesNode = NULL;
+  if (PlotSeriesNodes->GetNumberOfItems() == 0)
     {
-    vtkNew<vtkMRMLPlotDataNode> newPlotDataNode;
-    newPlotDataNode->SetName(name.c_str());
-    newPlotDataNode->SetType(vtkMRMLPlotDataNode::BAR);
-    scene->AddNode(newPlotDataNode.GetPointer());
-    plotDataNode = newPlotDataNode.GetPointer();
+    vtkNew<vtkMRMLPlotSeriesNode> newPlotSeriesNode;
+    newPlotSeriesNode->SetName(name.c_str());
+    double color[4] = {0.926, 0.173, 0.2, 1.};
+    newPlotSeriesNode->SetColor(color);
+    newPlotSeriesNode->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatterBar);
+    scene->AddNode(newPlotSeriesNode.GetPointer());
+    PlotSeriesNode = newPlotSeriesNode.GetPointer();
     }
   else
     {
-    plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
-      (PlotDataNodes->GetItemAsObject(0));
+    PlotSeriesNode = vtkMRMLPlotSeriesNode::SafeDownCast
+      (PlotSeriesNodes->GetItemAsObject(0));
     }
 
-  plotDataNode->SetAndObserveTableNodeID(tableNode->GetID());
-  plotDataNode->SetXColumnName(tableNode->GetColumnName(0));
-  plotDataNode->SetYColumnName(tableNode->GetColumnName(1));
+  PlotSeriesNode->SetAndObserveTableNodeID(tableNode->GetID());
+  PlotSeriesNode->SetXColumnName(tableNode->GetColumnName(0));
+  PlotSeriesNode->SetYColumnName(tableNode->GetColumnName(1));
 
   // Connect PlotWidget with AstroVolumeWidget
   qSlicerApplication* app = qSlicerApplication::application();
@@ -3655,8 +3642,8 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
 
   if (d->plotChartNodeHistogram)
     {
-    d->plotChartNodeHistogram->RemoveAllPlotDataNodeIDs();
-    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(plotDataNode->GetID());
+    d->plotChartNodeHistogram->RemoveAllPlotSeriesNodeIDs();
+    d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(PlotSeriesNode->GetID());
     }
 
   if (d->selectionNode)
@@ -3677,9 +3664,9 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
 
   if (d->plotChartNodeHistogram)
     {
-    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeMinLine->GetID());
-    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeMaxLine->GetID());
-    d->plotChartNodeHistogram->AddAndObservePlotDataNodeID(d->plotDataNodeThresholdLine->GetID());
+    d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeMinLine->GetID());
+    d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeMaxLine->GetID());
+    d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeThresholdLine->GetID());
     }
 }
 
@@ -3872,18 +3859,18 @@ void qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged(vtkStringArray *mrml
   int maxIndex = 0;
   for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
     {
-    vtkMRMLPlotDataNode* plotDataNode = vtkMRMLPlotDataNode::SafeDownCast
+    vtkMRMLPlotSeriesNode* PlotSeriesNode = vtkMRMLPlotSeriesNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(mrmlPlotDataIDs->GetValue(mrmlPlotDataIndex)));
-    if (!plotDataNode)
+    if (!PlotSeriesNode)
       {
       continue;
       }
 
-    std::string name = plotDataNode->GetName();
+    std::string name = PlotSeriesNode->GetName();
     if (name.find("_Histogram") != std::string::npos &&
-        plotDataNode->GetTableNode())
+        PlotSeriesNode->GetTableNode())
       {
-      histoTable = plotDataNode->GetTableNode()->GetTable();
+      histoTable = PlotSeriesNode->GetTableNode()->GetTable();
 
       vtkIdTypeArray *selectionArray = vtkIdTypeArray::SafeDownCast
         (selectionCol->GetItemAsObject(mrmlPlotDataIndex));
@@ -4263,18 +4250,18 @@ void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged(double percentage)
     }
 
   vtkTable *histoTable = NULL;
-  for (int ii = 0; ii < d->plotChartNodeHistogram->GetNumberOfPlotDataNodes(); ii++)
+  for (int ii = 0; ii < d->plotChartNodeHistogram->GetNumberOfPlotSeriesNodes(); ii++)
     {
-    vtkMRMLPlotDataNode *plotDataNode = d->plotChartNodeHistogram->GetNthPlotDataNode(ii);
-    if (!plotDataNode)
+    vtkMRMLPlotSeriesNode *PlotSeriesNode = d->plotChartNodeHistogram->GetNthPlotSeriesNode(ii);
+    if (!PlotSeriesNode)
       {
       continue;
       }
-    std::string name = plotDataNode->GetName();
+    std::string name = PlotSeriesNode->GetName();
     if (name.find("_Histogram") != std::string::npos &&
-        plotDataNode->GetTableNode())
+        PlotSeriesNode->GetTableNode())
       {
-      histoTable = plotDataNode->GetTableNode()->GetTable();
+      histoTable = PlotSeriesNode->GetTableNode()->GetTable();
       break;
       }
     }
@@ -4555,10 +4542,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
   double value2 = d->TableMaxNode->GetTable()->GetValue(1, 0).ToDouble();
   double value3 = d->TableMaxNode->GetTable()->GetValue(2, 0).ToDouble();
 
-  if (fabs(value1 - value2) > 1.E-9 &&
-      fabs(value1 - value3) > 1.E-9)
+  if (fabs(value1 - value2) > 1.E-6 &&
+      fabs(value1 - value3) > 1.E-6)
     {
-    if ((value1 - min) < 1.E-9)
+    if ((value1 - min) < 1.E-6)
       {
       value1 = min;
       }
@@ -4567,10 +4554,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
     d->TableMaxNode->GetTable()->SetValue(2, 0, value1);
     max = value1;
     }
-  else if (fabs(value2 - value1) > 1.E-9 &&
-           fabs(value2 - value3) > 1.E-9)
+  else if (fabs(value2 - value1) > 1.E-6 &&
+           fabs(value2 - value3) > 1.E-6)
     {
-    if ((value2 - min) < 1.E-9)
+    if ((value2 - min) < 1.E-6)
       {
       value2 = min;
       }
@@ -4579,10 +4566,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMaxNodeModified()
     d->TableMaxNode->GetTable()->SetValue(2, 0, value2);
     max = value2;
     }
-  else if (fabs(value3 - value1) > 1.E-9 &&
-           fabs(value3 - value2) > 1.E-9)
+  else if (fabs(value3 - value1) > 1.E-6 &&
+           fabs(value3 - value2) > 1.E-6)
     {
-    if ((value3 - min) < 1.E-9)
+    if ((value3 - min) < 1.E-6)
       {
       value3 = min;
       }
@@ -4629,10 +4616,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
   double value2 = d->TableMinNode->GetTable()->GetValue(1, 0).ToDouble();
   double value3 = d->TableMinNode->GetTable()->GetValue(2, 0).ToDouble();
 
-  if (fabs(value1 - value2) > 1.E-9 &&
-      fabs(value1 - value3) > 1.E-9)
+  if (fabs(value1 - value2) > 1.E-6 &&
+      fabs(value1 - value3) > 1.E-6)
     {
-    if ((value1 - max) > 1.E-9)
+    if ((value1 - max) > 1.E-6)
       {
       value1 = max;
       }
@@ -4641,10 +4628,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
     d->TableMinNode->GetTable()->SetValue(2, 0, value1);
     min = value1;
     }
-  else if (fabs(value2 - value1) > 1.E-9 &&
-           fabs(value2 - value3) > 1.E-9)
+  else if (fabs(value2 - value1) > 1.E-6 &&
+           fabs(value2 - value3) > 1.E-6)
     {
-    if ((value2 - max) > 1.E-9)
+    if ((value2 - max) > 1.E-6)
       {
       value2 = max;
       }
@@ -4653,10 +4640,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableMinNodeModified()
     d->TableMinNode->GetTable()->SetValue(2, 0, value2);
     min = value2;
     }
-  else if (fabs(value3 - value1) > 1.E-9 &&
-           fabs(value3 - value2) > 1.E-9)
+  else if (fabs(value3 - value1) > 1.E-6 &&
+           fabs(value3 - value2) > 1.E-6)
     {
-    if ((value3 - max) > 1.E-9)
+    if ((value3 - max) > 1.E-6)
       {
       value3 = max;
       }
@@ -4702,8 +4689,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
   double value2 = d->TableThresholdNode->GetTable()->GetValue(1, 0).ToDouble();
   double value3 = d->TableThresholdNode->GetTable()->GetValue(2, 0).ToDouble();
 
-  if (fabs(value1 - value2) > 1.E-9 &&
-      fabs(value1 - value3) > 1.E-9)
+  if (fabs(value1 - value2) > 1.E-6 &&
+      fabs(value1 - value3) > 1.E-6)
     {
     if (value1 < 0.)
       {
@@ -4714,8 +4701,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
     d->TableThresholdNode->GetTable()->SetValue(2, 0, value1);
     DisplayThreshold = value1;
     }
-  else if (fabs(value2 - value1) > 1.E-9 &&
-           fabs(value2 - value3) > 1.E-9)
+  else if (fabs(value2 - value1) > 1.E-6 &&
+           fabs(value2 - value3) > 1.E-6)
     {
     if (value2 < 0.)
       {
@@ -4726,8 +4713,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
     d->TableThresholdNode->GetTable()->SetValue(2, 0, value2);
     DisplayThreshold = value2;
     }
-  else if (fabs(value3 - value1) > 1.E-9 &&
-           fabs(value3 - value2) > 1.E-9)
+  else if (fabs(value3 - value1) > 1.E-6 &&
+           fabs(value3 - value2) > 1.E-6)
     {
     if (value3 < 0.)
       {

@@ -77,7 +77,7 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLPlotChartNode.h>
-#include <vtkMRMLPlotDataNode.h>
+#include <vtkMRMLPlotSeriesNode.h>
 #include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
@@ -1243,16 +1243,21 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     d->selectionNode->SetActiveTableID(tableNode->GetID());
     }
 
-  vtkNew<vtkMRMLPlotDataNode> plotDataNode;
-  plotDataNode->SetName(name.c_str());
-  plotDataNode->SetAndObserveTableNodeID(tableNode->GetID());
-  plotDataNode->SetXColumnName(tableNode->GetColumnName(0));
-  plotDataNode->SetYColumnName(tableNode->GetColumnName(tableNode->GetNumberOfColumns() - 1));
-  scene->AddNode(plotDataNode.GetPointer());
+  vtkNew<vtkMRMLPlotSeriesNode> PlotSeriesNode;
+  PlotSeriesNode->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+  PlotSeriesNode->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleNone);
+  PlotSeriesNode->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+  PlotSeriesNode->SetLineWidth(3);
+  PlotSeriesNode->SetName(name.c_str());
+  PlotSeriesNode->SetAndObserveTableNodeID(tableNode->GetID());
+  PlotSeriesNode->SetXColumnName(tableNode->GetColumnName(0));
+  PlotSeriesNode->SetYColumnName(tableNode->GetColumnName(tableNode->GetNumberOfColumns() - 1));
+  scene->AddNode(PlotSeriesNode.GetPointer());
+  PlotSeriesNode->SetUniqueColor();
 
   if (d->plotChartNodeProfile)
     {
-    d->plotChartNodeProfile->AddAndObservePlotDataNodeID(plotDataNode->GetID());
+    d->plotChartNodeProfile->AddAndObservePlotSeriesNodeID(PlotSeriesNode->GetID());
     }
 
   if (d->selectionNode)
