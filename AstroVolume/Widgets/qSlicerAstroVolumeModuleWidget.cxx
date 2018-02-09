@@ -597,6 +597,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
   d->PresetsNodeComboBox->setMRMLScene(presetsScene);
   d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
+  this->onMRMLVolumeNodeDisplayThresholdModified(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -3701,8 +3702,14 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
     {
     return;
     }
+
   vtkMRMLAnnotationROINode* ROINode =
       vtkMRMLAnnotationROINode::SafeDownCast(sender);
+  if (!ROINode)
+    {
+    return;
+    }
+
   if(ROINode->GetDisplayVisibility())
     {
     d->ROICropDisplayCheckBox->setChecked(true);
@@ -4787,7 +4794,12 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
   d->DegreeUnitButton->blockSignals(DegreeState);
   d->SexagesimalUnitButton->blockSignals(SexagesimalState);
 
-  vtkMRMLUnitNode* unitNode = d->selectionNode->GetUnitNode("intensity");
+  vtkMRMLUnitNode* unitNode = NULL;
+  if (d->selectionNode)
+    {
+    unitNode = d->selectionNode->GetUnitNode("intensity");
+    }
+
   std::string MIN = d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN");
   std::string MAX = d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX");
   if (unitNode)

@@ -426,7 +426,22 @@ void qSlicerAstroVolumeModule::setup()
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroContoursEffect());
 
-  // Find DarkBrightChartColorsID
+  // Set Default ColorNodeTable
+  defaultNode = vtkMRMLColorTableNode::SafeDownCast
+      (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLPlotChartNode"));
+  if (!defaultNode)
+    {
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLColorTableNode");
+    defaultNode.TakeReference(foo);
+    this->mrmlScene()->AddDefaultNode(defaultNode);
+    }
+  vtkMRMLColorTableNode *colorTableDefaultNode = vtkMRMLColorTableNode::SafeDownCast(defaultNode);
+  colorTableDefaultNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+  colorTableDefaultNode->SetAttribute("SlicerAstro.Reverse", "on");
+  colorTableDefaultNode->SetAttribute("SlicerAstro.Inverse", "on");
+  colorTableDefaultNode->SetAttribute("SlicerAstro.Log", "on");
+
+  // Modify ColorNodeTable already allocated and find DarkBrightChartColorsID
   std::string DarkBrightChartColorsID;
   vtkSmartPointer<vtkCollection> ColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
       this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
@@ -438,6 +453,12 @@ void qSlicerAstroVolumeModule::setup()
       {
       continue;
       }
+
+    tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+    tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "on");
+    tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "on");
+    tempColorTableNode->SetAttribute("SlicerAstro.Log", "on");
+
     if (!strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors"))
       {
       DarkBrightChartColorsID = tempColorTableNode->GetID();
