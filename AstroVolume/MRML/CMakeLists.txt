@@ -33,6 +33,8 @@ set(module_mrml_SRCS
     vtkMRMLAstroMomentMapsParametersNode.h
     vtkMRMLAstroProfilesParametersNode.cxx
     vtkMRMLAstroProfilesParametersNode.h
+    vtkMRMLAstroPVSliceParametersNode.cxx
+    vtkMRMLAstroPVSliceParametersNode.h
     vtkMRMLAstroSmoothingParametersNode.cxx
     vtkMRMLAstroSmoothingParametersNode.h
     vtkMRMLAstroStatisticsParametersNode.cxx

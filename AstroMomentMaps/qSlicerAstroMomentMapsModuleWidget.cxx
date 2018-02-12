@@ -385,14 +385,15 @@ void qSlicerAstroMomentMapsModuleWidget::onEndCloseEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onEndCloseEvent :"
+                   " appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onEndCloseEvent"
                    " : selectionNode not found!";
     return;
     }
@@ -409,14 +410,15 @@ void qSlicerAstroMomentMapsModuleWidget::onEndImportEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onEndImportEvent :"
+                   " appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onEndImportEvent"
                    " : selectionNode not found!";
     return;
     }
@@ -715,7 +717,6 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     d->selectionNode->SetReferenceActiveVolumeID(NULL);
     d->selectionNode->SetActiveVolumeID(NULL);
     }
-  appLogic->PropagateVolumeSelection();
 }
 
 //-----------------------------------------------------------------------------
@@ -884,10 +885,7 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModi
   char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  if (inputVolumeNode)
-    {
-    d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-    }
+  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
   char *zeroMomentVolumeNodeID = d->parametersNode->GetZeroMomentVolumeNodeID();
   vtkMRMLAstroVolumeNode *zeroMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1124,7 +1122,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
     double Origin[3];
     inputVolume->GetOrigin(Origin);
-    Origin[1] = 0.;
+    Origin[1] = -Origin[1];
     ZeroMomentVolume->SetOrigin(Origin);
 
     ZeroMomentVolume->SetName(outSS.str().c_str());
@@ -1211,7 +1209,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
     double Origin[3];
     inputVolume->GetOrigin(Origin);
-    Origin[1] = 0.;
+    Origin[1] = -Origin[1];
     FirstMomentVolume->SetOrigin(Origin);
 
     // change colorMap of the 2D image
@@ -1310,7 +1308,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
     double Origin[3];
     inputVolume->GetOrigin(Origin);
-    Origin[1] = 0.;
+    Origin[1] = -Origin[1];
     SecondMomentVolume->SetOrigin(Origin);
 
     // change colorMap of the 2D image
@@ -1435,6 +1433,13 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
   layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
 
+  vtkSlicerApplicationLogic *appLogic = app->applicationLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroMomentMapsModuleWidget::onCalculate : appLogic not found!";
+    return;
+    }
+
   if (d->parametersNode->GetGenerateZero())
     {
     vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
@@ -1450,6 +1455,17 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     redSlice->SetOrientation("XZ");
     redSlice->SetOrientation("XY");
     redSlice->SetSliceOffset(0.);
+
+    vtkMRMLSliceLogic* redSliceLogic = appLogic->GetSliceLogic(redSlice);
+    if (redSliceLogic)
+      {
+      int *dims = redSlice->GetDimensions();
+      if (dims)
+        {
+        redSliceLogic->FitSliceToAll(dims[0], dims[1]);
+        }
+      redSliceLogic->SnapSliceOffsetToIJK();
+      }
     }
 
   if (d->parametersNode->GetGenerateFirst())
@@ -1466,6 +1482,17 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     yellowSlice->SetOrientation("XZ");
     yellowSlice->SetOrientation("XY");
     yellowSlice->SetSliceOffset(0.);
+
+    vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSlice);
+    if (yellowSliceLogic)
+      {
+      int *dims = yellowSlice->GetDimensions();
+      if (dims)
+        {
+        yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
+        }
+      yellowSliceLogic->SnapSliceOffsetToIJK();
+      }
     }
 
   if (d->parametersNode->GetGenerateSecond())
@@ -1482,6 +1509,17 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     greenSlice->SetOrientation("XZ");
     greenSlice->SetOrientation("XY");
     greenSlice->SetSliceOffset(0.);
+
+    vtkMRMLSliceLogic* greenSliceLogic = appLogic->GetSliceLogic(greenSlice);
+    if (greenSliceLogic)
+      {
+      int *dims = greenSlice->GetDimensions();
+      if (dims)
+        {
+        greenSliceLogic->FitSliceToAll(dims[0], dims[1]);
+        }
+      greenSliceLogic->SnapSliceOffsetToIJK();
+      }
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();

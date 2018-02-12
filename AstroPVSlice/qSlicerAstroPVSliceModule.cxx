@@ -26,58 +26,64 @@
 #include <qSlicerModuleManager.h>
 
 // Logic includes
-#include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroMomentMapsLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkSlicerAstroPVSliceLogic.h>
 
-// AstroMomentMaps includes
-#include "qSlicerAstroMomentMapsModule.h"
-#include "qSlicerAstroMomentMapsModuleWidget.h"
+// AstroPVSlice includes
+#include "qSlicerAstroPVSliceModule.h"
+#include "qSlicerAstroPVSliceModuleWidget.h"
 
 //-----------------------------------------------------------------------------
 #if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
 #include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroMomentMapsModule, qSlicerAstroMomentMapsModule);
+Q_EXPORT_PLUGIN2(qSlicerAstroPVSliceModule, qSlicerAstroPVSliceModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroMomentMaps
-class qSlicerAstroMomentMapsModulePrivate
+/// \ingroup Slicer_QtModules_AstroPVSlice
+class qSlicerAstroPVSliceModulePrivate
 {
 public:
-  qSlicerAstroMomentMapsModulePrivate();
+  qSlicerAstroPVSliceModulePrivate();
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroMomentMapsModulePrivate methods
+// qSlicerAstroPVSliceModulePrivate methods
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModulePrivate::qSlicerAstroMomentMapsModulePrivate()
+qSlicerAstroPVSliceModulePrivate::qSlicerAstroPVSliceModulePrivate()
 {
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroMomentMapsModule methods
+// qSlicerAstroPVSliceModule methods
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModule::qSlicerAstroMomentMapsModule(QObject* _parent)
+qSlicerAstroPVSliceModule::qSlicerAstroPVSliceModule(QObject* _parent)
   : Superclass(_parent)
-  , d_ptr(new qSlicerAstroMomentMapsModulePrivate)
+  , d_ptr(new qSlicerAstroPVSliceModulePrivate)
 {
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroMomentMapsModule::~qSlicerAstroMomentMapsModule()
+qSlicerAstroPVSliceModule::~qSlicerAstroPVSliceModule()
 {
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerAstroMomentMapsModule::helpText()const
+QString qSlicerAstroPVSliceModule::helpText()const
 {
-  return "AstroMomentMaps module generates Moment Maps given a selection.";
+  return "AstroPVSlice module visualize Position Velocity Slices by providing "
+         "customized controls over the GUI. This module provides fast inspection "
+         "of the data with a PVSlice linked both with 2D and 3D views."
+         "To create PV Diagram (able to create curvilinear "
+         "PV and save it as fits file), please navigate to "
+         "the AstroPVDiagram module.";
 }
 
 //-----------------------------------------------------------------------------
-QString qSlicerAstroMomentMapsModule::acknowledgementText()const
+QString qSlicerAstroPVSliceModule::acknowledgementText()const
 {
   return "This module was developed by Davide Punzo. <br>"
          "This work was supported by ERC grant nr. 291531, "
@@ -85,7 +91,7 @@ QString qSlicerAstroMomentMapsModule::acknowledgementText()const
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerAstroMomentMapsModule::contributors()const
+QStringList qSlicerAstroPVSliceModule::contributors()const
 {
   QStringList moduleContributors;
   moduleContributors << QString("Davide Punzo (Kapteyn Astronomical Institute)");
@@ -94,29 +100,29 @@ QStringList qSlicerAstroMomentMapsModule::contributors()const
 }
 
 //-----------------------------------------------------------------------------
-QIcon qSlicerAstroMomentMapsModule::icon()const
+QIcon qSlicerAstroPVSliceModule::icon()const
 {
-  return QIcon(":/Icons/AstroMomentMaps.png");
+  return QIcon(":/Icons/AstroPVSlice.png");
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerAstroMomentMapsModule::categories()const
+QStringList qSlicerAstroPVSliceModule::categories()const
 {
   return QStringList() << "Astronomy";
 }
 
 //-----------------------------------------------------------------------------
-QStringList qSlicerAstroMomentMapsModule::dependencies()const
+QStringList qSlicerAstroPVSliceModule::dependencies()const
 {
-  return QStringList() << "AstroVolume" << "Segmentations" ;
+  return QStringList() << "AstroVolume" << "AstroMomentMaps" ;
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMomentMapsModule::setup()
+void qSlicerAstroPVSliceModule::setup()
 {
   this->Superclass::setup();
-  vtkSlicerAstroMomentMapsLogic* AstroMomentMapsLogic =
-    vtkSlicerAstroMomentMapsLogic::SafeDownCast(this->logic());
+  vtkSlicerAstroPVSliceLogic* AstroPVSliceLogic =
+    vtkSlicerAstroPVSliceLogic::SafeDownCast(this->logic());
 
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
@@ -127,17 +133,28 @@ void qSlicerAstroMomentMapsModule::setup()
     }
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
-  AstroMomentMapsLogic->SetAstroVolumeLogic(astroVolumeLogic);
+  AstroPVSliceLogic->SetAstroVolumeLogic(astroVolumeLogic);
+
+  qSlicerAbstractCoreModule* astroMomentMapsModule =
+    qSlicerCoreApplication::application()->moduleManager()->module("AstroMomentMaps");
+  if (!astroMomentMapsModule)
+    {
+    qCritical() << "astroMomentMaps module is not found";
+    return;
+    }
+  vtkSlicerAstroMomentMapsLogic* astroMomentMapsLogic =
+    vtkSlicerAstroMomentMapsLogic::SafeDownCast(astroMomentMapsModule->logic());
+  AstroPVSliceLogic->SetAstroMomentMapsLogic(astroMomentMapsLogic);
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAbstractModuleRepresentation * qSlicerAstroMomentMapsModule::createWidgetRepresentation()
+qSlicerAbstractModuleRepresentation * qSlicerAstroPVSliceModule::createWidgetRepresentation()
 {
-  return new qSlicerAstroMomentMapsModuleWidget;
+  return new qSlicerAstroPVSliceModuleWidget;
 }
 
 //-----------------------------------------------------------------------------
-vtkMRMLAbstractLogic* qSlicerAstroMomentMapsModule::createLogic()
+vtkMRMLAbstractLogic* qSlicerAstroPVSliceModule::createLogic()
 {
-  return vtkSlicerAstroMomentMapsLogic::New();
+  return vtkSlicerAstroPVSliceLogic::New();
 }

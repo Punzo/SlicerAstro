@@ -37,7 +37,6 @@
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
-#include <vtkRenderWindow.h>
 #include <vtkSmartPointer.h>
 #include <vtkStringArray.h>
 #include <vtkVersion.h>
@@ -432,6 +431,10 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       {
       Zmin = 0;
       }
+    else if (ijk[2] >= dims[2])
+      {
+      Zmin = dims[2] - 1;
+      }
     else
       {
       Zmin = ijk[2];
@@ -442,9 +445,13 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     world[2] = VelMax;
     astroDisplay->GetIJKSpace(world, ijk);
     int Zmax;
-    if (ijk[2] > dims[2])
+    if (ijk[2] < 0)
       {
-      Zmax = dims[2];
+      Zmax = 0;
+      }
+    else if (ijk[2] >= dims[2])
+      {
+      Zmax = dims[2] - 1;
       }
     else
       {

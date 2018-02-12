@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Icons/AstroPVSlice.png</file>
+    </qresource>
+</RCC>

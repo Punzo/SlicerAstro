@@ -73,7 +73,7 @@ qSlicerAstroMaskingModule::~qSlicerAstroMaskingModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroMaskingModule::helpText()const
 {
-  return "AstroMasking module generates Moment Maps.";
+  return "AstroMasking module can blank or crop datacubes given a selection.";
 }
 
 //-----------------------------------------------------------------------------

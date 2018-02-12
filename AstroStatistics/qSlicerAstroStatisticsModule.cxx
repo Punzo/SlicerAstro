@@ -73,7 +73,7 @@ qSlicerAstroStatisticsModule::~qSlicerAstroStatisticsModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroStatisticsModule::helpText()const
 {
-  return "AstroStatistics module generates Moment Maps.";
+  return "AstroStatistics module calculates statistics given a selection.";
 }
 
 //-----------------------------------------------------------------------------

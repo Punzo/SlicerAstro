@@ -924,27 +924,22 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     }
 
   // Remove unwanted 2D color functions
-  vtkSmartPointer<vtkCollection> ColorTableNodeCol =
-    vtkSmartPointer<vtkCollection>::Take(
+  colorNodes = vtkSmartPointer<vtkCollection>::Take(
       this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
-  for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
+  for (int ii = 0; ii < colorNodes->GetNumberOfItems(); ii++)
     {
     vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-            (ColorTableNodeCol->GetItemAsObject(ii));
+            (colorNodes->GetItemAsObject(ii));
     if (!tempColorTableNode)
       {
       continue;
-      }
-    if (!strcmp(tempColorTableNode->GetName(), "Grey"))
-      {
-      tempColorTableNode->SetTypeToBlue();
-      tempColorTableNode->SetTypeToGrey();
       }
     if (!strcmp(tempColorTableNode->GetName(), "Grey") ||
         !strcmp(tempColorTableNode->GetName(), "Heat") ||
         !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
         !strcmp(tempColorTableNode->GetName(), "VelocityField"))
       {
+      tempColorTableNode->GetLookupTable()->Modified();
       tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
       tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
       tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
@@ -984,8 +979,6 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
     }
 
-  this->mrmlScene()->RemoveUnusedNodeReferences();
-
   colorNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Rainbow"));
   if (colorNodes->GetNumberOfItems() == 0)
@@ -1011,14 +1004,24 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
     this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
     }
+  else
+    {
+    colorNodes->InitTraversal();
+    vtkMRMLColorTableNode* colorNode = vtkMRMLColorTableNode::SafeDownCast
+      (colorNodes->GetNextItemAsObject());
+    if (colorNode && colorNode->GetLookupTable())
+      {
+      colorNode->GetLookupTable()->Modified();
+      }
+    }
 
   // ReAdd Generic, Random and DarkBrightChart Colors
-  ColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
+  colorNodes = vtkSmartPointer<vtkCollection>::Take(
       this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
-  for (int ii = 0; ii < ColorTableNodeCol->GetNumberOfItems(); ii++)
+  for (int ii = 0; ii < colorNodes->GetNumberOfItems(); ii++)
     {
     vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-            (ColorTableNodeCol->GetItemAsObject(ii));
+            (colorNodes->GetItemAsObject(ii));
     if (!tempColorTableNode)
       {
       continue;
@@ -1037,7 +1040,7 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
         tempTableNode->SetNamesFromColors();
         }
       this->mrmlScene()->AddNode(tempTableNode.GetPointer());
-      continue;
+      tempTableNode->GetLookupTable()->Modified();
       }
     }
 }
@@ -4419,8 +4422,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
   char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
   char *activeLabelMapVolumeNodeID = selectionNode->GetActiveLabelVolumeID();
 
-  vtkMRMLNode *activeVolumeNode = this->mrmlScene()->GetNodeByID(activeVolumeNodeID);
-  vtkMRMLNode *activeLabelMapVolumeNode = this->mrmlScene()->GetNodeByID(activeLabelMapVolumeNodeID);
+  vtkMRMLAstroVolumeNode *activeVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
+  vtkMRMLAstroLabelMapVolumeNode *activeLabelMapVolumeNode = vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(activeLabelMapVolumeNodeID));
 
   if(activeVolumeNode && activeLabelMapVolumeNode)
     {
@@ -4440,6 +4445,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
   else if (activeLabelMapVolumeNode)
     {
     this->setMRMLVolumeNode(activeLabelMapVolumeNode);
+    }
+  else
+    {
+    this->setMRMLVolumeNode(activeVolumeNode);
     }
 
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
@@ -4885,15 +4894,12 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
 //--------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLNode* node)
 {
-  if (!node)
-    {
-    return;
-    }
+  vtkMRMLAstroVolumeNode* astroVolumeNode =
+    vtkMRMLAstroVolumeNode::SafeDownCast(node);
 
   vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
     vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node);
-  vtkMRMLAstroVolumeNode* astroVolumeNode =
-    vtkMRMLAstroVolumeNode::SafeDownCast(node);
+
   if (astroVolumeNode)
     {
     this->setMRMLVolumeNode(astroVolumeNode);
@@ -4901,6 +4907,10 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLNode* node)
   else if (labelMapVolumeNode)
     {
     this->setMRMLVolumeNode(labelMapVolumeNode);
+    }
+  else
+    {
+    this->setMRMLVolumeNode(astroVolumeNode);
     }
 }
 
@@ -4911,8 +4921,17 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 
   if (!volumeNode)
     {
+    this->onVisibilityChanged(false);
+    d->ActiveVolumeNodeSelector->setCurrentNode(volumeNode);
+    d->volumeRenderingWidget->setMRMLVolumeNode(volumeNode);
+    d->astroVolumeNode = NULL;
     return;
     }
+
+  if (d->astroVolumeNode == volumeNode)
+    {
+    return;
+    } 
 
   d->astroVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(volumeNode);
 
@@ -4960,7 +4979,14 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolum
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if (!volumeNode || d->astroLabelVolumeNode == volumeNode)
+  if (!volumeNode)
+    {
+    d->ActiveVolumeNodeSelector->setCurrentNode(volumeNode);
+    d->astroLabelVolumeNode = NULL;
+    return;
+    }
+
+  if (d->astroLabelVolumeNode == volumeNode)
     {
     return;
     }

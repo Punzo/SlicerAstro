@@ -66,6 +66,9 @@
          <string>vtkMRMLAstroVolumeNode</string>
         </stringlist>
        </property>
+       <property name="noneEnabled">
+        <bool>true</bool>
+       </property>
        <property name="addEnabled">
         <bool>false</bool>
        </property>
@@ -1797,7 +1800,7 @@
         <item>
          <spacer name="horizontalSpacer">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1835,7 +1838,7 @@
         <item>
          <spacer name="horizontalSpacer_2">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1920,7 +1923,7 @@
         <item>
          <spacer name="horizontalSpacer_3">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
@@ -1958,7 +1961,7 @@
         <item>
          <spacer name="horizontalSpacer_4">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
+           <sizepolicy hsizetype="Fixed" vsizetype="Minimum">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>

@@ -73,7 +73,7 @@ qSlicerAstroProfilesModule::~qSlicerAstroProfilesModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroProfilesModule::helpText()const
 {
-  return "AstroProfiles module generates Moment Maps.";
+  return "AstroProfiles module generates datacube profiles given a selection.";
 }
 
 //-----------------------------------------------------------------------------
