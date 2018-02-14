@@ -79,6 +79,7 @@
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLPlotSeriesNode.h>
 #include <vtkMRMLPlotChartNode.h>
+#include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLProceduralColorNode.h>
 #include <vtkMRMLProceduralColorStorageNode.h>
 #include <vtkMRMLScene.h>
@@ -3670,6 +3671,12 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeMinLine->GetID());
     d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeMaxLine->GetID());
     d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeThresholdLine->GetID());
+    }
+
+  vtkMRMLPlotViewNode* plotViewNode = plotView->mrmlPlotViewNode();
+  if (plotViewNode)
+    {
+    plotViewNode->SetInteractionMode(vtkMRMLPlotViewNode::InteractionModeMovePoints);
     }
 }
 

@@ -91,6 +91,7 @@
 #include <vtkMRMLMarkupsFiducialNode.h>
 #include <vtkMRMLPlotSeriesNode.h>
 #include <vtkMRMLPlotChartNode.h>
+#include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
@@ -834,6 +835,12 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   QObject::connect(plotView, SIGNAL(dataSelected(vtkStringArray*, vtkCollection*)),
                    this, SLOT(onPlotSelectionChanged(vtkStringArray*, vtkCollection*)));
+
+  vtkMRMLPlotViewNode* plotViewNode = plotView->mrmlPlotViewNode();
+  if (plotViewNode)
+    {
+    plotViewNode->SetInteractionMode(vtkMRMLPlotViewNode::InteractionModeMovePoints);
+    }
 
   vtkMRMLNode *activeVolume = scene->GetNodeByID(d->selectionNode->GetActiveVolumeID());
   if (!activeVolume)
