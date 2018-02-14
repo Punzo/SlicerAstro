@@ -1082,6 +1082,10 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
       }
     }
 
+  this->qvtkReconnect(d->plotChartNodeHistogram, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLPlotChartNodeHistogramModified()));
+  this->onMRMLPlotChartNodeHistogramModified();
+
   // Select NULL Chart
   if (d->selectionNode)
     {
@@ -3764,6 +3768,30 @@ void qSlicerAstroVolumeModuleWidget::onMRMLLabelVolumeNodeModified()
     }
   d->DegreeUnitButton->blockSignals(DegreeState);
   d->SexagesimalUnitButton->blockSignals(SexagesimalState);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMRMLPlotChartNodeHistogramModified()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->plotChartNodeHistogram)
+    {
+    return;
+    }
+
+  vtkMRMLPlotSeriesNode* plotSeriesNode = d->plotChartNodeHistogram->GetPlotSeriesNode();
+  bool HistoActive = false;
+  if (plotSeriesNode)
+    {
+    HistoActive = true;
+    }
+
+  d->HistoPushButtonPreset1->setEnabled(HistoActive);
+  d->HistoPushButtonPreset2->setEnabled(HistoActive);
+  d->HistoPushButtonPreset3->setEnabled(HistoActive);
+  d->HistoPushButtonPreset4->setEnabled(HistoActive);
+  d->HistoPushButtonPreset5->setEnabled(HistoActive);
 }
 
 //---------------------------------------------------------------------------

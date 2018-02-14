@@ -118,6 +118,7 @@ protected slots:
   void onLockToggled(bool toggled);
   void onMRMLDisplayROINodeModified(vtkObject*);
   void onMRMLLabelVolumeNodeModified();
+  void onMRMLPlotChartNodeHistogramModified();
   void onMRMLSceneEndImportEvent();
   void onMRMLSceneEndCloseEvent();
   void onMRMLSceneStartImportEvent();
