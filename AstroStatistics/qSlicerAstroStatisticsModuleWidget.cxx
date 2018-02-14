@@ -391,14 +391,15 @@ void qSlicerAstroStatisticsModuleWidget::onEndCloseEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndCloseEvent :"
+                   " appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndCloseEvent"
                    " : selectionNode not found!";
     return;
     }
@@ -421,14 +422,15 @@ void qSlicerAstroStatisticsModuleWidget::onEndImportEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndImportEvent :"
+                   " appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndImportEvent"
                    " : selectionNode not found!";
     return;
     }
@@ -1048,7 +1050,6 @@ void qSlicerAstroStatisticsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     d->selectionNode->SetReferenceActiveVolumeID(NULL);
     d->selectionNode->SetActiveVolumeID(NULL);
     }
-  appLogic->PropagateVolumeSelection();
 }
 
 //-----------------------------------------------------------------------------
@@ -1139,10 +1140,7 @@ void qSlicerAstroStatisticsModuleWidget::onMRMLAstroStatisticsParametersNodeModi
   char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  if (inputVolumeNode)
-    {
-    d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-    }
+  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
   d->ROINodeComboBox->setCurrentNode(d->parametersNode->GetROINode());
   d->TableNodeComboBox->setCurrentNode(d->parametersNode->GetTableNode());

@@ -476,14 +476,15 @@ void qSlicerAstroSmoothingModuleWidget::onEndCloseEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::onEndCloseEvent :"
+                   " appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroModelingModuleWidget::onEndCloseEvent"
                    " : selectionNode not found!";
     return;
     }
@@ -502,14 +503,15 @@ void qSlicerAstroSmoothingModuleWidget::onEndImportEvent()
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::setMRMLScene : appLogic not found!";
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::onEndImportEvent :"
+                   " appLogic not found!";
     return;
     }
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::onMRMLSceneEndImportEvent"
+    qCritical() << "qSlicerAstroModelingModuleWidget::onEndImportEvent"
                    " : selectionNode not found!";
     return;
     }
@@ -755,7 +757,6 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     d->selectionNode->SetReferenceActiveVolumeID(NULL);
     d->selectionNode->SetActiveVolumeID(NULL);
     }
-  appLogic->PropagateVolumeSelection();
 }
 
 //-----------------------------------------------------------------------------
@@ -903,10 +904,7 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
   char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  if (inputVolumeNode)
-    {
-    d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-    }
+  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
   char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast

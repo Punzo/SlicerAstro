@@ -27,7 +27,6 @@ class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
 // vtk includes
-class vtkRenderWindow;
 class vtkSegment;
 
 // AstroMaskings includes

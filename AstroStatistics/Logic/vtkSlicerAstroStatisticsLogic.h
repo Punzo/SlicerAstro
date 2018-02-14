@@ -24,8 +24,7 @@
 #include "vtkSlicerModuleLogic.h"
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
-// vtk includes
-class vtkRenderWindow;
+
 // AstroStatisticss includes
 #include "vtkSlicerAstroStatisticsModuleLogicExport.h"
 class vtkMRMLAstroStatisticsParametersNode;

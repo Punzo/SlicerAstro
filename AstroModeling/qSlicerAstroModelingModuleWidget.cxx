@@ -2816,7 +2816,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLYellowSliceRotated()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !this->mrmlScene())
     {
     return;
     }
@@ -3039,7 +3039,6 @@ void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     d->selectionNode->SetReferenceActiveVolumeID(NULL);
     d->selectionNode->SetActiveVolumeID(NULL);
     }
-  appLogic->PropagateVolumeSelection();
 }
 
 //--------------------------------------------------------------------------
@@ -3382,10 +3381,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  if (inputVolumeNode)
-    {
-    d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-    }
+  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
   char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
@@ -3497,6 +3493,11 @@ void qSlicerAstroModelingModuleWidget::onMRMLGreenSliceRotated()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
 
+  if (!d->parametersNode || !this->mrmlScene())
+    {
+    return;
+    }
+
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
   if (!greenSliceNode)
@@ -3537,7 +3538,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLGreenSliceRotated()
     d->GreenSliceSliderWidget->blockSignals(true);
     d->GreenSliceSliderWidget->setValue(0.);
     d->GreenSliceSliderWidget->blockSignals(false);
-  }
+    }
 }
 
 //---------------------------------------------------------------------------

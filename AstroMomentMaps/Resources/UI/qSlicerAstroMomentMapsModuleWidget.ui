@@ -66,6 +66,9 @@
          <string>vtkMRMLAstroVolumeNode</string>
         </stringlist>
        </property>
+       <property name="noneEnabled">
+        <bool>true</bool>
+       </property>
        <property name="addEnabled">
         <bool>false</bool>
        </property>
@@ -140,7 +143,7 @@
          <bool>true</bool>
         </property>
         <property name="text">
-         <string>0th Moment Volume:</string>
+         <string>0th Moment Map:</string>
         </property>
        </widget>
       </item>
@@ -183,7 +186,7 @@
          <bool>true</bool>
         </property>
         <property name="text">
-         <string>1th Moment Volume</string>
+         <string>1th Moment Map:</string>
         </property>
        </widget>
       </item>
@@ -259,7 +262,7 @@
          <bool>true</bool>
         </property>
         <property name="text">
-         <string>2th Moment Volume</string>
+         <string>2th Moment Map:</string>
         </property>
        </widget>
       </item>

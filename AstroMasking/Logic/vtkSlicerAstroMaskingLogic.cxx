@@ -43,7 +43,6 @@
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
-#include <vtkRenderWindow.h>
 #include <vtkSegmentation.h>
 #include <vtkSegment.h>
 #include <vtkSmartPointer.h>
