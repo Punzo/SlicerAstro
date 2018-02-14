@@ -561,7 +561,10 @@ void qSlicerAstroPVSliceModuleWidget::initializeRulerNode(bool forceNew)
     logic->InitializeRuler(d->parametersNode);
     }
 
-  logic->InitializePV(d->parametersNode);
+  if (this->isEntered())
+    {
+    logic->InitializePV(d->parametersNode);
+    }
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->

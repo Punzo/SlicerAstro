@@ -792,6 +792,7 @@ bool vtkSlicerAstroPVSliceLogic::InitializePV(vtkMRMLAstroPVSliceParametersNode 
     {
     yellowSliceNode->AddSliceOrientationPreset("PVMajor", PVMajorMatrix.GetPointer());
     }
+
   yellowSliceNode->SetOrientation("PVMajor");
 
   // Translate to X and Y center
@@ -836,6 +837,7 @@ bool vtkSlicerAstroPVSliceLogic::InitializePV(vtkMRMLAstroPVSliceParametersNode 
     greenSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix.GetPointer());
     }
   greenSliceNode->SetOrientation("PVMinor");
+
   // Translate to X and Y center
   greenSliceNode->GetSliceToRAS()->SetElement(0, 3, RAS[0]);
   greenSliceNode->GetSliceToRAS()->SetElement(1, 3, RAS[1]);
