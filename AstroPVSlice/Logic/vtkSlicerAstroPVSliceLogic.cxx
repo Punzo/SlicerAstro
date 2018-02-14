@@ -877,7 +877,8 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   RulerNode->GetPosition2(position2);
 
   // Get PV center
-  int *dims = inputVolume->GetImageData()->GetDimensions();
+  int dims[3];
+  inputVolume->GetImageData()->GetDimensions(dims);
   int Zcenter = dims[2] * 0.5;
 
   vtkNew<vtkGeneralTransform> RAStoIJKTransform;
@@ -903,6 +904,8 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   IJKtoRASTransform->TransformPoint(ijk, RAS);
 
   // Get PV inclination
+  double RulerLength = sqrt(((position1[0] - position2[0]) * (position1[0] - position2[0])) +
+                            ((position1[1] - position2[1]) * (position1[1] - position2[1])));
   double distX = (position1[0] - position2[0]);
   double distY = (position1[1] - position2[1]);
 
@@ -956,6 +959,12 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   yellowSliceToRAS->SetElement(1, 3, RAS[1]);
   yellowSliceToRAS->SetElement(2, 3, RAS[2]);
   yellowSliceNode->UpdateMatrices();
+  double FieldOfView[3];
+  yellowSliceNode->GetFieldOfView(FieldOfView);
+  FieldOfView[0] = RulerLength;
+  yellowSliceNode->SetFieldOfView(FieldOfView[0] + (FieldOfView[0] * 0.2),
+                                  dims[2] + (dims[2] * 0.2),
+                                  FieldOfView[2]);
 
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
@@ -981,8 +990,12 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   greenSliceToRAS->SetElement(0, 3, RAS[0]);
   greenSliceToRAS->SetElement(1, 3, RAS[1]);
   greenSliceToRAS->SetElement(2, 3, RAS[2]);
-
   greenSliceNode->UpdateMatrices();
+  greenSliceNode->GetFieldOfView(FieldOfView);
+  FieldOfView[0] = RulerLength;
+  greenSliceNode->SetFieldOfView(FieldOfView[0] + (FieldOfView[0] * 0.2),
+                                 dims[2] + (dims[2] * 0.2),
+                                 FieldOfView[2]);
 
   return true;
 }
