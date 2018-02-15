@@ -74,10 +74,10 @@ qSlicerAstroPVSliceModule::~qSlicerAstroPVSliceModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroPVSliceModule::helpText()const
 {
-  return "AstroPVSlice module visualize Position Velocity (PV) Slices by providing "
+  return "The AstroPVSlice module shows Position Velocity (PV) Slices by providing "
          "customized controls over the GUI. This module provides fast inspection "
          "tool with a PVSlice linked both with the 2D and 3D views.<br>"
-         "For creating PV Diagram (e.g., creating a curvilinear PV and save it as "
+         "For creating a PV Diagram (i.e., a curvilinear PV and able to save it as "
          "fits file), please navigate to the AstroPVDiagram module.";
 }
 
