@@ -57,21 +57,23 @@ protected:
   void initializeNodes(bool forceNew = false);
   void initializeParameterNode(bool forceNew = false);
   void initializeMomentMapNode(bool forceNew = false);
-  void initializeRulerNode(bool forceNew = false);
+  void initializeRulerNode(bool forceNew = false, bool InitRulerPositions = true);
 
 protected slots:
+  void on3DViewParallel();
+  void on3DViewPerpendicular();
   void onEndCloseEvent();
   void onEndImportEvent();
   void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onMRMLAstroPVSliceParametersNodeModified();
   void onMRMLPVSliceRulerNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onStartImportEvent();
   void onMomentMapChanged(vtkMRMLNode* mrmlNode);
   void onRotateRulerChanged(double theta);
   void onRulerChanged(vtkMRMLNode* mrmlNode);
   void onShiftXRulerChanged(double shiftX);
   void onShiftYRulerChanged(double shiftY);
+  void onStartImportEvent();
   void setMRMLAstroPVSliceParametersNode(vtkMRMLNode*);
 
 private:

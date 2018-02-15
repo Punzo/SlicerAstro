@@ -908,20 +908,15 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   // Get PV inclination
   double RulerLength = sqrt(((position1[0] - position2[0]) * (position1[0] - position2[0])) +
                             ((position1[1] - position2[1]) * (position1[1] - position2[1])));
-  double distX = (position1[0] - position2[0]);
-  double distY = (position1[1] - position2[1]);
+  double distX = (position2[0] - position1[0]);
+  double distY = (position2[1] - position1[1]);
 
-  double PVPhiMajor = atan(distY / distX);
-  if (PVPhiMajor < 0)
-    {
-    PVPhiMajor += 2 * PI;
-    }
-  else if (PVPhiMajor > 2 * PI)
-    {
-    PVPhiMajor -= 2 * PI;
-    }
+  double PVPhiMajor = -atan(distY / distX);
   PVPhiMajor *=  180. / PI;
-  PVPhiMajor *= -1.;
+  if ((position1[0] - position2[0]) < 0.)
+    {
+    PVPhiMajor += 180.;
+    }
 
   double PVPhiMinor = PVPhiMajor + 90.;
 
@@ -960,6 +955,23 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   yellowSliceToRAS->SetElement(0, 3, RAS[0]);
   yellowSliceToRAS->SetElement(1, 3, RAS[1]);
   yellowSliceToRAS->SetElement(2, 3, RAS[2]);
+
+  vtkNew<vtkMatrix3x3> PVMajorMatrix;
+  PVMajorMatrix->SetElement(0, 0, yellowTransform->GetMatrix()->GetElement(0,0));
+  PVMajorMatrix->SetElement(0, 1, yellowTransform->GetMatrix()->GetElement(0,1));
+  PVMajorMatrix->SetElement(0, 2, yellowTransform->GetMatrix()->GetElement(0,2));
+  PVMajorMatrix->SetElement(1, 0, yellowTransform->GetMatrix()->GetElement(1,0));
+  PVMajorMatrix->SetElement(1, 1, yellowTransform->GetMatrix()->GetElement(1,1));
+  PVMajorMatrix->SetElement(1, 2, yellowTransform->GetMatrix()->GetElement(1,2));
+  PVMajorMatrix->SetElement(2, 0, yellowTransform->GetMatrix()->GetElement(2,0));
+  PVMajorMatrix->SetElement(2, 1, yellowTransform->GetMatrix()->GetElement(2,1));
+  PVMajorMatrix->SetElement(2, 2, yellowTransform->GetMatrix()->GetElement(2,2));
+
+  if (yellowSliceNode->HasSliceOrientationPreset("PVMajor"))
+    {
+    yellowSliceNode->GetSliceOrientationPreset("PVMajor")->DeepCopy(PVMajorMatrix.GetPointer());
+    }
+
   yellowSliceNode->UpdateMatrices();
   double FieldOfView[3];
   yellowSliceNode->GetFieldOfView(FieldOfView);
@@ -992,6 +1004,23 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   greenSliceToRAS->SetElement(0, 3, RAS[0]);
   greenSliceToRAS->SetElement(1, 3, RAS[1]);
   greenSliceToRAS->SetElement(2, 3, RAS[2]);
+
+  vtkNew<vtkMatrix3x3> PVMinorMatrix;
+  PVMinorMatrix->SetElement(0, 0, greenTransform->GetMatrix()->GetElement(0,0));
+  PVMinorMatrix->SetElement(0, 1, greenTransform->GetMatrix()->GetElement(0,1));
+  PVMinorMatrix->SetElement(0, 2, greenTransform->GetMatrix()->GetElement(0,2));
+  PVMinorMatrix->SetElement(1, 0, greenTransform->GetMatrix()->GetElement(1,0));
+  PVMinorMatrix->SetElement(1, 1, greenTransform->GetMatrix()->GetElement(1,1));
+  PVMinorMatrix->SetElement(1, 2, greenTransform->GetMatrix()->GetElement(1,2));
+  PVMinorMatrix->SetElement(2, 0, greenTransform->GetMatrix()->GetElement(2,0));
+  PVMinorMatrix->SetElement(2, 1, greenTransform->GetMatrix()->GetElement(2,1));
+  PVMinorMatrix->SetElement(2, 2, greenTransform->GetMatrix()->GetElement(2,2));
+
+  if (greenSliceNode->HasSliceOrientationPreset("PVMinor"))
+    {
+    greenSliceNode->GetSliceOrientationPreset("PVMinor")->DeepCopy(PVMinorMatrix.GetPointer());
+    }
+
   greenSliceNode->UpdateMatrices();
   greenSliceNode->GetFieldOfView(FieldOfView);
   FieldOfView[0] = RulerLength;

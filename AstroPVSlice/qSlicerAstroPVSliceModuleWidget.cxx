@@ -33,10 +33,13 @@
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
+#include <vtkRenderer.h>
 #include <vtkTransform.h>
 #include <vtksys/SystemTools.hxx>
 
 // SlicerQt includes
+#include <qMRMLThreeDWidget.h>
+#include <qMRMLThreeDView.h>
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerCoreApplication.h>
@@ -67,6 +70,7 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
@@ -151,6 +155,12 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::init()
 
   QObject::connect(this->ShiftYSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onShiftYRulerChanged(double)));
+
+  QObject::connect(this->ParallelPushButton, SIGNAL(clicked()),
+                   q, SLOT(on3DViewParallel()));
+
+  QObject::connect(this->PerpendicularPushButton, SIGNAL(clicked()),
+                   q, SLOT(on3DViewPerpendicular()));
 }
 
 //-----------------------------------------------------------------------------
@@ -222,7 +232,7 @@ void qSlicerAstroPVSliceModuleWidget::enter()
   this->onMRMLSelectionNodeModified(d->selectionNode);
 
   this->initializeMomentMapNode();
-  this->initializeRulerNode();
+  this->initializeRulerNode(false, false);
 
   if (!d->parametersNode || !this->mrmlScene())
     {
@@ -359,7 +369,7 @@ void qSlicerAstroPVSliceModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroPVSliceModuleWidget::initializeNodes(bool forceNew)
+void qSlicerAstroPVSliceModuleWidget::initializeNodes(bool forceNew /*= false*/)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
@@ -513,7 +523,8 @@ void qSlicerAstroPVSliceModuleWidget::initializeMomentMapNode(bool forceNew /*= 
   logic->SetMomentMapOnRedWidget(d->parametersNode);
 }
 
-void qSlicerAstroPVSliceModuleWidget::initializeRulerNode(bool forceNew)
+void qSlicerAstroPVSliceModuleWidget::initializeRulerNode(bool forceNew /*= false*/,
+                                                          bool InitRulerPositions /*= true*/)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
@@ -558,7 +569,10 @@ void qSlicerAstroPVSliceModuleWidget::initializeRulerNode(bool forceNew)
   else
     {
     d->parametersNode->SetRulerNodeID(RulerNode->GetID());
-    logic->InitializeRuler(d->parametersNode);
+    if (InitRulerPositions)
+      {
+      logic->InitializeRuler(d->parametersNode);
+      }
     }
 
   if (this->isEntered())
@@ -580,6 +594,202 @@ void qSlicerAstroPVSliceModuleWidget::initializeRulerNode(bool forceNew)
   d->ShiftXSpinBox->setMaximum(dims[0]);
   d->ShiftYSpinBox->setMinimum(-dims[1]);
   d->ShiftYSpinBox->setMaximum(dims[1]);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::on3DViewParallel()
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!this->mrmlScene() || !d->parametersNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "inputVolume not found!";
+    return;
+    }
+
+  inputVolume->SetDisplayVisibility(1);
+
+  // Set the camera position
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
+  if (cameraNodes->GetNumberOfItems() < 1)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "cameraNode not found!";
+    return;
+    }
+
+  vtkMRMLCameraNode *cameraNode =
+    vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(0));
+  if (!cameraNode)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "cameraNode not found!";
+    return;
+    }
+
+  int* dims = inputVolume->GetImageData()->GetDimensions();
+  // In RAS the z axes is on the second index
+  double Origin[3] = {0.};
+  Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+  cameraNode->SetPosition(Origin);
+  double ViewUp[3] = {0.};
+  ViewUp[2] = 1.;
+  cameraNode->SetViewUp(ViewUp);
+  double FocalPoint[3] = {0.};
+  cameraNode->SetFocalPoint(FocalPoint);
+
+  // Reset the 3D rendering boundaries
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager())
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  qMRMLThreeDWidget* ThreeDWidget = app->layoutManager()->threeDWidget(0);
+  if(!ThreeDWidget)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "ThreeDWidget not found.";
+    return;
+    }
+
+  qMRMLThreeDView* ThreeDView = ThreeDWidget->threeDView();
+  if(!ThreeDView || !ThreeDView->renderer())
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "ThreeDView not found.";
+    return;
+    }
+
+  ThreeDView->renderer()->ResetCameraClippingRange();
+  ThreeDView->renderer()->Render();
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::on3DViewPerpendicular()
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!this->mrmlScene() || !d->parametersNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "inputVolume not found!";
+    return;
+    }
+
+  inputVolume->SetDisplayVisibility(1);
+
+  // Set the camera position
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
+  if (cameraNodes->GetNumberOfItems() < 1)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "cameraNode not found!";
+    return;
+    }
+
+  vtkMRMLCameraNode *cameraNode =
+    vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(0));
+  if (!cameraNode)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "cameraNode not found!";
+    return;
+    }
+
+  vtkMRMLAnnotationRulerNode *RulerNode = vtkMRMLAnnotationRulerNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(d->parametersNode->GetRulerNodeID()));
+  if(!RulerNode)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "RulerNode not found!";
+    return;
+    }
+
+  double position1[3] = {0};
+  RulerNode->GetPosition1(position1);
+  double position2[3] = {0};
+  RulerNode->GetPosition2(position2);
+  double MiddlePoint[3] = {0};
+  for (int ii = 0; ii < 3; ii++)
+    {
+    MiddlePoint[ii] = (position1[ii] + position2[ii]) * 0.5;
+    }
+
+  // In RAS the z axes is on the second index (Ruler and Camera are in RAS)
+  double distX = (position2[0] - position1[0]);
+  double distY = (position2[2] - position1[2]);
+  double angle = -atan(distY / distX);
+  if ((position1[0] - position2[0]) < 0.)
+    {
+    angle += PI;
+    }
+  double rulerLength = sqrt((distX * distX) + (distY * distY));
+  int* dims = inputVolume->GetImageData()->GetDimensions();
+  double shift = sqrt((rulerLength * rulerLength) + (dims[2] * dims[2])) * 1.5;
+  double Origin[3] = {0.};
+  Origin[0] = MiddlePoint[0] + shift * sin(angle);
+  Origin[2] = MiddlePoint[2] + shift * cos(angle);
+  cameraNode->SetPosition(Origin);
+  double ViewUp[3] = {0.};
+  ViewUp[1] = 1.;
+  cameraNode->SetViewUp(ViewUp);
+  double FocalPoint[3] = {0.};
+  FocalPoint[0] = MiddlePoint[0];
+  FocalPoint[2] = MiddlePoint[2];
+  cameraNode->SetFocalPoint(FocalPoint);
+
+
+  // Reset the 3D rendering boundaries
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager())
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  qMRMLThreeDWidget* ThreeDWidget = app->layoutManager()->threeDWidget(0);
+  if(!ThreeDWidget)
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "ThreeDWidget not found.";
+    return;
+    }
+
+  qMRMLThreeDView* ThreeDView = ThreeDWidget->threeDView();
+  if(!ThreeDView || !ThreeDView->renderer())
+    {
+    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
+                   "ThreeDView not found.";
+    return;
+    }
+
+  ThreeDView->renderer()->ResetCameraClippingRange();
+  ThreeDView->renderer()->Render();
 }
 
 //--------------------------------------------------------------------------
@@ -625,6 +835,8 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
+    this->initializeMomentMapNode();
+    this->initializeRulerNode();
     }
   else
     {
@@ -753,9 +965,6 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLSelectionNodeModified(vtkObject *sen
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
   d->parametersNode->EndModify(wasModifying);
-
-  this->initializeMomentMapNode();
-  this->initializeRulerNode();
 }
 
 //-----------------------------------------------------------------------------
@@ -782,6 +991,7 @@ void qSlicerAstroPVSliceModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode)
   if (logic)
     {
     logic->SetMomentMapOnRedWidget(d->parametersNode);
+    this->on3DViewParallel();
     }
 }
 

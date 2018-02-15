@@ -2123,10 +2123,101 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
 
   displayNode->SetVisibility(visibility);
 
-  qSlicerApplication* app = qSlicerApplication::application();
-  for (int i = 0; i < app->layoutManager()->threeDViewCount(); i++)
+  if (!this->mrmlScene())
     {
-    app->layoutManager()->threeDWidget(i)->threeDController()->resetFocalPoint();
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
+                   "inputVolume not found!";
+    return;
+    }
+
+  inputVolume->SetDisplayVisibility(1);
+
+  // Set the camera position
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
+
+  int numCameraNodes = cameraNodes->GetNumberOfItems();
+  if (numCameraNodes < 1)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
+                   "cameraNode not found!";
+    return;
+    }
+
+  for (int cameraIndex = 0; cameraIndex < numCameraNodes; cameraIndex++)
+    {
+    vtkMRMLCameraNode *cameraNode =
+      vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(cameraIndex));
+    if (!cameraNode)
+      {
+      continue;
+      }
+    double Origin[3];
+    inputVolume->GetOrigin(Origin);
+    int* dims = inputVolume->GetImageData()->GetDimensions();
+    // In RAS the z axes is on the second index
+    Origin[0] = 0.;
+    Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+    Origin[2] = 0.;
+    cameraNode->SetPosition(Origin);
+    double ViewUp[3];
+    ViewUp[0] = 0.;
+    ViewUp[1] = 0.;
+    ViewUp[2] = 1.;
+    cameraNode->SetViewUp(ViewUp);
+    double FocalPoint[3];
+    FocalPoint[0] = 0.;
+    FocalPoint[1] = 0.;
+    FocalPoint[2] = 0.;
+    cameraNode->SetFocalPoint(FocalPoint);
+    }
+
+  // Reset the 3D rendering boundaries
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  for (int ii = 0; ii < app->layoutManager()->threeDViewCount(); ii++)
+    {   
+    qMRMLThreeDWidget* ThreeDWidget = app->layoutManager()->threeDWidget(ii);
+    if(!ThreeDWidget)
+      {
+      qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
+                     "ThreeDWidget not found.";
+      return;
+      }
+
+    qMRMLThreeDView* ThreeDView = ThreeDWidget->threeDView();
+    if(!ThreeDView || !ThreeDView->renderer())
+      {
+      qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
+                     "ThreeDView not found.";
+      return;
+      }
+
+    ThreeDView->renderer()->ResetCameraClippingRange();
+    ThreeDView->renderer()->Render();
+
+    qMRMLThreeDViewControllerWidget* ThreeDController = ThreeDWidget->threeDController();
+    if(!ThreeDView || !ThreeDView->renderer())
+      {
+      qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
+                     "ThreeDController not found.";
+      return;
+      }
+    ThreeDController->resetFocalPoint();
     }
 }
 
@@ -2143,7 +2234,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   if(!app)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
-                   "qSlicerApplication not found!";
+                   "qSlicerApplication not found.";
     return;
     }
 
@@ -2260,6 +2351,9 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     d->selectionNode->SetSecondaryVolumeID("");
     }
 
+  volumeTwo->SetDisplayVisibility(1);
+  volumeOne->SetDisplayVisibility(1);
+
   vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
 
@@ -2272,45 +2366,32 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(0));
   if (cameraNodeOne)
     {
-    double Origin[3];
-    volumeOne->GetOrigin(Origin);
     int* dims = volumeOne->GetImageData()->GetDimensions();
-    Origin[0] = 0.;
+    // In RAS the z axes is on the second index
+    double Origin[3] = {0.};
     Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    Origin[2] = 0.;
     cameraNodeOne->SetPosition(Origin);
-    Origin[0] = 0.;
-    Origin[1] = 0.;
-    Origin[2] = 1.;
-    cameraNodeOne->SetViewUp(Origin);
-    Origin[0] = 0.;
-    Origin[1] = 0.;
-    Origin[2] = 0.;
-    cameraNodeOne->SetFocalPoint(Origin);
+    double ViewUp[3] = {0.};
+    ViewUp[2] = 1.;
+    cameraNodeOne->SetViewUp(ViewUp);
+    double FocalPoint[3] = {0.};
+    cameraNodeOne->SetFocalPoint(FocalPoint);
     }
   vtkMRMLCameraNode *cameraNodeTwo =
     vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(1));
   if (cameraNodeTwo)
     {
-    double Origin[3];
-    volumeTwo->GetOrigin(Origin);
     int* dims = volumeTwo->GetImageData()->GetDimensions();
-    Origin[0] = 0.;
+    // In RAS the z axes is on the second index
+    double Origin[3] = {0.};
     Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    Origin[2] = 0.;
     cameraNodeTwo->SetPosition(Origin);
-    Origin[0] = 0.;
-    Origin[1] = 0.;
-    Origin[2] = 1.;
-    cameraNodeTwo->SetViewUp(Origin);
-    Origin[0] = 0.;
-    Origin[1] = 0.;
-    Origin[2] = 0.;
-    cameraNodeTwo->SetFocalPoint(Origin);
+    double ViewUp[3] = {0.};
+    ViewUp[2] = 1.;
+    cameraNodeTwo->SetViewUp(ViewUp);
+    double FocalPoint[3] = {0.};
+    cameraNodeTwo->SetFocalPoint(FocalPoint);
     }
-
-  volumeTwo->SetDisplayVisibility(1);
-  volumeOne->SetDisplayVisibility(1);
 
   if (overlay2D)
     {
@@ -2670,21 +2751,16 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(0));
   if (cameraNode)
     {
-    double Origin[3];
-    volumeOne->GetOrigin(Origin);
     int* dims = volumeOne->GetImageData()->GetDimensions();
-    Origin[0] = 0.;
+    // In RAS the z axes is on the second index
+    double Origin[3] = {0.};
     Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    Origin[2] = 0.;
     cameraNode->SetPosition(Origin);
-    Origin[0] = 0.;
-    Origin[1] = 0.;
-    Origin[2] = 1.;
-    cameraNode->SetViewUp(Origin);
-    Origin[0] = 0.;
-    Origin[1] = 0.;
-    Origin[2] = 0.;
-    cameraNode->SetFocalPoint(Origin);
+    double ViewUp[3] = {0.};
+    ViewUp[2] = 1.;
+    cameraNode->SetViewUp(ViewUp);
+    double FocalPoint[3] = {0.};
+    cameraNode->SetFocalPoint(FocalPoint);
     }
 
   volumeTwo->SetDisplayVisibility(1);
