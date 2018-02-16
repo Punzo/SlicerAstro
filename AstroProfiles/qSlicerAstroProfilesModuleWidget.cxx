@@ -482,12 +482,11 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       d->plotChartNodeProfile.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeProfile->SetName("ProfileChart");
-      d->plotChartNodeProfile->SetAttribute("TitleName", "Profile");
-      d->plotChartNodeProfile->SetAttribute("XAxisLabelName", "Velocity (km/s)");
-      d->plotChartNodeProfile->SetAttribute("YAxisLabelName", "Total flux per channel (Jy)");
-      d->plotChartNodeProfile->SetAttribute("Type", "Line");
-      d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongX", "off");
-      d->plotChartNodeProfile->SetAttribute("ClickAndDragAlongY", "off");
+      d->plotChartNodeProfile->SetTitle("Profile");
+      d->plotChartNodeProfile->SetXAxisTitle("Velocity (km/s)");
+      d->plotChartNodeProfile->SetYAxisTitle("Total flux per channel (Jy)");
+      d->plotChartNodeProfile->SetEnablePointMoveAlongX(false);
+      d->plotChartNodeProfile->SetEnablePointMoveAlongY(false);
       this->mrmlScene()->AddNode(d->plotChartNodeProfile);
       }
     else
