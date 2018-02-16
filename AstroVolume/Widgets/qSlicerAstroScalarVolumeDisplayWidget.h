@@ -63,6 +63,7 @@ public:
   void setMRMLWindowLevelWidgetEnabled(bool);
 
 public slots:
+  void FitSlicesToViews();
   void onColorChanged(QColor color);
   void onCreateContours();
   void onWindowLevelPopupShow(bool show);

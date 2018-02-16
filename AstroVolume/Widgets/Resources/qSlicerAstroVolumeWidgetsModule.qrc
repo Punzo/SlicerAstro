@@ -26,6 +26,7 @@
         <file>Icons/astrolock.png</file>
         <file>Icons/Beam.png</file>
         <file>Icons/Histogram.png</file>
+        <file>Icons/FitSlicesToViews.png</file>
     </qresource>
     <qresource prefix="/presets"/>
 </RCC>

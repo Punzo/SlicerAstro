@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>389</width>
+    <width>438</width>
     <height>385</height>
    </rect>
   </property>
@@ -93,14 +93,14 @@
          <height>24</height>
         </size>
        </property>
-       <property name="color" stdset="0">
+       <property name="color">
         <color>
          <red>255</red>
          <green>187</green>
          <blue>20</blue>
         </color>
        </property>
-       <property name="displayColorName" stdset="0">
+       <property name="displayColorName">
         <bool>false</bool>
        </property>
       </widget>
@@ -180,6 +180,35 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="FitSlicesToViewsPushButton">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Fit Slices to Views</string>
+       </property>
+       <property name="icon">
+        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+         <normaloff>:/Icons/FitSlicesToViews.png</normaloff>:/Icons/FitSlicesToViews.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>24</width>
+         <height>24</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QPushButton" name="ThresholdPushButton">
        <property name="enabled">
         <bool>true</bool>
@@ -200,7 +229,7 @@
         <string>Toggle to enable a widget for the thresholding of the 2D color function.</string>
        </property>
        <property name="text">
-        <string>2D Display Thresholding</string>
+        <string>2D Thresholding</string>
        </property>
        <property name="icon">
         <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -320,7 +349,7 @@
     </layout>
    </item>
    <item row="7" column="0" colspan="2">
-    <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget" native="true">
+    <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -364,7 +393,7 @@
    <item row="4" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
-      <widget class="qMRMLWindowLevelWidget" name="MRMLWindowLevelWidget" native="true">
+      <widget class="qMRMLWindowLevelWidget" name="MRMLWindowLevelWidget">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -511,20 +540,20 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLColorTableComboBox" name="ColorTableComboBox" native="true">
+      <widget class="qMRMLColorTableComboBox" name="ColorTableComboBox">
        <property name="minimumSize">
         <size>
          <width>0</width>
          <height>30</height>
         </size>
        </property>
-       <property name="showChildNodeTypes" stdset="0">
+       <property name="showChildNodeTypes">
         <bool>true</bool>
        </property>
-       <property name="addEnabled" stdset="0">
+       <property name="addEnabled">
         <bool>false</bool>
        </property>
-       <property name="removeEnabled" stdset="0">
+       <property name="removeEnabled">
         <bool>false</bool>
        </property>
       </widget>
@@ -534,6 +563,12 @@
   </layout>
  </widget>
  <customwidgets>
+  <customwidget>
+   <class>qMRMLColorTableComboBox</class>
+   <extends>qMRMLNodeComboBox</extends>
+   <header>qMRMLColorTableComboBox.h</header>
+   <container>1</container>
+  </customwidget>
   <customwidget>
    <class>qMRMLNodeComboBox</class>
    <extends>QWidget</extends>
@@ -560,12 +595,6 @@
    <class>ctkColorPickerButton</class>
    <extends>QPushButton</extends>
    <header>ctkColorPickerButton.h</header>
-  </customwidget>
-  <customwidget>
-   <class>qMRMLColorTableComboBox</class>
-   <extends>qMRMLNodeComboBox</extends>
-   <header>qMRMLColorTableComboBox.h</header>
-   <container>1</container>
   </customwidget>
  </customwidgets>
  <resources>

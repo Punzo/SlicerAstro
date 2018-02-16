@@ -36,6 +36,7 @@
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
+#include <vtkMRMLSliceNode.h>
 #include <vtkMRMLUnitNode.h>
 
 // VTK includes
@@ -147,6 +148,8 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                    q, SLOT(onWindowLevelPopupShow(bool)));
   QObject::connect(this->InterpolatePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
+  QObject::connect(this->FitSlicesToViewsPushButton, SIGNAL(clicked()),
+                   q, SLOT(FitSlicesToViews()));
   QObject::connect(this->ThresholdPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setThreshold(bool)));
 
@@ -224,6 +227,65 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
     d->MRMLWindowLevelWidget->setEnabled(enable);
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::FitSlicesToViews()
+{
+  if (!this->mrmlScene() || ! this->volumeNode())
+    {
+    return;
+    }
+
+  int dims[3];
+  this->volumeNode()->GetImageData()->GetDimensions(dims);
+
+  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
+
+  for(int sliceIndex = 0; sliceIndex < sliceNodes->GetNumberOfItems(); sliceIndex++)
+    {
+    vtkMRMLSliceNode* sliceNode =
+        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(sliceIndex));
+    if (!sliceNode)
+      {
+      continue;
+      }
+
+    double FieldOfView[3];
+    if (!sliceNode->GetOrientation().compare("PVMajor") ||
+        !sliceNode->GetOrientation().compare("PVMinor") ||
+        !sliceNode->GetOrientation().compare("Reformat"))
+      {
+      sliceNode->GetFieldOfView(FieldOfView);
+      FieldOfView[0] = sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+      FieldOfView[1] = dims[2] + (dims[2] * 0.2);
+      }
+    else if (!sliceNode->GetOrientation().compare("XY"))
+      {
+      sliceNode->GetFieldOfView(FieldOfView);
+      FieldOfView[0] = dims[0];
+      FieldOfView[1] = dims[1];
+      }
+    else if (!sliceNode->GetOrientation().compare("ZY"))
+      {
+      sliceNode->GetFieldOfView(FieldOfView);
+      FieldOfView[0] = dims[2];
+      FieldOfView[1] = dims[1];
+      }
+    else if (!sliceNode->GetOrientation().compare("XZ"))
+      {
+      sliceNode->GetFieldOfView(FieldOfView);
+      FieldOfView[0] = dims[0];
+      FieldOfView[1] = dims[2];
+      }
+    else
+      {
+      continue;
+      }
+
+    sliceNode->SetFieldOfView(FieldOfView[0], FieldOfView[1], FieldOfView[2]);
+    }
 }
 
 // --------------------------------------------------------------------------
