@@ -281,6 +281,19 @@ void qSlicerAstroMaskingModuleWidget::enter()
 {
   this->Superclass::enter();
 
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+
   this->onMRMLAstroMaskingParametersNodeModified();
 }
 

@@ -74,6 +74,8 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
+#include <vtkMRMLLayoutLogic.h>
+#include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
@@ -343,6 +345,19 @@ qSlicerAstroSmoothingModuleWidget::~qSlicerAstroSmoothingModuleWidget()
 void qSlicerAstroSmoothingModuleWidget::enter()
 {
   this->Superclass::enter();
+
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
 }
 
 //----------------------------------------------------------------------------

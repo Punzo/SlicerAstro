@@ -2231,7 +2231,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   qSlicerApplication* app = qSlicerApplication::application();
 
-  if(!app)
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "qSlicerApplication not found.";
@@ -2259,9 +2260,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
                    " volumes not valid.";
     return;
     }
-
-  volumeTwo->SetDisplayVisibility(0);
-  volumeOne->SetDisplayVisibility(0);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
@@ -2351,46 +2349,42 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     d->selectionNode->SetSecondaryVolumeID("");
     }
 
-  volumeTwo->SetDisplayVisibility(1);
-  volumeOne->SetDisplayVisibility(1);
-
-  vtkSmartPointer<vtkCollection> col1 = vtkSmartPointer<vtkCollection>::Take
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
 
-  unsigned int numCameraNodes = col1->GetNumberOfItems();
-  if (numCameraNodes < 2)
+  unsigned int numCameraNodes = cameraNodes->GetNumberOfItems();
+  if (numCameraNodes >= 2)
     {
-    return;
-    }
-  vtkMRMLCameraNode *cameraNodeOne =
-    vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(0));
-  if (cameraNodeOne)
-    {
-    int* dims = volumeOne->GetImageData()->GetDimensions();
-    // In RAS the z axes is on the second index
-    double Origin[3] = {0.};
-    Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    cameraNodeOne->SetPosition(Origin);
-    double ViewUp[3] = {0.};
-    ViewUp[2] = 1.;
-    cameraNodeOne->SetViewUp(ViewUp);
-    double FocalPoint[3] = {0.};
-    cameraNodeOne->SetFocalPoint(FocalPoint);
-    }
-  vtkMRMLCameraNode *cameraNodeTwo =
-    vtkMRMLCameraNode::SafeDownCast(col1->GetItemAsObject(1));
-  if (cameraNodeTwo)
-    {
-    int* dims = volumeTwo->GetImageData()->GetDimensions();
-    // In RAS the z axes is on the second index
-    double Origin[3] = {0.};
-    Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    cameraNodeTwo->SetPosition(Origin);
-    double ViewUp[3] = {0.};
-    ViewUp[2] = 1.;
-    cameraNodeTwo->SetViewUp(ViewUp);
-    double FocalPoint[3] = {0.};
-    cameraNodeTwo->SetFocalPoint(FocalPoint);
+    vtkMRMLCameraNode *cameraNodeOne =
+      vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(0));
+    if (cameraNodeOne)
+      {
+      int* dims = volumeOne->GetImageData()->GetDimensions();
+      // In RAS the z axes is on the second index
+      double Origin[3] = {0.};
+      Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+      cameraNodeOne->SetPosition(Origin);
+      double ViewUp[3] = {0.};
+      ViewUp[2] = 1.;
+      cameraNodeOne->SetViewUp(ViewUp);
+      double FocalPoint[3] = {0.};
+      cameraNodeOne->SetFocalPoint(FocalPoint);
+      }
+    vtkMRMLCameraNode *cameraNodeTwo =
+      vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(1));
+    if (cameraNodeTwo)
+      {
+      int* dims = volumeTwo->GetImageData()->GetDimensions();
+      // In RAS the z axes is on the second index
+      double Origin[3] = {0.};
+      Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+      cameraNodeTwo->SetPosition(Origin);
+      double ViewUp[3] = {0.};
+      ViewUp[2] = 1.;
+      cameraNodeTwo->SetViewUp(ViewUp);
+      double FocalPoint[3] = {0.};
+      cameraNodeTwo->SetFocalPoint(FocalPoint);
+      }
     }
 
   if (overlay2D)
