@@ -121,10 +121,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
       LowConstantOpacityPreset,
       MediumConstantOpacityPreset,
       HighConstantOpacityPreset,
-      OneSurfacePreset,
+      OneSurfaceGreenPreset,
       OneSurfaceWhitePreset,
       TwoSurfacesPreset,
-      ThreeSurfacesPreset
+      ThreeSurfacesPreset,
+      BrightSurface
      };
 
   ///

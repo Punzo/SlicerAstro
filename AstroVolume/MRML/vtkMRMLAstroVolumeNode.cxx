@@ -667,9 +667,9 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
     {
     return vtkMRMLAstroVolumeNode::HighConstantOpacityPreset;
     }
-  else if (presetName.find("OneSurface") != std::string::npos)
+  else if (presetName.find("OneSurfaceGreen") != std::string::npos)
     {
-    return vtkMRMLAstroVolumeNode::OneSurfacePreset;
+    return vtkMRMLAstroVolumeNode::OneSurfaceGreenPreset;
     }
   else if (presetName.find("OneSurfaceWhite") != std::string::npos)
     {
@@ -682,6 +682,10 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
   else if (presetName.find("ThreeSurfaces") != std::string::npos)
     {
     return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
+    }
+  else if (presetName.find("BrightSurface") != std::string::npos)
+    {
+    return vtkMRMLAstroVolumeNode::BrightSurface;
     }
   else
     {

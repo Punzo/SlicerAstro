@@ -28,5 +28,4 @@
         <file>Icons/Histogram.png</file>
         <file>Icons/FitSlicesToViews.png</file>
     </qresource>
-    <qresource prefix="/presets"/>
 </RCC>

@@ -16,7 +16,7 @@
         <file alias="HighConstantOpacity">Icons/high.png</file>
         <file alias="LowConstantOpacity">Icons/low.png</file>
         <file alias="MediumConstantOpacity">Icons/medium.png</file>
-        <file alias="OneSurface">Icons/OneSurface.png</file>
+        <file alias="OneSurfaceGreen">Icons/OneSurfaceGreen.png</file>
         <file alias="ThreeSurfaces">Icons/ThreeSurface.png</file>
         <file alias="TwoSurfaces">Icons/TwoSurface.png</file>
         <file alias="OneSurfaceWhite">Icons/OneSurfaceWhite.png</file>
