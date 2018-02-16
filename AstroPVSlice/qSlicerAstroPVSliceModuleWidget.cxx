@@ -162,11 +162,20 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::init()
   QObject::connect(this->PerpendicularPushButton, SIGNAL(clicked()),
                    q, SLOT(on3DViewPerpendicular()));
 
-  QObject::connect(this->CenterRightAscensionDoubleSpinBox, SIGNAL(valueChanged(double)),
-                   q, SLOT(onRulerCenterRightAscensionChanged(double)));
+  QObject::connect(this->CenterRightAscensionIJKSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRulerCenterRightAscensionIJKChanged(double)));
 
-  QObject::connect(this->CenterDeclinationDoubleSpinBox, SIGNAL(valueChanged(double)),
-                   q, SLOT(onRulerCenterDeclinationChanged(double)));
+  QObject::connect(this->CenterDeclinationIJKSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRulerCenterDeclinationIJKChanged(double)));
+
+  QObject::connect(this->CenterRightAscensionWCSSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRulerCenterRightAscensionWCSChanged(double)));
+
+  QObject::connect(this->CenterDeclinationWCSSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRulerCenterDeclinationWCSChanged(double)));
+
+  QObject::connect(this->SetRulerCenterPushButton, SIGNAL(clicked()),
+                   q, SLOT(onSetRulerCenterClicked()));
 
 }
 
@@ -815,9 +824,14 @@ void qSlicerAstroPVSliceModuleWidget::setMRMLAstroPVSliceParametersNode(vtkMRMLN
   this->qvtkReconnect(d->parametersNode, AstroPVSliceParaNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLAstroPVSliceParametersNodeModified()));
 
+  this->qvtkReconnect(d->parametersNode, AstroPVSliceParaNode,
+                      vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent,
+                      this, SLOT(onMRMLAstroPVSliceCenterModified()));
+
   d->parametersNode = AstroPVSliceParaNode;
 
   this->onMRMLAstroPVSliceParametersNodeModified();
+  this->onMRMLAstroPVSliceCenterModified();
 }
 
 //-----------------------------------------------------------------------------
@@ -849,7 +863,62 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
     {
     d->selectionNode->SetReferenceActiveVolumeID(NULL);
     d->selectionNode->SetActiveVolumeID(NULL);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceCenterModified()
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode || !this->mrmlScene())
+    {
+    return;
     }
+
+  vtkSlicerAstroPVSliceLogic *logic = d->logic();
+  if (logic)
+    {
+    logic->UpdateRulerFromCenter(d->parametersNode);
+    }
+
+  int IJKRulerCenter[2];
+  d->parametersNode->GetRulerCenter(IJKRulerCenter);
+
+  d->CenterRightAscensionIJKSpinBox->blockSignals(true);
+  d->CenterRightAscensionIJKSpinBox->setValue(IJKRulerCenter[0]);
+  d->CenterRightAscensionIJKSpinBox->blockSignals(false);
+  d->CenterDeclinationIJKSpinBox->blockSignals(true);
+  d->CenterDeclinationIJKSpinBox->setValue(IJKRulerCenter[1]);
+  d->CenterDeclinationIJKSpinBox->blockSignals(false);
+
+  vtkMRMLAstroVolumeNode *inputVolumeNode =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolumeNode || !inputVolumeNode->GetImageData())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolumeNode->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    return;
+    }
+
+  double WCSCoordinates[3], ijk[3];
+  const int *dims = inputVolumeNode->GetImageData()->GetDimensions();
+  ijk[0] = IJKRulerCenter[0];
+  ijk[1] = IJKRulerCenter[1];
+  ijk[2] = dims[2];
+  astroDisplay->GetReferenceSpace(ijk, WCSCoordinates);
+
+  d->CenterRightAscensionWCSSpinBox->blockSignals(true);
+  d->CenterRightAscensionWCSSpinBox->setValue(WCSCoordinates[0]);
+  d->CenterRightAscensionWCSSpinBox->blockSignals(false);
+  d->CenterDeclinationWCSSpinBox->blockSignals(true);
+  d->CenterDeclinationWCSSpinBox->setValue(WCSCoordinates[1]);
+  d->CenterDeclinationWCSSpinBox->blockSignals(false);
 }
 
 //-----------------------------------------------------------------------------
@@ -887,10 +956,27 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceParametersNodeModified()
   d->ShiftXSpinBox->setValue(d->parametersNode->GetRulerShiftX());
   d->ShiftYSpinBox->setValue(d->parametersNode->GetRulerShiftY());
 
-  /*double IJKRulerCenter[2];
+  vtkSlicerAstroPVSliceLogic *logic = d->logic();
+  if (logic)
+    {
+    logic->UpdateRuler(d->parametersNode);
+    }
+
+  int IJKRulerCenter[2];
   d->parametersNode->GetRulerCenter(IJKRulerCenter);
 
-  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolumeNode->GetAstroVolumeDisplayNode();
+  d->CenterRightAscensionIJKSpinBox->blockSignals(true);
+  d->CenterRightAscensionIJKSpinBox->setValue(IJKRulerCenter[0]);
+  d->CenterRightAscensionIJKSpinBox->blockSignals(false);
+  d->CenterDeclinationIJKSpinBox->blockSignals(true);
+  d->CenterDeclinationIJKSpinBox->setValue(IJKRulerCenter[1]);
+  d->CenterDeclinationIJKSpinBox->blockSignals(false);
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = NULL;
+  if (inputVolumeNode)
+    {
+    astroDisplay = inputVolumeNode->GetAstroVolumeDisplayNode();
+    }
   if (inputVolumeNode && astroDisplay)
     {
     double WCSCoordinates[3], ijk[3];
@@ -900,19 +986,17 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceParametersNodeModified()
     ijk[2] = dims[2];
     astroDisplay->GetReferenceSpace(ijk, WCSCoordinates);
 
-    d->CenterRightAscensionDoubleSpinBox->setValue(WCSCoordinates[0]);
-    d->CenterDeclinationDoubleSpinBox->setValue(WCSCoordinates[1]);
+    d->CenterRightAscensionWCSSpinBox->blockSignals(true);
+    d->CenterRightAscensionWCSSpinBox->setValue(WCSCoordinates[0]);
+    d->CenterRightAscensionWCSSpinBox->blockSignals(false);
+    d->CenterDeclinationWCSSpinBox->blockSignals(true);
+    d->CenterDeclinationWCSSpinBox->setValue(WCSCoordinates[1]);
+    d->CenterDeclinationWCSSpinBox->blockSignals(false);
     }
   else
     {
-    d->CenterRightAscensionDoubleSpinBox->setValue(0.);
-    d->CenterDeclinationDoubleSpinBox->setValue(0.);
-    }*/
-
-  vtkSlicerAstroPVSliceLogic *logic = d->logic();
-  if (logic)
-    {
-    logic->UpdateRuler(d->parametersNode);
+    d->CenterRightAscensionWCSSpinBox->setValue(0.);
+    d->CenterDeclinationWCSSpinBox->setValue(0.);
     }
 }
 
@@ -965,6 +1049,64 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified()
     }
   RulerNode->SetPosition2(position2);
   RulerNode->DisableModifiedEventOff();
+
+  double RulerCenter[3];
+  for (int ii = 0; ii < 3; ii++)
+    {
+    RulerCenter[ii] = (position1[ii] + position2[ii]) * 0.5;
+    }
+
+  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+  RAStoIJKTransform->Identity();
+  RAStoIJKTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+  PVMomentMap->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+
+  RAStoIJKTransform->TransformPoint(RulerCenter,RulerCenter);
+  d->parametersNode->DisableModifiedEventOn();
+  int IJKRulerCenter[2];
+  IJKRulerCenter[0] = RulerCenter[0];
+  IJKRulerCenter[1] = RulerCenter[1];
+  d->parametersNode->SetRulerCenter(IJKRulerCenter);
+  d->parametersNode->DisableModifiedEventOff();
+
+  d->CenterRightAscensionIJKSpinBox->blockSignals(true);
+  d->CenterRightAscensionIJKSpinBox->setValue(IJKRulerCenter[0]);
+  d->CenterRightAscensionIJKSpinBox->blockSignals(false);
+  d->CenterDeclinationIJKSpinBox->blockSignals(true);
+  d->CenterDeclinationIJKSpinBox->setValue(IJKRulerCenter[1]);
+  d->CenterDeclinationIJKSpinBox->blockSignals(false);
+
+  vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = NULL;
+  if (inputVolumeNode)
+    {
+    astroDisplay = inputVolumeNode->GetAstroVolumeDisplayNode();
+    }
+  if (inputVolumeNode && astroDisplay)
+    {
+    double WCSCoordinates[3], ijk[3];
+    const int *dims = inputVolumeNode->GetImageData()->GetDimensions();
+    ijk[0] = IJKRulerCenter[0];
+    ijk[1] = IJKRulerCenter[1];
+    ijk[2] = dims[2];
+    astroDisplay->GetReferenceSpace(ijk, WCSCoordinates);
+
+    d->CenterRightAscensionWCSSpinBox->blockSignals(true);
+    d->CenterRightAscensionWCSSpinBox->setValue(WCSCoordinates[0]);
+    d->CenterRightAscensionWCSSpinBox->blockSignals(false);
+    d->CenterDeclinationWCSSpinBox->blockSignals(true);
+    d->CenterDeclinationWCSSpinBox->setValue(WCSCoordinates[1]);
+    d->CenterDeclinationWCSSpinBox->blockSignals(false);
+    }
+  else
+    {
+    d->CenterRightAscensionWCSSpinBox->setValue(0.);
+    d->CenterDeclinationWCSSpinBox->setValue(0.);
+    }
 
   vtkSlicerAstroPVSliceLogic *logic = d->logic();
   if (logic)
@@ -1041,7 +1183,37 @@ void qSlicerAstroPVSliceModuleWidget::onRotateRulerChanged(double theta)
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionChanged(double value)
+void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionIJKChanged(double value)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->DisableModifiedEventOn();
+  d->parametersNode->SetRulerCenterRightAscension(value);
+  d->parametersNode->DisableModifiedEventOff();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationIJKChanged(double value)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->DisableModifiedEventOn();
+  d->parametersNode->SetRulerCenterDeclination(value);
+  d->parametersNode->DisableModifiedEventOff();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionWCSChanged(double value)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
@@ -1081,11 +1253,13 @@ void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionChanged(double 
 
   astroDisplay->GetIJKSpace(WCSCoordinates, ijk);
 
+  d->parametersNode->DisableModifiedEventOn();
   d->parametersNode->SetRulerCenterRightAscension(ijk[0]);
+  d->parametersNode->DisableModifiedEventOff();
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationChanged(double value)
+void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationWCSChanged(double value)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
@@ -1125,7 +1299,9 @@ void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationChanged(double val
 
   astroDisplay->GetIJKSpace(WCSCoordinates, ijk);
 
+  d->parametersNode->DisableModifiedEventOn();
   d->parametersNode->SetRulerCenterRightAscension(ijk[1]);
+  d->parametersNode->DisableModifiedEventOff();
 }
 
 //---------------------------------------------------------------------------
@@ -1145,6 +1321,19 @@ void qSlicerAstroPVSliceModuleWidget::onRulerChanged(vtkMRMLNode *mrmlNode)
                       this, SLOT(onMRMLPVSliceRulerNodeModified()));
 
   this->onMRMLPVSliceRulerNodeModified();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onSetRulerCenterClicked()
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  d->parametersNode->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
 }
 
 //---------------------------------------------------------------------------

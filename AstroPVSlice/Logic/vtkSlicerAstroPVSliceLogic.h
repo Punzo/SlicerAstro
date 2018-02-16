@@ -49,17 +49,14 @@ public:
   virtual void RegisterNodes();
 
   bool Calculate0thMomentMap(vtkMRMLAstroPVSliceParametersNode *pnode);
-
   bool SetMomentMapOnRedWidget(vtkMRMLAstroPVSliceParametersNode *pnode);
 
   bool CreateAndSetRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
-
   bool InitializeRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
-
   bool UpdateRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+  bool UpdateRulerFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode);
 
   bool InitializePV(vtkMRMLAstroPVSliceParametersNode *pnode);
-
   bool UpdatePV(vtkMRMLAstroPVSliceParametersNode *pnode);
 
 protected:

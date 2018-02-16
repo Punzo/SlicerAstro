@@ -426,8 +426,8 @@
       </item>
       <item row="5" column="0" colspan="2">
        <layout class="QGridLayout" name="gridLayout_2">
-        <item row="1" column="0">
-         <widget class="ctkDoubleSpinBox" name="CenterRightAscensionDoubleSpinBox">
+        <item row="2" column="2">
+         <widget class="ctkDoubleSpinBox" name="CenterDeclinationWCSSpinBox">
           <property name="minimumSize">
            <size>
             <width>0</width>
@@ -435,26 +435,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>WCS coordinate of the center of the ruler.</string>
-          </property>
-          <property name="suffix">
-           <string> °</string>
-          </property>
-          <property name="decimals">
-           <number>6</number>
-          </property>
-          <property name="maximum">
-           <double>360.000000000000000</double>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="1">
-         <widget class="ctkDoubleSpinBox" name="CenterDeclinationDoubleSpinBox">
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
+           <string>WCS Declination coordinate of the center of the ruler.</string>
           </property>
           <property name="suffix">
            <string> °</string>
@@ -468,9 +449,107 @@
           <property name="maximum">
            <double>90.000000000000000</double>
           </property>
+          <property name="singleStep">
+           <double>0.000010000000000</double>
+          </property>
          </widget>
         </item>
-        <item row="0" column="0" colspan="2">
+        <item row="2" column="1">
+         <widget class="ctkDoubleSpinBox" name="CenterRightAscensionWCSSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>WCS Right Ascension coordinate of the center of the ruler.</string>
+          </property>
+          <property name="suffix">
+           <string> °</string>
+          </property>
+          <property name="decimals">
+           <number>6</number>
+          </property>
+          <property name="maximum">
+           <double>360.000000000000000</double>
+          </property>
+          <property name="singleStep">
+           <double>0.000010000000000</double>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="ctkDoubleSpinBox" name="CenterRightAscensionIJKSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>IJK Right Ascension coordinate of the center of the ruler.</string>
+          </property>
+          <property name="decimals">
+           <number>0</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="ctkDoubleSpinBox" name="CenterDeclinationIJKSpinBox">
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>IJK Declination coordinate of the center of the ruler.</string>
+          </property>
+          <property name="decimals">
+           <number>0</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>10</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>IJK:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_2">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>10</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>WCS:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0" colspan="3">
          <widget class="QLabel" name="WCSCenterLabel">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -486,6 +565,16 @@
           </property>
           <property name="text">
            <string>Ruler Center:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="3" column="1" colspan="2">
+         <widget class="ctkPushButton" name="SetRulerCenterPushButton">
+          <property name="toolTip">
+           <string>For updating the ruler and teh GUI of manual modifications of the center of the ruler click this button.</string>
+          </property>
+          <property name="text">
+           <string>Set center to Ruler</string>
           </property>
          </widget>
         </item>
@@ -608,6 +697,11 @@
    <class>ctkDoubleSpinBox</class>
    <extends>QWidget</extends>
    <header>ctkDoubleSpinBox.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ctkPushButton</class>
+   <extends>QPushButton</extends>
+   <header>ctkPushButton.h</header>
   </customwidget>
   <customwidget>
    <class>ctkSliderWidget</class>

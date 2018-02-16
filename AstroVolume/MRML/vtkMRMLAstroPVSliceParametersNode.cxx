@@ -52,9 +52,9 @@ vtkMRMLAstroPVSliceParametersNode::vtkMRMLAstroPVSliceParametersNode()
   this->SetRulerShiftX(0.);
   this->SetRulerOldShiftX(0.);
 
-  for(int ii = 0; ii < 3; ii++)
+  for(int ii = 0; ii < 2; ii++)
     {
-    this->RulerCenter[ii] = 0.0;
+    this->RulerCenter[ii] = 0;
     }
 }
 
@@ -73,6 +73,12 @@ template <typename T> T StringToNumber(const char* num)
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
 }
 }// end namespace
 
@@ -166,13 +172,13 @@ void vtkMRMLAstroPVSliceParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "RulerCenter"))
       {
       std::stringstream ss;
-      double val;
-      double RulerCenter[3];
+      int val;
+      int RulerCenter[2];
       ss << attValue;
-      for(int i = 0; i < 2; i++)
+      for(int ii = 0; ii < 2; ii++)
         {
         ss >> val;
-        RulerCenter[i] = val;
+        RulerCenter[ii] = val;
         }
       this->SetRulerCenter(RulerCenter);
       }
@@ -235,39 +241,39 @@ void vtkMRMLAstroPVSliceParametersNode::Copy(vtkMRMLNode *anode)
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterRightAscension(double value)
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterRightAscension(int value)
 {
-  if (!vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[0], value))
+  if (!vtkMathUtilities::FuzzyCompare<int>(this->RulerCenter[0], value))
     {
     this->RulerCenter[0] = value;
-    this->Modified();
+    this->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterDeclination(double value)
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterDeclination(int value)
 {
-  if (!vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[1], value))
+  if (!vtkMathUtilities::FuzzyCompare<int>(this->RulerCenter[1], value))
     {
     this->RulerCenter[1] = value;
-    this->Modified();
+    this->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(double arg1, double arg2)
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(int arg1, int arg2)
 {
-  if (!vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[0], arg1) ||
-      !vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[1], arg2))
+  if (!vtkMathUtilities::FuzzyCompare<int>(this->RulerCenter[0], arg1) ||
+      !vtkMathUtilities::FuzzyCompare<int>(this->RulerCenter[1], arg2))
     {
     this->RulerCenter[0] = arg1;
     this->RulerCenter[1] = arg2;
-    this->Modified();
+    this->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
     }
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(double arg[])
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(int arg[])
 {
   this->SetRulerCenter(arg[0], arg[1]);
 }

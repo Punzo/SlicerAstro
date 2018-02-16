@@ -637,6 +637,7 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *
 
   RAStoIJKTransform->TransformPoint(position1,position1);
   RAStoIJKTransform->TransformPoint(position2,position2);
+  RAStoIJKTransform->TransformPoint(RulerCenter,RulerCenter);
 
   vtkNew<vtkGeneralTransform> RulerRotateTransform;
   RulerRotateTransform->Identity();
@@ -679,7 +680,85 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *
   pnode->SetRulerOldAngle(pnode->GetRulerAngle());
   pnode->SetRulerOldShiftX(pnode->GetRulerShiftX());
   pnode->SetRulerOldShiftY(pnode->GetRulerShiftY());
+  int IJKRulerCenter[2];
+  IJKRulerCenter[0] = RulerCenter[0];
+  IJKRulerCenter[1] = RulerCenter[1];
+  pnode->SetRulerCenter(IJKRulerCenter);
   pnode->DisableModifiedEventOff();
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::UpdateRulerFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode)
+{
+  if (!this->GetMRMLScene() || !pnode)
+    {
+    return false;
+    }
+
+  int NewIJKRulerCenter[2];
+  pnode->GetRulerCenter(NewIJKRulerCenter);
+
+  vtkMRMLAstroVolumeNode *PVMomentMap =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetMomentMapNodeID()));
+  if(!PVMomentMap || !PVMomentMap->GetImageData())
+    {
+    return false;
+    }
+
+  vtkMRMLAnnotationRulerNode *RulerNode =
+    vtkMRMLAnnotationRulerNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetRulerNodeID()));
+  if(!RulerNode)
+    {
+    return false;
+    }
+
+  double position1[3] = {0};
+  RulerNode->GetPosition1(position1);
+  double position2[3] = {0};
+  RulerNode->GetPosition2(position2);
+
+  double RulerCenter[3];
+  for (int ii = 0; ii < 3; ii++)
+    {
+    RulerCenter[ii] = (position1[ii] + position2[ii]) * 0.5;
+    }
+
+  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+  RAStoIJKTransform->Identity();
+  RAStoIJKTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+  PVMomentMap->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+
+  RAStoIJKTransform->TransformPoint(position1,position1);
+  RAStoIJKTransform->TransformPoint(position2,position2);
+  RAStoIJKTransform->TransformPoint(RulerCenter,RulerCenter);
+
+  vtkNew<vtkGeneralTransform> RulerShiftTransform;
+  RulerShiftTransform->Identity();
+  RulerShiftTransform->PostMultiply();
+  RulerShiftTransform->Translate(NewIJKRulerCenter[0] - RulerCenter[0],
+                                 NewIJKRulerCenter[1] - RulerCenter[1],
+                                 0.);
+
+  RulerShiftTransform->TransformPoint(position1, position1);
+  RulerShiftTransform->TransformPoint(position2, position2);
+
+  RAStoIJKTransform->Identity();
+  RAStoIJKMatrix->Invert();
+  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+
+  RAStoIJKTransform->TransformPoint(position1,position1);
+  RAStoIJKTransform->TransformPoint(position2,position2);
+
+  int wasModifying = RulerNode->StartModify();
+  RulerNode->SetPosition1(position1);
+  RulerNode->SetPosition2(position2);
+  RulerNode->EndModify(wasModifying);
 
   return true;
 }
