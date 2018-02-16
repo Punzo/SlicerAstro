@@ -24,6 +24,7 @@
 #include <vtkCommand.h>
 #include <vtkDoubleArray.h>
 #include <vtkIntArray.h>
+#include <vtkMathUtilities.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 
@@ -50,6 +51,11 @@ vtkMRMLAstroPVSliceParametersNode::vtkMRMLAstroPVSliceParametersNode()
   this->SetRulerOldAngle(0.);
   this->SetRulerShiftX(0.);
   this->SetRulerOldShiftX(0.);
+
+  for(int ii = 0; ii < 3; ii++)
+    {
+    this->RulerCenter[ii] = 0.0;
+    }
 }
 
 namespace
@@ -156,6 +162,20 @@ void vtkMRMLAstroPVSliceParametersNode::ReadXMLAttributes(const char** atts)
       this->RulerOldShiftY = StringToDouble(attValue);
       continue;
       }
+
+    if (!strcmp(attName, "RulerCenter"))
+      {
+      std::stringstream ss;
+      double val;
+      double RulerCenter[3];
+      ss << attValue;
+      for(int i = 0; i < 2; i++)
+        {
+        ss >> val;
+        RulerCenter[i] = val;
+        }
+      this->SetRulerCenter(RulerCenter);
+      }
     }
 }
 
@@ -187,6 +207,7 @@ void vtkMRMLAstroPVSliceParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " RulerOldShiftX=\"" << this->RulerOldShiftX << "\"";
   of << indent << " RulerShiftY=\"" << this->RulerShiftY << "\"";
   of << indent << " RulerOldShiftY=\"" << this->RulerOldShiftY << "\"";
+  of << indent << " RulerCenter=\"" << this->RulerCenter[0] << " " << this->RulerCenter[1] << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -208,8 +229,47 @@ void vtkMRMLAstroPVSliceParametersNode::Copy(vtkMRMLNode *anode)
   this->SetRulerOldShiftX(node->GetRulerOldShiftX());
   this->SetRulerShiftY(node->GetRulerShiftY());
   this->SetRulerOldShiftY(node->GetRulerOldShiftY());
+  this->SetRulerCenter(node->GetRulerCenter());
 
   this->EndModify(disabledModify);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterRightAscension(double value)
+{
+  if (!vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[0], value))
+    {
+    this->RulerCenter[0] = value;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterDeclination(double value)
+{
+  if (!vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[1], value))
+    {
+    this->RulerCenter[1] = value;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(double arg1, double arg2)
+{
+  if (!vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[0], arg1) ||
+      !vtkMathUtilities::FuzzyCompare<double>(this->RulerCenter[1], arg2))
+    {
+    this->RulerCenter[0] = arg1;
+    this->RulerCenter[1] = arg2;
+    this->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(double arg[])
+{
+  this->SetRulerCenter(arg[0], arg[1]);
 }
 
 //----------------------------------------------------------------------------
@@ -217,13 +277,20 @@ void vtkMRMLAstroPVSliceParametersNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
 
-  os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
-  os << "MomentMapNodeID: " << ( (this->MomentMapNodeID) ? this->MomentMapNodeID : "None" ) << "\n";
-  os << "RulerNodeID: " << ( (this->RulerNodeID) ? this->RulerNodeID : "None" ) << "\n";
-  os << "RulerAngle: " << this->RulerAngle << "\n";
-  os << "RulerOldAngle: " << this->RulerOldAngle << "\n";
-  os << "RulerShiftX: " << this->RulerShiftX << "\n";
-  os << "RulerOldShiftX: " << this->RulerOldShiftX << "\n";
-  os << "RulerShiftY: " << this->RulerShiftY << "\n";
-  os << "RulerOldShiftY: " << this->RulerOldShiftY << "\n";
+  os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
+  os << indent << "MomentMapNodeID: " << ( (this->MomentMapNodeID) ? this->MomentMapNodeID : "None" ) << "\n";
+  os << indent << "RulerNodeID: " << ( (this->RulerNodeID) ? this->RulerNodeID : "None" ) << "\n";
+  os << indent << "RulerAngle: " << this->RulerAngle << "\n";
+  os << indent << "RulerOldAngle: " << this->RulerOldAngle << "\n";
+  os << indent << "RulerShiftX: " << this->RulerShiftX << "\n";
+  os << indent << "RulerOldShiftX: " << this->RulerOldShiftX << "\n";
+  os << indent << "RulerShiftY: " << this->RulerShiftY << "\n";
+  os << indent << "RulerOldShiftY: " << this->RulerOldShiftY << "\n";
+
+  os << "RulerCenter:";
+  for(int jj = 0; jj < 2; jj++)
+    {
+    os << indent << " " << this->RulerCenter[jj];
+    }
+  os << "\n";
 }

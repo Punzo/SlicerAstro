@@ -242,18 +242,18 @@ void vtkMRMLAstroProfilesParametersNode::PrintSelf(ostream& os, vtkIndent indent
 {
   Superclass::PrintSelf(os,indent);
 
-  os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
-  os << "ProfileVolumeNodeID: " << ( (this->ProfileVolumeNodeID) ? this->ProfileVolumeNodeID : "None" ) << "\n";
-  os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
-  os << "MaskActive: " << this->MaskActive << "\n";
-  os << "IntensityMin: " << this->IntensityMin << "\n";
-  os << "IntensityMax: " << this->IntensityMax << "\n";
-  os << "VelocityMin: " << this->VelocityMin << "\n";
-  os << "VelocityMax: " << this->VelocityMax << "\n";
-  os << "OutputSerial: " << this->OutputSerial << "\n";
-  os << "Status: " << this->Status << "\n";
+  os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
+  os << indent << "ProfileVolumeNodeID: " << ( (this->ProfileVolumeNodeID) ? this->ProfileVolumeNodeID : "None" ) << "\n";
+  os << indent << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
+  os << indent << "MaskActive: " << this->MaskActive << "\n";
+  os << indent << "IntensityMin: " << this->IntensityMin << "\n";
+  os << indent << "IntensityMax: " << this->IntensityMax << "\n";
+  os << indent << "VelocityMin: " << this->VelocityMin << "\n";
+  os << indent << "VelocityMax: " << this->VelocityMax << "\n";
+  os << indent << "OutputSerial: " << this->OutputSerial << "\n";
+  os << indent << "Status: " << this->Status << "\n";
   if (this->Cores != 0)
     {
-    os << "Number of CPU cores: "<< this->Cores<< "\n";
+    os << indent << "Number of CPU cores: "<< this->Cores<< "\n";
     }
 }

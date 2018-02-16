@@ -316,21 +316,21 @@ void vtkMRMLAstroStatisticsParametersNode::PrintSelf(ostream& os, vtkIndent inde
 {
   Superclass::PrintSelf(os,indent);
 
-  os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
-  os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
-  os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
-  os << "Max: " << this->Max << "\n";
-  os << "Mean: " << this->Mean << "\n";
-  os << "Median: " << this->Median << "\n";
-  os << "Min: " << this->Min << "\n";
-  os << "Npixels: " << this->Npixels << "\n";
-  os << "Std: " << this->Std << "\n";
-  os << "Sum: " << this->Sum << "\n";
-  os << "TotalFlux: " << this->TotalFlux << "\n";
-  os << "OutputSerial: " << this->OutputSerial << "\n";
-  os << "Status: " << this->Status << "\n";
+  os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
+  os << indent << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
+  os << indent << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
+  os << indent << "Max: " << this->Max << "\n";
+  os << indent << "Mean: " << this->Mean << "\n";
+  os << indent << "Median: " << this->Median << "\n";
+  os << indent << "Min: " << this->Min << "\n";
+  os << indent << "Npixels: " << this->Npixels << "\n";
+  os << indent << "Std: " << this->Std << "\n";
+  os << indent << "Sum: " << this->Sum << "\n";
+  os << indent << "TotalFlux: " << this->TotalFlux << "\n";
+  os << indent << "OutputSerial: " << this->OutputSerial << "\n";
+  os << indent << "Status: " << this->Status << "\n";
   if (this->Cores != 0)
     {
-    os << "Number of CPU cores: "<< this->Cores<< "\n";
+    os << indent << "Number of CPU cores: "<< this->Cores<< "\n";
     }
 }

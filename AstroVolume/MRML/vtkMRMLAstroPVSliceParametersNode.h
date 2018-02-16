@@ -82,6 +82,13 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVSliceParametersNode : public vtkMRMLNo
   vtkSetMacro(RulerOldShiftY,double);
   vtkGetMacro(RulerOldShiftY,double);
 
+  // Ruler center in MRML node is in IJK coordinates
+  vtkGetVector3Macro (RulerCenter, double);
+  virtual void SetRulerCenterRightAscension(double value);
+  virtual void SetRulerCenterDeclination(double value);
+  virtual void SetRulerCenter(double arg1, double arg2);
+  virtual void SetRulerCenter(double arg[2]);
+
 protected:
   vtkMRMLAstroPVSliceParametersNode();
   ~vtkMRMLAstroPVSliceParametersNode();
@@ -101,6 +108,8 @@ protected:
 
   double RulerShiftY;
   double RulerOldShiftY;
+
+  double RulerCenter[2];
 };
 
 #endif

@@ -307,23 +307,23 @@ void vtkMRMLAstroMomentMapsParametersNode::PrintSelf(ostream& os, vtkIndent inde
 {
   Superclass::PrintSelf(os,indent);
 
-  os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
-  os << "ZeroMomentVolumeNodeID: " << ( (this->ZeroMomentVolumeNodeID) ? this->ZeroMomentVolumeNodeID : "None" ) << "\n";
-  os << "FirstMomentVolumeNodeID: " << ( (this->FirstMomentVolumeNodeID) ? this->FirstMomentVolumeNodeID : "None" ) << "\n";
-  os << "SecondMomentVolumeNodeID: " << ( (this->SecondMomentVolumeNodeID) ? this->SecondMomentVolumeNodeID : "None" ) << "\n";
-  os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
-  os << "MaskActive: " << this->MaskActive << "\n";
-  os << "GenerateZero: " << this->GenerateZero << "\n";
-  os << "GenerateFirst: " << this->GenerateFirst << "\n";
-  os << "GenerateSecond: " << this->GenerateSecond << "\n";
-  os << "IntensityMin: " << this->IntensityMin << "\n";
-  os << "IntensityMax: " << this->IntensityMax << "\n";
-  os << "VelocityMin: " << this->VelocityMin << "\n";
-  os << "VelocityMax: " << this->VelocityMax << "\n";
-  os << "OutputSerial: " << this->OutputSerial << "\n";
-  os << "Status: " << this->Status << "\n";
+  os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
+  os << indent << "ZeroMomentVolumeNodeID: " << ( (this->ZeroMomentVolumeNodeID) ? this->ZeroMomentVolumeNodeID : "None" ) << "\n";
+  os << indent << "FirstMomentVolumeNodeID: " << ( (this->FirstMomentVolumeNodeID) ? this->FirstMomentVolumeNodeID : "None" ) << "\n";
+  os << indent << "SecondMomentVolumeNodeID: " << ( (this->SecondMomentVolumeNodeID) ? this->SecondMomentVolumeNodeID : "None" ) << "\n";
+  os << indent << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
+  os << indent << "MaskActive: " << this->MaskActive << "\n";
+  os << indent << "GenerateZero: " << this->GenerateZero << "\n";
+  os << indent << "GenerateFirst: " << this->GenerateFirst << "\n";
+  os << indent << "GenerateSecond: " << this->GenerateSecond << "\n";
+  os << indent << "IntensityMin: " << this->IntensityMin << "\n";
+  os << indent << "IntensityMax: " << this->IntensityMax << "\n";
+  os << indent << "VelocityMin: " << this->VelocityMin << "\n";
+  os << indent << "VelocityMax: " << this->VelocityMax << "\n";
+  os << indent << "OutputSerial: " << this->OutputSerial << "\n";
+  os << indent << "Status: " << this->Status << "\n";
   if (this->Cores != 0)
     {
-    os << "Number of CPU cores: "<< this->Cores<< "\n";
+    os << indent << "Number of CPU cores: "<< this->Cores<< "\n";
     }
 }

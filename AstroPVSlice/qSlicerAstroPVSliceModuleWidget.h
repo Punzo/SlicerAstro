@@ -70,6 +70,8 @@ protected slots:
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMomentMapChanged(vtkMRMLNode* mrmlNode);
   void onRotateRulerChanged(double theta);
+  void onRulerCenterRightAscensionChanged(double value);
+  void onRulerCenterDeclinationChanged(double value);
   void onRulerChanged(vtkMRMLNode* mrmlNode);
   void onShiftXRulerChanged(double shiftX);
   void onShiftYRulerChanged(double shiftY);

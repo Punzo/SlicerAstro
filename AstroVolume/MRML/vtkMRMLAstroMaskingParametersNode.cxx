@@ -299,17 +299,17 @@ void vtkMRMLAstroMaskingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
 {
   Superclass::PrintSelf(os,indent);
 
-  os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
-  os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
-  os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
-  os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
-  os << "Operation: " << ( (this->Operation) ? this->Operation : "None" ) << "\n";
-  os << "BlankRegion: " << ( (this->BlankRegion) ? this->BlankRegion : "None" ) << "\n";
-  os << "BlankValue: " << ( (this->BlankValue) ? this->BlankValue : "None" ) << "\n";
-  os << "OutputSerial: " << this->OutputSerial << "\n";
-  os << "Status: " << this->Status << "\n";
+  os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
+  os << indent << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
+  os << indent << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
+  os << indent << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
+  os << indent << "Operation: " << ( (this->Operation) ? this->Operation : "None" ) << "\n";
+  os << indent << "BlankRegion: " << ( (this->BlankRegion) ? this->BlankRegion : "None" ) << "\n";
+  os << indent << "BlankValue: " << ( (this->BlankValue) ? this->BlankValue : "None" ) << "\n";
+  os << indent << "OutputSerial: " << this->OutputSerial << "\n";
+  os << indent << "Status: " << this->Status << "\n";
   if (this->Cores != 0)
     {
-    os << "Number of CPU cores: "<< this->Cores<< "\n";
+    os << indent << "Number of CPU cores: "<< this->Cores<< "\n";
     }
 }

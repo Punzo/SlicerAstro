@@ -575,28 +575,28 @@ void vtkMRMLAstroSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent inden
 {
   Superclass::PrintSelf(os,indent);
 
-  os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
-  os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
-  os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
-  os << "MasksCommand: " << ( (this->MasksCommand) ? this->MasksCommand : "None" ) << "\n";
-  os << "OutputSerial: " << this->OutputSerial << "\n";
-  os << "Status: " << this->Status << "\n";
+  os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
+  os << indent << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
+  os << indent << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
+  os << indent << "MasksCommand: " << ( (this->MasksCommand) ? this->MasksCommand : "None" ) << "\n";
+  os << indent << "OutputSerial: " << this->OutputSerial << "\n";
+  os << indent << "Status: " << this->Status << "\n";
 
   switch (this->Filter)
     {
     case 0:
       {
-      os << "Filter: Box\n";
+      os << indent << "Filter: Box\n";
       break;
       }
     case 1:
       {
-      os << "Filter: Gaussian\n";
+      os << indent << "Filter: Gaussian\n";
       break;
       }
     case 2:
       {
-      os << "Filter: Intensity Driven Gradient\n";
+      os << indent << "Filter: Intensity Driven Gradient\n";
       break;
       }
     }
@@ -605,65 +605,65 @@ void vtkMRMLAstroSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent inden
     {
     case 0:
       {
-      os << "Hardware: CPU\n";
+      os << indent << "Hardware: CPU\n";
       if (this->Cores != 0)
         {
-        os << "Number of cores: "<< this->Cores<< "\n";
+        os << indent << "Number of cores: "<< this->Cores<< "\n";
         }
       break;
       }
     case 1:
       {
-      os << "Hardware: GPU\n";
+      os << indent << "Hardware: GPU\n";
       break;
       }
     }
 
   if(this->AutoRun)
     {
-    os << "AutoRun: Active\n";
+    os << indent << "AutoRun: Active\n";
     }
   else
     {
-    os << "AutoRun: Inactive\n";
+    os << indent << "AutoRun: Inactive\n";
     }
 
   if(this->Link)
     {
-    os << "Link: Active\n";
+    os << indent << "Link: Active\n";
     }
   else
     {
-    os << "Link: Inactive\n";
+    os << indent << "Link: Inactive\n";
     }
 
-  os << "ParameterX: " << this->ParameterX << "\n";
-  os << "ParameterY: " << this->ParameterY << "\n";
-  os << "ParameterZ: " << this->ParameterZ << "\n";
+  os << indent << "ParameterX: " << this->ParameterX << "\n";
+  os << indent << "ParameterY: " << this->ParameterY << "\n";
+  os << indent << "ParameterZ: " << this->ParameterZ << "\n";
 
   if (this->Filter < 2)
     {
-    os << "KernelLengthX: " << this->KernelLengthX << "\n";
-    os << "KernelLengthY: " << this->KernelLengthY << "\n";
-    os << "KernelLengthZ: " << this->KernelLengthZ << "\n";
+    os << indent << "KernelLengthX: " << this->KernelLengthX << "\n";
+    os << indent << "KernelLengthY: " << this->KernelLengthY << "\n";
+    os << indent << "KernelLengthZ: " << this->KernelLengthZ << "\n";
     }
 
   if (this->Filter == 1)
     {
-    os << "Kernel rotation with respect to X: " << this->Rx << "\n";
-    os << "Kernel rotation with respect to Y: " << this->Ry << "\n";
-    os << "Kernel rotation with respect to Z: " << this->Rz << "\n";
+    os << indent << "Kernel rotation with respect to X: " << this->Rx << "\n";
+    os << indent << "Kernel rotation with respect to Y: " << this->Ry << "\n";
+    os << indent << "Kernel rotation with respect to Z: " << this->Rz << "\n";
     }
 
   if (this->Filter != 0)
     {
-    os << "Accuracy: " << this->Accuracy << "\n";
+    os << indent << "Accuracy: " << this->Accuracy << "\n";
     }
 
   if (this->Filter == 2)
     {
-    os << "TimeStep: " << this->TimeStep << "\n";
-    os << "K: " << this->K << "\n";
+    os << indent << "TimeStep: " << this->TimeStep << "\n";
+    os << indent << "K: " << this->K << "\n";
     }
 
   if (this->gaussianKernel1D)

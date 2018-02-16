@@ -161,6 +161,13 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::init()
 
   QObject::connect(this->PerpendicularPushButton, SIGNAL(clicked()),
                    q, SLOT(on3DViewPerpendicular()));
+
+  QObject::connect(this->CenterRightAscensionDoubleSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRulerCenterRightAscensionChanged(double)));
+
+  QObject::connect(this->CenterDeclinationDoubleSpinBox, SIGNAL(valueChanged(double)),
+                   q, SLOT(onRulerCenterDeclinationChanged(double)));
+
 }
 
 //-----------------------------------------------------------------------------
@@ -880,6 +887,28 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceParametersNodeModified()
   d->ShiftXSpinBox->setValue(d->parametersNode->GetRulerShiftX());
   d->ShiftYSpinBox->setValue(d->parametersNode->GetRulerShiftY());
 
+  /*double IJKRulerCenter[2];
+  d->parametersNode->GetRulerCenter(IJKRulerCenter);
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolumeNode->GetAstroVolumeDisplayNode();
+  if (inputVolumeNode && astroDisplay)
+    {
+    double WCSCoordinates[3], ijk[3];
+    const int *dims = inputVolumeNode->GetImageData()->GetDimensions();
+    ijk[0] = IJKRulerCenter[0];
+    ijk[1] = IJKRulerCenter[1];
+    ijk[2] = dims[2];
+    astroDisplay->GetReferenceSpace(ijk, WCSCoordinates);
+
+    d->CenterRightAscensionDoubleSpinBox->setValue(WCSCoordinates[0]);
+    d->CenterDeclinationDoubleSpinBox->setValue(WCSCoordinates[1]);
+    }
+  else
+    {
+    d->CenterRightAscensionDoubleSpinBox->setValue(0.);
+    d->CenterDeclinationDoubleSpinBox->setValue(0.);
+    }*/
+
   vtkSlicerAstroPVSliceLogic *logic = d->logic();
   if (logic)
     {
@@ -1009,6 +1038,94 @@ void qSlicerAstroPVSliceModuleWidget::onRotateRulerChanged(double theta)
   d->parametersNode->SetRulerOldAngle(d->parametersNode->GetRulerAngle());
   d->parametersNode->SetRulerAngle(theta);
   d->parametersNode->EndModify(wasModifying);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionChanged(double value)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    return;
+    }
+
+  if (strcmp(astroDisplay->GetSpace(), "WCS"))
+    {
+    return;
+    }
+
+  double WCSCoordinates[3], ijk[3];
+  const int *dims = inputVolume->GetImageData()->GetDimensions();
+  ijk[0] = dims[0] * 0.5;
+  ijk[1] = dims[1] * 0.5;
+  ijk[2] = dims[2];
+
+  astroDisplay->GetReferenceSpace(ijk, WCSCoordinates);
+
+  WCSCoordinates[0] = value;
+
+  astroDisplay->GetIJKSpace(WCSCoordinates, ijk);
+
+  d->parametersNode->SetRulerCenterRightAscension(ijk[0]);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationChanged(double value)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  if (!astroDisplay)
+    {
+    return;
+    }
+
+  if (strcmp(astroDisplay->GetSpace(), "WCS"))
+    {
+    return;
+    }
+
+  double WCSCoordinates[3], ijk[3];
+  const int *dims = inputVolume->GetImageData()->GetDimensions();
+  ijk[0] = dims[0] * 0.5;
+  ijk[1] = dims[1] * 0.5;
+  ijk[2] = dims[2];
+
+  astroDisplay->GetReferenceSpace(ijk, WCSCoordinates);
+
+  WCSCoordinates[1] = value;
+
+  astroDisplay->GetIJKSpace(WCSCoordinates, ijk);
+
+  d->parametersNode->SetRulerCenterRightAscension(ijk[1]);
 }
 
 //---------------------------------------------------------------------------
