@@ -55,7 +55,7 @@ vtkMRMLAstroStatisticsParametersNode::vtkMRMLAstroStatisticsParametersNode()
   this->SetCores(0);
   this->Max = true;
   this->Mean = true;
-  this->Median = false;
+  this->Median = true;
   this->Min = true;
   this->Npixels = true;
   this->Std = true;
