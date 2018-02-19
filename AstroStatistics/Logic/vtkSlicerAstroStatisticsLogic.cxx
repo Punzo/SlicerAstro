@@ -646,7 +646,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         }
 
-      quicksort(TempPixel, 0, Npixels);
+      quicksort(TempPixel, 0, Npixels - 1);
 
       pnode->SetStatus(95);
 
@@ -955,7 +955,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         }
 
-      quicksort(TempPixel, 0, Npixels);
+      quicksort(TempPixel, 0, Npixels - 1);
 
       pnode->SetStatus(95);
 
