@@ -360,12 +360,12 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     vtkGeneralTransform* xyToIJK =
         sliceLayerLogic->GetXYToIJKTransform();
 
-    int numberOfPointsHorizontal = (int) (viewWidthPixel / 100.) + 1;
+    int numberOfPointsHorizontal = (int) (viewWidthPixel / 175.) + 1;
     if (numberOfPointsHorizontal < 5)
       {
       numberOfPointsHorizontal = 5;
       }
-    int numberOfPointsVertical = (int) (viewHeightPixel / 100.) + 1;
+    int numberOfPointsVertical = (int) (viewHeightPixel / 175.) + 1;
     if (numberOfPointsVertical < 5)
       {
       numberOfPointsVertical = 5;
