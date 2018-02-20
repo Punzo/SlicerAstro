@@ -911,7 +911,10 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world,
                                                                      vtkMRMLUnitNode *node,
                                                                      int precision,
-                                                                     const char* language)
+                                                                     const char* language,
+                                                                     const double oldOutputValues[3],
+                                                                     double outputValues[3],
+                                                                     bool horizontalAxis /* = false */)
 {
  std::string value = "";
  if(!node)
@@ -955,14 +958,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
    std::stringstream strstream;
    strstream.setf(ios::fixed,ios::floatfield);
 
-   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
-     {
-     displayValue = world;
-     }
-   else
-     {
-     displayValue = node->GetDisplayValueFromValue(world);
-     }
+   displayValue = world;
 
    firstFractpart = modf(displayValue, &firstIntpart);
    if(firstFractpart * 60. > 59.99999)
@@ -970,48 +966,78 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
      firstFractpart = 0.;
      firstIntpart += 1.;
      }
-   if (firstIntpart > 0.00001)
+
+   // First
+   outputValues[0] = firstIntpart;
+   if (firstIntpart > 0.00001 &&
+       fabs(outputValues[0] - oldOutputValues[0]) > 1.E-6)
      {
      value = DoubleToString(firstIntpart) + firstPrefix;
      }
-   else
+   else if (horizontalAxis)
      {
      value = "   ";
      }
+   else
+     {
+     value = "";
+     }
 
+   // Second
    secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
    if(secondFractpart > 59.99999)
      {
      secondFractpart = 0.;
      secondIntpart += 1.;
      }
-   if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
+
+   outputValues[1] = secondIntpart;
+   if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
+       fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
      {
      displayValueString = DoubleToString(fabs(secondIntpart));
      }
-   else
+   else if (horizontalAxis)
      {
      displayValueString = "   ";
      }
+   else
+     {
+     displayValueString = "";
+     }
+
    if(secondIntpart < 10.)
      {
      displayValueString = " " + displayValueString;
      }
-   if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
+   if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
+       fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
      {
      displayValueString += secondPrefix;
      }
    value = value + displayValueString;
+
+   // Third
    displayValueString = "";
    strstream.precision(precision);
    strstream << fabs(secondFractpart);
    strstream >> displayValueString;
+
+   outputValues[2] = StringToDouble(displayValueString.c_str());
    if(secondFractpart < 10.)
      {
      displayValueString = " " + displayValueString;
      }
 
-   value = value + displayValueString + thirdPrefix;
+   if (fabs(outputValues[2] - oldOutputValues[2]) > 1.E-6)
+     {
+     value = value + displayValueString + thirdPrefix;
+     }
+   else
+     {
+     value = "  " + value;
+     }
+
    return value.c_str();
    }
 
@@ -1020,84 +1046,99 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const double world,
-                                                                      int precision = 0)
+                                                                      const double oldOutputValues[3],
+                                                                      double outputValues[3],
+                                                                      int precision /* = 0 */,
+                                                                      bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const double world,
-                                                                      int precision = 0)
+                                                                      const double oldOutputValues[3],
+                                                                      double outputValues[3],
+                                                                      int precision /* = 0 */,
+                                                                      bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const double world,
-                                                                      int precision = 0)
+                                                                      const double oldOutputValues[3],
+                                                                      double outputValues[3],
+                                                                      int precision /* = 0 */,
+                                                                      bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueX(const double world,
-                                                                            int precision = 0)
+                                                                            int precision /* = 0 */,
+                                                                            bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    double outputValues[3], oldOutputValues[3];
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueY(const double world,
-                                                                            int precision = 0)
+                                                                            int precision /* = 0 */,
+                                                                            bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    double outputValues[3], oldOutputValues[3];
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueZ(const double world,
-                                                                            int precision = 0)
+                                                                            int precision /* = 0 */,
+                                                                            bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    double outputValues[3], oldOutputValues[3];
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }

@@ -390,22 +390,23 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
           }
 
         displayNode->GetReferenceSpace(ijk, world);
-        d->WCSDisplay->setFixedWidth(110);
+        d->WCSDisplay->setFixedWidth(115);
 
+        double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
         if(!orientation.compare("XZ"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroVolume->GetAstroVolumeDisplayNode()
-                                 ->GetDisplayStringFromValueY(world[1], 3)));
+                                 ->GetDisplayStringFromValueY(world[1], oldOutputValues, outputValues, 3)));
           }
         else if(!orientation.compare("XY"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroVolume->GetAstroVolumeDisplayNode()
-                                 ->GetDisplayStringFromValueZ(world[2], 3)));
+                                 ->GetDisplayStringFromValueZ(world[2], oldOutputValues, outputValues, 3)));
           }
         else if(!orientation.compare("ZY"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroVolume->GetAstroVolumeDisplayNode()
-                                 ->GetDisplayStringFromValueX(world[0], 3)));
+                                 ->GetDisplayStringFromValueX(world[0], oldOutputValues, outputValues, 3)));
           }
         }
       break;
@@ -470,22 +471,23 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
           }
 
         astroLabelMapDisplay->GetReferenceSpace(ijk, world);
-        d->WCSDisplay->setFixedWidth(110);
+        d->WCSDisplay->setFixedWidth(115);
 
+        double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
         if(!orientation.compare("XZ"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroLabelMapVolume->GetAstroLabelMapVolumeDisplayNode()
-                                 ->GetDisplayStringFromValueY(world[1], 3)));
+                                 ->GetDisplayStringFromValueY(world[1], outputValues, oldOutputValues, 3)));
           }
         else if(!orientation.compare("XY"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroLabelMapVolume->GetAstroLabelMapVolumeDisplayNode()
-                                 ->GetDisplayStringFromValueZ(world[2], 3)));
+                                 ->GetDisplayStringFromValueZ(world[2], outputValues, oldOutputValues, 3)));
           }
         else if(!orientation.compare("ZY"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroLabelMapVolume->GetAstroLabelMapVolumeDisplayNode()
-                                 ->GetDisplayStringFromValueX(world[0], 3)));
+                                 ->GetDisplayStringFromValueX(world[0], outputValues, oldOutputValues, 3)));
           }
         }
       break;

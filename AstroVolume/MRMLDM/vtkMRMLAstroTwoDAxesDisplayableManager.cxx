@@ -26,6 +26,7 @@
 // MRML includes
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLLogic.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
@@ -338,571 +339,1193 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       return;
       }
 
+    int MinorTickMin = 0, MinorTickMax = 0, MajorTickMin = 0, MajorTickMax = 0;
+    switch (type)
+      {
+      case vtkMRMLAbstractViewNode::RulerTypeThin:
+        MinorTickMin = 2;
+        MinorTickMax = 7;
+        MajorTickMin = 2;
+        MajorTickMax = 12;
+        break;
+      case vtkMRMLAbstractViewNode::RulerTypeThick:
+        MinorTickMin = 3;
+        MinorTickMax = 9;
+        MajorTickMin = 3;
+        MajorTickMax = 14;
+        break;
+      }
+
     vtkMRMLAstroVolumeDisplayNode* displayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast
         (sliceLayerLogic->GetVolumeDisplayNode());
 
-    if (!displayNode)
+    vtkMRMLAstroLabelMapVolumeDisplayNode* displayLabelNode =
+      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast
+        (sliceLayerLogic->GetVolumeDisplayNode());
+
+    if (displayNode)
       {
-      continue;
-      }
-
-    if (strcmp(displayNode->GetSpace(), "WCS") != 0)
-      {
-      continue;
-      }
-
-    hasDisplay = true;
-
-    sliceNode->UpdateMatrices();
-    sliceLayerLogic->UpdateTransforms();
-
-    vtkGeneralTransform* xyToIJK =
-        sliceLayerLogic->GetXYToIJKTransform();
-
-    int numberOfPointsHorizontal = (int) (viewWidthPixel / 175.) + 1;
-    if (numberOfPointsHorizontal < 5)
-      {
-      numberOfPointsHorizontal = 5;
-      }
-    int numberOfPointsVertical = (int) (viewHeightPixel / 175.) + 1;
-    if (numberOfPointsVertical < 5)
-      {
-      numberOfPointsVertical = 5;
-      }
-    double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.}, worldD[] = {0.,0.,0.};
-    double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
-    double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
-    double PVwcsStepCos = 0., PVwcsStepSin = 0., PVAngle = 0.;
-    std::vector<std::vector<double> > *world = new std::vector<std::vector<double> >();
-    std::vector<std::vector<double> > *xyzDisplay = new std::vector<std::vector<double> >();
-    std::vector<double> *temp = new std::vector<double>();
-
-    // calculate WCS coordinates of the view's corners
-    xyToIJK->TransformPoint(xyz, ijk);
-    int controlY1 = ijk[1];
-    displayNode->GetReferenceSpace(ijk, worldA);
-
-    xyz[0] = viewWidthPixel;
-    xyToIJK->TransformPoint(xyz, ijk);
-    displayNode->GetReferenceSpace(ijk, worldB);
-
-    xyz[0] = 0.;
-    xyz[1] = viewHeightPixel;
-    xyToIJK->TransformPoint(xyz, ijk);
-    int controlY2 = ijk[1];
-    // check if the reformat plane is parallel to the velocity axes
-    bool showReformat = false;
-    if (controlY1 == controlY2 && !sliceNode->GetOrientation().compare("Reformat"))
-      {
-      showReformat = true;
-      }
-    else if(!sliceNode->GetOrientation().compare("Reformat")    )
-      {
-      this->ShowActors(false);
-      return;
-      }
-
-    displayNode->GetReferenceSpace(ijk, worldC);
-
-    xyz[0] = viewWidthPixel / 2.;
-    xyz[1] = 0.;
-    xyToIJK->TransformPoint(xyz, ijk);
-    displayNode->GetReferenceSpace(ijk, worldD);
-
-    // calculate the wcsSteps for the two axes
-    if (!sliceNode->GetOrientation().compare("ZY"))
-      {
-      wcsStep[0] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), &numberOfPointsHorizontal);
-      axisCoord[0] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0]);
-      wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
-      axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
-      }
-
-    if (!sliceNode->GetOrientation().compare("XY"))
-      {
-      wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
-      axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
-      wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
-      axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
-      }
-
-    if (!sliceNode->GetOrientation().compare("XZ"))
-      {
-      wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
-      axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
-      wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
-      axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
-      }
-
-    if (!sliceNode->GetOrientation().compare("PVMajor") ||
-        !sliceNode->GetOrientation().compare("PVMinor") ||
-        showReformat)
-      {
-      double distX = (worldA[0] - worldB[0]);
-      double distY = (worldA[1] - worldB[1]);
-      double dist = sqrt((distX * distX) + (distY * distY));
-      wcsStep[0] = displayNode->GetWcsTickStepAxisY(dist, &numberOfPointsHorizontal);
-
-      PVAngle = atan(distY / distX);
-      PVwcsStepCos = wcsStep[0] * cos(PVAngle);
-      PVwcsStepSin = wcsStep[0] * sin(PVAngle);
-
-      if (numberOfPointsHorizontal % 2 != 0)
-        {
-        numberOfPointsHorizontal += 1;
-        }
-      wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
-      axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
-      }
-
-    // allocate point along the horizontal axes
-    for (int i = 0; i < numberOfPointsHorizontal; i++)
-      {
-      int i8 = i * 8;
-      if (!sliceNode->GetOrientation().compare("ZY"))
-        {
-        temp->clear();
-        temp->push_back(worldA[0]);
-        temp->push_back(worldA[1]);
-        temp->push_back(axisCoord[0] + wcsStep[0] * i);
-        world->push_back((*temp));
-        }
-
-      if (!sliceNode->GetOrientation().compare("XY") ||
-          !sliceNode->GetOrientation().compare("XZ"))
-        {
-        temp->clear();
-        temp->push_back(axisCoord[0] + wcsStep[0] * i);
-        temp->push_back(worldA[1]);
-        temp->push_back(worldA[2]);
-        world->push_back((*temp));
-        }
-
-      if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        temp->clear();
-        temp->push_back(worldD[0] + PVwcsStepCos  * (i - (numberOfPointsHorizontal / 2.)));
-        temp->push_back(worldD[1] + PVwcsStepSin  * (i - (numberOfPointsHorizontal / 2.)));
-        temp->push_back(worldD[2]);
-        world->push_back((*temp));
-        }
-
-      displayNode->GetIJKSpace((*world)[i], ijk);
-      xyToIJK->Inverse();
-      xyToIJK->TransformPoint(ijk, xyz);
-      temp->clear();
-      temp->push_back(xyz[0]);
-      temp->push_back(xyz[1]);
-      temp->push_back(xyz[2]);
-      xyzDisplay->push_back((*temp));
-      this->twoDAxesPoints->InsertPoint(i8, xyz[0], 2, 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], 12, 0);
-
-      if (!sliceNode->GetOrientation().compare("ZY"))
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = worldA[1];
-        xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("XY") ||
-          !sliceNode->GetOrientation().compare("XZ"))
-        {
-        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
-        xyz[1] = worldA[1];
-        xyz[2] = worldA[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 4.;
-        xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 4.;
-        xyz[2] = worldD[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      xyToIJK->TransformPoint(ijk, xyz);
-      this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], 2, 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], 7, 0);
-
-      if (!sliceNode->GetOrientation().compare("ZY"))
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = worldA[1];
-        xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("XY") ||
-          !sliceNode->GetOrientation().compare("XZ"))
-        {
-        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
-        xyz[1] = worldA[1];
-        xyz[2] = worldA[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 2.;
-        xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 2.;
-        xyz[2] = worldD[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      xyToIJK->TransformPoint(ijk, xyz);
-      this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], 2, 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], 7, 0);
-
-      if (!sliceNode->GetOrientation().compare("ZY"))
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = worldA[1];
-        xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("XY") ||
-          !sliceNode->GetOrientation().compare("XZ"))
-        {
-        xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
-        xyz[1] = worldA[1];
-        xyz[2] = worldA[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos * 3. / 4.;
-        xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin * 3. / 4.;
-        xyz[2] = worldD[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      xyToIJK->TransformPoint(ijk, xyz);
-      this->twoDAxesPoints->InsertPoint(i8 + 6, xyz[0], 2, 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 7, xyz[0], 7, 0);
-
-      xyToIJK->Inverse();
-      }
-
-    int nTot = numberOfPointsVertical + numberOfPointsHorizontal;
-
-    // allocate point along the vertical axes
-    for (int i = numberOfPointsHorizontal; i < nTot; i++)
-      {
-      int ii = i - numberOfPointsHorizontal;
-      int i8 = i * 8;
-
-      if (!sliceNode->GetOrientation().compare("ZY") ||
-          !sliceNode->GetOrientation().compare("XY"))
-        {
-        temp->clear();
-        temp->push_back(worldA[0]);
-        temp->push_back(axisCoord[1] + wcsStep[1] * ii);
-        temp->push_back(worldA[2]);
-        world->push_back((*temp));
-        }
-
-      if (!sliceNode->GetOrientation().compare("XZ") ||
-          !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        temp->clear();
-        temp->push_back(worldA[0]);
-        temp->push_back(worldA[1]);
-        temp->push_back(axisCoord[1] + wcsStep[1] * ii);
-        world->push_back((*temp));
-        }
-
-      displayNode->GetIJKSpace((*world)[i], ijk);
-      xyToIJK->Inverse();
-      xyToIJK->TransformPoint(ijk, xyz);
-      temp->clear();
-      temp->push_back(xyz[0]);
-      temp->push_back(xyz[1]);
-      temp->push_back(xyz[2]);
-      xyzDisplay->push_back((*temp));
-
-      this->twoDAxesPoints->InsertPoint(i8, 2, xyz[1], 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 1, 12, xyz[1], 0);
-
-      if (!sliceNode->GetOrientation().compare("ZY") ||
-          !sliceNode->GetOrientation().compare("XY"))
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
-        xyz[2] = worldA[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("XZ") ||
-          !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = worldA[1];
-        xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      xyToIJK->TransformPoint(ijk, xyz);
-      this->twoDAxesPoints->InsertPoint(i8 + 2, 2, xyz[1], 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 3, 7, xyz[1], 0);
-
-      if (!sliceNode->GetOrientation().compare("ZY") ||
-          !sliceNode->GetOrientation().compare("XY"))
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
-        xyz[2] = worldA[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("XZ") ||
-          !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = worldA[1];
-        xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      xyToIJK->TransformPoint(ijk, xyz);
-      this->twoDAxesPoints->InsertPoint(i8 + 4, 2, xyz[1], 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 5, 7, xyz[1], 0);
-
-      if (!sliceNode->GetOrientation().compare("ZY") ||
-          !sliceNode->GetOrientation().compare("XY"))
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
-        xyz[2] = worldA[2];
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      if (!sliceNode->GetOrientation().compare("XZ") ||
-          !sliceNode->GetOrientation().compare("PVMajor") ||
-          !sliceNode->GetOrientation().compare("PVMinor") ||
-          showReformat)
-        {
-        xyz[0] = worldA[0];
-        xyz[1] = worldA[1];
-        xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
-        displayNode->GetIJKSpace(xyz, ijk);
-        }
-
-      xyToIJK->TransformPoint(ijk, xyz);
-      this->twoDAxesPoints->InsertPoint(i8 + 6, 2, xyz[1], 0);
-      this->twoDAxesPoints->InsertPoint(i8 + 7, 7, xyz[1], 0);
-
-      xyToIJK->Inverse();
-      }
-
-    int n = this->twoDAxesPoints->GetNumberOfPoints();
-
-    // unify the points with lines
-    std::vector<vtkSmartPointer<vtkLine> > lines;
-    for (int i = 0; i < n - 1; i++)
-      {
-      vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
-      lines.push_back(line);
-      }
-
-    int nHori8 = numberOfPointsHorizontal * 8;
-    for (int i = 0; i < nHori8 - 1; i++)
-      {
-      if (i%2 == 0)
-        {
-        lines[i]->GetPointIds()->SetId(0, i);
-        lines[i]->GetPointIds()->SetId(1, i + 1);
-        }
-      else
-        {
-        lines[i]->GetPointIds()->SetId(0, i - 1);
-        lines[i]->GetPointIds()->SetId(1, i + 1);
-        }
-      }
-
-    int nVert8 = numberOfPointsVertical * 8;
-    int nTot8 = nHori8 + nVert8;
-    for (int i = nHori8; i < nTot8 - 1; i++)
-      {
-      if (i%2 == 0)
-        {
-        lines[i]->GetPointIds()->SetId(0, i);
-        lines[i]->GetPointIds()->SetId(1, i + 1);
-        }
-      else
-        {
-        lines[i]->GetPointIds()->SetId(0, i - 1);
-        lines[i]->GetPointIds()->SetId(1, i + 1);
-        }
-      }
-
-    // create the cellArray
-    for (int i = 0; i < n - 1; i++)
-      {
-      this->twoDAxesCellArray->InsertNextCell(lines[i]);
-      }
-
-    // setup the mapper and actor
-    this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
-    this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
-    this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
-    this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
-    switch (type)
-      {
-      case vtkMRMLAbstractViewNode::RulerTypeThin:
-        this->twoDAxesActor->GetProperty()->SetLineWidth(1);
-        break;
-      case vtkMRMLAbstractViewNode::RulerTypeThick:
-        this->twoDAxesActor->GetProperty()->SetLineWidth(3);
-        break;
-      default:
-        break;
-      }
-    this->twoDAxesActor->GetProperty()->SetColor(this->Color->GetValue(0),
-                                                 this->Color->GetValue(1),
-                                                 this->Color->GetValue(2));
-    this->MarkerRenderer->AddActor2D(this->twoDAxesActor);
-
-
-    std::string coord;
-    // allocate 2DTextActors for the horizontal axes
-    for (int i = 0; i < numberOfPointsHorizontal; i++)
-      {
-      if((*xyzDisplay)[i][0] < 30 || (*xyzDisplay)[i][0] > viewWidthPixel - 30)
+      if (strcmp(displayNode->GetSpace(), "WCS") != 0)
         {
         continue;
         }
 
-      if (!sliceNode->GetOrientation().compare("ZY"))
+      hasDisplay = true;
+
+      sliceNode->UpdateMatrices();
+      sliceLayerLogic->UpdateTransforms();
+
+      vtkGeneralTransform* xyToIJK =
+          sliceLayerLogic->GetXYToIJKTransform();
+
+      int numberOfPointsHorizontal = (int) (viewWidthPixel / 150.) + 1;
+      if (numberOfPointsHorizontal < 5)
         {
-        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2], 0);
+        numberOfPointsHorizontal = 5;
+        }
+      int numberOfPointsVertical = (int) (viewHeightPixel / 150.) + 1;
+      if (numberOfPointsVertical < 5)
+        {
+        numberOfPointsVertical = 5;
+        }
+      double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.}, worldD[] = {0.,0.,0.};
+      double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
+      double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
+      double PVwcsStepCos = 0., PVwcsStepSin = 0., PVAngle = 0.;
+      std::vector<std::vector<double> > *world = new std::vector<std::vector<double> >();
+      std::vector<std::vector<double> > *xyzDisplay = new std::vector<std::vector<double> >();
+      std::vector<double> *temp = new std::vector<double>();
+
+      // calculate WCS coordinates of the view's corners
+      xyToIJK->TransformPoint(xyz, ijk);
+      int controlY1 = ijk[1];
+      displayNode->GetReferenceSpace(ijk, worldA);
+
+      xyz[0] = viewWidthPixel;
+      xyToIJK->TransformPoint(xyz, ijk);
+      displayNode->GetReferenceSpace(ijk, worldB);
+
+      xyz[0] = 0.;
+      xyz[1] = viewHeightPixel;
+      xyToIJK->TransformPoint(xyz, ijk);
+      int controlY2 = ijk[1];
+      // check if the reformat plane is parallel to the velocity axes
+      bool showReformat = false;
+      if (controlY1 == controlY2 && !sliceNode->GetOrientation().compare("Reformat"))
+        {
+        showReformat = true;
+        }
+      else if(!sliceNode->GetOrientation().compare("Reformat")    )
+        {
+        this->ShowActors(false);
+        return;
         }
 
-      if (!sliceNode->GetOrientation().compare("XY") ||
-          !sliceNode->GetOrientation().compare("XZ"))
+      displayNode->GetReferenceSpace(ijk, worldC);
+
+      xyz[0] = viewWidthPixel / 2.;
+      xyz[1] = 0.;
+      xyToIJK->TransformPoint(xyz, ijk);
+      displayNode->GetReferenceSpace(ijk, worldD);
+
+      // calculate the wcsSteps for the two axes
+      if (!sliceNode->GetOrientation().compare("ZY"))
         {
-        coord = displayNode->GetDisplayStringFromValueX((*world)[i][0], 0);
+        wcsStep[0] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), &numberOfPointsHorizontal);
+        axisCoord[0] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0]);
+        wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
+        axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
+        }
+
+      if (!sliceNode->GetOrientation().compare("XY"))
+        {
+        wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
+        axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
+        wcsStep[1] = displayNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
+        axisCoord[1] = displayNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
+        }
+
+      if (!sliceNode->GetOrientation().compare("XZ"))
+        {
+        wcsStep[0] = displayNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
+        axisCoord[0] = displayNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
+        wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
+        axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
         }
 
       if (!sliceNode->GetOrientation().compare("PVMajor") ||
           !sliceNode->GetOrientation().compare("PVMinor") ||
           showReformat)
         {
-        double dist = sqrt((((*world)[i][0] - worldD[0]) * ((*world)[i][0] - worldD[0])) +
-                          (((*world)[i][1] - worldD[1]) * ((*world)[i][1] - worldD[1])));
-        coord = displayNode->GetDisplayStringFromValueY(dist, 0);
+        double distX = (worldA[0] - worldB[0]);
+        double distY = (worldA[1] - worldB[1]);
+        double dist = sqrt((distX * distX) + (distY * distY));
+        wcsStep[0] = displayNode->GetWcsTickStepAxisY(dist, &numberOfPointsHorizontal);
+
+        PVAngle = atan(distY / distX);
+        PVwcsStepCos = wcsStep[0] * cos(PVAngle);
+        PVwcsStepSin = wcsStep[0] * sin(PVAngle);
+
+        if (numberOfPointsHorizontal % 2 != 0)
+          {
+          numberOfPointsHorizontal += 1;
+          }
+        wcsStep[1] = displayNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
+        axisCoord[1] = displayNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
         }
 
-      vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
-      vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
-      textProperty->SetFontSize(this->fontSize);
+      // allocate point along the horizontal axes
+      for (int i = 0; i < numberOfPointsHorizontal; i++)
+        {
+        int i8 = i * 8;
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          temp->clear();
+          temp->push_back(worldA[0]);
+          temp->push_back(worldA[1]);
+          temp->push_back(axisCoord[0] + wcsStep[0] * i);
+          world->push_back((*temp));
+          }
 
-      if (!fontStyle.compare("Arial"))
-        {
-        textProperty->SetFontFamilyToArial();
-        }
-      else if (!fontStyle.compare("Courier"))
-        {
-        textProperty->SetFontFamilyToCourier();
-        }
-      else if (!fontStyle.compare("Times"))
-        {
-        textProperty->SetFontFamilyToTimes();
-        }
-      else
-        {
-        textProperty->SetFontFamilyToArial();
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          temp->clear();
+          temp->push_back(axisCoord[0] + wcsStep[0] * i);
+          temp->push_back(worldA[1]);
+          temp->push_back(worldA[2]);
+          world->push_back((*temp));
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          temp->clear();
+          temp->push_back(worldD[0] + PVwcsStepCos  * (i - (numberOfPointsHorizontal / 2.)));
+          temp->push_back(worldD[1] + PVwcsStepSin  * (i - (numberOfPointsHorizontal / 2.)));
+          temp->push_back(worldD[2]);
+          world->push_back((*temp));
+          }
+
+        displayNode->GetIJKSpace((*world)[i], ijk);
+        xyToIJK->Inverse();
+        xyToIJK->TransformPoint(ijk, xyz);
+        temp->clear();
+        temp->push_back(xyz[0]);
+        temp->push_back(xyz[1]);
+        temp->push_back(xyz[2]);
+        xyzDisplay->push_back((*temp));
+        this->twoDAxesPoints->InsertPoint(i8, xyz[0], MajorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], MajorTickMax, 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
+          xyz[1] = worldA[1];
+          xyz[2] = worldA[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 4.;
+          xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 4.;
+          xyz[2] = worldD[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], MinorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], MinorTickMax, 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
+          xyz[1] = worldA[1];
+          xyz[2] = worldA[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 2.;
+          xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 2.;
+          xyz[2] = worldD[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], MinorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], MinorTickMax, 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
+          xyz[1] = worldA[1];
+          xyz[2] = worldA[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos * 3. / 4.;
+          xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin * 3. / 4.;
+          xyz[2] = worldD[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 6, xyz[0], MinorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 7, xyz[0], MinorTickMax, 0);
+
+        xyToIJK->Inverse();
         }
 
-      textActorHorizontal->GetProperty()->SetColor(this->Color->GetValue(0),
+      int nTot = numberOfPointsVertical + numberOfPointsHorizontal;
+
+      // allocate point along the vertical axes
+      for (int i = numberOfPointsHorizontal; i < nTot; i++)
+        {
+        int ii = i - numberOfPointsHorizontal;
+        int i8 = i * 8;
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          temp->clear();
+          temp->push_back(worldA[0]);
+          temp->push_back(axisCoord[1] + wcsStep[1] * ii);
+          temp->push_back(worldA[2]);
+          world->push_back((*temp));
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          temp->clear();
+          temp->push_back(worldA[0]);
+          temp->push_back(worldA[1]);
+          temp->push_back(axisCoord[1] + wcsStep[1] * ii);
+          world->push_back((*temp));
+          }
+
+        displayNode->GetIJKSpace((*world)[i], ijk);
+        xyToIJK->Inverse();
+        xyToIJK->TransformPoint(ijk, xyz);
+        temp->clear();
+        temp->push_back(xyz[0]);
+        temp->push_back(xyz[1]);
+        temp->push_back(xyz[2]);
+        xyzDisplay->push_back((*temp));
+
+        this->twoDAxesPoints->InsertPoint(i8, MajorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 1, MajorTickMax, xyz[1], 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
+          xyz[2] = worldA[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 2, MinorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 3, MinorTickMax, xyz[1], 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
+          xyz[2] = worldA[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 4, MinorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 5, MinorTickMax, xyz[1], 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
+          xyz[2] = worldA[2];
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
+          displayNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 6, MinorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 7, MinorTickMax, xyz[1], 0);
+
+        xyToIJK->Inverse();
+        }
+
+      int n = this->twoDAxesPoints->GetNumberOfPoints();
+
+      // unify the points with lines
+      std::vector<vtkSmartPointer<vtkLine> > lines;
+      for (int i = 0; i < n - 1; i++)
+        {
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        lines.push_back(line);
+        }
+
+      int nHori8 = numberOfPointsHorizontal * 8;
+      for (int i = 0; i < nHori8 - 1; i++)
+        {
+        if (i%2 == 0)
+          {
+          lines[i]->GetPointIds()->SetId(0, i);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        else
+          {
+          lines[i]->GetPointIds()->SetId(0, i - 1);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        }
+
+      int nVert8 = numberOfPointsVertical * 8;
+      int nTot8 = nHori8 + nVert8;
+      for (int i = nHori8; i < nTot8 - 1; i++)
+        {
+        if (i%2 == 0)
+          {
+          lines[i]->GetPointIds()->SetId(0, i);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        else
+          {
+          lines[i]->GetPointIds()->SetId(0, i - 1);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        }
+
+      // create the cellArray
+      for (int i = 0; i < n - 1; i++)
+        {
+        this->twoDAxesCellArray->InsertNextCell(lines[i]);
+        }
+
+      // setup the mapper and actor
+      this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
+      this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
+      this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
+      this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
+      switch (type)
+        {
+        case vtkMRMLAbstractViewNode::RulerTypeThin:
+          this->twoDAxesActor->GetProperty()->SetLineWidth(1);
+          break;
+        case vtkMRMLAbstractViewNode::RulerTypeThick:
+          this->twoDAxesActor->GetProperty()->SetLineWidth(3);
+          break;
+        default:
+          break;
+        }
+      this->twoDAxesActor->GetProperty()->SetColor(this->Color->GetValue(0),
                                                    this->Color->GetValue(1),
                                                    this->Color->GetValue(2));
-      textActorHorizontal->SetInput(coord.c_str());
+      this->MarkerRenderer->AddActor2D(this->twoDAxesActor);
 
-      textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (this->fontSize * 2)), 15);
 
-      this->MarkerRenderer->AddActor2D(textActorHorizontal);
+      std::string coord;
+      double outputHorizontalValues[3] = {0.}, oldOutputHorizontalValues[3] = {0.};
+
+      // allocate 2DTextActors for the horizontal axes
+      for (int i = 0; i < numberOfPointsHorizontal; i++)
+        {
+        if((*xyzDisplay)[i][0] < 30 || (*xyzDisplay)[i][0] > viewWidthPixel - 30)
+          {
+          continue;
+          }
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2],
+                                                           oldOutputHorizontalValues,
+                                                           outputHorizontalValues, 0, true);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          coord = displayNode->GetDisplayStringFromValueX((*world)[i][0],
+                                                           oldOutputHorizontalValues,
+                                                           outputHorizontalValues, 0, true);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          double dist = sqrt((((*world)[i][0] - worldD[0]) * ((*world)[i][0] - worldD[0])) +
+                            (((*world)[i][1] - worldD[1]) * ((*world)[i][1] - worldD[1])));
+          coord = displayNode->GetDisplayStringFromValueY(dist,
+                                                          oldOutputHorizontalValues,
+                                                          outputHorizontalValues, 0, true);
+          }
+
+        oldOutputHorizontalValues[0] = outputHorizontalValues[0];
+        oldOutputHorizontalValues[1] = outputHorizontalValues[1];
+        oldOutputHorizontalValues[2] = outputHorizontalValues[2];
+
+        vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
+        vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
+        textProperty->SetFontSize(this->fontSize);
+
+        if (!fontStyle.compare("Arial"))
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+        else if (!fontStyle.compare("Courier"))
+          {
+          textProperty->SetFontFamilyToCourier();
+          }
+        else if (!fontStyle.compare("Times"))
+          {
+          textProperty->SetFontFamilyToTimes();
+          }
+        else
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+
+        textActorHorizontal->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                     this->Color->GetValue(1),
+                                                     this->Color->GetValue(2));
+        textActorHorizontal->SetInput(coord.c_str());
+
+        textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (this->fontSize * 2)), 15);
+
+        this->MarkerRenderer->AddActor2D(textActorHorizontal);
+        }
+
+      double outputVerticalValues[3] = {0.}, oldOutputVerticalValues[3] = {0.};
+
+      // allocate 2DTextActors for the vertical axes
+      for (int i = numberOfPointsHorizontal; i < nTot; i++)
+        {
+        if((*xyzDisplay)[i][1] < 50 || (*xyzDisplay)[i][1] > viewHeightPixel)
+          {
+          continue;
+          }
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          coord = displayNode->GetDisplayStringFromValueY((*world)[i][1],
+                                                           oldOutputVerticalValues,
+                                                           outputVerticalValues, 0);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2],
+                                                           oldOutputVerticalValues,
+                                                           outputVerticalValues, 0);
+          }
+
+        oldOutputVerticalValues[0] = outputVerticalValues[0];
+        oldOutputVerticalValues[1] = outputVerticalValues[1];
+        oldOutputVerticalValues[2] = outputVerticalValues[2];
+
+        vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
+        vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
+        textProperty->SetFontSize(this->fontSize);
+
+        if (!fontStyle.compare("Arial"))
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+        else if (!fontStyle.compare("Courier"))
+          {
+          textProperty->SetFontFamilyToCourier();
+          }
+        else if (!fontStyle.compare("Times"))
+          {
+          textProperty->SetFontFamilyToTimes();
+          }
+        else
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+
+        textActorVertical->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                   this->Color->GetValue(1),
+                                                   this->Color->GetValue(2));
+        textActorVertical->SetInput(coord.c_str());
+        textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (this->fontSize * 0.5)));
+        this->MarkerRenderer->AddActor2D(textActorVertical);
+        }
+
+      world->clear();
+      xyzDisplay->clear();
+      temp->clear();
+      delete world;
+      delete xyzDisplay;
+      delete temp;
+
+      this->ShowActors(true);
+      break;
       }
-
-    // allocate 2DTextActors for the vertical axes
-    for (int i = numberOfPointsHorizontal; i < nTot; i++)
+    else if (displayLabelNode)
       {
-      if((*xyzDisplay)[i][1] < 50 || (*xyzDisplay)[i][1] > viewHeightPixel)
+      if (strcmp(displayLabelNode->GetSpace(), "WCS") != 0)
         {
         continue;
         }
 
-      if (!sliceNode->GetOrientation().compare("ZY") ||
-          !sliceNode->GetOrientation().compare("XY"))
+      hasDisplay = true;
+
+      sliceNode->UpdateMatrices();
+      sliceLayerLogic->UpdateTransforms();
+
+      vtkGeneralTransform* xyToIJK =
+          sliceLayerLogic->GetXYToIJKTransform();
+
+      int numberOfPointsHorizontal = (int) (viewWidthPixel / 150.) + 1;
+      if (numberOfPointsHorizontal < 5)
         {
-        coord = displayNode->GetDisplayStringFromValueY((*world)[i][1], 0);
+        numberOfPointsHorizontal = 5;
+        }
+      int numberOfPointsVertical = (int) (viewHeightPixel / 150.) + 1;
+      if (numberOfPointsVertical < 5)
+        {
+        numberOfPointsVertical = 5;
+        }
+      double worldA[] = {0.,0.,0.}, worldB[] = {0.,0.,0.}, worldC[] = {0.,0.,0.}, worldD[] = {0.,0.,0.};
+      double xyz[] = {0.,0.,0.}, ijk[] = {0.,0.,0.};
+      double axisCoord[] = {0.,0.}, wcsStep[] = {0.,0.};
+      double PVwcsStepCos = 0., PVwcsStepSin = 0., PVAngle = 0.;
+      std::vector<std::vector<double> > *world = new std::vector<std::vector<double> >();
+      std::vector<std::vector<double> > *xyzDisplay = new std::vector<std::vector<double> >();
+      std::vector<double> *temp = new std::vector<double>();
+
+      // calculate WCS coordinates of the view's corners
+      xyToIJK->TransformPoint(xyz, ijk);
+      int controlY1 = ijk[1];
+      displayLabelNode->GetReferenceSpace(ijk, worldA);
+
+      xyz[0] = viewWidthPixel;
+      xyToIJK->TransformPoint(xyz, ijk);
+      displayLabelNode->GetReferenceSpace(ijk, worldB);
+
+      xyz[0] = 0.;
+      xyz[1] = viewHeightPixel;
+      xyToIJK->TransformPoint(xyz, ijk);
+      int controlY2 = ijk[1];
+      // check if the reformat plane is parallel to the velocity axes
+      bool showReformat = false;
+      if (controlY1 == controlY2 && !sliceNode->GetOrientation().compare("Reformat"))
+        {
+        showReformat = true;
+        }
+      else if(!sliceNode->GetOrientation().compare("Reformat")    )
+        {
+        this->ShowActors(false);
+        return;
         }
 
-      if (!sliceNode->GetOrientation().compare("XZ") ||
-          !sliceNode->GetOrientation().compare("PVMajor") ||
+      displayLabelNode->GetReferenceSpace(ijk, worldC);
+
+      xyz[0] = viewWidthPixel / 2.;
+      xyz[1] = 0.;
+      xyToIJK->TransformPoint(xyz, ijk);
+      displayLabelNode->GetReferenceSpace(ijk, worldD);
+
+      // calculate the wcsSteps for the two axes
+      if (!sliceNode->GetOrientation().compare("ZY"))
+        {
+        wcsStep[0] = displayLabelNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldB[2]), &numberOfPointsHorizontal);
+        axisCoord[0] = displayLabelNode->GetFirstWcsTickAxisZ(worldA[2], worldB[2], wcsStep[0]);
+        wcsStep[1] = displayLabelNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
+        axisCoord[1] = displayLabelNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
+        }
+
+      if (!sliceNode->GetOrientation().compare("XY"))
+        {
+        wcsStep[0] = displayLabelNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
+        axisCoord[0] = displayLabelNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
+        wcsStep[1] = displayLabelNode->GetWcsTickStepAxisY(fabs(worldA[1] - worldC[1]), &numberOfPointsVertical);
+        axisCoord[1] = displayLabelNode->GetFirstWcsTickAxisY(worldA[1], worldC[1], wcsStep[1]);
+        }
+
+      if (!sliceNode->GetOrientation().compare("XZ"))
+        {
+        wcsStep[0] = displayLabelNode->GetWcsTickStepAxisX(fabs(worldA[0] - worldB[0]), &numberOfPointsHorizontal);
+        axisCoord[0] = displayLabelNode->GetFirstWcsTickAxisX(worldA[0], worldB[0], wcsStep[0]);
+        wcsStep[1] = displayLabelNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
+        axisCoord[1] = displayLabelNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
+        }
+
+      if (!sliceNode->GetOrientation().compare("PVMajor") ||
           !sliceNode->GetOrientation().compare("PVMinor") ||
           showReformat)
         {
-        coord = displayNode->GetDisplayStringFromValueZ((*world)[i][2], 0);
+        double distX = (worldA[0] - worldB[0]);
+        double distY = (worldA[1] - worldB[1]);
+        double dist = sqrt((distX * distX) + (distY * distY));
+        wcsStep[0] = displayLabelNode->GetWcsTickStepAxisY(dist, &numberOfPointsHorizontal);
+
+        PVAngle = atan(distY / distX);
+        PVwcsStepCos = wcsStep[0] * cos(PVAngle);
+        PVwcsStepSin = wcsStep[0] * sin(PVAngle);
+
+        if (numberOfPointsHorizontal % 2 != 0)
+          {
+          numberOfPointsHorizontal += 1;
+          }
+        wcsStep[1] = displayLabelNode->GetWcsTickStepAxisZ(fabs(worldA[2] - worldC[2]), &numberOfPointsVertical);
+        axisCoord[1] = displayLabelNode->GetFirstWcsTickAxisZ(worldA[2], worldC[2], wcsStep[1]);
         }
 
-      vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
-      vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
-      textProperty->SetFontSize(this->fontSize);
+      // allocate point along the horizontal axes
+      for (int i = 0; i < numberOfPointsHorizontal; i++)
+        {
+        int i8 = i * 8;
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          temp->clear();
+          temp->push_back(worldA[0]);
+          temp->push_back(worldA[1]);
+          temp->push_back(axisCoord[0] + wcsStep[0] * i);
+          world->push_back((*temp));
+          }
 
-      if (!fontStyle.compare("Arial"))
-        {
-        textProperty->SetFontFamilyToArial();
-        }
-      else if (!fontStyle.compare("Courier"))
-        {
-        textProperty->SetFontFamilyToCourier();
-        }
-      else if (!fontStyle.compare("Times"))
-        {
-        textProperty->SetFontFamilyToTimes();
-        }
-      else
-        {
-        textProperty->SetFontFamilyToArial();
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          temp->clear();
+          temp->push_back(axisCoord[0] + wcsStep[0] * i);
+          temp->push_back(worldA[1]);
+          temp->push_back(worldA[2]);
+          world->push_back((*temp));
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          temp->clear();
+          temp->push_back(worldD[0] + PVwcsStepCos  * (i - (numberOfPointsHorizontal / 2.)));
+          temp->push_back(worldD[1] + PVwcsStepSin  * (i - (numberOfPointsHorizontal / 2.)));
+          temp->push_back(worldD[2]);
+          world->push_back((*temp));
+          }
+
+        displayLabelNode->GetIJKSpace((*world)[i], ijk);
+        xyToIJK->Inverse();
+        xyToIJK->TransformPoint(ijk, xyz);
+        temp->clear();
+        temp->push_back(xyz[0]);
+        temp->push_back(xyz[1]);
+        temp->push_back(xyz[2]);
+        xyzDisplay->push_back((*temp));
+        this->twoDAxesPoints->InsertPoint(i8, xyz[0], MajorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 1, xyz[0], MajorTickMax, 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 4.);
+          xyz[1] = worldA[1];
+          xyz[2] = worldA[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 4.;
+          xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 4.;
+          xyz[2] = worldD[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 2, xyz[0], MinorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 3, xyz[0], MinorTickMax, 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] / 2.);
+          xyz[1] = worldA[1];
+          xyz[2] = worldA[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos / 2.;
+          xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin / 2.;
+          xyz[2] = worldD[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 4, xyz[0], MinorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 5, xyz[0], MinorTickMax, 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          xyz[0] = axisCoord[0] + (wcsStep[0] * i + wcsStep[0] * 3. / 4.);
+          xyz[1] = worldA[1];
+          xyz[2] = worldA[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldD[0] + PVwcsStepCos * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepCos * 3. / 4.;
+          xyz[1] = worldD[1] + PVwcsStepSin * (i - (numberOfPointsHorizontal / 2.)) + PVwcsStepSin * 3. / 4.;
+          xyz[2] = worldD[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 6, xyz[0], MinorTickMin, 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 7, xyz[0], MinorTickMax, 0);
+
+        xyToIJK->Inverse();
         }
 
-      textActorVertical->GetProperty()->SetColor(this->Color->GetValue(0),
-                                                 this->Color->GetValue(1),
-                                                 this->Color->GetValue(2));
-      textActorVertical->SetInput(coord.c_str());
-      textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (this->fontSize * 0.5)));
-      this->MarkerRenderer->AddActor2D(textActorVertical);
+      int nTot = numberOfPointsVertical + numberOfPointsHorizontal;
+
+      // allocate point along the vertical axes
+      for (int i = numberOfPointsHorizontal; i < nTot; i++)
+        {
+        int ii = i - numberOfPointsHorizontal;
+        int i8 = i * 8;
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          temp->clear();
+          temp->push_back(worldA[0]);
+          temp->push_back(axisCoord[1] + wcsStep[1] * ii);
+          temp->push_back(worldA[2]);
+          world->push_back((*temp));
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          temp->clear();
+          temp->push_back(worldA[0]);
+          temp->push_back(worldA[1]);
+          temp->push_back(axisCoord[1] + wcsStep[1] * ii);
+          world->push_back((*temp));
+          }
+
+        displayLabelNode->GetIJKSpace((*world)[i], ijk);
+        xyToIJK->Inverse();
+        xyToIJK->TransformPoint(ijk, xyz);
+        temp->clear();
+        temp->push_back(xyz[0]);
+        temp->push_back(xyz[1]);
+        temp->push_back(xyz[2]);
+        xyzDisplay->push_back((*temp));
+
+        this->twoDAxesPoints->InsertPoint(i8, MajorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 1, MajorTickMax, xyz[1], 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
+          xyz[2] = worldA[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 4.);
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 2, MinorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 3, MinorTickMax, xyz[1], 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
+          xyz[2] = worldA[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] / 2.);
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 4, MinorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 5, MinorTickMax, xyz[1], 0);
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
+          xyz[2] = worldA[2];
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          xyz[0] = worldA[0];
+          xyz[1] = worldA[1];
+          xyz[2] = axisCoord[1] + (wcsStep[1] * ii + wcsStep[1] * 3. / 4.);
+          displayLabelNode->GetIJKSpace(xyz, ijk);
+          }
+
+        xyToIJK->TransformPoint(ijk, xyz);
+        this->twoDAxesPoints->InsertPoint(i8 + 6, MinorTickMin, xyz[1], 0);
+        this->twoDAxesPoints->InsertPoint(i8 + 7, MinorTickMax, xyz[1], 0);
+
+        xyToIJK->Inverse();
+        }
+
+      int n = this->twoDAxesPoints->GetNumberOfPoints();
+
+      // unify the points with lines
+      std::vector<vtkSmartPointer<vtkLine> > lines;
+      for (int i = 0; i < n - 1; i++)
+        {
+        vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
+        lines.push_back(line);
+        }
+
+      int nHori8 = numberOfPointsHorizontal * 8;
+      for (int i = 0; i < nHori8 - 1; i++)
+        {
+        if (i%2 == 0)
+          {
+          lines[i]->GetPointIds()->SetId(0, i);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        else
+          {
+          lines[i]->GetPointIds()->SetId(0, i - 1);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        }
+
+      int nVert8 = numberOfPointsVertical * 8;
+      int nTot8 = nHori8 + nVert8;
+      for (int i = nHori8; i < nTot8 - 1; i++)
+        {
+        if (i%2 == 0)
+          {
+          lines[i]->GetPointIds()->SetId(0, i);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        else
+          {
+          lines[i]->GetPointIds()->SetId(0, i - 1);
+          lines[i]->GetPointIds()->SetId(1, i + 1);
+          }
+        }
+
+      // create the cellArray
+      for (int i = 0; i < n - 1; i++)
+        {
+        this->twoDAxesCellArray->InsertNextCell(lines[i]);
+        }
+
+      // setup the mapper and actor
+      this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
+      this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
+      this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
+      this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
+      switch (type)
+        {
+        case vtkMRMLAbstractViewNode::RulerTypeThin:
+          this->twoDAxesActor->GetProperty()->SetLineWidth(1);
+          break;
+        case vtkMRMLAbstractViewNode::RulerTypeThick:
+          this->twoDAxesActor->GetProperty()->SetLineWidth(3);
+          break;
+        default:
+          break;
+        }
+      this->twoDAxesActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                   this->Color->GetValue(1),
+                                                   this->Color->GetValue(2));
+      this->MarkerRenderer->AddActor2D(this->twoDAxesActor);
+
+
+      std::string coord;
+      double outputHorizontalValues[3] = {0.}, oldOutputHorizontalValues[3] = {0.};
+
+      // allocate 2DTextActors for the horizontal axes
+      for (int i = 0; i < numberOfPointsHorizontal; i++)
+        {
+        if((*xyzDisplay)[i][0] < 30 || (*xyzDisplay)[i][0] > viewWidthPixel - 30)
+          {
+          continue;
+          }
+
+        if (!sliceNode->GetOrientation().compare("ZY"))
+          {
+          coord = displayLabelNode->GetDisplayStringFromValueZ((*world)[i][2],
+                                                           oldOutputHorizontalValues,
+                                                           outputHorizontalValues, 0, true);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XY") ||
+            !sliceNode->GetOrientation().compare("XZ"))
+          {
+          coord = displayLabelNode->GetDisplayStringFromValueX((*world)[i][0],
+                                                           oldOutputHorizontalValues,
+                                                           outputHorizontalValues, 0, true);
+          }
+
+        if (!sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          double dist = sqrt((((*world)[i][0] - worldD[0]) * ((*world)[i][0] - worldD[0])) +
+                            (((*world)[i][1] - worldD[1]) * ((*world)[i][1] - worldD[1])));
+          coord = displayLabelNode->GetDisplayStringFromValueY(dist,
+                                                          oldOutputHorizontalValues,
+                                                          outputHorizontalValues, 0, true);
+          }
+
+        oldOutputHorizontalValues[0] = outputHorizontalValues[0];
+        oldOutputHorizontalValues[1] = outputHorizontalValues[1];
+        oldOutputHorizontalValues[2] = outputHorizontalValues[2];
+
+        vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
+        vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
+        textProperty->SetFontSize(this->fontSize);
+
+        if (!fontStyle.compare("Arial"))
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+        else if (!fontStyle.compare("Courier"))
+          {
+          textProperty->SetFontFamilyToCourier();
+          }
+        else if (!fontStyle.compare("Times"))
+          {
+          textProperty->SetFontFamilyToTimes();
+          }
+        else
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+
+        textActorHorizontal->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                     this->Color->GetValue(1),
+                                                     this->Color->GetValue(2));
+        textActorHorizontal->SetInput(coord.c_str());
+
+        textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (this->fontSize * 2)), 15);
+
+        this->MarkerRenderer->AddActor2D(textActorHorizontal);
+        }
+
+      double outputVerticalValues[3] = {0.}, oldOutputVerticalValues[3] = {0.};
+
+      // allocate 2DTextActors for the vertical axes
+      for (int i = numberOfPointsHorizontal; i < nTot; i++)
+        {
+        if((*xyzDisplay)[i][1] < 50 || (*xyzDisplay)[i][1] > viewHeightPixel)
+          {
+          continue;
+          }
+
+        if (!sliceNode->GetOrientation().compare("ZY") ||
+            !sliceNode->GetOrientation().compare("XY"))
+          {
+          coord = displayLabelNode->GetDisplayStringFromValueY((*world)[i][1],
+                                                           oldOutputVerticalValues,
+                                                           outputVerticalValues, 0);
+          }
+
+        if (!sliceNode->GetOrientation().compare("XZ") ||
+            !sliceNode->GetOrientation().compare("PVMajor") ||
+            !sliceNode->GetOrientation().compare("PVMinor") ||
+            showReformat)
+          {
+          coord = displayLabelNode->GetDisplayStringFromValueZ((*world)[i][2],
+                                                           oldOutputVerticalValues,
+                                                           outputVerticalValues, 0);
+          }
+
+        oldOutputVerticalValues[0] = outputVerticalValues[0];
+        oldOutputVerticalValues[1] = outputVerticalValues[1];
+        oldOutputVerticalValues[2] = outputVerticalValues[2];
+
+        vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
+        vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
+        textProperty->SetFontSize(this->fontSize);
+
+        if (!fontStyle.compare("Arial"))
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+        else if (!fontStyle.compare("Courier"))
+          {
+          textProperty->SetFontFamilyToCourier();
+          }
+        else if (!fontStyle.compare("Times"))
+          {
+          textProperty->SetFontFamilyToTimes();
+          }
+        else
+          {
+          textProperty->SetFontFamilyToArial();
+          }
+
+        textActorVertical->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                   this->Color->GetValue(1),
+                                                   this->Color->GetValue(2));
+        textActorVertical->SetInput(coord.c_str());
+        textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (this->fontSize * 0.5)));
+        this->MarkerRenderer->AddActor2D(textActorVertical);
+        }
+
+      world->clear();
+      xyzDisplay->clear();
+      temp->clear();
+      delete world;
+      delete xyzDisplay;
+      delete temp;
+
+      this->ShowActors(true);
+      break;
       }
-
-    world->clear();
-    xyzDisplay->clear();
-    temp->clear();
-    delete world;
-    delete xyzDisplay;
-    delete temp;
-
-    this->ShowActors(true);
-    break;
     }
 
   if (!hasDisplay)

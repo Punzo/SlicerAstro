@@ -1025,15 +1025,16 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->DoubleSpinBoxZ->show();
         if (inputVolumeNode)
           {
+          double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
           double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
           d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueX(cdelt1, 3).c_str());
+            ->GetDisplayStringFromValueX(cdelt1, oldOutputValues, outputValues, 3).c_str());
           double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
           d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
+            ->GetDisplayStringFromValueY(cdelt2, oldOutputValues, outputValues, 3).c_str());
           double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
           d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueZ(cdelt3, 3).c_str());
+            ->GetDisplayStringFromValueZ(cdelt3, oldOutputValues, outputValues, 3).c_str());
           }
         d->SigmaXLabel->setText("N<sub>X</sub>:");
         d->SigmaYLabel->setText("N<sub>Y</sub>:");
@@ -1114,15 +1115,16 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
         d->DoubleSpinBoxZ->show();
         if (inputVolumeNode)
           {
+          double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
           double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
           d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueY(cdelt1, 3).c_str());
+            ->GetDisplayStringFromValueY(cdelt1, oldOutputValues, outputValues, 3).c_str());
           double cdelt2 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT2"));
           d->CDELT2LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueY(cdelt2, 3).c_str());
+            ->GetDisplayStringFromValueY(cdelt2, oldOutputValues, outputValues, 3).c_str());
           double cdelt3 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT3"));
           d->CDELT3LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
-                                       ->GetDisplayStringFromValueZ(cdelt3, 3).c_str());
+            ->GetDisplayStringFromValueZ(cdelt3, oldOutputValues, outputValues, 3).c_str());
           }
         d->SigmaXLabel->setText("FWHM<sub>X</sub>:");
         d->SigmaYLabel->setText("FWHM<sub>Y</sub>:");

@@ -490,44 +490,56 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
     return 0.;
     }
 
-  int nPoint = 1000;
-  double step = wcsLength;
-  int s = 1;
+  int nPoint = numberOfPoints[0];
+  double step = wcsLength / nPoint;
 
   if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
     {
     step *= 0.066666666666667;
     }
 
-  while (nPoint > numberOfPoints[0])
+  std::string displayValueString;
+  std::stringstream strstream;
+
+  strstream.precision(1);
+  strstream << step;
+  strstream >> displayValueString;
+  for (int i = 9; i > 0; i--)
     {
-    step = wcsLength * s / 5.;
-    std::string displayValueString;
-    std::stringstream strstream;
 
-    strstream.precision(1);
-    strstream << step;
-    strstream >> displayValueString;
-    for (int i = 9; i > 0; i--)
+    std::size_t found = displayValueString.find(IntToString(i));
+    std::size_t foundE = displayValueString.find("e");
+
+    if (found != std::string::npos && found > foundE)
       {
+      continue;
+      }
 
-      std::size_t found = displayValueString.find(IntToString(i));
-      std::size_t foundE = displayValueString.find("e");
-
-      if (found != std::string::npos && found > foundE)
+    if (found != std::string::npos)
+      {
+      if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+          !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds")))
         {
-        continue;
-        }
-
-      if (found != std::string::npos)
-        {
-        if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-            !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-           && step < 0.6 && step > 0.095)
+        if(step > 0.95)
+          {
+          if(i >= 5)
+            {
+            displayValueString.replace(found, found+1, "10");
+            }
+          else if(i >= 3)
+            {
+            displayValueString.replace(found, found+1, "5");
+            }
+          else
+            {
+            displayValueString.replace(found, found+1, "2");
+            }
+          }
+        else if(step < 0.95 && step > 0.095)
           {
           if(i > 6)
             {
-            displayValueString.replace(found, found+1, "10");
+            displayValueString.replace(found-1, found, "1");
             }
           else if(i > 3)
             {
@@ -539,14 +551,12 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
             }
           else
             {
-            displayValueString.replace(found, found+1, "08333333333333333333333");
+            displayValueString.replace(found, found+1, "1666666666666666666666");
             }
           }
-        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-                && step < 0.095 && step > 0.0045)
+        else if(step < 0.095 && step > 0.0095)
           {
-          if(i > 4)
+          if(i >= 5)
             {
             displayValueString.replace(found, found+1, "8333333333333333333333");
             }
@@ -559,11 +569,9 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
             displayValueString.replace(found, found+1, "1666666666666666666666");
             }
           }
-        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-                && step < 0.0045 && step > 0.001)
+        else if(step < 0.0095 && step > 0.00095)
           {
-          if(i > 5)
+          if(i >= 5)
             {
             displayValueString.replace(found, found+1, "8333333333333333333333");
             }
@@ -571,14 +579,16 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
             {
             displayValueString.replace(found, found+1, "4166666666666666666666");
             }
+          else if(i >= 2)
+            {
+            displayValueString.replace(found, found+1, "2083333333333333333333");
+            }
           else
             {
             displayValueString.replace(found, found+1, "1388888888888888888888");
             }
           }
-        else if((!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-                 !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-                && step < 0.001)
+        else if(step < 0.00095)
           {
           if(i > 6)
             {
@@ -593,36 +603,31 @@ double vtkMRMLAstroLabelMapVolumeDisplayNode::GetWcsTickStepAxis(const double wc
             displayValueString.replace(found, found+1, "2777777777777778");
             }
           }
+        }
+      else
+        {
+        if(i > 6)
+          {
+          displayValueString.replace(found, found+1, "10");
+          }
+        else if(i >= 3)
+          {
+          displayValueString.replace(found, found+1, "5");
+          }
         else
           {
-          if(i > 6)
-            {
-            displayValueString.replace(found, found+1, "10");
-            }
-          else if(i > 3)
-            {
-            displayValueString.replace(found, found+1, "5");
-            }
-          else if (i>= 2)
-            {
-            displayValueString.replace(found, found+1, "2");
-            }
-          else
-            {
-            displayValueString.replace(found, found+1, "1");
-            }
+          displayValueString.replace(found, found+1, "2");
           }
-        break;
         }
+      break;
       }
-    step = StringToDouble(displayValueString.c_str());
-    if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-      {
-      step /= 0.066666666666667;
-      }
-    nPoint = (int) (wcsLength / step);
-    s *= 2;
     }
+  step = StringToDouble(displayValueString.c_str());
+  if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    step /= 0.066666666666667;
+    }
+
   *numberOfPoints = nPoint + 3;
   return step;
 }
@@ -828,193 +833,234 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(const double world,
                                                                              vtkMRMLUnitNode *node,
                                                                              int precision,
-                                                                             const char* language)
+                                                                             const char* language,
+                                                                             const double oldOutputValues[3],
+                                                                             double outputValues[3],
+                                                                             bool horizontalAxis /* = false */)
 {
-  std::string value = "";
-  if(!node)
-    {
-    return value.c_str();
-    }
+ std::string value = "";
+ if(!node)
+   {
+   return value.c_str();
+   }
 
-  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-      !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-    {
-    std::string firstPrefix;
-    std::string secondPrefix;
-    std::string thirdPrefix;
-    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
-      {
-      if (!strcmp(language, "C++"))
-        {
-        firstPrefix = "\u00B0 "; //C++
-        }
-      else if (!strcmp(language, "Python"))
-        {
-        firstPrefix = "\xB0 "; //Python
-        }
-      else
-        {
-        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
-                      "no degree uft-8 code found for "<<language);
-        }
-      secondPrefix = "\x27 ";
-      thirdPrefix = "\x22";
-      }
-    if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-      {
-      firstPrefix = "h ";
-      secondPrefix = "m ";
-      thirdPrefix = "s";
-      }
+ if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+     !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+   {
+   std::string firstPrefix;
+   std::string secondPrefix;
+   std::string thirdPrefix;
+   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+     {
+     if (!strcmp(language, "C++"))
+       {
+       firstPrefix = "\u00B0 "; //C++
+       }
+     else if (!strcmp(language, "Python"))
+       {
+       firstPrefix = "\xB0 "; //Python
+       }
+     else
+       {
+       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
+                     "no degree uft-8 code found for "<<language);
+       }
+     secondPrefix = "\x27 ";
+     thirdPrefix = "\x22";
+     }
+   if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+     {
+     firstPrefix = "h ";
+     secondPrefix = "m ";
+     thirdPrefix = "s";
+     }
 
-    double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
-    std::string displayValueString;
-    std::stringstream strstream;
-    strstream.setf(ios::fixed,ios::floatfield);
+   double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
+   std::string displayValueString;
+   std::stringstream strstream;
+   strstream.setf(ios::fixed,ios::floatfield);
 
-    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
-      {
-      displayValue = world;
-      }
-    else
-      {
-      displayValue = node->GetDisplayValueFromValue(world);
-      }
+   displayValue = world;
 
-    firstFractpart = modf(displayValue, &firstIntpart);
-    if(firstFractpart * 60. > 59.99999)
-      {
-      firstFractpart = 0.;
-      firstIntpart += 1.;
-      }
-    if (firstIntpart > 0.00001)
-      {
-      value = DoubleToString(firstIntpart) + firstPrefix;
-      }
-    else
-      {
-      value = "   ";
-      }
+   firstFractpart = modf(displayValue, &firstIntpart);
+   if(firstFractpart * 60. > 59.99999)
+     {
+     firstFractpart = 0.;
+     firstIntpart += 1.;
+     }
 
-    secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
-    if(secondFractpart > 59.99999)
-      {
-      secondFractpart = 0.;
-      secondIntpart += 1.;
-      }
-    if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
-      {
-      displayValueString = DoubleToString(fabs(secondIntpart));
-      }
-    else
-      {
-      displayValueString = "   ";
-      }
-    if(secondIntpart < 10.)
-      {
-      displayValueString = " " + displayValueString;
-      }
-    if (secondIntpart > 0.00001 || firstIntpart > 0.00001)
-      {
-      displayValueString += secondPrefix;
-      }
-    value = value + displayValueString;
-    displayValueString = "";
-    strstream.precision(precision);
-    strstream << fabs(secondFractpart);
-    strstream >> displayValueString;
-    if(secondFractpart < 10.)
-      {
-      displayValueString = " " + displayValueString;
-      }
+   // First
+   outputValues[0] = firstIntpart;
+   if (firstIntpart > 0.00001 &&
+       fabs(outputValues[0] - oldOutputValues[0]) > 1.E-6)
+     {
+     value = DoubleToString(firstIntpart) + firstPrefix;
+     }
+   else if (horizontalAxis)
+     {
+     value = "   ";
+     }
+   else
+     {
+     value = "";
+     }
 
-    value = value + displayValueString + thirdPrefix;
-    return value.c_str();
-    }
+   // Second
+   secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
+   if(secondFractpart > 59.99999)
+     {
+     secondFractpart = 0.;
+     secondIntpart += 1.;
+     }
 
-   return node->GetDisplayStringFromValue(world);
+   outputValues[1] = secondIntpart;
+   if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
+       fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
+     {
+     displayValueString = DoubleToString(fabs(secondIntpart));
+     }
+   else if (horizontalAxis)
+     {
+     displayValueString = "   ";
+     }
+   else
+     {
+     displayValueString = "";
+     }
+
+   if(secondIntpart < 10.)
+     {
+     displayValueString = " " + displayValueString;
+     }
+   if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
+       fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
+     {
+     displayValueString += secondPrefix;
+     }
+   value = value + displayValueString;
+
+   // Third
+   displayValueString = "";
+   strstream.precision(precision);
+   strstream << fabs(secondFractpart);
+   strstream >> displayValueString;
+
+   outputValues[2] = StringToDouble(displayValueString.c_str());
+   if(secondFractpart < 10.)
+     {
+     displayValueString = " " + displayValueString;
+     }
+
+   if (fabs(outputValues[2] - oldOutputValues[2]) > 1.E-6)
+     {
+     value = value + displayValueString + thirdPrefix;
+     }
+   else
+     {
+     value = "  " + value;
+     }
+
+   return value.c_str();
+   }
+
+  return node->GetDisplayStringFromValue(world);
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueX(const double world,
-                                                                              int precision = 0)
+                                                                              const double oldOutputValues[3],
+                                                                              double outputValues[3],
+                                                                              int precision /* = 0 */,
+                                                                              bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueY(const double world,
-                                                                              int precision = 0)
+                                                                              const double oldOutputValues[3],
+                                                                              double outputValues[3],
+                                                                              int precision /* = 0 */,
+                                                                              bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValueZ(const double world,
-                                                                              int precision = 0)
+                                                                              const double oldOutputValues[3],
+                                                                              double outputValues[3],
+                                                                              int precision /* = 0 */,
+                                                                              bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++");
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromValueX(const double world,
-                                                                                    int precision = 0)
+                                                                                    int precision /* = 0 */,
+                                                                                    bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    double outputValues[3], oldOutputValues[3];
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromValueY(const double world,
-                                                                                    int precision = 0)
+                                                                                    int precision /* = 0 */,
+                                                                                    bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    double outputValues[3], oldOutputValues[3];
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
 
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPythonDisplayStringFromValueZ(const double world,
-                                                                                    int precision = 0)
+                                                                                    int precision /* = 0 */,
+                                                                                    bool horizontalAxis /* = false*/)
 {
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
     vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python");
+    double outputValues[3], oldOutputValues[3];
+    return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, horizontalAxis);
     }
   return "";
 }
