@@ -102,7 +102,7 @@ QIcon qSlicerAstroMomentMapsModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroMomentMapsModule::categories()const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "Astronomy" << "Quantification";
 }
 
 //-----------------------------------------------------------------------------

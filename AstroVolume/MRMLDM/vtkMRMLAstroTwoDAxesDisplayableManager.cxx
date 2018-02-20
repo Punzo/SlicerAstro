@@ -20,6 +20,9 @@
 // MRMLDisplayableManager includes
 #include "vtkMRMLAstroTwoDAxesDisplayableManager.h"
 
+// Qt includes
+#include <QColor>
+
 // MRML includes
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
@@ -119,10 +122,19 @@ public:
 
   bool ActorsAddedToRenderer;
 
+  vtkSmartPointer<vtkDoubleArray> Color;
+  static const double COLOR_INVALID[3];
+
+  int fontSize;
+  std::string fontStyle;
+
   vtkMRMLAstroTwoDAxesDisplayableManager* External;
 
   qSlicerApplication* app;
 };
+
+//----------------------------------------------------------------------------
+const double vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::COLOR_INVALID[3] = {1., 0.731, 0.078};
 
 //---------------------------------------------------------------------------
 // vtkInternal methods
@@ -143,6 +155,13 @@ vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::vtkInternal(vtkMRMLAstroTwo
   this->twoDAxesMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
   this->col = vtkSmartPointer<vtkCollection>::New();
   this->app = 0;
+  this->Color = vtkSmartPointer<vtkDoubleArray>::New();
+  this->Color->SetNumberOfValues(3);
+  this->Color->SetValue(0, COLOR_INVALID[0]);
+  this->Color->SetValue(1, COLOR_INVALID[1]);
+  this->Color->SetValue(2, COLOR_INVALID[2]);
+  this->fontSize = 12;
+  this->fontStyle = "Arial";
 }
 
 //---------------------------------------------------------------------------
@@ -212,7 +231,6 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::SetupMarkerRenderer()
     }
   this->MarkerRenderer->SetLayer(RENDERER_LAYER);
   renderWindow->AddRenderer(this->MarkerRenderer);
-
 }
 
 //---------------------------------------------------------------------------
@@ -230,11 +248,15 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
   this->twoDAxesPoints->Squeeze();
   this->twoDAxesCellArray->Initialize();
   this->twoDAxesCellArray->Squeeze();
-  vtkActor2DCollection* actors = this->MarkerRenderer->GetActors2D() ;
+  vtkActor2DCollection* actors = this->MarkerRenderer->GetActors2D();
   actors->InitTraversal();
-  for (int i = 0; i < actors->GetNumberOfItems(); i++)
+  for (int actorIndex = 0; actorIndex < actors->GetNumberOfItems(); actorIndex++)
     {
     vtkActor2D* actor2D = actors->GetNextActor2D();
+    if (!actor2D)
+      {
+      continue;
+      }
     if (actor2D->IsA("vtkTextActor"))
       {
       this->MarkerRenderer->RemoveViewProp(actor2D);
@@ -744,20 +766,20 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
     this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
     this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
     this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
-    int fontSize = 12;
     switch (type)
       {
       case vtkMRMLAbstractViewNode::RulerTypeThin:
         this->twoDAxesActor->GetProperty()->SetLineWidth(1);
-        fontSize = 12;
         break;
       case vtkMRMLAbstractViewNode::RulerTypeThick:
         this->twoDAxesActor->GetProperty()->SetLineWidth(3);
-        fontSize = 18;
         break;
       default:
         break;
       }
+    this->twoDAxesActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                 this->Color->GetValue(1),
+                                                 this->Color->GetValue(2));
     this->MarkerRenderer->AddActor2D(this->twoDAxesActor);
 
 
@@ -792,18 +814,32 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
       vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
-      textProperty->SetFontSize(fontSize);
-      textProperty->SetFontFamilyToArial();
-      textActorHorizontal->SetInput(coord.c_str());
-      switch (type)
+      textProperty->SetFontSize(this->fontSize);
+
+      if (!fontStyle.compare("Arial"))
         {
-        case vtkMRMLAbstractViewNode::RulerTypeThin:
-          textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0]-30), 15);
-          break;
-        case vtkMRMLAbstractViewNode::RulerTypeThick:
-          textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0]-45), 15);
-          break;
-      }
+        textProperty->SetFontFamilyToArial();
+        }
+      else if (!fontStyle.compare("Courier"))
+        {
+        textProperty->SetFontFamilyToCourier();
+        }
+      else if (!fontStyle.compare("Times"))
+        {
+        textProperty->SetFontFamilyToTimes();
+        }
+      else
+        {
+        textProperty->SetFontFamilyToArial();
+        }
+
+      textActorHorizontal->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                   this->Color->GetValue(1),
+                                                   this->Color->GetValue(2));
+      textActorHorizontal->SetInput(coord.c_str());
+
+      textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (this->fontSize * 2)), 15);
+
       this->MarkerRenderer->AddActor2D(textActorHorizontal);
       }
 
@@ -831,10 +867,30 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
       vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
-      textProperty->SetFontSize(fontSize);
-      textProperty->SetFontFamilyToArial();
+      textProperty->SetFontSize(this->fontSize);
+
+      if (!fontStyle.compare("Arial"))
+        {
+        textProperty->SetFontFamilyToArial();
+        }
+      else if (!fontStyle.compare("Courier"))
+        {
+        textProperty->SetFontFamilyToCourier();
+        }
+      else if (!fontStyle.compare("Times"))
+        {
+        textProperty->SetFontFamilyToTimes();
+        }
+      else
+        {
+        textProperty->SetFontFamilyToArial();
+        }
+
+      textActorVertical->GetProperty()->SetColor(this->Color->GetValue(0),
+                                                 this->Color->GetValue(1),
+                                                 this->Color->GetValue(2));
       textActorVertical->SetInput(coord.c_str());
-      textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]-5));
+      textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (this->fontSize * 0.5)));
       this->MarkerRenderer->AddActor2D(textActorVertical);
       }
 
@@ -874,6 +930,42 @@ vtkMRMLAstroTwoDAxesDisplayableManager::~vtkMRMLAstroTwoDAxesDisplayableManager(
 void vtkMRMLAstroTwoDAxesDisplayableManager::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
+}
+
+//---------------------------------------------------------------------------
+vtkRenderer *vtkMRMLAstroTwoDAxesDisplayableManager::vtkMarkerRenderer()
+{
+  return this->Internal->MarkerRenderer;
+}
+
+//---------------------------------------------------------------------------
+void vtkMRMLAstroTwoDAxesDisplayableManager::SetAnnotationsColor(double red,
+                                                                 double green,
+                                                                 double blue)
+{
+  this->Internal->Color->SetValue(0, red);
+  this->Internal->Color->SetValue(1, green);
+  this->Internal->Color->SetValue(2, blue);
+  this->Internal->UpdateAxes();
+}
+
+//---------------------------------------------------------------------------
+void vtkMRMLAstroTwoDAxesDisplayableManager::SetAnnotationsFontStyle(const char *font)
+{
+  if (!font)
+    {
+    return;
+    }
+
+  this->Internal->fontStyle = font;
+  this->Internal->UpdateAxes();
+}
+
+//---------------------------------------------------------------------------
+void vtkMRMLAstroTwoDAxesDisplayableManager::SetAnnotationsFontSize(int size)
+{
+  this->Internal->fontSize = size;
+  this->Internal->UpdateAxes();
 }
 
 //---------------------------------------------------------------------------

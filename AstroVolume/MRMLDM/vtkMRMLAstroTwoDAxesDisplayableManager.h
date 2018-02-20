@@ -22,11 +22,10 @@
 
 // MRMLDisplayableManager includes
 #include "vtkMRMLAbstractDisplayableManager.h"
-
 #include <vtkSlicerAstroVolumeModuleMRMLDisplayableManagerExport.h>
 
-// STL includes
-#include <vector>
+// Qt declaration
+class QColor;
 
 /// \brief Displayable manager that displays 2D WCS axes in 2D view
 class VTK_MRMLDISPLAYABLEMANAGER_ASTRO_EXPORT vtkMRMLAstroTwoDAxesDisplayableManager
@@ -38,6 +37,16 @@ public:
   static vtkMRMLAstroTwoDAxesDisplayableManager* New();
   vtkTypeMacro(vtkMRMLAstroTwoDAxesDisplayableManager,vtkMRMLAbstractDisplayableManager);
   void PrintSelf(ostream& os, vtkIndent indent);
+
+  vtkRenderer* vtkMarkerRenderer();
+
+  void SetAnnotationsColor(double red,
+                           double green,
+                           double blue);
+
+  void SetAnnotationsFontStyle(const char* font);
+
+  void SetAnnotationsFontSize(int size);
 
 protected:
 

@@ -102,7 +102,7 @@ QIcon qSlicerAstroMaskingModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroMaskingModule::categories()const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "Astronomy" << "Filtering";
 }
 
 //-----------------------------------------------------------------------------

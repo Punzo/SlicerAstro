@@ -299,9 +299,9 @@ void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
     return;
     }
 
-  astroDisplayNode->SetContoursColor(0, color.red() / 256.);
-  astroDisplayNode->SetContoursColor(1, color.green() / 256.);
-  astroDisplayNode->SetContoursColor(2, color.blue() / 256.);
+  astroDisplayNode->SetContoursColor(0, color.red() / 255.);
+  astroDisplayNode->SetContoursColor(1, color.green() / 255.);
+  astroDisplayNode->SetContoursColor(2, color.blue() / 255.);
 }
 
 // --------------------------------------------------------------------------

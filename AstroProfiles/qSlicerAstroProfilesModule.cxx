@@ -102,7 +102,7 @@ QIcon qSlicerAstroProfilesModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroProfilesModule::categories()const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "Astronomy" << "Quantification";
 }
 
 //-----------------------------------------------------------------------------

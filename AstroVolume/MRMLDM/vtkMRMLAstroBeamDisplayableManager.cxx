@@ -137,10 +137,17 @@ public:
   vtkWeakPointer<vtkRenderer> ObservedRenderer;
 
   bool ActorsAddedToRenderer;
+
+  vtkSmartPointer<vtkDoubleArray> Color;
+  static const double COLOR_INVALID[3];
+
   vtkMRMLAstroBeamDisplayableManager* External;
 
   qSlicerApplication* app;
 };
+
+//----------------------------------------------------------------------------
+const double vtkMRMLAstroBeamDisplayableManager::vtkInternal::COLOR_INVALID[3] = {1., 0.731, 0.078};
 
 //---------------------------------------------------------------------------
 // vtkInternal methods
@@ -161,6 +168,11 @@ vtkMRMLAstroBeamDisplayableManager::vtkInternal::vtkInternal(vtkMRMLAstroBeamDis
   this->beamMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
   this->col = vtkSmartPointer<vtkCollection>::New();
   this->app = 0;
+  this->Color = vtkSmartPointer<vtkDoubleArray>::New();
+  this->Color->SetNumberOfValues(3);
+  this->Color->SetValue(0, COLOR_INVALID[0]);
+  this->Color->SetValue(1, COLOR_INVALID[1]);
+  this->Color->SetValue(2, COLOR_INVALID[2]);
 }
 
 //---------------------------------------------------------------------------
@@ -406,7 +418,10 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     this->beamPolyData->SetLines(this->beamCellArray);
     this->beamMapper->SetInputData(this->beamPolyData);
     this->beamActor->SetMapper(this->beamMapper);
-    this->beamActor->GetProperty()->SetLineWidth(1.5);
+    this->beamActor->GetProperty()->SetLineWidth(2);
+    this->beamActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                             this->Color->GetValue(1),
+                                             this->Color->GetValue(2));
     this->MarkerRenderer->AddActor2D(this->beamActor);
 
     this->ShowActors(true);
@@ -438,6 +453,21 @@ vtkMRMLAstroBeamDisplayableManager::~vtkMRMLAstroBeamDisplayableManager()
 void vtkMRMLAstroBeamDisplayableManager::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os, indent);
+}
+
+//---------------------------------------------------------------------------
+vtkRenderer *vtkMRMLAstroBeamDisplayableManager::vtkMarkerRenderer()
+{
+  return this->Internal->MarkerRenderer;
+}
+
+//---------------------------------------------------------------------------
+void vtkMRMLAstroBeamDisplayableManager::SetAnnotationsColor(double red, double green, double blue)
+{
+  this->Internal->Color->SetValue(0, red);
+  this->Internal->Color->SetValue(1, green);
+  this->Internal->Color->SetValue(2, blue);
+  this->Internal->UpdateBeam();
 }
 
 //---------------------------------------------------------------------------

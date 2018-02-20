@@ -38,7 +38,6 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
     # Trigger the override of DataProbe when application has started up
     if not slicer.app.commandOptions().noMainWindow :
       slicer.app.connect("startupCompleted()", self.override)
-      #qt.QTimer.singleShot(2000, self.override);
 
 
   def override(self):
@@ -49,12 +48,139 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
       return
     SlicerAstroDataProbeLogic(parent)
 
+    # disable 3DSlicer Annotations
+    sliceAnnotations = slicer.modules.DataProbeInstance.infoWidget.sliceAnnotations
+    sliceAnnotations.sliceViewAnnotationsEnabled = 0
+    sliceAnnotations.updateSliceViewFromGUI()
+    sliceAnnotations.updateEnabledButtons()
+    sliceAnnotations.sliceViewAnnotationsCheckBox.checked = 0
+    settingsValue('DataProbe/sliceViewAnnotations.enabled', 0, converter=int)
+
 
 class SlicerAstroDataProbeWidget(ScriptedLoadableModuleWidget):
 
   def setup(self):
     self.developerMode = False
     ScriptedLoadableModuleWidget.setup(self)
+
+    annotationsCollapsibleButton = ctk.ctkCollapsibleButton()
+    annotationsCollapsibleButton.text = "Astro Annotations"
+    self.layout.addWidget(annotationsCollapsibleButton)
+    # Layout within the dummy collapsible button
+    annotationsFormLayout = qt.QVBoxLayout(annotationsCollapsibleButton)
+
+    # Color
+    horizontalLayout_1 = qt.QHBoxLayout()
+    horizontalLayout_1.setObjectName("horizontalLayout_1");
+
+    self.colorLabel = qt.QLabel()
+    self.colorLabel.setText("Annotations color:")
+    self.colorLabel.setFixedSize(qt.QSize(120, 30))
+    horizontalLayout_1.addWidget(self.colorLabel)
+
+    self.colorSelector = ctk.ctkColorPickerButton()
+    self.colorSelector.setObjectName("ColorPickerButton")
+    sizePolicy = qt.QSizePolicy()
+    sizePolicy.setHorizontalPolicy(qt.QSizePolicy.Expanding)
+    sizePolicy.setVerticalPolicy(qt.QSizePolicy.Fixed)
+    sizePolicy.setHorizontalStretch(0)
+    sizePolicy.setVerticalStretch(0)
+    sizePolicy.setHeightForWidth(self.colorSelector.sizePolicy.hasHeightForWidth())
+    self.colorSelector.setSizePolicy(sizePolicy)
+    self.colorSelector.setMinimumSize(qt.QSize(0, 30))
+    self.colorSelector.setIconSize(qt.QSize(32, 32))
+    self.colorSelector.setColor(qt.QColor(255, 187, 20))
+    self.colorSelector.setDisplayColorName(0)
+    horizontalLayout_1.addWidget(self.colorSelector)
+
+    annotationsFormLayout.addLayout(horizontalLayout_1)
+
+    # Font Style
+    horizontalLayout_2 = qt.QHBoxLayout()
+    horizontalLayout_2.setObjectName("horizontalLayout_2");
+
+    self.fontStyleLabel = qt.QLabel()
+    self.fontStyleLabel.setText("Font style:")
+    self.fontStyleLabel.setFixedSize(qt.QSize(120, 30))
+    horizontalLayout_2.addWidget(self.fontStyleLabel)
+
+    self.styleComboBox = qt.QComboBox()
+    self.styleComboBox.addItem("Arial")
+    self.styleComboBox.addItem("Courier")
+    self.styleComboBox.addItem("Times")
+    sizePolicy.setHeightForWidth(self.styleComboBox.sizePolicy.hasHeightForWidth())
+    self.styleComboBox.setMinimumSize(qt.QSize(0, 30))
+    horizontalLayout_2.addWidget(self.styleComboBox)
+
+    annotationsFormLayout.addLayout(horizontalLayout_2)
+
+    # Font size
+    horizontalLayout_3 = qt.QHBoxLayout()
+    horizontalLayout_3.setObjectName("horizontalLayout_3");
+
+    self.fontSizeLabel = qt.QLabel()
+    self.fontSizeLabel.setText("Font size:")
+    self.fontSizeLabel.setFixedSize(qt.QSize(120, 30))
+    horizontalLayout_3.addWidget(self.fontSizeLabel)
+
+    self.sizeSpinBox = qt.QSpinBox()
+    sizePolicy.setHeightForWidth(self.sizeSpinBox.sizePolicy.hasHeightForWidth())
+    self.sizeSpinBox.setMinimumSize(qt.QSize(0, 30))
+    self.sizeSpinBox.minimum = 1
+    self.sizeSpinBox.maximum = 30
+    self.sizeSpinBox.setValue(12)
+
+    horizontalLayout_3.addWidget(self.sizeSpinBox)
+
+    annotationsFormLayout.addLayout(horizontalLayout_3)
+
+    verticalSpacer = qt.QSpacerItem(200, 200, qt.QSizePolicy.Minimum, qt.QSizePolicy.Expanding)
+    self.layout.addItem(verticalSpacer)
+
+    # Connections
+    self.colorSelector.connect('colorChanged(QColor)', self.onAnnotationsColorChanged)
+
+    self.styleComboBox.connect('currentTextChanged(QString)', self.onAnnotationsFontStyleChanged)
+
+    self.sizeSpinBox.connect('valueChanged(int)', self.onAnnotationsFontSizeChanged)
+
+
+  def onAnnotationsColorChanged(self, color):
+    lm = slicer.app.layoutManager()
+    for sliceName in lm.sliceViewNames():
+      sWidget = lm.sliceWidget(sliceName)
+      sView = sWidget.sliceView()
+      DisplayableManagersCollection = vtk.vtkCollection()
+      sView.getDisplayableManagers(DisplayableManagersCollection)
+      for DisplayableManagersIndex in range(DisplayableManagersCollection.GetNumberOfItems()):
+        AstroDisplayableManager = DisplayableManagersCollection.GetItemAsObject(DisplayableManagersIndex)
+        if AstroDisplayableManager.GetClassName() == "vtkMRMLAstroTwoDAxesDisplayableManager" or \
+           AstroDisplayableManager.GetClassName() == "vtkMRMLAstroBeamDisplayableManager" :
+          AstroDisplayableManager.SetAnnotationsColor(color.red() / 255., color.green() / 255., color.blue() / 255.)
+
+  def onAnnotationsFontStyleChanged(self, font):
+    lm = slicer.app.layoutManager()
+    for sliceName in lm.sliceViewNames():
+      sWidget = lm.sliceWidget(sliceName)
+      sView = sWidget.sliceView()
+      DisplayableManagersCollection = vtk.vtkCollection()
+      sView.getDisplayableManagers(DisplayableManagersCollection)
+      for DisplayableManagersIndex in range(DisplayableManagersCollection.GetNumberOfItems()):
+        AstroDisplayableManager = DisplayableManagersCollection.GetItemAsObject(DisplayableManagersIndex)
+        if AstroDisplayableManager.GetClassName() == "vtkMRMLAstroTwoDAxesDisplayableManager":
+          AstroDisplayableManager.SetAnnotationsFontStyle(font)
+
+  def onAnnotationsFontSizeChanged(self, size):
+    lm = slicer.app.layoutManager()
+    for sliceName in lm.sliceViewNames():
+      sWidget = lm.sliceWidget(sliceName)
+      sView = sWidget.sliceView()
+      DisplayableManagersCollection = vtk.vtkCollection()
+      sView.getDisplayableManagers(DisplayableManagersCollection)
+      for DisplayableManagersIndex in range(DisplayableManagersCollection.GetNumberOfItems()):
+        AstroDisplayableManager = DisplayableManagersCollection.GetItemAsObject(DisplayableManagersIndex)
+        if AstroDisplayableManager.GetClassName() == "vtkMRMLAstroTwoDAxesDisplayableManager":
+          AstroDisplayableManager.SetAnnotationsFontSize(size)
 
 class SlicerAstroDataProbeLogic(ScriptedLoadableModuleLogic):
 

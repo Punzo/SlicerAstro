@@ -39,6 +39,12 @@ public:
   vtkTypeMacro(vtkMRMLAstroBeamDisplayableManager,vtkMRMLAbstractDisplayableManager);
   void PrintSelf(ostream& os, vtkIndent indent);
 
+  vtkRenderer* vtkMarkerRenderer();
+
+  void SetAnnotationsColor(double red,
+                           double green,
+                           double blue);
+
 protected:
 
   vtkMRMLAstroBeamDisplayableManager();

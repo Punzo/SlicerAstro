@@ -107,7 +107,7 @@ QIcon qSlicerAstroPVSliceModule::icon()const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroPVSliceModule::categories()const
 {
-  return QStringList() << "Astronomy";
+  return QStringList() << "Astronomy" << "Registration";
 }
 
 //-----------------------------------------------------------------------------

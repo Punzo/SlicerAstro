@@ -39,8 +39,6 @@ class vtkMRMLUnitNode;
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarVolumeDisplayNode
 {
   public:
-  static const double CONTOURSCOLOR_INVALID[3];
-
   static vtkMRMLAstroVolumeDisplayNode *New();
   vtkTypeMacro(vtkMRMLAstroVolumeDisplayNode,vtkMRMLScalarVolumeDisplayNode);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
@@ -210,6 +208,7 @@ protected:
   struct wcsprm* WCS;
   int WCSStatus;
   vtkDoubleArray* ContoursColor;
+  static const double CONTOURSCOLOR_INVALID[3];
 
   vtkMRMLAstroVolumeDisplayNode();
   ~vtkMRMLAstroVolumeDisplayNode();
