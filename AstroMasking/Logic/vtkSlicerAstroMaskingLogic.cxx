@@ -65,9 +65,6 @@
 #include <iostream>
 #include <sys/time.h>
 
-#define FLOATPRECISION 0.000001
-#define DOUBLEPRECISION 0.000000000000001
-
 namespace
 {
 //----------------------------------------------------------------------------

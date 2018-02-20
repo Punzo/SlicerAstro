@@ -56,8 +56,7 @@
 #include <iostream>
 #include <sys/time.h>
 
-#define FLOATPRECISION 0.0000001
-#define DOUBLEPRECISION 0.0000000000000001
+#define DOUBLEPRECISION 1.E-16
 
 namespace
 {
@@ -448,7 +447,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outFirstFPixel + elemCnt) < FLOATPRECISION)
+              if (fabs(*(outZeroFPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outFirstFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outFirstFPixel + elemCnt) = NaN;
                 }
@@ -458,7 +458,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 }
               break;
             case VTK_DOUBLE:
-              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outFirstFPixel + elemCnt) < DOUBLEPRECISION)
+              if (fabs(*(outZeroDPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outFirstFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outFirstDPixel + elemCnt) = NaN;
                 }
@@ -507,7 +508,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outSecondFPixel + elemCnt) < FLOATPRECISION)
+              if (fabs(*(outZeroFPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outSecondFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outSecondFPixel + elemCnt) = NaN;
                 }
@@ -517,7 +519,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 }
               break;
             case VTK_DOUBLE:
-              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outSecondFPixel + elemCnt) < DOUBLEPRECISION)
+              if (fabs(*(outZeroDPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outSecondFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outSecondDPixel + elemCnt) = NaN;
                 }
@@ -534,7 +537,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION)
+              if (fabs(*(outZeroFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outZeroFPixel + elemCnt) = NaN;
                 }
@@ -544,7 +547,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 }
               break;
             case VTK_DOUBLE:
-              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION)
+              if (fabs(*(outZeroDPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outZeroDPixel + elemCnt) = NaN;
                 }
@@ -723,7 +726,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outFirstFPixel + elemCnt) < FLOATPRECISION)
+              if (fabs(*(outZeroFPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outFirstFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outFirstFPixel + elemCnt) = NaN;
                 }
@@ -733,7 +737,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 }
               break;
             case VTK_DOUBLE:
-              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outFirstFPixel + elemCnt) < DOUBLEPRECISION)
+              if (fabs(*(outZeroDPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outFirstFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outFirstDPixel + elemCnt) = NaN;
                 }
@@ -785,7 +790,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION || *(outSecondFPixel + elemCnt) < FLOATPRECISION)
+              if (fabs(*(outZeroFPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outSecondFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outSecondFPixel + elemCnt) = NaN;
                 }
@@ -795,7 +801,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 }
               break;
             case VTK_DOUBLE:
-              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION || *(outSecondDPixel + elemCnt) < DOUBLEPRECISION)
+              if (fabs(*(outZeroDPixel + elemCnt)) < DOUBLEPRECISION ||
+                  fabs(*(outSecondDPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outSecondDPixel + elemCnt) = NaN;
                 }
@@ -812,7 +819,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           switch (DataType)
             {
             case VTK_FLOAT:
-              if (*(outZeroFPixel + elemCnt) < FLOATPRECISION)
+              if (fabs(*(outZeroFPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outZeroFPixel + elemCnt) = NaN;
                 }
@@ -822,7 +829,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 }
               break;
             case VTK_DOUBLE:
-              if (*(outZeroDPixel + elemCnt) < DOUBLEPRECISION)
+              if (fabs(*(outZeroDPixel + elemCnt)) < DOUBLEPRECISION)
                 {
                 *(outZeroDPixel + elemCnt) = NaN;
                 }

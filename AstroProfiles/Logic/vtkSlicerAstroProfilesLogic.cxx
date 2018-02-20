@@ -56,8 +56,7 @@
 #include <iostream>
 #include <sys/time.h>
 
-#define FLOATPRECISION 0.0000001
-#define DOUBLEPRECISION 0.0000000000000001
+#define DOUBLEPRECISION 1.E-16
 
 namespace
 {
@@ -385,14 +384,14 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
           {
           case VTK_FLOAT:
             *(outProfileFPixel + elemCnt) *= unitBeamConv;
-            if (*(outProfileFPixel + elemCnt) < FLOATPRECISION)
+            if (fabs(*(outProfileFPixel + elemCnt)) < DOUBLEPRECISION)
               {
               *(outProfileFPixel + elemCnt) = NaN;
               }
             break;
           case VTK_DOUBLE:
             *(outProfileDPixel + elemCnt) *= unitBeamConv;
-            if (*(outProfileDPixel + elemCnt) < DOUBLEPRECISION)
+            if (fabs(*(outProfileDPixel + elemCnt)) < DOUBLEPRECISION)
               {
               *(outProfileDPixel + elemCnt) = NaN;
               }
@@ -530,14 +529,14 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
           {
           case VTK_FLOAT:
             *(outProfileFPixel + elemCnt) *= unitBeamConv;
-            if (*(outProfileFPixel + elemCnt) < FLOATPRECISION)
+            if (fabs(*(outProfileFPixel + elemCnt)) < DOUBLEPRECISION)
               {
               *(outProfileFPixel + elemCnt) = NaN;
               }
             break;
           case VTK_DOUBLE:
             *(outProfileDPixel + elemCnt) *= unitBeamConv;
-            if (*(outProfileDPixel + elemCnt) < DOUBLEPRECISION)
+            if (fabs(*(outProfileDPixel + elemCnt)) < DOUBLEPRECISION)
               {
               *(outProfileDPixel + elemCnt) = NaN;
               }
