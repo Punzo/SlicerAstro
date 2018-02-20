@@ -490,6 +490,9 @@
           <property name="toolTip">
            <string>IJK Right Ascension coordinate of the center of the ruler.</string>
           </property>
+          <property name="suffix">
+           <string> pixels</string>
+          </property>
           <property name="decimals">
            <number>0</number>
           </property>
@@ -505,6 +508,9 @@
           </property>
           <property name="toolTip">
            <string>IJK Declination coordinate of the center of the ruler.</string>
+          </property>
+          <property name="suffix">
+           <string> pixels</string>
           </property>
           <property name="decimals">
            <number>0</number>
@@ -563,6 +569,9 @@
             <height>30</height>
            </size>
           </property>
+          <property name="toolTip">
+           <string>This widget shows the coordinates regarding the center of the ruler.  It is also possible to manually modify such information, however it is necessary to push &quot;Set new center to Ruler&quot; button for updating the GUI and the ruler itself.</string>
+          </property>
           <property name="text">
            <string>Ruler Center:</string>
           </property>
@@ -571,10 +580,10 @@
         <item row="3" column="1" colspan="2">
          <widget class="ctkPushButton" name="SetRulerCenterPushButton">
           <property name="toolTip">
-           <string>For updating the ruler and teh GUI of manual modifications of the center of the ruler click this button.</string>
+           <string>Click this button for updating the ruler and the GUI.</string>
           </property>
           <property name="text">
-           <string>Set center to Ruler</string>
+           <string>Set new center to Ruler</string>
           </property>
          </widget>
         </item>
