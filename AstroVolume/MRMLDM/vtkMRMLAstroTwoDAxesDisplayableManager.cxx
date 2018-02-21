@@ -340,6 +340,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       }
 
     int MinorTickMin = 0, MinorTickMax = 0, MajorTickMin = 0, MajorTickMax = 0;
+    int internalFontSize = this->fontSize;
     switch (type)
       {
       case vtkMRMLAbstractViewNode::RulerTypeThin:
@@ -353,6 +354,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         MinorTickMax = 9;
         MajorTickMin = 3;
         MajorTickMax = 14;
+        internalFontSize *= 1.5;
         break;
       }
 
@@ -845,7 +847,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
         vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
         vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
-        textProperty->SetFontSize(this->fontSize);
+        textProperty->SetFontSize(internalFontSize);
 
         if (!fontStyle.compare("Arial"))
           {
@@ -869,7 +871,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
                                                      this->Color->GetValue(2));
         textActorHorizontal->SetInput(coord.c_str());
 
-        textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (this->fontSize * 2)), 15);
+        textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (internalFontSize * 2)), 15);
 
         this->MarkerRenderer->AddActor2D(textActorHorizontal);
         }
@@ -908,7 +910,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
         vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
         vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
-        textProperty->SetFontSize(this->fontSize);
+        textProperty->SetFontSize(internalFontSize);
 
         if (!fontStyle.compare("Arial"))
           {
@@ -931,7 +933,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
                                                    this->Color->GetValue(1),
                                                    this->Color->GetValue(2));
         textActorVertical->SetInput(coord.c_str());
-        textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (this->fontSize * 0.5)));
+        textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (internalFontSize * 0.5)));
         this->MarkerRenderer->AddActor2D(textActorVertical);
         }
 
@@ -1426,7 +1428,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
         vtkSmartPointer<vtkTextActor> textActorHorizontal = vtkSmartPointer<vtkTextActor>::New();
         vtkTextProperty* textProperty = textActorHorizontal->GetTextProperty();
-        textProperty->SetFontSize(this->fontSize);
+        textProperty->SetFontSize(internalFontSize);
 
         if (!fontStyle.compare("Arial"))
           {
@@ -1450,7 +1452,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
                                                      this->Color->GetValue(2));
         textActorHorizontal->SetInput(coord.c_str());
 
-        textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (this->fontSize * 2)), 15);
+        textActorHorizontal->SetDisplayPosition((int) ((*xyzDisplay)[i][0] - (internalFontSize * 2)), 15);
 
         this->MarkerRenderer->AddActor2D(textActorHorizontal);
         }
@@ -1489,7 +1491,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
         vtkSmartPointer<vtkTextActor> textActorVertical = vtkSmartPointer<vtkTextActor>::New();
         vtkTextProperty* textProperty = textActorVertical->GetTextProperty();
-        textProperty->SetFontSize(this->fontSize);
+        textProperty->SetFontSize(internalFontSize);
 
         if (!fontStyle.compare("Arial"))
           {
@@ -1512,7 +1514,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
                                                    this->Color->GetValue(1),
                                                    this->Color->GetValue(2));
         textActorVertical->SetInput(coord.c_str());
-        textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (this->fontSize * 0.5)));
+        textActorVertical->SetDisplayPosition(20, (int) ((*xyzDisplay)[i][1]- (internalFontSize * 0.5)));
         this->MarkerRenderer->AddActor2D(textActorVertical);
         }
 

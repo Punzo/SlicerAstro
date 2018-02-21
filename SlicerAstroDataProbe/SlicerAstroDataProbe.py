@@ -129,6 +129,7 @@ class SlicerAstroDataProbeWidget(ScriptedLoadableModuleWidget):
     self.sizeSpinBox.minimum = 1
     self.sizeSpinBox.maximum = 30
     self.sizeSpinBox.setValue(12)
+    self.sizeSpinBox.setToolTip("This value is multiplied for 1.5 if the ruler is set to thick.")
 
     horizontalLayout_3.addWidget(self.sizeSpinBox)
 
