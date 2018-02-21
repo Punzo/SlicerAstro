@@ -74,12 +74,6 @@ double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
 }
-
-//----------------------------------------------------------------------------
-int StringToInt(const char* str)
-{
-  return StringToNumber<int>(str);
-}
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -246,7 +240,6 @@ void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterRightAscension(int value)
   if (!vtkMathUtilities::FuzzyCompare<int>(this->RulerCenter[0], value))
     {
     this->RulerCenter[0] = value;
-    this->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
     }
 }
 
@@ -256,7 +249,6 @@ void vtkMRMLAstroPVSliceParametersNode::SetRulerCenterDeclination(int value)
   if (!vtkMathUtilities::FuzzyCompare<int>(this->RulerCenter[1], value))
     {
     this->RulerCenter[1] = value;
-    this->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
     }
 }
 
@@ -268,7 +260,6 @@ void vtkMRMLAstroPVSliceParametersNode::SetRulerCenter(int arg1, int arg2)
     {
     this->RulerCenter[0] = arg1;
     this->RulerCenter[1] = arg2;
-    this->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
     }
 }
 

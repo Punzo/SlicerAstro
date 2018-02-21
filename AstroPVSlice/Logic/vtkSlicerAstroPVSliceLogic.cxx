@@ -680,10 +680,6 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *
   pnode->SetRulerOldAngle(pnode->GetRulerAngle());
   pnode->SetRulerOldShiftX(pnode->GetRulerShiftX());
   pnode->SetRulerOldShiftY(pnode->GetRulerShiftY());
-  int IJKRulerCenter[2];
-  IJKRulerCenter[0] = RulerCenter[0];
-  IJKRulerCenter[1] = RulerCenter[1];
-  pnode->SetRulerCenter(IJKRulerCenter);
   pnode->DisableModifiedEventOff();
 
   return true;

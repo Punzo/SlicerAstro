@@ -84,6 +84,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVSliceParametersNode : public vtkMRMLNo
 
   // Ruler center in MRML node is in IJK coordinates
   vtkGetVector2Macro (RulerCenter, int);
+  // These set methods do not fire any event
   virtual void SetRulerCenterRightAscension(int value);
   virtual void SetRulerCenterDeclination(int value);
   virtual void SetRulerCenter(int arg1, int arg2);
