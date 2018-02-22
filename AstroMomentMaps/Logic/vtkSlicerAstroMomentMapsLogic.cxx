@@ -170,7 +170,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   vtkWarningMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroMomentMaps algorithm will show poor performance.")
+                  "the AstroMomentMaps algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
    if (!pnode)

@@ -306,6 +306,7 @@ void qSlicerAstroPVSliceModuleWidget::enter()
     {
     return;
     }
+
   vtkMRMLAnnotationRulerNode *RulerNode = vtkMRMLAnnotationRulerNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(d->parametersNode->GetRulerNodeID()));
   if (RulerNode)
@@ -315,6 +316,7 @@ void qSlicerAstroPVSliceModuleWidget::enter()
     if (!PointDisplayNode)
       {
       RulerNode->CreateAnnotationPointDisplayNode();
+      PointDisplayNode = RulerNode->GetAnnotationPointDisplayNode();
       }
     PointDisplayNode->SetVisibility(1);
 
@@ -323,6 +325,7 @@ void qSlicerAstroPVSliceModuleWidget::enter()
     if (!LineDisplayNode)
       {
       RulerNode->CreateAnnotationLineDisplayNode();
+      LineDisplayNode = RulerNode->GetAnnotationLineDisplayNode();
       }
     LineDisplayNode->SetVisibility(1);
     }
@@ -368,6 +371,7 @@ void qSlicerAstroPVSliceModuleWidget::exit()
     if (!PointDisplayNode)
       {
       RulerNode->CreateAnnotationPointDisplayNode();
+      PointDisplayNode = RulerNode->GetAnnotationPointDisplayNode();
       }
     PointDisplayNode->SetVisibility(0);
 
@@ -376,6 +380,7 @@ void qSlicerAstroPVSliceModuleWidget::exit()
     if (!LineDisplayNode)
       {
       RulerNode->CreateAnnotationLineDisplayNode();
+      LineDisplayNode = RulerNode->GetAnnotationLineDisplayNode();
       }
     LineDisplayNode->SetVisibility(0);
     }
@@ -551,6 +556,13 @@ void qSlicerAstroPVSliceModuleWidget::initializeMomentMapNode(bool forceNew /*= 
     vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return;
+    }
+
+  std::string type = inputVolume->GetAttribute("SlicerAstro.DATAMODEL");
+  if (type.find("DATA") == std::string::npos &&
+      type.find("MODEL") == std::string::npos)
     {
     return;
     }
@@ -1001,14 +1013,13 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified()
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !this->mrmlScene())
     {
     return;
     }
 
   vtkMRMLAnnotationRulerNode *RulerNode = vtkMRMLAnnotationRulerNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(d->parametersNode->GetRulerNodeID()));
-
   if (!RulerNode)
     {
     qCritical() << "qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified : "
@@ -1016,9 +1027,8 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified()
     return;
     }
 
-  vtkMRMLAstroVolumeNode *PVMomentMap =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
-      GetNodeByID(d->parametersNode->GetMomentMapNodeID()));
+  vtkMRMLAstroVolumeNode *PVMomentMap = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMomentMapNodeID()));
   if(!PVMomentMap || !PVMomentMap->GetImageData())
     {
     qCritical() << "qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified : "
@@ -1385,6 +1395,7 @@ mrmlAstroPVSliceParametersNode()const
   return d->parametersNode;
 }
 
+//---------------------------------------------------------------------------
 void qSlicerAstroPVSliceModuleWidget::setupViewObservations()
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
@@ -1425,6 +1436,7 @@ void qSlicerAstroPVSliceModuleWidget::setupViewObservations()
   d->ViewsObserved = true;
 }
 
+//---------------------------------------------------------------------------
 void qSlicerAstroPVSliceModuleWidget::removeViewObservations()
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
@@ -1442,6 +1454,7 @@ void qSlicerAstroPVSliceModuleWidget::removeViewObservations()
   d->ViewsObserved = false;
 }
 
+//---------------------------------------------------------------------------
 bool qSlicerAstroPVSliceModuleWidget::processInteractionEvents(
   vtkRenderWindowInteractor *callerInteractor,
   unsigned long eid,

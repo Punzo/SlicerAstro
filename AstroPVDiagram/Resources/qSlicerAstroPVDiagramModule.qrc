@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Icons/AstroPVDiagram.png</file>
+    </qresource>
+</RCC>

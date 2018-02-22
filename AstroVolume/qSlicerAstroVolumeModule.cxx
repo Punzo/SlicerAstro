@@ -83,6 +83,7 @@
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
+#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLColorTableNode.h>
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLProceduralColorNode.h>

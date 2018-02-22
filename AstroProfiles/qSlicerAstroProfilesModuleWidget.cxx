@@ -1003,7 +1003,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   int serial = d->parametersNode->GetOutputSerial();
 
   std::ostringstream outSS;
-  outSS << inputVolume->GetName() << "_profile";
+  outSS << inputVolume->GetName() << "_Profile";
   outSS <<"_"<< IntToString(serial);
 
   vtkMRMLAstroVolumeNode *ProfileVolume =
@@ -1015,7 +1015,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     vtkMRMLAstroVolumeStorageNode* astroStorage =
       vtkMRMLAstroVolumeStorageNode::SafeDownCast(ProfileVolume->GetStorageNode());
     scene->RemoveNode(astroStorage);
-    scene->RemoveNode(ProfileVolume->GetDisplayNode());
+    scene->RemoveNode(ProfileVolume->GetAstroVolumeDisplayNode());
 
     vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ProfileVolume->GetDisplayNode());

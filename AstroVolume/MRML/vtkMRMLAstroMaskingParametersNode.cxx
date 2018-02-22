@@ -58,7 +58,6 @@ vtkMRMLAstroMaskingParametersNode::vtkMRMLAstroMaskingParametersNode()
   this->SetBlankRegion("Outside");
   this->BlankValue = NULL;
   this->SetBlankValue("NaN");
-  this->SetCores(0);
   this->OutputSerial = 1;
   this->SetStatus(0);
 }
@@ -203,12 +202,6 @@ void vtkMRMLAstroMaskingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "Cores"))
-      {
-      this->Cores = StringToInt(attValue);
-      continue;
-      }
-
     if (!strcmp(attName, "OutputSerial"))
       {
       this->OutputSerial = StringToInt(attValue);
@@ -265,7 +258,6 @@ void vtkMRMLAstroMaskingParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " BlankValue=\"" << this->BlankValue << "\"";
     }
 
-  of << indent << " Cores=\"" << this->Cores << "\"";
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
   of << indent << " Status=\"" << this->Status << "\"";
 }
@@ -287,7 +279,6 @@ void vtkMRMLAstroMaskingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetOperation(node->GetOperation());
   this->SetBlankRegion(node->GetBlankRegion());
   this->SetBlankValue(node->GetBlankValue());
-  this->SetCores(node->GetCores());
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetStatus(node->GetStatus());
 
@@ -308,8 +299,4 @@ void vtkMRMLAstroMaskingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BlankValue: " << ( (this->BlankValue) ? this->BlankValue : "None" ) << "\n";
   os << indent << "OutputSerial: " << this->OutputSerial << "\n";
   os << indent << "Status: " << this->Status << "\n";
-  if (this->Cores != 0)
-    {
-    os << indent << "Number of CPU cores: "<< this->Cores<< "\n";
-    }
 }
