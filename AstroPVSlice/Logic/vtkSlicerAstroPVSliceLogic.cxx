@@ -988,7 +988,7 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
 
   double PVPhiMajor = -atan(distY / distX);
   PVPhiMajor *=  180. / PI;
-  if ((position1[0] - position2[0]) < 0.)
+  if ((position1[0] - position2[0]) < 0.01)
     {
     PVPhiMajor += 180.;
     }

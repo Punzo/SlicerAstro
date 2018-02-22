@@ -996,8 +996,9 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified()
 
   d->CenterRightAscensionIJKSpinBox->blockSignals(true);
   d->CenterDeclinationIJKSpinBox->blockSignals(true);
-  d->CenterDeclinationWCSSpinBox->blockSignals(true);
   d->CenterRightAscensionWCSSpinBox->blockSignals(true);
+  d->CenterDeclinationWCSSpinBox->blockSignals(true);
+
   d->CenterRightAscensionIJKSpinBox->setValue(IJKRulerCenter[0]);
   d->CenterDeclinationIJKSpinBox->setValue(IJKRulerCenter[1]);
 
@@ -1117,6 +1118,9 @@ void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionIJKChanged(doub
     }
 
   d->parametersNode->SetRulerCenterRightAscension(value);
+
+  d->CenterRightAscensionWCSSpinBox->setEnabled(false);
+  d->CenterDeclinationWCSSpinBox->setEnabled(false);
 }
 
 //---------------------------------------------------------------------------
@@ -1130,6 +1134,9 @@ void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationIJKChanged(double 
     }
 
   d->parametersNode->SetRulerCenterDeclination(value);
+
+  d->CenterRightAscensionWCSSpinBox->setEnabled(false);
+  d->CenterDeclinationWCSSpinBox->setEnabled(false);
 }
 
 //---------------------------------------------------------------------------
@@ -1174,6 +1181,9 @@ void qSlicerAstroPVSliceModuleWidget::onRulerCenterRightAscensionWCSChanged(doub
   astroDisplay->GetIJKSpace(WCSCoordinates, ijk);
 
   d->parametersNode->SetRulerCenterRightAscension(ijk[0]);
+
+  d->CenterRightAscensionIJKSpinBox->setEnabled(false);
+  d->CenterDeclinationIJKSpinBox->setEnabled(false);
 }
 
 //---------------------------------------------------------------------------
@@ -1218,6 +1228,9 @@ void qSlicerAstroPVSliceModuleWidget::onRulerCenterDeclinationWCSChanged(double 
   astroDisplay->GetIJKSpace(WCSCoordinates, ijk);
 
   d->parametersNode->SetRulerCenterDeclination(ijk[1]);
+
+  d->CenterRightAscensionIJKSpinBox->setEnabled(false);
+  d->CenterDeclinationIJKSpinBox->setEnabled(false);
 }
 
 //---------------------------------------------------------------------------
@@ -1249,6 +1262,10 @@ void qSlicerAstroPVSliceModuleWidget::onSetRulerCenterClicked()
     return;
     }
 
+  d->CenterRightAscensionIJKSpinBox->setEnabled(true);
+  d->CenterDeclinationIJKSpinBox->setEnabled(true);
+  d->CenterRightAscensionWCSSpinBox->setEnabled(true);
+  d->CenterDeclinationWCSSpinBox->setEnabled(true);
   d->parametersNode->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
 }
 
