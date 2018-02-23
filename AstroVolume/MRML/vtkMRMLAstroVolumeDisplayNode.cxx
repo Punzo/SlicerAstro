@@ -928,6 +928,14 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
    std::string firstPrefix;
    std::string secondPrefix;
    std::string thirdPrefix;
+
+   double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
+   std::string displayValueString;
+   std::stringstream strstream;
+   strstream.setf(ios::fixed,ios::floatfield);
+
+   displayValue = world;
+
    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
      {
      if (!strcmp(language, "C++"))
@@ -951,14 +959,8 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
      firstPrefix = "h ";
      secondPrefix = "m ";
      thirdPrefix = "s";
+     displayValue /= 15.;
      }
-
-   double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
-   std::string displayValueString;
-   std::stringstream strstream;
-   strstream.setf(ios::fixed,ios::floatfield);
-
-   displayValue = world;
 
    firstFractpart = modf(displayValue, &firstIntpart);
    if(firstFractpart * 60. > 59.99999)

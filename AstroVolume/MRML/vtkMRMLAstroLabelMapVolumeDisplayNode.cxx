@@ -838,132 +838,134 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
                                                                              double outputValues[3],
                                                                              bool horizontalAxis /* = false */)
 {
- std::string value = "";
- if(!node)
-   {
-   return value.c_str();
-   }
+  std::string value = "";
+  if(!node)
+    {
+    return value.c_str();
+    }
 
- if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
-     !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-   {
-   std::string firstPrefix;
-   std::string secondPrefix;
-   std::string thirdPrefix;
-   if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
-     {
-     if (!strcmp(language, "C++"))
-       {
-       firstPrefix = "\u00B0 "; //C++
-       }
-     else if (!strcmp(language, "Python"))
-       {
-       firstPrefix = "\xB0 "; //Python
-       }
-     else
-       {
-       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
-                     "no degree uft-8 code found for "<<language);
-       }
-     secondPrefix = "\x27 ";
-     thirdPrefix = "\x22";
-     }
-   if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
-     {
-     firstPrefix = "h ";
-     secondPrefix = "m ";
-     thirdPrefix = "s";
-     }
+  if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds") ||
+      !strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+    {
+    std::string firstPrefix;
+    std::string secondPrefix;
+    std::string thirdPrefix;
 
-   double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
-   std::string displayValueString;
-   std::stringstream strstream;
-   strstream.setf(ios::fixed,ios::floatfield);
+    double firstFractpart, firstIntpart, secondFractpart, secondIntpart, displayValue;
+    std::string displayValueString;
+    std::stringstream strstream;
+    strstream.setf(ios::fixed,ios::floatfield);
 
-   displayValue = world;
+    displayValue = world;
 
-   firstFractpart = modf(displayValue, &firstIntpart);
-   if(firstFractpart * 60. > 59.99999)
-     {
-     firstFractpart = 0.;
-     firstIntpart += 1.;
-     }
+    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
+      {
+      if (!strcmp(language, "C++"))
+        {
+        firstPrefix = "\u00B0 "; //C++
+        }
+      else if (!strcmp(language, "Python"))
+        {
+        firstPrefix = "\xB0 "; //Python
+        }
+      else
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
+                      "no degree uft-8 code found for "<<language);
+        }
+      secondPrefix = "\x27 ";
+      thirdPrefix = "\x22";
+      }
+    if (!strcmp(node->GetAttribute("DisplayHint"), "hoursAsMinutesSeconds"))
+      {
+      firstPrefix = "h ";
+      secondPrefix = "m ";
+      thirdPrefix = "s";
+      displayValue /= 15.;
+      }
 
-   // First
-   outputValues[0] = firstIntpart;
-   if (firstIntpart > 0.00001 &&
-       fabs(outputValues[0] - oldOutputValues[0]) > 1.E-6)
-     {
-     value = DoubleToString(firstIntpart) + firstPrefix;
-     }
-   else if (horizontalAxis)
-     {
-     value = "   ";
-     }
-   else
-     {
-     value = "";
-     }
+    firstFractpart = modf(displayValue, &firstIntpart);
+    if(firstFractpart * 60. > 59.99999)
+      {
+      firstFractpart = 0.;
+      firstIntpart += 1.;
+      }
 
-   // Second
-   secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
-   if(secondFractpart > 59.99999)
-     {
-     secondFractpart = 0.;
-     secondIntpart += 1.;
-     }
+    // First
+    outputValues[0] = firstIntpart;
+    if (firstIntpart > 0.00001 &&
+        fabs(outputValues[0] - oldOutputValues[0]) > 1.E-6)
+      {
+      value = DoubleToString(firstIntpart) + firstPrefix;
+      }
+    else if (horizontalAxis)
+      {
+      value = "   ";
+      }
+    else
+      {
+      value = "";
+      }
 
-   outputValues[1] = secondIntpart;
-   if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
-       fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
-     {
-     displayValueString = DoubleToString(fabs(secondIntpart));
-     }
-   else if (horizontalAxis)
-     {
-     displayValueString = "   ";
-     }
-   else
-     {
-     displayValueString = "";
-     }
+    // Second
+    secondFractpart = (modf(firstFractpart * 60., &secondIntpart)) * 60.;
+    if(secondFractpart > 59.99999)
+      {
+      secondFractpart = 0.;
+      secondIntpart += 1.;
+      }
 
-   if(secondIntpart < 10.)
-     {
-     displayValueString = " " + displayValueString;
-     }
-   if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
-       fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
-     {
-     displayValueString += secondPrefix;
-     }
-   value = value + displayValueString;
+    outputValues[1] = secondIntpart;
+    if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
+        fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
+      {
+      displayValueString = DoubleToString(fabs(secondIntpart));
+      }
+    else if (horizontalAxis)
+      {
+      displayValueString = "   ";
+      }
+    else
+      {
+      displayValueString = "";
+      }
 
-   // Third
-   displayValueString = "";
-   strstream.precision(precision);
-   strstream << fabs(secondFractpart);
-   strstream >> displayValueString;
+    if(secondIntpart < 10.)
+      {
+      displayValueString = " " + displayValueString;
+      }
+    if ((secondIntpart > 0.00001 || firstIntpart > 0.00001) &&
+        fabs(outputValues[1] - oldOutputValues[1]) > 1.E-6)
+      {
+      displayValueString += secondPrefix;
+      }
+    value = value + displayValueString;
 
-   outputValues[2] = StringToDouble(displayValueString.c_str());
-   if(secondFractpart < 10.)
-     {
-     displayValueString = " " + displayValueString;
-     }
+    // Third
+    displayValueString = "";
+    strstream.precision(precision);
+    strstream << fabs(secondFractpart);
+    strstream >> displayValueString;
 
-   if (fabs(outputValues[2] - oldOutputValues[2]) > 1.E-6)
-     {
-     value = value + displayValueString + thirdPrefix;
-     }
-   else
-     {
-     value = "  " + value;
-     }
+    outputValues[2] = StringToDouble(displayValueString.c_str());
+    if(secondFractpart < 10.)
+      {
+      displayValueString = " " + displayValueString;
+      }
 
-   return value.c_str();
-   }
+    if (fabs(outputValues[2] - oldOutputValues[2]) > 1.E-6)
+      {
+      value = value + displayValueString + thirdPrefix;
+      }
+    else
+      {
+      value = "  " + value;
+      }
 
-  return node->GetDisplayStringFromValue(world);
+    return value.c_str();
+    }
+
+   return node->GetDisplayStringFromValue(world);
 }
 
 //----------------------------------------------------------------------------
