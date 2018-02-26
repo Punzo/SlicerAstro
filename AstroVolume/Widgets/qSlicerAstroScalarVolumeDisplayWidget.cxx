@@ -27,6 +27,12 @@
 #include <QString>
 #include <QStringList>
 
+// SlicerQt includes
+#include <qMRMLSliceAstroWidget.h>
+#include <qSlicerApplication.h>
+#include <qSlicerLayoutManager.h>
+#include <vtkSlicerApplicationLogic.h>
+
 // MRML includes
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
@@ -148,11 +154,32 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                    q, SLOT(onWindowLevelPopupShow(bool)));
   QObject::connect(this->InterpolatePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
-  QObject::connect(this->FitSlicesToViewsPushButton, SIGNAL(clicked()),
-                   q, SLOT(FitSlicesToViews()));
+  QObject::connect(this->FitSlicesToViewsPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onFitSlicesToViewsChanged(bool)));
   QObject::connect(this->ThresholdPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setThreshold(bool)));
 
+  qSlicerApplication* app = qSlicerApplication::application();
+  if (app && app->layoutManager())
+    {
+    qMRMLSliceAstroWidget *RedSliceWidget = dynamic_cast<qMRMLSliceAstroWidget*>
+      (app->layoutManager()->sliceWidget("Red"));
+
+    QObject::connect(RedSliceWidget, SIGNAL(windowsResized()),
+                     q, SLOT(ExtendAllSlices()));
+
+    qMRMLSliceAstroWidget *YellowSliceWidget = dynamic_cast<qMRMLSliceAstroWidget*>
+      (app->layoutManager()->sliceWidget("Yellow"));
+
+    QObject::connect(YellowSliceWidget, SIGNAL(windowsResized()),
+                     q, SLOT(ExtendAllSlices()));
+
+    qMRMLSliceAstroWidget *GreenSliceWidget = dynamic_cast<qMRMLSliceAstroWidget*>
+      (app->layoutManager()->sliceWidget("Green"));
+
+    QObject::connect(GreenSliceWidget, SIGNAL(windowsResized()),
+                     q, SLOT(ExtendAllSlices()));
+    }
 
   QComboBox* AutoManualComboBoxWidget = this->MRMLWindowLevelWidget->findChild<QComboBox*>
       (QString("AutoManualComboBox"));
@@ -172,8 +199,6 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
   q->onWindowLevelPopupShow(false);
   this->ThresholdPushButton->setChecked(false);
   q->setThreshold(false);
-
-
 }
 
 // --------------------------------------------------------------------------
@@ -230,9 +255,9 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool
 }
 
 // --------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::FitSlicesToViews()
+void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
 {
-  if (!this->mrmlScene() || ! this->volumeNode())
+  if (!this->mrmlScene() || !this->volumeNode())
     {
     return;
     }
@@ -253,29 +278,26 @@ void qSlicerAstroScalarVolumeDisplayWidget::FitSlicesToViews()
       }
 
     double FieldOfView[3];
+    sliceNode->GetFieldOfView(FieldOfView);
     if (!sliceNode->GetOrientation().compare("PVMajor") ||
         !sliceNode->GetOrientation().compare("PVMinor") ||
         !sliceNode->GetOrientation().compare("Reformat"))
       {
-      sliceNode->GetFieldOfView(FieldOfView);
       FieldOfView[0] = sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
       FieldOfView[1] = dims[2] + (dims[2] * 0.2);
       }
     else if (!sliceNode->GetOrientation().compare("XY"))
       {
-      sliceNode->GetFieldOfView(FieldOfView);
       FieldOfView[0] = dims[0];
       FieldOfView[1] = dims[1];
       }
     else if (!sliceNode->GetOrientation().compare("ZY"))
       {
-      sliceNode->GetFieldOfView(FieldOfView);
       FieldOfView[0] = dims[2];
       FieldOfView[1] = dims[1];
       }
     else if (!sliceNode->GetOrientation().compare("XZ"))
       {
-      sliceNode->GetFieldOfView(FieldOfView);
       FieldOfView[0] = dims[0];
       FieldOfView[1] = dims[2];
       }
@@ -285,7 +307,20 @@ void qSlicerAstroScalarVolumeDisplayWidget::FitSlicesToViews()
       }
 
     sliceNode->SetFieldOfView(FieldOfView[0], FieldOfView[1], FieldOfView[2]);
+    sliceNode->Modified();
     }
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onFitSlicesToViewsChanged(bool toggled)
+{
+  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode = this->volumeDisplayNode();
+  if (!astroDisplayNode)
+    {
+    return;
+    }
+
+  astroDisplayNode->SetFitSlices(toggled);
 }
 
 // --------------------------------------------------------------------------
@@ -711,7 +746,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
         vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
       }
-    }
+  }
 }
 
 // --------------------------------------------------------------------------
@@ -875,6 +910,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
+
   if (displayNode)
     {
     d->ColorTableComboBox->setCurrentNode(displayNode->GetColorNode());
@@ -886,6 +922,19 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
     else
       {
       d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
+      }
+    d->FitSlicesToViewsPushButton->setChecked(displayNode->GetFitSlices());
+    if (displayNode->GetFitSlices())
+      {
+      this->ExtendAllSlices();
+      }
+    else
+      {
+      qSlicerApplication* app = qSlicerApplication::application();
+      if (app && app->applicationLogic())
+        {
+        app->applicationLogic()->FitSliceToAll(true);
+        }
       }
 
     vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();

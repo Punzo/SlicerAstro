@@ -33,6 +33,7 @@
 #include <qSlicerCoreApplication.h>
 #include <qSlicerApplication.h>
 #include <qSlicerLayoutManager.h>
+#include <vtkSlicerApplicationLogic.h>
 
 // qMRML includes
 #include <qMRMLAstroVolumeInfoWidget.h>
@@ -367,9 +368,10 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
     image ? image->GetNumberOfScalarComponents() : 0);
 
   qSlicerApplication* app = qSlicerApplication::application();
-  app->layoutManager()->sliceWidget("Red")->sliceController()->fitSliceToBackground();
-  app->layoutManager()->sliceWidget("Yellow")->sliceController()->fitSliceToBackground();
-  app->layoutManager()->sliceWidget("Green")->sliceController()->fitSliceToBackground();
+  if (app && app->applicationLogic())
+    {
+    app->applicationLogic()->FitSliceToAll(true);
+    }
 
   vtkMRMLStorageNode* storageNode = d->VolumeNode->GetStorageNode();
   d->FileNameLineEdit->setText(storageNode ? storageNode->GetFileName() : "");

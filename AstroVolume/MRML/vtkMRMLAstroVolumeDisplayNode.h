@@ -90,6 +90,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   void SetContoursColor(int ind, double color);
 
   ///
+  /// FitSlices
+  vtkSetMacro(FitSlices,bool);
+  vtkGetMacro(FitSlices,bool);
+
+  ///
   /// Set WCSStruct
   virtual void SetWCSStruct(struct wcsprm*);
 
@@ -224,6 +229,8 @@ protected:
   int WCSStatus;
   vtkDoubleArray* ContoursColor;
   static const double CONTOURSCOLOR_INVALID[3];
+
+  bool FitSlices;
 
   vtkMRMLAstroVolumeDisplayNode();
   ~vtkMRMLAstroVolumeDisplayNode();

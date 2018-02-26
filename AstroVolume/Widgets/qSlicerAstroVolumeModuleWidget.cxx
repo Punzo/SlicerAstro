@@ -545,6 +545,11 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->Superclass::setMRMLScene(scene);
 
+  if (!scene)
+    {
+    return;
+    }
+
   this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
                       this, SLOT(onMRMLSceneStartImportEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,

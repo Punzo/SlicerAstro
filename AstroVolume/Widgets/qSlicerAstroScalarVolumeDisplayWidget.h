@@ -63,9 +63,10 @@ public:
   void setMRMLWindowLevelWidgetEnabled(bool);
 
 public slots:
-  void FitSlicesToViews();
+  void ExtendAllSlices();
   void onColorChanged(QColor color);
   void onCreateContours();
+  void onFitSlicesToViewsChanged(bool toggled);
   void onWindowLevelPopupShow(bool show);
   void onWindowLevelPopupShow(int);
   void setColorNode(vtkMRMLNode* colorNode);

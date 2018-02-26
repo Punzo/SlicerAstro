@@ -58,6 +58,7 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
   this->Space = 0;
+  this->SetFitSlices(false);
   this->SetSpace("WCS");
   this->WCSStatus = 0;
   this->WCS = new struct wcsprm;
@@ -128,6 +129,12 @@ double StringToDouble(const char* str)
 }
 
 //----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
@@ -159,6 +166,8 @@ void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
   vtkIndent indent(nIndent);
 
   std::string quantities = "";
+
+  of << indent << " FitSlices=\"" << this->FitSlices << "\"";
 
   if (this->ContoursColor)
     {
@@ -720,6 +729,12 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
     attName = *(atts++);
     attValue = *(atts++);
 
+    if (!strcmp(attName, "FitSlices"))
+      {
+      this->FitSlices = StringToInt(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "SpaceQuantities"))
       {
       std::istringstream f(attValue);
@@ -774,6 +789,7 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
     }
 
   this->SetInputImageDataConnection(node->GetInputImageDataConnection());
+  this->SetFitSlices(node->GetFitSlices());
   this->SetContoursColor(node->GetContoursColor());
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
@@ -1171,6 +1187,7 @@ void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
   std::string quantities = "";
   int i,j,k;
 
+  os << indent << "FitSlices: " << this->FitSlices << "\n";
 
   if (this->ContoursColor)
     {

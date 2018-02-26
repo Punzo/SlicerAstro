@@ -131,6 +131,14 @@ qMRMLSliceAstroWidget::qMRMLSliceAstroWidget(qMRMLSliceAstroWidgetPrivate *pimpl
 }
 
 // --------------------------------------------------------------------------
+void qMRMLSliceAstroWidget::resizeEvent(QResizeEvent *event)
+{
+  QWidget::resizeEvent(event);
+
+  emit this->windowsResized();
+}
+
+// --------------------------------------------------------------------------
 qMRMLSliceAstroWidget::~qMRMLSliceAstroWidget()
 {
 }
