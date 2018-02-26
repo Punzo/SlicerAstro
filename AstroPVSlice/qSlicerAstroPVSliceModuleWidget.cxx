@@ -23,21 +23,31 @@
 #include <QStringList>
 
 // VTK includes
+#include <vtkAlgorithmOutput.h>
 #include <vtkCollection.h>
+#include <vtkCallbackCommand.h>
+#include <vtkCamera.h>
 #include <vtkCommand.h>
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
+#include <vtkInteractorObserver.h>
 #include <vtkGeneralTransform.h>
 #include <vtkNew.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
 #include <vtkRenderer.h>
+#include <vtkRendererCollection.h>
+#include <vtkRenderWindow.h>
+#include <vtkSmartPointer.h>
 #include <vtkTransform.h>
+#include <vtkWeakPointer.h>
 #include <vtksys/SystemTools.hxx>
 
 // SlicerQt includes
+#include <qMRMLSliceWidget.h>
+#include <qMRMLSliceView.h>
 #include <qMRMLThreeDWidget.h>
 #include <qMRMLThreeDView.h>
 #include <qSlicerAbstractCoreModule.h>
@@ -78,10 +88,36 @@
 #include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
+#include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
+// Qt includes
+#include <QPointer>
+
 #include <sys/time.h>
+
+//---------------------------------------------------------------------------
+class vtkPVSliceEventCallbackCommand : public vtkCallbackCommand
+{
+public:
+  static vtkPVSliceEventCallbackCommand *New()
+    {
+    return new vtkPVSliceEventCallbackCommand;
+    }
+  /// PVSlice widget observing the event
+  QPointer<qSlicerAstroPVSliceModuleWidget> PVSliceWidget;
+  /// Slice widget or 3D widget
+  QPointer<qMRMLWidget> ViewWidget;
+};
+
+//-----------------------------------------------------------------------------
+struct PVSliceEventObservation
+{
+  vtkSmartPointer<vtkPVSliceEventCallbackCommand> CallbackCommand;
+  vtkWeakPointer<vtkObject> ObservedObject;
+  QVector<int> ObservationTags;
+};
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroPVSlice
@@ -98,6 +134,16 @@ public:
   void init();
   void cleanPointers();
 
+  /// Structure containing necessary objects for each slice and 3D view handling interactions
+  QVector<PVSliceEventObservation> EventObservations;
+
+  /// Indicates if views and layouts are observed
+  /// (essentially, the widget is active).
+  bool ViewsObserved;
+
+  /// Indicates if the the center has to be updated on mouse move event.
+  bool CenterInteractionActive;
+
   vtkSlicerAstroPVSliceLogic* logic() const;
   vtkSmartPointer<vtkMRMLAstroPVSliceParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
@@ -112,11 +158,15 @@ qSlicerAstroPVSliceModuleWidgetPrivate::qSlicerAstroPVSliceModuleWidgetPrivate(q
 {
   this->parametersNode = 0;
   this->selectionNode = 0;
+  this->ViewsObserved = false;
+  this->CenterInteractionActive = false;
 }
 
 //-----------------------------------------------------------------------------
 qSlicerAstroPVSliceModuleWidgetPrivate::~qSlicerAstroPVSliceModuleWidgetPrivate()
 {
+  Q_Q(qSlicerAstroPVSliceModuleWidget);
+  q->removeViewObservations();
 }
 
 //-----------------------------------------------------------------------------
@@ -227,6 +277,8 @@ void qSlicerAstroPVSliceModuleWidget::enter()
 
   this->Superclass::enter();
 
+  this->setupViewObservations();
+
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
@@ -298,6 +350,8 @@ void qSlicerAstroPVSliceModuleWidget::exit()
 
   this->Superclass::exit();
 
+  this->removeViewObservations();
+
   this->qvtkDisconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
 
@@ -353,6 +407,10 @@ void qSlicerAstroPVSliceModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     }
 
   this->Superclass::setMRMLScene(scene);
+
+  // Make connections that depend on the Slicer application
+  QObject::connect(qSlicerApplication::application()->layoutManager(), SIGNAL(layoutChanged(int)),
+                   this, SLOT(onLayoutChanged(int)) );
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
@@ -867,6 +925,19 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onLayoutChanged(int layoutIndex)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+  Q_UNUSED(layoutIndex);
+
+  if (d->ViewsObserved)
+    {
+    // Refresh view observations with the new layout
+    this->setupViewObservations();
+    }
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceCenterModified()
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
@@ -1032,6 +1103,11 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified()
   d->CenterDeclinationIJKSpinBox->blockSignals(false);
   d->CenterRightAscensionWCSSpinBox->blockSignals(false);
   d->CenterDeclinationWCSSpinBox->blockSignals(false);
+
+  d->CenterRightAscensionIJKSpinBox->setEnabled(true);
+  d->CenterDeclinationIJKSpinBox->setEnabled(true);
+  d->CenterRightAscensionWCSSpinBox->setEnabled(true);
+  d->CenterDeclinationWCSSpinBox->setEnabled(true);
 
   vtkSlicerAstroPVSliceLogic *logic = d->logic();
   if (logic)
@@ -1307,4 +1383,225 @@ mrmlAstroPVSliceParametersNode()const
 {
   Q_D(const qSlicerAstroPVSliceModuleWidget);
   return d->parametersNode;
+}
+
+void qSlicerAstroPVSliceModuleWidget::setupViewObservations()
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  // Make sure previous observations are cleared before setting up the new ones
+  this->removeViewObservations();
+
+  // Set up interactor observations
+  qSlicerLayoutManager* layoutManager = qSlicerApplication::application()->layoutManager();
+  if (!layoutManager)
+    {
+    // application is closing
+    return;
+    }
+
+  // Slice views
+  foreach (QString sliceViewName, layoutManager->sliceViewNames())
+    {
+    // Create command for slice view
+    qMRMLSliceWidget* sliceWidget = layoutManager->sliceWidget(sliceViewName);
+    qMRMLSliceView* sliceView = sliceWidget->sliceView();
+    vtkNew<vtkPVSliceEventCallbackCommand> interactionCallbackCommand;
+    interactionCallbackCommand->PVSliceWidget = this;
+    interactionCallbackCommand->ViewWidget = sliceWidget;
+    interactionCallbackCommand->SetClientData( reinterpret_cast<void*>(interactionCallbackCommand.GetPointer()) );
+    interactionCallbackCommand->SetCallback( qSlicerAstroPVSliceModuleWidget::processEvents );
+
+    // Connect interactor events
+    vtkRenderWindowInteractor* interactor = sliceView->interactorStyle()->GetInteractor();
+    PVSliceEventObservation interactorObservation;
+    interactorObservation.CallbackCommand = interactionCallbackCommand.GetPointer();
+    interactorObservation.ObservedObject = interactor;
+    interactorObservation.ObservationTags << interactor->AddObserver(vtkCommand::KeyPressEvent, interactorObservation.CallbackCommand, 1.0);
+    interactorObservation.ObservationTags << interactor->AddObserver(vtkCommand::MouseMoveEvent, interactorObservation.CallbackCommand, 1.0);
+    d->EventObservations << interactorObservation;
+    }
+
+  d->ViewsObserved = true;
+}
+
+void qSlicerAstroPVSliceModuleWidget::removeViewObservations()
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+  foreach (PVSliceEventObservation eventObservation, d->EventObservations)
+    {
+    if (eventObservation.ObservedObject)
+      {
+      foreach (int observationTag, eventObservation.ObservationTags)
+        {
+        eventObservation.ObservedObject->RemoveObserver(observationTag);
+        }
+      }
+    }
+  d->EventObservations.clear();
+  d->ViewsObserved = false;
+}
+
+bool qSlicerAstroPVSliceModuleWidget::processInteractionEvents(
+  vtkRenderWindowInteractor *callerInteractor,
+  unsigned long eid,
+  qMRMLWidget *viewWidget)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return false;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return false;
+    }
+
+  // This effect only supports interactions in the 2D slice views currently
+  qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
+
+  int eventPosition[2] = { 0, 0 };
+  callerInteractor->GetEventPosition(eventPosition);
+
+  if (eid == vtkCommand::KeyPressEvent)
+    {
+    const char* key = callerInteractor->GetKeySym();
+
+    if (strcmp(key, "c"))
+      {
+      return false;
+      }
+
+    if (d->CenterInteractionActive)
+      {
+      d->CenterInteractionActive = false;
+      }
+    else
+      {
+      d->CenterInteractionActive = true;
+      }
+    }
+  else if (eid == vtkCommand::MouseMoveEvent)
+    {
+    if (!d->CenterInteractionActive)
+      {
+      return false;
+      }
+
+    double CenterPositionRAS[3] = {0.}, CenterPositionIJK[3] = {0.};
+    if (sliceWidget)
+      {
+      double eventPositionXY[4] = {
+        static_cast<double>(eventPosition[0]),
+        static_cast<double>(eventPosition[1]),
+        0.0,
+        1.0};
+      double CenterPosition[4] = {0.};
+      sliceWidget->sliceLogic()->GetSliceNode()->GetXYToRAS()->MultiplyPoint(eventPositionXY, CenterPosition);
+      for (int ii = 0; ii < 3; ii++)
+        {
+        CenterPositionRAS[ii] = CenterPosition[ii];
+        }
+      }
+
+    vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+    RAStoIJKTransform->Identity();
+    RAStoIJKTransform->PostMultiply();
+    vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+    inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+    RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+    RAStoIJKTransform->TransformPoint(CenterPositionRAS,CenterPositionIJK);
+
+    d->parametersNode->SetRulerCenterRightAscension(CenterPositionIJK[0]);
+    d->parametersNode->SetRulerCenterDeclination(CenterPositionIJK[1]);
+    d->parametersNode->InvokeCustomModifiedEvent(vtkMRMLAstroPVSliceParametersNode::RulerCenterModifiedEvent);
+    }
+  return true;
+}
+
+//---------------------------------------------------------------------------
+vtkRenderWindow *qSlicerAstroPVSliceModuleWidget::renderWindow(qMRMLWidget *viewWidget)
+{
+  if (!viewWidget)
+    {
+    return NULL;
+    }
+
+  qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
+  qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
+  if (sliceWidget)
+    {
+    if (!sliceWidget->sliceView())
+      {
+      // probably the application is closing
+      return NULL;
+      }
+    return sliceWidget->sliceView()->renderWindow();
+    }
+  else if (threeDWidget)
+    {
+    if (!threeDWidget->threeDView())
+      {
+      // probably the application is closing
+      return NULL;
+      }
+      return threeDWidget->threeDView()->renderWindow();
+    }
+
+  qCritical() << Q_FUNC_INFO << ": Unsupported view widget type!";
+  return NULL;
+}
+
+//---------------------------------------------------------------------------
+vtkRenderer *qSlicerAstroPVSliceModuleWidget::renderer(qMRMLWidget *viewWidget)
+{
+  vtkRenderWindow* renderWindow = qSlicerAstroPVSliceModuleWidget::renderWindow(viewWidget);
+  if (!renderWindow)
+    {
+    return NULL;
+    }
+
+  return vtkRenderer::SafeDownCast(renderWindow->GetRenderers()->GetItemAsObject(0));
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::processEvents(vtkObject *caller, unsigned long eid,
+                                                    void *clientData, void* vtkNotUsed(callData))
+{
+  // Get and parse client data
+  vtkPVSliceEventCallbackCommand* callbackCommand = reinterpret_cast<vtkPVSliceEventCallbackCommand*>(clientData);
+  qSlicerAstroPVSliceModuleWidget* self = callbackCommand->PVSliceWidget.data();
+  qMRMLWidget* viewWidget = callbackCommand->ViewWidget.data();
+  if (!self || !viewWidget)
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid event data";
+    return;
+    }
+  // Do nothing if scene is closing
+  if (!self->mrmlScene() || self->mrmlScene()->IsClosing())
+    {
+    return;
+    }
+
+  // Call processing function of active effect. Handle both interactor and view node events
+  vtkRenderWindowInteractor* callerInteractor = vtkRenderWindowInteractor::SafeDownCast(caller);
+  if (callerInteractor)
+    {
+    bool abortEvent = self->processInteractionEvents(callerInteractor, eid, viewWidget);
+    if (abortEvent)
+      {
+      /// Set the AbortFlag on the vtkCommand associated with the event.
+      /// It causes other observers of the interactor not to receive the events.
+      callbackCommand->SetAbortFlag(1);
+      }
+    }
+  else
+    {
+    qCritical() << Q_FUNC_INFO << ": Unsupported caller object";
+    }
 }

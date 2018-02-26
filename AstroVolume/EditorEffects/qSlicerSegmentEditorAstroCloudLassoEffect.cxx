@@ -1182,7 +1182,6 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   bool abortEvent = false;
 
-  // This effect only supports interactions in the 2D slice views currently
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
   qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
   BrushPipeline* brushPipeline = NULL;
