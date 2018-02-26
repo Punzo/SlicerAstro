@@ -1462,8 +1462,17 @@ bool qSlicerAstroPVSliceModuleWidget::processInteractionEvents(
     return false;
     }
 
-  // This effect only supports interactions in the 2D slice views currently
+  // This effect only supports interactions in the 2D slice view (Red) currently
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
+  qSlicerApplication* app = qSlicerApplication::application();
+  if (app && app->layoutManager())
+    {
+    qMRMLSliceWidget *RedSliceWidget = app->layoutManager()->sliceWidget("Red");
+    if (sliceWidget != RedSliceWidget)
+      {
+      return false;
+      }
+    }
 
   int eventPosition[2] = { 0, 0 };
   callerInteractor->GetEventPosition(eventPosition);
