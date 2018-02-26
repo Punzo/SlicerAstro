@@ -162,19 +162,19 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
   qSlicerApplication* app = qSlicerApplication::application();
   if (app && app->layoutManager())
     {
-    qMRMLSliceAstroWidget *RedSliceWidget = dynamic_cast<qMRMLSliceAstroWidget*>
+    qMRMLSliceAstroWidget *RedSliceWidget = qobject_cast<qMRMLSliceAstroWidget*>
       (app->layoutManager()->sliceWidget("Red"));
 
     QObject::connect(RedSliceWidget, SIGNAL(windowsResized()),
                      q, SLOT(ExtendAllSlices()));
 
-    qMRMLSliceAstroWidget *YellowSliceWidget = dynamic_cast<qMRMLSliceAstroWidget*>
+    qMRMLSliceAstroWidget *YellowSliceWidget = qobject_cast<qMRMLSliceAstroWidget*>
       (app->layoutManager()->sliceWidget("Yellow"));
 
     QObject::connect(YellowSliceWidget, SIGNAL(windowsResized()),
                      q, SLOT(ExtendAllSlices()));
 
-    qMRMLSliceAstroWidget *GreenSliceWidget = dynamic_cast<qMRMLSliceAstroWidget*>
+    qMRMLSliceAstroWidget *GreenSliceWidget = qobject_cast<qMRMLSliceAstroWidget*>
       (app->layoutManager()->sliceWidget("Green"));
 
     QObject::connect(GreenSliceWidget, SIGNAL(windowsResized()),
@@ -258,6 +258,14 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool
 void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
 {
   if (!this->mrmlScene() || !this->volumeNode())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* displayNode =
+    this->volumeDisplayNode();
+
+  if (!displayNode || !displayNode->GetFitSlices())
     {
     return;
     }
