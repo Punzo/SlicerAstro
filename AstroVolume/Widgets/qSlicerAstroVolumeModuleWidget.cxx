@@ -947,7 +947,6 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
         !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
         !strcmp(tempColorTableNode->GetName(), "VelocityField"))
       {
-      tempColorTableNode->GetLookupTable()->Modified();
       tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
       tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
       tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
@@ -1012,16 +1011,6 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     RainbowTableNode->SetAttribute("SlicerAstro.Log", "off");
     this->mrmlScene()->AddNode(RainbowTableNode.GetPointer());
     }
-  else
-    {
-    colorNodes->InitTraversal();
-    vtkMRMLColorTableNode* colorNode = vtkMRMLColorTableNode::SafeDownCast
-      (colorNodes->GetNextItemAsObject());
-    if (colorNode && colorNode->GetLookupTable())
-      {
-      colorNode->GetLookupTable()->Modified();
-      }
-    }
 
   // ReAdd Generic, Random and DarkBrightChart Colors
   colorNodes = vtkSmartPointer<vtkCollection>::Take(
@@ -1048,8 +1037,21 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
         tempTableNode->SetNamesFromColors();
         }
       this->mrmlScene()->AddNode(tempTableNode.GetPointer());
-      tempTableNode->GetLookupTable()->Modified();
       }
+    }
+
+  // Ensure Lookup Table is updated
+  colorNodes = vtkSmartPointer<vtkCollection>::Take(
+      this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+  for (int ii = 0; ii < colorNodes->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+            (colorNodes->GetItemAsObject(ii));
+    if (!tempColorTableNode)
+      {
+      continue;
+      }
+    tempColorTableNode->GetLookupTable()->Modified();
     }
 }
 
@@ -5064,6 +5066,11 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     {
     return;
     } 
+
+  if (!d->astroVolumeNode)
+    {
+    this->initializeColorNodes();
+    }
 
   d->astroVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(volumeNode);
 

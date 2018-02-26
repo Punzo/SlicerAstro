@@ -30,6 +30,7 @@
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class vtkMRMLNode;
+class vtkMRMLScene;
 class qSlicerAstroVolumeDisplayWidgetPrivate;
 
 /// \ingroup Slicer_QtModules_AstroVolume_Widgets

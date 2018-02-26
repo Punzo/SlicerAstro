@@ -251,7 +251,7 @@ bool qSlicerAstroScalarVolumeDisplayWidget::isMRMLWindowLevelWidgetEnabled()cons
 void qSlicerAstroScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool enable)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-    d->MRMLWindowLevelWidget->setEnabled(enable);
+  d->MRMLWindowLevelWidget->setEnabled(enable);
 }
 
 // --------------------------------------------------------------------------

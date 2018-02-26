@@ -146,7 +146,7 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
    d->LabelMapVolumeDisplayWidget->setMRMLScene(scene);
    d->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
    d->setCurrentDisplayWidget(d->LabelMapVolumeDisplayWidget);
-   }
+  }
 }
 
 // --------------------------------------------------------------------------
