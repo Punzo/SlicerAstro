@@ -49,6 +49,7 @@
 #include <qMRMLAstroVolumeInfoWidget.h>
 #include <qMRMLPlotView.h>
 #include <qMRMLPlotWidget.h>
+#include <qMRMLVolumePropertyNodeWidget.h>
 #include <qMRMLThreeDViewControllerWidget.h>
 #include <qMRMLThreeDWidget.h>
 #include <qMRMLThreeDView.h>
@@ -64,6 +65,7 @@
 #include <qSlicerPresetComboBox_p.h>
 #include <qSlicerUtils.h>
 #include <qSlicerVolumeRenderingModuleWidget.h>
+#include <qSlicerVolumeRenderingPresetComboBox.h>
 #include <ui_qSlicerAstroVolumeModuleWidget.h>
 
 // MRML includes
@@ -379,14 +381,14 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(offsetPreset(double)));
 
-  QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
-                   this->volumeRenderingWidget, SLOT(interaction()));
+  //QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
+  //                 this, SLOT(interaction()));
 
   QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(spreadPreset(double)));
 
-  QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
-                   this->volumeRenderingWidget, SLOT(interaction()));
+  //QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
+  //                 this, SLOT(interaction()));
 
   QObject::connect(this->LockPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onLockToggled(bool)));
@@ -1684,10 +1686,17 @@ void qSlicerAstroVolumeModuleWidget::spreadPreset(double stretchValue)
     return;
     }
 
-  ctkVTKVolumePropertyWidget* volumePropertyWidget =
-     d->volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
-       (QString("VolumeProperty"));
+  qMRMLVolumePropertyNodeWidget* volumePropertyNodeWidget =
+    d->volumeRenderingWidget->findChild<qMRMLVolumePropertyNodeWidget*>
+      (QString("VolumePropertyNodeWidget"));
+  if (!volumePropertyNodeWidget)
+    {
+    return;
+    }
 
+  ctkVTKVolumePropertyWidget* volumePropertyWidget =
+     volumePropertyNodeWidget->findChild<ctkVTKVolumePropertyWidget*>
+       (QString("VolumePropertyWidget"));
   if (!volumePropertyWidget)
     {
     return;
@@ -2128,7 +2137,7 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
 
   displayNode->SetVisibility(visibility);
 
-  if (!this->mrmlScene())
+  if (!this->mrmlScene() || !visibility)
     {
     return;
     }
@@ -2141,8 +2150,6 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
                    "inputVolume not found!";
     return;
     }
-
-  inputVolume->SetDisplayVisibility(1);
 
   // Set the camera position
   vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
@@ -3428,7 +3435,15 @@ void qSlicerAstroVolumeModuleWidget::applyPreset(vtkMRMLNode *volumePropertyNode
     return;
     }
 
-  d->volumeRenderingWidget->applyPreset(volumePropertyNode);
+  qSlicerVolumeRenderingPresetComboBox *PresetComboBox =
+    d->volumeRenderingWidget->findChild<qSlicerVolumeRenderingPresetComboBox*>
+      (QString("PresetComboBox"));
+  if (!PresetComboBox)
+    {
+    return;
+    }
+
+  PresetComboBox->applyPreset(volumePropertyNode);
 
   vtkMRMLVolumePropertyNode* newVolumePropertyNode =
     d->volumeRenderingWidget->mrmlVolumePropertyNode();
@@ -3457,10 +3472,17 @@ void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
     return;
     }
 
-  ctkVTKVolumePropertyWidget* volumePropertyWidget =
-     d->volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
-       (QString("VolumeProperty"));
+  qMRMLVolumePropertyNodeWidget* volumePropertyNodeWidget =
+    d->volumeRenderingWidget->findChild<qMRMLVolumePropertyNodeWidget*>
+      (QString("VolumePropertyNodeWidget"));
+  if (!volumePropertyNodeWidget)
+    {
+    return;
+    }
 
+  ctkVTKVolumePropertyWidget* volumePropertyWidget =
+     volumePropertyNodeWidget->findChild<ctkVTKVolumePropertyWidget*>
+       (QString("VolumePropertyWidget"));
   if (!volumePropertyWidget)
     {
     return;

@@ -20,6 +20,7 @@
 // Qt includes
 #include <QApplication>
 #include <QDoubleSpinBox>
+#include <QLabel>
 #include <QtPlugin>
 #include <QSettings>
 
@@ -43,6 +44,7 @@
 // SlicerQt includes
 #include <qMRMLLayoutManager.h>
 #include <qMRMLLayoutManager_p.h>
+#include <qMRMLVolumePropertyNodeWidget.h>
 #include <qMRMLSliceWidget.h>
 #include <qMRMLSliceView.h>
 #include <qMRMLVolumeThresholdWidget.h>
@@ -58,6 +60,7 @@
 #include <qSlicerScriptedLoadableModuleWidget.h>
 #include <qSlicerUtils.h>
 #include <qSlicerVolumeRenderingModuleWidget.h>
+#include <qSlicerVolumeRenderingPresetComboBox.h>
 #include <vtkSlicerVersionConfigure.h> // For Slicer_VERSION_MAJOR, Slicer_VERSION_MINOR
 
 // AstroVolume Logic includes
@@ -258,6 +261,11 @@ void qSlicerAstroVolumeModule::setup()
 
   //modify precision in VolumeRenderingWidgets
   d->volumeRendering = d->app->moduleManager()->module("VolumeRendering");
+  if(!d->volumeRendering)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : volumeRendering module not found!";
+    return;
+    }
 
   vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
     this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
@@ -282,10 +290,34 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
+  qSlicerVolumeRenderingPresetComboBox *PresetComboBox =
+    volumeRenderingWidget->findChild<qSlicerVolumeRenderingPresetComboBox*>
+      (QString("PresetComboBox"));
+  if (!PresetComboBox)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : PresetComboBox not found!";
+    return;
+    }
+
+  QLabel* PresetsNodeLabel =
+    PresetComboBox->findChild<QLabel*>
+      (QString("PresetsLabel"));
+  if (!PresetsNodeLabel)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : PresetsNodeLabel not found!";
+    return;
+    }
+  PresetsNodeLabel->hide();
+
   qSlicerPresetComboBox* PresetsNodeComboBox =
-      volumeRenderingWidget->findChild<qSlicerPresetComboBox*>
-      (QString("PresetsNodeComboBox"));
-  PresetsNodeComboBox->setEnabled(false);
+    PresetComboBox->findChild<qSlicerPresetComboBox*>
+      (QString("PresetComboBox"));
+  if (!PresetsNodeComboBox)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : PresetsNodeComboBox not found!";
+    return;
+    }
+  PresetsNodeComboBox->hide();
 
   // modify units nodes
   vtkMRMLUnitNode* unitNodeLength = selectionNode->GetUnitNode("length");
@@ -373,7 +405,7 @@ void qSlicerAstroVolumeModule::setup()
     this->mrmlScene()->GetSingletonNode("vtkMRMLLayoutNode","vtkMRMLLayoutNode"));
   if(!layoutNode)
     {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found!";
+    qCritical() << "qSlicerAstroVolumeModule::setup() : layoutNode not found!";
     return;
     }
 
@@ -464,57 +496,98 @@ void qSlicerAstroVolumeModule::setup()
 void qSlicerAstroVolumeModule::onMRMLUnitNodeIntensityModified(vtkObject* sender)
 {
   Q_D(qSlicerAstroVolumeModule);
-  if(!sender && d->volumeRendering)
+  if(!sender || !d->volumeRendering)
     {
     return;
     }
 
   vtkMRMLUnitNode* unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
+  if (!unitNode)
+    {
+    return;
+    }
 
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
          (d->volumeRendering->widgetRepresentation());
-
-  if(volumeRenderingWidget)
-    {  
-    ctkVTKVolumePropertyWidget* volumePropertyWidget =
-        volumeRenderingWidget->findChild<ctkVTKVolumePropertyWidget*>
-        (QString("VolumeProperty"));
-
-    ctkVTKScalarsToColorsWidget* opacityWidget =
-        volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
-        (QString("ScalarOpacityWidget"));
-
-    QDoubleSpinBox* XSpinBox = opacityWidget->findChild<QDoubleSpinBox*>
-        (QString("XSpinBox"));
-
-    XSpinBox->setDecimals(unitNode->GetPrecision());
-
-    ctkDoubleRangeSlider* XRangeSlider = opacityWidget->findChild<ctkDoubleRangeSlider*>
-        (QString("XRangeSlider"));
-
-    XRangeSlider->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
-    XRangeSlider->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
-
-    opacityWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
-
-    ctkVTKScalarsToColorsWidget* colorWidget =
-        volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
-        (QString("ScalarColorWidget"));
-
-    QDoubleSpinBox* XSpinBox1 = colorWidget->findChild<QDoubleSpinBox*>
-        (QString("XSpinBox"));
-
-    XSpinBox1->setDecimals(unitNode->GetPrecision());
-
-    ctkDoubleRangeSlider* XRangeSlider1 = colorWidget->findChild<ctkDoubleRangeSlider*>
-        (QString("XRangeSlider"));
-
-    XRangeSlider1->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
-    XRangeSlider1->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
-
-    colorWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+  if(!volumeRenderingWidget)
+    {
+    return;
     }
+
+  qMRMLVolumePropertyNodeWidget* volumePropertyNodeWidget =
+    volumeRenderingWidget->findChild<qMRMLVolumePropertyNodeWidget*>
+      (QString("VolumePropertyNodeWidget"));
+  if (!volumePropertyNodeWidget)
+    {
+    return;
+    }
+
+  ctkVTKVolumePropertyWidget* volumePropertyWidget =
+      volumePropertyNodeWidget->findChild<ctkVTKVolumePropertyWidget*>
+      (QString("VolumePropertyWidget"));
+  if (!volumePropertyWidget)
+    {
+    return;
+    }
+
+  ctkVTKScalarsToColorsWidget* opacityWidget =
+      volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
+      (QString("ScalarOpacityWidget"));
+  if (!opacityWidget)
+    {
+    return;
+    }
+
+  QDoubleSpinBox* XSpinBox = opacityWidget->findChild<QDoubleSpinBox*>
+      (QString("XSpinBox"));
+  if (!opacityWidget)
+    {
+    return;
+    }
+
+  XSpinBox->setDecimals(unitNode->GetPrecision());
+
+  ctkDoubleRangeSlider* XRangeSlider = opacityWidget->findChild<ctkDoubleRangeSlider*>
+      (QString("XRangeSlider"));
+  if (!XRangeSlider)
+    {
+    return;
+    }
+
+  XRangeSlider->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+  XRangeSlider->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
+
+  opacityWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+
+  ctkVTKScalarsToColorsWidget* colorWidget =
+      volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
+      (QString("ScalarColorWidget"));
+  if (!colorWidget)
+    {
+    return;
+    }
+
+  QDoubleSpinBox* XSpinBox1 = colorWidget->findChild<QDoubleSpinBox*>
+      (QString("XSpinBox"));
+  if (!colorWidget)
+    {
+    return;
+    }
+
+  XSpinBox1->setDecimals(unitNode->GetPrecision());
+
+  ctkDoubleRangeSlider* XRangeSlider1 = colorWidget->findChild<ctkDoubleRangeSlider*>
+      (QString("XRangeSlider"));
+  if (!XRangeSlider1)
+    {
+    return;
+    }
+
+  XRangeSlider1->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
+  XRangeSlider1->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
+
+  colorWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
 }
 
 //-----------------------------------------------------------------------------
