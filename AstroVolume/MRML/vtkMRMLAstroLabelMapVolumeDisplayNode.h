@@ -177,7 +177,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
                                                 const char *language,
                                                 const double oldOutputValues[3],
                                                 double outputValues[3],
-                                                bool horizontalAxis = false);
+                                                bool additionalSpace = false);
 
   ///
   /// \brief GetDisplayStringFromValueAxes
@@ -189,27 +189,24 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
                                                  const double oldOutputValues[3],
                                                  double outputValues[3],
                                                  int precision = 0,
-                                                 bool horizontalAxis = false);
+                                                 bool additionalSpace = false);
   virtual std::string GetDisplayStringFromValueY(const double world,
                                                  const double oldOutputValues[3],
                                                  double outputValues[3],
                                                  int precision = 0,
-                                                 bool horizontalAxis = false);
+                                                 bool additionalSpace = false);
   virtual std::string GetDisplayStringFromValueZ(const double world,
                                                  const double oldOutputValues[3],
                                                  double outputValues[3],
                                                  int precision = 0,
-                                                 bool horizontalAxis = false);
+                                                 bool additionalSpace = false);
 
   virtual std::string GetPythonDisplayStringFromValueX(const double world,
-                                                       int precision = 0,
-                                                       bool horizontalAxis = false);
+                                                       int precision = 0);
   virtual std::string GetPythonDisplayStringFromValueY(const double world,
-                                                       int precision = 0,
-                                                       bool horizontalAxis = false);
+                                                       int precision = 0);
   virtual std::string GetPythonDisplayStringFromValueZ(const double world,
-                                                       int precision = 0,
-                                                       bool horizontalAxis = false);
+                                                       int precision = 0);
 
   virtual std::string AddVelocityInfoToDisplayStringZ(std::string value);
 
