@@ -253,7 +253,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor performance.")
+                  "the AstroSmoothing algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
@@ -537,7 +537,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor performance.")
+                  "the AstroSmoothing algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
@@ -1159,7 +1159,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor performance.")
+                  "the AstroSmoothing algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
    if (!pnode)
@@ -1421,7 +1421,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor performance.")
+                  "the AstroSmoothing algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
@@ -2024,7 +2024,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm will show poor performance.")
+                  "the AstroSmoothing algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
    if (!pnode)

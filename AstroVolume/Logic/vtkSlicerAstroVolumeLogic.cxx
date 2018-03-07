@@ -36,6 +36,7 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLColorTableNode.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLNode.h>
@@ -205,6 +206,20 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
       sliceNode->RemoveSliceOrientationPreset("Sagittal");
       sliceNode->RemoveSliceOrientationPreset("Coronal");
       sliceNode->DisableModifiedEventOff();
+      }
+    }
+
+  // modify CameraNodes already allocated
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClass("vtkMRMLCameraNode"));
+
+  for(int i = 0; i < cameraNodes->GetNumberOfItems(); i++)
+    {
+    vtkMRMLCameraNode* cameraNode =
+        vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(i));
+    if (cameraNode)
+      {
+      cameraNode->SetParallelScale(75.);
       }
     }
 }

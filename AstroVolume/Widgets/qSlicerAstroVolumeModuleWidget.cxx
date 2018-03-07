@@ -381,14 +381,8 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(offsetPreset(double)));
 
-  //QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
-  //                 this, SLOT(interaction()));
-
   QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(spreadPreset(double)));
-
-  //QObject::connect(this->PresetStretchSlider, SIGNAL(valueChanged(double)),
-  //                 this, SLOT(interaction()));
 
   QObject::connect(this->LockPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onLockToggled(bool)));
@@ -1470,8 +1464,8 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 
     astroVolumeNode->Modified();
     std::string type = astroVolumeNode->GetAttribute("SlicerAstro.DATAMODEL");
-    size_t found = type.find("MOMENTMAP");
-    if (found == std::string::npos)
+    if (type.find("MOMENTMAP") == std::string::npos &&
+        type.find("PVDIAGRAM") == std::string::npos)
       {
       d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
       d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());

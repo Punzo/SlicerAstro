@@ -17,8 +17,8 @@
 
 ==============================================================================*/
 
-#ifndef __vtkMRMLAstroMaskingParametersNode_h
-#define __vtkMRMLAstroMaskingParametersNode_h
+#ifndef __vtkMRMLAstroPVDiagramParametersNode_h
+#define __vtkMRMLAstroPVDiagramParametersNode_h
 
 // MRML includes
 #include <vtkMRML.h>
@@ -28,17 +28,13 @@
 // Export includes
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
-class vtkMRMLAnnotationROINode;
-class vtkMRMLTableNode;
-class vtkMRMLTransformNode;
-
-/// \ingroup Slicer_QtModules_AstroMasking
-class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMaskingParametersNode : public vtkMRMLNode
+/// \ingroup Slicer_QtModules_AstroPVDiagram
+class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRMLNode
 {
   public:
 
-  static vtkMRMLAstroMaskingParametersNode *New();
-  vtkTypeMacro(vtkMRMLAstroMaskingParametersNode,vtkMRMLNode);
+  static vtkMRMLAstroPVDiagramParametersNode *New();
+  vtkTypeMacro(vtkMRMLAstroPVDiagramParametersNode,vtkMRMLNode);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
@@ -57,61 +53,50 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMaskingParametersNode : public vtkMRMLNo
 
   // Description:
   // Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroMaskingParameters";};
+  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroPVDiagramParameters";};
 
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
 
-  vtkSetStringMacro(MaskVolumeNodeID);
-  vtkGetStringMacro(MaskVolumeNodeID);
+  vtkSetStringMacro(MomentMapNodeID);
+  vtkGetStringMacro(MomentMapNodeID);
 
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
-  vtkMRMLAnnotationROINode* GetROINode();
-  void SetROINode(vtkMRMLAnnotationROINode* node);
+  vtkSetStringMacro(FiducialsMarkupsID);
+  vtkGetStringMacro(FiducialsMarkupsID);
 
-  vtkSetStringMacro(Mode);
-  vtkGetStringMacro(Mode);
+  vtkSetStringMacro(ModelID);
+  vtkGetStringMacro(ModelID);
 
-  vtkSetStringMacro(Operation);
-  vtkGetStringMacro(Operation);
+  void SetInterpolation(bool interpolation);
+  vtkGetMacro(Interpolation,bool);
 
-  vtkSetStringMacro(BlankRegion);
-  vtkGetStringMacro(BlankRegion);
+  //
+  enum
+    {
+    InterpolationModifiedEvent = 130000
+    };
 
-  vtkSetStringMacro(BlankValue);
-  vtkGetStringMacro(BlankValue);
-
-  vtkSetMacro(OutputSerial,int);
-  vtkGetMacro(OutputSerial,int);
-
-  vtkSetMacro(Status,int);
-  vtkGetMacro(Status,int);
+  vtkSetMacro(AutoUpdate,bool);
+  vtkGetMacro(AutoUpdate,bool);
 
 protected:
-  vtkMRMLAstroMaskingParametersNode();
-  ~vtkMRMLAstroMaskingParametersNode();
+  vtkMRMLAstroPVDiagramParametersNode();
+  ~vtkMRMLAstroPVDiagramParametersNode();
 
-  vtkMRMLAstroMaskingParametersNode(const vtkMRMLAstroMaskingParametersNode&);
-  void operator=(const vtkMRMLAstroMaskingParametersNode&);
-
-  static const char* ROI_REFERENCE_ROLE;
-  const char *GetROINodeReferenceRole();
-
-  static const char* ROI_ALIGNMENTTRANSFORM_REFERENCE_ROLE;
-  const char *GetROIAlignmentTransformNodeReferenceRole();
+  vtkMRMLAstroPVDiagramParametersNode(const vtkMRMLAstroPVDiagramParametersNode&);
+  void operator=(const vtkMRMLAstroPVDiagramParametersNode&);
 
   char *InputVolumeNodeID;
-  char *MaskVolumeNodeID;
+  char *MomentMapNodeID;
   char *OutputVolumeNodeID;
-  char *Mode;
-  char *Operation;
-  char *BlankRegion;
-  char *BlankValue;
+  char *FiducialsMarkupsID;
+  char *ModelID;
 
-  int OutputSerial;
-  int Status;
+  bool Interpolation;
+  bool AutoUpdate;
 };
 
 #endif

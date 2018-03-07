@@ -239,7 +239,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroStatistics algorithm will show poor performance.")
+                  "the AstroStatistics algorithm may show poor performance.")
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)

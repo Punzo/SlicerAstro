@@ -54,11 +54,6 @@
 #include <cassert>
 #include <iostream>
 
-// OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
-
 // Qt includes
 #include <QtDebug>
 
@@ -181,13 +176,6 @@ void vtkSlicerAstroMaskingLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("vtkSlicerAstroMaskingLogic::CalculateMasking : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroMasking algorithm will show poor performance.")
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
   if (!pnode)
     {
     vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank : "
@@ -286,20 +274,6 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   bool cancel = false;
   int status = 0;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
-
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
   struct timeval start, end;
 
   long mtime, seconds, useconds;
@@ -311,70 +285,44 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   if(segmentationActive)
     {
     maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
-
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, BlankValue)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (pnode->GetStatus() == -1)
         {
         cancel = true;
+        break;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
-      if (!cancel)
+      if ((regionInside && *(maskPixel + elementCnt) < 1) ||
+          (!regionInside && *(maskPixel + elementCnt) > 0))
         {
-        if ((regionInside && *(maskPixel + elementCnt) < 1) ||
-            (!regionInside && *(maskPixel + elementCnt) > 0))
+        switch (DataType)
           {
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              *(outFPixel + elementCnt) = *(inFPixel + elementCnt);
-              break;
-            case VTK_DOUBLE:
-              *(outDPixel + elementCnt) = *(inDPixel + elementCnt);
-              break;
-            }
+          case VTK_FLOAT:
+            *(outFPixel + elementCnt) = *(inFPixel + elementCnt);
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elementCnt) = *(inDPixel + elementCnt);
+            break;
           }
-        else
+        }
+      else
+        {
+        switch (DataType)
           {
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              *(outFPixel + elementCnt) = BlankValue;
-              break;
-            case VTK_DOUBLE:
-              *(outDPixel + elementCnt) = BlankValue;
-              break;
-            }
+          case VTK_FLOAT:
+            *(outFPixel + elementCnt) = BlankValue;
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elementCnt) = BlankValue;
+            break;
           }
+        }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elementCnt / (numElements / numProcs) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(elementCnt / numElements > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if(elementCnt / numElements > status)
+        {
+        status += 10;
+        pnode->SetStatus(status);
         }
       }
     }
@@ -432,79 +380,54 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       return false;
       }
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, BlankValue, lastElement, firstElement)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (pnode->GetStatus() == -1)
         {
         cancel = true;
+        break;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
-      if (!cancel)
+      int ref  = (int) floor(elementCnt / dims[0]);
+      ref *= dims[0];
+      int x = elementCnt - ref;
+      ref = (int) floor(elementCnt / numSlice);
+      ref *= numSlice;
+      ref = elementCnt - ref;
+      int y = (int) floor(ref / dims[0]);
+      bool eleOutside = (elementCnt < firstElement || elementCnt >= lastElement ||
+                        x < roiBounds[0] ||  x > roiBounds[1] ||
+                        y < roiBounds[2] ||  y > roiBounds[3]);
+      if ((regionInside && !eleOutside) ||
+          (!regionInside && eleOutside))
         {
-        int ref  = (int) floor(elementCnt / dims[0]);
-        ref *= dims[0];
-        int x = elementCnt - ref;
-        ref = (int) floor(elementCnt / numSlice);
-        ref *= numSlice;
-        ref = elementCnt - ref;
-        int y = (int) floor(ref / dims[0]);
-        bool eleOutside = (elementCnt < firstElement || elementCnt >= lastElement ||
-                          x < roiBounds[0] ||  x > roiBounds[1] ||
-                          y < roiBounds[2] ||  y > roiBounds[3]);
-        if ((regionInside && !eleOutside) ||
-            (!regionInside && eleOutside))
+        switch (DataType)
           {
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              *(outFPixel + elementCnt) = BlankValue;
-              break;
-            case VTK_DOUBLE:
-              *(outDPixel + elementCnt) = BlankValue;
-              break;
-            }
+          case VTK_FLOAT:
+            *(outFPixel + elementCnt) = BlankValue;
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elementCnt) = BlankValue;
+            break;
           }
-        else
+        }
+      else
+        {
+        switch (DataType)
           {
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              *(outFPixel + elementCnt) = *(inFPixel + elementCnt);
-              break;
-            case VTK_DOUBLE:
-              *(outDPixel + elementCnt) = *(inDPixel + elementCnt);
-              break;
-            }
+          case VTK_FLOAT:
+            *(outFPixel + elementCnt) = *(inFPixel + elementCnt);
+            break;
+          case VTK_DOUBLE:
+            *(outDPixel + elementCnt) = *(inDPixel + elementCnt);
+            break;
           }
+        }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elementCnt / (numElements / numProcs) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(elementCnt / numElements > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if(elementCnt / numElements > status)
+        {
+        status += 10;
+        pnode->SetStatus(status);
         }
       }
     }

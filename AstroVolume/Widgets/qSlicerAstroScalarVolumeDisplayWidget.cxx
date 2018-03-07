@@ -294,7 +294,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
       FieldOfView[0] = sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
       FieldOfView[1] = dims[2] + (dims[2] * 0.2);
       }
-    else if (!sliceNode->GetOrientation().compare("XY"))
+    else if (!sliceNode->GetOrientation().compare("XY") ||
+             !sliceNode->GetOrientation().compare("PVDiagram"))
       {
       FieldOfView[0] = dims[0];
       FieldOfView[1] = dims[1];

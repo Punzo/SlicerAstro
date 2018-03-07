@@ -1164,7 +1164,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
     vtkMRMLAstroVolumeStorageNode* astroStorage =
       vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
     scene->RemoveNode(astroStorage);
-    scene->RemoveNode(outputVolume->GetDisplayNode());
+    scene->RemoveNode(outputVolume->GetAstroVolumeDisplayNode());
 
     vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
