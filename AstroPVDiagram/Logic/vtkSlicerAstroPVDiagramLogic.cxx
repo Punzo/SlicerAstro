@@ -904,13 +904,6 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
 
   layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
 
-  vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-    this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
-  redSliceComposite->SetLabelVolumeID("");
-  redSliceComposite->SetForegroundVolumeID("");
-  redSliceComposite->SetForegroundOpacity(0.);
-  redSliceComposite->SetBackgroundVolumeID(pnode->GetMomentMapNodeID());
-
   vtkMRMLSliceNode *redSlice = vtkMRMLSliceNode::SafeDownCast(
     this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
   // setting to the XZ orientation is needed in order to force the refresh
