@@ -1806,7 +1806,7 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>If Toggled, when changing the Active Data, the data will be immediately showed in the 2D and 3D views.</string>
+        <string/>
        </property>
        <property name="text">
         <string>Auto Propagate:</string>
@@ -1817,6 +1817,9 @@
       <widget class="QCheckBox" name="AutoPropagateCheckBox">
        <property name="enabled">
         <bool>false</bool>
+       </property>
+       <property name="toolTip">
+        <string>If Toggled, when changing the Active Data, the data will be immediately showed in the 2D and 3D views.</string>
        </property>
        <property name="text">
         <string/>
