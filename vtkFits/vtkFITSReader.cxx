@@ -145,6 +145,7 @@ std::string DoubleToString(double Value)
   return NumberToString<double>(Value);
 }
 
+//----------------------------------------------------------------------------
 std::string ZeroPadNumber(int num)
 {
   std::stringstream ss;
@@ -163,6 +164,7 @@ std::string ZeroPadNumber(int num)
 
 }// end namespace
 
+//----------------------------------------------------------------------------
 vtkMatrix4x4* vtkFITSReader::GetRasToIjkMatrix()
 {
   this->ExecuteInformation();

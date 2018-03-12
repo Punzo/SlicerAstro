@@ -885,8 +885,10 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
     PVDiagramVolume->SetAttribute("SlicerAstro.CROTA1", "0");
     PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX1", "0");
     PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL1", "0");
+    PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE1", "UNDEFINED");
 
     PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS2", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+    PVDiagramVolume->SetAttribute("SlicerAstro.CDELT2", inputVolume->GetAttribute("SlicerAstro.CDELT3"));
     PVDiagramVolume->SetAttribute("SlicerAstro.CROTA2", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
     PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX2", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
     PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL2", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
@@ -897,6 +899,7 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
     PVDiagramVolume->SetAttribute("SlicerAstro.DUNIT2", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
 
     PVDiagramVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    PVDiagramVolume->RemoveAttribute("SlicerAstro.CDELT3");
     PVDiagramVolume->RemoveAttribute("SlicerAstro.CROTA3");
     PVDiagramVolume->RemoveAttribute("SlicerAstro.CRPIX3");
     PVDiagramVolume->RemoveAttribute("SlicerAstro.CRVAL3");

@@ -149,6 +149,29 @@ std::string IntToString(int Value)
   return NumberToString<int>(Value);
 }
 
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  return NumberToString<double>(Value);
+}
+
+//----------------------------------------------------------------------------
+std::string ZeroPadNumber(int num)
+{
+  std::stringstream ss;
+
+  // the number is converted to string with the help of stringstream
+  ss << num;
+  std::string ret;
+  ss >> ret;
+
+  // Append zero chars
+  int str_length = ret.length();
+  for (int ii = 0; ii < 7 - str_length; ii++)
+    ret = "0" + ret;
+  return ret;
+}
+
 } // end namespace
 
 //----------------------------------------------------------------------------
@@ -699,7 +722,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
         double step = 0.5;
         double deltaX = (posIJK[0] - oldPosIJK[0]) * step;
         double deltaY = (posIJK[1] - oldPosIJK[1]) * step;
-        while (fabs(deltaX) > 1. || fabs(deltaY) > 1.)
+        while (fabs(deltaX) > 0.95 || fabs(deltaY) > 0.95)
           {
           step *= 0.75;
           deltaX = (posIJK[0] - oldPosIJK[0]) * step;
@@ -742,7 +765,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     double r[2] = {0.};
     aSplineX->GetParametricRange(r);
     double t = r[0], newT;
-    double tStep = 1. / (2 * nOfControlPoints);
+    double tStep = 1. / (3 * nOfControlPoints);
     double valueX, valueY, valueZ, deltaX, deltaY;
     double oldValueX = oldPosIJK[0];
     double oldValueY = oldPosIJK[1];
@@ -761,7 +784,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       deltaX = valueX - oldValueX;
       deltaY = valueY - oldValueY;
 
-      while (fabs(deltaX) > 1. || fabs(deltaY) > 1.)
+      while (fabs(deltaX) > 0.95 || fabs(deltaY) > 0.95)
         {
         tStep *= 0.75;
         newT = t + tStep;
@@ -829,18 +852,18 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int PointIndex = 0; PointIndex < points->GetNumberOfPoints(); PointIndex++)
     {
-    double pos[3];
-    points->GetPoint(PointIndex, pos);
+    double posIJK[3];
+    points->GetPoint(PointIndex, posIJK);
 
-    int iiLeft = floor(pos[0]);
-    int iiRight = ceil(pos[0]);
-    double iiInterpolatedRight = iiRight - pos[0];
-    double iiInterpolatedLeft = pos[0] - iiLeft;
+    int iiLeft = floor(posIJK[0]);
+    int iiRight = ceil(posIJK[0]);
+    double iiInterpolatedRight = iiRight - posIJK[0];
+    double iiInterpolatedLeft = posIJK[0] - iiLeft;
 
-    int jjBottom = floor(pos[1]);
-    int jjTop = ceil(pos[1]);
-    double jjInterpolatedTop = jjTop - pos[1];
-    double jjInterpolatedBottom = pos[1] - jjBottom;
+    int jjBottom = floor(posIJK[1]);
+    int jjTop = ceil(posIJK[1]);
+    double jjInterpolatedTop = jjTop - posIJK[1];
+    double jjInterpolatedBottom = posIJK[1] - jjBottom;
 
     int IndexLB = iiLeft + jjBottom * dims[0];
     int IndexLT = iiLeft + jjTop * dims[0];
@@ -882,17 +905,63 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   delete PVDiagramDPixel;
 
   PVDiagramVolume->UpdateRangeAttributes();
-  PVDiagramVolume->EndModify(wasModifying);
 
-  vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = PVDiagramVolume->GetAstroVolumeDisplayNode();
-  if (!astroMrmlDisplayNode)
+  int HistoryIndex = 0;
+  for (int index = 1; index < 1000000; index++)
+    {
+    std::string keywordName = "SlicerAstro._HISTORY";
+    keywordName += ZeroPadNumber(index);
+    if (!PVDiagramVolume->GetAttribute(keywordName.c_str()))
+      {
+      HistoryIndex = index + 1;
+      break;
+      }
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroInputDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  if (!astroInputDisplay || !astroInputDisplay->GetWCSStruct())
     {
     vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
-                  " astroMrmlDisplayNode not found.");
+                  " astroInputDisplay not found.");
     return false;
     }
 
-  astroMrmlDisplayNode->SetFitSlices(true);
+  double CDELT1 = 0.;
+  std::string unit = astroInputDisplay->GetWCSStruct()->cunit[0];
+  for (int PointIndex = 0; PointIndex < points->GetNumberOfPoints(); PointIndex++)
+    {
+    double posIJK[3], posWCS[3];
+    points->GetPoint(PointIndex, posIJK);
+    astroInputDisplay->GetReferenceSpace(posIJK, posWCS);
+    std::string keywordName = "SlicerAstro._HISTORY";
+    keywordName += ZeroPadNumber(HistoryIndex + PointIndex);
+    std::string keywordString;
+    keywordString = "PVPoint " + IntToString(PointIndex) + " : " +
+                    "ij = " + DoubleToString(posIJK[0]) + " , " + DoubleToString(posIJK[1]) + " ; " +
+                    "WCS = " + DoubleToString(posWCS[0]) + " , " + DoubleToString(posWCS[1]) + " " + unit;
+    PVDiagramVolume->SetAttribute(keywordName.c_str(), keywordString.c_str());
+    if (PointIndex != 0)
+      {
+      double oldPosIJK[3], oldPosWCS[3];
+      points->GetPoint(PointIndex - 1, oldPosIJK);
+      astroInputDisplay->GetReferenceSpace(oldPosIJK, oldPosWCS);
+      CDELT1 += sqrt(((posWCS[0] - oldPosWCS[0]) * (posWCS[0] - oldPosWCS[0])) +
+                     ((posWCS[1] - oldPosWCS[1]) * (posWCS[1] - oldPosWCS[1])));
+      }
+    }
+  CDELT1 /= points->GetNumberOfPoints() - 1;
+  PVDiagramVolume->SetAttribute("SlicerAstro.CDELT1", DoubleToString(CDELT1).c_str());
+  PVDiagramVolume->EndModify(wasModifying);
+
+  vtkMRMLAstroVolumeDisplayNode * astroPVDisplayNode = PVDiagramVolume->GetAstroVolumeDisplayNode();
+  if (!astroPVDisplayNode)
+    {
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
+                  " astroPVDisplayNode not found.");
+    return false;
+    }
+
+  astroPVDisplayNode->SetFitSlices(true);
 
   // Setting the Layout for the Output
   qSlicerApplication* app = qSlicerApplication::application();
