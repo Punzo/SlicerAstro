@@ -259,7 +259,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLWindowLevelWidgetEnabled(bool
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
 {
-  if (!this->mrmlScene() || !this->volumeNode())
+  if (!this->mrmlScene() || !this->volumeNode() ||
+      !this->volumeNode()->GetImageData())
     {
     return;
     }
@@ -273,14 +274,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
 
-  if (!displayNode || !displayNode->GetFitSlices())
+  if (!displayNode)
     {
     return;
     }
 
   int dims[3];
-  this->volumeNode()->GetImageData()->GetDimensions(dims);
-
   vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
 
@@ -326,14 +325,24 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
         vtkMRMLAstroVolumeNode::SafeDownCast
           (sliceLayerLogic->GetVolumeNode());
 
-      if (!astroVolumeNode)
+      if (!astroVolumeNode || !astroVolumeNode->GetImageData() ||
+          !astroVolumeNode->GetAstroVolumeDisplayNode())
         {
         continue;
         }
 
-      if (!strcmp(astroVolumeNode->GetName(), this->volumeNode()->GetName()))
+      if (!strcmp(astroVolumeNode->GetName(), this->volumeNode()->GetName()) &&
+          displayNode->GetFitSlices())
         {
+        this->volumeNode()->GetImageData()->GetDimensions(dims);
         apply = true;
+        break;
+        }
+      else if (astroVolumeNode->GetAstroVolumeDisplayNode()->GetFitSlices())
+        {
+        astroVolumeNode->GetImageData()->GetDimensions(dims);
+        apply = true;
+        break;
         }
       }
 
@@ -341,6 +350,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
 
     if (!apply)
       {
+      sliceLogic->FitSliceToAll(true);
       continue;
       }
 
@@ -992,18 +1002,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
       d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
       }
     d->FitSlicesToViewsPushButton->setChecked(displayNode->GetFitSlices());
-    if (displayNode->GetFitSlices())
-      {
-      this->ExtendAllSlices();
-      }
-    else
-      {
-      qSlicerApplication* app = qSlicerApplication::application();
-      if (app && app->applicationLogic())
-        {
-        app->applicationLogic()->FitSliceToAll(true);
-        }
-      }
+    this->ExtendAllSlices();
 
     vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();
     QColor color;

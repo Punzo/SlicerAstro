@@ -884,11 +884,21 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   PVDiagramVolume->UpdateRangeAttributes();
   PVDiagramVolume->EndModify(wasModifying);
 
+  vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = PVDiagramVolume->GetAstroVolumeDisplayNode();
+  if (!astroMrmlDisplayNode)
+    {
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
+                  " astroMrmlDisplayNode not found.");
+    return false;
+    }
+
+  astroMrmlDisplayNode->SetFitSlices(true);
+
   // Setting the Layout for the Output
   qSlicerApplication* app = qSlicerApplication::application();
   if(!app)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GeneratePVDiagram : "
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram : "
                    "app not found!");
     return false;
     }
@@ -897,7 +907,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
 
   if(!layoutManager)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GeneratePVDiagram : "
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram : "
                    "layoutManager not found!");
     return false;
     }
@@ -928,7 +938,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
   if (!yellowSliceNode)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GeneratePVDiagram :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
                   " yellowSliceNode not found.");
     return false;
     }
@@ -939,7 +949,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   vtkSlicerApplicationLogic *appLogic = app->applicationLogic();
   if (!appLogic)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GeneratePVDiagram :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
                    " appLogic not found!");
     return false;
     }
