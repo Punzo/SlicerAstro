@@ -1465,7 +1465,10 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     astroVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
     d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
-    appLogic->PropagateBackgroundVolumeSelection(1);
+    if (d->AutoPropagateCheckBox->isChecked())
+      {
+      appLogic->PropagateBackgroundVolumeSelection(1);
+      }
     }
   else if (labelMapVolumeNode)
     {
@@ -1473,7 +1476,10 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     labelMapVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
-    appLogic->PropagateLabelVolumeSelection(1);
+    if (d->AutoPropagateCheckBox->isChecked())
+      {
+      appLogic->PropagateLabelVolumeSelection(1);
+      }
     }
   else
     {
@@ -5069,7 +5075,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     {
     d->RenderingFrame->setEnabled(true);
     d->RenderingFrame->setCollapsed(false);
-    if (d->volumeRenderingWidget)
+    if (d->volumeRenderingWidget && d->AutoPropagateCheckBox->isChecked())
       {
       d->volumeRenderingWidget->setMRMLVolumeNode(d->astroVolumeNode);
       }
