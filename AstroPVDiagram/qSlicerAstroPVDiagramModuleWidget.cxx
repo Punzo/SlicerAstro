@@ -838,10 +838,10 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
   int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
   if (n != 3)
     {
-    QString message = QString("It is possible to create Moment Maps only"
+    QString message = QString("It is possible to create PVDiagram only"
                               " for datacubes with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to create the Profile"), message);
+    QMessageBox::warning(NULL, tr("Failed to create the PVDiagram"), message);
     return;
     }
 

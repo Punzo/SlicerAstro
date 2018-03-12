@@ -1463,14 +1463,9 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       }
 
     astroVolumeNode->Modified();
-    std::string type = astroVolumeNode->GetAttribute("SlicerAstro.DATAMODEL");
-    if (type.find("MOMENTMAP") == std::string::npos &&
-        type.find("PVDIAGRAM") == std::string::npos)
-      {
-      d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
-      d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
-      appLogic->PropagateBackgroundVolumeSelection(1);
-      }
+    d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
+    d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
+    appLogic->PropagateBackgroundVolumeSelection(1);
     }
   else if (labelMapVolumeNode)
     {
