@@ -746,6 +746,8 @@ void qSlicerAstroPVDiagramModuleWidget::initializeFiducialsMarkupsNode(bool forc
     this->mrmlScene()->AddNode(SourcePointNode);
     }
 
+  SourcePointNode->RemoveAllMarkups();
+
   vtkMRMLMarkupsDisplayNode* SourcePointDisplayNode = SourcePointNode->GetMarkupsDisplayNode();
   if (!SourcePointDisplayNode)
     {
@@ -849,7 +851,7 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
     vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
-  if (PVDiagramVolume && !strcmp(inputVolume->GetID(), PVDiagramVolume->GetID()))
+  if (PVDiagramVolume && (!strcmp(inputVolume->GetID(), PVDiagramVolume->GetID())))
     {
     vtkMRMLAstroVolumeStorageNode* astroStorage =
       vtkMRMLAstroVolumeStorageNode::SafeDownCast(PVDiagramVolume->GetStorageNode());
@@ -1034,7 +1036,6 @@ void qSlicerAstroPVDiagramModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNo
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    this->initializeMomentMapNode();
     }
   else
     {
@@ -1164,7 +1165,18 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSelectionNodeModified(vtkObject *s
 
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
+  d->parametersNode->SetOutputVolumeNodeID("");
   d->parametersNode->EndModify(wasModifying);
+
+  this->initializeMomentMapNode(true);
+  this->initializeFiducialsMarkupsNode(false);
+  // Update Line Selection
+  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
+  if (logic)
+    {
+    logic->UpdateSliceSelection(d->parametersNode);
+    }
+  this->initializeLineModelNode(false);
 }
 
 //-----------------------------------------------------------------------------
