@@ -46,7 +46,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::vtkMRMLAstroLabelMapVolumeDisplayNode()
   this->SpaceQuantities->SetValue(0, "time");
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
-  this->Space = 0;
+  this->Space = NULL;
   this->SetSpace("WCS");
   this->WCSStatus = 0;
   this->WCS = new struct wcsprm;

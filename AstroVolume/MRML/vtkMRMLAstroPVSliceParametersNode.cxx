@@ -47,10 +47,10 @@ vtkMRMLAstroPVSliceParametersNode::vtkMRMLAstroPVSliceParametersNode()
   this->MomentMapNodeID = NULL;
   this->RulerNodeID = NULL;
 
-  this->SetRulerAngle(0.);
-  this->SetRulerOldAngle(0.);
-  this->SetRulerShiftX(0.);
-  this->SetRulerOldShiftX(0.);
+  this->RulerAngle = 0.;
+  this->RulerOldAngle = 0.;
+  this->RulerShiftX = 0.;
+  this->RulerOldShiftX = 0.;
 
   for(int ii = 0; ii < 2; ii++)
     {

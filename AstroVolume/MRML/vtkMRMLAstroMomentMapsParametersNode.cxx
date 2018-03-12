@@ -47,17 +47,17 @@ vtkMRMLAstroMomentMapsParametersNode::vtkMRMLAstroMomentMapsParametersNode()
   this->FirstMomentVolumeNodeID = NULL;
   this->SecondMomentVolumeNodeID = NULL;
   this->MaskVolumeNodeID = NULL;
-  this->SetCores(0);
-  this->SetMaskActive(false);
-  this->SetGenerateZero(true);
-  this->SetGenerateFirst(true);
-  this->SetGenerateSecond(true);
-  this->SetIntensityMin(-1.);
-  this->SetIntensityMax(1.);
-  this->SetVelocityMin(-1.);
-  this->SetVelocityMax(1.);
+  this->Cores = 0;
+  this->MaskActive = false;
+  this->GenerateZero = true;
+  this->GenerateFirst = true;
+  this->GenerateSecond = true;
+  this->IntensityMin = -1.;
+  this->IntensityMax = 1.;
+  this->VelocityMin = -1.;
+  this->VelocityMax = 1.;
   this->OutputSerial = 1;
-  this->SetStatus(0);
+  this->Status = 0;
 }
 
 //----------------------------------------------------------------------------

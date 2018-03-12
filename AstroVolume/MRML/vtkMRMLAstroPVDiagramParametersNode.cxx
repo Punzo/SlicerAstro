@@ -48,8 +48,8 @@ vtkMRMLAstroPVDiagramParametersNode::vtkMRMLAstroPVDiagramParametersNode()
   this->OutputVolumeNodeID = NULL;
   this->FiducialsMarkupsID = NULL;
   this->ModelID = NULL;
-  this->SetInterpolation(true);
-  this->SetAutoUpdate(true);
+  this->Interpolation = true;
+  this->AutoUpdate = true;
 }
 
 //----------------------------------------------------------------------------

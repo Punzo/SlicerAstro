@@ -52,7 +52,7 @@ vtkMRMLAstroStatisticsParametersNode::vtkMRMLAstroStatisticsParametersNode()
   this->MaskVolumeNodeID = NULL;
   this->Mode = NULL;
   this->SetMode("ROI");
-  this->SetCores(0);
+  this->Cores = 0;
   this->Max = true;
   this->Mean = true;
   this->Median = true;
@@ -62,7 +62,7 @@ vtkMRMLAstroStatisticsParametersNode::vtkMRMLAstroStatisticsParametersNode()
   this->Sum = true;
   this->TotalFlux = true;
   this->OutputSerial = 1;
-  this->SetStatus(0);
+  this->Status = 0;
 }
 
 //----------------------------------------------------------------------------

@@ -45,14 +45,14 @@ vtkMRMLAstroProfilesParametersNode::vtkMRMLAstroProfilesParametersNode()
   this->InputVolumeNodeID = NULL;
   this->ProfileVolumeNodeID = NULL;
   this->MaskVolumeNodeID = NULL;
-  this->SetCores(0);
-  this->SetMaskActive(false);
-  this->SetIntensityMin(-1.);
-  this->SetIntensityMax(1.);
-  this->SetVelocityMin(-1.);
-  this->SetVelocityMax(1.);
+  this->Cores = 0;
+  this->MaskActive = false;
+  this->IntensityMin = -1.;
+  this->IntensityMax = 1.;
+  this->VelocityMin = -1.;
+  this->VelocityMax = 1.;
   this->OutputSerial = 1;
-  this->SetStatus(0);
+  this->Status = 0;
 }
 
 //----------------------------------------------------------------------------

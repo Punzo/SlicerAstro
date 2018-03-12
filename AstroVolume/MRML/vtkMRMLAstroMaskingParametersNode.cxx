@@ -59,7 +59,7 @@ vtkMRMLAstroMaskingParametersNode::vtkMRMLAstroMaskingParametersNode()
   this->BlankValue = NULL;
   this->SetBlankValue("NaN");
   this->OutputSerial = 1;
-  this->SetStatus(0);
+  this->Status = 0;
 }
 
 //----------------------------------------------------------------------------

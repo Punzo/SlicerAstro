@@ -57,9 +57,9 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->SpaceQuantities->SetValue(0, "time");
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
-  this->Space = 0;
-  this->SetFitSlices(false);
+  this->Space = NULL;
   this->SetSpace("WCS");
+  this->FitSlices = false;
   this->WCSStatus = 0;
   this->WCS = new struct wcsprm;
   this->WCS->flag = -1;

@@ -47,7 +47,7 @@ vtkMRMLAstroVolumeStorageNode::vtkMRMLAstroVolumeStorageNode()
 {
   this->CenterImage = 2;
   this->DefaultWriteFileExtension = "fits";
-  this->UseCompressionOff();
+  this->UseCompression = 0;
 }
 
 //----------------------------------------------------------------------------
