@@ -42,6 +42,8 @@
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
+#include <vtkMRMLSliceLayerLogic.h>
+#include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLUnitNode.h>
 
@@ -262,6 +264,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
     return;
     }
 
+  qSlicerApplication* app = qSlicerApplication::application();
+  if (!app || !app->applicationLogic())
+    {
+    return;
+    }
+
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
 
@@ -281,6 +289,57 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
     vtkMRMLSliceNode* sliceNode =
         vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(sliceIndex));
     if (!sliceNode)
+      {
+      continue;
+      }
+    if (strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeRed") &&
+        strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow") &&
+        strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
+      {
+      continue;
+      }
+
+    vtkMRMLSliceLogic* sliceLogic = app->applicationLogic()->GetSliceLogic(sliceNode);
+    if (!sliceLogic)
+      {
+      continue;
+      }
+
+    vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::New();
+
+    col->AddItem(sliceLogic->GetBackgroundLayer());
+    col->AddItem(sliceLogic->GetForegroundLayer());
+
+    bool apply = false;
+    for (int layer = 0; layer < col->GetNumberOfItems(); layer++)
+      {
+      vtkMRMLSliceLayerLogic* sliceLayerLogic =
+        vtkMRMLSliceLayerLogic::SafeDownCast
+          (col->GetItemAsObject(layer));
+
+      if(!sliceLayerLogic)
+        {
+        return;
+        }
+
+      vtkMRMLAstroVolumeNode* astroVolumeNode =
+        vtkMRMLAstroVolumeNode::SafeDownCast
+          (sliceLayerLogic->GetVolumeNode());
+
+      if (!astroVolumeNode)
+        {
+        continue;
+        }
+
+      if (!strcmp(astroVolumeNode->GetName(), this->volumeNode()->GetName()))
+        {
+        apply = true;
+        }
+      }
+
+    col->RemoveAllItems();
+
+    if (!apply)
       {
       continue;
       }

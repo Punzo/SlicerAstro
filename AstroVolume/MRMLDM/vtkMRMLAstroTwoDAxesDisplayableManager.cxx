@@ -1530,6 +1530,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       }
     }
 
+  this->col->RemoveAllItems();
+
   if (!hasDisplay)
     {
     this->ShowActors(false);
