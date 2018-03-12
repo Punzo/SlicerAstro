@@ -334,7 +334,72 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     LineModelDisplayNode->SetVisibility(1);
     }
 
-  d->parametersNode->SetAutoUpdate(true);
+  vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
+    this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
+  if (redSliceComposite)
+    {
+    redSliceComposite->SetLabelVolumeID("");
+    redSliceComposite->SetForegroundVolumeID("");
+    redSliceComposite->SetForegroundOpacity(0.);
+    redSliceComposite->SetBackgroundVolumeID(d->parametersNode->GetMomentMapNodeID());
+    }
+
+  vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
+    this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
+  if (yellowSliceComposite)
+    {
+    yellowSliceComposite->SetLabelVolumeID("");
+    yellowSliceComposite->SetForegroundVolumeID("");
+    yellowSliceComposite->SetForegroundOpacity(0.);
+    yellowSliceComposite->SetBackgroundVolumeID(d->parametersNode->GetOutputVolumeNodeID());
+    }
+
+  vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
+    this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
+  if (greenSliceComposite)
+    {
+    greenSliceComposite->SetLabelVolumeID("");
+    greenSliceComposite->SetForegroundVolumeID("");
+    greenSliceComposite->SetForegroundOpacity(0.);
+    greenSliceComposite->SetBackgroundVolumeID("");
+    }
+
+  vtkMRMLAstroVolumeNode *PVDiagramVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
+ if (!PVDiagramVolume)
+   {
+   return;
+   }
+
+  const int *dims = PVDiagramVolume->GetImageData()->GetDimensions();
+
+  vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (!yellowSliceNode)
+    {
+    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter :"
+                  " yellowSliceNode not found.";
+    return;
+    }
+
+  yellowSliceNode->SetOrientation("PVDiagram");
+  yellowSliceNode->SetSliceOffset(0.);
+
+  vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSliceNode);
+  if (yellowSliceLogic)
+    {
+    int *dims = yellowSliceNode->GetDimensions();
+    if (dims)
+      {
+      yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
+      }
+    yellowSliceLogic->SnapSliceOffsetToIJK();
+    }
+
+  double FieldOfView[3];
+  yellowSliceNode->GetFieldOfView(FieldOfView);
+  yellowSliceNode->SetFieldOfView(dims[0], dims[1], FieldOfView[2]);
 }
 
 //----------------------------------------------------------------------------

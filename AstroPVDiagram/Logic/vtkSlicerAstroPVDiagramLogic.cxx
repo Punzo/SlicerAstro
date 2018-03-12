@@ -939,16 +939,16 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   vtkSlicerApplicationLogic *appLogic = app->applicationLogic();
   if (!appLogic)
     {
-    qCritical() << "vtkSlicerAstroPVDiagramLogic::GeneratePVDiagram :"
-                   " appLogic not found!";
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GeneratePVDiagram :"
+                   " appLogic not found!");
     return false;
     }
 
   vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSliceNode);
   if (yellowSliceLogic)
     {
-    int *dims = yellowSliceNode->GetDimensions();
-    if (dims)
+    int *dimsSlice = yellowSliceNode->GetDimensions();
+    if (dimsSlice)
       {
       yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
       }

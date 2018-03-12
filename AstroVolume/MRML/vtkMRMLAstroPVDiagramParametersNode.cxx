@@ -49,7 +49,7 @@ vtkMRMLAstroPVDiagramParametersNode::vtkMRMLAstroPVDiagramParametersNode()
   this->FiducialsMarkupsID = NULL;
   this->ModelID = NULL;
   this->SetInterpolation(true);
-  this->SetAutoUpdate(false);
+  this->SetAutoUpdate(true);
 }
 
 //----------------------------------------------------------------------------
