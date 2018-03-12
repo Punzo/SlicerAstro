@@ -526,6 +526,16 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
     return false;
     }
 
+  vtkMRMLAstroVolumeNode *PVMomentMap =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetMomentMapNodeID()));
+  if(!PVMomentMap || !PVMomentMap->GetImageData())
+    {
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
+                  " PVMomentMap not found.");
+    return false;
+    }
+
   int nOfControlPoints = PointsSourceNode->GetNumberOfFiducials();
   if (nOfControlPoints < 2)
     {
@@ -623,7 +633,9 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
   vtkNew<vtkTubeFilter> tubeFilter;
 
   tubeFilter->SetInputData(this->Internal->CurvePoly);
-  tubeFilter->SetRadius(0.5);
+  int *dims = PVMomentMap->GetImageData()->GetDimensions();
+  double LineWidth = sqrt(dims[0] * dims[0] + dims[1] * dims[1]) * 0.0025;
+  tubeFilter->SetRadius(LineWidth);
   tubeFilter->SetNumberOfSides(20);
   tubeFilter->CappingOn();
   tubeFilter->Update();
@@ -654,7 +666,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       GetNodeByID(pnode->GetFiducialsMarkupsID()));
   if(!PointsSourceNode)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
                   " PointsSourceNode not found.");
     return false;
     }
@@ -664,7 +676,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       GetNodeByID(pnode->GetMomentMapNodeID()));
   if(!PVMomentMap || !PVMomentMap->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
                   " PVMomentMap not found.");
     return false;
     }
@@ -674,7 +686,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       GetNodeByID(pnode->GetInputVolumeNodeID()));
   if(!inputVolume || !inputVolume->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
                   " inputVolume not found.");
     return false;
     }
@@ -684,7 +696,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       GetNodeByID(pnode->GetOutputVolumeNodeID()));
   if(!PVDiagramVolume || !PVDiagramVolume->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
                   " PVDiagramVolume not found.");
     return false;
     }
