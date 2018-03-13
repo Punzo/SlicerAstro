@@ -579,6 +579,12 @@ bool vtkFITSReader::AllocateHeader()
      if (!strkey.compare("COMMENT"))
        {
        str = card;
+       if (str.find("FITS (Flexible Image Transport System) format is defined") != std::string::npos ||
+           str.find("volume 376, page 359; bibcode:") != std::string::npos)
+         {
+         continue;
+         }
+
        if (str.size() < 8)
          {
          continue;

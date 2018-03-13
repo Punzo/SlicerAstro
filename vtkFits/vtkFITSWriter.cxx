@@ -269,7 +269,7 @@ void vtkFITSWriter::WriteData()
     std::string tmp = ait->first.substr(pos+13);
     std::string tmp2 = ait->second;
 
-    if (!tmp.compare(0,7,"COMMENT"))
+    if (!tmp.compare(0,7,"COMMENT") && tmp2.compare("processed by SlicerAstro (https://github.com/Punzo/SlicerAstro)"))
       {  
       fits_write_comment(fptr, tmp2.c_str(), &WriteStatus);
       continue;
