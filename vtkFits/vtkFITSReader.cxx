@@ -701,8 +701,8 @@ bool vtkFITSReader::AllocateHeader()
      else
        {
        vtkErrorMacro("vtkFITSReader::AllocateHeader : \n"
-                     "Datacube with polarization (NAXIS=4 and NAXIS4>1) at the moment are not supported. \n"<<
-                     "If you want to visulize such kind of datacube: please, contact me. \n"<<
+                     "Datacube with polarization (NAXIS=4 and NAXIS4>1) are not supported. \n"<<
+                     "If you want to visualize 4 dimensional data, contact: \n"<<
                      "Davide Punzo, punzodavide@hotmail.it");
        }
      }
@@ -760,15 +760,21 @@ bool vtkFITSReader::AllocateHeader()
 
    if (HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader :"
-                     " The fits header is missing the CDELT2 keyword.");
+     if (n > 1)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CDELT2 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CDELT2"] = "UNDEFINED";
      }
 
    if (HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader :"
-                     " The fits header is missing the CDELT3 keyword.");
+     if (n > 2)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CDELT3 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CDELT3"] = "UNDEFINED";
      }
 
@@ -781,15 +787,21 @@ bool vtkFITSReader::AllocateHeader()
 
    if (HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CRPIX2 keyword.");
+     if (n > 1)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CRPIX2 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CRPIX2"] = "UNDEFINED";
      }
 
    if (HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CRPIX3 keyword.");
+     if (n > 2)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CRPIX3 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CRPIX3"] = "UNDEFINED";
      }
 
@@ -802,15 +814,21 @@ bool vtkFITSReader::AllocateHeader()
 
    if (HeaderKeyValue.count("SlicerAstro.CRVAL2") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CRVAL2 keyword.");
+     if (n > 1)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CRVAL2 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CRVAL2"] = "UNDEFINED";
      }
 
    if (HeaderKeyValue.count("SlicerAstro.CRVAL3") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CRVAL3 keyword.");
+     if (n > 2)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CRVAL3 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CRVAL3"] = "UNDEFINED";
      }
 
@@ -823,15 +841,21 @@ bool vtkFITSReader::AllocateHeader()
 
    if (HeaderKeyValue.count("SlicerAstro.CTYPE2") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CTYPE2 keyword.");
+     if (n > 1)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CTYPE2 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CTYPE2"] = "NONE";
      }
 
    if (HeaderKeyValue.count("SlicerAstro.CTYPE3") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CTYPE3 keyword.");
+     if (n > 2)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
+                       " The fits header is missing the CTYPE3 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.CTYPE3"] = "NONE";
      }
 
@@ -844,8 +868,11 @@ bool vtkFITSReader::AllocateHeader()
 
    if (HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CUNIT2 keyword. Assuming degree.");
+     if (n > 1)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                       " The fits header is missing the CUNIT2 keyword. Assuming degree.");
+       }
      HeaderKeyValue["SlicerAstro.CUNIT2"] = "DEGREE";
      }
 
@@ -854,14 +881,20 @@ bool vtkFITSReader::AllocateHeader()
      std::string ctype3 = HeaderKeyValue.at("SlicerAstro.CTYPE3");
      if(!(ctype3.compare(0,4,"FREQ")))
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       " The fits header is missing the CUNIT3 keyword. Assuming Hz.");
+       if (n > 2)
+         {
+         vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                         " The fits header is missing the CUNIT3 keyword. Assuming Hz.");
+         }
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "Hz";
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       " The fits header is missing the CUNIT3 keyword. Assuming km/s.");
+       if (n > 2)
+         {
+         vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                         " The fits header is missing the CUNIT3 keyword. Assuming km/s.");
+         }
        HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
        }
      }
@@ -1286,15 +1319,21 @@ bool vtkFITSReader::AllocateHeader()
 
    if (HeaderKeyValue.count("SlicerAstro.DUNIT3") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the DUNIT3 keyword.");
+     if (n > 2)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                       " The fits header is missing the DUNIT3 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.DUNIT3"] = "NONE";
      }
 
    if (HeaderKeyValue.count("SlicerAstro.DRVAL3") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the DRVAL3 keyword.");
+     if (n > 2)
+       {
+       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                       " The fits header is missing the DRVAL3 keyword.");
+       }
      HeaderKeyValue["SlicerAstro.DRVAL3"] = "0.";
      }
 
@@ -1313,9 +1352,12 @@ bool vtkFITSReader::AllocateHeader()
        if (!dunit3.compare("NONE") || fabs(drval3) < 1.E-06 ||
            !cunit3.compare("NONE") || fabs(crval3) < 1.E-06)
          {
-         vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                         " The fits header is missing the RESTFREQ keyword. "
-                         " Assuming HI data, i.e. RESTFREQ = 1.420405752E+09.");
+         if (n > 2)
+           {
+           vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                           " The fits header is missing the RESTFREQ keyword. "
+                           " Assuming HI data, i.e. RESTFREQ = 1.420405752E+09.");
+           }
          HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
          }
        else
@@ -1346,14 +1388,6 @@ bool vtkFITSReader::AllocateHeader()
          HeaderKeyValue["SlicerAstro.RESTFREQ"] = DoubleToString(freq0);
          }
        }
-     }
-
-   if (StringToDouble(HeaderKeyValue.at("SlicerAstro.RESTFREQ").c_str()) == 0.)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the RESTFREQ keyword. "
-                     " Assuming HI data, i.e. RESTFREQ = 1.420405752E+09.");
-     HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
      }
 
    if (HeaderKeyValue.count("SlicerAstro.DATE-OBS") == 0)
