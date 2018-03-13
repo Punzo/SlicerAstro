@@ -354,6 +354,9 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
       continue;
       }
 
+    double rasDimensions[3], rasCenter[3];
+    sliceLogic->GetVolumeRASBox(this->volumeNode(), rasDimensions, rasCenter);
+
     double FieldOfView[3];
     sliceNode->GetFieldOfView(FieldOfView);
     if (!sliceNode->GetOrientation().compare("PVMajor") ||
@@ -385,6 +388,20 @@ void qSlicerAstroScalarVolumeDisplayWidget::ExtendAllSlices()
       }
 
     sliceNode->SetFieldOfView(FieldOfView[0], FieldOfView[1], FieldOfView[2]);
+
+    //
+    // set the origin to be the center of the volume in RAS
+    //
+    vtkNew<vtkMatrix4x4> sliceToRAS;
+    sliceToRAS->DeepCopy(sliceNode->GetSliceToRAS());
+    sliceToRAS->SetElement(0, 3, rasCenter[0]);
+    sliceToRAS->SetElement(1, 3, rasCenter[1]);
+    sliceToRAS->SetElement(2, 3, rasCenter[2]);
+    sliceNode->GetSliceToRAS()->DeepCopy(sliceToRAS.GetPointer());
+    sliceNode->SetSliceOrigin(0,0,0);
+
+    sliceLogic->SnapSliceOffsetToIJK();
+    sliceNode->UpdateMatrices();
     sliceNode->Modified();
     }
 }
@@ -978,105 +995,113 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
   qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
                 vtkCommand::ModifiedEvent,
                 this, SLOT(updateWidgetFromMRML()));
+
+  qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
+                vtkMRMLAstroVolumeDisplayNode::FitSlicesModifiedEvent,
+                this, SLOT(onFitSlicesModified()));
+
   this->setEnabled(volumeNode != 0);
   this->updateWidgetFromMRML();
+  this->onFitSlicesModified();
 }
 
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-  vtkMRMLAstroVolumeDisplayNode* displayNode =
-    this->volumeDisplayNode();
 
-  if (displayNode)
-    {
-    d->ColorTableComboBox->setCurrentNode(displayNode->GetColorNode());
-    d->InterpolatePushButton->setChecked(displayNode->GetInterpolate());
-    if (displayNode->GetInterpolate())
-      {
-      d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOn.png"));
-      }
-    else
-      {
-      d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
-      }
-    d->FitSlicesToViewsPushButton->setChecked(displayNode->GetFitSlices());
-    this->ExtendAllSlices();
-
-    vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();
-    QColor color;
-    double red, green, blue;
-    red = contoursColor->GetValue(0) * 256;
-    green = contoursColor->GetValue(1) * 256;
-    blue = contoursColor->GetValue(2) * 256;
-    if (red > 255)
-      {
-      red = 255;
-      }
-    if (green > 255)
-      {
-      green = 255;
-      }
-    if (blue > 255)
-      {
-      blue = 255;
-      }
-    color.setRed(red);
-    color.setGreen(green);
-    color.setBlue(blue);
-    d->ColorPickerButton->setColor(color);
-
-    vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
-    if (colorNode)
-      {
-      if (!strcmp(colorNode->GetAttribute("SlicerAstro.AddFunctions"), "on"))
-        {
-        d->ReversePushButton->show();
-        d->InversePushButton->show();
-        d->LogPushButton->show();
-        d->ReversePushButton->blockSignals(true);
-        d->InversePushButton->blockSignals(true);
-        d->LogPushButton->blockSignals(true);
-        if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
-          {
-          d->ReversePushButton->setChecked(true);
-          }
-        else
-          {
-          d->ReversePushButton->setChecked(false);
-          }
-        if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
-          {
-          d->InversePushButton->setChecked(true);
-          }
-        else
-          {
-          d->InversePushButton->setChecked(false);
-          }
-        if (!strcmp(colorNode->GetAttribute("SlicerAstro.Log"), "on"))
-          {
-          d->LogPushButton->setChecked(true);
-          }
-        else
-          {
-          d->LogPushButton->setChecked(false);
-          }
-        d->ReversePushButton->blockSignals(false);
-        d->InversePushButton->blockSignals(false);
-        d->LogPushButton->blockSignals(false);
-        }
-      else
-        {
-        d->ReversePushButton->hide();
-        d->InversePushButton->hide();
-        d->LogPushButton->hide();
-        }
-      }
-    }
   if (this->isVisible())
     {
     this->updateTransferFunction();
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* displayNode =
+    this->volumeDisplayNode();
+
+  if (!displayNode)
+    {
+    return;
+    }
+
+  d->ColorTableComboBox->setCurrentNode(displayNode->GetColorNode());
+  d->InterpolatePushButton->setChecked(displayNode->GetInterpolate());
+  if (displayNode->GetInterpolate())
+    {
+    d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOn.png"));
+    }
+  else
+    {
+    d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
+    }
+
+  vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();
+  QColor color;
+  double red, green, blue;
+  red = contoursColor->GetValue(0) * 256;
+  green = contoursColor->GetValue(1) * 256;
+  blue = contoursColor->GetValue(2) * 256;
+  if (red > 255)
+    {
+    red = 255;
+    }
+  if (green > 255)
+    {
+    green = 255;
+    }
+  if (blue > 255)
+    {
+    blue = 255;
+    }
+  color.setRed(red);
+  color.setGreen(green);
+  color.setBlue(blue);
+  d->ColorPickerButton->setColor(color);
+
+  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
+  if (colorNode)
+    {
+    if (!strcmp(colorNode->GetAttribute("SlicerAstro.AddFunctions"), "on"))
+      {
+      d->ReversePushButton->show();
+      d->InversePushButton->show();
+      d->LogPushButton->show();
+      d->ReversePushButton->blockSignals(true);
+      d->InversePushButton->blockSignals(true);
+      d->LogPushButton->blockSignals(true);
+      if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
+        {
+        d->ReversePushButton->setChecked(true);
+        }
+      else
+        {
+        d->ReversePushButton->setChecked(false);
+        }
+      if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
+        {
+        d->InversePushButton->setChecked(true);
+        }
+      else
+        {
+        d->InversePushButton->setChecked(false);
+        }
+      if (!strcmp(colorNode->GetAttribute("SlicerAstro.Log"), "on"))
+        {
+        d->LogPushButton->setChecked(true);
+        }
+      else
+        {
+        d->LogPushButton->setChecked(false);
+        }
+      d->ReversePushButton->blockSignals(false);
+      d->InversePushButton->blockSignals(false);
+      d->LogPushButton->blockSignals(false);
+      }
+    else
+      {
+      d->ReversePushButton->hide();
+      d->InversePushButton->hide();
+      d->LogPushButton->hide();
+      }
     }
 }
 
@@ -1284,7 +1309,24 @@ void qSlicerAstroScalarVolumeDisplayWidget::setThreshold(bool threshold)
     {
     d->MRMLVolumeThresholdWidget->hide();
     d->MRMLVolumeThresholdWidget->setAutoThreshold(qMRMLVolumeThresholdWidget::Off);
+  }
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onFitSlicesModified()
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  vtkMRMLAstroVolumeDisplayNode* displayNode =
+    this->volumeDisplayNode();
+
+  if (!displayNode)
+    {
+    return;
     }
+
+  d->FitSlicesToViewsPushButton->setChecked(displayNode->GetFitSlices());
+  this->ExtendAllSlices();
 }
 
 // --------------------------------------------------------------------------

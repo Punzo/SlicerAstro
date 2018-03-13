@@ -91,8 +91,13 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
 
   ///
   /// FitSlices
-  vtkSetMacro(FitSlices,bool);
+  virtual void SetFitSlices(bool fit);
   vtkGetMacro(FitSlices,bool);
+
+  enum
+     {
+     FitSlicesModifiedEvent = 123000,
+     };
 
   ///
   /// Set WCSStruct

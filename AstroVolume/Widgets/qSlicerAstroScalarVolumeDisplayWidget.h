@@ -79,6 +79,7 @@ public slots:
   void setThreshold(bool threshold);
 
 protected slots:
+  void onFitSlicesModified();
   void updateWidgetFromMRML();
   void updateTransferFunction();
 

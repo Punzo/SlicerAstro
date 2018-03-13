@@ -911,6 +911,13 @@ void vtkMRMLAstroVolumeDisplayNode::SetContoursColor(int ind, double color)
 }
 
 //----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeDisplayNode::SetFitSlices(bool fit)
+{
+  this->FitSlices = fit;
+  this->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeDisplayNode::FitSlicesModifiedEvent);
+}
+
+//----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 {
   if (this->GetVolumeNode()->GetImageData() == NULL)
