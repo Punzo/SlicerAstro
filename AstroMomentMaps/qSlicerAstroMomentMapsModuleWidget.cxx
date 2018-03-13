@@ -1108,6 +1108,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
     ZeroMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.CDELT3");
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
@@ -1195,6 +1196,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
     FirstMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
     FirstMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.CDELT3");
     FirstMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
     FirstMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
     FirstMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");
@@ -1294,6 +1296,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
     SecondMomentVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
     SecondMomentVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.CDELT3");
     SecondMomentVolume->RemoveAttribute("SlicerAstro.CROTA3");
     SecondMomentVolume->RemoveAttribute("SlicerAstro.CRPIX3");
     SecondMomentVolume->RemoveAttribute("SlicerAstro.CRVAL3");

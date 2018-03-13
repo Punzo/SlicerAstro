@@ -1060,6 +1060,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   ProfileVolume->SetAttribute("SlicerAstro.DUNIT1", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
 
   ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS2");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CDELT2");
   ProfileVolume->RemoveAttribute("SlicerAstro.CROTA2");
   ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX2");
   ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL2");
@@ -1068,7 +1069,9 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE2");
   ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL2");
   ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT2");
+
   ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+  ProfileVolume->RemoveAttribute("SlicerAstro.CDELT3");
   ProfileVolume->RemoveAttribute("SlicerAstro.CROTA3");
   ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX3");
   ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL3");
