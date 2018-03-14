@@ -2492,6 +2492,9 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
   SliceCenterIJK[1] = 1;
   SliceCenterIJK[2] = 0;
   inputVolumeDisplayNode->GetReferenceSpace(SliceCenterIJK, SliceCenterWorld);
+  // P.S.: distances (stepX, stepY) should be calculated as the spherical distances.
+  //       However, at the cost of performance,
+  //       it seems the differences are very small under 1 degree field
   double stepX = SliceCenterWorld[1] - ModelCenterWorld[1];
   double stepY = SliceCenterWorld[0] - ModelCenterWorld[0];
   double CDELTA1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
@@ -2519,111 +2522,22 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
   double sliceAngleCos = cos(-sliceAngleWorld);
   double sliceAngleSin = sin(-sliceAngleWorld);
 
-  // Calculate WCS (sky) semi-major axis angle
-  /*ModelCenterIJK[0] = d->parametersNode->GetXPosCenterIJK();
-  ModelCenterIJK[1] = d->parametersNode->GetYPosCenterIJK();
-  ModelCenterIJK[2] = Zcenter;
-  inputVolumeDisplayNode->GetReferenceSpace(ModelCenterIJK, ModelCenterWorld);
-  ModelCenterIJK[0] += (10 * cos(PVPhi));
-  ModelCenterIJK[1] += (10 * sin(PVPhi));
-  inputVolumeDisplayNode->GetReferenceSpace(ModelCenterIJK, SliceCenterWorld);
-
-  distX = (SliceCenterWorld[0] - ModelCenterWorld[0]);
-  distY = (SliceCenterWorld[1] - ModelCenterWorld[1]);
-  double PVPhiWorld = atan(distY / distX);
-
-  double PVPhiWorldCos = cos(-PVPhiWorld);
-  double PVPhiWorldSin = sin(-PVPhiWorld);*/
-
   // Calculate the semi-major axis (a) and semi-minor axis (b) lengths in ijk coordinates
   ModelCenterIJK[0] = d->parametersNode->GetXPosCenterIJK();
   ModelCenterIJK[1] = d->parametersNode->GetYPosCenterIJK();
   ModelCenterIJK[2] = Zcenter;
-  /*inputVolumeDisplayNode->GetReferenceSpace(ModelCenterIJK, ModelCenterWorld);
-  ModelCenterWorld[0] += *(RadiiPointer + Radii->GetNumberOfValues() - 1) * arcsec2deg * PVPhiWorldCos;
-  ModelCenterWorld[1] += *(RadiiPointer + Radii->GetNumberOfValues() - 1) * arcsec2deg * PVPhiWorldSin;
-  inputVolumeDisplayNode->GetIJKSpace(ModelCenterWorld, ModelCenterIJK);
-  double a = sqrt(((ModelCenterIJK[0] - d->parametersNode->GetXPosCenterIJK()) *
-                  (ModelCenterIJK[0] - d->parametersNode->GetXPosCenterIJK())) +
-                  ((ModelCenterIJK[1] - d->parametersNode->GetYPosCenterIJK()) *
-                  (ModelCenterIJK[1] - d->parametersNode->GetYPosCenterIJK())));
-  double b = a * cos(*(IncPointer + Radii->GetNumberOfValues() - 1) * deg2rad);
 
-  // Calculate m and b of the slice in ijk coordinates
-  ModelCenterIJK[0] = d->parametersNode->GetXPosCenterIJK();
-  ModelCenterIJK[1] = d->parametersNode->GetYPosCenterIJK();
-  ModelCenterIJK[2] = Zcenter;*/
   RAStoIJKTransform->TransformPoint(SliceCenterRAS, SliceCenterIJK);
 
-  /*EllipseTransform->Translate(-ModelCenterIJK[0],
-                              -ModelCenterIJK[1],
-                              -ModelCenterIJK[2]);
-  EllipseTransform->RotateZ((PVPhi / deg2rad));
-  EllipseTransform->TransformPoint(SliceCenterIJK, SliceCenterIJK);
-
-  double shiftedPointX = SliceCenterIJK[0] + 100 * sin(sliceAngle - PVPhi + 90);
-  double shiftedPointY = SliceCenterIJK[1] + 100 * cos(sliceAngle - PVPhi + 90);
-
-  double m = (SliceCenterIJK[1] - shiftedPointY) / (SliceCenterIJK[0] - shiftedPointX);
-  double c = shiftedPointY - (m * shiftedPointX);
-
-  // Calculate the line (slope of the slice) and the 2D ellipse intersections
-  double a2 = a * a;
-  double b2 = b * b;
-  double c2 = c * c;
-  double m2 = m * m;
-
-  double det = a2 * m2 + b2 - c2;
-  if (det < 0.)
-    {
-    d->fiducialNodeMajor->GlobalWarningDisplayOff();
-    int MajorWasModifying = d->fiducialNodeMajor->StartModify();
-    for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
-      {
-      int positiveIndex = radiiIndex * 2;
-      int negativeIndex = (radiiIndex * 2) + 1;
-      d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, 0., 0., 0.);
-      d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, 0., 0., 0.);
-      d->fiducialNodeMajor->SetNthFiducialVisibility(positiveIndex, false);
-      d->fiducialNodeMajor->SetNthFiducialVisibility(negativeIndex, false);
-      }
-    d->fiducialNodeMajor->EndModify(MajorWasModifying);
-    d->fiducialNodeMajor->GlobalWarningDisplayOn();
-    return;
-    }
-  det = sqrt(det);
-
-  double denom = a2 * m2 + b2;
-  double x1 = ((-a2 * m * c) + (a * b * det)) / denom;
-  double x2 = ((-a2 * m * c) - (a * b * det)) / denom;
-  double y1 = ((-b2 * c) + (a * b * m * det)) / denom;
-  double y2 = ((-b2 * c) - (a * b * m * det)) / denom;
-
-  // Calculate the center of the slice respect to the
-  // two intersections of slice on the the 2D ellipse
-  SliceCenterIJK[0] = (x1 + x2) * 0.5;
-  SliceCenterIJK[1] = -(y1 + y2) * 0.5;
-
-  EllipseTransform->Identity();
-  EllipseTransform->RotateZ(-(PVPhi / deg2rad));
-  EllipseTransform->Translate(ModelCenterIJK[0],
-                              ModelCenterIJK[1],
-                              ModelCenterIJK[2]);
-  EllipseTransform->TransformPoint(SliceCenterIJK, SliceCenterIJK);*/
   inputVolumeDisplayNode->GetReferenceSpace(SliceCenterIJK, SliceCenterWorld);
-
-  // Update Slice RAS
-  /*IJKtoRASTransform->TransformPoint(SliceCenterIJK, newSliceCenterRAS);
-  for (int ii = 0; ii < 3; ii++)
-    {
-    sliceToRAS->SetElement(ii, 3, newSliceCenterRAS[ii]);
-    }
-  sliceNode->UpdateMatrices();*/
 
   // Calculate the center of the model in the WCS (sky) coordinates.
   inputVolumeDisplayNode->GetReferenceSpace(ModelCenterIJK, ModelCenterWorld);
 
   // Calculate the offsets (between slice/model centers)
+  // P.S.: distances (worldOffsetX, worldOffsetY) should be calculated as the spherical distances.
+  //       However, at the cost of performance,
+  //       it seems the differences are very small under 1 degree field
   double worldOffsetX = (SliceCenterWorld[0] - ModelCenterWorld[0]) * factorX * deg2arcsec;
   double worldOffsetY = (SliceCenterWorld[1] - ModelCenterWorld[1]) * factorY * deg2arcsec;
 
