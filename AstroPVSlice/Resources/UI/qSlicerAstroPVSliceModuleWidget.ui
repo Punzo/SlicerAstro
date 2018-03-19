@@ -605,7 +605,7 @@
     </widget>
    </item>
    <item>
-    <widget class="ctkCollapsibleButton" name="CollapsibleButton">
+    <widget class="ctkCollapsibleButton" name="ViewCollapsibleButton">
      <property name="text">
       <string>3D View Orientation</string>
      </property>
@@ -829,6 +829,22 @@
     <hint type="destinationlabel">
      <x>233</x>
      <y>139</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>InputVolumeNodeSelector</sender>
+   <signal>currentNodeChanged(bool)</signal>
+   <receiver>ViewCollapsibleButton</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>219</x>
+     <y>15</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>173</x>
+     <y>417</y>
     </hint>
    </hints>
   </connection>
