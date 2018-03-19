@@ -872,15 +872,15 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
 
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
-  if (d->parametersNode->GetMaskActive())
-    {
-    d->ParametersCollapsibleButton->setChecked(false);
-    d->ParametersCollapsibleButton->setEnabled(false);
-    }
-  else
+  if (!d->parametersNode->GetMaskActive() && inputVolumeNode)
     {
     d->ParametersCollapsibleButton->setChecked(true);
     d->ParametersCollapsibleButton->setEnabled(true);
+    }
+  else
+    {
+    d->ParametersCollapsibleButton->setChecked(false);
+    d->ParametersCollapsibleButton->setEnabled(false);
     }
 
   bool wasBlocked = d->VelocityRangeWidget->blockSignals(true);
