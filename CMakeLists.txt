@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.4)
 
+project(SlicerAstro)
+
 #-----------------------------------------------------------------------------
 set(EXTENSION_NAME SlicerAstro)
 
@@ -25,11 +27,13 @@ set(SUPERBUILD_TOPLEVEL_PROJECT inner)
 
 #-----------------------------------------------------------------------------
 # Extension dependencies
-find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
-project(SlicerAstro)
+#find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 mark_as_superbuild(Slicer_DIR)
+
+find_package(Git REQUIRED)
+mark_as_superbuild(GIT_EXECUTABLE)
 
 #-----------------------------------------------------------------------------
 # check OS
@@ -93,6 +97,66 @@ if(${EXTENSION_NAME}_SUPERBUILD)
 endif()
 
 #-----------------------------------------------------------------------------
+# Install extension C/C++ packages
+
+#
+# CFITSIO
+#
+
+find_library(CFITSIO_LIBRARY cfitsio
+  PATHS ${CFITSIO_LIBRARY_DIR} NO_DEFAULT_PATH
+  )
+set(CFITSIO_LIBRARIES ${CFITSIO_LIBRARY})
+
+#
+# WCS
+#
+
+find_library (WCSLIB_LIBRARY wcslib
+  PATHS ${WCSLIB_LIBRARY_DIR} NO_DEFAULT_PATH
+  )
+set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
+
+#
+# 3DBarolo
+#
+
+find_library (BBAROLO_LIBRARY bbarolo
+  PATHS ${BBAROLO_LIBRARY_DIR} NO_DEFAULT_PATH
+  )
+set(BBAROLO_LIBRARIES ${BBAROLO_LIBRARY})
+
+# Install libraries
+if(APPLE)
+  include(SlicerFunctionInstallLibrary)
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
+    slicerInstallLibrary(FILE ${library}
+      DESTINATION ${Slicer_INSTALL_LIB_DIR}
+      COMPONENT Runtime
+      )
+  endforeach()
+endif()
+if(NOT APPLE)
+  include(SlicerFunctionInstallLibrary)
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
+    slicerInstallLibrary(FILE ${library}
+      DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}/qt-loadable-modules
+      COMPONENT Runtime
+      )
+  endforeach()
+endif()
+
+#-----------------------------------------------------------------------------
+# Install extension python packages
+
+install(CODE "message(\"CPack: - Install directory: ${python_reproject_DIR}\")")
+install(
+  DIRECTORY "${python_reproject_DIR}/"
+  DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
+  COMPONENT RuntimeLibraries
+  )
+
+#-----------------------------------------------------------------------------
 # Extension modules
 
 add_subdirectory(SlicerAstroWelcome)
@@ -102,6 +166,7 @@ if(UNIX)
     add_subdirectory(vtkOpenGLFilters)
   endif()
   add_subdirectory(AstroVolume)
+  add_subdirectory(AstroReproject)
   add_subdirectory(AstroStatistics)
   add_subdirectory(AstroSmoothing)
   add_subdirectory(AstroMasking)

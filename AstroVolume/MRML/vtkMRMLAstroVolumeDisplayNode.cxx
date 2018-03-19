@@ -24,6 +24,7 @@
 #include <algorithm>
 
 // MRML includes
+#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLColorNode.h>
 #include <vtkMRMLScene.h>
@@ -836,48 +837,75 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
   this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
-
-  if (!strcmp(this->Space, "WCS"))
-    {
-    if (!this->WCS || !node->GetWCSStruct() || node->GetWCSStatus() != 0)
-      {
-      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy :"
-                    " WCS not found.");
-      this->EndModify(disabledModify);
-      return;
-      }
-
-    this->WCS->flag = -1;
-    if ((this->WCSStatus = wcscopy(1, node->WCS, this->WCS)))
-      {
-      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy: "
-                    "wcscopy ERROR "<<this->WCSStatus<<":\n"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": \n"<<this->WCS->err->msg<<"\n");
-      this->SetWCSStatus(node->GetWCSStatus());
-      this->SetSpace("IJK");
-      this->EndModify(disabledModify);
-      return;
-      }
-
-    if ((this->WCSStatus = wcsset(this->WCS)))
-      {
-      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::Copy : "
-                    "wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": \n"<<this->WCS->err->msg<<"\n");
-      this->SetWCSStatus(node->GetWCSStatus());
-      this->SetSpace("IJK");
-      this->EndModify(disabledModify);
-      return;
-      }
-    }
+  this->WCSCopy(node);
 
   this->EndModify(disabledModify);
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeDisplayNode::WCSCopy(vtkMRMLNode *node)
+{
+  if (!node || strcmp(this->Space, "WCS"))
+    {
+    return;
+    }
+
+  wcsprm *WCSNew = NULL;
+  int WCSStatusNew = 0;
+
+  vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
+      vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
+  vtkMRMLAstroLabelMapVolumeDisplayNode *AstroLabelMapVolumeDisplayNode =
+      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(node);
+
+  if (AstroVolumeDisplayNode)
+    {
+    WCSNew = AstroVolumeDisplayNode->GetWCSStruct();
+    WCSStatusNew = AstroVolumeDisplayNode->GetWCSStatus();
+    }
+  else if (AstroLabelMapVolumeDisplayNode)
+    {
+    WCSNew = AstroLabelMapVolumeDisplayNode->GetWCSStruct();
+    WCSStatusNew = AstroLabelMapVolumeDisplayNode->GetWCSStatus();
+    }
+  else
+    {
+    return;
+    }
+
+  if (!this->WCS || !WCSNew || WCSStatusNew != 0)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopy :"
+                  " WCS structs not found.");
+    return;
+    }
+
+  this->SetWCSStatus(WCSStatusNew);
+  this->WCS->flag = -1;
+  if ((this->WCSStatus = wcscopy(1, WCSNew, this->WCS)))
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopy: "
+                  "wcscopy ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
+
+    this->SetSpace("IJK");
+    return;
+    }
+
+  if ((this->WCSStatus = wcsset(this->WCS)))
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopy : "
+                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
+    this->SetSpace("IJK");
+    return;
+    }
 }
 
 //----------------------------------------------------------------------------

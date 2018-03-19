@@ -54,8 +54,10 @@ protected:
   QScopedPointer<qSlicerAstroSmoothingModuleWidgetPrivate> d_ptr;
 
   virtual void setMRMLScene(vtkMRMLScene* scene);
-  void initializeParameterNode(vtkMRMLScene* scene);
-  void initializeSegmentations(vtkMRMLScene* scene);
+  void initializeNodes(bool forceNew = false);
+  void initializeParameterNode(bool forceNew = false);
+  void initializeSegmentations(bool forceNew = false);
+  void initializeCamera();
 
 protected slots:
   void onAccuracyChanged(double value);
@@ -90,7 +92,6 @@ protected slots:
   void onTimeStepChanged(double value);
   void updateProgress(int value);
   void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
-  void setCameraNode(vtkMRMLScene* scene);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroSmoothingModuleWidget);

@@ -174,8 +174,12 @@ protected:
   virtual void ExecuteInformation() VTK_OVERRIDE;
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo) VTK_OVERRIDE;
 
+  // SlicerAstro can read up to NAXIS = 3 and it assumes
+  // the first 2 axes are the spatial (celestial) and
+  // the third axis is the spectral one.
   bool AllocateHeader();
-  bool FixGipsyHeader();
+  // Fix the third spectral axis for datacube generated with Gipsy
+  int FixGipsyHeader();
   bool AllocateWCS();
 
   bool FixGipsyHeaderOn;

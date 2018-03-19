@@ -1,57 +1,6 @@
 project(vtkFits)
 
 # --------------------------------------------------------------------------
-# Dependencies
-# --------------------------------------------------------------------------
-
-#
-# CFITSIO
-#
-
-find_library(CFITSIO_LIBRARY cfitsio
-  PATHS ${CFITSIO_LIBRARY_DIR} NO_DEFAULT_PATH
-  )
-set(CFITSIO_LIBRARIES ${CFITSIO_LIBRARY})
-
-#
-# WCS
-#
-
-find_library (WCSLIB_LIBRARY wcslib
-  PATHS ${WCSLIB_LIBRARY_DIR} NO_DEFAULT_PATH
-  )
-set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
-
-#
-# 3DBarolo
-#
-
-find_library (BBAROLO_LIBRARY bbarolo
-  PATHS ${BBAROLO_LIBRARY_DIR} NO_DEFAULT_PATH
-  )
-set(BBAROLO_LIBRARIES ${BBAROLO_LIBRARY})
-
-# Install libraries
-if(APPLE)
-  include(SlicerFunctionInstallLibrary)
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
-    slicerInstallLibrary(FILE ${library}
-      DESTINATION ${Slicer_INSTALL_LIB_DIR}
-      COMPONENT Runtime
-      )
-  endforeach()
-endif()
-if(NOT APPLE)
-  include(SlicerFunctionInstallLibrary)
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
-    slicerInstallLibrary(FILE ${library}
-      DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}/qt-loadable-modules
-      COMPONENT Runtime
-      )
-  endforeach()
-endif()
-
-# --------------------------------------------------------------------------
 set(KIT ${PROJECT_NAME})
 
 # --------------------------------------------------------------------------

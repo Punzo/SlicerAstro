@@ -101,11 +101,11 @@ protected slots:
   void applyPreset(vtkMRMLNode* volumePropertyNode);
   void offsetPreset(double offsetValue);
   void onActivate3DAstroVolumeNode(bool activate);
+  void onActivate3DLabelMapVolumeNode(bool activate);
   void onCalculateRMS();
   void onCreateHistogram();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
-  void onDeactivate3DLabelMapVolumeNode(bool deactivate);
   void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
   void onHistoClippingChanged(double percentage);
@@ -150,8 +150,8 @@ protected slots:
   void updatePresets(vtkMRMLNode* node);
 
 signals:
-  void deactivate3DLabelMapVolumeNode(bool deactivate);
   void activate3DAstroVolumeNode(bool activate);
+  void activate3DLabelMapVolumeNode(bool deactivate);
   void segmentEditorNodeChanged(bool enabled);
 
 protected:

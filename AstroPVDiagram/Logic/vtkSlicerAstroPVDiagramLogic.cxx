@@ -1046,11 +1046,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSliceNode);
   if (yellowSliceLogic)
     {
-    int *dimsSlice = yellowSliceNode->GetDimensions();
-    if (dimsSlice)
-      {
-      yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
-      }
+    yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
     yellowSliceLogic->SnapSliceOffsetToIJK();
     }
 

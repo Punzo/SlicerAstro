@@ -24,7 +24,8 @@ class AstroSampleData(ScriptedLoadableModule):
     Thijs van der Hulst (Kapteyn Astronomical Institute) and
     Jos Roerdink (Johann Bernoulli Institute)."""]
     self.parent.helpText = string.Template("""
-    The AstroSampleData module can be used to download data for working with in SlicerAstro.  Use of this module requires an active network connection.""")
+    The AstroSampleData module can be used to download data for working with in SlicerAstro.
+    Use of this module requires an active network connection.""")
     self.parent.acknowledgementText = """
     This module was developed by Davide Punzo. <br>
     This work was supported by ERC grant nr. 291531 and the Slicer Community. <br><br>

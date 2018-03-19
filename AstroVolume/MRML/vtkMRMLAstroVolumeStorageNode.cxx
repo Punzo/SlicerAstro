@@ -400,11 +400,12 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         return 0;
         }
       }
+
     // set range in display
     double min = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMAX"));
-    double window = max-min;
-    double level = 0.5*(max+min);
+    double window = max - min;
+    double level = 0.5 * (max + min);
 
     int disabledModify = disNode->StartModify();
     disNode->SetWindowLevel(window, level);

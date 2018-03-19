@@ -34,6 +34,7 @@
 
 class vtkAlgorithmOutput;
 class vtkImageData;
+class vtkMRMLAstroLabelMapVolumeDisplayNode;
 class vtkMRMLUnitNode;
 
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalarVolumeDisplayNode
@@ -56,6 +57,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   /// 
   /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+
+  ///
+  /// WCSCopy to this object
+  virtual void WCSCopy(vtkMRMLNode *node);
 
   /// 
   /// Get node XML tag name (like Volume, Model)
