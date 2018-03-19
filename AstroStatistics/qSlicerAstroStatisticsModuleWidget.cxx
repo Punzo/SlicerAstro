@@ -362,9 +362,7 @@ void qSlicerAstroStatisticsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-  this->onMRMLAstroStatisticsParametersNodeModified();
 
   d->InputCollapsibleButton->setCollapsed(false);
 }
@@ -372,8 +370,6 @@ void qSlicerAstroStatisticsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 //-----------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::initializeNodes(bool forceNew /*= false*/)
 {
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
   this->initializeParameterNode(forceNew);
 
   this->initializeSegmentations(forceNew);
@@ -765,6 +761,11 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return false;
+    }
+
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
@@ -772,9 +773,9 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation node selected! Please create a segmentation.");
+    QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
     return false;
@@ -1248,6 +1249,14 @@ void qSlicerAstroStatisticsModuleWidget::onMRMLSelectionNodeModified(vtkObject *
   if (!selectionNode || !d->parametersNode)
     {
     return;
+    }
+
+  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+    {
+    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
+      {
+      return;
+      }
     }
 
   int wasModifying = d->parametersNode->StartModify();

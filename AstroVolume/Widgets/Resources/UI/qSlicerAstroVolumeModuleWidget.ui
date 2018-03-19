@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>413</width>
-    <height>1036</height>
+    <height>733</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -441,7 +441,7 @@
       <bool>true</bool>
      </property>
      <property name="sizePolicy">
-      <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+      <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -492,8 +492,14 @@
       </property>
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="sizeConstraint">
+         <enum>QLayout::SetMinimumSize</enum>
+        </property>
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="sizeConstraint">
+           <enum>QLayout::SetMinimumSize</enum>
+          </property>
           <item>
            <widget class="QPushButton" name="pushButtonCovertLabelMapToSegmentation">
             <property name="enabled">
@@ -507,12 +513,15 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>130</width>
               <height>30</height>
              </size>
             </property>
             <property name="toolTip">
              <string>Convert a mask (LabelMap node) into a segmentation (which can be manually edited).</string>
+            </property>
+            <property name="text">
+             <string> Generate Segmentation</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -525,39 +534,42 @@
              </size>
             </property>
             <property name="checkable">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="CreateSurfaceButton">
+           <widget class="QPushButton" name="pushButton_EditSelected">
             <property name="enabled">
              <bool>true</bool>
             </property>
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
             <property name="minimumSize">
              <size>
-              <width>80</width>
+              <width>70</width>
               <height>30</height>
              </size>
             </property>
             <property name="toolTip">
-             <string>Display (On/Off) Masks in the 3D view</string>
+             <string>Click to navigate to the segment editor module.</string>
             </property>
             <property name="text">
-             <string>Create surface</string>
+             <string> Edit </string>
             </property>
             <property name="icon">
              <iconset resource="../../../../../Slicer/Modules/Loadable/Segmentations/Widgets/Resources/qSlicerSegmentationsModuleWidgets.qrc">
-              <normaloff>:/Icons/MakeModel.png</normaloff>:/Icons/MakeModel.png</iconset>
+              <normaloff>:/Icons/Edit.png</normaloff>:/Icons/Edit.png</iconset>
             </property>
             <property name="iconSize">
              <size>
               <width>24</width>
               <height>24</height>
              </size>
-            </property>
-            <property name="checkable">
-             <bool>true</bool>
             </property>
            </widget>
           </item>
@@ -574,12 +586,15 @@
             </property>
             <property name="minimumSize">
              <size>
-              <width>50</width>
+              <width>130</width>
               <height>30</height>
              </size>
             </property>
             <property name="toolTip">
              <string>Convert the current segmentation into a mask (A segmentation can not be written into a FITS file).</string>
+            </property>
+            <property name="text">
+             <string> Generate Mask</string>
             </property>
             <property name="icon">
              <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
@@ -592,36 +607,7 @@
              </size>
             </property>
             <property name="checkable">
-             <bool>true</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="pushButton_EditSelected">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>80</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Click to navigate to the segment editor module.</string>
-            </property>
-            <property name="text">
-             <string>Edit segmentation</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../../../../../Slicer/Modules/Loadable/Segmentations/Widgets/Resources/qSlicerSegmentationsModuleWidgets.qrc">
-              <normaloff>:/Icons/Edit.png</normaloff>:/Icons/Edit.png</iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>24</width>
-              <height>24</height>
-             </size>
+             <bool>false</bool>
             </property>
            </widget>
           </item>
@@ -637,7 +623,7 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
-            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView_2">
+            <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
              <property name="enabled">
               <bool>true</bool>
              </property>
@@ -655,6 +641,9 @@
              </property>
              <property name="toolTip">
               <string/>
+             </property>
+             <property name="selectionMode">
+              <number>3</number>
              </property>
             </widget>
            </item>

@@ -46,7 +46,7 @@
         </size>
        </property>
        <property name="text">
-        <string>Input Volume:</string>
+        <string>Input Data:</string>
        </property>
       </widget>
      </item>
@@ -246,7 +246,7 @@
          </stringlist>
         </property>
         <property name="showHidden">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="noneEnabled">
          <bool>true</bool>

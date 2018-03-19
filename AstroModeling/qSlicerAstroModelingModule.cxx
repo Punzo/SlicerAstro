@@ -74,8 +74,11 @@ qSlicerAstroModelingModule::~qSlicerAstroModelingModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroModelingModule::helpText()const
 {
-  return "AstroModeling module fits tilted-ring models on a Volume using 3DBarolo"
-         " (http://editeodoro.github.io/Bbarolo/)";
+  return "AstroModeling module fits tilted-ring models on a HI datacube using 3DBarolo "
+         "(http://editeodoro.github.io/Bbarolo/). "
+         "Specifically, SlicerAstro wraps a branch of 3DBarolo "
+         "(https://github.com/Punzo/Bbarolo) which corresponds to "
+         "3DBarolo v1.3 (git tag: 3c9a1fa39e9154f3120d0ded0847d77314275e17)";
 }
 
 //-----------------------------------------------------------------------------

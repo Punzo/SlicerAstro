@@ -325,8 +325,8 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
 
   // 3D Display widget connections
-  QObject::connect(q, SIGNAL(deactivate3DLabelMapVolumeNode(bool)),
-                   q, SLOT(onDeactivate3DLabelMapVolumeNode(bool)));
+  QObject::connect(q, SIGNAL(activate3DLabelMapVolumeNode(bool)),
+                   q, SLOT(onActivate3DLabelMapVolumeNode(bool)));
 
   QObject::connect(q, SIGNAL(activate3DAstroVolumeNode(bool)),
                    q, SLOT(onActivate3DAstroVolumeNode(bool)));
@@ -334,6 +334,10 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->VisibilityCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onVisibilityChanged(bool)));
 
+  // AstroVolume widget modifies the volume rendering settings passing by
+  // the volumeRendering widget. This should be removed and everything
+  // should be handled with MRML nodes.
+  // (possible solution: add a parameters node in Volume Rendering Module)
   QObject::connect(this->volumeRenderingWidget, SIGNAL(currentVolumeRenderingDisplayNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setDisplayConnection(vtkMRMLNode*)));
 
@@ -419,7 +423,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
     }
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   this->SegmentsTableView_2, SLOT(setMRMLScene(vtkMRMLScene*)));
+                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
   QObject::connect(this->pushButtonCovertLabelMapToSegmentation, SIGNAL(clicked()),
                    q, SLOT(onPushButtonCovertLabelMapToSegmentationClicked()));
@@ -427,13 +431,10 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->pushButtonConvertSegmentationToLabelMap, SIGNAL(clicked()),
                    q, SLOT(onPushButtonConvertSegmentationToLabelMapClicked()));
 
-  QObject::connect(this->CreateSurfaceButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onCreateSurfaceButtonToggled(bool)));
-
   QObject::connect(this->pushButton_EditSelected, SIGNAL(clicked()),
                    q, SLOT(onEditSelectedSegment()));
 
-  this->SegmentsTableView_2->setSelectionMode(QAbstractItemView::SingleSelection);
+  this->SegmentsTableView->setSelectionMode(QAbstractItemView::MultiSelection);
 }
 
 //-----------------------------------------------------------------------------
@@ -458,12 +459,12 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
 
   this->segmentEditorNode = 0;
 
-  if (this->SegmentsTableView_2)
+  if (this->SegmentsTableView)
     {
-    if (this->SegmentsTableView_2->segmentationNode())
+    if (this->SegmentsTableView->segmentationNode())
       {
-      q->mrmlScene()->RemoveNode(this->SegmentsTableView_2->segmentationNode());
-      this->SegmentsTableView_2->setSegmentationNode(NULL);
+      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
+      this->SegmentsTableView->setSegmentationNode(NULL);
       }
     }
 
@@ -567,19 +568,19 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     return;
     }
 
+  this->initializeSegmentations();
+  this->initializePlotNodes();
+  this->initializeColorNodes();
+
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
   this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
                       this, SLOT(onMRMLSelectionNodeReferenceAdded(vtkObject*)));
   this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceRemovedEvent,
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
-  this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
-  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
 
-  this->initializeSegmentations();
-  this->initializePlotNodes();
-  this->initializeColorNodes();
+  this->onMRMLSelectionNodeModified(d->selectionNode);
+  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
 
   if(!d->PresetsNodeComboBox)
     {
@@ -1438,12 +1439,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
   vtkMRMLAstroVolumeNode* astroVolumeNode =
     vtkMRMLAstroVolumeNode::SafeDownCast(node);
 
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    return;
-    }
-
   if (!d->selectionNode)
     {
     return;
@@ -1465,30 +1460,20 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     astroVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
     d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
-    if (d->AutoPropagateCheckBox->isChecked())
-      {
-      appLogic->PropagateBackgroundVolumeSelection(1);
-      }
     }
   else if (labelMapVolumeNode)
     {
-    emit deactivate3DLabelMapVolumeNode(true);
+    emit activate3DLabelMapVolumeNode(true);
     labelMapVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
-    if (d->AutoPropagateCheckBox->isChecked())
-      {
-      appLogic->PropagateLabelVolumeSelection(1);
-      }
     }
   else
     {
     d->selectionNode->SetReferenceActiveVolumeID(NULL);
     d->selectionNode->SetActiveVolumeID(NULL);
-    appLogic->PropagateBackgroundVolumeSelection(1);
     d->selectionNode->SetReferenceActiveLabelVolumeID(NULL);
     d->selectionNode->SetActiveLabelVolumeID(NULL);
-    appLogic->PropagateLabelVolumeSelection(1);
     }
 
   if (d->plotChartNodeHistogram)
@@ -1724,9 +1709,6 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": Invalid segment editor parameter set node";
-    d->CreateSurfaceButton->blockSignals(true);
-    d->CreateSurfaceButton->setChecked(false);
-    d->CreateSurfaceButton->blockSignals(false);
     return;
     }
 
@@ -1734,9 +1716,6 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
   if (!segmentationNode || !segmentationNode->GetSegmentation())
     {
     qCritical() << Q_FUNC_INFO << ": Invalid segmentationNode";
-    d->CreateSurfaceButton->blockSignals(true);
-    d->CreateSurfaceButton->setChecked(false);
-    d->CreateSurfaceButton->blockSignals(false);
     return;
     }
   vtkMRMLSegmentationDisplayNode* displayNode = vtkMRMLSegmentationDisplayNode::SafeDownCast(
@@ -1744,9 +1723,6 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
   if (!displayNode)
     {
     qCritical() << Q_FUNC_INFO << ": Invalid segmentationDisplayNode";
-    d->CreateSurfaceButton->blockSignals(true);
-    d->CreateSurfaceButton->setChecked(false);
-    d->CreateSurfaceButton->blockSignals(false);
     return;
     }
 
@@ -1810,16 +1786,16 @@ void qSlicerAstroVolumeModuleWidget::onSegmentEditorNodeModified(vtkObject *send
     }
 
   vtkMRMLSegmentationNode* segmentationNodeTable = vtkMRMLSegmentationNode::SafeDownCast(
-    d->SegmentsTableView_2->segmentationNode());
+    d->SegmentsTableView->segmentationNode());
   if (!segmentationNodeTable)
     {
-    d->SegmentsTableView_2->setSegmentationNode(segmentationNode);
+    d->SegmentsTableView->setSegmentationNode(segmentationNode);
     return;
     }
 
   if (segmentationNode != segmentationNodeTable)
     {
-    d->SegmentsTableView_2->setSegmentationNode(segmentationNode);
+    d->SegmentsTableView->setSegmentationNode(segmentationNode);
   }
 }
 
@@ -1857,6 +1833,11 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return;
+    }
+
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
@@ -1881,9 +1862,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     QString message = QString("the current volume is not a labelmap volume (Mask)!");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
-    d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
-    d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
-    d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
     return;
     }
 
@@ -1898,9 +1876,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
       QString message = QString("Failed to copy labels from labelmap volume node %1!").arg(labelMapNode->GetName());
       qCritical() << Q_FUNC_INFO << ": " << message;
       QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
-      d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
-      d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
-      d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
       return;
       }
     }
@@ -1908,10 +1883,6 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
   labelMapNode->UpdateRangeAttributes();
 
   currentSegmentationNode->CreateDefaultDisplayNodes();
-
-  d->pushButtonCovertLabelMapToSegmentation->blockSignals(true);
-  d->pushButtonCovertLabelMapToSegmentation->setChecked(false);
-  d->pushButtonCovertLabelMapToSegmentation->blockSignals(false);
 
   this->onCreateSurfaceButtonToggled(true);
 
@@ -1954,6 +1925,11 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return;
+    }
+
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
@@ -1961,64 +1937,16 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation selected!");
+    QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
-    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
 
-  // Export selected segments into a multi-label labelmap volume
-  std::vector<std::string> segmentIDs;
-  currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
-
+  // Get or create LabelMapVolumeNode (Mask)
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode;
-
-  if (segmentIDs.size() < 1)
-    {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
-                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
-    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
-    return;
-    }
-
-  int maskID = 0;
-  std::string maskIDName;
-  for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
-    {
-    vtkSegment* segment = currentSegmentationNode->GetSegmentation()->GetSegment(segmentIDs[ii]);
-    int segmentMaskID = StringToInt(segment->GetName());
-    if (segmentMaskID > maskID)
-      {
-      maskID = segmentMaskID;
-      maskIDName = segmentIDs[ii];
-      }
-    }
-
-  currentSegmentationNode->GetSegmentation()->RemoveSegment(maskIDName);
-  currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
-
-  if (segmentIDs.size() < 1)
-    {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
-                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
-    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
-    return;
-    }
 
   vtkMRMLAstroLabelMapVolumeNode* activelabelMapNode=
     vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(d->ActiveVolumeNodeSelector->currentNode());
@@ -2064,15 +1992,50 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     {
     qCritical() << Q_FUNC_INFO << ": converting current segmentation Node into labelMap Node (Mask),"
                                   " but the labelMap Node is invalid!";
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
-    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
 
-  bool exportSuccess = vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode);
+  // Export selected segments into labelmap volume
+  std::vector<std::string> segmentIDs;
+  currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
 
-  if (!exportSuccess)
+  if (segmentIDs.size() < 1)
+    {
+    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
+                              "Be sure that segments are available in the table view. \n\n").
+                                arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    return;
+    }
+
+  QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
+
+  if (selectedSegmentIDs.size() < 1)
+    {
+    QString message = QString("No segment selected from the segmentation node! "
+                              "Please provide one or more segments (Shift + leftClick).");
+    qCritical() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    return;
+    }
+
+  segmentIDs.clear();
+  for (int segmentIndex = 0; segmentIndex < selectedSegmentIDs.size(); segmentIndex++)
+    {
+    segmentIDs.push_back(selectedSegmentIDs[segmentIndex].toStdString());
+    }
+
+  if (vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
+    {
+    // update labelMapVolume and remove segments from current segmentation if export was successful
+    labelMapNode->UpdateRangeAttributes();
+    for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
+      {
+      currentSegmentationNode->GetSegmentation()->RemoveSegment(segmentIDs[ii]);
+      }
+    }
+  else
     {
     QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
@@ -2080,30 +2043,8 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
-    d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
-    d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
     return;
     }
-
-  labelMapNode->UpdateRangeAttributes();
-
-  d->pushButtonConvertSegmentationToLabelMap->blockSignals(true);
-  d->pushButtonConvertSegmentationToLabelMap->setChecked(false);
-  d->pushButtonConvertSegmentationToLabelMap->blockSignals(false);
-
-  // Remove segments from current segmentation if export was successful
-  if (exportSuccess)
-    {
-    for (unsigned int ii = 0; ii < segmentIDs.size(); ii++)
-      {
-      currentSegmentationNode->GetSegmentation()->RemoveSegment(segmentIDs[ii]);
-      }
-    }
-
-  d->CreateSurfaceButton->blockSignals(true);
-  d->CreateSurfaceButton->setChecked(false);
-  d->CreateSurfaceButton->blockSignals(false);
 }
 
 //---------------------------------------------------------------------------
@@ -2258,6 +2199,9 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
+  bool autoPropagate = d->AutoPropagateCheckBox->isChecked();
+  d->AutoPropagateCheckBox->setChecked(false);
+
   vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
   vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
@@ -2267,6 +2211,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews :"
                    " volumes not valid.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2274,18 +2219,21 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   if (!appLogic)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : appLogic not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
   if (!d->selectionNode)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : selectionNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
   vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
 
+  d->selectionNode->SetActiveLabelVolumeID("");
   d->selectionNode->SetActiveVolumeID(volumeOne->GetID());
 
   unsigned int numViewNodes = col->GetNumberOfItems();
@@ -2418,6 +2366,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDWidget1 not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2426,6 +2375,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDView1 not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2437,6 +2387,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDWidget2 not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2445,11 +2396,18 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDView2 not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
   ThreeDView2->renderer()->ResetCameraClippingRange();
   ThreeDView2->renderer()->Render();
+
+  if (!generateMasks)
+    {
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    return;
+    }
 
   if (!d->segmentEditorNode)
     {
@@ -2496,11 +2454,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       continue;
       }
     SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-    }
-
-  if (!generateMasks)
-    {
-    return;
     }
 
   // Create empty segment in current segmentation
@@ -2586,6 +2539,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     }
 
   this->onCreateSurfaceButtonToggled(true);
+  d->AutoPropagateCheckBox->setChecked(autoPropagate);;
 }
 
 //---------------------------------------------------------------------------
@@ -2606,12 +2560,16 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
+  bool autoPropagate = d->AutoPropagateCheckBox->isChecked();
+  d->AutoPropagateCheckBox->setChecked(false);
+
   // Set a Plot Layout
   vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
     this->mrmlScene()->GetFirstNodeByClass("vtkMRMLLayoutNode"));
   if (!layoutNode)
     {
     qWarning() << Q_FUNC_INFO << ": Unable to get layout node!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
   int viewArra = layoutNode->GetViewArrangement();
@@ -2636,6 +2594,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
      !volumeThree->GetImageData())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : volumes not valid.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2647,12 +2606,14 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   if (!appLogic)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : appLogic not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
   if (!d->selectionNode)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : selectionNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2662,6 +2623,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   unsigned int numViewNodes = col->GetNumberOfItems();
 
+  d->selectionNode->SetActiveLabelVolumeID("");
   d->selectionNode->SetActiveVolumeID(volumeTwo->GetID());
 
   int n = volumeTwo->GetNumberOfDisplayNodes();
@@ -2748,6 +2710,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   unsigned int numCameraNodes = col1->GetNumberOfItems();
   if (numCameraNodes < 1)
     {
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
   vtkMRMLCameraNode *cameraNode =
@@ -2777,6 +2740,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                    "qSlicerApplication not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2785,6 +2749,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                    "ThreeDWidget not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2793,6 +2758,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                    "ThreeDView not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2839,6 +2805,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   if (!currentSegmentationNode->GetSegmentation())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView() : segmentation not found.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -2975,6 +2942,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "yellowSliceNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -3017,6 +2985,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "greenSliceNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -3057,6 +3026,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "redSliceNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
     return;
     }
 
@@ -3096,6 +3066,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     yellowSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
     }
+
+  d->AutoPropagateCheckBox->setChecked(autoPropagate);;
 }
 
 //---------------------------------------------------------------------------
@@ -3117,12 +3089,16 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     return;
     }
 
+  bool autoPropagate = d->AutoPropagateCheckBox->isChecked();
+  d->AutoPropagateCheckBox->setChecked(false);
+
   // Set a Plot Layout
   vtkMRMLLayoutNode* layoutNode = vtkMRMLLayoutNode::SafeDownCast(
     this->mrmlScene()->GetFirstNodeByClass("vtkMRMLLayoutNode"));
   if (!layoutNode)
     {
     qWarning() << Q_FUNC_INFO << ": Unable to get layout node!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
   int viewArra = layoutNode->GetViewArrangement();
@@ -3143,6 +3119,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   if(!volumeOne || !volumeTwo || !volumeOne->GetImageData() || !volumeTwo->GetImageData())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView() : volumes not valid.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3155,6 +3132,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   if (!d->segmentEditorNode)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView() : segmentEditorNode not valid.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3162,6 +3140,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView() : segmentationNode not valid.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3288,6 +3267,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::updateQuantitative3DView : "
                   "yellowSliceNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3295,6 +3275,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::updateQuantitative3DView : "
                   "SliceToRAS matrix not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3333,6 +3314,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::updateQuantitative3DView : "
                   "greenSliceNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3371,6 +3353,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "redSliceNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3410,6 +3393,8 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     {
     yellowSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
     }
+
+  d->AutoPropagateCheckBox->setChecked(autoPropagate);
 }
 
 //---------------------------------------------------------------------------
@@ -3494,6 +3479,7 @@ void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
   }
 }
 
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onActivate3DAstroVolumeNode(bool activate)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -3507,11 +3493,13 @@ void qSlicerAstroVolumeModuleWidget::onActivate3DAstroVolumeNode(bool activate)
     {
     d->RenderingFrame->setEnabled(true);
     d->RenderingFrame->setCollapsed(false);
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(false);
     }
   else
     {
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
     }
 }
 
@@ -4324,7 +4312,7 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onDeactivate3DLabelMapVolumeNode(bool deactivate)
+void qSlicerAstroVolumeModuleWidget::onActivate3DLabelMapVolumeNode(bool activate)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -4333,15 +4321,17 @@ void qSlicerAstroVolumeModuleWidget::onDeactivate3DLabelMapVolumeNode(bool deact
     return;
     }
 
-  if (deactivate)
+  if (activate)
     {
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
     }
   else
     {
     d->RenderingFrame->setEnabled(true);
     d->RenderingFrame->setCollapsed(false);
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(false);
     }
 }
 
@@ -5048,6 +5038,17 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    return;
+    }
+
+  if (d->AutoPropagateCheckBox->isChecked())
+    {
+    appLogic->PropagateBackgroundVolumeSelection(1);
+    }
+
   if (!volumeNode)
     {
     this->onVisibilityChanged(false);
@@ -5075,7 +5076,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     {
     d->RenderingFrame->setEnabled(true);
     d->RenderingFrame->setCollapsed(false);
-    if (d->volumeRenderingWidget && d->AutoPropagateCheckBox->isChecked())
+    if (d->volumeRenderingWidget)
       {
       d->volumeRenderingWidget->setMRMLVolumeNode(d->astroVolumeNode);
       }
@@ -5105,6 +5106,9 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 
   d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
 
+  d->DisplayCollapsibleButton->setCollapsed(false);
+  d->CollapsibleButton_CopyMoveSegment->setCollapsed(true);
+
   this->setEnabled(volumeNode != 0);
 }
 
@@ -5112,6 +5116,17 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
 void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    return;
+    }
+
+  if (d->AutoPropagateCheckBox->isChecked())
+    {
+    appLogic->PropagateLabelVolumeSelection(1);
+    }
 
   if (!volumeNode)
     {
@@ -5131,6 +5146,9 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolum
   this->onMRMLLabelVolumeNodeModified();
 
   d->ActiveVolumeNodeSelector->setCurrentNodeID(volumeNode->GetID());
+
+  d->DisplayCollapsibleButton->setCollapsed(true);
+  d->CollapsibleButton_CopyMoveSegment->setCollapsed(false);
 
   this->setEnabled(volumeNode != 0);
 }

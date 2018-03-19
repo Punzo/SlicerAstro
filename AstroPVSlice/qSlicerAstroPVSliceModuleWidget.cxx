@@ -119,6 +119,25 @@ struct PVSliceEventObservation
   QVector<int> ObservationTags;
 };
 
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+} // end namespace
+
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroPVSlice
 class qSlicerAstroPVSliceModuleWidgetPrivate: public Ui_qSlicerAstroPVSliceModuleWidget
@@ -147,6 +166,7 @@ public:
   vtkSlicerAstroPVSliceLogic* logic() const;
   vtkSmartPointer<vtkMRMLAstroPVSliceParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
+  bool reportDimensionalityError;
 };
 
 //-----------------------------------------------------------------------------
@@ -160,6 +180,7 @@ qSlicerAstroPVSliceModuleWidgetPrivate::qSlicerAstroPVSliceModuleWidgetPrivate(q
   this->selectionNode = 0;
   this->ViewsObserved = false;
   this->CenterInteractionActive = false;
+  this->reportDimensionalityError = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -443,15 +464,11 @@ void qSlicerAstroPVSliceModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
-  this->onMRMLAstroPVSliceParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroPVSliceModuleWidget::initializeNodes(bool forceNew /*= false*/)
 {
-  Q_D(qSlicerAstroPVSliceModuleWidget);
-
   this->initializeParameterNode(forceNew);
 
   this->initializeMomentMapNode(forceNew);
@@ -564,6 +581,20 @@ void qSlicerAstroPVSliceModuleWidget::initializeMomentMapNode(bool forceNew /*= 
   if (type.find("DATA") == std::string::npos &&
       type.find("MODEL") == std::string::npos)
     {
+    return;
+    }
+
+  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
+  if (n != 3)
+    {
+    if (d->reportDimensionalityError)
+      {
+      QString message = QString("It is possible to create PVSlice only"
+                                " for datacube with dimensionality 3 (NAXIS = 3).");
+      qCritical() << Q_FUNC_INFO << ": " << message;
+      QMessageBox::warning(NULL, tr("Failed to create PVSlice"), message);
+      d->reportDimensionalityError = false;
+      }
     return;
     }
 
@@ -923,9 +954,10 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
     }
 
   if (mrmlNode)
-    {
+    {  
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
+    d->reportDimensionalityError = true;
     this->initializeMomentMapNode();
     this->initializeRulerNode();
     }
@@ -984,18 +1016,12 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceParametersNodeModified()
   char *MomentMapNodeID = d->parametersNode->GetMomentMapNodeID();
   vtkMRMLAstroVolumeNode *MomentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(MomentMapNodeID));
-  if (MomentMapNode)
-    {
-    d->MomentMapNodeSelector->setCurrentNode(MomentMapNode);
-    }
+  d->MomentMapNodeSelector->setCurrentNode(MomentMapNode);
 
   char *RulerNodeID = d->parametersNode->GetRulerNodeID();
   vtkMRMLAnnotationRulerNode *RulerNode = vtkMRMLAnnotationRulerNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(RulerNodeID));
-  if (RulerNode)
-    {
-    d->RulerNodeComboBox->setCurrentNode(RulerNode);
-    }
+  d->RulerNodeComboBox->setCurrentNode(RulerNode);
 
   d->RotateSpinBox->setValue(d->parametersNode->GetRulerAngle());
   d->ShiftXSpinBox->setValue(d->parametersNode->GetRulerShiftX());
@@ -1015,6 +1041,29 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceRulerNodeModified()
 
   if (!d->parametersNode || !this->mrmlScene())
     {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return;
+    }
+
+  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
+  // Check Input volume
+  if (n != 3)
+    {
+    if (d->reportDimensionalityError)
+      {
+      QString message = QString("PVSlice is available only"
+                                " for datacube with dimensionality 3 (NAXIS = 3).");
+      qCritical() << Q_FUNC_INFO << ": " << message;
+      QMessageBox::warning(NULL, tr("Failed to calculate PVSlice"), message);
+      }
+    d->reportDimensionalityError = false;
     return;
     }
 
@@ -1144,6 +1193,14 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLSelectionNodeModified(vtkObject *sen
     return;
     }
 
+  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+    {
+    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
+      {
+      return;
+      }
+    }
+
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
   d->parametersNode->EndModify(wasModifying);
@@ -1162,18 +1219,25 @@ void qSlicerAstroPVSliceModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetMomentMapNodeID(mrmlNode->GetID());
-
-  vtkSlicerAstroPVSliceLogic *logic = d->logic();
-  if (logic)
+  if (mrmlNode)
     {
-    logic->SetMomentMapOnRedWidget(d->parametersNode);
-    this->on3DViewParallel();
+    d->parametersNode->SetMomentMapNodeID(mrmlNode->GetID());
+
+    vtkSlicerAstroPVSliceLogic *logic = d->logic();
+    if (logic)
+      {
+      logic->SetMomentMapOnRedWidget(d->parametersNode);
+      this->on3DViewParallel();
+      }
+    }
+  else
+    {
+    d->parametersNode->SetMomentMapNodeID(NULL);
     }
 }
 
@@ -1324,18 +1388,25 @@ void qSlicerAstroPVSliceModuleWidget::onRulerChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
-  vtkMRMLAnnotationRulerNode* RulerNode = vtkMRMLAnnotationRulerNode::SafeDownCast(mrmlNode);
-  if (!RulerNode || !d->parametersNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetRulerNodeID(RulerNode->GetID());
+  vtkMRMLAnnotationRulerNode* RulerNode = vtkMRMLAnnotationRulerNode::SafeDownCast(mrmlNode);
+    if (RulerNode)
+    {
+    d->parametersNode->SetRulerNodeID(RulerNode->GetID());
 
-  this->qvtkReconnect(RulerNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLPVSliceRulerNodeModified()));
+    this->qvtkReconnect(RulerNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLPVSliceRulerNodeModified()));
 
-  this->onMRMLPVSliceRulerNodeModified();
+    this->onMRMLPVSliceRulerNodeModified();
+    }
+  else
+    {
+    d->parametersNode->SetRulerNodeID(NULL);
+    }
 }
 
 //---------------------------------------------------------------------------

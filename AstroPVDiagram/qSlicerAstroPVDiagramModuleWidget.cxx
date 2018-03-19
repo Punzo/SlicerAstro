@@ -141,6 +141,7 @@ public:
   vtkSlicerAstroPVDiagramLogic* logic() const;
   vtkSmartPointer<vtkMRMLAstroPVDiagramParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
+  bool reportDimensionalityError;
 };
 
 //-----------------------------------------------------------------------------
@@ -152,6 +153,7 @@ qSlicerAstroPVDiagramModuleWidgetPrivate::qSlicerAstroPVDiagramModuleWidgetPriva
 {
   this->parametersNode = 0;
   this->selectionNode = 0;
+  this->reportDimensionalityError = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -513,15 +515,11 @@ void qSlicerAstroPVDiagramModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
-  this->onMRMLAstroPVDiagramParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroPVDiagramModuleWidget::initializeNodes(bool forceNew /*= false*/)
 {
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
   this->initializeParameterNode(forceNew);
 
   this->initializeMomentMapNode(forceNew);
@@ -586,25 +584,33 @@ void qSlicerAstroPVDiagramModuleWidget::onFiducialsMarkupsChanged(vtkMRMLNode *m
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
 
-   vtkMRMLMarkupsFiducialNode* SourcePointsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast(mrmlNode);
-  if (!d->parametersNode || !SourcePointsNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetFiducialsMarkupsID(SourcePointsNode->GetID());
+  vtkMRMLMarkupsFiducialNode* SourcePointsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast(mrmlNode);
 
-  this->qvtkReconnect(SourcePointsNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLSourcePointsNodeModified()));
+  if (SourcePointsNode)
+    {
+    d->parametersNode->SetFiducialsMarkupsID(SourcePointsNode->GetID());
 
-  this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::MarkupRemovedEvent,
-                      this, SLOT(onMRMLSourcePointsNodeModified()));
+    this->qvtkReconnect(SourcePointsNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLSourcePointsNodeModified()));
 
-  this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::MarkupAddedEvent,
-                      this, SLOT(onMRMLSourcePointsNodeMarkupAdded()));
+    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::MarkupRemovedEvent,
+                        this, SLOT(onMRMLSourcePointsNodeModified()));
 
-  this->onMRMLSourcePointsNodeModified();
-  this->onMRMLSourcePointsNodeMarkupAdded();
+    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::MarkupAddedEvent,
+                        this, SLOT(onMRMLSourcePointsNodeMarkupAdded()));
+
+    this->onMRMLSourcePointsNodeModified();
+    this->onMRMLSourcePointsNodeMarkupAdded();
+    }
+  else
+    {
+    d->parametersNode->SetFiducialsMarkupsID(NULL);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -662,6 +668,21 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
   if (type.find("DATA") == std::string::npos &&
       type.find("MODEL") == std::string::npos)
     {
+    return;
+    }
+
+  // Check Input volume
+  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
+  if (n != 3)
+    {
+    if (d->reportDimensionalityError)
+      {
+      QString message = QString("It is possible to create PVDiagram only"
+                                " for datacubes with dimensionality 3 (NAXIS = 3).");
+      qCritical() << Q_FUNC_INFO << ": " << message;
+      QMessageBox::warning(NULL, tr("Failed to create the PVDiagram"), message);
+      d->reportDimensionalityError = false;
+      }
     return;
     }
 
@@ -840,33 +861,20 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
   int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
   if (n != 3)
     {
-    QString message = QString("It is possible to create PVDiagram only"
-                              " for datacubes with dimensionality 3 (NAXIS = 3).");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to create the PVDiagram"), message);
+    if (d->reportDimensionalityError)
+      {
+      QString message = QString("It is possible to create PVDiagram only"
+                                " for datacubes with dimensionality 3 (NAXIS = 3).");
+      qCritical() << Q_FUNC_INFO << ": " << message;
+      QMessageBox::warning(NULL, tr("Failed to create the PVDiagram"), message);
+      d->reportDimensionalityError = false;
+      }
     return;
     }
 
   vtkMRMLAstroVolumeNode *PVDiagramVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
-
-  if (PVDiagramVolume && (!strcmp(inputVolume->GetID(), PVDiagramVolume->GetID())))
-    {
-    vtkMRMLAstroVolumeStorageNode* astroStorage =
-      vtkMRMLAstroVolumeStorageNode::SafeDownCast(PVDiagramVolume->GetStorageNode());
-    this->mrmlScene()->RemoveNode(astroStorage);
-    this->mrmlScene()->RemoveNode(PVDiagramVolume->GetAstroVolumeDisplayNode());
-
-    vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(PVDiagramVolume->GetDisplayNode());
-    if (volumeRenderingDisplay)
-      {
-      this->mrmlScene()->RemoveNode(volumeRenderingDisplay->GetROINode());
-      this->mrmlScene()->RemoveNode(volumeRenderingDisplay);
-      }
-    this->mrmlScene()->RemoveNode(PVDiagramVolume);
-    }
 
   if (!PVDiagramVolume)
     {
@@ -876,76 +884,75 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
     // create Astro Volume for the moment map
     PVDiagramVolume = vtkMRMLAstroVolumeNode::SafeDownCast
        (d->logic()->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(this->mrmlScene(), inputVolume, outSS.str().c_str()));
-
-    // modify fits attributes
-    PVDiagramVolume->SetAttribute("SlicerAstro.DATAMODEL", "PVDIAGRAM");
-    PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS", "2");
-    PVDiagramVolume->SetAttribute("SlicerAstro.BUNIT", inputVolume->GetAttribute("SlicerAstro.BUNIT"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.BTYPE", inputVolume->GetAttribute("SlicerAstro.BTYPE"));
-
-    PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS1", "1");
-    PVDiagramVolume->SetAttribute("SlicerAstro.CROTA1", "0");
-    PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX1", "0");
-    PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL1", "0");
-    PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE1", "UNDEFINED");
-
-    PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS2", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.CDELT2", inputVolume->GetAttribute("SlicerAstro.CDELT3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.CROTA2", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX2", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL2", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE2", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.CUNIT2", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.DTYPE2", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.DRVAL2", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
-    PVDiagramVolume->SetAttribute("SlicerAstro.DUNIT2", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
-
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.CDELT3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.CROTA3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-    PVDiagramVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-    // copy 2D image into the Astro Volume object
-    int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-    vtkNew<vtkImageData> imageDataTemp;
-    imageDataTemp->SetDimensions(1, N2, 1);
-    imageDataTemp->SetSpacing(1.,1.,1.);
-    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-    PVDiagramVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-    // Set Origin
-    double Origin[3];
-    inputVolume->GetOrigin(Origin);
-    Origin[1] = 0.;
-    PVDiagramVolume->SetOrigin(Origin);
-
-    // Remove old rendering Display
-    int ndnodes = PVDiagramVolume->GetNumberOfDisplayNodes();
-    for (int ii = 0; ii < ndnodes; ii++)
-      {
-      vtkMRMLVolumeRenderingDisplayNode *dnode =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-          PVDiagramVolume->GetNthDisplayNode(ii));
-      if (dnode)
-        {
-        PVDiagramVolume->RemoveNthDisplayNodeID(ii);
-        }
-      }
-
-    // Set no WCS
-    PVDiagramVolume->GetAstroVolumeDisplayNode()->SetSpace("IJK");
-
-    // Update parameter Node
-    PVDiagramVolume->SetName(outSS.str().c_str());
-    d->parametersNode->SetOutputVolumeNodeID(PVDiagramVolume->GetID());
     }
+
+  // modify fits attributes
+  PVDiagramVolume->SetAttribute("SlicerAstro.DATAMODEL", "PVDIAGRAM");
+  PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS", "2");
+  PVDiagramVolume->SetAttribute("SlicerAstro.BUNIT", inputVolume->GetAttribute("SlicerAstro.BUNIT"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.BTYPE", inputVolume->GetAttribute("SlicerAstro.BTYPE"));
+
+  PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS1", "1");
+  PVDiagramVolume->SetAttribute("SlicerAstro.CROTA1", "0");
+  PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX1", "0");
+  PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL1", "0");
+  PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE1", "UNDEFINED");
+
+  PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS2", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.CDELT2", inputVolume->GetAttribute("SlicerAstro.CDELT3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.CROTA2", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX2", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL2", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE2", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.CUNIT2", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.DTYPE2", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.DRVAL2", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
+  PVDiagramVolume->SetAttribute("SlicerAstro.DUNIT2", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
+
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.NAXIS3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.CDELT3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.CROTA3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.CRPIX3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.CRVAL3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.CTYPE3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.CUNIT3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.DTYPE3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.DRVAL3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+
+  // copy 2D image into the Astro Volume object
+  int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
+  vtkNew<vtkImageData> imageDataTemp;
+  imageDataTemp->SetDimensions(1, N2, 1);
+  imageDataTemp->SetSpacing(1.,1.,1.);
+  imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
+
+  PVDiagramVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+
+  // Set Origin
+  double Origin[3];
+  inputVolume->GetOrigin(Origin);
+  Origin[1] = 0.;
+  PVDiagramVolume->SetOrigin(Origin);
+
+  // Remove old rendering Display
+  int ndnodes = PVDiagramVolume->GetNumberOfDisplayNodes();
+  for (int ii = 0; ii < ndnodes; ii++)
+    {
+    vtkMRMLVolumeRenderingDisplayNode *dnode =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+        PVDiagramVolume->GetNthDisplayNode(ii));
+    if (dnode)
+      {
+      PVDiagramVolume->RemoveNthDisplayNodeID(ii);
+      }
+    }
+
+  // Set no WCS
+  PVDiagramVolume->GetAstroVolumeDisplayNode()->SetSpace("IJK");
+
+  // Update parameter Node
+  d->parametersNode->SetOutputVolumeNodeID(PVDiagramVolume->GetID());
 
   vtkSlicerAstroPVDiagramLogic *logic = d->logic();
   if (logic)
@@ -1036,6 +1043,8 @@ void qSlicerAstroPVDiagramModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNo
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
+    d->reportDimensionalityError = true;
+    this->initializeMomentMapNode();
     }
   else
     {
@@ -1086,12 +1095,19 @@ void qSlicerAstroPVDiagramModuleWidget::onModelChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetModelID(mrmlNode->GetID());
+  if (mrmlNode)
+    {
+    d->parametersNode->SetModelID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetModelID(NULL);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -1112,35 +1128,23 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramParametersNodeModifi
   char *momentMapNodeID = d->parametersNode->GetMomentMapNodeID();
   vtkMRMLAstroVolumeNode *momentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(momentMapNodeID));
-  if (momentMapNode)
-    {
-    d->MomentMapNodeSelector->setCurrentNode(momentMapNode);
-    }
+  d->MomentMapNodeSelector->setCurrentNode(momentMapNode);
 
   char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
-  if (outputVolumeNode)
-    {
-    d->OutputNodeSelector->setCurrentNode(outputVolumeNode);
-    }
+  d->OutputNodeSelector->setCurrentNode(outputVolumeNode);
 
   char *fiducialsMarkupsNodeID = d->parametersNode->GetFiducialsMarkupsID();
   vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(fiducialsMarkupsNodeID));
-  if (fiducialsMarkupsNode)
-    {
-    d->SourcePointsNodeComboBox->setCurrentNode(fiducialsMarkupsNode);
-    d->PointsMarkupsPlaceWidget->setCurrentNode(fiducialsMarkupsNode);
-    }
+  d->SourcePointsNodeComboBox->setCurrentNode(fiducialsMarkupsNode);
+  d->PointsMarkupsPlaceWidget->setCurrentNode(fiducialsMarkupsNode);
 
   char *modelNodeID = d->parametersNode->GetModelID();
   vtkMRMLModelNode *modelNode = vtkMRMLModelNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(modelNodeID));
-  if (modelNode)
-    {
-    d->CurveModelNodeComboBox->setCurrentNode(modelNode);
-    }
+  d->CurveModelNodeComboBox->setCurrentNode(modelNode);
 
   d->AutoUpdateCheckBox->setChecked(d->parametersNode->GetAutoUpdate());
 }
@@ -1163,13 +1167,21 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSelectionNodeModified(vtkObject *s
     return;
     }
 
+  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+    {
+    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
+      {
+      return;
+      }
+    }
+
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-  d->parametersNode->SetOutputVolumeNodeID("");
   d->parametersNode->EndModify(wasModifying);
 
   this->initializeMomentMapNode(true);
   this->initializeFiducialsMarkupsNode(false);
+
   // Update Line Selection
   vtkSlicerAstroPVDiagramLogic *logic = d->logic();
   if (logic)
@@ -1315,17 +1327,24 @@ void qSlicerAstroPVDiagramModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetMomentMapNodeID(mrmlNode->GetID());
-
-  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-  if (logic)
+  if (mrmlNode)
     {
-    logic->SetMomentMapOnRedWidget(d->parametersNode);
+    d->parametersNode->SetMomentMapNodeID(mrmlNode->GetID());
+
+    vtkSlicerAstroPVDiagramLogic *logic = d->logic();
+    if (logic)
+      {
+      logic->SetMomentMapOnRedWidget(d->parametersNode);
+      }
+    }
+  else
+    {
+    d->parametersNode->SetMomentMapNodeID(NULL);
     }
 }
 
@@ -1358,12 +1377,19 @@ void qSlicerAstroPVDiagramModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+  if (mrmlNode)
+    {
+    d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    }
 }
 
 //---------------------------------------------------------------------------

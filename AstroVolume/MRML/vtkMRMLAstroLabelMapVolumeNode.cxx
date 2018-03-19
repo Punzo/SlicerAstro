@@ -209,8 +209,10 @@ bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
       return false;
     }
 
+  int wasModifying = this->StartModify();
   this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max_val).c_str());
   this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());
+  this->EndModify(wasModifying);
 
   inSPixel = NULL;
   delete inSPixel;

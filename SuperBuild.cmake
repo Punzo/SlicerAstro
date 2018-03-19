@@ -1,27 +1,31 @@
 #-----------------------------------------------------------------------------
+# Git protocol option
+#-----------------------------------------------------------------------------
+option(Slicer_USE_GIT_PROTOCOL "If behind a firewall turn this off to use http instead." ON)
+
+set(git_protocol "git")
+if(NOT Slicer_USE_GIT_PROTOCOL)
+  set(git_protocol "http")
+endif()
+
+#-----------------------------------------------------------------------------
 # Enable and setup External project global properties
 #-----------------------------------------------------------------------------
-include(ExternalProject)
 set(ep_common_c_flags "${CMAKE_C_FLAGS_INIT} ${ADDITIONAL_C_FLAGS}")
 set(ep_common_cxx_flags "${CMAKE_CXX_FLAGS_INIT} ${ADDITIONAL_CXX_FLAGS}")
-
-# Compute -G arg for configuring external projects with the same CMake generator:
-if(CMAKE_EXTRA_GENERATOR)
-  set(gen "${CMAKE_EXTRA_GENERATOR} - ${CMAKE_GENERATOR}")
-else()
-  set(gen "${CMAKE_GENERATOR}")
-endif()
 
 #-----------------------------------------------------------------------------
 # Project dependencies
 #-----------------------------------------------------------------------------
+include(ExternalProject)
+
 foreach(dep ${EXTENSION_DEPENDS})
   mark_as_superbuild(${dep}_DIR)
 endforeach()
 
 set(proj ${SUPERBUILD_TOPLEVEL_PROJECT})
 if(UNIX)
-  set(${proj}_DEPENDS cfitsio wcslib bbarolo)
+  set(${proj}_DEPENDS cfitsio wcslib bbarolo python-reproject)
 endif(UNIX)
 
 ExternalProject_Include_Dependencies(${proj}
@@ -36,7 +40,6 @@ ExternalProject_Add(${proj}
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
   BINARY_DIR ${EXTENSION_BUILD_SUBDIRECTORY}
   BUILD_ALWAYS 1
-  CMAKE_GENERATOR ${gen}
   CMAKE_CACHE_ARGS
     -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
     -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}

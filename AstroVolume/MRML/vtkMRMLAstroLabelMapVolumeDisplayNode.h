@@ -33,6 +33,7 @@
 
 class vtkImageAlgorithm;
 class vtkImageMapToColors;
+class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLUnitNode;
 
 /// \brief MRML node for representing a volume display attributes.
@@ -58,6 +59,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   ///
   /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+
+  ///
+  /// WCSCopy to this object
+  virtual void WCSCopy(vtkMRMLNode *node);
 
   ///
   /// Get node XML tag name (like Volume, Model)

@@ -766,6 +766,8 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     return;
     }
 
+  this->initializeNodes();
+
   this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
   this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
@@ -774,10 +776,7 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->initializeNodes();
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-  this->onMRMLAstroModelingParametersNodeModified();
 
   // Connect PlotWidget with ModelingWidget
   qSlicerApplication* app = qSlicerApplication::application();
@@ -929,8 +928,6 @@ void qSlicerAstroModelingModuleWidget::onInclinationFitChanged(bool flag)
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::initializeNodes(bool forceNew /*= false*/)
 {
-  Q_D(qSlicerAstroModelingModuleWidget);
-
   this->initializeParameterNode(forceNew);
 
   this->initializeSegmentations(forceNew);
@@ -1975,6 +1972,11 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return false;
+    }
+
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
@@ -1982,9 +1984,9 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation node selected! Please create a segmentation or untoggle the input"
+    QString message = QString("No segmentation available! Please create a segmentation or untoggle the input"
                               " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to select a mask"), message);
@@ -2228,9 +2230,17 @@ void qSlicerAstroModelingModuleWidget::onMRMLSelectionNodeModified(vtkObject* se
   vtkMRMLSelectionNode *selectionNode =
       vtkMRMLSelectionNode::SafeDownCast(sender);
 
-  if (!d->parametersNode || !selectionNode)
+  if (!selectionNode || !d->parametersNode)
     {
     return;
+    }
+
+  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+    {
+    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
+      {
+      return;
+      }
     }
 
   int wasModifying = d->parametersNode->StartModify();
@@ -3042,12 +3052,19 @@ void qSlicerAstroModelingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNo
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+  if (mrmlNode)
+    {
+    d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    }
 }
 
 //--------------------------------------------------------------------------
@@ -3189,12 +3206,19 @@ void qSlicerAstroModelingModuleWidget::onResidualVolumeChanged(vtkMRMLNode *mrml
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetResidualVolumeNodeID(mrmlNode->GetID());
+  if (mrmlNode)
+    {
+    d->parametersNode->SetResidualVolumeNodeID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetResidualVolumeNodeID(NULL);
+    }
 }
 
 //--------------------------------------------------------------------------
@@ -3307,18 +3331,12 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
-  if (outputVolumeNode)
-    {
-    d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
-    }
+  d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
 
   char *residualVolumeNodeID = d->parametersNode->GetResidualVolumeNodeID();
   vtkMRMLAstroVolumeNode *residualVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(residualVolumeNodeID));
-  if (residualVolumeNode)
-    {
-    d->ResidualVolumeNodeSelector->setCurrentNode(residualVolumeNode);
-    }
+  d->ResidualVolumeNodeSelector->setCurrentNode(residualVolumeNode);
 
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
@@ -3759,39 +3777,42 @@ void qSlicerAstroModelingModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
-  if (outputVolume && strcmp(inputVolume->GetID(), outputVolume->GetID()))
+  if (outputVolume)
     {
-    vtkMRMLAstroVolumeStorageNode* astroStorage =
-      vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
-    scene->RemoveNode(astroStorage);
-    scene->RemoveNode(outputVolume->GetAstroVolumeDisplayNode());
-
-    vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
-    if (volumeRenderingDisplay)
+    std::string name;
+    name = outputVolume->GetName();
+    if (name.find("_model_") != std::string::npos)
       {
-      scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-      scene->RemoveNode(volumeRenderingDisplay);
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(outputVolume->GetAstroVolumeDisplayNode());
+
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
+        {
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
+        }
+      scene->RemoveNode(outputVolume);
       }
-    scene->RemoveNode(outputVolume->GetVolumePropertyNode());
-    scene->RemoveNode(outputVolume);
     }
 
   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
      (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
-  outputVolume->SetName(outSS.str().c_str());
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
-  for (int i=0; i<ndnodes; i++)
+  for (int ii = 0; ii < ndnodes; ii++)
     {
     vtkMRMLVolumeRenderingDisplayNode *dnode =
       vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-        outputVolume->GetNthDisplayNode(i));
+        outputVolume->GetNthDisplayNode(ii));
     if (dnode)
       {
-      outputVolume->RemoveNthDisplayNodeID(i);
+      outputVolume->RemoveNthDisplayNodeID(ii);
       }
     }
 
@@ -3801,54 +3822,53 @@ void qSlicerAstroModelingModuleWidget::onApply()
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
   // Create Residual Volume
-  vtkMRMLAstroVolumeNode *residualVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
-
-  if (!residualVolume)
-    {
-    residualVolume = vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-            GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-    }
-
   std::ostringstream residualSS;
   residualSS << inputVolume->GetName() << "_maskedByModel_"<<
              IntToString(serial);
   serial++;
   d->parametersNode->SetOutputSerial(serial);
 
-  // Check residual volume
-  if (!strcmp(inputVolume->GetID(), residualVolume->GetID()) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) !=
-      StringToInt(residualVolume->GetAttribute("SlicerAstro.NAXIS1"))) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) !=
-      StringToInt(residualVolume->GetAttribute("SlicerAstro.NAXIS2"))) ||
-     (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3")) !=
-      StringToInt(residualVolume->GetAttribute("SlicerAstro.NAXIS3"))))
+  vtkMRMLAstroVolumeNode *residualVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
+      GetNodeByID(d->parametersNode->GetResidualVolumeNodeID()));
+
+  if (residualVolume)
     {
-
-    residualVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-       (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, residualSS.str().c_str()));
-
-    residualVolume->SetName(residualSS.str().c_str());
-    d->parametersNode->SetResidualVolumeNodeID(residualVolume->GetID());
-
-    int ndnodes = residualVolume->GetNumberOfDisplayNodes();
-    for (int i=0; i<ndnodes; i++)
+    std::string name;
+    name = residualVolume->GetName();
+    if (name.find("_maskedByModel_") != std::string::npos)
       {
-      vtkMRMLVolumeRenderingDisplayNode *dnode =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-          residualVolume->GetNthDisplayNode(i));
-      if (dnode)
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(residualVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(residualVolume->GetAstroVolumeDisplayNode());
+
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(residualVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
         {
-        residualVolume->RemoveNthDisplayNodeID(i);
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
         }
+      scene->RemoveNode(residualVolume);
       }
     }
-  else
+
+  residualVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, residualSS.str().c_str()));
+
+  d->parametersNode->SetResidualVolumeNodeID(residualVolume->GetID());
+
+  ndnodes = residualVolume->GetNumberOfDisplayNodes();
+  for (int ii = 0; ii < ndnodes; ii++)
     {
-    residualVolume->SetName(residualSS.str().c_str());
-    d->parametersNode->SetResidualVolumeNodeID(residualVolume->GetID());
+    vtkMRMLVolumeRenderingDisplayNode *dnode =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+        residualVolume->GetNthDisplayNode(ii));
+    if (dnode)
+      {
+      residualVolume->RemoveNthDisplayNodeID(ii);
+      }
     }
 
   inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());

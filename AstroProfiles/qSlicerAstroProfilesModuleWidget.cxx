@@ -349,9 +349,7 @@ void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-  this->onMRMLAstroProfilesParametersNodeModified();
 
   d->InputSegmentCollapsibleButton->setCollapsed(false);
 
@@ -368,8 +366,6 @@ void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
 void qSlicerAstroProfilesModuleWidget::initializeNodes(bool forceNew  /*= false*/)
 {
-  Q_D(qSlicerAstroProfilesModuleWidget);
-
   this->initializeParameterNode(forceNew);
 
   this->initializeSegmentations(forceNew);
@@ -550,6 +546,11 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return false;
+    }
+
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
@@ -557,9 +558,9 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation node selected! Please create a segmentation.");
+    QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
     return false;
@@ -865,10 +866,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
   char *ProfileVolumeNodeID = d->parametersNode->GetProfileVolumeNodeID();
   vtkMRMLAstroVolumeNode *ProfileVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(ProfileVolumeNodeID));
-  if (ProfileVolumeNode)
-    {
-    d->ProfileVolumeNodeSelector->setCurrentNode(ProfileVolumeNode);
-    }
+  d->ProfileVolumeNodeSelector->setCurrentNode(ProfileVolumeNode);
 
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
@@ -929,6 +927,14 @@ void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeModified(vtkObject *se
   if (!selectionNode || !d->parametersNode)
     {
     return;
+    }
+
+  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+    {
+    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
+      {
+      return;
+      }
     }
 
   int wasModifying = d->parametersNode->StartModify();
@@ -1010,22 +1016,26 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetProfileVolumeNodeID()));
 
-  if (ProfileVolume && strcmp(inputVolume->GetID(), ProfileVolume->GetID()))
+  if (ProfileVolume)
     {
-    vtkMRMLAstroVolumeStorageNode* astroStorage =
-      vtkMRMLAstroVolumeStorageNode::SafeDownCast(ProfileVolume->GetStorageNode());
-    scene->RemoveNode(astroStorage);
-    scene->RemoveNode(ProfileVolume->GetAstroVolumeDisplayNode());
-
-    vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ProfileVolume->GetDisplayNode());
-    if (volumeRenderingDisplay)
+    std::string name;
+    name = ProfileVolume->GetName();
+    if (name.find("_Profile_") != std::string::npos)
       {
-      scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-      scene->RemoveNode(volumeRenderingDisplay);
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(ProfileVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(ProfileVolume->GetAstroVolumeDisplayNode());
+
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ProfileVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
+        {
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
+        }
+      scene->RemoveNode(ProfileVolume);
       }
-    scene->RemoveNode(ProfileVolume->GetVolumePropertyNode());
-    scene->RemoveNode(ProfileVolume);
     }
 
   // Get dimensions
@@ -1114,7 +1124,6 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
     scene->RemoveNode(ProfileVolume);
     d->parametersNode->SetStatus(0);
-    d->parametersNode->SetProfileVolumeNodeID("");
 
     if (d->parametersNode->GetMaskActive())
       {
@@ -1140,8 +1149,6 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
       scene->RemoveNode(maskVolume);
       }
     }
-
-  d->parametersNode->SetProfileVolumeNodeID("");
 
   // Setting the Layout for the Output
   qSlicerApplication* app = qSlicerApplication::application();
@@ -1401,12 +1408,19 @@ void qSlicerAstroProfilesModuleWidget::onProfileVolumeChanged(vtkMRMLNode *mrmlN
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetProfileVolumeNodeID(mrmlNode->GetID());
+  if (mrmlNode)
+    {
+    d->parametersNode->SetProfileVolumeNodeID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetProfileVolumeNodeID(NULL);
+    }
 }
 
 //-----------------------------------------------------------------------------

@@ -31,8 +31,7 @@
 #include <vtkMRMLAnnotationROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroModelingParametersNode.h>
-#include <vtkMRMLAstroSmoothingParametersNode.h>
+#include <vtkMRMLAstroReprojectParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
@@ -565,6 +564,7 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
+  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroReprojectParametersNode>().GetPointer());
 
   if (!this->PresetsScene)
     {

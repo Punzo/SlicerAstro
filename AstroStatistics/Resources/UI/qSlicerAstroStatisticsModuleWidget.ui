@@ -46,7 +46,7 @@
         </size>
        </property>
        <property name="text">
-        <string>Input Volume:</string>
+        <string>Input Data:</string>
        </property>
       </widget>
      </item>

@@ -232,12 +232,12 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
-      if volumeNode and (volumeNode.IsA("vtkMRMLAstroVolumeNode") or volumeNode.IsA("vtkMRMLAstroLabelMapVolumeNode")):
+      if volumeNode is not None and (volumeNode.IsA("vtkMRMLAstroVolumeNode") or volumeNode.IsA("vtkMRMLAstroLabelMapVolumeNode")):
         dimensionality = int(volumeNode.GetAttribute("SlicerAstro.NAXIS"))
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
         displayNode = volumeNode.GetDisplayNode()
-        if displayNode:
+        if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
           worldX = displayNode.GetPythonDisplayStringFromValueX(world[0], 3)
@@ -288,6 +288,7 @@ def generateIJKPixelDescriptionAstro(self, ijk, slicerLayerLogic):
 
 def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
   volumeNode = slicerLayerLogic.GetVolumeNode()
-  if volumeNode:
+  if volumeNode is not None:
     displayNode = volumeNode.GetDisplayNode()
-    return "<b>%s</b>" % displayNode.GetPixelString(ijk) if displayNode else ""
+    if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
+      return "<b>%s</b>" % displayNode.GetPixelString(ijk) if displayNode else ""

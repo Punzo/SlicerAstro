@@ -514,6 +514,14 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
     return false;
     }
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return false;
+    }
+
   vtkMRMLModelNode *LineSelectionModelNode =
     vtkMRMLModelNode::SafeDownCast(this->GetMRMLScene()->
       GetNodeByID(pnode->GetModelID()));
@@ -1046,11 +1054,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSliceNode);
   if (yellowSliceLogic)
     {
-    int *dimsSlice = yellowSliceNode->GetDimensions();
-    if (dimsSlice)
-      {
-      yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
-      }
+    yellowSliceLogic->FitSliceToAll(dims[0], dims[1]);
     yellowSliceLogic->SnapSliceOffsetToIJK();
     }
 

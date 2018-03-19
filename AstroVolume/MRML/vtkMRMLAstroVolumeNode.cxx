@@ -276,8 +276,22 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       return false;
     }
 
+  int wasModifying = this->StartModify();
   this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max_val).c_str());
   this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());
+
+  vtkMRMLAstroVolumeDisplayNode* displayNode = this->GetAstroVolumeDisplayNode();
+  if (displayNode)
+    {
+    double window = max_val - min_val;
+    double level = 0.5 * (max_val + min_val);
+    int disModify = displayNode->StartModify();
+    displayNode->SetWindowLevel(window, level);
+    displayNode->SetThreshold(min_val, max_val);
+    displayNode->EndModify(disModify);
+    }
+
+  this->EndModify(wasModifying);
 
   inSPixel = NULL;
   inFPixel = NULL;

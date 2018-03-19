@@ -367,9 +367,7 @@ void qSlicerAstroMaskingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onInputVolumeChanged(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-  this->onMRMLAstroMaskingParametersNodeModified();
 
   d->InputCollapsibleButton->setCollapsed(false);
 }
@@ -377,8 +375,6 @@ void qSlicerAstroMaskingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 //-----------------------------------------------------------------------------
 void qSlicerAstroMaskingModuleWidget::initializeNodes(bool forceNew /*= false*/)
 {
-  Q_D(qSlicerAstroMaskingModuleWidget);
-
   this->initializeParameterNode(forceNew);
 
   this->initializeSegmentations(forceNew);
@@ -602,6 +598,11 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
 
+  if (!this->mrmlScene())
+    {
+    return NULL;
+    }
+
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
@@ -609,9 +610,9 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation node selected! Please create a segmentation.");
+    QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
     return NULL;
@@ -773,12 +774,19 @@ void qSlicerAstroMaskingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNod
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
 
-  if (!d->parametersNode || !mrmlNode)
+  if (!d->parametersNode)
     {
     return;
     }
 
-  d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+  if (mrmlNode)
+    {
+    d->parametersNode->SetOutputVolumeNodeID(mrmlNode->GetID());
+    }
+  else
+    {
+    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -868,12 +876,6 @@ void qSlicerAstroMaskingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode
     return;
     }
 
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    return;
-    }
-
   if (mrmlNode)
     {
     d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
@@ -928,10 +930,7 @@ void qSlicerAstroMaskingModuleWidget::onMRMLAstroMaskingParametersNodeModified()
   char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
-  if (outputVolumeNode)
-    {
-    d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
-    }
+  d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
 
   d->ROINodeComboBox->setCurrentNode(d->parametersNode->GetROINode());
 
@@ -1063,6 +1062,14 @@ void qSlicerAstroMaskingModuleWidget::onMRMLSelectionNodeModified(vtkObject *sen
     return;
     }
 
+  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+    {
+    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
+      {
+      return;
+      }
+    }
+
   int wasModifying = d->parametersNode->StartModify();
   d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
   d->parametersNode->EndModify(wasModifying);
@@ -1159,28 +1166,32 @@ void qSlicerAstroMaskingModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
-  if (outputVolume && strcmp(inputVolume->GetID(), outputVolume->GetID()))
+  if (outputVolume)
     {
-    vtkMRMLAstroVolumeStorageNode* astroStorage =
-      vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
-    scene->RemoveNode(astroStorage);
-    scene->RemoveNode(outputVolume->GetAstroVolumeDisplayNode());
-
-    vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
-    if (volumeRenderingDisplay)
+    std::string name;
+    name = outputVolume->GetName();
+    if (name.find("_Blank_") != std::string::npos ||
+        name.find("_Crop_") != std::string::npos )
       {
-      scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-      scene->RemoveNode(volumeRenderingDisplay);
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(outputVolume->GetAstroVolumeDisplayNode());
+
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
+        {
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
+        }
+      scene->RemoveNode(outputVolume);
       }
-    scene->RemoveNode(outputVolume->GetVolumePropertyNode());
-    scene->RemoveNode(outputVolume);
     }
 
   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
-  outputVolume->SetName(outSS.str().c_str());
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
