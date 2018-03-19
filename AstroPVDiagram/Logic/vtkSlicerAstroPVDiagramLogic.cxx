@@ -506,6 +506,14 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
     return false;
     }
 
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    return false;
+    }
+
   vtkMRMLModelNode *LineSelectionModelNode =
     vtkMRMLModelNode::SafeDownCast(this->GetMRMLScene()->
       GetNodeByID(pnode->GetModelID()));
