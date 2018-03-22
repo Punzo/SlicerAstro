@@ -2014,16 +2014,25 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
   if (selectedSegmentIDs.size() < 1)
     {
     QString message = QString("No segment selected from the segmentation node! "
-                              "Please provide one or more segments (Shift + leftClick).");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
-    return;
+                              "All the segments will be exported in the mask, do you want to procede?  \n\n"
+                              "If you do not desire to export all of them, "
+                              "please provide one or more segments by selecting them (Shift + leftClick).");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(NULL, tr("Failed to select a segment"), message);
+    if (reply != QMessageBox::Yes)
+      {
+      return;
+      }
     }
 
-  segmentIDs.clear();
-  for (int segmentIndex = 0; segmentIndex < selectedSegmentIDs.size(); segmentIndex++)
+  if (selectedSegmentIDs.size() > 0)
     {
-    segmentIDs.push_back(selectedSegmentIDs[segmentIndex].toStdString());
+    segmentIDs.clear();
+    for (int segmentIndex = 0; segmentIndex < selectedSegmentIDs.size(); segmentIndex++)
+      {
+      segmentIDs.push_back(selectedSegmentIDs[segmentIndex].toStdString());
+      }
     }
 
   if (vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
