@@ -7,7 +7,7 @@ In this context, visualization is an essential tool for enabling qualitative and
 
 ### Objective: general description</h3>
 * [x] 1) Proper visualization of astronomical data cubes: using data astronomical data formats, such as FITS, and astronomical world coordinates system (WCS);
-* [x] 2) Generation of Histogram, flux density profiles, moment maps and position-velocity diagrams linked with the 3D view;
+* [x] 2) Quantification: visualization of the beam, interactive histograms, contours, statistics linked with the 2d/3D views, masking volumes with segmentations, flux density profiles, moment maps and position-velocity diagrams;
 * [x] 3) Enabling interactive smoothing in all three dimensions;
 * [x] 4) Interactive HI data modeling coupled to visualization;
 * [ ] 5) Skill to overlay observations at different wavelength and to plot catalogs info on data;
