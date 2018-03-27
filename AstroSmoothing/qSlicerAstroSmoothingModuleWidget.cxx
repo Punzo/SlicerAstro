@@ -468,12 +468,6 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-
-  if (!(scene->GetNodeByID(d->selectionNode->GetActiveVolumeID())))
-    {
-    d->OutputVolumeNodeSelector->setEnabled(false);
-    d->ParametersNodeComboBox->setEnabled(false);
-    }
 }
 
 //-----------------------------------------------------------------------------

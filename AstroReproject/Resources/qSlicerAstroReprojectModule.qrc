@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/">
+        <file>Icons/AstroReproject.png</file>
+    </qresource>
+</RCC>

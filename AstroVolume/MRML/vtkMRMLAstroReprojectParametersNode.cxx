@@ -45,7 +45,9 @@ vtkMRMLAstroReprojectParametersNode::vtkMRMLAstroReprojectParametersNode()
   this->ReferenceVolumeNodeID = NULL;
   this->OutputVolumeNodeID = NULL;
   this->OutputSerial = 1;
-  this->SpatialInterpolated = 1;
+  this->InterpolationOrder = 1;
+  this->Cores = 0;
+  this->Status = 0;
 }
 
 //----------------------------------------------------------------------------
@@ -118,15 +120,27 @@ void vtkMRMLAstroReprojectParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "SpatialInterpolated"))
+    if (!strcmp(attName, "InterpolationOrder"))
       {
-      this->SpatialInterpolated = StringToInt(attValue);
+      this->InterpolationOrder = StringToInt(attValue);
       continue;
       }
 
     if (!strcmp(attName, "OutputSerial"))
       {
       this->OutputSerial = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Cores"))
+      {
+      this->Cores = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Status"))
+      {
+      this->Status = StringToInt(attValue);
       continue;
       }
     }
@@ -155,7 +169,9 @@ void vtkMRMLAstroReprojectParametersNode::WriteXML(ostream& of, int nIndent)
     }
 
   of << indent << " OutputSerial=\"" << this->OutputSerial << "\"";
-  of << indent << " SpatialInterpolated=\"" << this->SpatialInterpolated << "\"";
+  of << indent << " InterpolationOrder=\"" << this->InterpolationOrder << "\"";
+  of << indent << " Cores=\"" << this->Cores << "\"";
+  of << indent << " Status=\"" << this->Status << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -171,8 +187,10 @@ void vtkMRMLAstroReprojectParametersNode::Copy(vtkMRMLNode *anode)
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetReferenceVolumeNodeID(node->GetReferenceVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
-  this->SetSpatialInterpolated(node->GetSpatialInterpolated());
+  this->SetInterpolationOrder(node->GetInterpolationOrder());
   this->SetOutputSerial(node->GetOutputSerial());
+  this->SetCores(node->GetCores());
+  this->SetStatus(node->GetStatus());
 
   this->EndModify(disabledModify);
 }
@@ -185,6 +203,8 @@ void vtkMRMLAstroReprojectParametersNode::PrintSelf(ostream& os, vtkIndent inden
   os << indent << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
   os << indent << "ReferenceVolumeNodeID: " << ( (this->ReferenceVolumeNodeID) ? this->ReferenceVolumeNodeID : "None" ) << "\n";
   os << indent << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
-  os << indent << "SpatialInterpolated: " << this->SpatialInterpolated << "\n";
+  os << indent << "InterpolationOrder: " << this->InterpolationOrder << "\n";
   os << indent << "OutputSerial: " << this->OutputSerial << "\n";
+  os << indent << "Cores: " << this->Cores << "\n";
+  os << indent << "Status: " << this->Status << "\n";
 }

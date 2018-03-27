@@ -38,6 +38,7 @@
 #include <vtkImageHistogram.h>
 #include <vtkImageReslice.h>
 #include <vtkImageThreshold.h>
+#include <vtkIntArray.h>
 #include <vtkLookupTable.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
@@ -93,6 +94,7 @@
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
+#include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLTableNode.h>
@@ -286,9 +288,6 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->WCSCollapsibleButton, SLOT(setEnabled(bool)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
-                   this->HistoCollapsibleButton, SLOT(setEnabled(bool)));
-
-  QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
                    this->DisplayCollapsibleButton, SLOT(setEnabled(bool)));
 
   QObject::connect(this->ActiveVolumeNodeSelector, SIGNAL(currentNodeChanged(bool)),
@@ -331,12 +330,6 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->AstroVolumeDisplayWidget, SLOT(setMRMLVolumeNode(vtkMRMLNode*)));
 
   // 3D Display widget connections
-  QObject::connect(q, SIGNAL(activate3DLabelMapVolumeNode(bool)),
-                   q, SLOT(onActivate3DLabelMapVolumeNode(bool)));
-
-  QObject::connect(q, SIGNAL(activate3DAstroVolumeNode(bool)),
-                   q, SLOT(onActivate3DAstroVolumeNode(bool)));
-
   QObject::connect(this->VisibilityCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onVisibilityChanged(bool)));
 
@@ -589,7 +582,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   if (!astroVolumeLogic)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene error :"
-                     " astroVolumeLogic not found!"<<endl;
+                   " astroVolumeLogic not found!"<<endl;
     return;
     }
   vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
@@ -1430,7 +1423,11 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
 
   if (!node)
     {
-    emit activate3DAstroVolumeNode(false);
+    d->RenderingFrame->setEnabled(false);
+    d->RenderingFrame->setCollapsed(true);
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
+    d->HistoCollapsibleButton->setEnabled(false);
+    d->HistoCollapsibleButton->setCollapsed(true);
     }
 
   vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
@@ -1452,15 +1449,20 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       d->VelocityLabel->setEnabled(true);
       d->OpticalVelocityButton->setEnabled(true);
       d->RadioVelocityButton->setEnabled(true);
-      emit activate3DAstroVolumeNode(true);
+      d->RenderingFrame->setEnabled(true);
+      d->RenderingFrame->setCollapsed(false);
       }
     else
       {
       d->VelocityLabel->setEnabled(false);
       d->OpticalVelocityButton->setEnabled(false);
       d->RadioVelocityButton->setEnabled(false);
-      emit activate3DAstroVolumeNode(false);
+      d->RenderingFrame->setEnabled(false);
+      d->RenderingFrame->setCollapsed(true);
       }
+
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(false);
+    d->HistoCollapsibleButton->setEnabled(true);
 
     astroVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
@@ -1468,7 +1470,11 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     }
   else if (labelMapVolumeNode)
     {
-    emit activate3DLabelMapVolumeNode(true);
+    d->RenderingFrame->setEnabled(false);
+    d->RenderingFrame->setCollapsed(true);
+    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
+    d->HistoCollapsibleButton->setEnabled(false);
+    d->HistoCollapsibleButton->setCollapsed(true);
     labelMapVolumeNode->Modified();
     d->selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
     d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
@@ -2695,6 +2701,153 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeNodeOneID, const char *volumeNodeTwoID, const char *volumeNodeThreeID)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+
+  if (!this->mrmlScene())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews :"
+                   " scene not found.";
+    return;
+    }
+
+  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
+  if (!appLogic)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews :"
+                   " appLogic not found!";
+    return;
+    }
+
+  bool autoPropagate = d->AutoPropagateCheckBox->isChecked();
+  d->AutoPropagateCheckBox->setChecked(false);
+
+  vtkMRMLAstroVolumeNode *volumeOne = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(volumeNodeOneID));
+  vtkMRMLAstroVolumeNode *volumeTwo = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(volumeNodeTwoID));
+  vtkMRMLAstroVolumeNode *volumeThree = vtkMRMLAstroVolumeNode::SafeDownCast
+      (this->mrmlScene()->GetNodeByID(volumeNodeThreeID));
+
+  if(!volumeOne || !volumeTwo || !volumeThree ||
+     !volumeOne->GetImageData() || !volumeTwo->GetImageData() ||
+     !volumeThree->GetImageData())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : volumes not valid.";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
+    return;
+    }
+
+  if (StringToInt(volumeOne->GetAttribute("SlicerAstro.NAXIS")) == 3)
+    {
+    this->setComparative3DViews(volumeNodeOneID, volumeNodeThreeID, false, false);
+    }
+
+  vtkMRMLSliceCompositeNode* redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
+  if (redSliceComposite)
+    {
+    redSliceComposite->SetForegroundVolumeID("");
+    redSliceComposite->SetForegroundOpacity(0.);
+    redSliceComposite->SetBackgroundVolumeID(volumeNodeOneID);
+    redSliceComposite->SetLabelVolumeID("");
+    }
+
+  vtkMRMLSliceNode* redSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+  if (redSliceNode)
+    {
+    // setting to the XZ orientation is needed in order to force the refresh
+    redSliceNode->SetOrientation("XZ");
+    redSliceNode->SetOrientation("XY");
+    redSliceNode->SetSliceOffset(0.);
+    redSliceNode->SetRulerType(redSliceNode->RulerTypeThin);
+    }
+
+  vtkMRMLSliceLogic* redSliceLogic = appLogic->GetSliceLogic(redSliceNode);
+  if (redSliceLogic)
+    {
+    int *dimsSliceRed = redSliceNode->GetDimensions();
+    redSliceLogic->FitSliceToAll(dimsSliceRed[0], dimsSliceRed[1]);
+    redSliceLogic->SnapSliceOffsetToIJK();
+    }
+
+  vtkMRMLSliceCompositeNode* yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
+  if (yellowSliceComposite)
+    {
+    yellowSliceComposite->SetForegroundVolumeID("");
+    yellowSliceComposite->SetForegroundOpacity(0.);
+    yellowSliceComposite->SetBackgroundVolumeID(volumeNodeTwoID);
+    yellowSliceComposite->SetLabelVolumeID("");
+    }
+
+  vtkMRMLSliceNode* yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
+  if (yellowSliceNode)
+    {
+    // setting to the XZ orientation is needed in order to force the refresh
+    yellowSliceNode->SetOrientation("XZ");
+    yellowSliceNode->SetOrientation("XY");
+    yellowSliceNode->SetSliceOffset(0.);
+    yellowSliceNode->SetRulerType(yellowSliceNode->RulerTypeThin);
+    }
+
+  vtkMRMLSliceLogic* yellowSliceLogic = appLogic->GetSliceLogic(yellowSliceNode);
+  if (yellowSliceLogic)
+    {
+    int *dimsSliceYellow = yellowSliceNode->GetDimensions();
+    yellowSliceLogic->FitSliceToAll(dimsSliceYellow[0], dimsSliceYellow[1]);
+    yellowSliceLogic->SnapSliceOffsetToIJK();
+    }
+
+  vtkMRMLSliceCompositeNode* greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
+  if (greenSliceComposite)
+    {
+    greenSliceComposite->SetForegroundVolumeID("");
+    greenSliceComposite->SetForegroundOpacity(0.);
+    greenSliceComposite->SetBackgroundVolumeID(volumeNodeThreeID);
+    greenSliceComposite->SetLabelVolumeID("");
+    }
+
+  vtkMRMLSliceNode* greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (greenSliceNode)
+    {
+    // setting to the XZ orientation is needed in order to force the refresh
+    greenSliceNode->SetOrientation("XZ");
+    greenSliceNode->SetOrientation("XY");
+    greenSliceNode->SetSliceOffset(0.);
+    greenSliceNode->SetRulerType(greenSliceNode->RulerTypeThin);
+    }
+
+  vtkMRMLSliceLogic* greenSliceLogic = appLogic->GetSliceLogic(greenSliceNode);
+  if (greenSliceLogic)
+    {
+    int *dimsSliceGreen = greenSliceNode->GetDimensions();
+    greenSliceLogic->FitSliceToAll(dimsSliceGreen[0], dimsSliceGreen[1]);
+    greenSliceLogic->SnapSliceOffsetToIJK();
+    }
+
+  d->AutoPropagateCheckBox->setChecked(autoPropagate);
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNodeOneID,
                                                            const char *volumeNodeTwoID,
                                                            const char *volumeNodeThreeID,
@@ -3623,30 +3776,6 @@ void qSlicerAstroVolumeModuleWidget::offsetPreset(double offsetValue)
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onActivate3DAstroVolumeNode(bool activate)
-{
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
-  if (!d->RenderingFrame)
-    {
-    return;
-    }
-
-  if (activate)
-    {
-    d->RenderingFrame->setEnabled(true);
-    d->RenderingFrame->setCollapsed(false);
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(false);
-    }
-  else
-    {
-    d->RenderingFrame->setEnabled(false);
-    d->RenderingFrame->setCollapsed(true);
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
-    }
-}
-
-//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -3691,14 +3820,16 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
   double nBins = d->BinSliderWidget->value();
   double binFlux = (DATAMAX - DATAMIN) / (nBins - 1);
 
-  vtkNew<vtkImageHistogram> histogram;
-  histogram->SetAutomaticBinning(false);
-  histogram->SetHistogramImageScale(vtkImageHistogram::Log);
-  histogram->SetInputData(d->astroVolumeNode->GetImageData());
-  histogram->SetBinSpacing(binFlux);
-  histogram->SetBinOrigin(DATAMIN);
-  histogram->SetNumberOfBins(nBins);
-  histogram->Update();
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+
+  if (!astroVolumeLogic)
+    {
+    return;
+    }
+
+  vtkNew<vtkIntArray> histoArray;
+  astroVolumeLogic->CalculateHistogram(d->astroVolumeNode, histoArray, binFlux, nBins);
 
   vtkNew<vtkTable> table;
   vtkNew<vtkMRMLTableNode> tableNode;
@@ -3733,8 +3864,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
   tableNode->SetColumnUnitLabel(name.c_str(), "Log10(#)");
   tableNode->SetColumnLongName(name.c_str(), "Counts");
 
-  table->SetNumberOfRows(histogram->GetNumberOfBins());
-  vtkIdTypeArray* histoArray = histogram->GetHistogram();
+  table->SetNumberOfRows(nBins);
   if (!histoArray)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::onCreateHistogram : "
@@ -3743,10 +3873,15 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     }
 
   double histoMaxValue = 0;
-  for (int ii = 0; ii < histogram->GetNumberOfBins(); ii++)
+  for (int ii = 0; ii < nBins; ii++)
      {
      table->SetValue(ii, 0, DATAMIN + ii * binFlux);
-     double histoValue = log10(histoArray->GetValue(ii));
+     double histoValue = 0;
+     if (histoArray->GetValue(ii) >= 1)
+       {
+       histoValue = log10(histoArray->GetValue(ii));
+       }
+
      if (DoubleIsInf(histoValue))
        {
        table->SetValue(ii, 1, 0.);
@@ -4482,30 +4617,6 @@ void qSlicerAstroVolumeModuleWidget::onCurrentRenderingMethodChanged(int index)
     }
 
   d->volumeRenderingLogic->ChangeVolumeRenderingMethod(renderingClassName.toLatin1());
-}
-
-//---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onActivate3DLabelMapVolumeNode(bool activate)
-{
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
-  if (!d->RenderingFrame)
-    {
-    return;
-    }
-
-  if (activate)
-    {
-    d->RenderingFrame->setEnabled(false);
-    d->RenderingFrame->setCollapsed(true);
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
-    }
-  else
-    {
-    d->RenderingFrame->setEnabled(true);
-    d->RenderingFrame->setCollapsed(false);
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(false);
-    }
 }
 
 //---------------------------------------------------------------------------

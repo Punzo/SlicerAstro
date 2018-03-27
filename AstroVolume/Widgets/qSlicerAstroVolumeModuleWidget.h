@@ -76,6 +76,9 @@ public slots:
                              const char* volumeNodeTwoID,
                              bool generateMasks = false,
                              bool overlay2D = true);
+  void setThreeComparativeView(const char* volumeNodeOneID,
+                               const char* volumeNodeTwoID,
+                               const char* volumeNodeThreeID);
   void setQuantitative3DView(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
                              const char* volumeNodeThreeID,
@@ -101,8 +104,6 @@ protected slots:
   void applyPreset(vtkMRMLNode* volumePropertyNode);
   void fitROIToVolume();
   void offsetPreset(double offsetValue);
-  void onActivate3DAstroVolumeNode(bool activate);
-  void onActivate3DLabelMapVolumeNode(bool activate);
   void onCalculateRMS();
   void onCreateHistogram();
   void onCreateSurfaceButtonToggled(bool toggle);
@@ -154,8 +155,6 @@ protected slots:
   void updateWidgetsFromIntensityNode();
 
 signals:
-  void activate3DAstroVolumeNode(bool activate);
-  void activate3DLabelMapVolumeNode(bool deactivate);
   void segmentEditorNodeChanged(bool enabled);
 
 protected:

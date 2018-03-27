@@ -40,6 +40,7 @@ class vtkMRMLAstroVolumeNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeNode;
 class vtkSegment;
+class vtkIntArray;
 
 class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerVolumesLogic
@@ -102,6 +103,12 @@ public:
   /// Calculate STD given a ROI node
   virtual double Calculate3DDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,
                                                   vtkMRMLAstroVolumeNode *inputVolume);
+
+  /// Calculate an histogram of a volume
+  virtual void CalculateHistogram(vtkMRMLAstroVolumeNode *Volume,
+                                  vtkIntArray *histoArray,
+                                  double binSpacing,
+                                  int numberOfBins);
 
 protected:
   vtkSlicerAstroVolumeLogic();

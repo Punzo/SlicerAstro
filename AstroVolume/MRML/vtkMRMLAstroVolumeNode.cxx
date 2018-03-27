@@ -124,6 +124,12 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
 template <typename T> bool isNaN(T value)
 {
   return value != value;
@@ -570,12 +576,7 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
   delete outFPixel;
   delete outDPixel;
 
-  if (DoubleIsNaN(noise))
-    {
-    noise = 0.;
-    }
   this->Set3DDisplayThreshold(noise);
-  this->SetAttribute("SlicerAstro.3DDisplayThresholdMean", DoubleToString(mean).c_str());
 
   return true;
 }
@@ -585,6 +586,12 @@ void vtkMRMLAstroVolumeNode::Set3DDisplayThreshold(double DisplayThreshold)
 {
   this->SetAttribute("SlicerAstro.3DDisplayThreshold", DoubleToString(DisplayThreshold).c_str());
   this->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent);
+}
+
+//----------------------------------------------------------------------------
+double vtkMRMLAstroVolumeNode::Get3DDisplayThreshold()
+{
+  return StringToDouble(this->GetAttribute("SlicerAstro.3DDisplayThreshold"));
 }
 
 //----------------------------------------------------------------------------

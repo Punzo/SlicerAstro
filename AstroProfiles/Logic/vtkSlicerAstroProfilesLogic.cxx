@@ -598,6 +598,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   gettimeofday(&start, NULL);
 
+  int wasModifying = ProfileVolume->StartModify();
   ProfileVolume->UpdateRangeAttributes();
   ProfileVolume->Update3DDisplayThresholdAttributes();
   int disabledModify = ProfileVolume->GetAstroVolumeDisplayNode()->StartModify();
@@ -610,6 +611,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   ProfileVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
   ProfileVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
   ProfileVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+  ProfileVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
 

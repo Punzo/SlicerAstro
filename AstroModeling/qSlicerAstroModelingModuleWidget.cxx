@@ -842,14 +842,7 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
     }
 
   vtkMRMLNode *activeVolume = scene->GetNodeByID(d->selectionNode->GetActiveVolumeID());
-  if (!activeVolume)
-    {
-    d->OutputVolumeNodeSelector->setEnabled(false);
-    d->ParametersNodeComboBox->setEnabled(false);
-    d->TableNodeComboBox->setEnabled(false);
-    d->ResidualVolumeNodeSelector->setEnabled(false);
-    }
-  else
+  if (activeVolume)
     {
     d->XcenterSliderWidget->setMaximum(StringToInt(activeVolume->GetAttribute("SlicerAstro.NAXIS1")));
     d->YcenterSliderWidget->setMaximum(StringToInt(activeVolume->GetAttribute("SlicerAstro.NAXIS2")));
@@ -4321,13 +4314,17 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
   if (d->parametersNode->GetFitSuccess())
     {
-    outputVolume->Update3DDisplayThresholdAttributes();
+    int wasModifying = outputVolume->StartModify();
     outputVolume->UpdateRangeAttributes();
+    outputVolume->Update3DDisplayThresholdAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "MODEL");
+    outputVolume->EndModify(wasModifying);
 
-    residualVolume->Update3DDisplayThresholdAttributes();
+    wasModifying = residualVolume->StartModify();
     residualVolume->UpdateRangeAttributes();
-    outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
+    residualVolume->Update3DDisplayThresholdAttributes();
+    residualVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
+    residualVolume->EndModify(wasModifying);
 
     if (!d->internalTableNode || !d->internalTableNode->GetTable())
       {
@@ -4396,7 +4393,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     XPosMean /=  XPos->GetNumberOfValues();
     YPosMean /=  YPos->GetNumberOfValues();
 
-    int wasModifying = d->parametersNode->StartModify();
+    wasModifying = d->parametersNode->StartModify();
     d->parametersNode->SetXPosCenterIJK(XPosMean);
     d->parametersNode->SetYPosCenterIJK(YPosMean);
     double PVPhi = -(PhiMean - 90.);

@@ -216,7 +216,7 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
     return;
     }
 
-  this->WCS->flag=-1;
+  this->WCS->flag = -1;
   if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct: "
@@ -837,13 +837,13 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
   this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
-  this->WCSCopy(node);
+  this->CopyWCS(node);
 
   this->EndModify(disabledModify);
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeDisplayNode::WCSCopy(vtkMRMLNode *node)
+void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
 {
   if (!node || strcmp(this->Space, "WCS"))
     {
@@ -875,17 +875,51 @@ void vtkMRMLAstroVolumeDisplayNode::WCSCopy(vtkMRMLNode *node)
 
   if (!this->WCS || !WCSNew || WCSStatusNew != 0)
     {
-    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopy :"
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS :"
                   " WCS structs not found.");
     return;
     }
 
-  this->SetWCSStatus(WCSStatusNew);
-  this->WCS->flag = -1;
-  if ((this->WCSStatus = wcscopy(1, WCSNew, this->WCS)))
+  int thisAxis = StringToInt(this->GetAttribute("SlicerAstro.NAXIS"));
+  int nodeAxis = StringToInt(node->GetAttribute("SlicerAstro.NAXIS"));
+
+  int nsub = 3;
+  int axes[3];
+
+  if (thisAxis == 3 && nodeAxis == 3)
     {
-    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopy: "
-                  "wcscopy ERROR "<<this->WCSStatus<<":\n"<<
+    nsub = 3;
+    axes[0] = WCSSUB_LONGITUDE;
+    axes[1] = WCSSUB_LATITUDE;
+    axes[2] = WCSSUB_SPECTRAL;
+    }
+  else if (thisAxis == 2 && nodeAxis >= 2)
+    {
+    nsub = 2;
+    axes[0] = WCSSUB_LONGITUDE;
+    axes[1] = WCSSUB_LATITUDE;
+    axes[2] = -WCSSUB_SPECTRAL;
+    }
+  else if (thisAxis == 1 && nodeAxis >= 1)
+    {
+    nsub = 1;
+    axes[0] = WCSSUB_LONGITUDE;
+    axes[1] = -WCSSUB_LATITUDE;
+    axes[2] = -WCSSUB_SPECTRAL;
+    }
+  else
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS: "
+                  "it is not possible to copy WCS from a volume with "
+                  "naxis < than the naxis of teh current volume. ");
+    return;
+    }
+
+  this->WCS->flag = -1;
+  if ((this->WCSStatus = wcssub(1, WCSNew, &nsub, axes, this->WCS)))
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS: "
+                  "wcssub ERROR "<<this->WCSStatus<<":\n"<<
                   "Message from "<<this->WCS->err->function<<
                   "at line "<<this->WCS->err->line_no<<
                   " of file "<<this->WCS->err->file<<
@@ -894,6 +928,111 @@ void vtkMRMLAstroVolumeDisplayNode::WCSCopy(vtkMRMLNode *node)
     this->SetSpace("IJK");
     return;
     }
+
+  if ((this->WCSStatus = wcsset(this->WCS)))
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS : "
+                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
+    this->SetSpace("IJK");
+    return;
+    }
+
+  this->Modified();
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeDisplayNode::CopySpatialWCS(vtkMRMLNode *node)
+{
+  if (!node || strcmp(this->Space, "WCS"))
+    {
+    return;
+    }
+
+  wcsprm *WCSNew = NULL;
+
+  vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
+      vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
+  vtkMRMLAstroLabelMapVolumeDisplayNode *AstroLabelMapVolumeDisplayNode =
+      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(node);
+
+  if (AstroVolumeDisplayNode)
+    {
+    WCSNew = AstroVolumeDisplayNode->GetWCSStruct();
+    }
+  else if (AstroLabelMapVolumeDisplayNode)
+    {
+    WCSNew = AstroLabelMapVolumeDisplayNode->GetWCSStruct();
+    }
+  else
+    {
+    return;
+    }
+
+  if (!this->WCS || !WCSNew)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopySpatial :"
+                  " WCS structs not found.");
+    return;
+    }
+
+  if (this->WCS->naxis < 2 || WCSNew->naxis < 2)
+    {
+    vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopySpatial :"
+                  " both WCS structs need two spatial axes (i.e., naxis > 1).");
+    return;
+    }
+
+  this->WCS->flag = -1;
+  this->WCS->crpix[0] = WCSNew->crpix[0];
+  this->WCS->crpix[1] = WCSNew->crpix[1];
+
+  this->WCS->cdelt[0] = WCSNew->cdelt[0];
+  this->WCS->cdelt[1] = WCSNew->cdelt[1];
+
+  this->WCS->crval[0] = WCSNew->crval[0];
+  this->WCS->crval[1] = WCSNew->crval[1];
+
+  strncpy(this->WCS->cunit[0],  WCSNew->cunit[0], 72);
+  strncpy(this->WCS->cunit[1],  WCSNew->cunit[1], 72);
+
+  strncpy(this->WCS->ctype[0],  WCSNew->ctype[0], 72);
+  strncpy(this->WCS->ctype[1],  WCSNew->ctype[1], 72);
+
+  this->WCS->lonpole = WCSNew->lonpole;
+  this->WCS->latpole = WCSNew->latpole;
+
+  this->WCS->crota[0] = WCSNew->crota[0];
+  this->WCS->crota[1] = WCSNew->crota[1];
+
+  this->WCS->colax[0] = WCSNew->colax[0];
+  this->WCS->colax[1] = WCSNew->colax[1];
+
+  strncpy(this->WCS->cname[0],  WCSNew->cname[0], 72);
+  strncpy(this->WCS->cname[1],  WCSNew->cname[1], 72);
+
+  this->WCS->crder[0] = WCSNew->crder[0];
+  this->WCS->crder[1] = WCSNew->crder[1];
+
+  this->WCS->csyer[0] = WCSNew->csyer[0];
+  this->WCS->csyer[1] = WCSNew->csyer[1];
+
+  strncpy(this->WCS->radesys,  WCSNew->radesys, 72);
+
+  this->WCS->equinox = WCSNew->equinox;
+
+  this->WCS->pc[0] = WCSNew->pc[0];
+  this->WCS->pc[1] = WCSNew->pc[1];
+  this->WCS->pc[WCS->naxis] = WCSNew->pc[WCSNew->naxis];
+  this->WCS->pc[WCS->naxis + 1] = WCSNew->pc[WCSNew->naxis + 1];
+
+  this->WCS->cd[0] = WCSNew->cd[0];
+  this->WCS->cd[1] = WCSNew->cd[1];
+  this->WCS->cd[WCS->naxis] = WCSNew->cd[WCSNew->naxis];
+  this->WCS->cd[WCS->naxis + 1] = WCSNew->cd[WCSNew->naxis + 1];
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
@@ -906,6 +1045,8 @@ void vtkMRMLAstroVolumeDisplayNode::WCSCopy(vtkMRMLNode *node)
     this->SetSpace("IJK");
     return;
     }
+
+  this->Modified();
 }
 
 //----------------------------------------------------------------------------
@@ -1341,6 +1482,15 @@ void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
 
   os << indent << "SpaceQuantities=\"" << quantities << "\n";
   os << indent << "Space: " << (this->Space ? this->Space : "(none)") << "\n";
+
+  if (this->Space)
+    {
+    if (!strcmp(this->Space, "IJK"))
+      {
+      os << indent << "no WCS coordinates available. " << "\n";
+      return;
+      }
+    }
 
   if (!this->WCS)
     {
