@@ -170,8 +170,10 @@ QString qSlicerAstroVolumeModule::acknowledgementText()const
     "This work was supported by ERC grant nr. 291531 and the Slicer "
     "Community. See <a href=\"http://www.slicer.org\">http://www.slicer.org"
     "</a> for details.<br>"
-    "Special thanks to Steve Pieper (Isomics), Jean-Christophe Fillion-Robin (Kitware)"
-    "and Andras Lasso (PerkLab, Queen's).");
+    "Special thanks to Steve Pieper (Isomics) and Andras Lasso (PerkLab, Queen's).<br>"
+    "This module uses the following C libraries: <br>"
+    "cfitsio: https://heasarc.gsfc.nasa.gov/fitsio/fitsio.html <br>"
+    "wcslib: http://www.atnf.csiro.au/people/mcalabre/WCS/");
   return acknowledgement;
 }
 
