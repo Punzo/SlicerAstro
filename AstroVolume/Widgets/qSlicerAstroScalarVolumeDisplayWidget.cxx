@@ -21,11 +21,12 @@
 #include "ui_qSlicerAstroScalarVolumeDisplayWidget.h"
 
 // Qt includes
-#include <QtDebug>
+#include <QApplication>
 #include <QMessageBox>
 #include <QSettings>
 #include <QString>
 #include <QStringList>
+#include <QDebug>
 
 // SlicerQt includes
 #include <qMRMLSliceAstroWidget.h>
@@ -699,6 +700,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
+  QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
 
   int LevelDim = 0;
 
@@ -841,7 +843,9 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
         vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
       }
-  }
+    }
+
+  QApplication::restoreOverrideCursor();
 }
 
 // --------------------------------------------------------------------------

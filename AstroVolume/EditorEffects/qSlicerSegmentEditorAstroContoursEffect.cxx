@@ -26,13 +26,14 @@
 #include <vtkSlicerSegmentationsModuleLogic.h>
 
 // Qt includes
-#include <QObject>
+#include <QApplication>
 #include <QDebug>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMessageBox>
+#include <QObject>
 #include <QPushButton>
 #include <QString>
 
@@ -561,6 +562,7 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 
   // Create empty segment in current segmentation
   this->scene()->SaveStateForUndo();
+  QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
 
   int LevelDim = 0;
 
@@ -706,6 +708,8 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
         vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
       }
     }
+
+  QApplication::restoreOverrideCursor();
 }
 
 //-----------------------------------------------------------------------------

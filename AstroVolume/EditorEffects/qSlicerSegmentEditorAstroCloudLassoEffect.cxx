@@ -489,6 +489,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
     }
 
   q->saveStateForUndo();
+  QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
 
   qSlicerSegmentEditorAbstractEffect::ModificationMode modificationMode =
     (q->m_Erase ? qSlicerSegmentEditorAbstractEffect::ModificationModeRemove
