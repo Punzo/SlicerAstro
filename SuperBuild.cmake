@@ -25,7 +25,7 @@ endforeach()
 
 set(proj ${SUPERBUILD_TOPLEVEL_PROJECT})
 if(UNIX)
-  set(${proj}_DEPENDS cfitsio wcslib bbarolo python-reproject)
+  set(${proj}_DEPENDS cfitsio wcslib bbarolo python-astropy python-scipy)
 endif(UNIX)
 
 ExternalProject_Include_Dependencies(${proj}

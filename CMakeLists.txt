@@ -149,9 +149,16 @@ endif()
 #-----------------------------------------------------------------------------
 # Install extension python packages
 
-install(CODE "message(\"CPack: - Install directory: ${python_reproject_DIR}\")")
+install(CODE "message(\"CPack: - Install directory: ${python_astropy_DIR}\")")
 install(
-  DIRECTORY "${python_reproject_DIR}/"
+  DIRECTORY "${python_astropy_DIR}/"
+  DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
+  COMPONENT RuntimeLibraries
+  )
+
+install(CODE "message(\"CPack: - Install directory: ${python_scipy_DIR}\")")
+install(
+  DIRECTORY "${python_scipy_DIR}/"
   DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
   COMPONENT RuntimeLibraries
   )
@@ -166,7 +173,6 @@ if(UNIX)
     add_subdirectory(vtkOpenGLFilters)
   endif()
   add_subdirectory(AstroVolume)
-  add_subdirectory(AstroReproject)
   add_subdirectory(AstroStatistics)
   add_subdirectory(AstroSmoothing)
   add_subdirectory(AstroMasking)
