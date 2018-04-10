@@ -38,7 +38,6 @@
 // VTK includes
 #include <vtkActor.h>
 #include <vtkActor2D.h>
-#include <vtkBoundingBox.h>
 #include <vtkCamera.h>
 #include <vtkCellArray.h>
 #include <vtkCellPicker.h>
@@ -270,12 +269,13 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   this->FeedbackPolyData->SetLines(this->PaintLines_World);
 
   this->CloudLasso3DSelectionPoints = vtkSmartPointer<vtkPoints>::New();
-  this->CloudLasso3DSelectionStrips = vtkSmartPointer<vtkCellArray>::New();
-  this->CloudLasso3DSelectionPolys = vtkSmartPointer<vtkCellArray>::New();
+  this->ClosedSurfacePoints = vtkSmartPointer<vtkPoints>::New();
+  this->ClosedSurfaceStrips = vtkSmartPointer<vtkCellArray>::New();
+  this->ClosedSurfacePolys = vtkSmartPointer<vtkCellArray>::New();
   this->CloudLasso3DSelectionPolyData = vtkSmartPointer<vtkPolyData>::New();
-  this->CloudLasso3DSelectionPolyData->SetPoints(this->CloudLasso3DSelectionPoints);
-  this->CloudLasso3DSelectionPolyData->SetStrips(this->CloudLasso3DSelectionStrips);
-  this->CloudLasso3DSelectionPolyData->SetPolys(this->CloudLasso3DSelectionPolys);
+  this->CloudLasso3DSelectionPolyData->SetPoints(this->ClosedSurfacePoints);
+  this->CloudLasso3DSelectionPolyData->SetStrips(this->ClosedSurfaceStrips);
+  this->CloudLasso3DSelectionPolyData->SetPolys(this->ClosedSurfacePolys);
 
   this->LastMask = vtkSmartPointer<vtkOrientedImageData>::New();
   this->LastSelectedSegmentLabelmap = vtkSmartPointer<vtkOrientedImageData>::New();
@@ -527,7 +527,6 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
 
     // Apply RAS -> IJK transform to CloudLasso3DSelectionPolyData and updating BrushPolyDataToStencil
     this->updateBrushStencil(viewWidget);
-    this->BrushPolyDataToStencil->Update();
 
     vtkNew<vtkImageStencilToImage> stencilToImage;
     stencilToImage->SetInputConnection(this->BrushPolyDataToStencil->GetOutputPort());
@@ -563,8 +562,9 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
   this->PaintCoordinates_World->Reset();
   this->PaintLines_World->Reset();
   this->CloudLasso3DSelectionPoints->Reset();
-  this->CloudLasso3DSelectionStrips->Reset();
-  this->CloudLasso3DSelectionPolys->Reset();
+  this->ClosedSurfacePoints->Reset();
+  this->ClosedSurfaceStrips->Reset();
+  this->ClosedSurfacePolys->Reset();
 
   q->CreateSurface(true);
 
@@ -616,42 +616,79 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushStencil(qMRMLW
   int Extent[6];
   modifierLabelmap->GetExtent(Extent);
 
-  if (fabs(Extent[0]) > fabs(floor(boundsIjk[0])-1))
+  // X dimension
+  if (floor(boundsIjk[0])-1 > Extent[0] &&
+      floor(boundsIjk[0])-1 < Extent[1])
     {
     Extent[0] = floor(boundsIjk[0])-1;
     }
-  if (fabs(Extent[1]) > fabs(ceil(boundsIjk[1])+1))
+  if (ceil(boundsIjk[1])+1 > Extent[0] &&
+      ceil(boundsIjk[1])+1 < Extent[1])
     {
     Extent[1] = ceil(boundsIjk[1])+1;
     }
-  if (fabs(Extent[2]) > fabs(floor(boundsIjk[2])-1))
+
+  // Y dimension
+  if (floor(boundsIjk[2])-1 > Extent[2] &&
+      floor(boundsIjk[2])-1 < Extent[3])
     {
     Extent[2] = floor(boundsIjk[2])-1;
     }
-  if (fabs(Extent[3]) > fabs(ceil(boundsIjk[3])+1))
+  if (ceil(boundsIjk[3])+1 > Extent[2] &&
+      ceil(boundsIjk[3])+1 < Extent[3])
     {
     Extent[3] = ceil(boundsIjk[3])+1;
     }
-  if (fabs(Extent[4]) > fabs(floor(boundsIjk[4])-1))
+
+  // Z dimension
+  if (floor(boundsIjk[4])-1 > Extent[4] &&
+      floor(boundsIjk[4])-1 < Extent[5])
     {
     Extent[4] = floor(boundsIjk[4])-1;
     }
-  if (fabs(Extent[5]) > fabs(ceil(boundsIjk[5])+1))
+  if (ceil(boundsIjk[5])+1 > Extent[4] &&
+      ceil(boundsIjk[5])+1 < Extent[5])
     {
     Extent[5] = ceil(boundsIjk[5])+1;
     }
 
   this->BrushPolyDataToStencil->SetOutputWholeExtent(Extent);
+  this->BrushPolyDataToStencil->Update();
 }
 
 //----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::createClosedSurfacePolyMask(qMRMLWidget* viewWidget)
 {
+  Q_Q(qSlicerSegmentEditorAstroCloudLassoEffect);
+
   qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
   if (!threeDWidget)
     {
     return;
     }
+
+  // Get bounds of modifier labelmap
+  if (!q->parameterSetNode())
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid segment editor parameter set node";
+    return;
+    }
+  vtkMRMLSegmentationNode* segmentationNode = q->parameterSetNode()->GetSegmentationNode();
+  if (!segmentationNode)
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid segmentationNode";
+    return;
+    }
+  vtkOrientedImageData* modifierLabelmap = q->modifierLabelmap();
+  if (!modifierLabelmap)
+    {
+    qCritical() << Q_FUNC_INFO << ": Invalid modifierLabelmap";
+    return;
+    }
+  vtkNew<vtkMatrix4x4> segmentationToWorldMatrix;
+  // We don't support painting in non-linearly transformed node (it could be implemented, but would probably slow down things too much)
+  // TODO: show a meaningful error message to the user if attempted
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(segmentationNode->GetParentTransformNode(), NULL, segmentationToWorldMatrix.GetPointer());
 
   vtkRenderer* renderer = qSlicerSegmentEditorAbstractEffect::renderer(threeDWidget);
   if (!renderer)
@@ -672,91 +709,141 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::createClosedSurfacePolyMa
     return;
     }
 
-  double distCenterSelectionCamera = 0.;
-  double selectionCenter[3] = { 0., 0., 0. };
-
-  if (!camera->GetParallelProjection())
+  // Camera parameters
+  // Camera position
+  double cameraPos[4] = { 0 };
+  camera->GetPosition(cameraPos);
+  cameraPos[3] = 1.0;
+  // Focal point position
+  double cameraFP[4] = { 0 };
+  camera->GetFocalPoint(cameraFP);
+  cameraFP[3] = 1.0;
+  // Direction of projection
+  double cameraDOP[3] = { 0 };
+  for (int i = 0; i < 3; i++)
     {
-    for (int ii = 0; ii < numberOfPoints; ii++)
-      {
-      double Point[3] = { 0., 0., 0. };
-      this->CloudLasso3DSelectionPoints->GetPoint(ii, Point);
-      for (int jj = 0; jj < 3; jj++)
-        {
-        selectionCenter[jj] += Point[jj];
-        }
-      }
+    cameraDOP[i] = cameraFP[i] - cameraPos[i];
+    }
+  vtkMath::Normalize(cameraDOP);
+  // Camera view up
+  double cameraViewUp[3] = { 0 };
+  camera->GetViewUp(cameraViewUp);
+  vtkMath::Normalize(cameraViewUp);
 
+  renderer->SetWorldPoint(cameraFP[0], cameraFP[1], cameraFP[2], cameraFP[3]);
+  renderer->WorldToDisplay();
+
+  // Get modifier labelmap extent in camera coordinate system to know how much we
+  // have to cut through
+  vtkNew<vtkMatrix4x4> cameraToWorldMatrix;
+  double cameraViewRight[3] = { 1, 0, 0 };
+  vtkMath::Cross(cameraDOP, cameraViewUp, cameraViewRight);
+  for (int i = 0; i < 3; i++)
+    {
+    cameraToWorldMatrix->SetElement(i, 3, cameraPos[i]);
+    cameraToWorldMatrix->SetElement(i, 0, cameraViewUp[i]);
+    cameraToWorldMatrix->SetElement(i, 1, cameraViewRight[i]);
+    cameraToWorldMatrix->SetElement(i, 2, cameraDOP[i]);
+    }
+  vtkNew<vtkMatrix4x4> worldToCameraMatrix;
+  vtkMatrix4x4::Invert(cameraToWorldMatrix.GetPointer(), worldToCameraMatrix.GetPointer());
+  vtkNew<vtkTransform> segmentationToCameraTransform;
+  segmentationToCameraTransform->Concatenate(worldToCameraMatrix.GetPointer());
+  segmentationToCameraTransform->Concatenate(segmentationToWorldMatrix.GetPointer());
+  double segmentationBounds_Camera[6] = { 0, -1, 0, -1, 0, -1 };
+  vtkOrientedImageDataResample::TransformOrientedImageDataBounds(modifierLabelmap, segmentationToCameraTransform.GetPointer(), segmentationBounds_Camera);
+  double clipRangeFromModifierLabelmap[2] =
+    {
+    std::min(segmentationBounds_Camera[4], segmentationBounds_Camera[5]),
+    std::max(segmentationBounds_Camera[4], segmentationBounds_Camera[5])
+    };
+  // Extend bounds by half slice to make sure the boundaries are included
+  clipRangeFromModifierLabelmap[0] -= 0.5;
+  clipRangeFromModifierLabelmap[1] += 0.5;
+
+  // Clip what we see on the camera but reduce it to the modifier labelmap's range
+  // to keep the stencil as small as possible
+  double* clipRangeFromCamera = camera->GetClippingRange();
+  double clipRange[2] =
+    {
+    std::max(clipRangeFromModifierLabelmap[0], clipRangeFromCamera[0]),
+    std::min(clipRangeFromModifierLabelmap[1], clipRangeFromCamera[1]),
+    };
+
+  for (int pointIndex = 0; pointIndex < numberOfPoints; pointIndex++)
+    {
+    // Convert the selection point into world coordinates.
+    //
+    double pickPosition[3] = { 0 };
+    this->CloudLasso3DSelectionPoints->GetPoint(pointIndex, pickPosition);
+
+    //  Compute the ray endpoints.  The ray is along the line running from
+    //  the camera position to the selection point, starting where this line
+    //  intersects the front clipping plane, and terminating where this
+    //  line intersects the back clipping plane.
+    double ray[3] = { 0 };
     for (int ii = 0; ii < 3; ii++)
       {
-      selectionCenter[ii] /= numberOfPoints;
+      ray[ii] = pickPosition[ii] - cameraPos[ii];
       }
 
-    double cameraPos[3] = { 0., 0., 0. };
-    camera->GetPosition(cameraPos);
-
-    for (int ii = 0; ii < 3; ii++)
+    double rayLength = vtkMath::Dot(cameraDOP, ray);
+    if (rayLength == 0.0)
       {
-      this->Normals[ii] = cameraPos[ii] - selectionCenter[ii];
+      qWarning() << Q_FUNC_INFO << ": Cannot process points";
+      return;
       }
 
-    distCenterSelectionCamera = sqrt(this->Normals[0] * this->Normals[0] +
-                                     this->Normals[1] * this->Normals[1] +
-                                     this->Normals[2] * this->Normals[2]);
-    vtkMath::Normalize(this->Normals);
-    }
-
-  double dist2 = this->distance * 2.;
-  for (int ii = 0; ii < numberOfPoints; ii++)
-    {
-    double Point[3] = { 0., 0., 0. };
-
-    this->CloudLasso3DSelectionPoints->GetPoint(ii, Point);
-
-    double distancePointSelectionCenter = 0., tanAngle = 0.;
-    double diff[3] = { 0., 0., 0. };
-    if (!camera->GetParallelProjection())
+    double p1World[4] = { 0 };
+    double p2World[4] = { 0 };
+    double tF = 0;
+    double tB = 0;
+    if (camera->GetParallelProjection())
       {
-      for (int jj = 0; jj < 3; jj++)
+      tF = clipRange[0] - rayLength;
+      tB = clipRange[1] - rayLength;
+      for (int ii = 0; ii < 3; ii++)
         {
-        diff[jj] = Point[jj] - selectionCenter[jj];
+        p1World[ii] = pickPosition[ii] + tF*cameraDOP[ii];
+        p2World[ii] = pickPosition[ii] + tB*cameraDOP[ii];
         }
-
-      distancePointSelectionCenter = sqrt(diff[0] * diff[0] +
-                                          diff[1] * diff[1] +
-                                          diff[2] * diff[2]);
-      tanAngle =  distancePointSelectionCenter / distCenterSelectionCamera;
-      vtkMath::Normalize(diff);
       }
-
-    double NewPoint[3] = { 0., 0., 0. };
-    for (int jj = 0; jj < 3; jj++)
+    else
       {
-      NewPoint[jj] = Point[jj] - (this->Normals[jj] * dist2) + (dist2 * tanAngle * diff[jj]);
+      tF = clipRange[0] / rayLength;
+      tB = clipRange[1] / rayLength;
+      for (int i = 0; i < 3; i++)
+        {
+        p1World[i] = cameraPos[i] + tF*ray[i];
+        p2World[i] = cameraPos[i] + tB*ray[i];
+        }
       }
-    this->CloudLasso3DSelectionPoints->InsertNextPoint(NewPoint);
+    p1World[3] = p2World[3] = 1.0;
+
+    this->ClosedSurfacePoints->InsertNextPoint(p1World);
+    this->ClosedSurfacePoints->InsertNextPoint(p2World);
     }
 
-  this->CloudLasso3DSelectionStrips->InsertNextCell(numberOfPoints*2+2);
+  // Construct polydata
+  // Skirt
+  this->ClosedSurfaceStrips->InsertNextCell(numberOfPoints * 2 + 2);
+  for (int ii = 0; ii < numberOfPoints * 2; ii++)
+    {
+    this->ClosedSurfaceStrips->InsertCellPoint(ii);
+    }
+  this->ClosedSurfaceStrips->InsertCellPoint(0);
+  this->ClosedSurfaceStrips->InsertCellPoint(1);
+  // Front cap
+  this->ClosedSurfacePolys->InsertNextCell(numberOfPoints);
   for (int ii = 0; ii < numberOfPoints; ii++)
     {
-    this->CloudLasso3DSelectionStrips->InsertCellPoint(ii);
-    this->CloudLasso3DSelectionStrips->InsertCellPoint(ii+numberOfPoints);
+    this->ClosedSurfacePolys->InsertCellPoint(ii * 2);
     }
-
-  this->CloudLasso3DSelectionStrips->InsertCellPoint(0);
-  this->CloudLasso3DSelectionStrips->InsertCellPoint(numberOfPoints);
-
-  this->CloudLasso3DSelectionPolys->InsertNextCell(numberOfPoints);
+  // Back cap
+  this->ClosedSurfacePolys->InsertNextCell(numberOfPoints);
   for (int ii = 0; ii < numberOfPoints; ii++)
     {
-    this->CloudLasso3DSelectionPolys->InsertCellPoint(ii);
-    }
-
-  this->CloudLasso3DSelectionPolys->InsertNextCell(numberOfPoints);
-  for (int ii = numberOfPoints; ii < numberOfPoints*2; ii++)
-    {
-    this->CloudLasso3DSelectionPolys->InsertCellPoint(ii);
+    this->ClosedSurfacePolys->InsertCellPoint(ii * 2 + 1);
     }
 }
 
@@ -1157,6 +1244,12 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::activate();
   this->masterVolumeNodeChanged();
+  d->PaintCoordinates_World->Initialize();
+  d->PaintLines_World->Initialize();
+  d->CloudLasso3DSelectionPoints->Initialize();
+  d->ClosedSurfacePoints->Initialize();
+  d->ClosedSurfaceStrips->Initialize();
+  d->ClosedSurfacePolys->Initialize();
 }
 
 //---------------------------------------------------------------------------
@@ -1166,11 +1259,12 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
   Superclass::deactivate();
   this->parameterSetNode()->SetMasterVolumeIntensityMask(false);
   d->clearBrushPipelines();
-  d->PaintCoordinates_World->Reset();
-  d->PaintLines_World->Reset();
-  d->CloudLasso3DSelectionPoints->Reset();
-  d->CloudLasso3DSelectionStrips->Reset();
-  d->CloudLasso3DSelectionPolys->Reset();
+  d->PaintCoordinates_World->Initialize();
+  d->PaintLines_World->Initialize();
+  d->CloudLasso3DSelectionPoints->Initialize();
+  d->ClosedSurfacePoints->Initialize();
+  d->ClosedSurfaceStrips->Initialize();
+  d->ClosedSurfacePolys->Initialize();
   d->ActiveViewWidget = NULL;
 }
 

@@ -158,8 +158,9 @@ public:
 
   vtkSmartPointer<vtkPolyData> CloudLasso3DSelectionPolyData;
   vtkSmartPointer<vtkPoints> CloudLasso3DSelectionPoints;
-  vtkSmartPointer<vtkCellArray> CloudLasso3DSelectionStrips;
-  vtkSmartPointer<vtkCellArray> CloudLasso3DSelectionPolys;
+  vtkSmartPointer<vtkPoints> ClosedSurfacePoints;
+  vtkSmartPointer<vtkCellArray> ClosedSurfaceStrips;
+  vtkSmartPointer<vtkCellArray> ClosedSurfacePolys;
 
   vtkSmartPointer<vtkOrientedImageData> LastMask;
   vtkSmartPointer<vtkOrientedImageData> LastSelectedSegmentLabelmap;
