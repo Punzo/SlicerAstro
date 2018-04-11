@@ -1450,10 +1450,16 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     // Check Input volume dimensionality
     if (n == 3)
       {
+      d->VelocityLabel->setEnabled(true);
+      d->OpticalVelocityButton->setEnabled(true);
+      d->RadioVelocityButton->setEnabled(true);
       emit activate3DAstroVolumeNode(true);
       }
     else
       {
+      d->VelocityLabel->setEnabled(false);
+      d->OpticalVelocityButton->setEnabled(false);
+      d->RadioVelocityButton->setEnabled(false);
       emit activate3DAstroVolumeNode(false);
       }
 
