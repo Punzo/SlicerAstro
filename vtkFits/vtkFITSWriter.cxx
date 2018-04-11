@@ -216,7 +216,8 @@ void vtkFITSWriter::WriteData()
         (!tmp.compare(0,22,"3DDisplayThresholdMean")) ||
         (!tmp.compare(0,11,"HistoMinSel")) ||
         (!tmp.compare(0,11,"HistoMaxSel")) ||
-        (!tmp.compare(0,9,"DATAMODEL")))
+        (!tmp.compare(0,9,"DATAMODEL")) ||
+        (!tmp.compare(0,7,"BBCROTA")))
       {
       continue;
       }

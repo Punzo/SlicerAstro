@@ -770,46 +770,25 @@ bool vtkFITSReader::AllocateHeader()
        temp.erase(temp.size()-1);
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader :"
-                     " The fits header is missing the CDELT1 keyword.");
-     this->HeaderKeyValue["SlicerAstro.CDELT1"] = "UNDEFINED";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0 && n > 1)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader :"
-                     " The fits header is missing the CDELT2 keyword.");
-     this->HeaderKeyValue["SlicerAstro.CDELT2"] = "UNDEFINED";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0 && n > 2)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader :"
-                     " The fits header is missing the CDELT3 keyword.");
-     this->HeaderKeyValue["SlicerAstro.CDELT3"] = "UNDEFINED";
-     }
-
    if (this->HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      " The fits header is missing the CRPIX1 keyword.");
-     this->HeaderKeyValue["SlicerAstro.CRPIX1"] = "UNDEFINED";
+     this->HeaderKeyValue["SlicerAstro.CRPIX1"] = "0.0";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0 && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader :"
                      " The fits header is missing the CRPIX2 keyword.");
-     this->HeaderKeyValue["SlicerAstro.CRPIX2"] = "UNDEFINED";
+     this->HeaderKeyValue["SlicerAstro.CRPIX2"] = "0.0";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0 && n > 2)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader :"
                      " The fits header is missing the CRPIX3 keyword.");
-     this->HeaderKeyValue["SlicerAstro.CRPIX3"] = "UNDEFINED";
+     this->HeaderKeyValue["SlicerAstro.CRPIX3"] = "0.0";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CRVAL1") == 0)
@@ -885,33 +864,236 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   // CROTA 3DBarolo keyword
-   if (this->HeaderKeyValue.count("SlicerAstro.CROTA") == 0)
+   bool CDELTFound = true;
+   if (this->HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CROTA keyword. Assuming a value equal to zero.");
-     this->HeaderKeyValue["SlicerAstro.CROTA"] = "0.";
+     CDELTFound = false;
+     this->HeaderKeyValue["SlicerAstro.CDELT1"] = "1.0";
      }
 
+   if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
+     }
+
+   bool CROTAFound = true;
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA1") == 0)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CROTA1 keyword. Assuming a value equal to zero.");
+     CROTAFound = false;
      this->HeaderKeyValue["SlicerAstro.CROTA1"] = "0.";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA2") == 0 && n > 1)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CROTA2 keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.CROTA2"] = "0.";
+     }
+
+   // CROTA 3DBarolo keyword
+   if (this->HeaderKeyValue.count("SlicerAstro.BBCROTA") == 0)
+     {
+     this->HeaderKeyValue["SlicerAstro.BBCROTA"] = this->HeaderKeyValue["SlicerAstro.CROTA2"];
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the CROTA3 keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.CROTA3"] = "0.";
+     }
+
+   bool CDMatrixFound = true;
+   if (this->HeaderKeyValue.count("SlicerAstro.CD1_1") == 0 && n > 1)
+     {
+     CDMatrixFound = false;
+     this->HeaderKeyValue["SlicerAstro.CD1_1"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD1_2") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD1_2"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD2_1") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD2_1"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD2_2") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD2_2"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD1_3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD1_3"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD2_3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD2_3"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD3_1") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD3_1"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD3_2") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD3_2"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CD3_3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.CD3_3"] = "0.";
+     }
+
+   bool PCMatrixFound = true;
+   if (this->HeaderKeyValue.count("SlicerAstro.PC1_1") == 0 && n > 1)
+     {
+     PCMatrixFound = false;
+     this->HeaderKeyValue["SlicerAstro.PC1_1"] = "1";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC1_2") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC1_2"] = "0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC2_1") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC2_1"] = "0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC2_2") == 0 && n > 1)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC2_2"] = "1";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC1_3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC1_3"] = "0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC2_3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC2_3"] = "0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC3_1") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC3_1"] = "0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC3_2") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC3_2"] = "0";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.PC3_3") == 0 && n > 2)
+     {
+     this->HeaderKeyValue["SlicerAstro.PC3_3"] = "1";
+     }
+
+   if (!CDMatrixFound && !PCMatrixFound && !CDELTFound && n > 1)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing both the CD and PC Matrices and"
+                     " CDELT keywords are missing.");
+     }
+
+   if (!CDMatrixFound && !PCMatrixFound && !CROTAFound && n > 1)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing both the CD and PC Matrices and"
+                     " CROTA keywords are missing.");
+     }
+
+   if (CDMatrixFound && !PCMatrixFound && !CDELTFound && n > 1)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing the the PC Matrix and CDELT keywords."
+                     " CD Matrix found."
+                     " CDELT and CROTA keywords will be derived from the CD Matrix.");
+     }
+
+   if (!CDMatrixFound && !PCMatrixFound && (CDELTFound || CROTAFound) && n > 1)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing both the CD and PC Matrices."
+                     " The CDELT and CROTA keywords will be used.");
+     }
+
+   if (!CDMatrixFound && PCMatrixFound && CDELTFound && n > 1)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " PC Matrix and CDELT keywords found."
+                     " CD Matrix will be derived following the fits standards.");
+     this->HeaderKeyValue["SlicerAstro.CD1_1"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT1"].c_str()) *
+                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC1_1"].c_str()));
+     this->HeaderKeyValue["SlicerAstro.CD1_2"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT1"].c_str()) *
+                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC1_2"].c_str()));
+     this->HeaderKeyValue["SlicerAstro.CD2_1"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT2"].c_str()) *
+                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC2_1"].c_str()));
+     this->HeaderKeyValue["SlicerAstro.CD2_2"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT2"].c_str()) *
+                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC2_2"].c_str()));
+     if (n == 3)
+       {
+       this->HeaderKeyValue["SlicerAstro.CD3_3"] = this->HeaderKeyValue["SlicerAstro.CDELT3"];
+       }
+
+     CDMatrixFound = true;
+     }
+
+   if (CDMatrixFound && n > 1)
+     {
+     double cd11 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_1"].c_str());
+     double cd12 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_2"].c_str());
+     double cd21 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_1"].c_str());
+     double cd22 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_2"].c_str());
+     double CDELT1 = 0.;
+     double CDELT2 = 0.;
+     double CROTA2 = 0.;
+     if (fabs(cd12) < 1.E-6 && fabs(cd21) < 1.E-6)
+       {
+       CROTA2 = 0.0;
+       CDELT1 = cd11;
+       CDELT2 = cd22;
+       }
+     else
+       {
+       CDELT1 = sqrt(cd11 * cd11 + cd21 * cd21);
+       CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
+       double det = cd11 * cd22 - cd12 * cd21;
+       if (fabs(det) < 1.E-6)
+         {
+         vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                         " Determinant of CD matrix == 0");
+         }
+       double sign = 1.0;
+       if (det < 0.0)
+         {
+         CDELT2 = -CDELT2;
+         sign = -1.0;
+         }
+       double rot1_cd = atan2(-cd21, sign * cd11);
+       double rot2_cd = atan2(sign * cd12, cd22);
+       double rot_av = (rot1_cd + rot2_cd) * 0.5;
+       const double rad2deg = 180. / PI;
+       CROTA2 = rot_av * rad2deg;
+       }
+
+     this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(CDELT1);
+     this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(CDELT2);
+     this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
+
+     if (n == 3)
+       {
+       this->HeaderKeyValue["SlicerAstro.CDELT3"] = this->HeaderKeyValue["SlicerAstro.CD3_3"];
+       }
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
