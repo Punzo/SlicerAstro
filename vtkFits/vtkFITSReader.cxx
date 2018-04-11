@@ -885,11 +885,33 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
+   // CROTA 3DBarolo keyword
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA") == 0)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      " The fits header is missing the CROTA keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.CROTA"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CROTA1") == 0)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing the CROTA1 keyword. Assuming a value equal to zero.");
+     this->HeaderKeyValue["SlicerAstro.CROTA1"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CROTA2") == 0 && n > 1)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing the CROTA2 keyword. Assuming a value equal to zero.");
+     this->HeaderKeyValue["SlicerAstro.CROTA2"] = "0.";
+     }
+
+   if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     " The fits header is missing the CROTA3 keyword. Assuming a value equal to zero.");
+     this->HeaderKeyValue["SlicerAstro.CROTA3"] = "0.";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
