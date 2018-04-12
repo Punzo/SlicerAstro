@@ -781,7 +781,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   this->Internal->head->setBzero(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BZERO")));
   this->Internal->head->setBscale(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BSCALE")));
   this->Internal->head->setBlank(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BLANK")));
-  this->Internal->head->setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+  this->Internal->head->setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
   this->Internal->head->setEpoch(StringToFloat(inputVolume->GetAttribute("SlicerAstro.EPOCH")));
   this->Internal->head->setFreq0(StringToDouble(inputVolume->GetAttribute("SlicerAstro.RESTFREQ")));
   inputString = inputVolume->GetAttribute("SlicerAstro.BUNIT");
@@ -835,7 +835,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
       this->Internal->cubeF->saveParam(*this->Internal->par);
       this->Internal->cubeF->saveHead(*this->Internal->head);
-      this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+      this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
       float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
       if (!inFPixel)
         {
@@ -1218,7 +1218,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
       this->Internal->cubeD->saveParam(*this->Internal->par);
       this->Internal->cubeD->saveHead(*this->Internal->head);
-      this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+      this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
       double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
       if (!inDPixel)
         {
@@ -2265,7 +2265,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->head->setBzero(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BZERO")));
     this->Internal->head->setBscale(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BSCALE")));
     this->Internal->head->setBlank(StringToFloat(inputVolume->GetAttribute("SlicerAstro.BLANK")));
-    this->Internal->head->setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+    this->Internal->head->setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
     this->Internal->head->setEpoch(StringToFloat(inputVolume->GetAttribute("SlicerAstro.EPOCH")));
     this->Internal->head->setFreq0(StringToDouble(inputVolume->GetAttribute("SlicerAstro.RESTFREQ")));
     inputString = inputVolume->GetAttribute("SlicerAstro.BUNIT");
@@ -2301,7 +2301,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
         this->Internal->cubeF->saveParam(*this->Internal->par);
         this->Internal->cubeF->saveHead(*this->Internal->head);
-        this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+        this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
         this->Internal->cubeF->setCube(static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
 
         this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
@@ -2334,7 +2334,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
         this->Internal->cubeD->saveParam(*this->Internal->par);
         this->Internal->cubeD->saveHead(*this->Internal->head);
-        this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+        this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
         this->Internal->cubeD->setCube(static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
 
         this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
@@ -2457,7 +2457,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         }
 
-      this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+      this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
       float *ringreg = this->Internal->fitF->getFinalRingsRegion(); 
       if (!ringreg)
         {
@@ -2754,7 +2754,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         }
 
-      this->Internal->fitD->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.BBCROTA")));
+      this->Internal->fitD->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
       double *ringreg = this->Internal->fitD->getFinalRingsRegion();
       if (!ringreg)
         {

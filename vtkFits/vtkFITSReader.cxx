@@ -119,7 +119,7 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
-float StringToDouble(const char* str)
+double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
 }
@@ -891,12 +891,6 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA2") == 0 && n > 1)
      {
      this->HeaderKeyValue["SlicerAstro.CROTA2"] = "0.";
-     }
-
-   // CROTA 3DBarolo keyword
-   if (this->HeaderKeyValue.count("SlicerAstro.BBCROTA") == 0)
-     {
-     this->HeaderKeyValue["SlicerAstro.BBCROTA"] = this->HeaderKeyValue["SlicerAstro.CROTA2"];
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)

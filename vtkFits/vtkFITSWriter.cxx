@@ -85,7 +85,7 @@ int StringToInt(const char* str)
 }
 
 //----------------------------------------------------------------------------
-float StringToDouble(const char* str)
+double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
 }
@@ -216,8 +216,7 @@ void vtkFITSWriter::WriteData()
         (!tmp.compare(0,22,"3DDisplayThresholdMean")) ||
         (!tmp.compare(0,11,"HistoMinSel")) ||
         (!tmp.compare(0,11,"HistoMaxSel")) ||
-        (!tmp.compare(0,9,"DATAMODEL")) ||
-        (!tmp.compare(0,7,"BBCROTA")))
+        (!tmp.compare(0,9,"DATAMODEL")))
       {
       continue;
       }

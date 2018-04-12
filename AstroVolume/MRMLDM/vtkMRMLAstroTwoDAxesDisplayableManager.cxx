@@ -26,7 +26,9 @@
 // MRML includes
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLLogic.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
@@ -68,6 +70,31 @@
 // Constants
 static const int RENDERER_LAYER = 1; // layer ID where the orientation marker will be displayed
 const double PI_2  = PI * 0.5;
+
+namespace
+{
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
+}// end namespace
 
 //---------------------------------------------------------------------------
 class vtkAstroTwoDAxesRendererUpdateObserver : public vtkCommand
@@ -368,6 +395,39 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
     if (displayNode)
       {
+      vtkMRMLAstroVolumeNode* astroVolume =
+        vtkMRMLAstroVolumeNode::SafeDownCast
+          (sliceLayerLogic->GetVolumeNode());
+
+      if (astroVolume)
+        {
+        double CROTA1 = 0., CROTA2 = 0., CROTA3 = 0.;
+        int N = StringToInt(astroVolume->GetAttribute("SlicerAstro.NAXIS"));
+        if (N < 2)
+          {
+          CROTA1 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA1"));
+          }
+        else if (N < 3)
+          {
+          CROTA1 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA1"));
+          CROTA2 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA2"));
+          }
+        else
+          {
+          CROTA1 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA1"));
+          CROTA2 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA2"));
+          CROTA3 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA3"));
+          }
+
+        if (fabs(CROTA1) > 1.E-6 || fabs(CROTA2) > 1.E-6 || fabs(CROTA3) > 1.E-6)
+          {
+          vtkWarningWithObjectMacro(this->External,
+                                    "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes() : "
+                                    "it is not possible to display WCS axes for rotated data (i.e., CROTAi != 0).");
+          return;
+          }
+        }
+
       if (strcmp(displayNode->GetSpace(), "WCS") != 0)
         {
         continue;
@@ -952,6 +1012,39 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       if (strcmp(displayLabelNode->GetSpace(), "WCS") != 0)
         {
         continue;
+        }
+
+      vtkMRMLAstroLabelMapVolumeNode* astroLabelVolume =
+        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+          (sliceLayerLogic->GetVolumeNode());
+
+      if (astroLabelVolume)
+        {
+        double CROTA1 = 0., CROTA2 = 0., CROTA3 = 0.;
+        int N = StringToInt(astroLabelVolume->GetAttribute("SlicerAstro.NAXIS"));
+        if (N < 2)
+          {
+          CROTA1 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA1"));
+          }
+        else if (N < 3)
+          {
+          CROTA1 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA1"));
+          CROTA2 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA2"));
+          }
+        else
+          {
+          CROTA1 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA1"));
+          CROTA2 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA2"));
+          CROTA3 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA3"));
+          }
+
+        if (fabs(CROTA1) > 1.E-6 || fabs(CROTA2) > 1.E-6 || fabs(CROTA3) > 1.E-6)
+          {
+          vtkWarningWithObjectMacro(this->External,
+                                    "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes() : "
+                                    "it is not possible to display WCS axes for rotated data (i.e., CROTAi != 0).");
+          return;
+          }
         }
 
       hasDisplay = true;
