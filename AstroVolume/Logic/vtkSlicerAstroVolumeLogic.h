@@ -70,7 +70,7 @@ public:
   bool synchronizePresetsToVolumeNode(vtkMRMLNode *node);
 
   /// Update the units nodes to the metadata stored in the active volume
-  void updateUnitsNodes(vtkMRMLNode *astroVolumeNode);
+  void updateIntensityUnitsNode(vtkMRMLNode *astroVolumeNode);
 
   /// Create a label map volume to match the given \a volumeNode and add it to the \a scene
   vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,

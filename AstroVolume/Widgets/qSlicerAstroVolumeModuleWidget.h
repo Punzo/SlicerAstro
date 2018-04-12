@@ -148,6 +148,7 @@ protected slots:
   void setRadioVelocity();
   void spreadPreset(double stretchValue);
   void updatePresets(vtkMRMLNode* node);
+  void updateWidgetsFromIntensityNode();
 
 signals:
   void activate3DAstroVolumeNode(bool activate);

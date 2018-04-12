@@ -73,10 +73,6 @@ protected:
 
   QScopedPointer<qSlicerAstroVolumeModulePrivate> d_ptr;
 
-protected slots:
-
-  void onMRMLUnitNodeIntensityModified(vtkObject* sender);
-
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModule);
   Q_DISABLE_COPY(qSlicerAstroVolumeModule);

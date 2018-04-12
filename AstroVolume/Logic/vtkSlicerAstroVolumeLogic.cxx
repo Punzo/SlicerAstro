@@ -585,7 +585,7 @@ vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
+void vtkSlicerAstroVolumeLogic::updateIntensityUnitsNode(vtkMRMLNode *astroVolumeNode)
 {
   if (!astroVolumeNode)
     {
@@ -604,33 +604,33 @@ void vtkSlicerAstroVolumeLogic::updateUnitsNodes(vtkMRMLNode *astroVolumeNode)
     return;
     }
 
-  vtkMRMLUnitNode* unitNode1 = selectionNode->GetUnitNode("intensity");
+  vtkMRMLUnitNode* intensityUnitNode = selectionNode->GetUnitNode("intensity");
   double max = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
   double min = StringToDouble(astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
-  unitNode1->SetMaximumValue(max);
-  unitNode1->SetMinimumValue(min);
-  unitNode1->SetDisplayCoefficient(1.);
+  intensityUnitNode->SetMaximumValue(max);
+  intensityUnitNode->SetMinimumValue(min);
+  intensityUnitNode->SetDisplayCoefficient(1.);
   std::string temp = " ";
   if(max < 0.001)
     {
     temp += "\xB5";
-    unitNode1->SetDisplayCoefficient(1000000.);
+    intensityUnitNode->SetDisplayCoefficient(1000000.);
     }
   else
     {
     if(max < 1.)
       {
       temp += "m";
-      unitNode1->SetDisplayCoefficient(1000.);
+      intensityUnitNode->SetDisplayCoefficient(1000.);
       }
     }
 
   temp += "Jy/beam";
-  unitNode1->SetPrecision(6);
-  unitNode1->SetPrefix("");
-  unitNode1->SetSuffix(temp.c_str());
-  unitNode1->SetAttribute("DisplayHint","");
-  selectionNode->SetUnitNodeID("intensity", unitNode1->GetID());
+  intensityUnitNode->SetPrecision(6);
+  intensityUnitNode->SetPrefix("");
+  intensityUnitNode->SetSuffix(temp.c_str());
+  intensityUnitNode->SetAttribute("DisplayHint","");
+  selectionNode->SetUnitNodeID("intensity", intensityUnitNode->GetID());
 }
 
 //---------------------------------------------------------------------------

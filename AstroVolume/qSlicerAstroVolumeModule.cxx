@@ -19,7 +19,6 @@
 
 // Qt includes
 #include <QApplication>
-#include <QDoubleSpinBox>
 #include <QLabel>
 #include <QtPlugin>
 #include <QSettings>
@@ -29,12 +28,6 @@
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkLookupTable.h>
-
-//CTK includes
-#include <ctkDoubleRangeSlider.h>
-#include <ctkRangeWidget.h>
-#include <ctkVTKScalarsToColorsWidget.h>
-#include <ctkVTKVolumePropertyWidget.h>
 
 // Slicer includes
 #include <vtkSlicerConfigure.h>
@@ -278,11 +271,6 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
-  vtkMRMLUnitNode* unitNodeIntensity = selectionNode->GetUnitNode("intensity");
-  this->qvtkConnect(unitNodeIntensity, vtkCommand::ModifiedEvent,
-                    this, SLOT(onMRMLUnitNodeIntensityModified(vtkObject*)));
-  this->onMRMLUnitNodeIntensityModified(unitNodeIntensity);
-
   qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
          (d->volumeRendering->widgetRepresentation());
@@ -493,104 +481,6 @@ void qSlicerAstroVolumeModule::setup()
     tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "on");
     tempColorTableNode->SetAttribute("SlicerAstro.Log", "on");
     }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroVolumeModule::onMRMLUnitNodeIntensityModified(vtkObject* sender)
-{
-  Q_D(qSlicerAstroVolumeModule);
-  if(!sender || !d->volumeRendering)
-    {
-    return;
-    }
-
-  vtkMRMLUnitNode* unitNode = vtkMRMLUnitNode::SafeDownCast(sender);
-  if (!unitNode)
-    {
-    return;
-    }
-
-  qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
-      dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
-         (d->volumeRendering->widgetRepresentation());
-  if(!volumeRenderingWidget)
-    {
-    return;
-    }
-
-  qMRMLVolumePropertyNodeWidget* volumePropertyNodeWidget =
-    volumeRenderingWidget->findChild<qMRMLVolumePropertyNodeWidget*>
-      (QString("VolumePropertyNodeWidget"));
-  if (!volumePropertyNodeWidget)
-    {
-    return;
-    }
-
-  ctkVTKVolumePropertyWidget* volumePropertyWidget =
-      volumePropertyNodeWidget->findChild<ctkVTKVolumePropertyWidget*>
-      (QString("VolumePropertyWidget"));
-  if (!volumePropertyWidget)
-    {
-    return;
-    }
-
-  ctkVTKScalarsToColorsWidget* opacityWidget =
-      volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
-      (QString("ScalarOpacityWidget"));
-  if (!opacityWidget)
-    {
-    return;
-    }
-
-  QDoubleSpinBox* XSpinBox = opacityWidget->findChild<QDoubleSpinBox*>
-      (QString("XSpinBox"));
-  if (!opacityWidget)
-    {
-    return;
-    }
-
-  XSpinBox->setDecimals(unitNode->GetPrecision());
-
-  ctkDoubleRangeSlider* XRangeSlider = opacityWidget->findChild<ctkDoubleRangeSlider*>
-      (QString("XRangeSlider"));
-  if (!XRangeSlider)
-    {
-    return;
-    }
-
-  XRangeSlider->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
-  XRangeSlider->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
-
-  opacityWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
-
-  ctkVTKScalarsToColorsWidget* colorWidget =
-      volumePropertyWidget->findChild<ctkVTKScalarsToColorsWidget*>
-      (QString("ScalarColorWidget"));
-  if (!colorWidget)
-    {
-    return;
-    }
-
-  QDoubleSpinBox* XSpinBox1 = colorWidget->findChild<QDoubleSpinBox*>
-      (QString("XSpinBox"));
-  if (!colorWidget)
-    {
-    return;
-    }
-
-  XSpinBox1->setDecimals(unitNode->GetPrecision());
-
-  ctkDoubleRangeSlider* XRangeSlider1 = colorWidget->findChild<ctkDoubleRangeSlider*>
-      (QString("XRangeSlider"));
-  if (!XRangeSlider1)
-    {
-    return;
-    }
-
-  XRangeSlider1->setRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
-  XRangeSlider1->setSingleStep((unitNode->GetMaximumValue() - unitNode->GetMinimumValue()) / 100.);
-
-  colorWidget->setXRange(unitNode->GetMinimumValue(), unitNode->GetMaximumValue());
 }
 
 //-----------------------------------------------------------------------------
