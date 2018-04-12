@@ -59,7 +59,7 @@ qSlicerAstroVolumeLayoutSliceViewFactory::~qSlicerAstroVolumeLayoutSliceViewFact
 //-----------------------------------------------------------------------------
 QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbstractViewNode* viewNode)
 {
-  if (!this->layoutManager() || !viewNode)
+  if (!this->layoutManager() || !viewNode  || !this->layoutManager()->viewport())
     {// can't create a slice widget if there is no parent widget
     Q_ASSERT(viewNode);
     return 0;
@@ -85,6 +85,9 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   sliceWidget->setSliceLogics(this->sliceLogics());
 
   this->sliceLogics()->AddItem(sliceWidget->sliceLogic());
+
+  QObject::connect(sliceWidget, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)),
+                   this->layoutManager(), SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)));
 
   return sliceWidget;
 }
