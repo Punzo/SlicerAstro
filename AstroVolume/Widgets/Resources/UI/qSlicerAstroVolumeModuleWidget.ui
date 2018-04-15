@@ -1808,7 +1808,7 @@
         <bool>false</bool>
        </property>
        <property name="toolTip">
-        <string>If Toggled, when changing the Active Data, the data will be immediately showed in the 2D and 3D views.</string>
+        <string>If toggled, the data will be immediately showed in the 2D views when changing the Active Data. The 3D view are always updated in default.</string>
        </property>
        <property name="text">
         <string/>

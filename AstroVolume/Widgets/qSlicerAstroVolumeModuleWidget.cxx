@@ -2333,7 +2333,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews :"
                    " volumes not valid.";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2341,14 +2341,14 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   if (!appLogic)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : appLogic not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
   if (!d->selectionNode)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setComparative3DViews : selectionNode not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2488,7 +2488,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDWidget1 not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2497,7 +2497,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDView1 not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2509,7 +2509,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDWidget2 not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2518,7 +2518,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
                    "ThreeDView2 not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2527,7 +2527,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   if (!generateMasks)
     {
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2661,7 +2661,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     }
 
   this->onCreateSurfaceButtonToggled(true);
-  d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+  d->AutoPropagateCheckBox->setChecked(autoPropagate);
 }
 
 //---------------------------------------------------------------------------
@@ -2691,7 +2691,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   if (!layoutNode)
     {
     qWarning() << Q_FUNC_INFO << ": Unable to get layout node!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
   int viewArra = layoutNode->GetViewArrangement();
@@ -2716,7 +2716,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
      !volumeThree->GetImageData())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : volumes not valid.";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2728,14 +2728,14 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   if (!appLogic)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : appLogic not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
   if (!d->selectionNode)
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : selectionNode not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2832,7 +2832,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   unsigned int numCameraNodes = col1->GetNumberOfItems();
   if (numCameraNodes < 1)
     {
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
   vtkMRMLCameraNode *cameraNode =
@@ -2862,7 +2862,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                    "qSlicerApplication not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2871,7 +2871,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                    "ThreeDWidget not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2880,7 +2880,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                    "ThreeDView not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -2927,7 +2927,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   if (!currentSegmentationNode->GetSegmentation())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView() : segmentation not found.";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3064,7 +3064,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "yellowSliceNode not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3107,7 +3107,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "greenSliceNode not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3148,7 +3148,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     {
     qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
                   "redSliceNode not found!";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
     return;
     }
 
@@ -3189,7 +3189,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     yellowSliceNode->AddSliceOrientationPreset("PVMinor", PVMinorMatrix);
     }
 
-  d->AutoPropagateCheckBox->setChecked(autoPropagate);;
+  d->AutoPropagateCheckBox->setChecked(autoPropagate);
 }
 
 //---------------------------------------------------------------------------
