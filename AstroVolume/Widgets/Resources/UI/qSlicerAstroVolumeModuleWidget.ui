@@ -1273,6 +1273,11 @@
         </item>
         <item>
          <property name="text">
+          <string>Normal Quality</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
           <string>Maximum Quality</string>
          </property>
         </item>
