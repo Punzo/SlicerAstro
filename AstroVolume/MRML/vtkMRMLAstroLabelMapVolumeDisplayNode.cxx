@@ -927,7 +927,13 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     std::stringstream strstream;
     strstream.setf(ios::fixed,ios::floatfield);
 
-    displayValue = world;
+    float sign = 1.;
+    if (world < 0.)
+      {
+      sign = -1.;
+      }
+
+    displayValue = fabs(world);
 
     if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
       {
@@ -967,15 +973,27 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetDisplayStringFromValue(con
     if (firstIntpart > 0.00001 &&
         fabs(outputValues[0] - oldOutputValues[0]) > 1.E-6)
       {
-      value = DoubleToString(firstIntpart) + firstPrefix;
+      if (sign < 0.)
+        {
+        value = "-";
+        }
+      value = value + DoubleToString(firstIntpart) + firstPrefix;
       }
     else if (additionalSpace)
       {
       value = "   ";
+      if (sign < 0.)
+        {
+        value = value + "-";
+        }
       }
     else
       {
       value = "";
+      if (sign < 0.)
+        {
+        value = value + "-";
+        }
       }
 
     // Second
