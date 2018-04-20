@@ -40,6 +40,7 @@
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLTransformNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 // OpenMP includes
 #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
@@ -182,6 +183,12 @@ void vtkMRMLAstroVolumeNode::PrintSelf(ostream& os, vtkIndent indent)
 vtkMRMLAstroVolumeDisplayNode* vtkMRMLAstroVolumeNode::GetAstroVolumeDisplayNode()
 {
   return vtkMRMLAstroVolumeDisplayNode::SafeDownCast(this->GetDisplayNode());
+}
+
+//---------------------------------------------------------------------------
+vtkMRMLVolumeRenderingDisplayNode *vtkMRMLAstroVolumeNode::GetAstroVolumeRenderingDisplayNode()
+{
+  return vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(this->GetNthDisplayNode(1));
 }
 
 //---------------------------------------------------------------------------

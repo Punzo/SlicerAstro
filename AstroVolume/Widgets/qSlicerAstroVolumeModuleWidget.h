@@ -99,6 +99,7 @@ public slots:
 
 protected slots:
   void applyPreset(vtkMRMLNode* volumePropertyNode);
+  void fitROIToVolume();
   void offsetPreset(double offsetValue);
   void onActivate3DAstroVolumeNode(bool activate);
   void onActivate3DLabelMapVolumeNode(bool activate);
@@ -106,6 +107,7 @@ protected slots:
   void onCreateHistogram();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
+  void onCurrentRenderingMethodChanged(int index);
   void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
   void onHistoClippingChanged(double percentage);
@@ -140,12 +142,13 @@ protected slots:
   void onSegmentEditorNodeModified(vtkObject* sender);
   void resetStretch(vtkMRMLNode* node);
   void resetOffset(vtkMRMLNode* node);
-  void setDisplayConnection(vtkMRMLNode* node);
+  void setDisplayConnection();
   void setDisplayROIEnabled(bool visibility);
   void setOpticalVelocity();
   void setRADegreeUnit();
   void setRASexagesimalUnit();
   void setRadioVelocity();
+  void synchronizeScalarDisplayNode();
   void spreadPreset(double stretchValue);
   void updatePresets(vtkMRMLNode* node);
   void updateWidgetsFromIntensityNode();

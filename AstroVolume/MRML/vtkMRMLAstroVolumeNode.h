@@ -37,6 +37,7 @@ class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
+class vtkMRMLVolumeRenderingDisplayNode;
 
 /// \ingroup Slicer_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
@@ -80,6 +81,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   ///
   /// Get AstroVolume display node
   virtual vtkMRMLAstroVolumeDisplayNode* GetAstroVolumeDisplayNode();
+
+  ///
+  /// Get rendering display node
+  virtual vtkMRMLVolumeRenderingDisplayNode* GetAstroVolumeRenderingDisplayNode();
 
   vtkMRMLAnnotationROINode* GetROINode();
   void SetROINode(vtkMRMLAnnotationROINode* node);

@@ -1761,6 +1761,9 @@
          <height>30</height>
         </size>
        </property>
+       <property name="toolTip">
+        <string>SlicerAstro propagates the active data in all the 2D and 3D views. These behaviour can be changed (for example enabling the possibility to show more datasetes in a 3D view, i.e., multivolume rendering) unchecking the auto propagate button.</string>
+       </property>
        <property name="nodeTypes">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
@@ -1785,7 +1788,7 @@
      <item>
       <widget class="QLabel" name="AutoPropagateLabel">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="sizePolicy">
         <sizepolicy hsizetype="Fixed" vsizetype="Preferred">
@@ -1810,10 +1813,10 @@
      <item>
       <widget class="QCheckBox" name="AutoPropagateCheckBox">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="toolTip">
-        <string>If toggled, the data will be immediately showed in the 2D views when changing the Active Data. The 3D view are always updated in default.</string>
+        <string>It changes the propagate behaviour</string>
        </property>
        <property name="text">
         <string/>
@@ -1909,38 +1912,6 @@
     <hint type="destinationlabel">
      <x>273</x>
      <y>14</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ActiveVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>AutoPropagateCheckBox</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>259</x>
-     <y>15</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>259</x>
-     <y>53</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>ActiveVolumeNodeSelector</sender>
-   <signal>currentNodeChanged(bool)</signal>
-   <receiver>AutoPropagateLabel</receiver>
-   <slot>setEnabled(bool)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>259</x>
-     <y>15</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>50</x>
-     <y>53</y>
     </hint>
    </hints>
   </connection>
