@@ -1762,7 +1762,7 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>SlicerAstro propagates the active data in all the 2D and 3D views. These behaviour can be changed (for example enabling the possibility to show more datasetes in a 3D view, i.e., multivolume rendering) unchecking the auto propagate button.</string>
+        <string>SlicerAstro propagates the active data in all the 2D and 3D views. This behaviour can be changed (e.g., for enabling the possibility to show more datasetes in a 3D view, i.e., multivolume rendering) unchecking the auto propagate button.</string>
        </property>
        <property name="nodeTypes">
         <stringlist>
@@ -1816,7 +1816,7 @@
         <bool>true</bool>
        </property>
        <property name="toolTip">
-        <string>It changes the propagate behaviour</string>
+        <string>It changes the 2D and 3D views propagation behaviour</string>
        </property>
        <property name="text">
         <string/>
