@@ -474,7 +474,7 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
   yellowSliceNode->SetOrientation("XY");
   vtkNew<vtkMatrix3x3> PVDiagramMatrix;
 
-  PVDiagramMatrix->SetElement(0, 0, yellowSliceNode->GetSliceToRAS()->GetElement(0,0));
+  PVDiagramMatrix->SetElement(0, 0, yellowSliceNode->GetSliceToRAS()->GetElement(0,0) + 0.001);
   PVDiagramMatrix->SetElement(0, 1, yellowSliceNode->GetSliceToRAS()->GetElement(0,1));
   PVDiagramMatrix->SetElement(0, 2, yellowSliceNode->GetSliceToRAS()->GetElement(0,2));
   PVDiagramMatrix->SetElement(1, 0, yellowSliceNode->GetSliceToRAS()->GetElement(1,0));
