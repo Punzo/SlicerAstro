@@ -1042,7 +1042,7 @@ bool vtkFITSReader::AllocateHeader()
      CDMatrixFound = true;
      }
 
-   if (CDMatrixFound && n > 1)
+   if (CDMatrixFound && (!CDELTFound || !CROTAFound) && n > 1)
      {
      double cd11 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_1"].c_str());
      double cd12 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_2"].c_str());
