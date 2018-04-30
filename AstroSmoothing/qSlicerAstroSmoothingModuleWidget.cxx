@@ -964,6 +964,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
     d->KSpinBox->setEnabled(false);
     d->TimeStepLabel->setEnabled(false);
     d->TimeStepSpinBox->setEnabled(false);
+    d->AccuracyLabel->setEnabled(false);
+    d->AccuracySpinBox->setEnabled(false);
     }
   else
     {
@@ -984,6 +986,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
     d->KSpinBox->setEnabled(true);
     d->TimeStepLabel->setEnabled(true);
     d->TimeStepSpinBox->setEnabled(true);
+    d->AccuracyLabel->setEnabled(true);
+    d->AccuracySpinBox->setEnabled(true);
     }
 
   if (!(strcmp(d->parametersNode->GetMasksCommand(), "Generate")))
