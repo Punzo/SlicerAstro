@@ -640,6 +640,8 @@ void qSlicerAstroVolumeModuleWidget::initializeSegmentations(bool forceNew /*= f
     sceneSegmentationNode->CreateDefaultDisplayNodes();
     d->segmentEditorNode->SetAndObserveSegmentationNode(sceneSegmentationNode);
     }
+
+  d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
 }
 
 //-----------------------------------------------------------------------------

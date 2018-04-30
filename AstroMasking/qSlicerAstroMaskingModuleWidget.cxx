@@ -591,6 +591,8 @@ void qSlicerAstroMaskingModuleWidget::initializeSegmentations(bool forceNew /*= 
     d->segmentEditorNode->SetAndObserveSegmentationNode
       (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
     }
+
+  d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
 }
 
 //-----------------------------------------------------------------------------

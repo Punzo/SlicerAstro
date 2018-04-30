@@ -609,6 +609,8 @@ void qSlicerAstroSmoothingModuleWidget::initializeSegmentations(bool forceNew /*
     d->segmentEditorNode->SetAndObserveSegmentationNode
       (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
     }
+
+  d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
 }
 
 //-----------------------------------------------------------------------------
@@ -1958,7 +1960,6 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     d->parametersNode->SetStatus(0);
     return;
     }
-
 
   int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
   // Check Input volume
