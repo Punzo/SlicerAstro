@@ -2791,11 +2791,6 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
 
   // Update 3D Renderings
-  vtkSmartPointer<vtkCollection> col = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLViewNode"));
-
-  unsigned int numViewNodes = col->GetNumberOfItems();
-
   d->selectionNode->SetActiveLabelVolumeID("");
   d->selectionNode->SetActiveVolumeID(volumeTwo->GetID());
   this->updatePresets(volumeTwo);
@@ -4092,23 +4087,14 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
     return;
     }
 
-  d->VisibilityCheckBox->setChecked(
-    displayNode ? displayNode->GetVisibility() : false);
+  d->VisibilityCheckBox->setChecked(displayNode->GetVisibility());
 
-  d->ROICropCheckBox->setChecked(
-    displayNode ? displayNode->GetCroppingEnabled() : false);
+  d->ROICropCheckBox->setChecked(displayNode->GetCroppingEnabled());
 
-  d->QualityControlComboBox->setCurrentIndex(
-    displayNode ? displayNode->GetPerformanceControl() : -1);
+  d->QualityControlComboBox->setCurrentIndex(displayNode->GetPerformanceControl());
 
-  QSettings settings;
-  QString defaultRenderingMethod =
-    settings.value("VolumeRendering/RenderingMethod",
-                 QString("vtkMRMLCPURayCastVolumeRenderinDisplayNode")).toString();
-  QString currentVolumeMapper = displayNode ?
-    QString(displayNode->GetClassName()) : defaultRenderingMethod;
-  d->RenderingMethodComboBox->setCurrentIndex(
-              d->RenderingMethodComboBox->findData(currentVolumeMapper) );
+  QString currentVolumeMapper = QString(displayNode->GetClassName());
+  d->RenderingMethodComboBox->setCurrentIndex(d->RenderingMethodComboBox->findData(currentVolumeMapper));
 }
 
 //---------------------------------------------------------------------------
@@ -4722,7 +4708,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection()
   this->qvtkConnect(displayNode->GetROINode(), vtkMRMLDisplayableNode::DisplayModifiedEvent,
                     this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
 
-  this->onMRMLVolumeRenderingDisplayNodeModified(displayNode);
+  displayNode->SetExpectedFPS(100);
   this->onMRMLDisplayROINodeModified(displayNode->GetROINode());
 }
 
@@ -5296,7 +5282,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent,
                         this, SLOT(onMRMLVolumeNodeDisplayThresholdModified()));
     this->onMRMLVolumeNodeDisplayThresholdModified(forcePreset);
-    this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::ReferenceModifiedEvent,
+    this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::ReferenceAddedEvent,
                         this, SLOT(setDisplayConnection()));
     this->setDisplayConnection();
 
