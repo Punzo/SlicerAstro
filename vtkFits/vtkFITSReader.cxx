@@ -871,14 +871,34 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.CDELT1"] = "1.0";
      }
 
+   double CDELT1 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT1")).c_str());
+   if (fabs(CDELT1) - 1.0 < 1.E-6)
+     {
+     CDELTFound = false;
+     }
+
    if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0 && n > 1)
      {
+     CDELTFound = false;
      this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
+     }
+
+   double CDELT2 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT2")).c_str());
+   if (fabs(CDELT2) - 1.0 < 1.E-6)
+     {
+     CDELTFound = false;
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0 && n > 2)
      {
+     CDELTFound = false;
      this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
+     }
+
+   double CDELT3 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT3")).c_str());
+   if (fabs(CDELT3) - 1.0 < 1.E-6)
+     {
+     CDELTFound = false;
      }
 
    bool CROTAFound = true;
@@ -890,11 +910,13 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA2") == 0 && n > 1)
      {
+     CROTAFound = false;
      this->HeaderKeyValue["SlicerAstro.CROTA2"] = "0.";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)
      {
+     CROTAFound = false;
      this->HeaderKeyValue["SlicerAstro.CROTA3"] = "0.";
      }
 
