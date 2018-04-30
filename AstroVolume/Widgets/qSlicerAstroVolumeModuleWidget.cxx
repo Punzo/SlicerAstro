@@ -2750,6 +2750,27 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
+  vtkMRMLVolumeRenderingDisplayNode *volumeOneRenderingDisplay =
+    volumeOne->GetAstroVolumeRenderingDisplayNode();
+  if (volumeOneRenderingDisplay)
+    {
+    volumeOneRenderingDisplay->SetVisibility(false);
+    }
+
+  vtkMRMLVolumeRenderingDisplayNode *volumeTwoRenderingDisplay =
+    volumeTwo->GetAstroVolumeRenderingDisplayNode();
+  if (volumeTwoRenderingDisplay)
+    {
+    volumeOneRenderingDisplay->SetVisibility(false);
+    }
+
+  vtkMRMLVolumeRenderingDisplayNode *volumeThreeRenderingDisplay =
+    volumeThree->GetAstroVolumeRenderingDisplayNode();
+  if (volumeThreeRenderingDisplay)
+    {
+    volumeOneRenderingDisplay->SetVisibility(false);
+    }
+
   volumeTwo->SetDisplayVisibility(0);
   volumeThree->SetDisplayVisibility(0);
   volumeOne->SetDisplayVisibility(0);
@@ -2821,9 +2842,10 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
       }
     }
 
-  volumeTwo->SetDisplayVisibility(1);
-  volumeThree->SetDisplayVisibility(1);
-  volumeOne->SetDisplayVisibility(1);
+  if (volumeOneRenderingDisplay)
+    {
+    volumeOneRenderingDisplay->SetVisibility(true);
+    }
 
   // reset the 3D rendering boundaries
   qSlicerApplication* app = qSlicerApplication::application();
