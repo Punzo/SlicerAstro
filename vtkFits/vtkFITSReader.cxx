@@ -872,7 +872,7 @@ bool vtkFITSReader::AllocateHeader()
      }
 
    double CDELT1 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT1")).c_str());
-   if (fabs(CDELT1) - 1.0 < 1.E-6)
+   if (fabs(CDELT1) < 1.E-6)
      {
      CDELTFound = false;
      }
@@ -884,7 +884,7 @@ bool vtkFITSReader::AllocateHeader()
      }
 
    double CDELT2 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT2")).c_str());
-   if (fabs(CDELT2) - 1.0 < 1.E-6)
+   if (fabs(CDELT2) < 1.E-6)
      {
      CDELTFound = false;
      }
@@ -896,7 +896,7 @@ bool vtkFITSReader::AllocateHeader()
      }
 
    double CDELT3 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT3")).c_str());
-   if (fabs(CDELT3) - 1.0 < 1.E-6)
+   if (fabs(CDELT3) < 1.E-6)
      {
      CDELTFound = false;
      }
