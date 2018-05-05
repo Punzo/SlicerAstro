@@ -112,6 +112,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   void Set3DDisplayThreshold(double DisplayThreshold);
 
   ///
+  /// Get the SlicerAstro.3DDisplayThreshold keyword
+  double Get3DDisplayThreshold();
+
+  ///
   /// Set/Get reference to a Preset Node
   void SetPresetNode(vtkMRMLVolumePropertyNode* node);
   void SetPresetNode(vtkMRMLNode* node);

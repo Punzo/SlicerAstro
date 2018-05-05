@@ -71,8 +71,21 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroReprojectParametersNode : public vtkMRML
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
-  vtkSetMacro(SpatialInterpolated,int);
-  vtkGetMacro(SpatialInterpolated,int);
+  vtkSetMacro(InterpolationOrder,int);
+  vtkGetMacro(InterpolationOrder,int);
+
+  enum ORDER
+  {
+    NearestNeighbour = 0,
+    Bilinear,
+    Bicubic,
+  };
+
+  vtkSetMacro(Cores,int);
+  vtkGetMacro(Cores,int);
+
+  vtkSetMacro(Status,int);
+  vtkGetMacro(Status,int);
 
 
 protected:
@@ -88,7 +101,11 @@ protected:
 
   int OutputSerial;
 
-  bool SpatialInterpolated;
+  int InterpolationOrder;
+
+  int Cores;
+
+  int Status;
 };
 
 #endif

@@ -461,8 +461,10 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   gettimeofday(&start, NULL);
 
+  int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
   outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
 

@@ -477,6 +477,14 @@ void vtkFITSReader::ExecuteInformation()
     }
   theta1 += M_PI/2.;
 
+  if (naxes == 2)
+    {
+    if (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) < 0.)
+      {
+      theta3 += M_PI;
+      }
+    }
+
   if (naxes > 2)
     {
     if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) < 0. &&
@@ -712,9 +720,12 @@ bool vtkFITSReader::AllocateHeader()
          {
          this->HeaderKeyValue.erase("SlicerAstro.CUNIT4");
          }
+       if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA4")) == 0)
+         {
+         this->HeaderKeyValue.erase("SlicerAstro.CROTA4");
+         }
        vtkWarningMacro("vtkFITSReader::AllocateHeader :"
                        " the 4th dimension keywords have been removed.");
-
        n = 3;
        }
      else
@@ -877,28 +888,34 @@ bool vtkFITSReader::AllocateHeader()
      CDELTFound = false;
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0 && n > 1)
+   if (n > 1)
      {
-     CDELTFound = false;
-     this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
+     if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
+       {
+       CDELTFound = false;
+       this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
+       }
+
+     double CDELT2 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT2")).c_str());
+     if (fabs(CDELT2) < 1.E-6)
+       {
+       CDELTFound = false;
+       }
      }
 
-   double CDELT2 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT2")).c_str());
-   if (fabs(CDELT2) < 1.E-6)
+   if (n > 2)
      {
-     CDELTFound = false;
-     }
+     if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
+       {
+       CDELTFound = false;
+       this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
+       }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0 && n > 2)
-     {
-     CDELTFound = false;
-     this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
-     }
-
-   double CDELT3 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT3")).c_str());
-   if (fabs(CDELT3) < 1.E-6)
-     {
-     CDELTFound = false;
+     double CDELT3 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT3")).c_str());
+     if (fabs(CDELT3) < 1.E-6)
+       {
+       CDELTFound = false;
+       }
      }
 
    bool CROTAFound = true;
@@ -1518,7 +1535,6 @@ bool vtkFITSReader::AllocateHeader()
      }
 
    this->HeaderKeyValue["SlicerAstro.3DDisplayThreshold"] = "0.";
-   this->HeaderKeyValue["SlicerAstro.3DDisplayThresholdMean"] = "0.";
 
    HeaderKeyValue["SlicerAstro.HistoMinSel"] = "0.";
    HeaderKeyValue["SlicerAstro.HistoMaxSel"] = "0.";

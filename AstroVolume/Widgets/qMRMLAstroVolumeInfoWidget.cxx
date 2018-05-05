@@ -424,6 +424,7 @@ void qMRMLAstroVolumeInfoWidget::setImageOrigin(double* IJKOrigin)
   double RASOrigin[3];
   IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
   d->VolumeNode->SetOrigin(RASOrigin);
+  d->VolumeNode->Modified();
 }
 
 //------------------------------------------------------------------------------

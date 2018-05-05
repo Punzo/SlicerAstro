@@ -59,8 +59,12 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
   ///
-  /// WCSCopy to this object
-  virtual void WCSCopy(vtkMRMLNode *node);
+  /// Copy WCS to this object
+  virtual void CopyWCS(vtkMRMLNode *node);
+
+  ///
+  /// Copy only the spatial WCS information to this object
+  virtual void CopySpatialWCS(vtkMRMLNode *node);
 
   /// 
   /// Get node XML tag name (like Volume, Model)

@@ -61,6 +61,7 @@
 #include <vtkColorTransferFunction.h>
 #include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
+#include <vtkIntArray.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -110,22 +111,6 @@ template <typename T> T StringToNumber(const char* num)
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
-}
-
-//----------------------------------------------------------------------------
-template <typename T> std::string NumberToString(T V)
-{
-  std::string stringValue;
-  std::stringstream strstream;
-  strstream << V;
-  strstream >> stringValue;
-  return stringValue;
-}
-
-//----------------------------------------------------------------------------
-std::string DoubleToString(double Value)
-{
-  return NumberToString<double>(Value);
 }
 
 //----------------------------------------------------------------------------
@@ -564,7 +549,6 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
-  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroReprojectParametersNode>().GetPointer());
 
   if (!this->PresetsScene)
     {
@@ -1127,7 +1111,7 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
     default:
       vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateRMSinROI : "
                     "attempt to allocate scalars of type not allowed");
-      return false;
+      return 0.;
     }
 
   double noise = 0., mean = 0., roiBounds[6];
@@ -1261,9 +1245,86 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
   delete inDPixel;
 
   inputVolume->Set3DDisplayThreshold(noise);
-  inputVolume->SetAttribute("SlicerAstro.3DDisplayThresholdMean", DoubleToString(mean).c_str());
 
   return noise;
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *inputVolume,
+                                                   vtkIntArray *histoArray,
+                                                   double binSpacing,
+                                                   int numberOfBins)
+{
+  if (!inputVolume || !inputVolume->GetImageData())
+   {
+   return;
+   }
+
+  int *dims = inputVolume->GetImageData()->GetDimensions();
+  int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
+  if (numComponents > 1)
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateHistogram : "
+                  "imageData with more than one components.");
+    return;
+    }
+  int numElements = dims[0] * dims[1] * dims[2];
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  float *inFPixel = NULL;
+  double *inDPixel = NULL;
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      break;
+    case VTK_DOUBLE:
+      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
+      break;
+    default:
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateHistogram : "
+                    "attempt to allocate scalars of type not allowed");
+      return;
+    }
+
+  histoArray->SetNumberOfValues(numberOfBins);
+  for (int histoIndex = 0; histoIndex < histoArray->GetNumberOfValues(); histoIndex++)
+    {
+    histoArray->SetValue(histoIndex, 0);
+    }
+
+  double DATAMIN = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN"));
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  omp_set_num_threads(omp_get_num_procs());
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+
+  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  #pragma omp parallel for schedule(dynamic)
+  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    int histoIndex = 0;
+    switch (DataType)
+      {
+      case VTK_FLOAT:
+        if (FloatIsNaN(*(inFPixel + elemCnt)))
+          {
+          continue;
+          }
+        histoIndex = (int) ((*(inFPixel + elemCnt) - DATAMIN) / binSpacing);
+        break;
+      case VTK_DOUBLE:
+        if (DoubleIsNaN(*(inDPixel + elemCnt)))
+          {
+          continue;
+          }
+        histoIndex = (int) ((*(inDPixel + elemCnt) - DATAMIN) / binSpacing);
+        break;
+      }
+
+    #pragma omp critical
+    histoArray->SetValue(histoIndex, histoArray->GetValue(histoIndex) + 1);
+    }
 }
 
 //---------------------------------------------------------------------------

@@ -906,6 +906,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   if (pnode->GetGenerateZero())
     {
+    int wasModifying = ZeroMomentVolume->StartModify();
     ZeroMomentVolume->UpdateRangeAttributes();
     ZeroMomentVolume->Update3DDisplayThresholdAttributes();
     int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
@@ -918,9 +919,11 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+    ZeroMomentVolume->EndModify(wasModifying);
     }
   if (pnode->GetGenerateFirst())
     {
+    int wasModifying = FirstMomentVolume->StartModify();
     FirstMomentVolume->UpdateRangeAttributes();
     FirstMomentVolume->Update3DDisplayThresholdAttributes();
     int disabledModify = FirstMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
@@ -933,9 +936,11 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     FirstMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
     FirstMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     FirstMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+    FirstMomentVolume->EndModify(wasModifying);
     }
   if (pnode->GetGenerateSecond())
     {
+    int wasModifying = SecondMomentVolume->StartModify();
     SecondMomentVolume->UpdateRangeAttributes();
     SecondMomentVolume->Update3DDisplayThresholdAttributes();
     int disabledModify = SecondMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
@@ -948,6 +953,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
     SecondMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+    SecondMomentVolume->EndModify(wasModifying);
     }
 
   pnode->SetStatus(100);
