@@ -348,7 +348,7 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
                     "attempt to allocate scalars of type not allowed");
       return false;
     }
-  double sum = 0., noise1 = 0., noise2 = 0, noise = 0., mean1 = 0., mean2 = 0., mean = 0.;
+  double sum = 0., noise1 = 0., noise2 = 0, noise = 0.;
   int lowBoundary;
   int highBoundary;
 
@@ -459,8 +459,6 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
       break;
     }
 
-  mean1 = sum;
-
   if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 3)
     {
     lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
@@ -564,10 +562,7 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
       break;
     }
 
-  mean2 = sum;
-
   noise = (noise1 + noise2) * 0.5;
-  mean = (mean1 + mean2) * 0.5;
 
   outSPixel = NULL;
   outFPixel = NULL;
