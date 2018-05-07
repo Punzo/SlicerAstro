@@ -986,6 +986,22 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
   outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
+  imageData = referenceVolume->GetImageData();
+  dims = imageData->GetDimensions();
+  dimsH[0] = dims[0] - 1;
+  dimsH[1] = dims[1] - 1;
+  dimsH[2] = dims[2] - 1;
+  dimsH[3] = 0.;
+
+  referenceVolume->GetIJKToRASMatrix(ijkToRAS.GetPointer());
+  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
+
+  origin[0] = -0.5 * rasCorner[0];
+  origin[1] = -0.5 * rasCorner[1];
+  origin[2] = -0.5 * rasCorner[2];
+
+  referenceVolume->SetOrigin(origin);
+
   pnode->SetStatus(100);
 
   gettimeofday(&end, NULL);
