@@ -1144,8 +1144,8 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the BUNIT keyword. Assuming JY/BEAM");
-     this->HeaderKeyValue["SlicerAstro.BUNIT"] = "JY/BEAM";
+                     " The fits header is missing the BUNIT keyword.");
+     this->HeaderKeyValue["SlicerAstro.BUNIT"] = "UNDEFINED";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)

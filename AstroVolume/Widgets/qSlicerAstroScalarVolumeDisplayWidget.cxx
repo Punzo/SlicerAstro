@@ -933,13 +933,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     qWarning() << Q_FUNC_INFO << ": " << message;
     }
 
-  cout<<"bella"<<endl;
-  for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
-    {
-    cout<<Levels->GetValue(ii)<<endl;
-    }
-  cout<<endl;
-
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
   QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));

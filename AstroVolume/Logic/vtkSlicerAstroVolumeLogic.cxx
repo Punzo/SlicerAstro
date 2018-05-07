@@ -340,7 +340,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
           }
         }
 
-      temp += "Jy/beam";
+      temp += node->GetAttribute("SlicerAstro.BUNIT");
       unitNodeIntensity->SetPrecision(6);
       unitNodeIntensity->SetPrefix("");
       unitNodeIntensity->SetSuffix(temp.c_str());
