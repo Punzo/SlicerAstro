@@ -851,6 +851,44 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.CUNIT1"] = "DEGREE";
      }
 
+   double CRVAL1 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CRVAL1")).c_str());
+   std::string CUNIT1 = this->HeaderKeyValue.at("SlicerAstro.CUNIT1");
+
+   if (CUNIT1.find("DEGREE") != std::string::npos ||
+       CUNIT1.find("degree") != std::string::npos ||
+       CUNIT1.find("deg") != std::string::npos)
+     {
+     while (CRVAL1 < 0. ||  CRVAL1 > 360.)
+       {
+       if (CRVAL1 < 0.)
+         {
+         CRVAL1 += 360.;
+         }
+       else if (CRVAL1 > 360.)
+         {
+         CRVAL1 -= 360.;
+         }
+       }
+     }
+   else if (CUNIT1.find("RADIAN") != std::string::npos ||
+            CUNIT1.find("radian") != std::string::npos ||
+            CUNIT1.find("rad") != std::string::npos)
+     {
+     while (CRVAL1 < 0. ||  CRVAL1 > 2 * PI)
+       {
+       if (CRVAL1 < 0.)
+         {
+         CRVAL1 += 2 * PI;
+         }
+       else if (CRVAL1 > 2 * PI)
+         {
+         CRVAL1 -= 2 * PI;
+         }
+       }
+     }
+
+   this->HeaderKeyValue["SlicerAstro.CRVAL1"] = DoubleToString(CRVAL1);
+
    if (this->HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0 && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
@@ -1939,8 +1977,11 @@ bool vtkFITSReader::AllocateWCS(){
   if (this->NWCS > 1)
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: the volume has more than one WCS, "
-                  "SlicerAstro assume only one WCS per volume.")
+                  "SlicerAstro assume only one WCS per volume.");
+    return false;
     }
+
+  this->WCS->crval[0] = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CRVAL1")).c_str());
 
   if ((this->WCSStatus = wcsfixi(7, 0, this->WCS, stat, this->info)))
     {
