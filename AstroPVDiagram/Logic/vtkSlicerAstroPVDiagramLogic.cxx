@@ -335,7 +335,7 @@ bool vtkSlicerAstroPVDiagramLogic::Calculate0thMomentMap(vtkMRMLAstroPVDiagramPa
   momentMapParametersNode->SetGenerateFirst(false);
   momentMapParametersNode->SetGenerateSecond(false);
   momentMapParametersNode->SetIntensityMin(StringToDouble
-    (inputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold")) * 2);
+    (inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")) * 2);
   momentMapParametersNode->SetIntensityMax(StringToDouble
     (inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
 

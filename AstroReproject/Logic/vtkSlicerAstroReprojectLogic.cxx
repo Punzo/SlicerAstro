@@ -983,7 +983,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
   int wasModifying = outputVolume->StartModify();
   outputVolume->SetOrigin(origin);
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);

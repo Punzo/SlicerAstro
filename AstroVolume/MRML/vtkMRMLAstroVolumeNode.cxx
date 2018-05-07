@@ -317,7 +317,7 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 }
 
 //---------------------------------------------------------------------------
-bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
+bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
 {
   if (!this->GetImageData())
    {
@@ -325,8 +325,8 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
    }
 
   // Calculate the noise as the std of 6 slices of the datacube.
-  // The 3DDisplayThreshold = noise
-  // 3D color function starts from 3 times the value of 3DDisplayThreshold.
+  // The DisplayThreshold = noise
+  // 3D color function starts from 3 times the value of DisplayThreshold.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   short *outSPixel = NULL;
@@ -344,7 +344,7 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
       outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
       break;
     default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes : "
+      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes : "
                     "attempt to allocate scalars of type not allowed");
       return false;
     }
@@ -571,22 +571,22 @@ bool vtkMRMLAstroVolumeNode::Update3DDisplayThresholdAttributes()
   delete outFPixel;
   delete outDPixel;
 
-  this->Set3DDisplayThreshold(noise);
+  this->SetDisplayThreshold(noise);
 
   return true;
 }
 
 //-----------------------------------------------------------
-void vtkMRMLAstroVolumeNode::Set3DDisplayThreshold(double DisplayThreshold)
+void vtkMRMLAstroVolumeNode::SetDisplayThreshold(double DisplayThreshold)
 {
-  this->SetAttribute("SlicerAstro.3DDisplayThreshold", DoubleToString(DisplayThreshold).c_str());
+  this->SetAttribute("SlicerAstro.DisplayThreshold", DoubleToString(DisplayThreshold).c_str());
   this->InvokeCustomModifiedEvent(vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent);
 }
 
 //----------------------------------------------------------------------------
-double vtkMRMLAstroVolumeNode::Get3DDisplayThreshold()
+double vtkMRMLAstroVolumeNode::GetDisplayThreshold()
 {
-  return StringToDouble(this->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  return StringToDouble(this->GetAttribute("SlicerAstro.DisplayThreshold"));
 }
 
 //----------------------------------------------------------------------------

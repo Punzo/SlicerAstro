@@ -463,7 +463,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -727,7 +727,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   gettimeofday(&start, NULL);
 
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
 
   // center the volume
   double origin[3];

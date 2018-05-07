@@ -1286,7 +1286,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
                       "Unable to find the yAxis Column.";
         return;
         }
-      yAxis->SetName("3DDisplayThreshold");
+      yAxis->SetName("DisplayThreshold");
 
       d->TableThresholdNode->GetTable()->SetNumberOfRows(3);
       for (int ii = 0; ii < 3; ii++)
@@ -2202,7 +2202,7 @@ void qSlicerAstroVolumeModuleWidget::onDisplayThresholdValueChanged(double Displ
     return;
     }
 
-  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
+  d->astroVolumeNode->SetDisplayThreshold(DisplayThreshold);
 }
 
 //---------------------------------------------------------------------------
@@ -2626,7 +2626,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.3DDisplayThreshold")) * 3.;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
     max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -2657,7 +2657,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
-    min = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.3DDisplayThreshold")) * 3.;
+    min = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
     max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -3059,7 +3059,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.3DDisplayThreshold")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -3090,7 +3090,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.3DDisplayThreshold")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -3359,7 +3359,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     return;
     }
 
-  double rms = StringToDouble(volumeOne->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double rms = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold"));
   if (d->PresetOffsetSlider)
     {
     d->PresetOffsetSlider->setValue((rms * ContourLevel) - (rms * 3.));
@@ -3413,7 +3413,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.3DDisplayThreshold")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -3444,7 +3444,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.3DDisplayThreshold")) * ContourLevel;
+    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
     max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
     imageThreshold->ThresholdBetween(min, max);
     imageThreshold->SetInValue(1);
@@ -3798,7 +3798,7 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     return;
     }
 
-  astroVolumeLogic->Calculate3DDisplayThresholdInROI(roiNode, d->astroVolumeNode);
+  astroVolumeLogic->CalculateDisplayThresholdInROI(roiNode, d->astroVolumeNode);
 }
 
 //---------------------------------------------------------------------------
@@ -3816,7 +3816,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
 
   double DATAMAX = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
   double DATAMIN = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
-  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DisplayThreshold"));
   double nBins = d->BinSliderWidget->value();
   double binFlux = (DATAMAX - DATAMIN) / (nBins - 1);
 
@@ -5109,7 +5109,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
   // here we check which one has been shifted
   // and we shift the other two as well
 
-  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DisplayThreshold"));
 
   double value1 = d->TableThresholdNode->GetTable()->GetValue(0, 0).ToDouble();
   double value2 = d->TableThresholdNode->GetTable()->GetValue(1, 0).ToDouble();
@@ -5156,7 +5156,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLTableThresholdNodeModified()
     return;
     }
 
-  d->astroVolumeNode->Set3DDisplayThreshold(DisplayThreshold);
+  d->astroVolumeNode->SetDisplayThreshold(DisplayThreshold);
 }
 
 //--------------------------------------------------------------------------
@@ -5264,7 +5264,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
     return;
     }
 
-  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DisplayThreshold"));
   if (forcePreset)
     {
     d->DisplayThresholdSliderWidget->setValue(DisplayThreshold);

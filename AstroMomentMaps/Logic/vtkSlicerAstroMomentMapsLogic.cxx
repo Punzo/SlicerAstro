@@ -908,7 +908,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     int wasModifying = ZeroMomentVolume->StartModify();
     ZeroMomentVolume->UpdateRangeAttributes();
-    ZeroMomentVolume->Update3DDisplayThresholdAttributes();
+    ZeroMomentVolume->UpdateDisplayThresholdAttributes();
     int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
@@ -925,7 +925,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     int wasModifying = FirstMomentVolume->StartModify();
     FirstMomentVolume->UpdateRangeAttributes();
-    FirstMomentVolume->Update3DDisplayThresholdAttributes();
+    FirstMomentVolume->UpdateDisplayThresholdAttributes();
     int disabledModify = FirstMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
     FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     FirstMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
@@ -942,7 +942,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     int wasModifying = SecondMomentVolume->StartModify();
     SecondMomentVolume->UpdateRangeAttributes();
-    SecondMomentVolume->Update3DDisplayThresholdAttributes();
+    SecondMomentVolume->UpdateDisplayThresholdAttributes();
     int disabledModify = SecondMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
     SecondMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);

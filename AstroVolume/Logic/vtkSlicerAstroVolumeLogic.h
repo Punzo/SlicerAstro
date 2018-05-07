@@ -101,7 +101,7 @@ public:
                                                 double outputExtent[6]);
 
   /// Calculate STD given a ROI node
-  virtual double Calculate3DDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,
+  virtual double CalculateDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,
                                                   vtkMRMLAstroVolumeNode *inputVolume);
 
   /// Calculate an histogram of a volume

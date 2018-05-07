@@ -1534,7 +1534,7 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
-   this->HeaderKeyValue["SlicerAstro.3DDisplayThreshold"] = "0.";
+   this->HeaderKeyValue["SlicerAstro.DisplayThreshold"] = "0.";
 
    HeaderKeyValue["SlicerAstro.HistoMinSel"] = "0.";
    HeaderKeyValue["SlicerAstro.HistoMaxSel"] = "0.";

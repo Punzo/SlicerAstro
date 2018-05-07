@@ -184,7 +184,7 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
   this->ContourLevelsLabel->setMinimumSize(QSize(140, 30));
   this->horizontalLayout_2->addWidget(this->ContourLevelsLabel);
 
-  this->ContourLevelsLineEdit = new QLineEdit("3DDisplayThreshold -3;3;7;15");
+  this->ContourLevelsLineEdit = new QLineEdit("DT -3;3;7;15");
   this->ContourLevelsLineEdit->setMinimumSize(QSize(0, 30));
   this->ContourLevelsLineEdit->setToolTip("Contour levels: "
                                           "to specify the levels use the following format: 'FISRT:LAST+SPACING' for linear spacing "
@@ -193,8 +193,8 @@ void qSlicerSegmentEditorAstroContoursEffectPrivate::init()
                                           "In the case of a list, it is possible also to specify for each contour"
                                           " both the MIN and MAX intensity values of the level "
                                           "(e.g., 'CONTOUR1MIN,CONTOUR1MAX;CONTOUR2MIN,CONTOUR2MAX'). \n\n "
-                                          "If the string is preceded by '3DDisplayThreshold', the levels are evaluated"
-                                          " in units of the value of 3DDisplayThreshold of the dataset. \n\n"
+                                          "If the string is preceded by 'DT', the levels are evaluated"
+                                          " in units of the value of DisplayThreshold of the dataset. \n\n"
                                           "If the Histogram is active in the plot view and a selection is made, by typing the string"
                                           " 'Histogram' will create a segmentation around the selection.  \n\n"
                                           "The contours in SlicerAstro are a full 3D segmentation. "
@@ -264,11 +264,11 @@ void qSlicerSegmentEditorAstroContoursEffect::setMRMLDefaults()
 {
   Q_D(qSlicerSegmentEditorAstroContoursEffect);
   Superclass::setMRMLDefaults();
-  this->setCommonParameterDefault("3DDisplayThreshold", 0.);
+  this->setCommonParameterDefault("DisplayThreshold", 0.);
   this->setCommonParameterDefault("MIN", 0.);
   this->setCommonParameterDefault("MAX", 0.);
   this->setCommonParameterDefault("FluxUnit", "JY/BEAM");
-  this->setCommonParameterDefault("ContourLeveles", "3DDisplayThreshold -3;3;7;15");
+  this->setCommonParameterDefault("ContourLeveles", "DT -3;3;7;15");
   this->setCommonParameterDefault("NamePrefix", "Galaxy");
   this->setCommonParameterDefault("NameIndex", "1");
 }
@@ -304,14 +304,14 @@ void qSlicerSegmentEditorAstroContoursEffect::updateGUIFromMRML()
   std::string DataInfo;
   double MIN = this->doubleParameter("MIN");
   double MAX = this->doubleParameter("MAX");
-  double DisplayThreshold = this->doubleParameter("3DDisplayThreshold");
+  double DisplayThreshold = this->doubleParameter("DisplayThreshold");
 
   DataInfo = "Dataset info: \n"
              "MIN = " + DoubleToString(MIN) +
              " " + this->parameter("FluxUnit").toStdString()+ "\n"
              "MAX = " + DoubleToString(MAX) +
              " " + this->parameter("FluxUnit").toStdString()+ "\n"
-             "3DDisplayThreshold = " + DoubleToString(DisplayThreshold) +
+             "DisplayThreshold = " + DoubleToString(DisplayThreshold) +
              " " + this->parameter("FluxUnit").toStdString();
   d->DataInfoLabel->setText(QString::fromStdString(DataInfo));
 }
@@ -371,10 +371,10 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
   double value;
   double MIN = this->doubleParameter("MIN");
   double MAX = this->doubleParameter("MAX");
-  double DisplayThreshold = this->doubleParameter("3DDisplayThreshold");
+  double DisplayThreshold = this->doubleParameter("DisplayThreshold");
 
   bool convert = false;
-  std::size_t found = LevelsStdString.find("3DDisplayThreshold");
+  std::size_t found = LevelsStdString.find("DT");
   if (found != std::string::npos)
     {
     convert = true;
@@ -436,7 +436,7 @@ void qSlicerSegmentEditorAstroContoursEffect::CreateContours()
 
   if (convert)
     {
-    for (int ii = 0; ii < 18; ii++)
+    for (int ii = 0; ii < 2; ii++)
       {
       ss.ignore();
       }
@@ -749,12 +749,12 @@ void qSlicerSegmentEditorAstroContoursEffect::masterVolumeNodeChanged()
     return;
     }
 
-  double DisplayThreshold = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double DisplayThreshold = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
   double MAX = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
   double MIN = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
   QString unit(astroMasterVolume->GetAttribute("SlicerAstro.BUNIT"));
 
-  this->setCommonParameter("3DDisplayThreshold", DisplayThreshold);
+  this->setCommonParameter("DisplayThreshold", DisplayThreshold);
   this->setCommonParameter("MAX", MAX);
   this->setCommonParameter("MIN", MIN);
   this->setCommonParameter("FluxUnit", unit);

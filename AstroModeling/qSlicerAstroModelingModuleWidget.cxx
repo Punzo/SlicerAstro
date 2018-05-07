@@ -4316,13 +4316,13 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     int wasModifying = outputVolume->StartModify();
     outputVolume->UpdateRangeAttributes();
-    outputVolume->Update3DDisplayThresholdAttributes();
+    outputVolume->UpdateDisplayThresholdAttributes();
     outputVolume->SetAttribute("SlicerAstro.DATAMODEL", "MODEL");
     outputVolume->EndModify(wasModifying);
 
     wasModifying = residualVolume->StartModify();
     residualVolume->UpdateRangeAttributes();
-    residualVolume->Update3DDisplayThresholdAttributes();
+    residualVolume->UpdateDisplayThresholdAttributes();
     residualVolume->SetAttribute("SlicerAstro.DATAMODEL", "DATA");
     residualVolume->EndModify(wasModifying);
 

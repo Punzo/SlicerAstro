@@ -65,6 +65,7 @@ public:
 public slots:
   void ExtendAllSlices();
   void onColorChanged(QColor color);
+  void onContoursVolumeChanged(vtkMRMLNode *node);
   void onCreateContours();
   void onFitSlicesToViewsChanged(bool toggled);
   void onWindowLevelPopupShow(bool show);
