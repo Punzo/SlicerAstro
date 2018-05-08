@@ -35,7 +35,6 @@
 // VTK includes
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
-#include <vtkImageHistogram.h>
 #include <vtkImageReslice.h>
 #include <vtkImageThreshold.h>
 #include <vtkIntArray.h>
@@ -1065,7 +1064,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
       d->plotChartNodeHistogram->SetName("HistogramChart");
       d->plotChartNodeHistogram->SetTitle("Histogram");
-      d->plotChartNodeHistogram->SetXAxisTitle("Intensity (Jy/beam)");
+      d->plotChartNodeHistogram->SetXAxisTitle("Intensity");
       d->plotChartNodeHistogram->SetYAxisTitle("Log10(#)");
       d->plotChartNodeHistogram->SetEnablePointMoveAlongX(true);
       d->plotChartNodeHistogram->SetEnablePointMoveAlongY(false);
@@ -3848,7 +3847,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     return;
     }
   Intensity->SetName("Intensity");
-  tableNode->SetColumnUnitLabel("Intensity", "Jy/beam");
+  tableNode->SetColumnUnitLabel("Intensity", d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT"));
   tableNode->SetColumnLongName("Intensity", "Intensity axes");
 
   std::string name = d->astroVolumeNode->GetName();
@@ -4012,6 +4011,10 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     {
     d->plotChartNodeHistogram->RemoveAllPlotSeriesNodeIDs();
     d->plotChartNodeHistogram->AddAndObservePlotSeriesNodeID(PlotSeriesNode->GetID());
+    std::string xunit = "Intensity (";
+    xunit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
+    xunit += ")";
+    d->plotChartNodeHistogram->SetXAxisTitle(xunit.c_str());
     }
 
   if (d->selectionNode)
@@ -5207,26 +5210,22 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeModified()
   d->DegreeUnitButton->blockSignals(DegreeState);
   d->SexagesimalUnitButton->blockSignals(SexagesimalState);
 
-  vtkMRMLUnitNode* unitNode = NULL;
-  if (d->selectionNode)
-    {
-    unitNode = d->selectionNode->GetUnitNode("intensity");
-    }
-
   std::string MIN = d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN");
   std::string MAX = d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX");
-  if (unitNode)
+
+  double DataMin = StringToDouble(MIN.c_str());
+  double DataMax = StringToDouble(MAX.c_str());
+  std::string DataMinString = DoubleToString(DataMin);
+  DataMinString += "  ";
+  std::string DataMaxString = DoubleToString(DataMax);
+  DataMaxString += "  ";
+  if (strcmp(d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT"), "UNDEFINED"))
     {
-    double DataMin = StringToDouble(MIN.c_str());
-    double DataMax = StringToDouble(MAX.c_str());
-    d->DataMinDisplay->setText(unitNode->GetDisplayStringFromValue(DataMin));
-    d->DataMaxDisplay->setText(unitNode->GetDisplayStringFromValue(DataMax));
+    DataMinString += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
+    DataMaxString += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
     }
-  else
-    {
-    d->DataMinDisplay->setText(MIN.c_str());
-    d->DataMaxDisplay->setText(MAX.c_str());
-    }
+  d->DataMinDisplay->setText(DataMinString.c_str());
+  d->DataMaxDisplay->setText(DataMaxString.c_str());
 }
 
 //--------------------------------------------------------------------------
