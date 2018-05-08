@@ -65,6 +65,7 @@ public:
 public slots:
   void ExtendAllSlices();
   void onColorChanged(QColor color);
+  void onContours2DOriginChanged(double value);
   void onContoursVolumeChanged(vtkMRMLNode *node);
   void onCreateContours();
   void onFitSlicesToViewsChanged(bool toggled);
@@ -81,7 +82,9 @@ public slots:
 
 protected slots:
   void onFitSlicesModified();
-  void updateWidgetFromMRML();
+  void updateWidgetFromActiveVolumeMRML();
+  void updateWidgetFromContoursMRML();
+  void updateWidgetFromDisplayMRML();
   void updateTransferFunction();
 
 protected:

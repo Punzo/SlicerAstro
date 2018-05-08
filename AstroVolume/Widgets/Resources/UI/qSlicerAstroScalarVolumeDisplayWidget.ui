@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>438</width>
-    <height>412</height>
+    <height>450</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -198,6 +198,22 @@
      </item>
     </layout>
    </item>
+   <item row="2" column="0">
+    <spacer name="verticalSpacer_2">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeType">
+      <enum>QSizePolicy::MinimumExpanding</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
    <item row="9" column="0">
     <widget class="QLabel" name="ContoursLabel">
      <property name="sizePolicy">
@@ -216,22 +232,6 @@
       <string>Contours:</string>
      </property>
     </widget>
-   </item>
-   <item row="2" column="0">
-    <spacer name="verticalSpacer_2">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeType">
-      <enum>QSizePolicy::MinimumExpanding</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>10</height>
-      </size>
-     </property>
-    </spacer>
    </item>
    <item row="8" column="0">
     <spacer name="verticalSpacer_4">
@@ -620,7 +620,7 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>The input data for the contours. If the data are different from the active data, the data will be reprojected to the WCS of the active data, and then reprojected contours will be generated.</string>
+        <string>The input data for the contours. If the data selection is different from the active data, the data will be reprojected to the WCS of the active data, and then reprojected contours will be generated.</string>
        </property>
        <property name="nodeTypes">
         <stringlist>
@@ -638,6 +638,48 @@
        </property>
        <property name="renameEnabled">
         <bool>false</bool>
+       </property>
+       <property name="selectNodeUponCreation">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item row="13" column="0" colspan="2">
+    <layout class="QHBoxLayout" name="horizontalLayout_10">
+     <item>
+      <widget class="QLabel" name="SliceSegmentationLabel">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="text">
+        <string>Slice Contours:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="ctkSliderWidget" name="Contours2DSliderWidget">
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>This widget moves a 2D image over 3D reprojected contours along the velocity axes. Specifically, this widget changes the origin of the 2D active data (i.e., the reference data used for the reprojection) and the z bounds are given by the reprojected segmentation. The slice offset and bounds are in ijk coordinates (of the contours data).</string>
+       </property>
+       <property name="decimals">
+        <number>0</number>
        </property>
       </widget>
      </item>
@@ -678,6 +720,11 @@
    <class>ctkColorPickerButton</class>
    <extends>QPushButton</extends>
    <header>ctkColorPickerButton.h</header>
+  </customwidget>
+  <customwidget>
+   <class>ctkSliderWidget</class>
+   <extends>QWidget</extends>
+   <header>ctkSliderWidget.h</header>
   </customwidget>
  </customwidgets>
  <resources>

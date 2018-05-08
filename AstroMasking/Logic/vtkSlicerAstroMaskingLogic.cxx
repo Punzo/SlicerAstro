@@ -730,24 +730,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   outputVolume->UpdateDisplayThresholdAttributes();
 
   // center the volume
-  double origin[3];
-  int *outdims = outputVolume->GetImageData()->GetDimensions();
-  double dimsH[4];
-  dimsH[0] = outdims[0] - 1;
-  dimsH[1] = outdims[1] - 1;
-  dimsH[2] = outdims[2] - 1;
-  dimsH[3] = 0.;
-
-  vtkNew<vtkMatrix4x4> ijkToRAS;
-  outputVolume->GetIJKToRASMatrix(ijkToRAS.GetPointer());
-  double rasCorner[4];
-  ijkToRAS->MultiplyPoint(dimsH, rasCorner);
-
-  origin[0] = -0.5 * rasCorner[0];
-  origin[1] = -0.5 * rasCorner[1];
-  origin[2] = -0.5 * rasCorner[2];
-
-  outputVolume->SetOrigin(origin);
+  this->Internal->AstroVolumeLogic->CenterVolume(outputVolume);
 
   // Calculate the new crpix values
   int cPixX = StringToInt(outputVolume->GetAttribute("SlicerAstro.CRPIX1"));

@@ -59,6 +59,7 @@
 #include <vtkAlgorithmOutput.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkDoubleArray.h>
+#include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
 #include <vtkImageThreshold.h>
 #include <vtkLookupTable.h>
@@ -128,6 +129,12 @@ template <typename T> T StringToNumber(const char* num)
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
 }
 
 //----------------------------------------------------------------------------
@@ -203,6 +210,11 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                      q, SLOT(onWindowLevelPopupShow(int)));
     }
 
+  this->WindowLevelPopupButton->setChecked(false);
+  q->onWindowLevelPopupShow(false);
+  this->ThresholdPushButton->setChecked(false);
+  q->setThreshold(false);
+
   QObject::connect(this->ContoursVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onContoursVolumeChanged(vtkMRMLNode*)));
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
@@ -211,11 +223,10 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                    q, SLOT(onColorChanged(QColor)));
   QObject::connect(this->ContourPushButton, SIGNAL(clicked()),
                    q, SLOT(onCreateContours()));
+  QObject::connect(this->Contours2DSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onContours2DOriginChanged(double)));
 
-  this->WindowLevelPopupButton->setChecked(false);
-  q->onWindowLevelPopupShow(false);
-  this->ThresholdPushButton->setChecked(false);
-  q->setThreshold(false);
+  this->Contours2DSliderWidget->hide();
 }
 
 // --------------------------------------------------------------------------
@@ -443,7 +454,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
     QString message = QString("Contours volume not found.");
     qWarning() << Q_FUNC_INFO << ": " << message;
     return;
-    return;
     }
 
   vtkMRMLAstroVolumeDisplayNode* astroDisplayNode =
@@ -461,18 +471,69 @@ void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
 }
 
 // --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onContours2DOriginChanged(double value)
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  vtkMRMLAstroVolumeNode *astroVolume = this->volumeNode();
+
+  if (!astroVolume)
+    {
+    return;
+    }
+
+  if (!d->contoursVolumeNode)
+    {
+    return;
+    }
+
+  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
+  IJKtoRASTransform->Identity();
+  IJKtoRASTransform->PostMultiply();
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  astroVolume->GetIJKToRASMatrix(IJKtoRASMatrix.GetPointer());
+  IJKtoRASMatrix->SetElement(0,3,0.);
+  IJKtoRASMatrix->SetElement(1,3,0.);
+  IJKtoRASMatrix->SetElement(2,3,0.);
+  IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
+  vtkImageData* image = astroVolume->GetImageData();
+  if (!image)
+    {
+    return;
+    }
+  int* dims = image->GetDimensions();
+  vtkImageData* contoursImage = d->contoursVolumeNode->GetImageData();
+  if (!contoursImage)
+    {
+    return;
+    }
+  int* contoursDims = contoursImage->GetDimensions();
+  double IJKOrigin[3] = {0.}, RASOrigin[3] = {0.};
+  IJKOrigin[0] = - dims[0] * 0.5;
+  IJKOrigin[1] = - dims[1] * 0.5;
+  IJKOrigin[2] = value - contoursDims[2] * 0.5;
+  IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
+  astroVolume->SetOrigin(RASOrigin);
+}
+
+// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onContoursVolumeChanged(vtkMRMLNode *node)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
 
   vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
 
-  if (!volumeNode || d->contoursVolumeNode == volumeNode)
+  if (d->contoursVolumeNode == volumeNode)
     {
     return;
     }
 
   d->contoursVolumeNode = volumeNode;
+
+  qvtkReconnect(d->contoursVolumeNode, vtkCommand::ModifiedEvent,
+                this, SLOT(updateWidgetFromContoursMRML()));
+
+  this->updateWidgetFromContoursMRML();
 }
 
 // --------------------------------------------------------------------------
@@ -512,7 +573,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     return;
     }
 
-  if (masterVolume != contoursVolume)
+  if (contoursVolume && masterVolume != contoursVolume)
     {
     QString message = QString("In order to overlay the segmentation, "
                               "the contours data will be reprojected over the active data. "
@@ -580,6 +641,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     reprojectParaNode->SetReferenceVolumeNodeID(masterVolume->GetID());
     reprojectParaNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
+    astroVolumeLogic->CenterVolume(masterVolume);
+    astroVolumeLogic->CenterVolume(contoursVolume);
+    astroVolumeLogic->CenterVolume(outputVolume);
+
     qSlicerAbstractCoreModule* AstroReprojectModule = qSlicerApplication::application()->moduleManager()->module("AstroReproject");
     if (!AstroReprojectModule)
       {
@@ -597,6 +662,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       return;
       }
 
+    QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
     if (reprojetLogic->Reproject(reprojectParaNode))
       {
       vtkNew<vtkStringArray> outputAttributes;
@@ -695,6 +761,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       this->mrmlScene()->RemoveNode(outputVolume);
       QString message = QString("The reprojection failed. No contours will be generated.");
       qWarning() << Q_FUNC_INFO << ": " << message;
+      QApplication::restoreOverrideCursor();
       return;
       }
     }
@@ -720,6 +787,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     {
     QString message = QString("segmentation node not found.");
     qWarning() << Q_FUNC_INFO << ": " << message;
+    QApplication::restoreOverrideCursor();
     return;
     }
 
@@ -804,6 +872,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
                               " is wrongly formatted. Check the ToolTip.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to create Contours"), message);
+    QApplication::restoreOverrideCursor();
     return;
     }
 
@@ -868,6 +937,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
                                 " is formatted wrongly. Check the ToolTip.");
       qCritical() << Q_FUNC_INFO << ": " << message;
       QMessageBox::warning(NULL, tr("Failed to create Contours"), message);
+      QApplication::restoreOverrideCursor();
       return;
       }
 
@@ -901,8 +971,9 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     Levels->InsertNextValue(StringToDouble(masterVolume->GetAttribute("SlicerAstro.HistoMaxSel")));
     }
   else
-    {
+    {  
     qCritical() << Q_FUNC_INFO << ": the input string defining the Contour Levels is formatted wrongly ";
+    QApplication::restoreOverrideCursor();
     return;
     }
 
@@ -935,7 +1006,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   // Create empty segment in current segmentation
   this->mrmlScene()->SaveStateForUndo();
-  QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
 
   int LevelDim = 0;
 
@@ -1030,6 +1100,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       datacubeDim = LevelDim * 8;
       break;
     default:
+      QApplication::restoreOverrideCursor();
       qCritical() << Q_FUNC_INFO << ": attempt to allocate scalars of type not allowed.";
       return;
     }
@@ -1222,11 +1293,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
 
-  if(!volumeNode)
+  if(!volumeNode || volumeNode == this->volumeNode())
     {
     return;
     }
 
+  vtkMRMLAstroVolumeNode *oldVolumeNode = this->volumeNode();
   vtkMRMLAstroVolumeDisplayNode* oldVolumeDisplayNode = this->volumeDisplayNode();
   d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
   d->MRMLVolumeThresholdWidget->setMRMLVolumeNode(volumeNode);
@@ -1236,22 +1308,27 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
   d->ThresholdPushButton->setChecked(false);
   this->setThreshold(false);
 
-  qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
+  qvtkReconnect(oldVolumeDisplayNode, volumeNode->GetDisplayNode(),
                 vtkCommand::ModifiedEvent,
-                this, SLOT(updateWidgetFromMRML()));
+                this, SLOT(updateWidgetFromDisplayMRML()));
 
-  qvtkReconnect(oldVolumeDisplayNode, volumeNode ? volumeNode->GetDisplayNode() :0,
+  qvtkReconnect(oldVolumeDisplayNode, volumeNode->GetDisplayNode(),
                 vtkMRMLAstroVolumeDisplayNode::FitSlicesModifiedEvent,
                 this, SLOT(onFitSlicesModified()));
 
+  qvtkReconnect(oldVolumeNode, volumeNode,
+                vtkCommand::ModifiedEvent,
+                this, SLOT(updateWidgetFromActiveVolumeMRML()));
+
   this->setEnabled(volumeNode != 0);
-  this->onContoursVolumeChanged(volumeNode);
-  this->updateWidgetFromMRML();
   this->onFitSlicesModified();
+  this->updateWidgetFromDisplayMRML();
+  this->onContoursVolumeChanged(volumeNode);
+  this->updateWidgetFromActiveVolumeMRML();
 }
 
 // --------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
+void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
 
@@ -1262,7 +1339,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
 
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
-
   if (!displayNode)
     {
     return;
@@ -1277,37 +1353,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
   else
     {
     d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
-    }
-
-
-  if (d->contoursVolumeNode)
-    {
-    d->ContoursVolumeNodeSelector->setCurrentNode(d->contoursVolumeNode);
-
-    vtkDoubleArray *contoursColor =  d->contoursVolumeNode->
-      GetAstroVolumeDisplayNode()->GetContoursColor();
-    QColor color;
-    double red, green, blue;
-    red = contoursColor->GetValue(0) * 256;
-    green = contoursColor->GetValue(1) * 256;
-    blue = contoursColor->GetValue(2) * 256;
-    if (red > 255)
-      {
-      red = 255;
-      }
-    if (green > 255)
-      {
-      green = 255;
-      }
-    if (blue > 255)
-      {
-      blue = 255;
-      }
-    color.setRed(red);
-    color.setGreen(green);
-    color.setBlue(blue);
-    d->ColorPickerButton->setColor(color);
-    }
+    }  
 
   vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
   if (colorNode)
@@ -1579,6 +1625,138 @@ void qSlicerAstroScalarVolumeDisplayWidget::onFitSlicesModified()
 
   d->FitSlicesToViewsPushButton->setChecked(displayNode->GetFitSlices());
   this->ExtendAllSlices();
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromActiveVolumeMRML()
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  vtkMRMLAstroVolumeNode* astroVolume = this->volumeNode();
+  if (!astroVolume)
+    {
+    return;
+    }
+
+  if (!d->contoursVolumeNode)
+    {
+    return;
+    }
+
+  if (d->contoursVolumeNode != astroVolume)
+    {
+    vtkImageData* contoursImage = d->contoursVolumeNode->GetImageData();
+    if (!contoursImage)
+      {
+      return;
+      }
+    int* contoursDims = contoursImage->GetDimensions();
+
+    double* RASOrigin = astroVolume->GetOrigin();
+    vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+    RAStoIJKTransform->Identity();
+    RAStoIJKTransform->PostMultiply();
+    vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+    astroVolume->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+    RAStoIJKMatrix->SetElement(0,3,0.);
+    RAStoIJKMatrix->SetElement(1,3,0.);
+    RAStoIJKMatrix->SetElement(2,3,0.);
+    RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+    double IJKOrigin[3];
+    RAStoIJKTransform->TransformPoint(RASOrigin, IJKOrigin);
+    IJKOrigin[2] += contoursDims[2] * 0.5;
+
+    d->Contours2DSliderWidget->blockSignals(true);
+    d->Contours2DSliderWidget->setValue(IJKOrigin[2]);
+    d->Contours2DSliderWidget->setSingleStep(1);
+    d->Contours2DSliderWidget->setPageStep((int) (contoursDims[2] * 0.1));
+    d->Contours2DSliderWidget->blockSignals(false);
+    }
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromContoursMRML()
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  if (!d->contoursVolumeNode)
+    {
+    d->Contours2DSliderWidget->hide();
+    return;
+    }
+
+  d->ContoursVolumeNodeSelector->setCurrentNodeID(d->contoursVolumeNode->GetID());
+
+  vtkDoubleArray *contoursColor =  d->contoursVolumeNode->
+    GetAstroVolumeDisplayNode()->GetContoursColor();
+  QColor color;
+  double red, green, blue;
+  red = contoursColor->GetValue(0) * 256;
+  green = contoursColor->GetValue(1) * 256;
+  blue = contoursColor->GetValue(2) * 256;
+  if (red > 255)
+    {
+    red = 255;
+    }
+  if (green > 255)
+    {
+    green = 255;
+    }
+  if (blue > 255)
+    {
+    blue = 255;
+    }
+  color.setRed(red);
+  color.setGreen(green);
+  color.setBlue(blue);
+  d->ColorPickerButton->setColor(color);
+
+  vtkMRMLAstroVolumeNode* astroVolume = this->volumeNode();
+  if (!astroVolume)
+    {
+    d->Contours2DSliderWidget->hide();
+    return;
+    }
+
+  if (d->contoursVolumeNode != astroVolume)
+    {
+    int ActiveDataN = StringToInt(astroVolume->GetAttribute("SlicerAstro.NAXIS"));
+    int ContoursDataN = StringToInt(d->contoursVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
+    if (ActiveDataN == 2 && ContoursDataN == 3)
+      {
+      d->Contours2DSliderWidget->show();
+      }
+
+    vtkImageData* contoursImage = d->contoursVolumeNode->GetImageData();
+    if (!contoursImage)
+      {
+      d->Contours2DSliderWidget->hide();
+      return;
+      }
+    int* contoursDims = contoursImage->GetDimensions();
+
+    double* RASOrigin = astroVolume->GetOrigin();
+    vtkNew<vtkGeneralTransform> RAStoIJKTransform;
+    RAStoIJKTransform->Identity();
+    RAStoIJKTransform->PostMultiply();
+    vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
+    astroVolume->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
+    RAStoIJKMatrix->SetElement(0,3,0.);
+    RAStoIJKMatrix->SetElement(1,3,0.);
+    RAStoIJKMatrix->SetElement(2,3,0.);
+    RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
+    double IJKOrigin[3];
+    RAStoIJKTransform->TransformPoint(RASOrigin, IJKOrigin);
+    IJKOrigin[2] += contoursDims[2] * 0.5;
+    d->Contours2DSliderWidget->setValue(IJKOrigin[2]);
+    d->Contours2DSliderWidget->setRange(0., contoursDims[2]);
+    d->Contours2DSliderWidget->setSingleStep(1);
+    d->Contours2DSliderWidget->setPageStep((int) (contoursDims[2] * 0.1));
+    }
+  else
+    {
+    d->Contours2DSliderWidget->hide();
+    }
 }
 
 // --------------------------------------------------------------------------

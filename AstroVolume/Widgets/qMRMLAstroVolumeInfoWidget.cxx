@@ -410,21 +410,13 @@ void qMRMLAstroVolumeInfoWidget::setImageOrigin(double* IJKOrigin)
   IJKtoRASMatrix->SetElement(2,3,0.);
   IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
   vtkImageData* image = d->VolumeNode->GetImageData();
-  double dimensions[3] = {0.,0.,0.};
-  int* dims = image ? image->GetDimensions() : 0;
-  if (dims)
-    {
-    dimensions[0] = dims[0];
-    dimensions[1] = dims[1];
-    dimensions[2] = dims[2];
-    }
-  IJKOrigin[0] -= dimensions[0];
-  IJKOrigin[1] -= dimensions[1];
-  IJKOrigin[2] -= dimensions[2];
+  int* dims = image->GetDimensions();
+  IJKOrigin[0] -= dims[0];
+  IJKOrigin[1] -= dims[1];
+  IJKOrigin[2] -= dims[2];
   double RASOrigin[3];
   IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
   d->VolumeNode->SetOrigin(RASOrigin);
-  d->VolumeNode->Modified();
 }
 
 //------------------------------------------------------------------------------
