@@ -236,6 +236,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
   bool cancel = false;
   int status = 0;
+  const double NaN = sqrt(-1);
 
   #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   int numProcs = 0;
@@ -338,12 +339,10 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) =
-                std::numeric_limits<double>::quiet_NaN();
+              *(outFPixel + elemCnt) = NaN;
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) =
-                std::numeric_limits<double>::quiet_NaN();
+              *(outDPixel + elemCnt) = NaN;
               break;
             }
           continue;
@@ -352,10 +351,10 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
         switch (DataType)
           {
          case VTK_FLOAT:
-           *(outFPixel + elemCnt) =  *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+           *(outFPixel + elemCnt) = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
            break;
          case VTK_DOUBLE:
-           *(outDPixel + elemCnt) =  *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+           *(outDPixel + elemCnt) = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
            break;
           }
 
@@ -427,21 +426,20 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) =
-                std::numeric_limits<double>::quiet_NaN();
+              *(outFPixel + elemCnt) = NaN;
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) =
-                std::numeric_limits<double>::quiet_NaN();
+              *(outDPixel + elemCnt) = NaN;
               break;
             }
           continue;
           }
 
         double F11 = 0., F12 = 0., F21 = 0., F22 = 0.;
+
         if (!x1Inside || !y1Inside)
           {
-          F11 = 0.;
+          F11 = NaN;
           }
         else
           {
@@ -455,9 +453,10 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
               break;
             }
           }
+
         if (!x2Inside || !y1Inside)
           {
-          F21 = 0.;
+          F21 = NaN;
           }
         else
           {
@@ -471,9 +470,10 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
               break;
             }
           }
+
         if (!x1Inside || !y2Inside)
           {
-          F12 = 0.;
+          F12 = NaN;
           }
         else
           {
@@ -487,9 +487,10 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
               break;
             }
           }
+
         if (!x2Inside || !y2Inside)
           {
-          F22 = 0.;
+          F22 = NaN;
           }
         else
           {
@@ -599,12 +600,10 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
           switch (DataType)
             {
             case VTK_FLOAT:
-              *(outFPixel + elemCnt) =
-                std::numeric_limits<double>::quiet_NaN();
+              *(outFPixel + elemCnt) = NaN;
               break;
             case VTK_DOUBLE:
-              *(outDPixel + elemCnt) =
-                std::numeric_limits<double>::quiet_NaN();
+              *(outDPixel + elemCnt) = NaN;
               break;
             }
           continue;
@@ -616,7 +615,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
         double F41 = 0., F42 = 0., F43 = 0., F44 = 0.;
         if (!x1Inside || !y1Inside)
           {
-          F11 = 0.;
+          F11 = NaN;
           }
         else
           {
@@ -633,7 +632,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x2Inside || !y1Inside)
           {
-          F21 = 0.;
+          F21 = NaN;
           }
         else
           {
@@ -650,7 +649,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x3Inside || !y1Inside)
           {
-          F31 = 0.;
+          F31 = NaN;
           }
         else
           {
@@ -667,7 +666,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x4Inside || !y1Inside)
           {
-          F41 = 0.;
+          F41 = NaN;
           }
         else
           {
@@ -684,7 +683,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x1Inside || !y2Inside)
           {
-          F12 = 0.;
+          F12 = NaN;
           }
         else
           {
@@ -701,7 +700,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x2Inside || !y2Inside)
           {
-          F22 = 0.;
+          F22 = NaN;
           }
         else
           {
@@ -718,7 +717,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x3Inside || !y2Inside)
           {
-          F32 = 0.;
+          F32 = NaN;
           }
         else
           {
@@ -735,7 +734,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x4Inside || !y2Inside)
           {
-          F42 = 0.;
+          F42 = NaN;
           }
         else
           {
@@ -752,7 +751,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x1Inside || !y3Inside)
           {
-          F13 = 0.;
+          F13 = NaN;
           }
         else
           {
@@ -769,7 +768,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x2Inside || !y3Inside)
           {
-          F23 = 0.;
+          F23 = NaN;
           }
         else
           {
@@ -786,7 +785,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x3Inside || !y3Inside)
           {
-          F33 = 0.;
+          F33 = NaN;
           }
         else
           {
@@ -803,7 +802,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x4Inside || !y3Inside)
           {
-          F43 = 0.;
+          F43 = NaN;
           }
         else
           {
@@ -820,7 +819,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x1Inside || !y4Inside)
           {
-          F14 = 0.;
+          F14 = NaN;
           }
         else
           {
@@ -837,7 +836,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x2Inside || !y4Inside)
           {
-          F24 = 0.;
+          F24 = NaN;
           }
         else
           {
@@ -854,7 +853,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x3Inside || !y4Inside)
           {
-          F34 = 0.;
+          F34 = NaN;
           }
         else
           {
@@ -871,7 +870,7 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
 
         if (!x4Inside || !y4Inside)
           {
-          F44 = 0.;
+          F44 = NaN;
           }
         else
           {
