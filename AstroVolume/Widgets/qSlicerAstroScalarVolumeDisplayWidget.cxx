@@ -30,11 +30,16 @@
 
 // SlicerQt includes
 #include <qMRMLSliceAstroWidget.h>
+#include <qSlicerAbstractCoreModule.h>
+#include <qSlicerAbstractModuleFactoryManager.h>
 #include <qSlicerApplication.h>
 #include <qSlicerLayoutManager.h>
+#include <qSlicerModuleFactoryManager.h>
+#include <qSlicerModuleManager.h>
 #include <vtkSlicerApplicationLogic.h>
 
 // MRML includes
+#include <vtkMRMLAstroReprojectParametersNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLColorNode.h>
@@ -47,6 +52,7 @@
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLUnitNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 // VTK includes
 #include <vtkAlgorithm.h>
@@ -67,6 +73,8 @@
 #include <ctkPopupWidget.h>
 
 // logic includes
+#include <vtkSlicerAstroReprojectLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerSegmentationsModuleLogic.h>
 
 // STD includes
@@ -86,6 +94,7 @@ public:
   void init();
 
   vtkSmartPointer<vtkColorTransferFunction> ColorTransferFunction;
+  vtkWeakPointer<vtkMRMLAstroVolumeNode> contoursVolumeNode;
   int nameIndex;
 };
 
@@ -95,6 +104,7 @@ qSlicerAstroScalarVolumeDisplayWidgetPrivate::qSlicerAstroScalarVolumeDisplayWid
   : q_ptr(&object)
 {
   this->ColorTransferFunction = vtkSmartPointer<vtkColorTransferFunction>::New();
+  this->contoursVolumeNode = 0;
   nameIndex = 0;
 }
 
@@ -193,6 +203,10 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                      q, SLOT(onWindowLevelPopupShow(int)));
     }
 
+  QObject::connect(this->ContoursVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onContoursVolumeChanged(vtkMRMLNode*)));
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->ContoursVolumeNodeSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
   QObject::connect(this->ColorPickerButton, SIGNAL(colorChanged(QColor)),
                    q, SLOT(onColorChanged(QColor)));
   QObject::connect(this->ContourPushButton, SIGNAL(clicked()),
@@ -422,10 +436,21 @@ void qSlicerAstroScalarVolumeDisplayWidget::onFitSlicesToViewsChanged(bool toggl
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
 {
-  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode = this->volumeDisplayNode();
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  if (!d->contoursVolumeNode)
+    {
+    QString message = QString("Contours volume not found.");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+    return;
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode =
+    d->contoursVolumeNode->GetAstroVolumeDisplayNode();
   if (!astroDisplayNode)
     {
-    QString message = QString("Display node not found.");
+    QString message = QString("Contours display node not found.");
     qWarning() << Q_FUNC_INFO << ": " << message;
     return;
     }
@@ -436,9 +461,29 @@ void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
 }
 
 // --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onContoursVolumeChanged(vtkMRMLNode *node)
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+
+  if (!volumeNode || d->contoursVolumeNode == volumeNode)
+    {
+    return;
+    }
+
+  d->contoursVolumeNode = volumeNode;
+}
+
+// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  if (!this->mrmlScene())
+    {
+    return;
+    }
 
   QString ContourLevels = d->ContourLevelsLineEdit->text();
   std::string LevelsStdString = ContourLevels.toStdString();
@@ -451,7 +496,15 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     return;
     }
 
-  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode = this->volumeDisplayNode();
+  vtkMRMLAstroVolumeNode* contoursVolume = d->contoursVolumeNode;
+  if (!contoursVolume)
+    {
+    QString message = QString("Contours volume not found.");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+    return;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode* astroDisplayNode = contoursVolume->GetAstroVolumeDisplayNode();
   if (!astroDisplayNode)
     {
     QString message = QString("Display node not found.");
@@ -459,12 +512,194 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     return;
     }
 
-  std::string NamePrefixStdString = masterVolume->GetName();
-
-  if (!this->mrmlScene())
+  if (masterVolume != contoursVolume)
     {
-    return;
+    QString message = QString("In order to overlay the segmentation, "
+                              "the contours data will be reprojected over the active data. "
+                              "The regridding is performed with a bilinear interpolation.");
+    qWarning() << Q_FUNC_INFO << ": " << message;
+
+    std::ostringstream outSS;
+    outSS << contoursVolume->GetName() << "_Reprojected";
+
+    if (!qSlicerApplication::application())
+      {
+      QString message = QString("Slicer app not found.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+
+    qSlicerModuleManager* moduleManager = qSlicerApplication::application()->moduleManager();
+    if (!moduleManager)
+      {
+      QString message = QString("Module manager not found.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+
+    qSlicerAbstractCoreModule* AstroVolumeModule = qSlicerApplication::application()->moduleManager()->module("AstroVolume");
+    if (!AstroVolumeModule)
+      {
+      QString message = QString("AstroVolume module not found.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+
+    vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+      vtkSlicerAstroVolumeLogic::SafeDownCast(AstroVolumeModule->logic());
+    if (!astroVolumeLogic)
+      {
+      QString message = QString("AstroVolume logic not found.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+
+    vtkMRMLAstroVolumeNode *outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (astroVolumeLogic->CloneVolume(this->mrmlScene(), contoursVolume, outSS.str().c_str()));
+
+    int ndnodes = outputVolume->GetNumberOfDisplayNodes();
+    for (int ii = 0; ii < ndnodes; ii++)
+      {
+      vtkMRMLVolumeRenderingDisplayNode *dnode =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+          outputVolume->GetNthDisplayNode(ii));
+      if (dnode)
+        {
+        outputVolume->RemoveNthDisplayNodeID(ii);
+        }
+      }
+
+    vtkNew<vtkMatrix4x4> transformationMatrix;
+    contoursVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
+    outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
+    outputVolume->SetAndObserveTransformNodeID(contoursVolume->GetTransformNodeID());
+
+    vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParaNode;
+    reprojectParaNode->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::Bilinear);
+    reprojectParaNode->SetInputVolumeNodeID(contoursVolume->GetID());
+    reprojectParaNode->SetReferenceVolumeNodeID(masterVolume->GetID());
+    reprojectParaNode->SetOutputVolumeNodeID(outputVolume->GetID());
+
+    qSlicerAbstractCoreModule* AstroReprojectModule = qSlicerApplication::application()->moduleManager()->module("AstroReproject");
+    if (!AstroReprojectModule)
+      {
+      QString message = QString("AstroReproject module not found.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+
+    vtkSlicerAstroReprojectLogic* reprojetLogic =
+      vtkSlicerAstroReprojectLogic::SafeDownCast(AstroReprojectModule->logic());
+    if (!reprojetLogic)
+      {
+      QString message = QString("AstroReproject logic not found.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+
+    if (reprojetLogic->Reproject(reprojectParaNode))
+      {
+      vtkNew<vtkStringArray> outputAttributes;
+      outputVolume->GetAttributeNames(outputAttributes);
+      for (int AttributeIndex = 0; AttributeIndex < outputAttributes->GetNumberOfValues(); AttributeIndex++)
+        {
+        std::string AttributeKey = outputAttributes->GetValue(AttributeIndex).c_str();
+        if (AttributeKey.find("_COMMENT") != std::string::npos ||
+            AttributeKey.find("_HISTORY") != std::string::npos)
+          {
+          continue;
+          }
+        else if (AttributeKey.find("BMAJ") != std::string::npos ||
+            AttributeKey.find("BMIN") != std::string::npos ||
+            AttributeKey.find("BPA") != std::string::npos ||
+            AttributeKey.find("CD1_1") != std::string::npos ||
+            AttributeKey.find("CD1_2") != std::string::npos ||
+            AttributeKey.find("CD2_1") != std::string::npos ||
+            AttributeKey.find("CD2_2") != std::string::npos ||
+            AttributeKey.find("CDELT1") != std::string::npos ||
+            AttributeKey.find("CDELT2") != std::string::npos ||
+            AttributeKey.find("CROTA1") != std::string::npos ||
+            AttributeKey.find("CROTA2") != std::string::npos ||
+            AttributeKey.find("CRPIX1") != std::string::npos ||
+            AttributeKey.find("CRPIX2") != std::string::npos ||
+            AttributeKey.find("CRVAL1") != std::string::npos ||
+            AttributeKey.find("CRVAL2") != std::string::npos ||
+            AttributeKey.find("CTYPE1") != std::string::npos ||
+            AttributeKey.find("CTYPE2") != std::string::npos ||
+            AttributeKey.find("CUNIT1") != std::string::npos ||
+            AttributeKey.find("CUNIT2") != std::string::npos ||
+            AttributeKey.find("NAXIS1") != std::string::npos ||
+            AttributeKey.find("NAXIS2") != std::string::npos ||
+            AttributeKey.find("PC1_1") != std::string::npos ||
+            AttributeKey.find("PC1_2") != std::string::npos ||
+            AttributeKey.find("PC2_1") != std::string::npos ||
+            AttributeKey.find("PC2_2") != std::string::npos)
+          {
+          outputVolume->RemoveAttribute(AttributeKey.c_str());
+          }
+        }
+
+      vtkNew<vtkStringArray> referenceAttributes;
+      masterVolume->GetAttributeNames(referenceAttributes);
+      for (int AttributeIndex = 0; AttributeIndex < referenceAttributes->GetNumberOfValues(); AttributeIndex++)
+        {
+        std::string AttributeKey = referenceAttributes->GetValue(AttributeIndex).c_str();
+        if (AttributeKey.find("_COMMENT") != std::string::npos ||
+            AttributeKey.find("_HISTORY") != std::string::npos)
+          {
+          continue;
+          }
+        else if (AttributeKey.find("BMAJ") != std::string::npos ||
+            AttributeKey.find("BMIN") != std::string::npos ||
+            AttributeKey.find("BPA") != std::string::npos ||
+            AttributeKey.find("CD1_1") != std::string::npos ||
+            AttributeKey.find("CD1_2") != std::string::npos ||
+            AttributeKey.find("CD2_1") != std::string::npos ||
+            AttributeKey.find("CD2_2") != std::string::npos ||
+            AttributeKey.find("CDELT1") != std::string::npos ||
+            AttributeKey.find("CDELT2") != std::string::npos ||
+            AttributeKey.find("CROTA1") != std::string::npos ||
+            AttributeKey.find("CROTA2") != std::string::npos ||
+            AttributeKey.find("CRPIX1") != std::string::npos ||
+            AttributeKey.find("CRPIX2") != std::string::npos ||
+            AttributeKey.find("CRVAL1") != std::string::npos ||
+            AttributeKey.find("CRVAL2") != std::string::npos ||
+            AttributeKey.find("CTYPE1") != std::string::npos ||
+            AttributeKey.find("CTYPE2") != std::string::npos ||
+            AttributeKey.find("CUNIT1") != std::string::npos ||
+            AttributeKey.find("CUNIT2") != std::string::npos ||
+            AttributeKey.find("NAXIS1") != std::string::npos ||
+            AttributeKey.find("NAXIS2") != std::string::npos ||
+            AttributeKey.find("PC1_1") != std::string::npos ||
+            AttributeKey.find("PC1_2") != std::string::npos ||
+            AttributeKey.find("PC2_1") != std::string::npos ||
+            AttributeKey.find("PC2_2") != std::string::npos)
+          {
+          std::string AttributeValue = masterVolume->GetAttribute(AttributeKey.c_str());
+          outputVolume->SetAttribute(AttributeKey.c_str(), AttributeValue.c_str());
+          }
+        }
+
+      vtkMRMLAstroVolumeDisplayNode* outputDisplayNode = outputVolume->GetAstroVolumeDisplayNode();
+      vtkMRMLAstroVolumeDisplayNode* referenceDisplayNode = masterVolume->GetAstroVolumeDisplayNode();
+      outputDisplayNode->SetFitSlices(referenceDisplayNode->GetFitSlices());
+      outputDisplayNode->SetContoursColor(referenceDisplayNode->GetContoursColor());
+      outputDisplayNode->SetSpaceQuantities(referenceDisplayNode->GetSpaceQuantities());
+      outputDisplayNode->SetSpace(referenceDisplayNode->GetSpace());
+      outputDisplayNode->CopySpatialWCS(referenceDisplayNode);
+
+      masterVolume = outputVolume;
+      }
+    else
+      {
+      this->mrmlScene()->RemoveNode(outputVolume);
+      QString message = QString("The reprojection failed. No contours will be generated.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
     }
+
+  std::string NamePrefixStdString = masterVolume->GetName();
 
   std::string segmentEditorSingletonTag = "SegmentEditor";
   vtkMRMLSegmentEditorNode *segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
@@ -517,10 +752,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   double value;
   double MIN = StringToDouble(masterVolume->GetAttribute("SlicerAstro.DATAMIN"));
   double MAX = StringToDouble(masterVolume->GetAttribute("SlicerAstro.DATAMAX"));
-  double DisplayThreshold = StringToDouble(masterVolume->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double DisplayThreshold = StringToDouble(masterVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
 
   bool convert = false;
-  std::size_t found = LevelsStdString.find("3DDisplayThreshold");
+  std::size_t found = LevelsStdString.find("DT");
   if (found != std::string::npos)
     {
     convert = true;
@@ -574,7 +809,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   if (convert)
     {
-    for (int ii = 0; ii < 18; ii++)
+    for (int ii = 0; ii < 2; ii++)
       {
       ss.ignore();
       }
@@ -846,6 +1081,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     }
 
   QApplication::restoreOverrideCursor();
+
+  if (masterVolume != this->volumeNode())
+    {
+    this->mrmlScene()->RemoveNode(masterVolume);
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -1005,6 +1245,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
                 this, SLOT(onFitSlicesModified()));
 
   this->setEnabled(volumeNode != 0);
+  this->onContoursVolumeChanged(volumeNode);
   this->updateWidgetFromMRML();
   this->onFitSlicesModified();
 }
@@ -1038,28 +1279,35 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromMRML()
     d->InterpolatePushButton->setIcon(QIcon(":Icons/SliceInterpolationOff.png"));
     }
 
-  vtkDoubleArray *contoursColor =  displayNode->GetContoursColor();
-  QColor color;
-  double red, green, blue;
-  red = contoursColor->GetValue(0) * 256;
-  green = contoursColor->GetValue(1) * 256;
-  blue = contoursColor->GetValue(2) * 256;
-  if (red > 255)
+
+  if (d->contoursVolumeNode)
     {
-    red = 255;
+    d->ContoursVolumeNodeSelector->setCurrentNode(d->contoursVolumeNode);
+
+    vtkDoubleArray *contoursColor =  d->contoursVolumeNode->
+      GetAstroVolumeDisplayNode()->GetContoursColor();
+    QColor color;
+    double red, green, blue;
+    red = contoursColor->GetValue(0) * 256;
+    green = contoursColor->GetValue(1) * 256;
+    blue = contoursColor->GetValue(2) * 256;
+    if (red > 255)
+      {
+      red = 255;
+      }
+    if (green > 255)
+      {
+      green = 255;
+      }
+    if (blue > 255)
+      {
+      blue = 255;
+      }
+    color.setRed(red);
+    color.setGreen(green);
+    color.setBlue(blue);
+    d->ColorPickerButton->setColor(color);
     }
-  if (green > 255)
-    {
-    green = 255;
-    }
-  if (blue > 255)
-    {
-    blue = 255;
-    }
-  color.setRed(red);
-  color.setGreen(green);
-  color.setBlue(blue);
-  d->ColorPickerButton->setColor(color);
 
   vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
   if (colorNode)

@@ -514,7 +514,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -1016,7 +1016,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -1134,7 +1134,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -1405,7 +1405,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
   pnode->SetStatus(100);
 
@@ -1883,7 +1883,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -2007,7 +2007,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -2088,7 +2088,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     }
   const int numElements = dims[0] * dims[1] * dims[2];
   const int numSlice = dims[0] * dims[1];
-  const double noise = StringToDouble(inputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  const double noise = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
   const double noise2 = noise * noise * pnode->GetK() * pnode->GetK();
   float *outFPixel = NULL;
   float *tempFPixel = NULL;
@@ -2302,7 +2302,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
@@ -2405,7 +2405,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetK(pnode->GetK());
   filter->SetAccuracy(pnode->GetAccuracy());
   filter->SetTimeStep(pnode->GetTimeStep());
-  filter->SetRMS(StringToDouble(inputVolume->GetAttribute("SlicerAstro.3DDisplayThreshold")));
+  filter->SetRMS(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")));
 
   filter->SetRenderWindow(renderWindow);
 
@@ -2437,7 +2437,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
-  outputVolume->Update3DDisplayThresholdAttributes();
+  outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);

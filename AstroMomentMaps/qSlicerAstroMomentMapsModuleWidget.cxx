@@ -1153,11 +1153,6 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     // copy 2D image into the Astro Volume object
     ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
-    double Origin[3];
-    inputVolume->GetOrigin(Origin);
-    Origin[1] = -Origin[1];
-    ZeroMomentVolume->SetOrigin(Origin);
-
     ZeroMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
 
@@ -1256,11 +1251,6 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
     // copy 2D image into the Astro Volume object
     FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-    double Origin[3];
-    inputVolume->GetOrigin(Origin);
-    Origin[1] = -Origin[1];
-    FirstMomentVolume->SetOrigin(Origin);
 
     // change colorMap of the 2D image
     vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
@@ -1372,11 +1362,6 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
     // copy 2D image into the Astro Volume object
     SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
-    double Origin[3];
-    inputVolume->GetOrigin(Origin);
-    Origin[1] = -Origin[1];
-    SecondMomentVolume->SetOrigin(Origin);
 
     // change colorMap of the 2D image
     vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();

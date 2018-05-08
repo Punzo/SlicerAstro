@@ -165,7 +165,7 @@
          </sizepolicy>
         </property>
         <property name="toolTip">
-         <string>A 0th moment map is automatically calculated for the input volume (DATAMIN = 2 * 3DDisplayThreshold; DATAMAX = DATAMAX; VELMIN = VELMIN; VELMAX = VELMAX). The user may give any moment map as input (e.g. calulate them by using the MomentMaps module).</string>
+         <string>A 0th moment map is automatically calculated for the input volume (DATAMIN = 2 * DisplayThreshold; DATAMAX = DATAMAX; VELMIN = VELMIN; VELMAX = VELMAX). The user may give any moment map as input (e.g. calulate them by using the MomentMaps module).</string>
         </property>
         <property name="nodeTypes">
          <stringlist>

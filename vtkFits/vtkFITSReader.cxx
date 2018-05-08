@@ -851,6 +851,44 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.CUNIT1"] = "DEGREE";
      }
 
+   double CRVAL1 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CRVAL1")).c_str());
+   std::string CUNIT1 = this->HeaderKeyValue.at("SlicerAstro.CUNIT1");
+
+   if (CUNIT1.find("DEGREE") != std::string::npos ||
+       CUNIT1.find("degree") != std::string::npos ||
+       CUNIT1.find("deg") != std::string::npos)
+     {
+     while (CRVAL1 < 0. ||  CRVAL1 > 360.)
+       {
+       if (CRVAL1 < 0.)
+         {
+         CRVAL1 += 360.;
+         }
+       else if (CRVAL1 > 360.)
+         {
+         CRVAL1 -= 360.;
+         }
+       }
+     }
+   else if (CUNIT1.find("RADIAN") != std::string::npos ||
+            CUNIT1.find("radian") != std::string::npos ||
+            CUNIT1.find("rad") != std::string::npos)
+     {
+     while (CRVAL1 < 0. ||  CRVAL1 > 2 * PI)
+       {
+       if (CRVAL1 < 0.)
+         {
+         CRVAL1 += 2 * PI;
+         }
+       else if (CRVAL1 > 2 * PI)
+         {
+         CRVAL1 -= 2 * PI;
+         }
+       }
+     }
+
+   this->HeaderKeyValue["SlicerAstro.CRVAL1"] = DoubleToString(CRVAL1);
+
    if (this->HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0 && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
@@ -875,31 +913,16 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   bool CDELTFound = true;
    if (this->HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
-     CDELTFound = false;
      this->HeaderKeyValue["SlicerAstro.CDELT1"] = "1.0";
-     }
-
-   double CDELT1 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT1")).c_str());
-   if (fabs(CDELT1) < 1.E-6)
-     {
-     CDELTFound = false;
      }
 
    if (n > 1)
      {
      if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
        {
-       CDELTFound = false;
        this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
-       }
-
-     double CDELT2 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT2")).c_str());
-     if (fabs(CDELT2) < 1.E-6)
-       {
-       CDELTFound = false;
        }
      }
 
@@ -907,40 +930,27 @@ bool vtkFITSReader::AllocateHeader()
      {
      if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
        {
-       CDELTFound = false;
        this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
-       }
-
-     double CDELT3 = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CDELT3")).c_str());
-     if (fabs(CDELT3) < 1.E-6)
-       {
-       CDELTFound = false;
        }
      }
 
-   bool CROTAFound = true;
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA1") == 0)
      {
-     CROTAFound = false;
      this->HeaderKeyValue["SlicerAstro.CROTA1"] = "0.";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA2") == 0 && n > 1)
      {
-     CROTAFound = false;
      this->HeaderKeyValue["SlicerAstro.CROTA2"] = "0.";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)
      {
-     CROTAFound = false;
      this->HeaderKeyValue["SlicerAstro.CROTA3"] = "0.";
      }
 
-   bool CDMatrixFound = true;
    if (this->HeaderKeyValue.count("SlicerAstro.CD1_1") == 0 && n > 1)
      {
-     CDMatrixFound = false;
      this->HeaderKeyValue["SlicerAstro.CD1_1"] = "0.";
      }
 
@@ -984,10 +994,8 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.CD3_3"] = "0.";
      }
 
-   bool PCMatrixFound = true;
    if (this->HeaderKeyValue.count("SlicerAstro.PC1_1") == 0 && n > 1)
      {
-     PCMatrixFound = false;
      this->HeaderKeyValue["SlicerAstro.PC1_1"] = "1";
      }
 
@@ -1031,104 +1039,6 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.PC3_3"] = "1";
      }
 
-   if (!CDMatrixFound && !PCMatrixFound && !CDELTFound && n > 1)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing both the CD and PC Matrices and"
-                     " CDELT keywords are missing.");
-     }
-
-   if (!CDMatrixFound && !PCMatrixFound && !CROTAFound && n > 1)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing both the CD and PC Matrices and"
-                     " CROTA keywords are missing.");
-     }
-
-   if (CDMatrixFound && !PCMatrixFound && !CDELTFound && n > 1)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the the PC Matrix and CDELT keywords."
-                     " CD Matrix found."
-                     " CDELT and CROTA keywords will be derived from the CD Matrix.");
-     }
-
-   if (!CDMatrixFound && !PCMatrixFound && (CDELTFound || CROTAFound) && n > 1)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing both the CD and PC Matrices."
-                     " The CDELT and CROTA keywords will be used.");
-     }
-
-   if (!CDMatrixFound && PCMatrixFound && CDELTFound && n > 1)
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " PC Matrix and CDELT keywords found."
-                     " CD Matrix will be derived following the fits standards.");
-     this->HeaderKeyValue["SlicerAstro.CD1_1"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT1"].c_str()) *
-                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC1_1"].c_str()));
-     this->HeaderKeyValue["SlicerAstro.CD1_2"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT1"].c_str()) *
-                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC1_2"].c_str()));
-     this->HeaderKeyValue["SlicerAstro.CD2_1"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT2"].c_str()) *
-                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC2_1"].c_str()));
-     this->HeaderKeyValue["SlicerAstro.CD2_2"] = DoubleToString(StringToDouble(this->HeaderKeyValue["SlicerAstro.CDELT2"].c_str()) *
-                                                 StringToDouble(this->HeaderKeyValue["SlicerAstro.PC2_2"].c_str()));
-     if (n == 3)
-       {
-       this->HeaderKeyValue["SlicerAstro.CD3_3"] = this->HeaderKeyValue["SlicerAstro.CDELT3"];
-       }
-
-     CDMatrixFound = true;
-     }
-
-   if (CDMatrixFound && (!CDELTFound || !CROTAFound) && n > 1)
-     {
-     double cd11 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_1"].c_str());
-     double cd12 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_2"].c_str());
-     double cd21 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_1"].c_str());
-     double cd22 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_2"].c_str());
-     double CDELT1 = 0.;
-     double CDELT2 = 0.;
-     double CROTA2 = 0.;
-     if (fabs(cd12) < 1.E-6 && fabs(cd21) < 1.E-6)
-       {
-       CROTA2 = 0.0;
-       CDELT1 = cd11;
-       CDELT2 = cd22;
-       }
-     else
-       {
-       CDELT1 = sqrt(cd11 * cd11 + cd21 * cd21);
-       CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
-       double det = cd11 * cd22 - cd12 * cd21;
-       if (fabs(det) < 1.E-6)
-         {
-         vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                         " Determinant of CD matrix == 0");
-         }
-       double sign = 1.0;
-       if (det < 0.0)
-         {
-         CDELT2 = -CDELT2;
-         sign = -1.0;
-         }
-       double rot1_cd = atan2(-cd21, sign * cd11);
-       double rot2_cd = atan2(sign * cd12, cd22);
-       double rot_av = (rot1_cd + rot2_cd) * 0.5;
-       const double rad2deg = 180. / PI;
-       CROTA2 = rot_av * rad2deg;
-       }
-
-     this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(CDELT1);
-     this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(CDELT2);
-     this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
-
-     if (n == 3)
-       {
-       this->HeaderKeyValue["SlicerAstro.CDELT3"] = this->HeaderKeyValue["SlicerAstro.CD3_3"];
-       }
-     }
-
    if (this->HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
@@ -1144,8 +1054,8 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     " The fits header is missing the BUNIT keyword. Assuming JY/BEAM");
-     this->HeaderKeyValue["SlicerAstro.BUNIT"] = "JY/BEAM";
+                     " The fits header is missing the BUNIT keyword.");
+     this->HeaderKeyValue["SlicerAstro.BUNIT"] = "UNDEFINED";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
@@ -1534,7 +1444,7 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
 
-   this->HeaderKeyValue["SlicerAstro.3DDisplayThreshold"] = "0.";
+   this->HeaderKeyValue["SlicerAstro.DisplayThreshold"] = "0.";
 
    HeaderKeyValue["SlicerAstro.HistoMinSel"] = "0.";
    HeaderKeyValue["SlicerAstro.HistoMaxSel"] = "0.";
@@ -1939,7 +1849,101 @@ bool vtkFITSReader::AllocateWCS(){
   if (this->NWCS > 1)
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: the volume has more than one WCS, "
-                  "SlicerAstro assume only one WCS per volume.")
+                  "SlicerAstro assume only one WCS per volume.");
+    return false;
+    }
+
+  this->WCS->crval[0] = StringToDouble((this->HeaderKeyValue.at("SlicerAstro.CRVAL1")).c_str());
+
+  this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(this->WCS->cdelt[0]);
+  this->HeaderKeyValue["SlicerAstro.CROTA1"] = DoubleToString(this->WCS->crota[0]);
+
+  if (n == 2)
+    {
+    this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
+    this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(this->WCS->crota[1]);
+    this->HeaderKeyValue["SlicerAstro.CD1_1"] = DoubleToString(this->WCS->cd[0]);
+    this->HeaderKeyValue["SlicerAstro.CD1_2"] = DoubleToString(this->WCS->cd[1]);
+    this->HeaderKeyValue["SlicerAstro.CD2_1"] = DoubleToString(this->WCS->cd[2]);
+    this->HeaderKeyValue["SlicerAstro.CD2_2"] = DoubleToString(this->WCS->cd[3]);
+    this->HeaderKeyValue["SlicerAstro.PC1_1"] = DoubleToString(this->WCS->pc[0]);
+    this->HeaderKeyValue["SlicerAstro.PC1_2"] = DoubleToString(this->WCS->pc[1]);
+    this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[2]);
+    this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[3]);
+    }
+
+  if (n == 3)
+    {
+    this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
+    this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(this->WCS->cdelt[2]);
+    this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(this->WCS->crota[1]);
+    this->HeaderKeyValue["SlicerAstro.CROTA3"] = DoubleToString(this->WCS->crota[2]);
+    this->HeaderKeyValue["SlicerAstro.CD1_1"] = DoubleToString(this->WCS->cd[0]);
+    this->HeaderKeyValue["SlicerAstro.CD1_2"] = DoubleToString(this->WCS->cd[1]);
+    this->HeaderKeyValue["SlicerAstro.CD1_3"] = DoubleToString(this->WCS->cd[2]);
+    this->HeaderKeyValue["SlicerAstro.CD2_1"] = DoubleToString(this->WCS->cd[3]);
+    this->HeaderKeyValue["SlicerAstro.CD2_2"] = DoubleToString(this->WCS->cd[4]);
+    this->HeaderKeyValue["SlicerAstro.CD2_3"] = DoubleToString(this->WCS->cd[5]);
+    this->HeaderKeyValue["SlicerAstro.CD3_1"] = DoubleToString(this->WCS->cd[6]);
+    this->HeaderKeyValue["SlicerAstro.CD3_2"] = DoubleToString(this->WCS->cd[7]);
+    this->HeaderKeyValue["SlicerAstro.CD3_3"] = DoubleToString(this->WCS->cd[8]);
+    this->HeaderKeyValue["SlicerAstro.PC1_1"] = DoubleToString(this->WCS->pc[0]);
+    this->HeaderKeyValue["SlicerAstro.PC1_2"] = DoubleToString(this->WCS->pc[1]);
+    this->HeaderKeyValue["SlicerAstro.PC1_3"] = DoubleToString(this->WCS->pc[2]);
+    this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[3]);
+    this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[4]);
+    this->HeaderKeyValue["SlicerAstro.PC2_3"] = DoubleToString(this->WCS->pc[5]);
+    this->HeaderKeyValue["SlicerAstro.PC3_1"] = DoubleToString(this->WCS->pc[6]);
+    this->HeaderKeyValue["SlicerAstro.PC3_2"] = DoubleToString(this->WCS->pc[7]);
+    this->HeaderKeyValue["SlicerAstro.PC3_3"] = DoubleToString(this->WCS->pc[8]);
+    }
+
+  if (floor(this->WCS->cdelt[0]) == 1 && floor(this->WCS->cdelt[1]) == 1)
+    {
+    double cd11 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_1"].c_str());
+    double cd12 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_2"].c_str());
+    double cd21 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_1"].c_str());
+    double cd22 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_2"].c_str());
+    double CDELT1 = 0.;
+    double CDELT2 = 0.;
+    double CROTA2 = 0.;
+    if (fabs(cd12) < 1.E-6 && fabs(cd21) < 1.E-6)
+      {
+      CROTA2 = 0.0;
+      CDELT1 = cd11;
+      CDELT2 = cd22;
+      }
+    else
+      {
+      CDELT1 = sqrt(cd11 * cd11 + cd21 * cd21);
+      CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
+      double det = cd11 * cd22 - cd12 * cd21;
+      if (fabs(det) < 1.E-6)
+        {
+        vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                        " Determinant of CD matrix == 0");
+        }
+      double sign = 1.0;
+      if (det < 0.0)
+        {
+        CDELT2 = -CDELT2;
+        sign = -1.0;
+        }
+      double rot1_cd = atan2(-cd21, sign * cd11);
+      double rot2_cd = atan2(sign * cd12, cd22);
+      double rot_av = (rot1_cd + rot2_cd) * 0.5;
+      const double rad2deg = 180. / PI;
+      CROTA2 = rot_av * rad2deg;
+      }
+
+    this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(CDELT1);
+    this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(CDELT2);
+    this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
+
+    if (n == 3 && floor(this->WCS->cdelt[2]) == 1)
+      {
+      this->HeaderKeyValue["SlicerAstro.CDELT3"] = this->HeaderKeyValue["SlicerAstro.CD3_3"];
+      }
     }
 
   if ((this->WCSStatus = wcsfixi(7, 0, this->WCS, stat, this->info)))

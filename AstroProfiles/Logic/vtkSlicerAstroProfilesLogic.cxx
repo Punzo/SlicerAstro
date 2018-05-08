@@ -600,7 +600,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   int wasModifying = ProfileVolume->StartModify();
   ProfileVolume->UpdateRangeAttributes();
-  ProfileVolume->Update3DDisplayThresholdAttributes();
+  ProfileVolume->UpdateDisplayThresholdAttributes();
   int disabledModify = ProfileVolume->GetAstroVolumeDisplayNode()->StartModify();
   ProfileVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
   ProfileVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);

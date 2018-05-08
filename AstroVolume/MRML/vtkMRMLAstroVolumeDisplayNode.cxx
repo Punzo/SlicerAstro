@@ -1089,7 +1089,7 @@ void vtkMRMLAstroVolumeDisplayNode::SetFitSlices(bool fit)
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 {
-  if (this->GetVolumeNode()->GetImageData() == NULL)
+  if (!this->GetVolumeNode() || !this->GetVolumeNode()->GetImageData())
     {
     return "No Image";
     }
@@ -1122,24 +1122,12 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
     }
   else
     {
-    vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-      this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-    if (!selectionNode)
-      {
-      return " ";
-      }
-
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode("intensity");
-    if (!unitNode)
-      {
-      return " ";
-      }
-
-    for(int i = 0; i < numberOfComponents; i++)
+    for(int ii = 0; ii < numberOfComponents; ii++)
       {
       double component = this->GetVolumeNode()->GetImageData()->
-          GetScalarComponentAsDouble(ijk[0],ijk[1],ijk[2],i);
-      pixel += unitNode->GetDisplayStringFromValue(component);
+          GetScalarComponentAsDouble(ijk[0], ijk[1], ijk[2], ii);
+
+      pixel += DoubleToString(component) + "  " + this->GetVolumeNode()->GetAttribute("SlicerAstro.BUNIT");
       pixel += ",";
       }
 

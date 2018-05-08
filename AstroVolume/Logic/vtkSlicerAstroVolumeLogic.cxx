@@ -340,7 +340,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
           }
         }
 
-      temp += "Jy/beam";
+      temp += node->GetAttribute("SlicerAstro.BUNIT");
       unitNodeIntensity->SetPrecision(6);
       unitNodeIntensity->SetPrefix("");
       unitNodeIntensity->SetSuffix(temp.c_str());
@@ -1071,7 +1071,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmenta
 }
 
 //---------------------------------------------------------------------------
-double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnotationROINode *roiNode,
+double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLAnnotationROINode *roiNode,
                                                                    vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode)
@@ -1085,8 +1085,8 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
    }
 
   // Calculate the noise as the std in a roi.
-  // The 3DDisplayThreshold = noise
-  // 3D color function starts from 3 times the value of 3DDisplayThreshold.
+  // The DisplayThreshold = noise
+  // 3D color function starts from 3 times the value of DisplayThreshold.
 
   int *dims = inputVolume->GetImageData()->GetDimensions();
   int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -1244,7 +1244,7 @@ double vtkSlicerAstroVolumeLogic::Calculate3DDisplayThresholdInROI(vtkMRMLAnnota
   delete inFPixel;
   delete inDPixel;
 
-  inputVolume->Set3DDisplayThreshold(noise);
+  inputVolume->SetDisplayThreshold(noise);
 
   return noise;
 }
@@ -1337,7 +1337,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
 
   double max = StringToDouble(node->GetAttribute("SlicerAstro.DATAMAX")) * 2.;
   double min = StringToDouble(node->GetAttribute("SlicerAstro.DATAMIN")) * 2.;
-  double noise = StringToDouble(node->GetAttribute("SlicerAstro.3DDisplayThreshold"));
+  double noise = StringToDouble(node->GetAttribute("SlicerAstro.DisplayThreshold"));
 
   if (noise < 0.000000001 || DoubleIsNaN(noise))
     {

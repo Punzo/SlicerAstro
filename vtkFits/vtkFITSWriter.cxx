@@ -212,7 +212,7 @@ void vtkFITSWriter::WriteData()
       }
     std::string tmp = ait->first.substr(pos+12);
     if ((!tmp.compare(0,6,"SIMPLE")) ||
-        (!tmp.compare(0,18,"3DDisplayThreshold")) ||
+        (!tmp.compare(0,18,"DisplayThreshold")) ||
         (!tmp.compare(0,11,"HistoMinSel")) ||
         (!tmp.compare(0,11,"HistoMaxSel")) ||
         (!tmp.compare(0,9,"DATAMODEL")))
