@@ -1081,6 +1081,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     }
 
   QApplication::restoreOverrideCursor();
+
+  if (masterVolume != this->volumeNode())
+    {
+    this->mrmlScene()->RemoveNode(masterVolume);
+    }
 }
 
 // --------------------------------------------------------------------------
