@@ -779,7 +779,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     }
 
   bool duplicateName = false;
-  for (int ii = 1; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
+  for (int ii = 0; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
     {
     std::string segmentID = segmentationNode->GetSegmentation()->GetNthSegmentID(ii);
     if (segmentID.find(NamePrefixStdString) != std::string::npos)
@@ -790,6 +790,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   if (duplicateName)
     {
+    NamePrefixStdString += "_";
     NamePrefixStdString += IntToString(d->nameIndex);
     d->nameIndex++;
     }
@@ -818,6 +819,13 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     histo = true;
     }
 
+  bool overlay = false;
+  found = LevelsStdString.find("overlay");
+  if (found != std::string::npos)
+    {
+    overlay = true;
+    }
+
   bool list = false;
   bool increment = false;
   bool linearIncrement = false;
@@ -843,6 +851,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   if (LevelsStdString.find("*") != std::string::npos)
     {
     nonLinearIncrement = true;
+    }
+
+  if (!list && !increment && !renzogram && !histo)
+    {
+    list = true;
     }
 
   if ((!list && !increment && !renzogram && !histo) || (list && increment) || (renzogram && increment)
@@ -1102,7 +1115,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
-    SegmentationDisplayNode->SetAllSegmentsVisibility(false);
+    if (!overlay)
+      {
+      SegmentationDisplayNode->SetAllSegmentsVisibility(false);
+      }
     for (int jj = 0; jj < SegmentIDs->GetNumberOfValues(); jj++)
       {
       std::string SegmentID = SegmentIDs->GetValue(jj);

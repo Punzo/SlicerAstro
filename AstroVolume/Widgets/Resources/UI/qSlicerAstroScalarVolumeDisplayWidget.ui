@@ -367,12 +367,14 @@
 
  If the string is preceded by 'DT', the levels are evaluated in units of the value of DisplayThreshold of the dataset. 
 
+ If the string &quot;overlay&quot; is present, it is possible to overlay subsequent contours. 
+
  If the Histogram is active in the plot view and a selection is made, by typing the string 'Histogram' will create a segmentation around the selection. 
 
  The contours in SlicerAstro are a full 3D segmentation. Therefore it can be computationally heavy to segment (marching cubes algorithm) and visualize around the noise range [-2, 2] RMS for large datacubes.</string>
        </property>
        <property name="text">
-        <string>DT -3;3;7;15</string>
+        <string>DT -3;3;7;15 overlay</string>
        </property>
       </widget>
      </item>
