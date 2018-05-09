@@ -218,9 +218,10 @@ class SlicerAstroDataProbeTest(ScriptedLoadableModuleTest):
 def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
   if sliceLogic:
 
-    worldX = "0"
-    worldY = "0"
-    worldZ = "0"
+    worldX = ""
+    worldY = ""
+    worldZ = ""
+    epochString = ""
     world = [0., 0., 0.]
 
     CoordinateSystemName = "IJK"
@@ -229,6 +230,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     layerLogicCalls = (('B', sliceLogic.GetBackgroundLayer),
                       ('F', sliceLogic.GetForegroundLayer),
                       ('L', sliceLogic.GetLabelLayer))
+
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
@@ -241,35 +243,45 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
           worldX = displayNode.GetPythonDisplayStringFromValueX(world[0], 3)
-          worldY = displayNode.GetPythonDisplayStringFromValueY(world[1], 3)
-          worldZ = displayNode.GetPythonDisplayStringFromValueZ(world[2], 3)
-          worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
+          epoch = int(volumeNode.GetAttribute("SlicerAstro.EQUINOX"))
+          if epoch > 1975:
+            epochString = "J" + str(epoch)
+          elif epoch < 1975:
+            epochString = "B" + str(epoch)
+          if dimensionality > 1:
+            worldY = displayNode.GetPythonDisplayStringFromValueY(world[1], 3)
+          if dimensionality > 2:
+            worldZ = displayNode.GetPythonDisplayStringFromValueZ(world[2], 3)
+            worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
           break
 
     if CoordinateSystemName == "WCS":
       if dimensionality > 2:
-        return " {layoutName: <8s} {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s},{worldZ:>10s}" \
-                .format(layoutName=sliceNode.GetLayoutName(),
+        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({epochString:>5}), {worldZ:>10s}" \
+                .format(
                 sys = CoordinateSystemName,
-                orient=sliceNode.GetOrientation(),
-                worldX=worldX,
-                worldY=worldY,
-                worldZ=worldZ,
+                orient = sliceNode.GetOrientation(),
+                worldX = worldX,
+                worldY = worldY,
+                epochString = epochString,
+                worldZ = worldZ,
                 )
       elif dimensionality > 1:
-        return " {layoutName: <8s} {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s}" \
-                .format(layoutName=sliceNode.GetLayoutName(),
+        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({epochString:>5})" \
+                .format(
                 sys = CoordinateSystemName,
-                orient=sliceNode.GetOrientation(),
-                worldX=worldX,
-                worldY=worldY,
+                orient = sliceNode.GetOrientation(),
+                worldX = worldX,
+                worldY = worldY,
+                epochString = epochString,
                 )
       else:
-        return " {layoutName: <8s} {sys:s}[{orient:s}]:{worldX:>16s}" \
-                .format(layoutName=sliceNode.GetLayoutName(),
+        return " {sys:s}[{orient:s}]:{worldX:>16s} ({epochString:>5})" \
+                .format(
                 sys = CoordinateSystemName,
-                orient=sliceNode.GetOrientation(),
-                worldX=worldX,
+                orient = sliceNode.GetOrientation(),
+                worldX = worldX,
+                epochString = epochString,
                 )
     else:
       return " {layoutName: <8s} WCS in View {orient: >2s} not found" \
