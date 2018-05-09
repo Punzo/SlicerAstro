@@ -221,7 +221,7 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     worldX = ""
     worldY = ""
     worldZ = ""
-    epochString = ""
+    equinoxString = ""
     world = [0., 0., 0.]
 
     CoordinateSystemName = "IJK"
@@ -243,11 +243,11 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
           worldX = displayNode.GetPythonDisplayStringFromValueX(world[0], 3)
-          epoch = int(volumeNode.GetAttribute("SlicerAstro.EQUINOX"))
-          if epoch > 1975:
-            epochString = "J" + str(epoch)
-          elif epoch < 1975:
-            epochString = "B" + str(epoch)
+          equinox = float(volumeNode.GetAttribute("SlicerAstro.EQUINOX"))
+          if equinox > 1975:
+            equinoxString = "J" + str(equinox)[:4]
+          elif equinox < 1975:
+            equinoxString = "B" + str(equinox)[:4]
           if dimensionality > 1:
             worldY = displayNode.GetPythonDisplayStringFromValueY(world[1], 3)
           if dimensionality > 2:
@@ -257,31 +257,31 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
 
     if CoordinateSystemName == "WCS":
       if dimensionality > 2:
-        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({epochString:>5}), {worldZ:>10s}" \
+        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({equinoxString:>5}), {worldZ:>10s}" \
                 .format(
                 sys = CoordinateSystemName,
                 orient = sliceNode.GetOrientation(),
                 worldX = worldX,
                 worldY = worldY,
-                epochString = epochString,
+                equinoxString = equinoxString,
                 worldZ = worldZ,
                 )
       elif dimensionality > 1:
-        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({epochString:>5})" \
+        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({equinoxString:>5})" \
                 .format(
                 sys = CoordinateSystemName,
                 orient = sliceNode.GetOrientation(),
                 worldX = worldX,
                 worldY = worldY,
-                epochString = epochString,
+                equinoxString = equinoxString,
                 )
       else:
-        return " {sys:s}[{orient:s}]:{worldX:>16s} ({epochString:>5})" \
+        return " {sys:s}[{orient:s}]:{worldX:>16s} ({equinoxString:>5})" \
                 .format(
                 sys = CoordinateSystemName,
                 orient = sliceNode.GetOrientation(),
                 worldX = worldX,
-                epochString = epochString,
+                equinoxString = equinoxString,
                 )
     else:
       return " {layoutName: <8s} WCS in View {orient: >2s} not found" \

@@ -1539,7 +1539,7 @@ bool vtkFITSReader::AllocateHeader()
        {
        vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                        "Found the EPOCH keyword. The value will be copied in the EQUINOX keyword");
-       this->HeaderKeyValue["SlicerAstro.EQUINOX"] = IntToString(StringToInt(this->HeaderKeyValue.at("SlicerAstro.EPOCH").c_str()));
+       this->HeaderKeyValue["SlicerAstro.EQUINOX"] = this->HeaderKeyValue.at("SlicerAstro.EPOCH");
        }
      else
        {
