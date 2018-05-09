@@ -447,7 +447,7 @@ void qSlicerAstroVolumeModule::setup()
 
   // register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
-  qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroContoursEffect());
+  //qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroContoursEffect());
 
   // Set Default ColorNodeTable
   defaultNode = vtkMRMLColorTableNode::SafeDownCast
