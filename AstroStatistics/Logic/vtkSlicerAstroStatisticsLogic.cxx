@@ -49,17 +49,12 @@
 // Std includes
 #include <cassert>
 #include <iostream>
+#include <sys/time.h>
 
 // OpenMP includes
 #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
 #include <omp.h>
 #endif
-
-// Qt includes
-#include <QtDebug>
-
-#include <iostream>
-#include <sys/time.h>
 
 namespace
 {

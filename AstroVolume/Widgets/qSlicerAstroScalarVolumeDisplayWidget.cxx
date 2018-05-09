@@ -74,7 +74,6 @@
 #include <ctkPopupWidget.h>
 
 // logic includes
-#include <vtkSlicerAstroReprojectLogic.h>
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerSegmentationsModuleLogic.h>
 
@@ -645,25 +644,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     astroVolumeLogic->CenterVolume(contoursVolume);
     astroVolumeLogic->CenterVolume(outputVolume);
 
-    qSlicerAbstractCoreModule* AstroReprojectModule = qSlicerApplication::application()->moduleManager()->module("AstroReproject");
-    if (!AstroReprojectModule)
-      {
-      QString message = QString("AstroReproject module not found.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
-      return;
-      }
-
-    vtkSlicerAstroReprojectLogic* reprojetLogic =
-      vtkSlicerAstroReprojectLogic::SafeDownCast(AstroReprojectModule->logic());
-    if (!reprojetLogic)
-      {
-      QString message = QString("AstroReproject logic not found.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
-      return;
-      }
-
     QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
-    if (reprojetLogic->Reproject(reprojectParaNode))
+    if (astroVolumeLogic->Reproject(reprojectParaNode))
       {
       vtkNew<vtkStringArray> outputAttributes;
       outputVolume->GetAttributeNames(outputAttributes);

@@ -36,6 +36,7 @@
 
 class vtkMRMLAnnotationROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
+class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeNode;
@@ -109,6 +110,8 @@ public:
                                   vtkIntArray *histoArray,
                                   double binSpacing,
                                   int numberOfBins);
+  /// Reproject
+  bool Reproject(vtkMRMLAstroReprojectParametersNode *pnode);
 
 protected:
   vtkSlicerAstroVolumeLogic();

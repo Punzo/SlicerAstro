@@ -73,17 +73,13 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-
-// Qt includes
-#include <QtDebug>
+#include <sys/time.h>
 
 // OpenMP includes
 #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
 #include <omp.h>
 #endif
 
-#include <iostream>
-#include <sys/time.h>
 
 //----------------------------------------------------------------------------
 class vtkSlicerAstroPVDiagramLogic::vtkInternal

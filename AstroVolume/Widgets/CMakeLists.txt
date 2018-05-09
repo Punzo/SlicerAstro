@@ -16,7 +16,6 @@ set(${KIT}_INCLUDE_DIRECTORIES
     ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
     ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
     ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
-    ${vtkSlicerAstroReprojectModuleLogic_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -74,7 +73,6 @@ set(${KIT}_TARGET_LIBRARIES
    vtkSlicerSegmentationsModuleMRML
    vtkSlicerVolumeRenderingModuleMRML
    vtkSlicerVolumeRenderingModuleLogic 
-   vtkSlicerAstroReprojectModuleLogic
   )
 
 #-----------------------------------------------------------------------------

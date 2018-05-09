@@ -51,11 +51,6 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-
-// Qt includes
-#include <QtDebug>
-
-#include <iostream>
 #include <sys/time.h>
 
 //----------------------------------------------------------------------------
