@@ -105,7 +105,7 @@ qSlicerAstroScalarVolumeDisplayWidgetPrivate::qSlicerAstroScalarVolumeDisplayWid
 {
   this->ColorTransferFunction = vtkSmartPointer<vtkColorTransferFunction>::New();
   this->contoursVolumeNode = 0;
-  nameIndex = 0;
+  this->nameIndex = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -1668,6 +1668,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromContoursMRML()
     }
 
   d->ContoursVolumeNodeSelector->setCurrentNodeID(d->contoursVolumeNode->GetID());
+
+if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
+  {
+  d->Contours2DSliderWidget->hide();
+  return;
+  }
 
   vtkDoubleArray *contoursColor =  d->contoursVolumeNode->
     GetAstroVolumeDisplayNode()->GetContoursColor();
