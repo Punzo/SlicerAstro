@@ -26,8 +26,8 @@
 #include "qSlicerAstroReprojectModuleExport.h"
 
 class qSlicerAstroReprojectModuleWidgetPrivate;
-class vtkMRMLNode;
 class vtkMRMLAstroReprojectParametersNode;
+class vtkMRMLNode;
 
 /// \ingroup Slicer_QtModules_AstroReproject
 class Q_SLICER_QTMODULES_ASTROREPROJECT_EXPORT qSlicerAstroReprojectModuleWidget :

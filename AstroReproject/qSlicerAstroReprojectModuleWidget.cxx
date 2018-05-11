@@ -25,16 +25,12 @@
 #include <ctkFlowLayout.h>
 
 // VTK includes
-#include <vtkCamera.h>
 #include <vtkImageData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkProperty.h>
 #include <vtkStdString.h>
 #include <vtksys/SystemTools.hxx>
-
-// SlicerQt includes
-#include <qSlicerAbstractCoreModule.h>
 
 // AstroReproject includes
 #include "qSlicerAstroReprojectModuleWidget.h"
@@ -44,7 +40,7 @@
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroReprojectLogic.h>
 
-// qMRML includes
+// SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
@@ -62,7 +58,6 @@
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLSelectionNode.h>
