@@ -65,12 +65,12 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->WCS = new struct wcsprm;
   this->WCS->flag = -1;
   wcserr_enable(1);
-  if((this->WCSStatus = wcsini(1,0,this->WCS)))
+  if((this->WCSStatus = wcsini(1, 0, this->WCS)))
     {
-    vtkErrorMacro("wcsini ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
+                    "Message from "<<this->WCS->err->function<<
+                    "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
+                    ": \n"<<this->WCS->err->msg<<"\n");
     }
   this->ContoursColor = vtkDoubleArray::New();
   this->ContoursColor->SetNumberOfValues(3);
@@ -226,6 +226,7 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
                   " of file "<<this->WCS->err->file<<
                   ": \n"<<this->WCS->err->msg<<"\n");
     }
+
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct :"
@@ -253,7 +254,7 @@ bool vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition(bool update /*= t
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition :"
                   " WCS not found.");
@@ -305,7 +306,7 @@ bool vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition(bool update /*=
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition :"
                   " WCS not found.");
@@ -357,7 +358,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetVelocityDefinition()
     return "";
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetVelocityDefinition :"
                   " WCS not found.");
@@ -376,7 +377,7 @@ bool vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace :"
                   " WCS not found.");
@@ -419,7 +420,7 @@ bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetIJKSpace :"
                   " WCS not found.");
@@ -461,7 +462,7 @@ bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordin
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetIJKSpace :"
                   " WCS not found.");
@@ -873,7 +874,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     return;
     }
 
-  if (!this->WCS || !WCSNew || WCSStatusNew != 0)
+  if (!this->WCS || !WCSNew)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS :"
                   " WCS structs not found.");
@@ -886,7 +887,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
   int nsub = 3;
   int axes[3];
 
-  if (thisAxis == 3 && nodeAxis == 3)
+  if (thisAxis == 3 && nodeAxis >= 3)
     {
     nsub = 3;
     axes[0] = WCSSUB_LONGITUDE;
@@ -911,7 +912,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS: "
                   "it is not possible to copy WCS from a volume with "
-                  "naxis < than the naxis of teh current volume. ");
+                  "naxis < than the naxis of the current volume. ");
     return;
     }
 
@@ -1423,7 +1424,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::AddVelocityInfoToDisplayStringZ(std::
     return "";
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::AddVelocityInfoToDisplayStringZ : "
                   "WCS not found!");

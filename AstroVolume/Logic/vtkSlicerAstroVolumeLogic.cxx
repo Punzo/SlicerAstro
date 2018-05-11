@@ -52,6 +52,7 @@
 #include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 //VTK includes
 #include <vtkAddonMathUtilities.h>
@@ -618,6 +619,63 @@ void vtkSlicerAstroVolumeLogic::updateIntensityUnitsNode(vtkMRMLNode *astroVolum
   intensityUnitNode->SetSuffix(temp.c_str());
   intensityUnitNode->SetAttribute("DisplayHint","");
   selectionNode->SetUnitNodeID("intensity", intensityUnitNode->GetID());
+}
+
+//---------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene *scene,
+                                                                    vtkMRMLAstroVolumeNode *inputVolume,
+                                                                    vtkMRMLAstroVolumeNode *outputVolume,
+                                                                    const char *outputNameReference,
+                                                                    const char *name, bool cloneImageData /* = true */)
+{
+  if (!scene || !inputVolume || !outputNameReference || !name)
+    {
+    return NULL;
+    }
+
+  if (outputVolume)
+    {
+    std::string name;
+    name = outputVolume->GetName();
+    if (name.find(outputNameReference) != std::string::npos)
+      {
+      vtkMRMLAstroVolumeStorageNode* astroStorage =
+        vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
+      scene->RemoveNode(astroStorage);
+      scene->RemoveNode(outputVolume->GetDisplayNode());
+
+      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
+        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
+      if (volumeRenderingDisplay)
+        {
+        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+        scene->RemoveNode(volumeRenderingDisplay);
+        }
+      scene->RemoveNode(outputVolume);
+      }
+    }
+
+  outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+     (this->CloneVolume(scene, inputVolume, name, cloneImageData));
+
+  int ndnodes = outputVolume->GetNumberOfDisplayNodes();
+  for (int ii = 0; ii < ndnodes; ii++)
+    {
+    vtkMRMLVolumeRenderingDisplayNode *dnode =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+        outputVolume->GetNthDisplayNode(ii));
+    if (dnode)
+      {
+      outputVolume->RemoveNthDisplayNodeID(ii);
+      }
+    }
+
+  vtkNew<vtkMatrix4x4> transformationMatrix;
+  inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
+  outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
+  outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
+
+  return outputVolume;
 }
 
 //---------------------------------------------------------------------------
@@ -1355,12 +1413,27 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
+  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.PPO"), "1"))
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "input volume has WCS generated from old (and not accepted) PPO matrix. "
+                  "It is not possible to continue with the reprojection.");
+    return false;
+    }
+
   vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplay =
     inputVolume->GetAstroVolumeDisplayNode();
-  if (!inputVolumeDisplay)
+  if (!inputVolumeDisplay || !inputVolumeDisplay->GetWCSStruct())
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "inputVolumeDisplay not found.");
+    return false;
+    }
+
+  if (!strcmp(inputVolumeDisplay->GetSpace(), "IJK"))
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "inputVolumeDisplay has not WCS.");
     return false;
     }
 
@@ -1374,12 +1447,118 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
+  if (!strcmp(referenceVolume->GetAttribute("SlicerAstro.PPO"), "1"))
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "reference volume has WCS generated from old (and not accepted) PPO matrix. "
+                  "It is not possible to continue with the reprojection.");
+    return false;
+    }
+
   vtkMRMLAstroVolumeDisplayNode *referenceVolumeDisplay =
     referenceVolume->GetAstroVolumeDisplayNode();
-  if (!referenceVolumeDisplay)
+  if (!referenceVolumeDisplay || !referenceVolumeDisplay->GetWCSStruct())
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "referenceVolumeDisplay not found.");
+    return false;
+    }
+
+  if (!strcmp(referenceVolumeDisplay->GetSpace(), "IJK"))
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "referenceVolumeDisplay has not WCS.");
+    return false;
+    }
+
+  // Check if the images dimensionality
+  int nInput = inputVolumeDisplay->GetWCSStruct()->naxis;
+  int nReference = referenceVolumeDisplay->GetWCSStruct()->naxis;
+  if (nInput != 2 && nInput != 3 && nReference != 2 && nReference != 3)
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "the dimensionalities of the input and reference data has to be 2 or 3.");
+    return false;
+    }
+
+  // Check if the images need rotation or change of equinox
+  bool needToPreRotateInput = false;      
+  if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6)
+    {
+    needToPreRotateInput = true;
+    }
+
+  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
+    {
+    needToPreRotateInput = false;
+    }
+
+  bool needToPreRotateReference = false;
+  if (fabs(StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6)
+    {
+    needToPreRotateInput = true;
+    }
+
+  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
+    {
+    needToPreRotateReference = false;
+    }
+
+  bool needToPreReprojectTimeInput = false;
+  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - 2.E+3) > 1.E-6 ||
+      strcmp(inputVolumeDisplay->GetWCSStruct()->radesys, "FK5"))
+    {
+    needToPreReprojectTimeInput = true;
+    }
+
+  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
+    {
+    needToPreReprojectTimeInput = false;
+    }
+
+  bool needToPreReprojectTimeReference = false;
+  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - 2.E+3) > 1.E-6 ||
+      strcmp(inputVolumeDisplay->GetWCSStruct()->radesys, "FK5"))
+    {
+    needToPreReprojectTimeReference = true;
+    }
+
+  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
+    {
+    needToPreReprojectTimeReference = false;
+    }
+
+  if (needToPreRotateInput || needToPreRotateReference ||
+      needToPreReprojectTimeInput || needToPreReprojectTimeReference)
+    {
+    if (needToPreRotateInput)
+      {
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                    "the input volume is rotated respect to the north pole. "
+                    "Please create a new reprojected (north aligned) volume in the reprojection module.");
+      }
+
+    if (needToPreRotateReference)
+      {
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                    "the reference volume is rotated respect to the north pole. "
+                    "Please create a new reprojected (north aligned) volume in the reprojection module.");
+      }
+
+    if (needToPreReprojectTimeInput)
+      {
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                    "the equinox time of the input volume is not J2000."
+                    "Please create a new reprojected (j2000) volume in the reprojection module.");
+      }
+
+    if (needToPreReprojectTimeReference)
+      {
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                    "the equinox time of the reference volume is not J2000."
+                    "Please create a new reprojected (j2000) volume in the reprojection module.");
+      }
+
     return false;
     }
 
@@ -1464,7 +1643,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   pnode->SetStatus(1);
 
   // Calculate the 2D interpolation grid
-  double ***referenceGrid=NULL;
+  double ***referenceGrid = NULL;
   referenceGrid = new double**[referenceDims[0]];
   for (int ii = 0; ii < referenceDims[0]; ii++)
     {
@@ -1475,20 +1654,29 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
       }
     }
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  #pragma omp parallel for schedule(dynamic) shared(referenceGrid)
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  for (int ii = 0; ii < referenceDims[0]; ii++)
+  double shift = 0.5;
+  if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
+    shift = 0.;
+    }
+  // WCS are not thread safe, no OpenMP
+  for (int ii = 0; ii < referenceDims[0]; ii++)
+    {  
     for (int jj = 0; jj < referenceDims[1]; jj++)
       {
       double ijk[3] = {0.}, world[3] = {0.};
-      ijk[0] = ii;
-      ijk[1] = jj;
+      ijk[0] = ii + shift;
+      ijk[1] = jj + shift;
       referenceVolumeDisplay->GetReferenceSpace(ijk, world);
       inputVolumeDisplay->GetIJKSpace(world, ijk);
       referenceGrid[ii][jj][0] = ijk[0];
       referenceGrid[ii][jj][1] = ijk[1];
+      }
+
+    if(ii / (referenceDims[0] / 10.) > status)
+      {
+      status += 1.;
+      pnode->SetStatus(status);
       }
     }
 
@@ -1523,21 +1711,20 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         int ref  = (int) floor(elemCnt / referenceDims[0]);
         ref *= referenceDims[0];
         int ii = elemCnt - ref;
+
         ref = (int) floor(elemCnt / referenceSliceDim);
         int kk = ref;
         ref *= referenceSliceDim;
         ref = elemCnt - ref;
         int jj = (int) floor(ref / referenceDims[0]);
 
-        double x = referenceGrid[ii][jj][0];
-        int x1 = round(x);
-        bool x1Inside = x1 > 0 && x1 < inputDims[0];
+        int x = (int) round(referenceGrid[ii][jj][0]);
+        bool xInside = x > 0 && x < inputDims[0];
 
-        double y = referenceGrid[ii][jj][1];
-        int y1 = round(y);
-        bool y1Inside = y1 > 0 && y1 < inputDims[1];
+        int y = (int) round(referenceGrid[ii][jj][1]);
+        bool yInside = y > 0 && y < inputDims[1];
 
-        if (!x1Inside || !y1Inside)
+        if (!xInside || !yInside)
           {
           switch (DataType)
             {
@@ -1554,26 +1741,26 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         switch (DataType)
           {
          case VTK_FLOAT:
-           *(outFPixel + elemCnt) = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+           *(outFPixel + elemCnt) = *(inFPixel + inputSliceDim * kk + inputDims[1] * y + x);
            break;
          case VTK_DOUBLE:
-           *(outDPixel + elemCnt) = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+           *(outDPixel + elemCnt) = *(inDPixel + inputSliceDim * kk + inputDims[1] * y + x);
            break;
           }
 
         #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
         if (omp_get_thread_num() == 0)
           {
-          if(elemCnt / (numElements / (numProcs * 100)) > status)
+          if(10. + (elemCnt / (numElements / (numProcs * 90.))) > status)
             {
-            status += 10;
+            status += 10.;
             pnode->SetStatus(status);
             }
           }
         #else
-        if(elemCnt / (numElements / 100) > status)
+        if(10. + (elemCnt / (numElements / 90.)) > status)
           {
-          status += 10;
+          status += 10.;
           pnode->SetStatus(status);
           }
         #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
@@ -1606,6 +1793,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         int ref  = (int) floor(elemCnt / referenceDims[0]);
         ref *= referenceDims[0];
         int ii = elemCnt - ref;
+
         ref = (int) floor(elemCnt / referenceSliceDim);
         int kk = ref;
         ref *= referenceSliceDim;
@@ -1613,15 +1801,15 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         int jj = (int) floor(ref / referenceDims[0]);
 
         double x = referenceGrid[ii][jj][0];
-        int x1 = floor(x);
+        int x1 = (int) floor(x);
         bool x1Inside = x1 > 0 && x1 < inputDims[0];
-        int x2 = ceil(x);
+        int x2 = (int) ceil(x);
         bool x2Inside = x2 > 0 && x2 < inputDims[0];
 
         double y = referenceGrid[ii][jj][1];
-        int y1 = floor(y);
+        int y1 = (int) floor(y);
         bool y1Inside = y1 > 0 && y1 < inputDims[1];
-        int y2 = ceil(y);
+        int y2 = (int) ceil(y);
         bool y2Inside = y2 > 0 && y2 < inputDims[1];
 
         if ((!x1Inside && !x2Inside) || (!y1Inside && !y2Inside))
@@ -1730,16 +1918,16 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
         if (omp_get_thread_num() == 0)
           {
-          if(elemCnt / (numElements / (numProcs * 100)) > status)
+          if(10. + (elemCnt / (numElements / (numProcs * 90.))) > status)
             {
-            status += 10;
+            status += 10.;
             pnode->SetStatus(status);
             }
           }
         #else
-        if(elemCnt / (numElements / 100) > status)
+        if(10. + (elemCnt / (numElements / 90.)) > status)
           {
-          status += 10;
+          status += 10.;
           pnode->SetStatus(status);
           }
         #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
@@ -1772,6 +1960,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         int ref  = (int) floor(elemCnt / referenceDims[0]);
         ref *= referenceDims[0];
         int ii = elemCnt - ref;
+
         ref = (int) floor(elemCnt / referenceSliceDim);
         int kk = ref;
         ref *= referenceSliceDim;
@@ -1779,23 +1968,23 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         int jj = (int) floor(ref / referenceDims[0]);
 
         double x = referenceGrid[ii][jj][0];
-        int x1 = floor(x) - 1;
+        int x1 = (int) floor(x) - 1;
         bool x1Inside = x1 > 0 && x1 < inputDims[0];
-        int x2 = floor(x);
+        int x2 = (int) floor(x);
         bool x2Inside = x2 > 0 && x2 < inputDims[0];
-        int x3 = ceil(x);
+        int x3 = (int) ceil(x);
         bool x3Inside = x3 > 0 && x3 < inputDims[0];
-        int x4 = ceil(x) + 1;
+        int x4 = (int) ceil(x) + 1;
         bool x4Inside = x4 > 0 && x4 < inputDims[0];
 
         double y = referenceGrid[ii][jj][1];
-        int y1 = floor(y) - 1;
+        int y1 = (int) floor(y) - 1;
         bool y1Inside = y1 > 0 && y1 < inputDims[1];
-        int y2 = floor(y);
+        int y2 = (int) floor(y);
         bool y2Inside = y2 > 0 && y2 < inputDims[1];
-        int y3 = ceil(y);
+        int y3 = (int) ceil(y);
         bool y3Inside = y3 > 0 && y3 < inputDims[1];
-        int y4 = ceil(y) + 1;
+        int y4 = (int) ceil(y) + 1;
         bool y4Inside = y4 > 0 && y4 < inputDims[1];
 
         if ((!x1Inside && !x4Inside) || (!y1Inside && !y4Inside))
@@ -2111,16 +2300,16 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
         if (omp_get_thread_num() == 0)
           {
-          if(elemCnt / (numElements / (numProcs * 100)) > status)
+          if(10. + (elemCnt / (numElements / (numProcs * 90.))) > status)
             {
-            status += 10;
+            status += 10.;
             pnode->SetStatus(status);
             }
           }
         #else
-        if(elemCnt / (numElements / 100) > status)
+        if(10. + (elemCnt / (numElements / 90.)) > status)
           {
-          status += 10;
+          status += 10.;
           pnode->SetStatus(status);
           }
         #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP

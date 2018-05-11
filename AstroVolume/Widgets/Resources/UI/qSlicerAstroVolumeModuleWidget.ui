@@ -911,8 +911,11 @@
           <height>30</height>
          </size>
         </property>
+        <property name="toolTip">
+         <string>Display Threshold</string>
+        </property>
         <property name="text">
-         <string>3D Threshold:</string>
+         <string>DT:</string>
         </property>
        </widget>
       </item>

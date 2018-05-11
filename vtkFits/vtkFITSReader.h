@@ -165,6 +165,7 @@ protected:
   int ReadStatus;
 
   struct wcsprm *WCS;
+  struct wcsprm *ReadWCS;
   int WCSStatus;
   int NWCS;
   struct wcserr info[NWCSFIX];

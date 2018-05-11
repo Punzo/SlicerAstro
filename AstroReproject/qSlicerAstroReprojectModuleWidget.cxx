@@ -25,16 +25,12 @@
 #include <ctkFlowLayout.h>
 
 // VTK includes
-#include <vtkCamera.h>
 #include <vtkImageData.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkProperty.h>
 #include <vtkStdString.h>
 #include <vtksys/SystemTools.hxx>
-
-// SlicerQt includes
-#include <qSlicerAbstractCoreModule.h>
 
 // AstroReproject includes
 #include "qSlicerAstroReprojectModuleWidget.h"
@@ -44,7 +40,7 @@
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroReprojectLogic.h>
 
-// qMRML includes
+// SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
@@ -62,7 +58,6 @@
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLSelectionNode.h>
@@ -164,6 +159,15 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   QObject::connect(this->OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
 
+  QObject::connect(this->ReprojectRotationCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onReprojectRotationChanged(bool)));
+
+  QObject::connect(this->ReprojectTimeCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onReprojectTimeChanged(bool)));
+
+  QObject::connect(this->ReprojectDataCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onReprojectDataChanged(bool)));
+
   QObject::connect(this->NearestNeighbourInterpolationRadioButton, SIGNAL(clicked(bool)),
                    q, SLOT(onInterpolationNearestNeighbour(bool)));
 
@@ -243,7 +247,7 @@ void qSlicerAstroReprojectModuleWidget::enter()
     }
 
   app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
-          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+          (vtkMRMLLayoutNode::SlicerLayoutFourUpView);
 }
 
 //----------------------------------------------------------------------------
@@ -254,6 +258,21 @@ void qSlicerAstroReprojectModuleWidget::exit()
 
 namespace
 {
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << num;
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
 //----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
@@ -269,7 +288,6 @@ std::string IntToString(int Value)
 {
   return NumberToString<int>(Value);
 }
-
 } // end namespace
 
 //-----------------------------------------------------------------------------
@@ -560,7 +578,73 @@ void qSlicerAstroReprojectModuleWidget::onReferenceVolumeChanged(vtkMRMLNode *mr
   else
     {
     d->parametersNode->SetReferenceVolumeNodeID(NULL);
+  }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroReprojectModuleWidget::onReprojectDataChanged(bool toggled)
+{
+  Q_D(qSlicerAstroReprojectModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
     }
+
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetReprojectData(toggled);
+
+  if (toggled)
+    {
+    d->parametersNode->SetReprojectRotation(!toggled);
+    d->parametersNode->SetReprojectTime(!toggled);
+    }
+
+  d->parametersNode->EndModify(wasModifying);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroReprojectModuleWidget::onReprojectRotationChanged(bool toggled)
+{
+  Q_D(qSlicerAstroReprojectModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetReprojectRotation(toggled);
+
+  if (toggled)
+    {
+    d->parametersNode->SetReprojectData(!toggled);
+    d->parametersNode->SetReprojectTime(!toggled);
+    }
+
+  d->parametersNode->EndModify(wasModifying);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroReprojectModuleWidget::onReprojectTimeChanged(bool toggled)
+{
+  Q_D(qSlicerAstroReprojectModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetReprojectTime(toggled);
+
+  if (toggled)
+    {
+    d->parametersNode->SetReprojectData(!toggled);
+    d->parametersNode->SetReprojectRotation(!toggled);
+    }
+
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
@@ -589,6 +673,22 @@ void qSlicerAstroReprojectModuleWidget::onMRMLAstroReprojectParametersNodeModifi
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
   d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
+
+  d->ReprojectDataCheckBox->setChecked(d->parametersNode->GetReprojectData());
+
+  if (d->parametersNode->GetReprojectData())
+    {
+    d->ReferenceVolumeNodeSelector->show();
+    d->ReferenceVolumeLabel->show();
+    }
+  else
+    {
+    d->ReferenceVolumeNodeSelector->hide();
+    d->ReferenceVolumeLabel->hide();
+    }
+
+  d->ReprojectRotationCheckBox->setChecked(d->parametersNode->GetReprojectRotation());
+  d->ReprojectTimeCheckBox->setChecked(d->parametersNode->GetReprojectTime());
 
   if (d->parametersNode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
@@ -678,16 +778,21 @@ void qSlicerAstroReprojectModuleWidget::onApply()
   vtkMRMLAstroVolumeNode *referenceVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetReferenceVolumeNodeID()));
-  if(!referenceVolume || !referenceVolume->GetImageData())
+
+  bool ReprojectToReference = false;
+
+  std::string ReferenceID = "";
+
+  if(referenceVolume && referenceVolume->GetImageData())
     {
-    qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply"
-                  " : referenceVolume not found!";
-    d->parametersNode->SetStatus(0);
-    return;
+    ReprojectToReference = true;
+    ReferenceID = d->parametersNode->GetReferenceVolumeNodeID();
     }
 
+  const char* outputNameReference = "_Reprojected_";
+
   std::ostringstream outSS;
-  outSS << inputVolume->GetName() << "_Reprojected_";
+  outSS << inputVolume->GetName() << outputNameReference;
 
   int serial = d->parametersNode->GetOutputSerial();
   outSS<< IntToString(serial);
@@ -698,148 +803,218 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
-  if (outputVolume)
+  outputVolume = logic->GetAstroVolumeLogic()->CloneAstroVolume
+    (this->mrmlScene(), inputVolume, outputVolume, outputNameReference, outSS.str().c_str());
+  if(!outputVolume || !outputVolume->GetImageData())
     {
-    std::string name;
-    name = outputVolume->GetName();
-    if (name.find("_Reprojected_") != std::string::npos)
-      {
-      vtkMRMLAstroVolumeStorageNode* astroStorage =
-        vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
-      scene->RemoveNode(astroStorage);
-      scene->RemoveNode(outputVolume->GetDisplayNode());
-
-      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetDisplayNode());
-      if (volumeRenderingDisplay)
-        {
-        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-        scene->RemoveNode(volumeRenderingDisplay);
-        }
-      scene->RemoveNode(outputVolume);
-      }
+    qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply"
+                  " : outputVolume not found!";
+    d->parametersNode->SetStatus(0);
+    return;
     }
-
-  outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
-  int ndnodes = outputVolume->GetNumberOfDisplayNodes();
-  for (int ii = 0; ii < ndnodes; ii++)
+  vtkMRMLAstroVolumeDisplayNode *outputVolumeDisplay =
+    outputVolume->GetAstroVolumeDisplayNode();
+  if (!outputVolumeDisplay || !outputVolumeDisplay->GetWCSStruct())
     {
-    vtkMRMLVolumeRenderingDisplayNode *dnode =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-        outputVolume->GetNthDisplayNode(ii));
-    if (dnode)
+    qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply"
+                  " : outputVolumeDisplay not found!";
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  if (d->parametersNode->GetReprojectRotation())
+    {
+    int n = outputVolumeDisplay->GetWCSStruct()->naxis;
+    double rot = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CROTA1")) * PI / 180.;
+    double rotCos = cos(rot);
+    double rotSin = sin(rot);
+    for (int ii = 0; ii < n; ii++)
       {
-      outputVolume->RemoveNthDisplayNodeID(ii);
+      outputVolumeDisplay->GetWCSStruct()->crota[ii] = 0.;
+      }
+
+    double temp[4] = {0.};
+    for (int ii = 0; ii < 4; ii++)
+      {
+      temp[ii] = outputVolumeDisplay->GetWCSStruct()->pc[ii];
+      }
+    outputVolumeDisplay->GetWCSStruct()->pc[0] = temp[0] * rotCos + temp[1] * rotSin;
+    outputVolumeDisplay->GetWCSStruct()->pc[1] = -temp[0] * rotSin + temp[1] * rotCos;
+    outputVolumeDisplay->GetWCSStruct()->pc[2] = temp[2] * rotCos + temp[3] * rotSin;
+    outputVolumeDisplay->GetWCSStruct()->pc[3] = -temp[2] * rotSin + temp[3] * rotCos;
+
+    outputVolumeDisplay->SetWCSStatus(wcsset(outputVolumeDisplay->GetWCSStruct()));
+    if (outputVolumeDisplay->GetWCSStatus())
+      {
+      qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply :"
+                    "wcsset ERROR "<<outputVolumeDisplay->GetWCSStatus()<<":\n"<<
+                    "Message from "<<outputVolumeDisplay->GetWCSStruct()->err->function<<
+                    "at line "<<outputVolumeDisplay->GetWCSStruct()->err->line_no<<
+                    " of file "<<outputVolumeDisplay->GetWCSStruct()->err->file<<
+                    ": \n"<<outputVolumeDisplay->GetWCSStruct()->err->msg<<"\n";
+      }
+
+    d->parametersNode->SetReferenceVolumeNodeID(outputVolume->GetID());
+
+    if (logic->Reproject(d->parametersNode))
+      {
+      outputVolume->SetAttribute("SlicerAstro.CROTA1", "0.");
+      outputVolume->SetAttribute("SlicerAstro.CROTA2", "0.");
+
+      if (n > 2)
+        {
+        outputVolume->SetAttribute("SlicerAstro.CROTA3", "0.");
+        }
+      d->parametersNode->SetReferenceVolumeNodeID("");
+      d->astroVolumeWidget->setThreeComparativeView
+        (inputVolume->GetID(), outputVolume->GetID(), outputVolume->GetID());
+      }
+    else
+      {
+      scene->RemoveNode(outputVolume);
+      d->parametersNode->SetOutputVolumeNodeID("");
       }
     }
 
-  vtkNew<vtkMatrix4x4> transformationMatrix;
-  inputVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
-  outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
-  outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
-
-  if (logic->Reproject(d->parametersNode))
+  if (d->parametersNode->GetReprojectTime())
     {
-    vtkNew<vtkStringArray> outputAttributes;
-    outputVolume->GetAttributeNames(outputAttributes);
-    for (int AttributeIndex = 0; AttributeIndex < outputAttributes->GetNumberOfValues(); AttributeIndex++)
+    outputVolumeDisplay->GetWCSStruct()->equinox = 2000.;
+    std::string astroradesys("FK5");
+    strncpy(outputVolumeDisplay->GetWCSStruct()->radesys,  astroradesys.c_str(), 72);
+
+
+    outputVolumeDisplay->SetWCSStatus(wcsset(outputVolumeDisplay->GetWCSStruct()));
+    if (outputVolumeDisplay->GetWCSStatus())
       {
-      std::string AttributeKey = outputAttributes->GetValue(AttributeIndex).c_str();
-      if (AttributeKey.find("_COMMENT") != std::string::npos ||
-          AttributeKey.find("_HISTORY") != std::string::npos)
-        {
-        continue;
-        }
-      else if (AttributeKey.find("BMAJ") != std::string::npos ||
-          AttributeKey.find("BMIN") != std::string::npos ||
-          AttributeKey.find("BPA") != std::string::npos ||
-          AttributeKey.find("CD1_1") != std::string::npos ||
-          AttributeKey.find("CD1_2") != std::string::npos ||
-          AttributeKey.find("CD2_1") != std::string::npos ||
-          AttributeKey.find("CD2_2") != std::string::npos ||
-          AttributeKey.find("CDELT1") != std::string::npos ||
-          AttributeKey.find("CDELT2") != std::string::npos ||
-          AttributeKey.find("CROTA1") != std::string::npos ||
-          AttributeKey.find("CROTA2") != std::string::npos ||
-          AttributeKey.find("CRPIX1") != std::string::npos ||
-          AttributeKey.find("CRPIX2") != std::string::npos ||
-          AttributeKey.find("CRVAL1") != std::string::npos ||
-          AttributeKey.find("CRVAL2") != std::string::npos ||
-          AttributeKey.find("CTYPE1") != std::string::npos ||
-          AttributeKey.find("CTYPE2") != std::string::npos ||
-          AttributeKey.find("CUNIT1") != std::string::npos ||
-          AttributeKey.find("CUNIT2") != std::string::npos ||
-          AttributeKey.find("NAXIS1") != std::string::npos ||
-          AttributeKey.find("NAXIS2") != std::string::npos ||
-          AttributeKey.find("PC1_1") != std::string::npos ||
-          AttributeKey.find("PC1_2") != std::string::npos ||
-          AttributeKey.find("PC2_1") != std::string::npos ||
-          AttributeKey.find("PC2_2") != std::string::npos)
-        {
-        outputVolume->RemoveAttribute(AttributeKey.c_str());
-        }
+      qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply :"
+                    "wcsset ERROR "<<outputVolumeDisplay->GetWCSStatus()<<":\n"<<
+                    "Message from "<<outputVolumeDisplay->GetWCSStruct()->err->function<<
+                    "at line "<<outputVolumeDisplay->GetWCSStruct()->err->line_no<<
+                    " of file "<<outputVolumeDisplay->GetWCSStruct()->err->file<<
+                    ": \n"<<outputVolumeDisplay->GetWCSStruct()->err->msg<<"\n";
       }
 
-    vtkNew<vtkStringArray> referenceAttributes;
-    referenceVolume->GetAttributeNames(referenceAttributes);
-    for (int AttributeIndex = 0; AttributeIndex < referenceAttributes->GetNumberOfValues(); AttributeIndex++)
+    d->parametersNode->SetReferenceVolumeNodeID(outputVolume->GetID());
+
+    if (logic->Reproject(d->parametersNode))
       {
-      std::string AttributeKey = referenceAttributes->GetValue(AttributeIndex).c_str();
-      if (AttributeKey.find("_COMMENT") != std::string::npos ||
-          AttributeKey.find("_HISTORY") != std::string::npos)
-        {
-        continue;
-        }
-      else if (AttributeKey.find("BMAJ") != std::string::npos ||
-          AttributeKey.find("BMIN") != std::string::npos ||
-          AttributeKey.find("BPA") != std::string::npos ||
-          AttributeKey.find("CD1_1") != std::string::npos ||
-          AttributeKey.find("CD1_2") != std::string::npos ||
-          AttributeKey.find("CD2_1") != std::string::npos ||
-          AttributeKey.find("CD2_2") != std::string::npos ||
-          AttributeKey.find("CDELT1") != std::string::npos ||
-          AttributeKey.find("CDELT2") != std::string::npos ||
-          AttributeKey.find("CROTA1") != std::string::npos ||
-          AttributeKey.find("CROTA2") != std::string::npos ||
-          AttributeKey.find("CRPIX1") != std::string::npos ||
-          AttributeKey.find("CRPIX2") != std::string::npos ||
-          AttributeKey.find("CRVAL1") != std::string::npos ||
-          AttributeKey.find("CRVAL2") != std::string::npos ||
-          AttributeKey.find("CTYPE1") != std::string::npos ||
-          AttributeKey.find("CTYPE2") != std::string::npos ||
-          AttributeKey.find("CUNIT1") != std::string::npos ||
-          AttributeKey.find("CUNIT2") != std::string::npos ||
-          AttributeKey.find("NAXIS1") != std::string::npos ||
-          AttributeKey.find("NAXIS2") != std::string::npos ||
-          AttributeKey.find("PC1_1") != std::string::npos ||
-          AttributeKey.find("PC1_2") != std::string::npos ||
-          AttributeKey.find("PC2_1") != std::string::npos ||
-          AttributeKey.find("PC2_2") != std::string::npos)
-        {
-        std::string AttributeValue = referenceVolume->GetAttribute(AttributeKey.c_str());
-        outputVolume->SetAttribute(AttributeKey.c_str(), AttributeValue.c_str());
-        }
+      outputVolume->SetAttribute("SlicerAstro.EQUINOX", "2000.");
+      outputVolume->SetAttribute("SlicerAstro.RADESYS", "FK5");
+      d->parametersNode->SetReferenceVolumeNodeID("");
+      d->astroVolumeWidget->setThreeComparativeView
+        (inputVolume->GetID(), outputVolume->GetID(), outputVolume->GetID());
       }
-
-    vtkMRMLAstroVolumeDisplayNode* outputDisplayNode = outputVolume->GetAstroVolumeDisplayNode();
-    vtkMRMLAstroVolumeDisplayNode* referenceDisplayNode = referenceVolume->GetAstroVolumeDisplayNode();
-    outputDisplayNode->SetFitSlices(referenceDisplayNode->GetFitSlices());
-    outputDisplayNode->SetContoursColor(referenceDisplayNode->GetContoursColor());
-    outputDisplayNode->SetSpaceQuantities(referenceDisplayNode->GetSpaceQuantities());
-    outputDisplayNode->SetSpace(referenceDisplayNode->GetSpace());
-    outputDisplayNode->CopySpatialWCS(referenceDisplayNode);
-
-    d->astroVolumeWidget->setThreeComparativeView
-      (inputVolume->GetID(), referenceVolume->GetID(), outputVolume->GetID());
+    else
+      {
+      scene->RemoveNode(outputVolume);
+      d->parametersNode->SetOutputVolumeNodeID("");
+      }
     }
-  else
+
+  if (ReprojectToReference)
     {
-    scene->RemoveNode(outputVolume);
-    d->parametersNode->SetOutputVolumeNodeID("");
+    if (logic->Reproject(d->parametersNode))
+      {
+      vtkNew<vtkStringArray> outputAttributes;
+      outputVolume->GetAttributeNames(outputAttributes);
+      for (int AttributeIndex = 0; AttributeIndex < outputAttributes->GetNumberOfValues(); AttributeIndex++)
+        {
+        std::string AttributeKey = outputAttributes->GetValue(AttributeIndex).c_str();
+        if (AttributeKey.find("_COMMENT") != std::string::npos ||
+            AttributeKey.find("_HISTORY") != std::string::npos)
+          {
+          continue;
+          }
+        else if (AttributeKey.find("BMAJ") != std::string::npos ||
+                 AttributeKey.find("BMIN") != std::string::npos ||
+                 AttributeKey.find("BPA") != std::string::npos ||
+                 AttributeKey.find("CD1_1") != std::string::npos ||
+                 AttributeKey.find("CD1_2") != std::string::npos ||
+                 AttributeKey.find("CD2_1") != std::string::npos ||
+                 AttributeKey.find("CD2_2") != std::string::npos ||
+                 AttributeKey.find("CDELT1") != std::string::npos ||
+                 AttributeKey.find("CDELT2") != std::string::npos ||
+                 AttributeKey.find("CROTA1") != std::string::npos ||
+                 AttributeKey.find("CROTA2") != std::string::npos ||
+                 AttributeKey.find("CRPIX1") != std::string::npos ||
+                 AttributeKey.find("CRPIX2") != std::string::npos ||
+                 AttributeKey.find("CRVAL1") != std::string::npos ||
+                 AttributeKey.find("CRVAL2") != std::string::npos ||
+                 AttributeKey.find("CTYPE1") != std::string::npos ||
+                 AttributeKey.find("CTYPE2") != std::string::npos ||
+                 AttributeKey.find("CUNIT1") != std::string::npos ||
+                 AttributeKey.find("CUNIT2") != std::string::npos ||
+                 AttributeKey.find("NAXIS1") != std::string::npos ||
+                 AttributeKey.find("NAXIS2") != std::string::npos ||
+                 AttributeKey.find("PC1_1") != std::string::npos ||
+                 AttributeKey.find("PC1_2") != std::string::npos ||
+                 AttributeKey.find("PC2_1") != std::string::npos ||
+                 AttributeKey.find("PC2_2") != std::string::npos)
+          {
+          outputVolume->RemoveAttribute(AttributeKey.c_str());
+          }
+        }
+
+      vtkNew<vtkStringArray> referenceAttributes;
+      referenceVolume->GetAttributeNames(referenceAttributes);
+      for (int AttributeIndex = 0; AttributeIndex < referenceAttributes->GetNumberOfValues(); AttributeIndex++)
+        {
+        std::string AttributeKey = referenceAttributes->GetValue(AttributeIndex).c_str();
+        if (AttributeKey.find("_COMMENT") != std::string::npos ||
+            AttributeKey.find("_HISTORY") != std::string::npos)
+          {
+          continue;
+          }
+        else if (AttributeKey.find("BMAJ") != std::string::npos ||
+                 AttributeKey.find("BMIN") != std::string::npos ||
+                 AttributeKey.find("BPA") != std::string::npos ||
+                 AttributeKey.find("CD1_1") != std::string::npos ||
+                 AttributeKey.find("CD1_2") != std::string::npos ||
+                 AttributeKey.find("CD2_1") != std::string::npos ||
+                 AttributeKey.find("CD2_2") != std::string::npos ||
+                 AttributeKey.find("CDELT1") != std::string::npos ||
+                 AttributeKey.find("CDELT2") != std::string::npos ||
+                 AttributeKey.find("CROTA1") != std::string::npos ||
+                 AttributeKey.find("CROTA2") != std::string::npos ||
+                 AttributeKey.find("CRPIX1") != std::string::npos ||
+                 AttributeKey.find("CRPIX2") != std::string::npos ||
+                 AttributeKey.find("CRVAL1") != std::string::npos ||
+                 AttributeKey.find("CRVAL2") != std::string::npos ||
+                 AttributeKey.find("CTYPE1") != std::string::npos ||
+                 AttributeKey.find("CTYPE2") != std::string::npos ||
+                 AttributeKey.find("CUNIT1") != std::string::npos ||
+                 AttributeKey.find("CUNIT2") != std::string::npos ||
+                 AttributeKey.find("NAXIS1") != std::string::npos ||
+                 AttributeKey.find("NAXIS2") != std::string::npos ||
+                 AttributeKey.find("PC1_1") != std::string::npos ||
+                 AttributeKey.find("PC1_2") != std::string::npos ||
+                 AttributeKey.find("PC2_1") != std::string::npos ||
+                 AttributeKey.find("PC2_2") != std::string::npos)
+          {
+          std::string AttributeValue = referenceVolume->GetAttribute(AttributeKey.c_str());
+          outputVolume->SetAttribute(AttributeKey.c_str(), AttributeValue.c_str());
+          }
+        }
+
+      vtkMRMLAstroVolumeDisplayNode* outputDisplayNode = outputVolume->GetAstroVolumeDisplayNode();
+      vtkMRMLAstroVolumeDisplayNode* referenceDisplayNode = referenceVolume->GetAstroVolumeDisplayNode();
+      outputDisplayNode->SetFitSlices(referenceDisplayNode->GetFitSlices());
+      outputDisplayNode->SetContoursColor(referenceDisplayNode->GetContoursColor());
+      outputDisplayNode->SetSpaceQuantities(referenceDisplayNode->GetSpaceQuantities());
+      outputDisplayNode->SetSpace(referenceDisplayNode->GetSpace());
+      outputDisplayNode->CopySpatialWCS(referenceDisplayNode);
+
+      d->astroVolumeWidget->setThreeComparativeView
+        (inputVolume->GetID(), referenceVolume->GetID(), outputVolume->GetID());
+      }
+    else
+      {
+      scene->RemoveNode(outputVolume);
+      d->parametersNode->SetOutputVolumeNodeID("");
+      }
     }
 
   d->parametersNode->SetStatus(0);

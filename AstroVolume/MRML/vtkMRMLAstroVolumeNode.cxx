@@ -571,6 +571,13 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
   delete outFPixel;
   delete outDPixel;
 
+  if (noise < 1.E-6)
+    {
+    double MAX = StringToDouble(this->GetAttribute("SlicerAstro.DATAMAX"));
+    double MIN = StringToDouble(this->GetAttribute("SlicerAstro.DATAMIN"));
+    noise = (MAX - MIN) * 0.01;
+    }
+
   this->SetDisplayThreshold(noise);
 
   return true;

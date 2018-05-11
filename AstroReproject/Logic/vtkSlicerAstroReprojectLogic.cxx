@@ -23,17 +23,11 @@
 #include <vtkSlicerAstroConfigure.h>
 
 // MRML includes
-#include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroReprojectParametersNode.h>
 
 // VTK includes
-#include <vtkImageData.h>
-#include <vtkGeneralTransform.h>
-#include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
-#include <vtkPointData.h>
 #include <vtkSmartPointer.h>
 #include <vtkVersion.h>
 
@@ -41,14 +35,6 @@
 #include <cassert>
 #include <iostream>
 #include <sys/time.h>
-
-// OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
-
-// WCS includes
-#include "wcslib.h"
 
 #define UNUSED(expr) (void)(expr)
 
@@ -60,14 +46,12 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
-  vtkSmartPointer<vtkImageData> tempVolumeData;
 };
 
 //----------------------------------------------------------------------------
 vtkSlicerAstroReprojectLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = 0;
-  this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
 }
 
 //---------------------------------------------------------------------------

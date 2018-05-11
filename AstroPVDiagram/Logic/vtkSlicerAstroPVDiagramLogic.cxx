@@ -282,16 +282,6 @@ bool vtkSlicerAstroPVDiagramLogic::Calculate0thMomentMap(vtkMRMLAstroPVDiagramPa
   MomentMapNode->RemoveAttribute("SlicerAstro.DTYPE3");
   MomentMapNode->RemoveAttribute("SlicerAstro.DRVAL3");
   MomentMapNode->RemoveAttribute("SlicerAstro.DUNIT3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.PC1_3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.PC2_3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.PC3_1");
-  MomentMapNode->RemoveAttribute("SlicerAstro.PC3_2");
-  MomentMapNode->RemoveAttribute("SlicerAstro.PC3_3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CD1_3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CD2_3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CD3_1");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CD3_2");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CD3_3");
   MomentMapNode->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMENTMAP");
 
   // Remove old rendering Display

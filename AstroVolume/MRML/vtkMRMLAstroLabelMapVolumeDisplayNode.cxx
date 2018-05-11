@@ -216,7 +216,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition(bool upda
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetRadioVelocityDefinition :"
                   " WCS not found.");
@@ -268,7 +268,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition(bool up
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::SetOpticalVelocityDefinition :"
                   " WCS not found.");
@@ -320,7 +320,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetVelocityDefinition()
     return "";
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetVelocityDefinition :"
                   " WCS not found.");
@@ -339,7 +339,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetReferenceSpace(const double ijk[3
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     return false;
     }
@@ -380,7 +380,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(const double SpaceCoordi
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     return false;
     }
@@ -420,7 +420,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::GetIJKSpace(std::vector<double> Spac
     return false;
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     return false;
     }
@@ -811,7 +811,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     return;
     }
 
-  if (!this->WCS || !WCSNew || WCSStatusNew != 0)
+  if (!this->WCS || !WCSNew)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS :"
                   " WCS structs not found.");
@@ -824,7 +824,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
   int nsub = 3;
   int axes[3];
 
-  if (thisAxis == 3 && nodeAxis == 3)
+  if (thisAxis == 3 && nodeAxis >= 3)
     {
     nsub = 3;
     axes[0] = WCSSUB_LONGITUDE;
@@ -849,7 +849,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS: "
                   "it is not possible to copy WCS from a volume with "
-                  "naxis < than the naxis of teh current volume. ");
+                  "naxis < than the naxis of the current volume. ");
     return;
     }
 
@@ -1331,7 +1331,7 @@ std::string vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStrin
     return "";
     }
 
-  if (!this->WCS || this->WCSStatus != 0)
+  if (!this->WCS)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeDisplayNode::AddVelocityInfoToDisplayStringZ : "
                   "WCS not found!");

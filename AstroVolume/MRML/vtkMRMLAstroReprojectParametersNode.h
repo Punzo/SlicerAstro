@@ -68,6 +68,15 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroReprojectParametersNode : public vtkMRML
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
+  vtkSetMacro(ReprojectRotation,bool);
+  vtkGetMacro(ReprojectRotation,bool);
+
+  vtkSetMacro(ReprojectTime,bool);
+  vtkGetMacro(ReprojectTime,bool);
+
+  vtkSetMacro(ReprojectData,bool);
+  vtkGetMacro(ReprojectData,bool);
+
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
@@ -98,6 +107,10 @@ protected:
   char *InputVolumeNodeID;
   char *ReferenceVolumeNodeID;
   char *OutputVolumeNodeID;
+
+  bool ReprojectRotation;
+  bool ReprojectTime;
+  bool ReprojectData;
 
   int OutputSerial;
 
