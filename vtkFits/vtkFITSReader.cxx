@@ -62,10 +62,27 @@ vtkFITSReader::vtkFITSReader()
   this->Compression = false;
   this->fptr = NULL;
   this->ReadStatus = 0;
-  this->WCS = NULL;
+  this->WCS = new struct wcsprm;
+  this->WCS->flag = -1;
+  wcserr_enable(1);
+  if((this->WCSStatus = wcsini(1, 0, this->WCS)))
+    {
+    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
+    }
+  this->ReadWCS = new struct wcsprm;
+  this->ReadWCS->flag = -1;
+  if((this->WCSStatus = wcsini(1, 0, this->ReadWCS)))
+    {
+    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->ReadWCS->err->function<<
+                  "at line "<<this->ReadWCS->err->line_no<<" of file "<<this->ReadWCS->err->file<<
+                  ": \n"<<this->ReadWCS->err->msg<<"\n");
+    }
   this->NWCS = 0;
   this->WCSStatus = 0;
-  wcserr_enable(1);
   this->FixGipsyHeaderOn = false;
 }
 
@@ -94,10 +111,22 @@ vtkFITSReader::~vtkFITSReader()
     {
     if((this->WCSStatus = wcsvfree(&this->NWCS, &this->WCS)))
       {
-      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsfree ERROR "<<this->WCSStatus<<": "<<wcshdr_errmsg[this->WCSStatus]<<"\n");
+      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsfree ERROR "<<this->WCSStatus<<": "
+                    <<wcshdr_errmsg[this->WCSStatus]<<"\n");
       }
     delete [] this->WCS;
     this->WCS = NULL;
+    }
+
+  if(this->ReadWCS)
+    {
+    if((this->WCSStatus = wcsvfree(&this->NWCS, &this->ReadWCS)))
+      {
+      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsfree ERROR "<<this->WCSStatus<<": "
+                    <<wcshdr_errmsg[this->WCSStatus]<<"\n");
+      }
+    delete [] this->ReadWCS;
+    this->ReadWCS = NULL;
     }
 }
 
@@ -394,6 +423,7 @@ void vtkFITSReader::ExecuteInformation()
   // Push FITS header into WCS struct
   if(!this->AllocateWCS())
     {
+    this->WCSStatus = -1;
     vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateWCS.")
     }
 
@@ -559,6 +589,7 @@ bool vtkFITSReader::AllocateHeader()
 
    /* Read and print each keywords */
    int histCont = 0, commCont = 0;
+   this->HeaderKeyValue["SlicerAstro.PPO"] = "0";
    for (ii = 1; ii <= nkeys; ii++)
      {
      if (fits_read_record(this->fptr, ii, card, &this->ReadStatus))
@@ -637,6 +668,12 @@ bool vtkFITSReader::AllocateHeader()
        {
        str.erase(0,1);
        str.erase(str.size()-1, str.size());
+       }
+
+     // WCSLIB can not deal with PPO matrix
+     if(strkey.find("PPO") != std::string::npos)
+       {
+       this->HeaderKeyValue["SlicerAstro.PPO"] = "1";
        }
 
      if (!strkey.compare("COMMENT"))
@@ -742,30 +779,6 @@ bool vtkFITSReader::AllocateHeader()
        {
        this->HeaderKeyValue["SlicerAstro.NAXIS"] = "3";
        this->HeaderKeyValue.erase("SlicerAstro.NAXIS4");
-       if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT4")) == 0)
-         {
-         this->HeaderKeyValue.erase("SlicerAstro.CDELT4");
-         }
-       if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX4")) == 0)
-         {
-         this->HeaderKeyValue.erase("SlicerAstro.CRPIX4");
-         }
-       if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL4")) == 0)
-         {
-         this->HeaderKeyValue.erase("SlicerAstro.CRVAL4");
-         }
-       if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE4")) == 0)
-         {
-         this->HeaderKeyValue.erase("SlicerAstro.CTYPE4");
-         }
-       if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT4")) == 0)
-         {
-         this->HeaderKeyValue.erase("SlicerAstro.CUNIT4");
-         }
-       if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA4")) == 0)
-         {
-         this->HeaderKeyValue.erase("SlicerAstro.CROTA4");
-         }
        vtkWarningMacro("vtkFITSReader::AllocateHeader :"
                        " the 4th dimension keywords have been removed.");
        n = 3;
@@ -776,7 +789,37 @@ bool vtkFITSReader::AllocateHeader()
                      "Datacube with polarization (NAXIS=4 and NAXIS4>1) are not supported. \n"<<
                      "If you want to visualize 4 dimensional data, contact: \n"<<
                      "Davide Punzo, punzodavide@hotmail.it");
+       return false;
        }
+     }
+
+   if (!(this->HeaderKeyValue.count("SlicerAstro.NAXIS4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.NAXIS4");
+     }
+   if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.CDELT4");
+     }
+   if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.CRPIX4");
+     }
+   if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.CRVAL4");
+     }
+   if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.CTYPE4");
+     }
+   if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.CUNIT4");
+     }
+   if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA4")) == 0)
+     {
+     this->HeaderKeyValue.erase("SlicerAstro.CROTA4");
      }
 
    if (n == 3 && !(this->HeaderKeyValue.count("SlicerAstro.NAXIS3")) == 0)
@@ -786,6 +829,38 @@ bool vtkFITSReader::AllocateHeader()
        {
        this->HeaderKeyValue["SlicerAstro.NAXIS"] = "2";
        n = 2;
+       }
+     }
+
+   if (n == 2)
+     {
+     if (!(this->HeaderKeyValue.count("SlicerAstro.NAXIS3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.NAXIS3");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CDELT3");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CRPIX3");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CRVAL3");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CTYPE3");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CUNIT3");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA3")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CROTA3");
        }
      }
 
@@ -799,6 +874,44 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
+   if (n == 1)
+     {
+     if (!(this->HeaderKeyValue.count("SlicerAstro.NAXIS2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.NAXIS2");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CDELT2");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CRPIX2");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CRVAL2");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CTYPE2");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CUNIT2");
+       }
+     if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA2")) == 0)
+       {
+       this->HeaderKeyValue.erase("SlicerAstro.CROTA2");
+       }
+     }
+
+   if (n < 1 || n > 4)
+     {
+       vtkErrorMacro("vtkFITSReader::AllocateHeader : \n"
+                     "the data has wrong dimensionality. Please, check the fits header.");
+     return false;
+     }
 
    std::string temp = "SlicerAstro.NAXIS";
 
@@ -821,6 +934,15 @@ bool vtkFITSReader::AllocateHeader()
        return false;
        }
        temp.erase(temp.size()-1);
+     }
+
+   if (!strcmp(this->HeaderKeyValue["SlicerAstro.PPO"].c_str(), "1"))
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateWCS: "
+                     "PPO matrix is not a WCS fits standard. \n"
+                     "Some opeartions (such as reprojection) will not be available. \n"
+                     "Please provide data with classic formalism or PC or CD matrices "
+                     "for full WCS support in SlicerAstro.");
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
@@ -951,96 +1073,6 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)
      {
      this->HeaderKeyValue["SlicerAstro.CROTA3"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD1_1") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD1_1"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD1_2") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD1_2"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD2_1") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD2_1"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD2_2") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD2_2"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD1_3") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD1_3"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD2_3") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD2_3"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD3_1") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD3_1"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD3_2") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD3_2"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.CD3_3") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.CD3_3"] = "0.";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC1_1") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC1_1"] = "1";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC1_2") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC1_2"] = "0";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC2_1") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC2_1"] = "0";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC2_2") == 0 && n > 1)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC2_2"] = "1";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC1_3") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC1_3"] = "0";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC2_3") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC2_3"] = "0";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC3_1") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC3_1"] = "0";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC3_2") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC3_2"] = "0";
-     }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.PC3_3") == 0 && n > 2)
-     {
-     this->HeaderKeyValue["SlicerAstro.PC3_3"] = "1";
      }
 
    if (this->HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
@@ -1549,6 +1581,13 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
+   if (this->HeaderKeyValue.count("SlicerAstro.RADESYS") == 0)
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     "The fits header is missing the RADESYS keyword.");
+     this->HeaderKeyValue["SlicerAstro.RADESYS"] = "";
+     }
+
    if (this->HeaderKeyValue.count("SlicerAstro.CELLSCAL") == 0)
      {
      this->HeaderKeyValue["SlicerAstro.CELLSCAL"] = "";
@@ -1731,18 +1770,21 @@ int vtkFITSReader::FixGipsyHeader()
 }
 
 //----------------------------------------------------------------------------
-bool vtkFITSReader::AllocateWCS(){
+bool vtkFITSReader::AllocateWCS()
+{
   char *header;
   int  i, nkeyrec, nreject, stat[NWCSFIX];
 
+  // read header from fits file
   if ((this->WCSStatus = fits_hdr2str(this->fptr, 1, NULL, 0, &header, &nkeyrec, &this->WCSStatus)))
     {
     fits_report_error(stderr, this->WCSStatus);
     }
 
   std::string stdHeader(header);
-  size_t found;
+  size_t found; 
 
+  // fix gipsy keywords in wcs
   int n = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
   if (this->FixGipsyHeaderOn && n == 3)
     {
@@ -1849,15 +1891,16 @@ bool vtkFITSReader::AllocateWCS(){
       }
     }
 
+  // update wcs from fits header
   header = (char *)malloc(((int)(stdHeader.size())+1)*sizeof(char));
   std::strcpy(header, stdHeader.c_str());
 
-  if ((this->WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &this->NWCS, &this->WCS)))
+  if ((this->WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &this->NWCS, &this->ReadWCS)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: wcspih ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  "Message from "<<this->ReadWCS->err->function<<
+                  "at line "<<this->ReadWCS->err->line_no<<" of file "<<this->ReadWCS->err->file<<
+                  ": \n"<<this->ReadWCS->err->msg<<"\n");
     return false;
     }
 
@@ -1865,6 +1908,100 @@ bool vtkFITSReader::AllocateWCS(){
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: the volume has more than one WCS, "
                   "SlicerAstro assume only one WCS per volume.");
+    return false;
+    }
+
+  // run automatic wcs fix
+  if ((this->WCSStatus = wcsfixi(7, 0, this->ReadWCS, stat, this->info)))
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsfix error: "<<this->WCSStatus<<"\n");
+    }
+
+  std::string print = "vtkFITSReader::AllocateWCS: wcsfix status returns: (";
+  for (i = 0; i < NWCSFIX; i++)
+    {
+    print += IntToString(stat[i])+",";
+    }
+  print += ")";
+
+  vtkDebugMacro(<<print);
+
+  for (i = 0; i < NWCSFIX; i++)
+    {
+    if (this->info[i].status < -1 || 0 < this->info[i].status)
+      {
+      vtkWarningMacro("wcsfix INFORMATIVE message from "<<this->info[i].function<<
+                      "at line "<<this->info[i].line_no<<" of file "<<this->info[i].file<<
+                      ": \n"<< this->info[i].msg<<"\n");
+      }
+    }
+
+  // Reduce wcs dimensionality to the real one
+  int readWcsAxis = this->ReadWCS->naxis;
+  int nsub = 3;
+  int axes[3];
+
+  if (n == 3 && readWcsAxis >= 3)
+    {
+    nsub = 3;
+    axes[0] = WCSSUB_LONGITUDE;
+    axes[1] = WCSSUB_LATITUDE;
+    axes[2] = WCSSUB_SPECTRAL;
+    }
+  else if (n == 2 && readWcsAxis >= 2)
+    {
+    nsub = 2;
+    axes[0] = WCSSUB_LONGITUDE;
+    axes[1] = WCSSUB_LATITUDE;
+    axes[2] = -WCSSUB_SPECTRAL;
+    }
+  else if (n == 1 && readWcsAxis >= 1)
+    {
+    nsub = 1;
+    axes[0] = WCSSUB_LONGITUDE;
+    axes[1] = -WCSSUB_LATITUDE;
+    axes[2] = -WCSSUB_SPECTRAL;
+    }
+  else
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                  "it is not possible to copy WCS from a volume with "
+                  "naxis < than the naxis of the current volume. ");
+    return false;
+    }
+
+  this->WCS->flag = -1;
+  if ((this->WCSStatus = wcssub(1, this->ReadWCS, &nsub, axes, this->WCS)))
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                  "wcssub ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<
+                  " of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
+    return false;
+    }
+
+  // set internally the wcs
+  if ((this->WCSStatus = wcsset(this->WCS)))
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                  "Message from "<<this->WCS->err->function<<
+                  "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
+                  ": \n"<<this->WCS->err->msg<<"\n");
+    }
+
+  if (n != this->WCS->naxis)
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                  "the dimensionality of the WCS and of the SlicerAstro attribute do not correspond.");
+    return false;
+    }
+
+  if (this->WCS->naxis > 3)
+    {
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                  "the dimensionality of the WCS > 3 SlicerAstro can not visualize such data.");
     return false;
     }
 
@@ -1906,125 +2043,196 @@ bool vtkFITSReader::AllocateWCS(){
 
   this->WCS->crval[0] = CRVAL1;
 
-  this->HeaderKeyValue["SlicerAstro.CRVAL1"] = DoubleToString(this->WCS->crval[0]);
-  this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(this->WCS->cdelt[0]);
-  this->HeaderKeyValue["SlicerAstro.CROTA1"] = DoubleToString(this->WCS->crota[0]);
-
-  if (n == 2)
+  // Check pc, cd matrices and cdelt values
+  bool cdMatrixFound = false;
+  if (n > 1)
     {
-    this->HeaderKeyValue["SlicerAstro.CRVAL2"] = DoubleToString(this->WCS->crval[1]);
-    this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
-    this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(this->WCS->crota[1]);
-    this->HeaderKeyValue["SlicerAstro.CD1_1"] = DoubleToString(this->WCS->cd[0]);
-    this->HeaderKeyValue["SlicerAstro.CD1_2"] = DoubleToString(this->WCS->cd[1]);
-    this->HeaderKeyValue["SlicerAstro.CD2_1"] = DoubleToString(this->WCS->cd[2]);
-    this->HeaderKeyValue["SlicerAstro.CD2_2"] = DoubleToString(this->WCS->cd[3]);
-    this->HeaderKeyValue["SlicerAstro.PC1_1"] = DoubleToString(this->WCS->pc[0]);
-    this->HeaderKeyValue["SlicerAstro.PC1_2"] = DoubleToString(this->WCS->pc[1]);
-    this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[2]);
-    this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[3]);
-    }
-
-  if (n == 3)
-    {
-    this->HeaderKeyValue["SlicerAstro.CRVAL2"] = DoubleToString(this->WCS->crval[1]);
-    this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
-    this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(this->WCS->crota[1]);
-    this->HeaderKeyValue["SlicerAstro.CRVAL3"] = DoubleToString(this->WCS->crval[2]);
-    this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(this->WCS->cdelt[2]);
-    this->HeaderKeyValue["SlicerAstro.CROTA3"] = DoubleToString(this->WCS->crota[2]);
-    this->HeaderKeyValue["SlicerAstro.CD1_1"] = DoubleToString(this->WCS->cd[0]);
-    this->HeaderKeyValue["SlicerAstro.CD1_2"] = DoubleToString(this->WCS->cd[1]);
-    this->HeaderKeyValue["SlicerAstro.CD1_3"] = DoubleToString(this->WCS->cd[2]);
-    this->HeaderKeyValue["SlicerAstro.CD2_1"] = DoubleToString(this->WCS->cd[3]);
-    this->HeaderKeyValue["SlicerAstro.CD2_2"] = DoubleToString(this->WCS->cd[4]);
-    this->HeaderKeyValue["SlicerAstro.CD2_3"] = DoubleToString(this->WCS->cd[5]);
-    this->HeaderKeyValue["SlicerAstro.CD3_1"] = DoubleToString(this->WCS->cd[6]);
-    this->HeaderKeyValue["SlicerAstro.CD3_2"] = DoubleToString(this->WCS->cd[7]);
-    this->HeaderKeyValue["SlicerAstro.CD3_3"] = DoubleToString(this->WCS->cd[8]);
-    this->HeaderKeyValue["SlicerAstro.PC1_1"] = DoubleToString(this->WCS->pc[0]);
-    this->HeaderKeyValue["SlicerAstro.PC1_2"] = DoubleToString(this->WCS->pc[1]);
-    this->HeaderKeyValue["SlicerAstro.PC1_3"] = DoubleToString(this->WCS->pc[2]);
-    this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[3]);
-    this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[4]);
-    this->HeaderKeyValue["SlicerAstro.PC2_3"] = DoubleToString(this->WCS->pc[5]);
-    this->HeaderKeyValue["SlicerAstro.PC3_1"] = DoubleToString(this->WCS->pc[6]);
-    this->HeaderKeyValue["SlicerAstro.PC3_2"] = DoubleToString(this->WCS->pc[7]);
-    this->HeaderKeyValue["SlicerAstro.PC3_3"] = DoubleToString(this->WCS->pc[8]);
-    }
-
-  if (floor(this->WCS->cdelt[0]) == 1 && floor(this->WCS->cdelt[1]) == 1)
-    {
-    double cd11 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_1"].c_str());
-    double cd12 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD1_2"].c_str());
-    double cd21 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_1"].c_str());
-    double cd22 = StringToDouble(this->HeaderKeyValue["SlicerAstro.CD2_2"].c_str());
-    double CDELT1 = 0.;
-    double CDELT2 = 0.;
-    double CROTA2 = 0.;
-    if (fabs(cd12) < 1.E-6 && fabs(cd21) < 1.E-6)
+    bool pcMatrixFound = false;
+    if (n == 2)
       {
-      CROTA2 = 0.0;
-      CDELT1 = cd11;
-      CDELT2 = cd22;
-      }
-    else
-      {
-      CDELT1 = sqrt(cd11 * cd11 + cd21 * cd21);
-      CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
-      double det = cd11 * cd22 - cd12 * cd21;
-      if (fabs(det) < 1.E-6)
+      if ((fabs(this->WCS->pc[0]) > 1.E-6 ||
+           fabs(this->WCS->pc[1]) > 1.E-6 ||
+           fabs(this->WCS->pc[2]) > 1.E-6 ||
+           fabs(this->WCS->pc[3]) > 1.E-6))
         {
-        vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                        " Determinant of CD matrix == 0");
+        pcMatrixFound = true;
         }
-      double sign = 1.0;
-      if (det < 0.0)
+      }
+    else if (n == 3)
+      {
+      if (fabs(this->WCS->pc[0]) > 1.E-6 ||
+          fabs(this->WCS->pc[1]) > 1.E-6 ||
+          fabs(this->WCS->pc[2]) > 1.E-6 ||
+          fabs(this->WCS->pc[3]) > 1.E-6 ||
+          fabs(this->WCS->pc[4]) > 1.E-6 ||
+          fabs(this->WCS->pc[5]) > 1.E-6 ||
+          fabs(this->WCS->pc[6]) > 1.E-6 ||
+          fabs(this->WCS->pc[7]) > 1.E-6 ||
+          fabs(this->WCS->pc[8]) > 1.E-6)
         {
-        CDELT2 = -CDELT2;
-        sign = -1.0;
+        pcMatrixFound = true;
         }
-      double rot1_cd = atan2(-cd21, sign * cd11);
-      double rot2_cd = atan2(sign * cd12, cd22);
-      double rot_av = (rot1_cd + rot2_cd) * 0.5;
-      const double rad2deg = 180. / PI;
-      CROTA2 = rot_av * rad2deg;
       }
 
-    this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(CDELT1);
-    this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(CDELT2);
-    this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
-
-    if (n == 3 && floor(this->WCS->cdelt[2]) == 1)
+    bool cDeltNotValid = false;
+    if (n > 1)
       {
-      this->HeaderKeyValue["SlicerAstro.CDELT3"] = this->HeaderKeyValue["SlicerAstro.CD3_3"];
+      if (fabs(this->WCS->cdelt[0]) < 1.E-9 ||
+          fabs(this->WCS->cdelt[0] - 1.) < 1.E-9 ||
+          fabs(this->WCS->cdelt[1]) < 1.E-9 ||
+          fabs(this->WCS->cdelt[1] - 1.) < 1.E-9 )
+        {
+        cDeltNotValid = true;
+        }
       }
-    }
-
-  if ((this->WCSStatus = wcsfixi(7, 0, this->WCS, stat, this->info)))
-    {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsfix error: "<<this->WCSStatus<<"\n");
-    }
-
-  std::string print = "vtkFITSReader::AllocateWCS: wcsfix status returns: (";
-  for (i = 0; i < NWCSFIX; i++)
-    {
-    print += IntToString(stat[i])+",";
-    }
-  print += ")";
-
-  vtkDebugMacro(<<print);
-
-  for (i = 0; i < NWCSFIX; i++)
-    {
-    if (this->info[i].status < -1 || 0 < this->info[i].status)
+    if (n > 2)
       {
-      vtkWarningMacro("wcsfix INFORMATIVE message from "<<this->info[i].function<<
-                    "at line "<<this->info[i].line_no<<" of file "<<this->info[i].file<<
-                    ": \n"<< this->info[i].msg<<"\n");
+      if (fabs(this->WCS->cdelt[2]) < 1.E-9 ||
+          fabs(this->WCS->cdelt[2] - 1.) < 1.E-9)
+        {
+        cDeltNotValid = true;
+        }
+      }
+
+    if (n > 1)
+      {
+      if ((fabs(this->WCS->cd[0]) > 1.E-6 ||
+           fabs(this->WCS->cd[1]) > 1.E-6 ||
+           fabs(this->WCS->cd[2]) > 1.E-6 ||
+           fabs(this->WCS->cd[3]) > 1.E-6))
+        {
+        cdMatrixFound = true;
+        }
+      }
+    if (n > 2)
+      {
+      if (fabs(this->WCS->cd[4]) > 1.E-6 ||
+          fabs(this->WCS->cd[5]) > 1.E-6 ||
+          fabs(this->WCS->cd[6]) > 1.E-6 ||
+          fabs(this->WCS->cd[7]) > 1.E-6 ||
+          fabs(this->WCS->cd[8]) > 1.E-6)
+        {
+        cdMatrixFound = true;
+        }
+      }
+
+    if (!pcMatrixFound && !cdMatrixFound && cDeltNotValid)
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "WCS didn't find either pc matrix, cdelti and cd matrix.");
+      return false;
+      }
+
+    if (pcMatrixFound && !cdMatrixFound && cDeltNotValid)
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "WCS found pc matrix, but cdelti are invalid.");
+      return false;
+      }
+
+    if ((!pcMatrixFound && cdMatrixFound) ||
+        (pcMatrixFound && cdMatrixFound && cDeltNotValid))
+      {
+      double cd11 = 0., cd12 = 0., cd21 = 0., cd22 = 0.;
+      if (n == 2)
+        {
+        cd11 = this->WCS->cd[0];
+        cd12 = this->WCS->cd[1];
+        cd21 = this->WCS->cd[2];
+        cd22 = this->WCS->cd[3];
+        }
+      else if (n == 3)
+        {
+        cd11 = this->WCS->cd[0];
+        cd12 = this->WCS->cd[1];
+        cd21 = this->WCS->cd[3];
+        cd22 = this->WCS->cd[4];
+        }
+
+      double CDELT1 = 0.;
+      double CDELT2 = 0.;
+      double CROTA2 = 0.;
+      if (fabs(cd12) < 1.E-6 && fabs(cd21) < 1.E-6)
+        {
+        CROTA2 = 0.0;
+        CDELT1 = cd11;
+        CDELT2 = cd22;
+        }
+      else
+        {
+        CDELT1 = sqrt(cd11 * cd11 + cd21 * cd21);
+        CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
+        double det = cd11 * cd22 - cd12 * cd21;
+        if (fabs(det) < 1.E-6)
+          {
+          vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                          "Determinant of CD matrix == 0. This means that the CD keyword may be wrong. "
+                          "Please check that the CD matrix is not actually the PC matrix.");
+          }
+        double sign = 1.0;
+        if (det < 0.0)
+          {
+          CDELT2 = -CDELT2;
+          sign = -1.0;
+          }
+        double rot1_cd = atan2(-cd21, sign * cd11);
+        double rot2_cd = atan2(sign * cd12, cd22);
+        double rot_av = (rot1_cd + rot2_cd) * 0.5;
+        const double rad2deg = 180. / PI;
+        CROTA2 = (rot_av * rad2deg) + 180.;
+        }
+
+      this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(CDELT1);
+      this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(CDELT2);
+      this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
+
+      if (n == 3)
+        {
+        this->WCS->cdelt[2] = this->WCS->cd[8];
+        this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(this->WCS->cd[8]);
+        }
+      }
+
+    if ((pcMatrixFound && !cDeltNotValid))
+      {
+      double pc11 = 0., pc12 = 0., pc21 = 0., pc22 = 0.;
+      if (n == 2)
+        {
+        pc11 = this->WCS->pc[0];
+        pc12 = this->WCS->pc[1];
+        pc21 = this->WCS->pc[2];
+        pc22 = this->WCS->pc[3];
+        }
+      else if (n == 3)
+        {
+        pc11 = this->WCS->pc[0];
+        pc12 = this->WCS->pc[1];
+        pc21 = this->WCS->pc[3];
+        pc22 = this->WCS->pc[4];
+        }
+
+      double CROTA2 = 0.;
+      if (fabs(pc12) > 1.E-6 && fabs(pc21) > 1.E-6)
+        {
+        double det = pc11 * pc22 - pc12 * pc21;
+        double sign = 1.0;
+        if (det < 0.0)
+          {
+          sign = -1.0;
+          }
+        double rot1_cd = atan2(-pc21, sign * pc11);
+        double rot2_cd = atan2(sign * pc12, pc22);
+        double rot_av = (rot1_cd + rot2_cd) * 0.5;
+        const double rad2deg = 180. / PI;
+
+        CROTA2 = (rot_av * rad2deg) + 180.;
+        }
+
+      this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
       }
     }
 
+  // set internally the wcs
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
@@ -2033,32 +2241,36 @@ bool vtkFITSReader::AllocateWCS(){
                   ": \n"<<this->WCS->err->msg<<"\n");
     }
 
-  std::string ctype2 = this->WCS->ctype[2];
-  if (strncmp(this->WCS->ctype[2], "VOPT", 4))
+  // project third axes always as a velocity
+  if (this->WCS->naxis > 2)
     {
-    int index = 2;
-    char ctypeS[9];
-    strcpy(ctypeS, "VOPT-???");
+    std::string ctype2 = this->WCS->ctype[2];
+    if (strncmp(this->WCS->ctype[2], "VOPT", 4))
+      {
+      int index = 2;
+      char ctypeS[9];
+      strcpy(ctypeS, "VOPT-???");
 
-    if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
-      {
-      vtkErrorMacro("vtkFITSReader::AllocateWCS: wcssptr ERROR "<<this->WCSStatus<<":\n"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                    ": \n"<<this->WCS->err->msg<<"\n");
-      }
-    else
-      {
-      vtkWarningMacro("vtkFITSReader::AllocateWCS: 3rd WCS axes has been converted "
-                      "from "<<ctype2<< " to "<<this->WCS->ctype[2]<<".");
-      }
+      if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
+        {
+        vtkErrorMacro("vtkFITSReader::AllocateWCS: wcssptr ERROR "<<this->WCSStatus<<":\n"<<
+                      "Message from "<<this->WCS->err->function<<
+                      "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
+                      ": \n"<<this->WCS->err->msg<<"\n");
+        }
+      else
+        {
+        vtkWarningMacro("vtkFITSReader::AllocateWCS: 3rd WCS axes has been converted "
+                        "from "<<ctype2<< " to "<<this->WCS->ctype[2]<<".");
+        }
 
-    if ((this->WCSStatus = wcsset(this->WCS)))
-      {
-      vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                    ": \n"<<this->WCS->err->msg<<"\n");
+      if ((this->WCSStatus = wcsset(this->WCS)))
+        {
+        vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
+                      "Message from "<<this->WCS->err->function<<
+                      "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
+                      ": \n"<<this->WCS->err->msg<<"\n");
+        }
       }
     }
 
@@ -2067,6 +2279,138 @@ bool vtkFITSReader::AllocateWCS(){
     vtkErrorMacro("vtkFITSReader::AllocateWCS: WCSlib failed to create WCSstruct."<< "\n"<<
                   "World coordinates will not be displayed. "<< "\n");
     return false;
+    }
+
+  // copy everything also in the astroVolume attributes
+  this->HeaderKeyValue["SlicerAstro.CRVAL1"] = DoubleToString(this->WCS->crval[0]);
+  if (!cdMatrixFound)
+    {
+    this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(this->WCS->cdelt[0]);
+    }
+  this->HeaderKeyValue["SlicerAstro.CRPIX1"] = DoubleToString(this->WCS->crpix[0]);
+
+  if (n > 1)
+    {
+    this->HeaderKeyValue["SlicerAstro.CRVAL2"] = DoubleToString(this->WCS->crval[1]);
+      if (!cdMatrixFound)
+        {
+        this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
+        }
+    this->HeaderKeyValue["SlicerAstro.CRPIX2"] = DoubleToString(this->WCS->crpix[1]);
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC1_1");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC1_2");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC2_1");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC2_2");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD1_1");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD1_2");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD2_1");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD2_2");
+      }
+    }
+
+  if (n > 2)
+    {
+    this->HeaderKeyValue["SlicerAstro.CRVAL3"] = DoubleToString(this->WCS->crval[2]);
+    if (!cdMatrixFound)
+      {
+      this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(this->WCS->cdelt[2]);
+      }
+    this->HeaderKeyValue["SlicerAstro.CRPIX3"] = DoubleToString(this->WCS->crpix[2]);
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_3")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC1_3");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC2_1");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC2_2");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_3")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC2_3");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC3_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC3_1");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC3_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC3_2");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC3_3")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC3_3");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_3")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD1_3");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD2_1");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD2_2");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_3")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD2_3");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_1")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD3_1");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_2")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD3_2");
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_3")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.CD3_3");
+      }
     }
 
   free(header);

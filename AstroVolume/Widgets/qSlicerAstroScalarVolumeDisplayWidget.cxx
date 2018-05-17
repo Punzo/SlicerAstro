@@ -225,6 +225,7 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
   QObject::connect(this->Contours2DSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onContours2DOriginChanged(double)));
 
+  this->SliceSegmentationLabel->hide();
   this->Contours2DSliderWidget->hide();
 }
 
@@ -639,6 +640,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     reprojectParaNode->SetInputVolumeNodeID(contoursVolume->GetID());
     reprojectParaNode->SetReferenceVolumeNodeID(masterVolume->GetID());
     reprojectParaNode->SetOutputVolumeNodeID(outputVolume->GetID());
+    reprojectParaNode->SetReprojectRotation(false);
+    reprojectParaNode->SetReprojectTime(false);
 
     astroVolumeLogic->CenterVolume(masterVolume);
     astroVolumeLogic->CenterVolume(contoursVolume);
@@ -804,6 +807,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   double MIN = StringToDouble(masterVolume->GetAttribute("SlicerAstro.DATAMIN"));
   double MAX = StringToDouble(masterVolume->GetAttribute("SlicerAstro.DATAMAX"));
   double DisplayThreshold = StringToDouble(masterVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
+  if (DisplayThreshold < 1.E-6)
+    {
+    DisplayThreshold = (MAX - MIN) * 0.01;
+    }
 
   bool convert = false;
   std::size_t found = LevelsStdString.find("DT");
@@ -994,9 +1001,21 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
           }
         }
       }
-    QString message = QString("The value of some Contour Levels exceeds the MIN and MAX values. "
-                              "These will be ignored.");
-    qWarning() << Q_FUNC_INFO << ": " << message;
+
+    Levels->Squeeze();
+    if (Levels->GetNumberOfValues() == 0)
+      {
+      QString message = QString("All the value of some Contour Levels exceeds the MIN and MAX values. "
+                                "Contours can not be generated");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      return;
+      }
+    else
+      {
+      QString message = QString("The value of some Contour Levels exceeds the MIN and MAX values. "
+                                "These will be ignored.");
+      qWarning() << Q_FUNC_INFO << ": " << message;
+      }
     }
 
   // Create empty segment in current segmentation
@@ -1084,7 +1103,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       }
     }
 
-  const int DataType = masterVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  /*const int DataType = masterVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   double datacubeDim = 0;
   switch (DataType)
     {
@@ -1109,7 +1128,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     {
     segmentationNode->GetSegmentation()->CreateRepresentation(
       vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    }
+    }*/
+
+  segmentationNode->GetSegmentation()->CreateRepresentation(
+    vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
 
   for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
@@ -1137,7 +1159,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
 
-    if (datacubeDim < 1.E+7)
+    /*if (datacubeDim < 1.E+7)
       {
       SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
         vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
@@ -1146,15 +1168,19 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       {
       SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
         vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-      }
-    }
+      }*/
 
-  QApplication::restoreOverrideCursor();
+    SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    }
 
   if (masterVolume != this->volumeNode())
     {
+    this->mrmlScene()->RemoveNode(masterVolume->GetAstroVolumeDisplayNode());
     this->mrmlScene()->RemoveNode(masterVolume);
     }
+
+  QApplication::restoreOverrideCursor();
 }
 
 // --------------------------------------------------------------------------
@@ -1679,6 +1705,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromContoursMRML()
 
   if (!d->contoursVolumeNode)
     {
+    d->SliceSegmentationLabel->hide();
     d->Contours2DSliderWidget->hide();
     return;
     }
@@ -1687,6 +1714,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromContoursMRML()
 
 if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
   {
+  d->SliceSegmentationLabel->hide();
   d->Contours2DSliderWidget->hide();
   return;
   }
@@ -1718,6 +1746,7 @@ if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
   vtkMRMLAstroVolumeNode* astroVolume = this->volumeNode();
   if (!astroVolume)
     {
+    d->SliceSegmentationLabel->hide();
     d->Contours2DSliderWidget->hide();
     return;
     }
@@ -1734,6 +1763,7 @@ if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
     vtkImageData* contoursImage = d->contoursVolumeNode->GetImageData();
     if (!contoursImage)
       {
+      d->SliceSegmentationLabel->hide();
       d->Contours2DSliderWidget->hide();
       return;
       }
@@ -1759,6 +1789,7 @@ if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
     }
   else
     {
+    d->SliceSegmentationLabel->hide();
     d->Contours2DSliderWidget->hide();
     }
 }

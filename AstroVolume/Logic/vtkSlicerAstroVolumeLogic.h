@@ -74,6 +74,16 @@ public:
   /// Update the units nodes to the metadata stored in the active volume
   void updateIntensityUnitsNode(vtkMRMLNode *astroVolumeNode);
 
+  /// Create a deep copy of a \a astroVolumeNode and add it to the \a scene
+  /// Only works for vtkMRMLAstroVolumeNode.
+  /// \sa CloneVolumeGeneric, \sa CloneVolume
+  vtkMRMLAstroVolumeNode *CloneAstroVolume(vtkMRMLScene *scene,
+                                           vtkMRMLAstroVolumeNode *inputVolumeNode,
+                                           vtkMRMLAstroVolumeNode *outputVolumeNode,
+                                           const char *outputNameReference,
+                                           const char *name,
+                                           bool cloneImageData = true);
+
   /// Create a label map volume to match the given \a volumeNode and add it to the \a scene
   vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,
                                                           vtkMRMLAstroVolumeNode *volumeNode,

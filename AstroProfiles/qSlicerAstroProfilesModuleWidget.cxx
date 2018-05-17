@@ -1095,25 +1095,6 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL3");
   ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT3");
 
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC1_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC1_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC1_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC2_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC2_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC2_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC3_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC3_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC3_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD1_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD1_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD1_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD2_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD2_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD2_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD3_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD3_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CD3_3");
-
   // copy 1D image into the Astro Volume object
   ProfileVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 

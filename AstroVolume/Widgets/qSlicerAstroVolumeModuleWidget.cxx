@@ -2700,7 +2700,9 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeNodeOneID, const char *volumeNodeTwoID, const char *volumeNodeThreeID)
+void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeNodeOneID,
+                                                             const char *volumeNodeTwoID,
+                                                             const char *volumeNodeThreeID)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -2715,7 +2717,7 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
     }
 
   app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
-          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+          (vtkMRMLLayoutNode::SlicerLayoutFourUpView);
 
   if (!this->mrmlScene())
     {
@@ -2751,10 +2753,110 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
     return;
     }
 
-  if (StringToInt(volumeOne->GetAttribute("SlicerAstro.NAXIS")) == 3)
+  vtkMRMLVolumeRenderingDisplayNode *volumeOneRenderingDisplay =
+    volumeOne->GetAstroVolumeRenderingDisplayNode();
+  if (volumeOneRenderingDisplay)
     {
-    this->setComparative3DViews(volumeNodeOneID, volumeNodeThreeID, false, false);
+    volumeOneRenderingDisplay->SetVisibility(false);
     }
+
+  vtkMRMLVolumeRenderingDisplayNode *volumeTwoRenderingDisplay =
+    volumeTwo->GetAstroVolumeRenderingDisplayNode();
+  if (volumeTwoRenderingDisplay)
+    {
+    volumeTwoRenderingDisplay->SetVisibility(false);
+    }
+
+  vtkMRMLVolumeRenderingDisplayNode *volumeThreeRenderingDisplay =
+    volumeThree->GetAstroVolumeRenderingDisplayNode();
+  if (volumeThreeRenderingDisplay)
+    {
+    volumeThreeRenderingDisplay->SetVisibility(false);
+    }
+
+  volumeTwo->SetDisplayVisibility(0);
+  volumeThree->SetDisplayVisibility(0);
+  volumeOne->SetDisplayVisibility(0);
+
+  if (!d->selectionNode)
+    {
+    qCritical() <<"qSlicerAstroVolumeModuleWidget::setQuantitative3DView : selectionNode not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
+    return;
+    }
+
+  // Update 3D Renderings
+  d->selectionNode->SetActiveLabelVolumeID("");
+  d->selectionNode->SetActiveVolumeID(volumeTwo->GetID());
+  this->updatePresets(volumeTwo);
+
+  d->selectionNode->SetActiveVolumeID(volumeThree->GetID());
+  this->updatePresets(volumeThree);
+
+  d->selectionNode->SetSecondaryVolumeID(volumeTwo->GetID());
+  d->selectionNode->SetActiveVolumeID(volumeOne->GetID());
+  this->updatePresets(volumeOne);
+
+  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
+  int numCameraNodes = cameraNodes->GetNumberOfItems();
+
+  vtkMRMLViewNode *View1 = vtkMRMLViewNode::SafeDownCast
+    (mrmlScene()->GetNodeByID("vtkMRMLViewNode1"));
+  if (View1)
+    {
+    for (int cameraIndex = 0; cameraIndex < numCameraNodes; cameraIndex++)
+      {
+      vtkMRMLCameraNode *cameraNode =
+        vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(cameraIndex));
+      if (!cameraNode)
+        {
+        continue;
+        }
+
+      if (cameraNode->GetActiveTag() &&
+          !strcmp(cameraNode->GetActiveTag(), View1->GetID()))
+        {
+        int* dims = volumeOne->GetImageData()->GetDimensions();
+        // In RAS the z axes is on the second index
+        double Origin[3] = {0.};
+        Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
+        cameraNode->SetPosition(Origin);
+        double ViewUp[3] = {0.};
+        ViewUp[2] = 1.;
+        cameraNode->SetViewUp(ViewUp);
+        double FocalPoint[3] = {0.};
+        cameraNode->SetFocalPoint(FocalPoint);
+        break;
+        }
+      }
+    }
+
+  if (volumeOneRenderingDisplay)
+    {
+    volumeOneRenderingDisplay->SetVisibility(true);
+    }
+
+  qMRMLThreeDWidget* ThreeDWidget = app->layoutManager()->threeDWidget(0);
+  if(!ThreeDWidget)
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                   "ThreeDWidget not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
+    return;
+    }
+
+  qMRMLThreeDView* ThreeDView = ThreeDWidget->threeDView();
+  if(!ThreeDView || !ThreeDView->renderer())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView : "
+                   "ThreeDView not found!";
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
+    return;
+    }
+
+  ThreeDView->renderer()->ResetCameraClippingRange();
+  ThreeDView->renderer()->Render();
 
   vtkMRMLSliceCompositeNode* redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
@@ -2913,14 +3015,14 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeTwo->GetAstroVolumeRenderingDisplayNode();
   if (volumeTwoRenderingDisplay)
     {
-    volumeOneRenderingDisplay->SetVisibility(false);
+    volumeTwoRenderingDisplay->SetVisibility(false);
     }
 
   vtkMRMLVolumeRenderingDisplayNode *volumeThreeRenderingDisplay =
     volumeThree->GetAstroVolumeRenderingDisplayNode();
   if (volumeThreeRenderingDisplay)
     {
-    volumeOneRenderingDisplay->SetVisibility(false);
+    volumeThreeRenderingDisplay->SetVisibility(false);
     }
 
   volumeTwo->SetDisplayVisibility(0);

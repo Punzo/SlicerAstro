@@ -257,12 +257,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
     volNode->SetRASToIJKMatrix(mat);
 
-    // set WCSstruct
-    disNode->SetWCSStruct(reader->GetWCSStruct());
-
-    // parse WCS Status
-    disNode->SetWCSStatus(reader->GetWCSStatus());
-
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
     for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
@@ -271,10 +265,16 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     disNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
+    // parse WCS Status
+    disNode->SetWCSStatus(reader->GetWCSStatus());
+
     if (disNode->GetWCSStatus() != 0)
       {
       disNode->SetSpace("IJK");
       }
+
+    // set WCSstruct
+    disNode->SetWCSStruct(reader->GetWCSStruct());
 
     if(!strcmp(disNode->GetVelocityDefinition().c_str() , "FREQ"))
       {
@@ -341,12 +341,6 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
     labvolNode->SetRASToIJKMatrix(mat);
 
-    //set WCSstruct
-    labdisNode->SetWCSStruct(reader->GetWCSStruct());
-
-    // parse WCS Status
-    labdisNode->SetWCSStatus(reader->GetWCSStatus());
-
     // parse non-specific key-value pairs
     std::vector<std::string> keys = reader->GetHeaderKeysVector();
     for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
@@ -355,11 +349,17 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     labdisNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
-     // parse Space (WCS or IJK) to the display node
+    // parse WCS Status
+    labdisNode->SetWCSStatus(reader->GetWCSStatus());
+
+    // parse Space (WCS or IJK) to the display node
     if (labdisNode->GetWCSStatus() != 0)
       {
       labdisNode->SetSpace("IJK");
       }
+
+    //set WCSstruct
+    labdisNode->SetWCSStruct(reader->GetWCSStruct());
 
     if(!strcmp(labdisNode->GetVelocityDefinition().c_str() , "FREQ"))
       {
