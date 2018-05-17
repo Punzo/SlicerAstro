@@ -366,7 +366,7 @@
          </size>
         </property>
         <property name="text">
-         <string>Rotate to north:</string>
+         <string>Align to north:</string>
         </property>
        </widget>
       </item>
