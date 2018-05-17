@@ -641,7 +641,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     reprojectParaNode->SetReferenceVolumeNodeID(masterVolume->GetID());
     reprojectParaNode->SetOutputVolumeNodeID(outputVolume->GetID());
     reprojectParaNode->SetReprojectRotation(false);
-    reprojectParaNode->SetReprojectTime(false);
 
     astroVolumeLogic->CenterVolume(masterVolume);
     astroVolumeLogic->CenterVolume(contoursVolume);

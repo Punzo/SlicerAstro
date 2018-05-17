@@ -73,7 +73,6 @@ protected slots:
   void onReferenceVolumeChanged(vtkMRMLNode* mrmlNode);
   void onReprojectDataChanged(bool toggled);
   void onReprojectRotationChanged(bool toggled);
-  void onReprojectTimeChanged(bool toggled);
   void onStartImportEvent();
   void updateProgress(int value);
   void setMRMLAstroReprojectParametersNode(vtkMRMLNode*);

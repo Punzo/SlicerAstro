@@ -71,9 +71,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroReprojectParametersNode : public vtkMRML
   vtkSetMacro(ReprojectRotation,bool);
   vtkGetMacro(ReprojectRotation,bool);
 
-  vtkSetMacro(ReprojectTime,bool);
-  vtkGetMacro(ReprojectTime,bool);
-
   vtkSetMacro(ReprojectData,bool);
   vtkGetMacro(ReprojectData,bool);
 

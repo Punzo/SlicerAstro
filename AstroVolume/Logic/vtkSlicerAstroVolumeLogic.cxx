@@ -1483,53 +1483,28 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   // Check if the images need rotation or change of equinox
   bool needToPreRotateInput = false;      
-  if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6)
+  if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6 &&
+      !pnode->GetReprojectRotation())
     {
     needToPreRotateInput = true;
-    }
-
-  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
-    {
-    needToPreRotateInput = false;
     }
 
   bool needToPreRotateReference = false;
-  if (fabs(StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6)
+  if (fabs(StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6 &&
+      !pnode->GetReprojectRotation())
     {
     needToPreRotateInput = true;
     }
 
-  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
+  bool needToPreReprojectCelestialSystem = false;
+  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - referenceVolumeDisplay->GetWCSStruct()->equinox) > 1.E-6 ||
+      strcmp(inputVolumeDisplay->GetWCSStruct()->radesys, referenceVolumeDisplay->GetWCSStruct()->radesys))
     {
-    needToPreRotateReference = false;
-    }
-
-  bool needToPreReprojectTimeInput = false;
-  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - 2.E+3) > 1.E-6 ||
-      strcmp(inputVolumeDisplay->GetWCSStruct()->radesys, "FK5"))
-    {
-    needToPreReprojectTimeInput = true;
-    }
-
-  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
-    {
-    needToPreReprojectTimeInput = false;
-    }
-
-  bool needToPreReprojectTimeReference = false;
-  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - 2.E+3) > 1.E-6 ||
-      strcmp(inputVolumeDisplay->GetWCSStruct()->radesys, "FK5"))
-    {
-    needToPreReprojectTimeReference = true;
-    }
-
-  if (pnode->GetReprojectRotation() || pnode->GetReprojectTime())
-    {
-    needToPreReprojectTimeReference = false;
+    needToPreReprojectCelestialSystem = true;
     }
 
   if (needToPreRotateInput || needToPreRotateReference ||
-      needToPreReprojectTimeInput || needToPreReprojectTimeReference)
+      needToPreReprojectCelestialSystem)
     {
     if (needToPreRotateInput)
       {
@@ -1545,18 +1520,12 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
                     "Please create a new reprojected (north aligned) volume in the reprojection module.");
       }
 
-    if (needToPreReprojectTimeInput)
+    if (needToPreReprojectCelestialSystem)
       {
       vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                    "the equinox time of the input volume is not J2000."
-                    "Please create a new reprojected (j2000) volume in the reprojection module.");
-      }
-
-    if (needToPreReprojectTimeReference)
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                    "the equinox time of the reference volume is not J2000."
-                    "Please create a new reprojected (j2000) volume in the reprojection module.");
+                    "the two datasets have different equinox/radesys. \n"
+                    "Please check that they are consistent (e.g., both B1950/FK4 or J2000/FK5). \n"
+                    "SlicerAstro does not provide tools to convert system of reference.");
       }
 
     return false;

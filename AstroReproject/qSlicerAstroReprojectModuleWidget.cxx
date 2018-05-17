@@ -162,9 +162,6 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   QObject::connect(this->ReprojectRotationCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onReprojectRotationChanged(bool)));
 
-  QObject::connect(this->ReprojectTimeCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onReprojectTimeChanged(bool)));
-
   QObject::connect(this->ReprojectDataCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onReprojectDataChanged(bool)));
 
@@ -597,7 +594,6 @@ void qSlicerAstroReprojectModuleWidget::onReprojectDataChanged(bool toggled)
   if (toggled)
     {
     d->parametersNode->SetReprojectRotation(!toggled);
-    d->parametersNode->SetReprojectTime(!toggled);
     }
 
   d->parametersNode->EndModify(wasModifying);
@@ -619,29 +615,6 @@ void qSlicerAstroReprojectModuleWidget::onReprojectRotationChanged(bool toggled)
   if (toggled)
     {
     d->parametersNode->SetReprojectData(!toggled);
-    d->parametersNode->SetReprojectTime(!toggled);
-    }
-
-  d->parametersNode->EndModify(wasModifying);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroReprojectModuleWidget::onReprojectTimeChanged(bool toggled)
-{
-  Q_D(qSlicerAstroReprojectModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetReprojectTime(toggled);
-
-  if (toggled)
-    {
-    d->parametersNode->SetReprojectData(!toggled);
-    d->parametersNode->SetReprojectRotation(!toggled);
     }
 
   d->parametersNode->EndModify(wasModifying);
@@ -688,7 +661,6 @@ void qSlicerAstroReprojectModuleWidget::onMRMLAstroReprojectParametersNodeModifi
     }
 
   d->ReprojectRotationCheckBox->setChecked(d->parametersNode->GetReprojectRotation());
-  d->ReprojectTimeCheckBox->setChecked(d->parametersNode->GetReprojectTime());
 
   if (d->parametersNode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
@@ -831,6 +803,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     double rot = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CROTA1")) * PI / 180.;
     double rotCos = cos(rot);
     double rotSin = sin(rot);
+    outputVolumeDisplay->GetWCSStruct()->flag = 0;
     for (int ii = 0; ii < n; ii++)
       {
       outputVolumeDisplay->GetWCSStruct()->crota[ii] = 0.;
@@ -868,41 +841,6 @@ void qSlicerAstroReprojectModuleWidget::onApply()
         {
         outputVolume->SetAttribute("SlicerAstro.CROTA3", "0.");
         }
-      d->parametersNode->SetReferenceVolumeNodeID("");
-      d->astroVolumeWidget->setThreeComparativeView
-        (inputVolume->GetID(), outputVolume->GetID(), outputVolume->GetID());
-      }
-    else
-      {
-      scene->RemoveNode(outputVolume);
-      d->parametersNode->SetOutputVolumeNodeID("");
-      }
-    }
-
-  if (d->parametersNode->GetReprojectTime())
-    {
-    outputVolumeDisplay->GetWCSStruct()->equinox = 2000.;
-    std::string astroradesys("FK5");
-    strncpy(outputVolumeDisplay->GetWCSStruct()->radesys,  astroradesys.c_str(), 72);
-
-
-    outputVolumeDisplay->SetWCSStatus(wcsset(outputVolumeDisplay->GetWCSStruct()));
-    if (outputVolumeDisplay->GetWCSStatus())
-      {
-      qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply :"
-                    "wcsset ERROR "<<outputVolumeDisplay->GetWCSStatus()<<":\n"<<
-                    "Message from "<<outputVolumeDisplay->GetWCSStruct()->err->function<<
-                    "at line "<<outputVolumeDisplay->GetWCSStruct()->err->line_no<<
-                    " of file "<<outputVolumeDisplay->GetWCSStruct()->err->file<<
-                    ": \n"<<outputVolumeDisplay->GetWCSStruct()->err->msg<<"\n";
-      }
-
-    d->parametersNode->SetReferenceVolumeNodeID(outputVolume->GetID());
-
-    if (logic->Reproject(d->parametersNode))
-      {
-      outputVolume->SetAttribute("SlicerAstro.EQUINOX", "2000.");
-      outputVolume->SetAttribute("SlicerAstro.RADESYS", "FK5");
       d->parametersNode->SetReferenceVolumeNodeID("");
       d->astroVolumeWidget->setThreeComparativeView
         (inputVolume->GetID(), outputVolume->GetID(), outputVolume->GetID());

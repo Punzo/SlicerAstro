@@ -1782,7 +1782,7 @@ bool vtkFITSReader::AllocateWCS()
     }
 
   std::string stdHeader(header);
-  size_t found; 
+  size_t found;
 
   // fix gipsy keywords in wcs
   int n = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
@@ -2188,7 +2188,6 @@ bool vtkFITSReader::AllocateWCS()
 
       if (n == 3)
         {
-        this->WCS->cdelt[2] = this->WCS->cd[8];
         this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(this->WCS->cd[8]);
         }
       }
