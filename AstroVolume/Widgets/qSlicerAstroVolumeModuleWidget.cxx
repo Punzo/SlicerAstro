@@ -4925,6 +4925,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection()
                     this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
 
   displayNode->SetExpectedFPS(100);
+  this->onMRMLVolumeRenderingDisplayNodeModified(displayNode);
   this->onMRMLDisplayROINodeModified(displayNode->GetROINode());
 }
 
