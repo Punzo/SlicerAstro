@@ -74,13 +74,6 @@ qSlicerAstroReprojectModule::~qSlicerAstroReprojectModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroReprojectModule::helpText()const
 {
-  return "AstroReproject module filters a Volume using several techniques. "
-         "The algorithms are optmized for Astronomical Neutral Hydrogen (HI) data.";
-}
-
-//-----------------------------------------------------------------------------
-QString qSlicerAstroReprojectModule::acknowledgementText()const
-{
   return  "The AstroReproject module implements image reprojection (resampling) methods "
           "for astronomical datasets. Specifically, the methods have been designed to "
           "reproject the spatial axis, (e.g., 2D images or 3D datacubes over 2D images)."
@@ -88,7 +81,16 @@ QString qSlicerAstroReprojectModule::acknowledgementText()const
           "(spatial celestial axis) of the datacube with the reference data (treating each slice as independent). "
           "However, overlaying two 3D astronomical datasets requires also to resample the velocity axes, "
           "which is not implemented in this module. "
-          "The AstroReproject module requires that the WCS information contained in the fits header are correct. ";
+          "The AstroReproject module requires that the WCS information contained in the fits header are correct"
+          "and that the two datasets ahve the same celestial system of reference (e.g., J2000/FK5). ";
+}
+
+//-----------------------------------------------------------------------------
+QString qSlicerAstroReprojectModule::acknowledgementText()const
+{
+  return "This module was developed by Davide Punzo. <br>"
+         "This work was supported by ERC grant nr. 291531, "
+         "and Slicer community. <br>";
 }
 
 //-----------------------------------------------------------------------------
