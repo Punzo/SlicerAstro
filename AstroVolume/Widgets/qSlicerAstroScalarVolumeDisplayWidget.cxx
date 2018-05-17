@@ -662,10 +662,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
         else if (AttributeKey.find("BMAJ") != std::string::npos ||
             AttributeKey.find("BMIN") != std::string::npos ||
             AttributeKey.find("BPA") != std::string::npos ||
-            AttributeKey.find("CD1_1") != std::string::npos ||
-            AttributeKey.find("CD1_2") != std::string::npos ||
-            AttributeKey.find("CD2_1") != std::string::npos ||
-            AttributeKey.find("CD2_2") != std::string::npos ||
             AttributeKey.find("CDELT1") != std::string::npos ||
             AttributeKey.find("CDELT2") != std::string::npos ||
             AttributeKey.find("CROTA1") != std::string::npos ||
@@ -679,11 +675,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
             AttributeKey.find("CUNIT1") != std::string::npos ||
             AttributeKey.find("CUNIT2") != std::string::npos ||
             AttributeKey.find("NAXIS1") != std::string::npos ||
-            AttributeKey.find("NAXIS2") != std::string::npos ||
-            AttributeKey.find("PC1_1") != std::string::npos ||
-            AttributeKey.find("PC1_2") != std::string::npos ||
-            AttributeKey.find("PC2_1") != std::string::npos ||
-            AttributeKey.find("PC2_2") != std::string::npos)
+            AttributeKey.find("NAXIS2") != std::string::npos)
           {
           outputVolume->RemoveAttribute(AttributeKey.c_str());
           }
@@ -702,10 +694,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
         else if (AttributeKey.find("BMAJ") != std::string::npos ||
             AttributeKey.find("BMIN") != std::string::npos ||
             AttributeKey.find("BPA") != std::string::npos ||
-            AttributeKey.find("CD1_1") != std::string::npos ||
-            AttributeKey.find("CD1_2") != std::string::npos ||
-            AttributeKey.find("CD2_1") != std::string::npos ||
-            AttributeKey.find("CD2_2") != std::string::npos ||
             AttributeKey.find("CDELT1") != std::string::npos ||
             AttributeKey.find("CDELT2") != std::string::npos ||
             AttributeKey.find("CROTA1") != std::string::npos ||
@@ -719,11 +707,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
             AttributeKey.find("CUNIT1") != std::string::npos ||
             AttributeKey.find("CUNIT2") != std::string::npos ||
             AttributeKey.find("NAXIS1") != std::string::npos ||
-            AttributeKey.find("NAXIS2") != std::string::npos ||
-            AttributeKey.find("PC1_1") != std::string::npos ||
-            AttributeKey.find("PC1_2") != std::string::npos ||
-            AttributeKey.find("PC2_1") != std::string::npos ||
-            AttributeKey.find("PC2_2") != std::string::npos)
+            AttributeKey.find("NAXIS2") != std::string::npos)
           {
           std::string AttributeValue = masterVolume->GetAttribute(AttributeKey.c_str());
           outputVolume->SetAttribute(AttributeKey.c_str(), AttributeValue.c_str());

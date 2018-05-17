@@ -1481,6 +1481,28 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
+  // Check that the input volume has not already been reprojected to teh reference volume
+  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), referenceVolume->GetAttribute("SlicerAstro.CDELT1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), referenceVolume->GetAttribute("SlicerAstro.CDELT2")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CROTA1"), referenceVolume->GetAttribute("SlicerAstro.CROTA1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CROTA2"), referenceVolume->GetAttribute("SlicerAstro.CROTA2")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRPIX1"), referenceVolume->GetAttribute("SlicerAstro.CRPIX1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRPIX2"), referenceVolume->GetAttribute("SlicerAstro.CRPIX2")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRVAL1"), referenceVolume->GetAttribute("SlicerAstro.CRVAL1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRVAL2"), referenceVolume->GetAttribute("SlicerAstro.CRVAL2")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CTYPE1"), referenceVolume->GetAttribute("SlicerAstro.CTYPE1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CTYPE2"), referenceVolume->GetAttribute("SlicerAstro.CTYPE2")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CUNIT1"), referenceVolume->GetAttribute("SlicerAstro.CUNIT1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CUNIT2"), referenceVolume->GetAttribute("SlicerAstro.CUNIT2")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.NAXIS1"), referenceVolume->GetAttribute("SlicerAstro.NAXIS1")) &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.NAXIS2"), referenceVolume->GetAttribute("SlicerAstro.NAXIS2")))
+  {
+  vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "the input and reference volume keywords relative to the WCS coordinates match. \n"
+                  "No reprojection is needed. ");
+  return true;
+  }
+
   // Check if the images need rotation or change of equinox
   bool needToPreRotateInput = false;      
   if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6 &&
