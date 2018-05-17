@@ -1508,6 +1508,16 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   return true;
   }
 
+  // Check that the input volume has not already been reprojected to teh reference volume
+  if (pnode->GetReprojectRotation() &&
+      StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1")) < 1.E-6)
+  {
+  vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "the input volume is already aligned to the north pole. \n"
+                  "No reprojection is needed. ");
+  return true;
+  }
+
   // Check if the images need rotation or change of equinox
   bool needToPreRotateInput = false;      
   if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6 &&
@@ -1627,7 +1637,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     numProcs = pnode->GetCores();
     }
 
-  omp_set_num_threads(numProcs);
+  omp_set_num_threads(1);
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   struct timeval start, end;
@@ -1663,8 +1673,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
       double ijk[3] = {0.}, world[3] = {0.};
       ijk[0] = ii + shift;
       ijk[1] = jj + shift;
+
       referenceVolumeDisplay->GetReferenceSpace(ijk, world);
       inputVolumeDisplay->GetIJKSpace(world, ijk);
+
       referenceGrid[ii][jj][0] = ijk[0];
       referenceGrid[ii][jj][1] = ijk[1];
       }
@@ -1737,10 +1749,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         switch (DataType)
           {
          case VTK_FLOAT:
-           *(outFPixel + elemCnt) = *(inFPixel + inputSliceDim * kk + inputDims[1] * y + x);
+           *(outFPixel + elemCnt) = *(inFPixel + inputSliceDim * kk + inputDims[0] * y + x);
            break;
          case VTK_DOUBLE:
-           *(outDPixel + elemCnt) = *(inDPixel + inputSliceDim * kk + inputDims[1] * y + x);
+           *(outDPixel + elemCnt) = *(inDPixel + inputSliceDim * kk + inputDims[0] * y + x);
            break;
           }
 
@@ -1833,10 +1845,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F11 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+              F11 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y1 + x1);
               break;
             case VTK_DOUBLE:
-              F11 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+              F11 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y1 + x1);
               break;
             }
           }
@@ -1850,10 +1862,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F21 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x2);
+              F21 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y1 + x2);
               break;
             case VTK_DOUBLE:
-              F21 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x2);
+              F21 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y1 + x2);
               break;
             }
           }
@@ -1867,10 +1879,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F12 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y2 + x1);
+              F12 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y2 + x1);
               break;
             case VTK_DOUBLE:
-              F12 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y2 + x1);
+              F12 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y2 + x1);
               break;
             }
           }
@@ -1884,10 +1896,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
            case VTK_FLOAT:
-             F22 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y2 + x2);
+             F22 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y2 + x2);
              break;
            case VTK_DOUBLE:
-             F22 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y2 + x2);
+             F22 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y2 + x2);
              break;
             }
           }
@@ -2010,10 +2022,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F11 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+              F11 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y1 + x1);
               break;
             case VTK_DOUBLE:
-              F11 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x1);
+              F11 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y1 + x1);
               break;
             }
           }
@@ -2027,10 +2039,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F21 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x2);
+              F21 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y1 + x2);
               break;
             case VTK_DOUBLE:
-              F21 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x2);
+              F21 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y1 + x2);
               break;
             }
           }
@@ -2044,10 +2056,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F31 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x3);
+              F31 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y1 + x3);
               break;
             case VTK_DOUBLE:
-              F31 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x3);
+              F31 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y1 + x3);
               break;
             }
           }
@@ -2061,10 +2073,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F41 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y1 + x4);
+              F41 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y1 + x4);
               break;
             case VTK_DOUBLE:
-              F41 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y1 + x4);
+              F41 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y1 + x4);
               break;
             }
           }
@@ -2078,10 +2090,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F12 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y2 + x1);
+              F12 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y2 + x1);
               break;
             case VTK_DOUBLE:
-              F12 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y2 + x1);
+              F12 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y2 + x1);
               break;
             }
           }
@@ -2095,10 +2107,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F22 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y2 + x2);
+              F22 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y2 + x2);
               break;
             case VTK_DOUBLE:
-              F22 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y2 + x2);
+              F22 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y2 + x2);
               break;
             }
           }
@@ -2112,10 +2124,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F32 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y2 + x3);
+              F32 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y2 + x3);
               break;
             case VTK_DOUBLE:
-              F32 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y2 + x3);
+              F32 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y2 + x3);
               break;
             }
           }
@@ -2129,10 +2141,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F42 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y2 + x4);
+              F42 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y2 + x4);
               break;
             case VTK_DOUBLE:
-              F42 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y2 + x4);
+              F42 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y2 + x4);
               break;
             }
           }
@@ -2146,10 +2158,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F13 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y3 + x1);
+              F13 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y3 + x1);
               break;
             case VTK_DOUBLE:
-              F13 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y3 + x1);
+              F13 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y3 + x1);
               break;
             }
           }
@@ -2163,10 +2175,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F23 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y3 + x2);
+              F23 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y3 + x2);
               break;
             case VTK_DOUBLE:
-              F23 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y3 + x2);
+              F23 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y3 + x2);
               break;
             }
           }
@@ -2180,10 +2192,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F33 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y3 + x3);
+              F33 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y3 + x3);
               break;
             case VTK_DOUBLE:
-              F33 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y3 + x3);
+              F33 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y3 + x3);
               break;
             }
           }
@@ -2197,10 +2209,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F43 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y3 + x4);
+              F43 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y3 + x4);
               break;
             case VTK_DOUBLE:
-              F43 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y3 + x4);
+              F43 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y3 + x4);
               break;
             }
           }
@@ -2214,10 +2226,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F14 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y4 + x1);
+              F14 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y4 + x1);
               break;
             case VTK_DOUBLE:
-              F14 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y4 + x1);
+              F14 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y4 + x1);
               break;
             }
           }
@@ -2231,10 +2243,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F24 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y4 + x2);
+              F24 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y4 + x2);
               break;
             case VTK_DOUBLE:
-              F24 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y4 + x2);
+              F24 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y4 + x2);
               break;
             }
           }
@@ -2248,10 +2260,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F34 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y4 + x3);
+              F34 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y4 + x3);
               break;
             case VTK_DOUBLE:
-              F34 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y4 + x3);
+              F34 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y4 + x3);
               break;
             }
           }
@@ -2265,10 +2277,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
           switch (DataType)
             {
             case VTK_FLOAT:
-              F44 = *(inFPixel + inputSliceDim * kk + inputDims[1] * y4 + x4);
+              F44 = *(inFPixel + inputSliceDim * kk + inputDims[0] * y4 + x4);
               break;
             case VTK_DOUBLE:
-              F44 = *(inDPixel + inputSliceDim * kk + inputDims[1] * y4 + x4);
+              F44 = *(inDPixel + inputSliceDim * kk + inputDims[0] * y4 + x4);
               break;
             }
           }
@@ -2332,14 +2344,14 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   delete outDPixel;
 
   for(int ii = 0; ii < referenceDims[0]; ii++)
-    {
-    for(int jj = 0; jj < referenceDims[1]; jj++)
       {
-      delete[] referenceGrid[ii][jj];
+      for(int jj = 0; jj < referenceDims[1]; jj++)
+        {
+        delete[] referenceGrid[ii][jj];
+        }
+      delete[] referenceGrid[ii];
       }
-    delete[] referenceGrid[ii];
-    }
-  delete referenceGrid;
+    delete referenceGrid;
 
   if (cancel)
     {
