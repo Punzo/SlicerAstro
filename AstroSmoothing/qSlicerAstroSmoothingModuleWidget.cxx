@@ -2006,7 +2006,11 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     {
     std::string name;
     name = outputVolume->GetName();
-    if (name.find("_Filtered_") != std::string::npos)
+    if (!name.compare(inputVolume->GetName()))
+      {
+      outputVolume = NULL;
+      }
+    else if (name.find("_Filtered_") != std::string::npos)
       {
       vtkMRMLAstroVolumeStorageNode* astroStorage =
         vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());

@@ -637,7 +637,11 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene
     {
     std::string name;
     name = outputVolume->GetName();
-    if (name.find(outputNameReference) != std::string::npos)
+    if (!name.compare(inputVolume->GetName()))
+      {
+      outputVolume = NULL;
+      }
+    else if (name.find(outputNameReference) != std::string::npos)
       {
       vtkMRMLAstroVolumeStorageNode* astroStorage =
         vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
@@ -1482,7 +1486,8 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     }
 
   // Check that the input volume has not already been reprojected to teh reference volume
-  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), referenceVolume->GetAttribute("SlicerAstro.CDELT1")) &&
+  if (!pnode->GetReprojectRotation() &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), referenceVolume->GetAttribute("SlicerAstro.CDELT1")) &&
       !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), referenceVolume->GetAttribute("SlicerAstro.CDELT2")) &&
       !strcmp(inputVolume->GetAttribute("SlicerAstro.CROTA1"), referenceVolume->GetAttribute("SlicerAstro.CROTA1")) &&
       !strcmp(inputVolume->GetAttribute("SlicerAstro.CROTA2"), referenceVolume->GetAttribute("SlicerAstro.CROTA2")) &&

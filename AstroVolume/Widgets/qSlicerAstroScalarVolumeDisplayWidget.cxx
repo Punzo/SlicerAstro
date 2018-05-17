@@ -598,7 +598,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       return;
       }
 
-    qSlicerAbstractCoreModule* AstroVolumeModule = qSlicerApplication::application()->moduleManager()->module("AstroVolume");
+    qSlicerAbstractCoreModule* AstroVolumeModule =
+      qSlicerApplication::application()->moduleManager()->module("AstroVolume");
     if (!AstroVolumeModule)
       {
       QString message = QString("AstroVolume module not found.");

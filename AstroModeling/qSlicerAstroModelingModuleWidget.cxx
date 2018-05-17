@@ -3776,7 +3776,11 @@ void qSlicerAstroModelingModuleWidget::onApply()
     {
     std::string name;
     name = outputVolume->GetName();
-    if (name.find("_model_") != std::string::npos)
+    if (!name.compare(inputVolume->GetName()))
+      {
+      outputVolume = NULL;
+      }
+    else if (name.find("_model_") != std::string::npos)
       {
       vtkMRMLAstroVolumeStorageNode* astroStorage =
         vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());

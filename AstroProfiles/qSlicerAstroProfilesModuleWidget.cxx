@@ -1022,7 +1022,11 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     {
     std::string name;
     name = ProfileVolume->GetName();
-    if (name.find("_Profile_") != std::string::npos)
+    if (!name.compare(inputVolume->GetName()))
+      {
+      ProfileVolume = NULL;
+      }
+    else if (name.find("_Profile_") != std::string::npos)
       {
       vtkMRMLAstroVolumeStorageNode* astroStorage =
         vtkMRMLAstroVolumeStorageNode::SafeDownCast(ProfileVolume->GetStorageNode());

@@ -1087,7 +1087,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       {
       std::string name;
       name = ZeroMomentVolume->GetName();
-      if (name.find("_mom0th_") != std::string::npos)
+      if (!name.compare(inputVolume->GetName()))
+        {
+        ZeroMomentVolume = NULL;
+        }
+      else if (name.find("_mom0th_") != std::string::npos)
         {
         vtkMRMLAstroVolumeStorageNode* astroStorage =
           vtkMRMLAstroVolumeStorageNode::SafeDownCast(ZeroMomentVolume->GetStorageNode());
@@ -1178,7 +1182,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       {
       std::string name;
       name = FirstMomentVolume->GetName();
-      if (name.find("_mom1st_") != std::string::npos)
+      if (!name.compare(inputVolume->GetName()))
+        {
+        FirstMomentVolume = NULL;
+        }
+      else if (name.find("_mom1st_") != std::string::npos)
         {
         vtkMRMLAstroVolumeStorageNode* astroStorage =
           vtkMRMLAstroVolumeStorageNode::SafeDownCast(FirstMomentVolume->GetStorageNode());
@@ -1279,7 +1287,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       {
       std::string name;
       name = SecondMomentVolume->GetName();
-      if (name.find("_mom2nd_") != std::string::npos)
+      if (!name.compare(inputVolume->GetName()))
+        {
+        SecondMomentVolume = NULL;
+        }
+      else if (name.find("_mom2nd_") != std::string::npos)
         {
         vtkMRMLAstroVolumeStorageNode* astroStorage =
           vtkMRMLAstroVolumeStorageNode::SafeDownCast(SecondMomentVolume->GetStorageNode());

@@ -1172,8 +1172,12 @@ void qSlicerAstroMaskingModuleWidget::onApply()
     {
     std::string name;
     name = outputVolume->GetName();
-    if (name.find("_Blank_") != std::string::npos ||
-        name.find("_Crop_") != std::string::npos )
+    if (!name.compare(inputVolume->GetName()))
+      {
+      outputVolume = NULL;
+      }
+    else if (name.find("_Blank_") != std::string::npos ||
+             name.find("_Crop_") != std::string::npos )
       {
       vtkMRMLAstroVolumeStorageNode* astroStorage =
         vtkMRMLAstroVolumeStorageNode::SafeDownCast(outputVolume->GetStorageNode());
