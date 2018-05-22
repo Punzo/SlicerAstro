@@ -135,14 +135,16 @@ protected slots:
   void onMRMLVolumeDisplayNodeModified();
   void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
+  void onOpacityValueChanged(double Opacity);
   void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
   void onPresetsNodeChanged(vtkMRMLNode*);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
-  void resetStretch(vtkMRMLNode* node);
   void resetOffset(vtkMRMLNode* node);
+  void resetOpacities();
+  void resetStretch(vtkMRMLNode* node);
   void setDisplayConnection();
   void setDisplayROIEnabled(bool visibility);
   void setOpticalVelocity();

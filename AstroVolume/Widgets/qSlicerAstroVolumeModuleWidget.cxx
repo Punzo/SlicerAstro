@@ -42,12 +42,14 @@
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
+#include <vtkPiecewiseFunction.h>
 #include <vtkPlotPoints.h>
 #include <vtkPointData.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
 #include <vtkTransform.h>
 #include <vtkVariant.h>
+#include <vtkVolumeProperty.h>
 
 // qMRMLWidgets include
 #include <qMRMLAnnotationROIWidget.h>
@@ -141,6 +143,7 @@ public:
 
   double stretchOldValue;
   double offsetOldValue;
+  double OpacityScaling;
   bool Lock;
 };
 
@@ -168,6 +171,7 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   this->TableThresholdNode = 0;
   this->stretchOldValue = 0.;
   this->offsetOldValue = 0.;
+  this->OpacityScaling = 1.;
   this->Lock = false;
 }
 
@@ -395,6 +399,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
 
   QObject::connect(this->SynchronizeScalarDisplayNodeButton, SIGNAL(clicked()),
                    q, SLOT(clearPresets()));
+
+  QObject::connect(this->OpacitySliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onOpacityValueChanged(double)));
 
   QObject::connect(this->DisplayThresholdSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onDisplayThresholdValueChanged(double)));
@@ -1239,7 +1246,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
       d->PlotSeriesNodeMaxLine->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
       d->PlotSeriesNodeMaxLine->SetMarkerSize(11);
       d->PlotSeriesNodeMaxLine->SetLineWidth(4);
-      double color[4] = {0.086, 0.365, 0.655, 1.};
+      double color[4] = {0.926, 0.173, 0.2, 1.};
       d->PlotSeriesNodeMaxLine->SetColor(color);
       d->PlotSeriesNodeMaxLine->SetAndObserveTableNodeID(d->TableMaxNode->GetID());
       d->PlotSeriesNodeMaxLine->SetXColumnName(d->TableMaxNode->GetColumnName(0));
@@ -1564,6 +1571,16 @@ void qSlicerAstroVolumeModuleWidget::resetOffset(vtkMRMLNode* node)
   d->PresetOffsetSlider->setPageStep(d->PresetOffsetSlider->singleStep());
   d->PresetOffsetSlider->setRange(-width, width);
   d->PresetOffsetSlider->blockSignals(wasBlocking);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::resetOpacities()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  bool wasBlocking = d->OpacitySliderWidget->blockSignals(true);
+  d->OpacitySliderWidget->setValue(1.);
+  d->OpacitySliderWidget->blockSignals(wasBlocking);
 }
 
 //---------------------------------------------------------------------------
@@ -3759,6 +3776,53 @@ void qSlicerAstroVolumeModuleWidget::applyPreset(vtkMRMLNode *volumePropertyNode
 
   PresetComboBox->applyPreset(volumePropertyNode);
 
+  qMRMLVolumePropertyNodeWidget* volumePropertyNodeWidget =
+    d->volumeRenderingWidget->findChild<qMRMLVolumePropertyNodeWidget*>
+      (QString("VolumePropertyNodeWidget"));
+  if (!volumePropertyNodeWidget)
+    {
+    return;
+    }
+
+  ctkVTKVolumePropertyWidget* volumePropertyWidget =
+     volumePropertyNodeWidget->findChild<ctkVTKVolumePropertyWidget*>
+       (QString("VolumePropertyWidget"));
+  if (!volumePropertyWidget)
+    {
+    return;
+    }
+
+  vtkVolumeProperty* volumeProperty = volumePropertyWidget->volumeProperty();
+  if (!volumeProperty)
+    {
+    return;
+    }
+
+  vtkPiecewiseFunction* opacities = volumeProperty->GetScalarOpacity();
+  if (!opacities)
+    {
+    return;
+    }
+
+  for (int ii = 0; ii < opacities->GetSize() - 1; ii++)
+    {
+    double value[4];
+    opacities->GetNodeValue(ii, value);
+    value[1] *= d->OpacityScaling;
+    if (value[1] > 1.)
+      {
+      value[1] = 1.;
+      }
+    if (value[1] < 0.01)
+      {
+      value[1] = 0.;
+      }
+
+    opacities->SetNodeValue(ii, value);
+    }
+
+  volumeProperty->Modified();
+
   vtkMRMLVolumePropertyNode* newVolumePropertyNode =
     d->volumeRenderingWidget->mrmlVolumePropertyNode();
   if (!newVolumePropertyNode || !d->astroVolumeNode)
@@ -4012,7 +4076,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     {
     vtkNew<vtkMRMLPlotSeriesNode> newPlotSeriesNode;
     newPlotSeriesNode->SetName(name.c_str());
-    double color[4] = {0.926, 0.173, 0.2, 1.};
+    double color[4] = {0.086, 0.365, 0.655, 1.};
     newPlotSeriesNode->SetColor(color);
     newPlotSeriesNode->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatterBar);
     scene->AddNode(newPlotSeriesNode.GetPointer());
@@ -4335,6 +4399,15 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeRenderingDisplayNodeModified(vt
 
   QString currentVolumeMapper = QString(displayNode->GetClassName());
   d->RenderingMethodComboBox->setCurrentIndex(d->RenderingMethodComboBox->findData(currentVolumeMapper));
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onOpacityValueChanged(double Opacity)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  d->OpacityScaling = Opacity;
+  this->applyPreset(d->astroVolumeNode->GetPresetNode());
 }
 
 //---------------------------------------------------------------------------
@@ -5392,6 +5465,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
 
   this->resetOffset(d->astroVolumeNode);
   this->resetStretch(d->astroVolumeNode);
+  this->resetOpacities();
 
   if (forcePreset)
     {
