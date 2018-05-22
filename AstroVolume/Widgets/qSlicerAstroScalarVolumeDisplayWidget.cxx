@@ -587,19 +587,35 @@ void qSlicerAstroScalarVolumeDisplayWidget::onConvertContoursChanged(bool toggle
     {
     segmentationNode->GetSegmentation()->CreateRepresentation(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-
-    segmentationNode->GetSegmentation()->SetMasterRepresentationName(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
   else
     {
     segmentationNode->GetSegmentation()->CreateRepresentation(
       vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-
-    segmentationNode->GetSegmentation()->SetMasterRepresentationName(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
     }
 
+  for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
+    {
+    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
+    SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
+    if (!d->ConvertToClosedContoursPushButton->isChecked())
+      {
+      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+      }
+    else
+      {
+      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+      }
+    }
 
   QApplication::restoreOverrideCursor();
 }
@@ -1143,8 +1159,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
     segmentationNode->GetSegmentation()->CreateRepresentation(
       vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    segmentationNode->GetSegmentation()->SetMasterRepresentationName(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), segmentationNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -1164,15 +1178,16 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     {
     segmentationNode->GetSegmentation()->CreateRepresentation(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-
-    segmentationNode->GetSegmentation()->SetMasterRepresentationName(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
 
   for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
       vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
     if (!overlay)
       {
       SegmentationDisplayNode->SetAllSegmentsVisibility(false);
