@@ -419,20 +419,52 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>Create the contours. SlicerAstro contours are full 3D segmentations (marching cubes algorithm) and they may require few seconds to be computed and visualized.</string>
+        <string>Create the (binary) contours. SlicerAstro contours are full 3D segmentations (marching cubes algorithm) and they may require few seconds to be computed and visualized.</string>
        </property>
        <property name="text">
         <string/>
        </property>
        <property name="icon">
-        <iconset resource="../../../EditorEffects/Resources/qSlicerAstroVolumeEditorEffects.qrc">
-         <normaloff>:/Icons/AstroContours.png</normaloff>:/Icons/AstroContours.png</iconset>
+        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+         <normaloff>:/Icons/Small/SlicerAddModel.png</normaloff>:/Icons/Small/SlicerAddModel.png</iconset>
        </property>
        <property name="iconSize">
         <size>
          <width>24</width>
          <height>24</height>
         </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="ConvertToClosedContoursPushButton">
+       <property name="minimumSize">
+        <size>
+         <width>45</width>
+         <height>30</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Toggle (before or after having generated the contours) to convert from/to binary contours from/to closed ones.</string>
+       </property>
+       <property name="text">
+        <string/>
+       </property>
+       <property name="icon">
+        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+         <normaloff>:/Icons/AstroContours.png</normaloff>:/Icons/AstroContours.png</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>20</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
        </property>
       </widget>
      </item>

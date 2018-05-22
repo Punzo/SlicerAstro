@@ -27,5 +27,6 @@
         <file>Icons/Beam.png</file>
         <file>Icons/Histogram.png</file>
         <file>Icons/FitSlicesToViews.png</file>
+        <file>Icons/AstroContours.png</file>
     </qresource>
 </RCC>
