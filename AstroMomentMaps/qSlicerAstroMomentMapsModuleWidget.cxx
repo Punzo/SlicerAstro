@@ -1143,6 +1143,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC1_3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC2_3");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC3_1");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC3_2");
+    ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
     // copy 2D image into the Astro Volume object
     ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
@@ -1236,6 +1241,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     FirstMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
     FirstMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
     FirstMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.PC1_3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.PC2_3");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.PC3_1");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.PC3_2");
+    FirstMomentVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
     // copy 2D image into the Astro Volume object
     FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
@@ -1341,6 +1351,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     SecondMomentVolume->RemoveAttribute("SlicerAstro.DTYPE3");
     SecondMomentVolume->RemoveAttribute("SlicerAstro.DRVAL3");
     SecondMomentVolume->RemoveAttribute("SlicerAstro.DUNIT3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.PC1_3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.PC2_3");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.PC3_1");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.PC3_2");
+    SecondMomentVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
     // copy 2D image into the Astro Volume object
     SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());

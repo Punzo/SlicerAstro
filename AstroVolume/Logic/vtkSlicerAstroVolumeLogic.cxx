@@ -1417,10 +1417,12 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
-  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.PPO"), "1"))
+  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.DSS"), "1") &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), "1.0") &&
+      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), "1.0"))
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "input volume has WCS generated from old (and not accepted) PPO matrix. "
+                  "input volume has WCS generated from old (and not accepted) PPO, AMDX, AMDY matrices. "
                   "It is not possible to continue with the reprojection.");
     return false;
     }
@@ -1451,10 +1453,12 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
-  if (!strcmp(referenceVolume->GetAttribute("SlicerAstro.PPO"), "1"))
+  if (!strcmp(referenceVolume->GetAttribute("SlicerAstro.DSS"), "1") &&
+      !strcmp(referenceVolume->GetAttribute("SlicerAstro.CDELT1"), "1.0") &&
+      !strcmp(referenceVolume->GetAttribute("SlicerAstro.CDELT2"), "1.0"))
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "reference volume has WCS generated from old (and not accepted) PPO matrix. "
+                  "reference volume has WCS generated from old (and not accepted) PPO, AMDX, AMDY matrices. "
                   "It is not possible to continue with the reprojection.");
     return false;
     }
@@ -1485,7 +1489,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
-  // Check that the input volume has not already been reprojected to teh reference volume
+  // Check that the input volume has not already been reprojected to the reference volume
   if (!pnode->GetReprojectRotation() &&
       !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), referenceVolume->GetAttribute("SlicerAstro.CDELT1")) &&
       !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), referenceVolume->GetAttribute("SlicerAstro.CDELT2")) &&
@@ -1508,9 +1512,9 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   return true;
   }
 
-  // Check that the input volume has not already been reprojected to teh reference volume
+  // Check that the input volume has not already been reprojected to the reference volume
   if (pnode->GetReprojectRotation() &&
-      StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1")) < 1.E-6)
+      StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")) < 1.E-6)
   {
   vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "the input volume is already aligned to the north pole. \n"
@@ -1520,22 +1524,21 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   // Check if the images need rotation or change of equinox
   bool needToPreRotateInput = false;      
-  if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6 &&
+  if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2"))) > 1.E-6 &&
       !pnode->GetReprojectRotation())
     {
     needToPreRotateInput = true;
     }
 
   bool needToPreRotateReference = false;
-  if (fabs(StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA1"))) > 1.E-6 &&
+  if (fabs(StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA2"))) > 1.E-6 &&
       !pnode->GetReprojectRotation())
     {
-    needToPreRotateInput = true;
+    needToPreRotateReference = true;
     }
 
   bool needToPreReprojectCelestialSystem = false;
-  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - referenceVolumeDisplay->GetWCSStruct()->equinox) > 1.E-6 ||
-      strcmp(inputVolumeDisplay->GetWCSStruct()->radesys, referenceVolumeDisplay->GetWCSStruct()->radesys))
+  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - referenceVolumeDisplay->GetWCSStruct()->equinox) > 1.E-6)
     {
     needToPreReprojectCelestialSystem = true;
     }
@@ -1561,7 +1564,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
       {
       vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                     "the two datasets have different equinox/radesys. \n"
-                    "Please check that they are consistent (e.g., both B1950/FK4 or J2000/FK5). \n"
+                    "Please check that they are consistent (e.g., both B1950 or J2000). \n"
                     "SlicerAstro does not provide tools to convert system of reference.");
       }
 

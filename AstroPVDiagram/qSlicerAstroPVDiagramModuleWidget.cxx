@@ -923,6 +923,12 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
   PVDiagramVolume->RemoveAttribute("SlicerAstro.DRVAL3");
   PVDiagramVolume->RemoveAttribute("SlicerAstro.DUNIT3");
 
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC1_3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC2_3");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC3_1");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC3_2");
+  PVDiagramVolume->RemoveAttribute("SlicerAstro.PC3_3");
+
   // copy 2D image into the Astro Volume object
   int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
   vtkNew<vtkImageData> imageDataTemp;

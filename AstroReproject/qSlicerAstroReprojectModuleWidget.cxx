@@ -836,10 +836,19 @@ void qSlicerAstroReprojectModuleWidget::onApply()
       {
       outputVolume->SetAttribute("SlicerAstro.CROTA1", "0.");
       outputVolume->SetAttribute("SlicerAstro.CROTA2", "0.");
+      outputVolume->SetAttribute("SlicerAstro.PC1_1", "1.");
+      outputVolume->SetAttribute("SlicerAstro.PC1_2", "0.");
+      outputVolume->SetAttribute("SlicerAstro.PC2_1", "0.");
+      outputVolume->SetAttribute("SlicerAstro.PC2_2", "1.");
 
       if (n > 2)
         {
         outputVolume->SetAttribute("SlicerAstro.CROTA3", "0.");
+        outputVolume->SetAttribute("SlicerAstro.PC1_3", "0.");
+        outputVolume->SetAttribute("SlicerAstro.PC2_3", "0.");
+        outputVolume->SetAttribute("SlicerAstro.PC3_1", "0.");
+        outputVolume->SetAttribute("SlicerAstro.PC3_2", "0.");
+        outputVolume->SetAttribute("SlicerAstro.PC3_3", "1.");
         }
       d->parametersNode->SetReferenceVolumeNodeID("");
       d->astroVolumeWidget->setThreeComparativeView

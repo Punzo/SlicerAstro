@@ -589,7 +589,7 @@ bool vtkFITSReader::AllocateHeader()
 
    /* Read and print each keywords */
    int histCont = 0, commCont = 0;
-   this->HeaderKeyValue["SlicerAstro.PPO"] = "0";
+   this->HeaderKeyValue["SlicerAstro.DSS"] = "0";
    for (ii = 1; ii <= nkeys; ii++)
      {
      if (fits_read_record(this->fptr, ii, card, &this->ReadStatus))
@@ -670,10 +670,12 @@ bool vtkFITSReader::AllocateHeader()
        str.erase(str.size()-1, str.size());
        }
 
-     // WCSLIB can not deal with PPO matrix
-     if(strkey.find("PPO") != std::string::npos)
+     // WCSLIB can not deal with PPO, AMDX or AMDY matrices
+     if(strkey.find("PPO") != std::string::npos ||
+        strkey.find("AMDX") != std::string::npos ||
+        strkey.find("AMDY") != std::string::npos)
        {
-       this->HeaderKeyValue["SlicerAstro.PPO"] = "1";
+       this->HeaderKeyValue["SlicerAstro.DSS"] = "1";
        }
 
      if (!strkey.compare("COMMENT"))
@@ -936,15 +938,6 @@ bool vtkFITSReader::AllocateHeader()
        temp.erase(temp.size()-1);
      }
 
-   if (!strcmp(this->HeaderKeyValue["SlicerAstro.PPO"].c_str(), "1"))
-     {
-     vtkWarningMacro("vtkFITSReader::AllocateWCS: "
-                     "PPO matrix is not a WCS fits standard. \n"
-                     "Some opeartions (such as reprojection) will not be available. \n"
-                     "Please provide data with classic formalism or PC or CD matrices "
-                     "for full WCS support in SlicerAstro.");
-     }
-
    if (this->HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
@@ -1042,6 +1035,17 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
      {
      this->HeaderKeyValue["SlicerAstro.CDELT1"] = "1.0";
+     }
+
+   if (!strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1") &&
+       !strcmp(this->HeaderKeyValue["SlicerAstro.CDELT1"].c_str(), "1.0"))
+     {
+     vtkWarningMacro("vtkFITSReader::AllocateWCS: "
+                     "PPO, AMDX and AMDY matrices are not WCS fits standard. \n"
+                     "Some opeartions (such as reprojection) will not be available. \n"
+                     "Please provide data with PC matrix formalism "
+                     "for full WCS support in SlicerAstro. \n"
+                     "Proper dss images can be found at http://archive.eso.org/dss/dss");
      }
 
    if (n > 1)
@@ -2005,6 +2009,151 @@ bool vtkFITSReader::AllocateWCS()
     return false;
     }
 
+  if (!strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1"))
+    {
+    if (this->WCS->naxis != 2)
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "the dimensionality of the WCS != 2 for dss images. Please check the header.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT1")) == 0)
+      {
+      this->WCS->cdelt[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT1").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image CDELT1 not found. Provide DSS image with CDELT1 keyword.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT2")) == 0)
+      {
+      this->WCS->cdelt[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT2").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image CDELT2 not found. Provide DSS image with CDELT2 keyword.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX1")) == 0)
+      {
+      this->WCS->crpix[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRPIX1").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image CRPIX1 not found. Provide DSS image with CRPIX1 keyword.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX2")) == 0)
+      {
+      this->WCS->crpix[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRPIX2").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image CRPIX2 not found. Provide DSS image with CRPIX2 keyword.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL1")) == 0)
+      {
+      this->WCS->crval[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRVAL1").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image CRVAL1 not found. Provide DSS image with CRVAL1 keyword.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL2")) == 0)
+      {
+      this->WCS->crval[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRVAL2").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image CRVAL2 not found. Provide DSS image with CRVAL2 keyword.");
+      return false;
+      }
+
+
+    this->WCS->crota[0] = 0.;
+    this->WCS->crota[1] = 0.;
+
+    this->WCS->cd[0] = 0.;
+    this->WCS->cd[1] = 0.;
+    this->WCS->cd[2] = 0.;
+    this->WCS->cd[3] = 0.;
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_1")) == 0)
+      {
+      this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_1").c_str());
+      }
+    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC001001")) == 0)
+      {
+      this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001001").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_2")) == 0)
+      {
+      this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_2").c_str());
+      }
+    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC001002")) == 0)
+      {
+      this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001002").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_1")) == 0)
+      {
+      this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_1").c_str());
+      }
+    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC002001")) == 0)
+      {
+      this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002001").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
+      return false;
+      }
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_2")) == 0)
+      {
+      this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_2").c_str());
+      }
+    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC002002")) == 0)
+      {
+      this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002002").c_str());
+      }
+    else
+      {
+      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
+      return false;
+      }
+    }
+
   double CRVAL1 = this->WCS->crval[0];
   std::string CUNIT1 = this->HeaderKeyValue.at("SlicerAstro.CUNIT1");
 
@@ -2192,7 +2341,7 @@ bool vtkFITSReader::AllocateWCS()
         }
       }
 
-    if ((pcMatrixFound && !cDeltNotValid))
+    if (pcMatrixFound && !cDeltNotValid)
       {
       double pc11 = 0., pc12 = 0., pc21 = 0., pc22 = 0.;
       if (n == 2)
@@ -2291,27 +2440,32 @@ bool vtkFITSReader::AllocateWCS()
   if (n > 1)
     {
     this->HeaderKeyValue["SlicerAstro.CRVAL2"] = DoubleToString(this->WCS->crval[1]);
-      if (!cdMatrixFound)
-        {
-        this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
-        }
+    if (!cdMatrixFound)
+      {
+      this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
+      }
     this->HeaderKeyValue["SlicerAstro.CRPIX2"] = DoubleToString(this->WCS->crpix[1]);
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_1")) == 0)
+    this->HeaderKeyValue["SlicerAstro.PC1_1"] = DoubleToString(this->WCS->pc[0]);
+    this->HeaderKeyValue["SlicerAstro.PC1_2"] = DoubleToString(this->WCS->pc[1]);
+    this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[2]);
+    this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[3]);
+
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC001001")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC1_1");
+      this->HeaderKeyValue.erase("SlicerAstro.PC001001");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_2")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC001002")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC1_2");
+      this->HeaderKeyValue.erase("SlicerAstro.PC001002");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_1")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002001")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC2_1");
+      this->HeaderKeyValue.erase("SlicerAstro.PC002001");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_2")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002002")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC2_2");
+      this->HeaderKeyValue.erase("SlicerAstro.PC002002");
       }
 
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_1")) == 0)
@@ -2341,71 +2495,67 @@ bool vtkFITSReader::AllocateWCS()
       }
     this->HeaderKeyValue["SlicerAstro.CRPIX3"] = DoubleToString(this->WCS->crpix[2]);
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_3")) == 0)
-      {
-      this->HeaderKeyValue.erase("SlicerAstro.PC1_3");
-      }
+    this->HeaderKeyValue["SlicerAstro.PC1_3"] = DoubleToString(this->WCS->pc[2]);
+    this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[3]);
+    this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[4]);
+    this->HeaderKeyValue["SlicerAstro.PC2_3"] = DoubleToString(this->WCS->pc[5]);
+    this->HeaderKeyValue["SlicerAstro.PC3_1"] = DoubleToString(this->WCS->pc[6]);
+    this->HeaderKeyValue["SlicerAstro.PC3_2"] = DoubleToString(this->WCS->pc[7]);
+    this->HeaderKeyValue["SlicerAstro.PC3_3"] = DoubleToString(this->WCS->pc[8]);
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_1")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC001003")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC2_1");
+      this->HeaderKeyValue.erase("SlicerAstro.PC001003");
       }
-
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_2")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002001")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC2_2");
+      this->HeaderKeyValue.erase("SlicerAstro.PC002001");
       }
-
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_3")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002002")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC2_3");
+      this->HeaderKeyValue.erase("SlicerAstro.PC002002");
       }
-
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC3_1")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002003")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC3_1");
+      this->HeaderKeyValue.erase("SlicerAstro.PC002003");
       }
-
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC3_2")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC003001")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC3_2");
+      this->HeaderKeyValue.erase("SlicerAstro.PC003001");
       }
-
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC3_3")) == 0)
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC003002")) == 0)
       {
-      this->HeaderKeyValue.erase("SlicerAstro.PC3_3");
+      this->HeaderKeyValue.erase("SlicerAstro.PC003002");
+      }
+    if (!(this->HeaderKeyValue.count("SlicerAstro.PC003003")) == 0)
+      {
+      this->HeaderKeyValue.erase("SlicerAstro.PC003003");
       }
 
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_3")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD1_3");
       }
-
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_1")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_1");
       }
-
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_2")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_2");
       }
-
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_3")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_3");
       }
-
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_1")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD3_1");
       }
-
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_2")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD3_2");
       }
-
     if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_3")) == 0)
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD3_3");
