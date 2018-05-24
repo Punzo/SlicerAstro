@@ -10,7 +10,7 @@ In this context, visualization is an essential tool for enabling qualitative and
 * [x] 2) Quantification: visualization of the beam, interactive histograms, contours, statistics linked with the 2D/3D views, masking volumes with segmentations, flux density profiles, moment maps and position-velocity diagrams;
 * [x] 3) Enabling interactive smoothing in all three dimensions;
 * [x] 4) Interactive HI data modeling coupled to visualization;
-* [ ] 5) Skill to overlay observations at different wavelength and to plot catalogs info on data;
+* [x] 5) Skill to overlay observations at different wavelength and to plot catalogs info on data;
 * [ ] 6) Interoperability with Topcat, and other virtual observatory (VO) tools and catalogs.
 
 
