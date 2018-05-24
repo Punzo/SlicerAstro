@@ -2218,7 +2218,10 @@ void qSlicerAstroVolumeModuleWidget::onDisplayThresholdValueChanged(double Displ
     return;
     }
 
-  d->astroVolumeNode->SetDisplayThreshold(DisplayThreshold);
+  if (fabs(d->astroVolumeNode->GetDisplayThreshold() - DisplayThreshold) > 1.E-9)
+    {
+    d->astroVolumeNode->SetDisplayThreshold(DisplayThreshold);
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -5487,7 +5490,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeDisplayNodeModified()
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset /*= false*/)
+void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset /*= true*/)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -5497,16 +5500,19 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
     }
 
   double DisplayThreshold = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DisplayThreshold"));
+
+  int status = 0;
   if (forcePreset)
     {
+    status = d->DisplayThresholdSliderWidget->blockSignals(false);
     d->DisplayThresholdSliderWidget->setValue(DisplayThreshold);
     }
   else
     {
-    int status = d->DisplayThresholdSliderWidget->blockSignals(true);
+    status = d->DisplayThresholdSliderWidget->blockSignals(true);
     d->DisplayThresholdSliderWidget->setValue(DisplayThreshold);
-    d->DisplayThresholdSliderWidget->blockSignals(status);
     }
+
   double max = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
   d->DisplayThresholdSliderWidget->setMaximum(max);
   double min = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
@@ -5519,6 +5525,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
   QString DisplayThresholdUnit = "  ";
   DisplayThresholdUnit += d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT");
   d->DisplayThresholdSliderWidget->setSuffix(DisplayThresholdUnit);
+  d->DisplayThresholdSliderWidget->blockSignals(status);
 
   if (forcePreset)
     {
@@ -5533,7 +5540,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
     this->applyPreset(d->astroVolumeNode->GetVolumePropertyNode());
     }
 
-  if (d->TableThresholdNode)
+  if (d->TableThresholdNode && forcePreset)
     {
     d->TableThresholdNode->GetTable()->SetValue(1, 0, DisplayThreshold);
     d->TableThresholdNode->GetTable()->Modified();
@@ -5626,6 +5633,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent,
                         this, SLOT(onMRMLVolumeNodeDisplayThresholdModified()));
     this->onMRMLVolumeNodeDisplayThresholdModified(forcePreset);
+
     this->qvtkReconnect(d->astroVolumeNode, vtkMRMLAstroVolumeNode::ReferenceAddedEvent,
                         this, SLOT(setDisplayConnection()));
     this->setDisplayConnection();

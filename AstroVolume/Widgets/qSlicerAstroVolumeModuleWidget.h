@@ -132,7 +132,7 @@ protected slots:
   void onMRMLTableThresholdNodeModified();
   void onMRMLVolumeNodeModified();
   void onMRMLVolumeDisplayNodeModified();
-  void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = false);
+  void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
   void onOffsetValueChanged(double offsetValue);
   void onOpacityValueChanged(double Opacity);
