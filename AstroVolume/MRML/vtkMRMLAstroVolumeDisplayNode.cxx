@@ -77,6 +77,12 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->ContoursColor->SetValue(0, CONTOURSCOLOR_INVALID[0]);
   this->ContoursColor->SetValue(1, CONTOURSCOLOR_INVALID[1]);
   this->ContoursColor->SetValue(2, CONTOURSCOLOR_INVALID[2]);
+  this->OpacityShift = 0.;
+  this->OldOpacityShift = 0.;
+  this->PresetOffset = 0.;
+  this->OldPresetOffset = 0.;
+  this->PresetStretch = 0.;
+  this->OldPresetStretch = 0.;
 }
 
 //----------------------------------------------------------------------------
@@ -192,6 +198,12 @@ void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 
   of << indent << " SpaceQuantities=\"" << quantities << "\"";
   of << indent << " Space=\"" << (this->Space ? this->Space : "") << "\"";
+  of << indent << " OldOpacityShift=\"" << this->OldOpacityShift << "\"";
+  of << indent << " OpacityShift=\"" << this->OpacityShift << "\"";
+  of << indent << " OldPresetOffset=\"" << this->OldPresetOffset << "\"";
+  of << indent << " PresetOffset=\"" << this->PresetOffset << "\"";
+  of << indent << " OldPresetStretch=\"" << this->OldPresetStretch << "\"";
+  of << indent << " PresetStretch=\"" << this->PresetStretch << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -810,6 +822,42 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
       this->SetSpace(attValue);
       continue;
       }
+
+    if (!strcmp(attName, "OldOpacityShift"))
+      {
+      this->SetOldOpacityShift(StringToDouble(attValue));
+      continue;
+      }
+
+    if (!strcmp(attName, "OpacityShift"))
+      {
+      this->SetOpacityShift(StringToDouble(attValue));
+      continue;
+      }
+
+    if (!strcmp(attName, "OldPresetOffset"))
+      {
+      this->SetOldPresetOffset(StringToDouble(attValue));
+      continue;
+      }
+
+    if (!strcmp(attName, "PresetOffset"))
+      {
+      this->SetPresetOffset(StringToDouble(attValue));
+      continue;
+      }
+
+    if (!strcmp(attName, "OldPresetStretch"))
+      {
+      this->SetOldPresetStretch(StringToDouble(attValue));
+      continue;
+      }
+
+    if (!strcmp(attName, "PresetStretch"))
+      {
+      this->SetPresetStretch(StringToDouble(attValue));
+      continue;
+      }
     }
 }
 
@@ -838,6 +886,12 @@ void vtkMRMLAstroVolumeDisplayNode::Copy(vtkMRMLNode *anode)
   this->SetSpaceQuantities(node->GetSpaceQuantities());
   this->SetSpace(node->GetSpace());
   this->SetAttribute("SlicerAstro.NAXIS", node->GetAttribute("SlicerAstro.NAXIS"));
+  this->SetOldOpacityShift(node->GetOldOpacityShift());
+  this->SetOpacityShift(node->GetOpacityShift());
+  this->SetOldPresetOffset(node->GetOldPresetOffset());
+  this->SetPresetOffset(node->GetPresetOffset());
+  this->SetOldPresetStretch(node->GetOldPresetStretch());
+  this->SetPresetStretch(node->GetPresetStretch());
   this->CopyWCS(node);
 
   this->EndModify(disabledModify);
@@ -852,7 +906,6 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     }
 
   wcsprm *WCSNew = NULL;
-  int WCSStatusNew = 0;
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
@@ -862,12 +915,10 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
   if (AstroVolumeDisplayNode)
     {
     WCSNew = AstroVolumeDisplayNode->GetWCSStruct();
-    WCSStatusNew = AstroVolumeDisplayNode->GetWCSStatus();
     }
   else if (AstroLabelMapVolumeDisplayNode)
     {
     WCSNew = AstroLabelMapVolumeDisplayNode->GetWCSStruct();
-    WCSStatusNew = AstroLabelMapVolumeDisplayNode->GetWCSStatus();
     }
   else
     {
@@ -1480,6 +1531,14 @@ void vtkMRMLAstroVolumeDisplayNode::PrintSelf(ostream& os, vtkIndent indent)
       return;
       }
     }
+
+  os << indent << "OldOpacityShift: " << this->OldOpacityShift << "\n";
+  os << indent << "OpacityShift: " << this->OpacityShift << "\n";
+  os << indent << "OldPresetOffset: " << this->OldPresetOffset << "\n";
+  os << indent << "PresetOffset: " << this->PresetOffset << "\n";
+  os << indent << "OldPresetStretch: " << this->OldPresetStretch << "\n";
+  os << indent << "PresetStretch: " << this->PresetStretch << "\n";
+
 
   if (!this->WCS)
     {

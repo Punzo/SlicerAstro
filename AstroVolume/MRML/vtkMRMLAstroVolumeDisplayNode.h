@@ -122,6 +122,36 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   vtkGetMacro(WCSStatus,int);
 
   ///
+  /// OpacityShift
+  vtkSetMacro(OpacityShift,double);
+  vtkGetMacro(OpacityShift,double);
+
+  ///
+  /// OldOpacityShift
+  vtkSetMacro(OldOpacityShift,double);
+  vtkGetMacro(OldOpacityShift,double);
+
+  ///
+  /// PresetOffset
+  vtkSetMacro(PresetOffset,double);
+  vtkGetMacro(PresetOffset,double);
+
+  ///
+  /// OldPresetOffset
+  vtkSetMacro(OldPresetOffset,double);
+  vtkGetMacro(OldPresetOffset,double);
+
+  ///
+  /// PresetStretch
+  vtkSetMacro(PresetStretch,double);
+  vtkGetMacro(PresetStretch,double);
+
+  ///
+  /// OldPresetStretch
+  vtkSetMacro(OldPresetStretch,double);
+  vtkGetMacro(OldPresetStretch,double);
+
+  ///
   /// Set radio as velocity definition
   virtual bool SetRadioVelocityDefinition(bool update = true);
 
@@ -242,6 +272,15 @@ protected:
   static const double CONTOURSCOLOR_INVALID[3];
 
   bool FitSlices;
+
+  double OpacityShift;
+  double OldOpacityShift;
+
+  double PresetOffset;
+  double OldPresetOffset;
+
+  double PresetStretch;
+  double OldPresetStretch;
 
   vtkMRMLAstroVolumeDisplayNode();
   ~vtkMRMLAstroVolumeDisplayNode();

@@ -789,7 +789,6 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     }
 
   wcsprm *WCSNew = NULL;
-  int WCSStatusNew = 0;
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
@@ -799,12 +798,10 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
   if (AstroVolumeDisplayNode)
     {
     WCSNew = AstroVolumeDisplayNode->GetWCSStruct();
-    WCSStatusNew = AstroVolumeDisplayNode->GetWCSStatus();
     }
   else if (AstroLabelMapVolumeDisplayNode)
     {
     WCSNew = AstroLabelMapVolumeDisplayNode->GetWCSStruct();
-    WCSStatusNew = AstroLabelMapVolumeDisplayNode->GetWCSStatus();
     }
   else
     {

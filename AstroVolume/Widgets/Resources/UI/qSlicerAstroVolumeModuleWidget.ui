@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>413</width>
-    <height>759</height>
+    <height>765</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -919,6 +919,112 @@
         </property>
        </widget>
       </item>
+      <item row="4" column="1">
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="ctkSliderWidget" name="DisplayThresholdSliderWidget">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="decimals">
+           <number>9</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="CalculateRMSPushButton">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Calculate the RMS value in a region of interest (ROI) and udpate the value of the 3D threshold display (= RMS). Presets will be updated as well with the new 3D Display Threshold value.</string>
+          </property>
+          <property name="text">
+           <string>RMS in ROI</string>
+          </property>
+          <property name="icon">
+           <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
+            <normaloff>:/Icons/RMSROI.png</normaloff>:/Icons/RMSROI.png</iconset>
+          </property>
+          <property name="iconSize">
+           <size>
+            <width>24</width>
+            <height>24</height>
+           </size>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item row="5" column="0">
+       <layout class="QGridLayout" name="gridLayout_5">
+        <item row="0" column="0">
+         <widget class="QLabel" name="shiftLabel">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="toolTip">
+           <string>Shift transfer functions</string>
+          </property>
+          <property name="text">
+           <string>Shift:</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="StretchLabel">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>0</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="text">
+           <string>Stretch: </string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
       <item row="5" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_6">
         <item>
@@ -1000,7 +1106,7 @@
         </item>
        </layout>
       </item>
-      <item row="6" column="0">
+      <item row="7" column="0">
        <widget class="QLabel" name="CropLabel">
         <property name="enabled">
          <bool>true</bool>
@@ -1025,7 +1131,7 @@
         </property>
        </widget>
       </item>
-      <item row="6" column="1">
+      <item row="7" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QCheckBox" name="ROICropCheckBox">
@@ -1131,7 +1237,7 @@
         </item>
        </layout>
       </item>
-      <item row="7" column="0">
+      <item row="8" column="0">
        <widget class="QLabel" name="RenderingMethodLabel">
         <property name="enabled">
          <bool>true</bool>
@@ -1156,7 +1262,7 @@
         </property>
        </widget>
       </item>
-      <item row="7" column="1">
+      <item row="8" column="1">
        <widget class="QComboBox" name="RenderingMethodComboBox">
         <property name="enabled">
          <bool>true</bool>
@@ -1172,7 +1278,7 @@
         </property>
        </widget>
       </item>
-      <item row="8" column="0">
+      <item row="9" column="0">
        <widget class="QLabel" name="qualityLabel">
         <property name="enabled">
          <bool>true</bool>
@@ -1197,7 +1303,7 @@
         </property>
        </widget>
       </item>
-      <item row="8" column="1">
+      <item row="9" column="1">
        <widget class="QComboBox" name="QualityControlComboBox">
         <property name="enabled">
          <bool>true</bool>
@@ -1231,58 +1337,7 @@
         </item>
        </widget>
       </item>
-      <item row="5" column="0">
-       <layout class="QGridLayout" name="gridLayout_5">
-        <item row="0" column="0">
-         <widget class="QLabel" name="shiftLabel">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>Shift transfer functions</string>
-          </property>
-          <property name="text">
-           <string>Shift:</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="StretchLabel">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="text">
-           <string>Stretch: </string>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item row="3" column="0">
+      <item row="6" column="0">
        <widget class="QLabel" name="OpacityLabel">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
@@ -1301,62 +1356,7 @@
         </property>
        </widget>
       </item>
-      <item row="4" column="1">
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
-        <item>
-         <widget class="ctkSliderWidget" name="DisplayThresholdSliderWidget">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="decimals">
-           <number>9</number>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="CalculateRMSPushButton">
-          <property name="enabled">
-           <bool>true</bool>
-          </property>
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>30</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>Calculate the RMS value in a region of interest (ROI) and udpate the value of the 3D threshold display (= RMS). Presets will be updated as well with the new 3D Display Threshold value.</string>
-          </property>
-          <property name="text">
-           <string>RMS in ROI</string>
-          </property>
-          <property name="icon">
-           <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
-            <normaloff>:/Icons/RMSROI.png</normaloff>:/Icons/RMSROI.png</iconset>
-          </property>
-          <property name="iconSize">
-           <size>
-            <width>24</width>
-            <height>24</height>
-           </size>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item row="3" column="1">
+      <item row="6" column="1">
        <widget class="ctkSliderWidget" name="OpacitySliderWidget">
         <property name="enabled">
          <bool>true</bool>
@@ -1374,24 +1374,25 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>This slider rescales all the opacities of the presets by multiplying the value of the slider to the opacities values. 
-
- This operation will reset the current color function to the preset first of all. Therefore, any previous manual modification to the color function will be lost.  }</string>
+         <string>This slider shifts all the opacities of the current color function.</string>
         </property>
         <property name="decimals">
-         <number>1</number>
+         <number>2</number>
         </property>
         <property name="singleStep">
-         <double>0.100000000000000</double>
+         <double>0.050000000000000</double>
         </property>
         <property name="pageStep">
          <double>0.200000000000000</double>
         </property>
+        <property name="minimum">
+         <double>-1.000000000000000</double>
+        </property>
         <property name="maximum">
-         <double>2.000000000000000</double>
+         <double>1.000000000000000</double>
         </property>
         <property name="value">
-         <double>1.000000000000000</double>
+         <double>0.000000000000000</double>
         </property>
        </widget>
       </item>

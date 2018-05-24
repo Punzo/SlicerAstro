@@ -103,7 +103,6 @@ public slots:
 protected slots:
   void applyPreset(vtkMRMLNode* volumePropertyNode);
   void fitROIToVolume();
-  void offsetPreset(double offsetValue);
   void onCalculateRMS();
   void onCreateHistogram();
   void onCreateSurfaceButtonToggled(bool toggle);
@@ -133,17 +132,19 @@ protected slots:
   void onMRMLTableThresholdNodeModified();
   void onMRMLVolumeNodeModified();
   void onMRMLVolumeDisplayNodeModified();
-  void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
+  void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = false);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
+  void onOffsetValueChanged(double offsetValue);
   void onOpacityValueChanged(double Opacity);
   void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
-  void onPresetsNodeChanged(vtkMRMLNode*);
   void onPushButtonCovertLabelMapToSegmentationClicked();
   void onPushButtonConvertSegmentationToLabelMapClicked();
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
+  void onStretchValueChanged(double stretchValue);
+  void resetAndApplyPreset(vtkMRMLNode* volumePropertyNode);
   void resetOffset(vtkMRMLNode* node);
-  void resetOpacities();
+  void resetOpacityShift(vtkMRMLNode* node);
   void resetStretch(vtkMRMLNode* node);
   void setDisplayConnection();
   void setDisplayROIEnabled(bool visibility);
@@ -152,7 +153,6 @@ protected slots:
   void setRASexagesimalUnit();
   void setRadioVelocity();
   void synchronizeScalarDisplayNode();
-  void spreadPreset(double stretchValue);
   void updatePresets(vtkMRMLNode* node);
   void updateWidgetsFromIntensityNode();
 
