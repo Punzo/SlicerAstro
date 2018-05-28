@@ -33,10 +33,12 @@
 #include <ui_qSlicerAstroVolumeIOOptionsWidget.h>
 
 // Slicer includes
-#include "qSlicerCoreApplication.h"
-#include "vtkMRMLColorLogic.h"
-#include "vtkMRMLVolumeArchetypeStorageNode.h"
-#include "vtkSlicerApplicationLogic.h"
+#include <qSlicerCoreApplication.h>
+#include <vtkMRMLColorLogic.h>
+#include <vtkMRMLColorTableNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLVolumeArchetypeStorageNode.h>
+#include <vtkSlicerApplicationLogic.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_AstroVolume
@@ -207,11 +209,31 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
 
       if (Name.contains(firstMomentMapName))
         {
-        d->ColorTableComboBox->setCurrentNodeID("vtkMRMLColorTableNodeFileHotToColdRainbow.txt");
+        vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
+          (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "VelocityField"));
+        vtkMRMLColorTableNode *velocityFieldColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
+        if (velocityFieldColorNode)
+          {
+          d->ColorTableComboBox->setCurrentNodeID(velocityFieldColorNode->GetID());
+          }
+        else
+          {
+          d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
+          }
         }
       else if (Name.contains(secondMomentMapName))
         {
-        d->ColorTableComboBox->setCurrentNodeID("vtkMRMLColorTableNodeFileColdToHotRainbow.txt");
+        vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
+          (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "Rainbow"));
+        vtkMRMLColorTableNode *rainbowColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
+        if (rainbowColorNode)
+          {
+          d->ColorTableComboBox->setCurrentNodeID(rainbowColorNode->GetID());
+          }
+        else
+          {
+          d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
+          }
         }
       else
         {
