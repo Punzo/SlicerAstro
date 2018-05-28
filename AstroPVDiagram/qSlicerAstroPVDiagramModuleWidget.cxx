@@ -275,6 +275,19 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     return;
     }
 
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::enter : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+          (vtkMRMLLayoutNode::SlicerLayoutFourUpView);
+
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
     {
@@ -336,6 +349,13 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     LineModelDisplayNode->SetVisibility(1);
     }
 
+  int viewArra = app->layoutManager()->layoutLogic()->GetLayoutNode()->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
+    {
+    app->layoutManager()->layoutLogic()->GetLayoutNode()->
+      SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
+    }
+
   vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
     this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
   if (redSliceComposite)
@@ -344,6 +364,13 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     redSliceComposite->SetForegroundVolumeID("");
     redSliceComposite->SetForegroundOpacity(0.);
     redSliceComposite->SetBackgroundVolumeID(d->parametersNode->GetMomentMapNodeID());
+    }
+
+  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+  if (redSliceNode)
+    {
+    redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeThin);
     }
 
   vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
@@ -444,6 +471,13 @@ void qSlicerAstroPVDiagramModuleWidget::exit()
   if (!d->parametersNode || !this->mrmlScene())
     {
     return;
+    }
+
+  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+  if (redSliceNode)
+    {
+    redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeNone);
     }
 
   vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast

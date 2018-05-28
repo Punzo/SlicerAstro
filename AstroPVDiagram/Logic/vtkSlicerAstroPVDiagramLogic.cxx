@@ -999,13 +999,24 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     return false;
     }
 
-  layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
+  int viewArra = layoutManager->layoutLogic()->GetLayoutNode()->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
+    {
+    layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
 
-  vtkMRMLSliceNode *redSlice = vtkMRMLSliceNode::SafeDownCast(
-    this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
-  // setting to the XZ orientation is needed in order to force the refresh
-  redSlice->SetOrientation("XZ");
-  redSlice->SetOrientation("XY");
+    vtkMRMLSliceNode *redSlice = vtkMRMLSliceNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+    // setting to the XZ orientation is needed in order to force the refresh
+    redSlice->SetOrientation("XZ");
+    redSlice->SetOrientation("XY");
+
+    vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
+    greenSliceComposite->SetLabelVolumeID("");
+    greenSliceComposite->SetForegroundVolumeID("");
+    greenSliceComposite->SetForegroundOpacity(0.);
+    greenSliceComposite->SetBackgroundVolumeID("");
+    }
 
   vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
     this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
@@ -1013,13 +1024,6 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   yellowSliceComposite->SetForegroundVolumeID("");
   yellowSliceComposite->SetForegroundOpacity(0.);
   yellowSliceComposite->SetBackgroundVolumeID(pnode->GetOutputVolumeNodeID());
-
-  vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
-    this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
-  greenSliceComposite->SetLabelVolumeID("");
-  greenSliceComposite->SetForegroundVolumeID("");
-  greenSliceComposite->SetForegroundOpacity(0.);
-  greenSliceComposite->SetBackgroundVolumeID("");
 
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));

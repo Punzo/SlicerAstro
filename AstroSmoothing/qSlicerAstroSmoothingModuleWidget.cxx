@@ -351,7 +351,7 @@ void qSlicerAstroSmoothingModuleWidget::enter()
   if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
      || !app->layoutManager()->layoutLogic()->GetLayoutNode())
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::enter : "
                    "qSlicerApplication not found.";
     return;
     }

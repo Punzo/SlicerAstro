@@ -351,6 +351,13 @@ void qSlicerAstroPVSliceModuleWidget::enter()
     LineDisplayNode->SetVisibility(1);
     }
 
+  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+  if (redSliceNode)
+    {
+    redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeThin);
+    }
+
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
   if (yellowSliceNode)
@@ -364,6 +371,23 @@ void qSlicerAstroPVSliceModuleWidget::enter()
   if (greenSliceNode)
     {
     greenSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeThin);
+    }
+
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
+    {
+    qCritical() << "qSlicerAstroSmoothingModuleWidget::enter : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  int viewArra = app->layoutManager()->layoutLogic()->GetLayoutNode()->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
+    {
+    app->layoutManager()->layoutLogic()->GetLayoutNode()->
+      SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
     }
 }
 
@@ -404,6 +428,13 @@ void qSlicerAstroPVSliceModuleWidget::exit()
       LineDisplayNode = RulerNode->GetAnnotationLineDisplayNode();
       }
     LineDisplayNode->SetVisibility(0);
+    }
+
+  vtkMRMLSliceNode *redSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
+  if (redSliceNode)
+    {
+    redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeNone);
     }
 
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
