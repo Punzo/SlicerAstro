@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QAbstractItemView>
 #include <QtDebug>
 #include <QMessageBox>
 #include <QSettings>
