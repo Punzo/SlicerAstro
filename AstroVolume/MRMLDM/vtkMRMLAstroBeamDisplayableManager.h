@@ -37,7 +37,7 @@ class VTK_MRMLDISPLAYABLEMANAGER_ASTRO_EXPORT vtkMRMLAstroBeamDisplayableManager
 public:
   static vtkMRMLAstroBeamDisplayableManager* New();
   vtkTypeMacro(vtkMRMLAstroBeamDisplayableManager,vtkMRMLAbstractDisplayableManager);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   vtkRenderer* vtkMarkerRenderer();
 

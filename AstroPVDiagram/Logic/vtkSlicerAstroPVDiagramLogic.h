@@ -38,7 +38,7 @@ public:
 
   static vtkSlicerAstroPVDiagramLogic *New();
   vtkTypeMacro(vtkSlicerAstroPVDiagramLogic,vtkSlicerModuleLogic);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
@@ -46,7 +46,7 @@ public:
   void SetAstroMomentMapsLogic(vtkSlicerAstroMomentMapsLogic* logic);
   vtkSlicerAstroMomentMapsLogic *GetAstroMomentMapsLogic();
 
-  virtual void RegisterNodes();
+  virtual void RegisterNodes() VTK_OVERRIDE;
 
   bool Calculate0thMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode);
   bool SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagramParametersNode *pnode);

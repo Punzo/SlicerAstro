@@ -37,6 +37,7 @@ class VTK_OPENGLFILTERS_EXPORT vtkAstroOpenGLImageBox : public vtkImageGradient
 public:
   static vtkAstroOpenGLImageBox *New();
   vtkTypeMacro(vtkAstroOpenGLImageBox,vtkImageGradient);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   // Description:
   // Set the render window to get the OpenGL resources from
@@ -53,7 +54,6 @@ public:
   vtkGetMacro(Iterative, bool);
 
 protected:
-  void PrintSelf(ostream& os, vtkIndent indent);
   vtkAstroOpenGLImageBox();
   ~vtkAstroOpenGLImageBox();
 

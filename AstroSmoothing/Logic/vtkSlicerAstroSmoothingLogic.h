@@ -38,12 +38,12 @@ public:
 
   static vtkSlicerAstroSmoothingLogic *New();
   vtkTypeMacro(vtkSlicerAstroSmoothingLogic,vtkSlicerModuleLogic);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
-  virtual void RegisterNodes();
+  virtual void RegisterNodes() VTK_OVERRIDE;
 
   int Apply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
 

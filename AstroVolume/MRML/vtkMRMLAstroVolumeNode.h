@@ -76,7 +76,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   ///
   /// Create and observe default display node
-  virtual void CreateDefaultDisplayNodes();
+  virtual void CreateDefaultDisplayNodes() VTK_OVERRIDE;
   
   ///
   /// Get AstroVolume display node

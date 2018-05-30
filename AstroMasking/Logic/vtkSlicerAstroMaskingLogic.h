@@ -41,12 +41,12 @@ public:
 
   static vtkSlicerAstroMaskingLogic *New();
   vtkTypeMacro(vtkSlicerAstroMaskingLogic,vtkSlicerModuleLogic);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
-  virtual void RegisterNodes();
+  virtual void RegisterNodes() VTK_OVERRIDE;
 
   bool ApplyMask(vtkMRMLAstroMaskingParametersNode *pnode,
                  vtkMRMLSegmentationNode *segmentationNode,

@@ -872,7 +872,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         this->Internal->cubeF->setMask(mask);
-        delete mask;
+        delete [] mask;
         mask = NULL;
         }
 
@@ -1255,7 +1255,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         this->Internal->cubeD->setMask(mask);
-        delete mask;
+        delete [] mask;
         mask = NULL;
         }
 

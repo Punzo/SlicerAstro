@@ -36,7 +36,7 @@ class VTK_MRMLDISPLAYABLEMANAGER_ASTRO_EXPORT vtkMRMLAstroTwoDAxesDisplayableMan
 public:
   static vtkMRMLAstroTwoDAxesDisplayableManager* New();
   vtkTypeMacro(vtkMRMLAstroTwoDAxesDisplayableManager,vtkMRMLAbstractDisplayableManager);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   vtkRenderer* vtkMarkerRenderer();
 

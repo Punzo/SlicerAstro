@@ -50,7 +50,7 @@ public:
 
   static vtkSlicerAstroVolumeLogic *New();
   vtkTypeMacro(vtkSlicerAstroVolumeLogic,vtkSlicerVolumesLogic);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   typedef vtkSlicerAstroVolumeLogic Self;
 
@@ -128,13 +128,13 @@ protected:
   virtual ~vtkSlicerAstroVolumeLogic();
 
   /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
-  virtual void RegisterNodes();
+  virtual void RegisterNodes() VTK_OVERRIDE;
 
-  virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene);
-  virtual void UpdateFromMRMLScene();
-  virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node);
-  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node);
-  virtual void OnMRMLSceneEndImport();
+  virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene) VTK_OVERRIDE;
+  virtual void UpdateFromMRMLScene() VTK_OVERRIDE;
+  virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node) VTK_OVERRIDE;
+  virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) VTK_OVERRIDE;
+  virtual void OnMRMLSceneEndImport() VTK_OVERRIDE;
 
   bool LoadPresets(vtkMRMLScene* scene);
   vtkMRMLScene* PresetsScene;

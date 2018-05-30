@@ -764,7 +764,7 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.NAXIS") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.NAXIS") == this->HeaderKeyValue.end())
      {
      vtkErrorMacro("vtkFITSReader::AllocateHeader :"
                    " The fits header is missing the NAXIS keyword. "
@@ -774,7 +774,7 @@ bool vtkFITSReader::AllocateHeader()
 
    int n = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
 
-   if (n == 4 && !(this->HeaderKeyValue.count("SlicerAstro.NAXIS4")) == 0)
+   if (n == 4 && this->HeaderKeyValue.find("SlicerAstro.NAXIS4") != this->HeaderKeyValue.end())
      {
      int n4 = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS4")).c_str());
      if(n4 == 1)
@@ -795,36 +795,36 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (!(this->HeaderKeyValue.count("SlicerAstro.NAXIS4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.NAXIS4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.NAXIS4");
      }
-   if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CDELT4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.CDELT4");
      }
-   if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRPIX4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.CRPIX4");
      }
-   if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRVAL4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.CRVAL4");
      }
-   if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CTYPE4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.CTYPE4");
      }
-   if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CUNIT4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.CUNIT4");
      }
-   if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA4")) == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CROTA4") != this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue.erase("SlicerAstro.CROTA4");
      }
 
-   if (n == 3 && !(this->HeaderKeyValue.count("SlicerAstro.NAXIS3")) == 0)
+   if (n == 3 && this->HeaderKeyValue.find("SlicerAstro.NAXIS3") != this->HeaderKeyValue.end())
      {
      int n3 = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS3")).c_str());
      if (n3 == 1)
@@ -836,37 +836,37 @@ bool vtkFITSReader::AllocateHeader()
 
    if (n == 2)
      {
-     if (!(this->HeaderKeyValue.count("SlicerAstro.NAXIS3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.NAXIS3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.NAXIS3");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CDELT3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CDELT3");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CRPIX3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CRPIX3");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CRVAL3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CRVAL3");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CTYPE3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CTYPE3");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CUNIT3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CUNIT3");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA3")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CROTA3") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CROTA3");
        }
      }
 
-   if (n == 2 && !(this->HeaderKeyValue.count("SlicerAstro.NAXIS2")) == 0)
+   if (n == 2 && this->HeaderKeyValue.find("SlicerAstro.NAXIS2") != this->HeaderKeyValue.end())
      {
      int n2 = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS2")).c_str());
      if (n2 == 1)
@@ -878,31 +878,31 @@ bool vtkFITSReader::AllocateHeader()
 
    if (n == 1)
      {
-     if (!(this->HeaderKeyValue.count("SlicerAstro.NAXIS2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.NAXIS2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.NAXIS2");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CDELT2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CDELT2");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CRPIX2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CRPIX2");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CRVAL2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CRVAL2");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CTYPE2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CTYPE2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CTYPE2");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CUNIT2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CUNIT2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CUNIT2");
        }
-     if (!(this->HeaderKeyValue.count("SlicerAstro.CROTA2")) == 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.CROTA2") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue.erase("SlicerAstro.CROTA2");
        }
@@ -928,94 +928,95 @@ bool vtkFITSReader::AllocateHeader()
      {
      temp += IntToString(ii);
 
-     if(this->HeaderKeyValue.count(temp.c_str()) == 0)
+     if(this->HeaderKeyValue.find(temp.c_str()) == this->HeaderKeyValue.end())
        {
        vtkErrorMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the NAXIS" << ii <<
                      " keyword. It is not possible to load the datacube.");
        return false;
        }
-       temp.erase(temp.size()-1);
+
+     temp.erase(temp.size()-1);
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CRPIX1") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRPIX1") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CRPIX1 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRPIX1"] = "0.0";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CRPIX2") == 0 && n > 1)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRPIX2") == this->HeaderKeyValue.end() && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CRPIX2 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRPIX2"] = "0.0";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CRPIX3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRPIX3") == this->HeaderKeyValue.end() && n > 2)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CRPIX3 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRPIX3"] = "0.0";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CRVAL1") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRVAL1") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CRVAL1 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRVAL1"] = "UNDEFINED";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CRVAL2") == 0 && n > 1)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRVAL2") == this->HeaderKeyValue.end() && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CRVAL2 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRVAL2"] = "UNDEFINED";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CRVAL3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.CRVAL3") == this->HeaderKeyValue.end() && n > 2)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CRVAL3 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRVAL3"] = "UNDEFINED";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CTYPE1") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CTYPE1") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CTYPE1 keyword.");
      this->HeaderKeyValue["SlicerAstro.CTYPE1"] = "NONE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CTYPE2") == 0 && n > 1)
+   if (this->HeaderKeyValue.find("SlicerAstro.CTYPE2") == this->HeaderKeyValue.end() && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CTYPE2 keyword.");
      this->HeaderKeyValue["SlicerAstro.CTYPE2"] = "NONE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CTYPE3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.CTYPE3") == this->HeaderKeyValue.end() && n > 2)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CTYPE3 keyword.");
      this->HeaderKeyValue["SlicerAstro.CTYPE3"] = "NONE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CUNIT1") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CUNIT1") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CUNIT1 keyword. Assuming degree.");
      this->HeaderKeyValue["SlicerAstro.CUNIT1"] = "DEGREE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CUNIT2") == 0 && n > 1)
+   if (this->HeaderKeyValue.find("SlicerAstro.CUNIT2") == this->HeaderKeyValue.end() && n > 1)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the CUNIT2 keyword. Assuming degree.");
      this->HeaderKeyValue["SlicerAstro.CUNIT2"] = "DEGREE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CUNIT3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.CUNIT3") == this->HeaderKeyValue.end() && n > 2)
      {
      std::string ctype3 = this->HeaderKeyValue.at("SlicerAstro.CTYPE3");
      if(!(ctype3.compare(0,4,"FREQ")))
@@ -1032,7 +1033,7 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CDELT1") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CDELT1") == this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue["SlicerAstro.CDELT1"] = "1.0";
      }
@@ -1048,57 +1049,51 @@ bool vtkFITSReader::AllocateHeader()
                      "Proper dss images can be found at http://archive.eso.org/dss/dss");
      }
 
-   if (n > 1)
+   if (this->HeaderKeyValue.find("SlicerAstro.CDELT2") == this->HeaderKeyValue.end() && n > 1)
      {
-     if (this->HeaderKeyValue.count("SlicerAstro.CDELT2") == 0)
-       {
-       this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
-       }
+     this->HeaderKeyValue["SlicerAstro.CDELT2"] = "1.0";
      }
 
-   if (n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.CDELT3") == this->HeaderKeyValue.end() && n > 2)
      {
-     if (this->HeaderKeyValue.count("SlicerAstro.CDELT3") == 0)
-       {
-       this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
-       }
+     this->HeaderKeyValue["SlicerAstro.CDELT3"] = "1.0";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CROTA1") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CROTA1") == this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue["SlicerAstro.CROTA1"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CROTA2") == 0 && n > 1)
+   if (this->HeaderKeyValue.find("SlicerAstro.CROTA2") == this->HeaderKeyValue.end() && n > 1)
      {
      this->HeaderKeyValue["SlicerAstro.CROTA2"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CROTA3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.CROTA3") == this->HeaderKeyValue.end() && n > 2)
      {
      this->HeaderKeyValue["SlicerAstro.CROTA3"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BITPIX") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BITPIX") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BITPIX keyword. Using in default 32 (float).");
      this->HeaderKeyValue["SlicerAstro.BITPIX"] = "32";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BTYPE") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BTYPE") == this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue["SlicerAstro.BTYPE"] = "NONE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BUNIT") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BUNIT") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BUNIT keyword.");
      this->HeaderKeyValue["SlicerAstro.BUNIT"] = "UNDEFINED";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BMAJ") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BMAJ") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BMAJ keyword.");
@@ -1108,7 +1103,7 @@ bool vtkFITSReader::AllocateHeader()
    if (!strcmp(this->HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED"))
      {
      // 3DBAROLO
-     if (this->HeaderKeyValue.count("SlicerAstro.BBMAJ") != 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.BBMAJ") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.BMAJ"] = this->HeaderKeyValue["SlicerAstro.BBMAJ"];
        vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
@@ -1117,7 +1112,7 @@ bool vtkFITSReader::AllocateHeader()
                         << " It is recommended to check the value.");
        }
      // GIPSY
-     else if (this->HeaderKeyValue.count("SlicerAstro.BMMAJ") != 0)
+     else if (this->HeaderKeyValue.find("SlicerAstro.BMMAJ") != this->HeaderKeyValue.end())
        {
        double BMMAJ = StringToDouble(this->HeaderKeyValue["SlicerAstro.BMMAJ"].c_str());
        BMMAJ /= 3600.;
@@ -1193,7 +1188,7 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BMIN") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BMIN") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BMIN keyword.");
@@ -1203,7 +1198,7 @@ bool vtkFITSReader::AllocateHeader()
    if (!strcmp(this->HeaderKeyValue["SlicerAstro.BMIN"].c_str(), "UNDEFINED"))
      {
      // 3DBAROLO
-     if (this->HeaderKeyValue.count("SlicerAstro.BBMIN") != 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.BBMIN") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.BMIN"] = this->HeaderKeyValue["SlicerAstro.BBMIN"];
        vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
@@ -1212,7 +1207,7 @@ bool vtkFITSReader::AllocateHeader()
                         << " It is recommended to check the value.");
        }
      // GIPSY
-     else if (this->HeaderKeyValue.count("SlicerAstro.BMMIN") != 0)
+     else if (this->HeaderKeyValue.find("SlicerAstro.BMMIN") != this->HeaderKeyValue.end())
        {
        double BMMIN = StringToDouble(this->HeaderKeyValue["SlicerAstro.BMMIN"].c_str());
        BMMIN /= 3600.;
@@ -1289,7 +1284,7 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BPA") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BPA") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BPA keyword.");
@@ -1300,7 +1295,7 @@ bool vtkFITSReader::AllocateHeader()
      {
      double RadToDeg = 45. / atan(1.);
      // 3DBAROLO
-     if (this->HeaderKeyValue.count("SlicerAstro.BBPA") != 0)
+     if (this->HeaderKeyValue.find("SlicerAstro.BBPA") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.BPA"] = this->HeaderKeyValue["SlicerAstro.BBPA"];
        vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
@@ -1309,7 +1304,7 @@ bool vtkFITSReader::AllocateHeader()
                         << " It is recommended to check the value.");
        }
      // GIPSY
-     else if (this->HeaderKeyValue.count("SlicerAstro.BMPA") != 0)
+     else if (this->HeaderKeyValue.find("SlicerAstro.BMPA") != this->HeaderKeyValue.end())
        {
        double BMPA = StringToDouble(this->HeaderKeyValue["SlicerAstro.BMPA"].c_str());
        BMPA /= 3600.;
@@ -1385,28 +1380,28 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BZERO") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BZERO") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BZERO keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.BZERO"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BSCALE") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BSCALE") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BSCALE keyword. Assuming a value equal to 1.");
      this->HeaderKeyValue["SlicerAstro.BSCALE"] = "1.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.BLANK") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.BLANK") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BLANK keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.BLANK"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.DATAMODEL") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.DATAMODEL") == this->HeaderKeyValue.end())
      {
      bool onlyNumberInExtension = false;
      vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
@@ -1474,12 +1469,12 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.DATAMAX") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.DATAMAX") == this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue["SlicerAstro.DATAMAX"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.DATAMIN") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.DATAMIN") == this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue["SlicerAstro.DATAMIN"] = "0.";
      }
@@ -1489,23 +1484,23 @@ bool vtkFITSReader::AllocateHeader()
    HeaderKeyValue["SlicerAstro.HistoMinSel"] = "0.";
    HeaderKeyValue["SlicerAstro.HistoMaxSel"] = "0.";
 
-   if (this->HeaderKeyValue.count("SlicerAstro.DUNIT3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.DUNIT3") == this->HeaderKeyValue.end() && n > 2)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the DUNIT3 keyword.");
      this->HeaderKeyValue["SlicerAstro.DUNIT3"] = "NONE";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.DRVAL3") == 0 && n > 2)
+   if (this->HeaderKeyValue.find("SlicerAstro.DRVAL3") == this->HeaderKeyValue.end() && n > 2)
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the DRVAL3 keyword.");
      this->HeaderKeyValue["SlicerAstro.DRVAL3"] = "0.";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.RESTFREQ") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.RESTFREQ") == this->HeaderKeyValue.end())
      {
-     if (!(this->HeaderKeyValue.count("SlicerAstro.FREQ0") == 0))
+     if (this->HeaderKeyValue.find("SlicerAstro.FREQ0") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = this->HeaderKeyValue.at("SlicerAstro.FREQ0");
        }
@@ -1560,18 +1555,18 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.DATE-OBS") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.DATE-OBS") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the DATE-OBS keyword.");
      this->HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.EQUINOX") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.EQUINOX") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is also missing the EQUINOX keyword.");
-     if (this->HeaderKeyValue.count("SlicerAstro.EPOCH") != 0)
+                     "The fits header is missing the EQUINOX keyword.");
+     if (this->HeaderKeyValue.find("SlicerAstro.EPOCH") != this->HeaderKeyValue.end())
        {
        vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                        "Found the EPOCH keyword. The value will be copied in the EQUINOX keyword");
@@ -1585,36 +1580,37 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.RADESYS") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.RADESYS") == this->HeaderKeyValue.end())
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the RADESYS keyword.");
      this->HeaderKeyValue["SlicerAstro.RADESYS"] = "";
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.CELLSCAL") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.CELLSCAL") == this->HeaderKeyValue.end())
      {
      this->HeaderKeyValue["SlicerAstro.CELLSCAL"] = "";
      }
-
-   if (this->HeaderKeyValue.count("SlicerAstro.TELESCOP") == 0)
+   else
      {
-     if (!(this->HeaderKeyValue.count("SlicerAstro.TELESC") == 0))
+     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
+                     "Found CELLSCAL keyword in fits header. SlicerAstro does not support it.");
+     }
+
+   if (this->HeaderKeyValue.find("SlicerAstro.TELESCOP") == this->HeaderKeyValue.end())
+     {
+     if (this->HeaderKeyValue.find("SlicerAstro.TELESC") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.TELESCOP"] = this->HeaderKeyValue.at("SlicerAstro.TELESC");
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       "The fits header is missing the TELESCOP keyword.");
        this->HeaderKeyValue["SlicerAstro.TELESCOP"] = "";
        }
      }
 
-   if (this->HeaderKeyValue.count("SlicerAstro.OBJECT") == 0)
+   if (this->HeaderKeyValue.find("SlicerAstro.OBJECT") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the OBJECT keyword.");
      this->HeaderKeyValue["SlicerAstro.OBJECT"] = "";
      }
 
@@ -1647,7 +1643,7 @@ int vtkFITSReader::FixGipsyHeader()
     double vel = 0.;
 
     // Get Velocity reference info
-    if(!this->HeaderKeyValue.count("SlicerAstro.VELR") == 0)
+    if(this->HeaderKeyValue.find("SlicerAstro.VELR") != this->HeaderKeyValue.end())
       {
       vel = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.VELR").c_str());
       }
@@ -2018,7 +2014,7 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CDELT1") != this->HeaderKeyValue.end())
       {
       this->WCS->cdelt[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT1").c_str());
       }
@@ -2029,7 +2025,7 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CDELT2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CDELT2") != this->HeaderKeyValue.end())
       {
       this->WCS->cdelt[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT2").c_str());
       }
@@ -2040,7 +2036,7 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CRPIX1") != this->HeaderKeyValue.end())
       {
       this->WCS->crpix[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRPIX1").c_str());
       }
@@ -2051,7 +2047,7 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CRPIX2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CRPIX2") != this->HeaderKeyValue.end())
       {
       this->WCS->crpix[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRPIX2").c_str());
       }
@@ -2062,7 +2058,7 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CRVAL1") != this->HeaderKeyValue.end())
       {
       this->WCS->crval[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRVAL1").c_str());
       }
@@ -2073,7 +2069,7 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CRVAL2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CRVAL2") != this->HeaderKeyValue.end())
       {
       this->WCS->crval[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CRVAL2").c_str());
       }
@@ -2093,11 +2089,11 @@ bool vtkFITSReader::AllocateWCS()
     this->WCS->cd[2] = 0.;
     this->WCS->cd[3] = 0.;
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC1_1") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_1").c_str());
       }
-    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC001001")) == 0)
+    else if (this->HeaderKeyValue.find("SlicerAstro.PC1_1") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001001").c_str());
       }
@@ -2108,11 +2104,11 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC1_2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC1_2") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_2").c_str());
       }
-    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC001002")) == 0)
+    else if (this->HeaderKeyValue.find("SlicerAstro.PC001002") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001002").c_str());
       }
@@ -2123,11 +2119,11 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC2_1") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_1").c_str());
       }
-    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC002001")) == 0)
+    else if (this->HeaderKeyValue.find("SlicerAstro.PC002001") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002001").c_str());
       }
@@ -2138,11 +2134,11 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC2_2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC2_2") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_2").c_str());
       }
-    else if (!(this->HeaderKeyValue.count("SlicerAstro.PC002002")) == 0)
+    else if (this->HeaderKeyValue.find("SlicerAstro.PC002002") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002002").c_str());
       }
@@ -2451,36 +2447,36 @@ bool vtkFITSReader::AllocateWCS()
     this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[2]);
     this->HeaderKeyValue["SlicerAstro.PC2_2"] = DoubleToString(this->WCS->pc[3]);
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC001001")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC001001") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC001001");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC001002")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC001002") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC001002");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002001")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC002001") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC002001");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002002")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC002002") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC002002");
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD1_1") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD1_1");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD1_2") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD1_2");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD2_1") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_1");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD2_2") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_2");
       }
@@ -2503,60 +2499,60 @@ bool vtkFITSReader::AllocateWCS()
     this->HeaderKeyValue["SlicerAstro.PC3_2"] = DoubleToString(this->WCS->pc[7]);
     this->HeaderKeyValue["SlicerAstro.PC3_3"] = DoubleToString(this->WCS->pc[8]);
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC001003")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC001003") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC001003");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002001")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC002001") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC002001");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002002")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC002002") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC002002");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC002003")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC002003") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC002003");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC003001")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC003001") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC003001");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC003002")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC003002") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC003002");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.PC003003")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.PC003003") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.PC003003");
       }
 
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD1_3")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD1_3") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD1_3");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD2_1") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_1");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD2_2") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_2");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD2_3")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD2_3") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD2_3");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_1")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD3_1") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD3_1");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_2")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD3_2") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD3_2");
       }
-    if (!(this->HeaderKeyValue.count("SlicerAstro.CD3_3")) == 0)
+    if (this->HeaderKeyValue.find("SlicerAstro.CD3_3") != this->HeaderKeyValue.end())
       {
       this->HeaderKeyValue.erase("SlicerAstro.CD3_3");
       }

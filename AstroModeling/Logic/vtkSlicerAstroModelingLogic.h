@@ -40,7 +40,7 @@ public:
 
   static vtkSlicerAstroModelingLogic *New();
   vtkTypeMacro(vtkSlicerAstroModelingLogic,vtkSlicerModuleLogic);
-  void PrintSelf(ostream& os, vtkIndent indent);
+  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
@@ -48,7 +48,7 @@ public:
   void SetMarkupsLogic(vtkSlicerMarkupsLogic* logic);
   vtkSlicerMarkupsLogic *GetMarkupsLogic();
 
-  virtual void RegisterNodes();
+  virtual void RegisterNodes() VTK_OVERRIDE;
 
   int OperateModel(vtkMRMLAstroModelingParametersNode *pnode,
                    vtkMRMLTableNode *tnode);
