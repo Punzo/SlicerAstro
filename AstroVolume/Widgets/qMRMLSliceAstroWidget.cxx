@@ -35,6 +35,9 @@
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLScene.h>
 
+// MRML logic includes
+#include <vtkMRMLSliceLogic.h>
+
 // VTK includes
 #include <vtkCollection.h>
 #include <vtkNew.h>
@@ -61,17 +64,28 @@ void qMRMLSliceAstroWidgetPrivate::init()
 {
   Q_Q(qMRMLSliceAstroWidget);
 
-  this->Superclass::init();
+  this->setupUi(q);
 
+  this->verticalLayout->removeWidget(this->SliceView);
   this->verticalLayout_2->removeWidget(this->SliceController);
   this->verticalLayout_2->removeWidget(this->frame);
 
+  delete this->SliceView;
+  delete this->verticalLayout;
   delete this->SliceController;
   delete this->frame;
+  delete this->verticalLayout_2;
+
+  q->resize(595, 518);
+  verticalLayout_2 = new QVBoxLayout(q);
+  verticalLayout_2->setSpacing(0);
+  verticalLayout_2->setContentsMargins(0, 0, 0, 0);
+  verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
 
   this->SliceController = new qMRMLSliceAstroControllerWidget(q);
   this->SliceController->setObjectName(QLatin1String("SliceController"));
   this->verticalLayout_2->addWidget(this->SliceController);
+
   this->frame = new QFrame(q);
   this->frame->setObjectName(QLatin1String("frame"));
   QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
@@ -80,14 +94,15 @@ void qMRMLSliceAstroWidgetPrivate::init()
   sizePolicy.setHeightForWidth(frame->sizePolicy().hasHeightForWidth());
   frame->setSizePolicy(sizePolicy);
   this->frame->setFrameShadow(QFrame::Raised);
+
   this->verticalLayout = new QVBoxLayout(this->frame);
   this->verticalLayout->setSpacing(0);
   this->verticalLayout->setObjectName(QLatin1String("verticalLayout"));
   this->verticalLayout->setContentsMargins(0, 0, 0, 0);
+
   this->SliceView = new qMRMLSliceView(this->frame);
   this->SliceView->setObjectName(QLatin1String("SliceView"));
-  this->SliceView->setProperty("renderEnabled", QVariant(true));
-
+  this->SliceView->setRenderEnabled(true);
   this->verticalLayout->addWidget(this->SliceView);
 
   this->verticalLayout_2->addWidget(this->frame);
@@ -96,14 +111,13 @@ void qMRMLSliceAstroWidgetPrivate::init()
                    this->SliceController, SLOT(setMRMLScene(vtkMRMLScene*)));
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    this->SliceView, SLOT(setMRMLScene(vtkMRMLScene*)));
-
   QMetaObject::connectSlotsByName(q);
 
   this->SliceView->sliceViewInteractorStyle()
     ->SetSliceLogic(this->SliceController->sliceLogic());
 
   connect(this->SliceView, SIGNAL(resized(QSize)),
-          this->SliceController, SLOT(setSliceViewSize(QSize)));
+          this, SLOT(astroResetSliceViewSize(QSize)));
 
   connect(this->SliceController, SIGNAL(imageDataConnectionChanged(vtkAlgorithmOutput*)),
           this, SLOT(setImageDataConnection(vtkAlgorithmOutput*)));
@@ -111,6 +125,16 @@ void qMRMLSliceAstroWidgetPrivate::init()
           this->SliceView, SLOT(scheduleRender()), Qt::QueuedConnection);
   connect(this->SliceController, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)),
           q, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)));
+}
+
+//---------------------------------------------------------------------------
+void qMRMLSliceAstroWidgetPrivate::astroResetSliceViewSize(const QSize &size)
+{
+  Q_Q(qMRMLSliceAstroWidget);
+  Q_UNUSED(size);
+
+  this->setSliceViewSize(this->SliceView->size());
+  emit q->windowsResized();
 }
 
 // --------------------------------------------------------------------------
@@ -128,14 +152,6 @@ qMRMLSliceAstroWidget::qMRMLSliceAstroWidget(qMRMLSliceAstroWidgetPrivate *pimpl
   : Superclass(pimpl, parent)
 {
   // init() should be called in the subclass constructor
-}
-
-// --------------------------------------------------------------------------
-void qMRMLSliceAstroWidget::resizeEvent(QResizeEvent *event)
-{
-  QWidget::resizeEvent(event);
-
-  emit this->windowsResized();
 }
 
 // --------------------------------------------------------------------------

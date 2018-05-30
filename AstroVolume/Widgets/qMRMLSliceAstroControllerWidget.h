@@ -25,7 +25,6 @@
 #include <vtkVersion.h>
 
 class qMRMLSliceAstroControllerWidgetPrivate;
-//class vtkMRMLSliceNode;
 
 // AstroVolume includes
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"

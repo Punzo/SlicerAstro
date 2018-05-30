@@ -49,7 +49,6 @@ signals:
 
 protected:
   qMRMLSliceAstroWidget(qMRMLSliceAstroWidgetPrivate* pimpl, QWidget* parent = 0);
-  void resizeEvent(QResizeEvent *event) override;
 
 private:
   Q_DECLARE_PRIVATE(qMRMLSliceAstroWidget);

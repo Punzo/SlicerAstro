@@ -32,7 +32,7 @@
 //-----------------------------------------------------------------------------
 /// \ingroup Slicer_QtModules_Volumes
 class qSlicerAstroLabelMapVolumeDisplayWidgetPrivate:
-                                          public Ui_qSlicerAstroLabelMapVolumeDisplayWidget
+  public Ui_qSlicerAstroLabelMapVolumeDisplayWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroLabelMapVolumeDisplayWidget);
 protected:

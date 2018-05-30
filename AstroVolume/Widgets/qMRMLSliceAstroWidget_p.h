@@ -57,6 +57,9 @@ public:
   virtual ~qMRMLSliceAstroWidgetPrivate();
 
   void init();
+
+public slots:
+  void astroResetSliceViewSize(const QSize& size);
 };
 
 #endif
