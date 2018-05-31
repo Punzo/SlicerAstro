@@ -2320,7 +2320,7 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
       {
       qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
                      "ThreeDWidget not found.";
-      return;
+      continue;
       }
 
     qMRMLThreeDView* ThreeDView = ThreeDWidget->threeDView();
@@ -2328,18 +2328,18 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
       {
       qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
                      "ThreeDView not found.";
-      return;
+      continue;
       }
 
     ThreeDView->renderer()->ResetCameraClippingRange();
-    ThreeDView->renderer()->Render();
+    //ThreeDView->renderer()->Render();
 
     qMRMLThreeDViewControllerWidget* ThreeDController = ThreeDWidget->threeDController();
-    if(!ThreeDView || !ThreeDView->renderer())
+    if(!ThreeDController)
       {
       qCritical() << "qSlicerAstroVolumeModuleWidget::onVisibilityChanged : "
                      "ThreeDController not found.";
-      return;
+      continue;
       }
     ThreeDController->resetFocalPoint();
     }
