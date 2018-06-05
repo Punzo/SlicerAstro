@@ -118,6 +118,8 @@ static inline void swap(float *a, float *b)
 // Partitioning algorithm
 static int partition(float *L, int left, int right)
 {
+  int min = left;
+  int max = right;
   int pivot = left;
   float p_val = L[pivot];
 
@@ -133,6 +135,15 @@ static int partition(float *L, int left, int right)
       }
     if (left < right)
       {
+      if (left > max)
+        {
+        left = max;
+        }
+
+      if (right < min)
+        {
+        right = min;
+        }
       swap(&L[left], &L[right]);
       }
     }
@@ -144,12 +155,26 @@ static int partition(float *L, int left, int right)
 // Quicksort recursion
 static void quicksort(float *L, int start, int end)
 {
+  if (!L)
+    {
+    return;
+    }
+
   if (start >= end)
     {
     return;
     }
 
   int splitPoint = partition(L, start, end);
+
+  if (splitPoint == start)
+    {
+    splitPoint++;
+    }
+  if (splitPoint == end)
+    {
+    splitPoint--;
+    }
 
   quicksort(L, start, splitPoint - 1);
   quicksort(L, splitPoint + 1, end);
