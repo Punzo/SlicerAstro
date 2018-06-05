@@ -33,7 +33,7 @@ if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/Punzo/wcslib"
-    GIT_TAG "5d2c0f05a4ef669d28a87305dd44bb9f3f1bc073"
+    GIT_TAG "e6e4570a42197a5ca1b494b0cd1f3175b114ac3e"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS
