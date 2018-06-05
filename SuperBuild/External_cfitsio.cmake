@@ -19,6 +19,9 @@ endforeach()
 
 if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
+  set(CFITSIO_DOWNLOAD_VERSION "3.450" CACHE STRING "Version of cfitsio source package to download")
+  set_property(CACHE CFITSIO_DOWNLOAD_VERSION PROPERTY STRINGS "3.450")
+
   if(NOT DEFINED git_protocol)
     set(git_protocol "git")
   endif()
@@ -30,7 +33,7 @@ if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/Punzo/CFITSIO.git"
-    GIT_TAG "c7614b1390b5b9780b6c7955fd7e4c67efa827bf"
+    GIT_TAG "b8f7e3f5c5d2557182fa36375822c4951e03b865"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS

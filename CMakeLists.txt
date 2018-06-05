@@ -44,124 +44,89 @@ endif(WIN32)
 
 #-----------------------------------------------------------------------------
 # configurating additional Flags
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -flto")
+if(UNIX)
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -flto")
+endif()
 
 #-----------------------------------------------------------------------------
 # configurating OpenMP
-find_package(OpenMP)
-set(VTK_SLICER_ASTRO_SUPPORT_OPENMP ${OPENMP_FOUND})
-set(status "disabled")
-if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
-  set(status "enabled")
+if(UNIX)
+  find_package(OpenMP)
+  set(VTK_SLICER_ASTRO_SUPPORT_OPENMP ${OPENMP_FOUND})
+  set(status "disabled")
+  if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
+    set(status "enabled")
+  endif()
+  message(STATUS "OpenMP support ${status}")
+  configure_file(
+    ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
+    ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
+    )
 endif()
-message(STATUS "OpenMP support ${status}")
-configure_file(
-  ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
-  ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
-  )
 
 #-----------------------------------------------------------------------------
 # configurating OpenMP Flags
-if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+if(UNIX)
+  if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+  endif()
 endif()
 
 #-----------------------------------------------------------------------------
 # configurating OpenGL2
-find_package(OpenGL)
-set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ${OPENGL_FOUND})
-set(status "disabled")
-if(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
-  set(status "enabled")
-else(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
-  message(STATUS "VTK_RENDERING_BACKEND OpenGL2 not supported")
-  set(VTK_SLICER_ASTRO_SUPPORT_OPENGL 0)
-endif(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
-message(STATUS "OpenGL filtering support ${status}")
-configure_file(
-  ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
-  ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
-  )
+if(UNIX)
+  find_package(OpenGL)
+  set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ${OPENGL_FOUND})
+  set(status "disabled")
+  if(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
+    set(status "enabled")
+  else(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
+    message(STATUS "VTK_RENDERING_BACKEND OpenGL2 not supported")
+    set(VTK_SLICER_ASTRO_SUPPORT_OPENGL 0)
+  endif(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
+  message(STATUS "OpenGL filtering support ${status}")
+  configure_file(
+    ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
+    ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
+    )
+endif()
 
 #-----------------------------------------------------------------------------
 # SuperBuild setup
-option(${EXTENSION_NAME}_SUPERBUILD "Build ${EXTENSION_NAME} and the projects it depends on." ON)
-mark_as_advanced(${EXTENSION_NAME}_SUPERBUILD)
-if(${EXTENSION_NAME}_SUPERBUILD)
-  include("${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild.cmake")
-  return()
+if(UNIX)
+  option(${EXTENSION_NAME}_SUPERBUILD "Build ${EXTENSION_NAME} and the projects it depends on." ON)
+  mark_as_advanced(${EXTENSION_NAME}_SUPERBUILD)
+  if(${EXTENSION_NAME}_SUPERBUILD)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild.cmake")
+    return()
+  endif()
 endif()
 
 #-----------------------------------------------------------------------------
-# Install extension C/C++ packages
+# set libraries variables
+if(UNIX)
+  # CFITSIO
+  find_library(CFITSIO_LIBRARY cfitsio
+    PATHS ${CFITSIO_LIBRARY_DIR} NO_DEFAULT_PATH
+    )
+  set(CFITSIO_LIBRARIES ${CFITSIO_LIBRARY})
 
-#
-# CFITSIO
-#
+  # WCS
+  find_library (WCSLIB_LIBRARY wcslib
+    PATHS ${WCSLIB_LIBRARY_DIR} NO_DEFAULT_PATH
+    )
+  set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
 
-find_library(CFITSIO_LIBRARY cfitsio
-  PATHS ${CFITSIO_LIBRARY_DIR} NO_DEFAULT_PATH
-  )
-set(CFITSIO_LIBRARIES ${CFITSIO_LIBRARY})
-
-#
-# WCS
-#
-
-find_library (WCSLIB_LIBRARY wcslib
-  PATHS ${WCSLIB_LIBRARY_DIR} NO_DEFAULT_PATH
-  )
-set(WCSLIB_LIBRARIES ${WCSLIB_LIBRARY})
-
-#
-# 3DBarolo
-#
-
-find_library (BBAROLO_LIBRARY bbarolo
-  PATHS ${BBAROLO_LIBRARY_DIR} NO_DEFAULT_PATH
-  )
-set(BBAROLO_LIBRARIES ${BBAROLO_LIBRARY})
-
-# Install libraries
-if(APPLE)
-  include(SlicerFunctionInstallLibrary)
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
-    slicerInstallLibrary(FILE ${library}
-      DESTINATION ${Slicer_INSTALL_LIB_DIR}
-      COMPONENT Runtime
-      )
-  endforeach()
+  # 3DBarolo
+  find_library (BBAROLO_LIBRARY bbarolo
+    PATHS ${BBAROLO_LIBRARY_DIR} NO_DEFAULT_PATH
+    )
+  set(BBAROLO_LIBRARIES ${BBAROLO_LIBRARY})
 endif()
-if(NOT APPLE)
-  include(SlicerFunctionInstallLibrary)
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
-    slicerInstallLibrary(FILE ${library}
-      DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}/qt-loadable-modules
-      COMPONENT Runtime
-      )
-  endforeach()
-endif()
-
-#-----------------------------------------------------------------------------
-# Install extension python packages
-
-install(CODE "message(\"CPack: - Install directory: ${python_astropy_DIR}\")")
-install(
-  DIRECTORY "${python_astropy_DIR}/"
-  DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
-  COMPONENT RuntimeLibraries
-  )
-
-install(CODE "message(\"CPack: - Install directory: ${python_scipy_DIR}\")")
-install(
-  DIRECTORY "${python_scipy_DIR}/"
-  DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
-  COMPONENT RuntimeLibraries
-  )
 
 #-----------------------------------------------------------------------------
 # Extension modules
@@ -184,6 +149,39 @@ if(UNIX)
   add_subdirectory(AstroModeling)
   add_subdirectory(AstroSampleData)
   add_subdirectory(SlicerAstroDataProbe)
+endif(UNIX)
+
+#-----------------------------------------------------------------------------
+# Install extension C/C++ packages
+if(UNIX)
+  # Install libraries
+  include(SlicerFunctionInstallLibrary)
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
+    message(STATUS "lib dir:  ${Slicer_THIRDPARTY_LIB_DIR}")
+    message(STATUS "library:  ${library}")
+    slicerInstallLibrary(FILE ${library}
+      DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}
+      COMPONENT RuntimeLibraries
+      )
+  endforeach()
+endif()
+
+#-----------------------------------------------------------------------------
+# Install extension python packages
+if(UNIX)
+  install(CODE "message(\"CPack: - Install directory: ${python_astropy_DIR}\")")
+  install(
+    DIRECTORY "${python_astropy_DIR}/"
+    DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
+    COMPONENT RuntimeLibraries
+    )
+
+  install(CODE "message(\"CPack: - Install directory: ${python_scipy_DIR}\")")
+  install(
+    DIRECTORY "${python_scipy_DIR}/"
+    DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
+    COMPONENT RuntimeLibraries
+    )
 endif(UNIX)
 
 #-----------------------------------------------------------------------------
