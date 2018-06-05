@@ -787,6 +787,9 @@ void qSlicerAstroReprojectModuleWidget::onApply()
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
+  vtkMRMLNode* node = NULL;
+  outputVolume->SetPresetNode(node);
+
   vtkMRMLAstroVolumeDisplayNode *outputVolumeDisplay =
     outputVolume->GetAstroVolumeDisplayNode();
   if (!outputVolumeDisplay || !outputVolumeDisplay->GetWCSStruct())

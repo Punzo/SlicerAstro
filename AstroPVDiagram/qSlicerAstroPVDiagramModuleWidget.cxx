@@ -997,6 +997,9 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
   // Update parameter Node
   d->parametersNode->SetOutputVolumeNodeID(PVDiagramVolume->GetID());
 
+  vtkMRMLNode* node = NULL;
+  PVDiagramVolume->SetPresetNode(node);
+
   vtkSlicerAstroPVDiagramLogic *logic = d->logic();
   if (logic)
     {

@@ -1120,6 +1120,9 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   ProfileVolume->SetName(outSS.str().c_str());
   d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
 
+  vtkMRMLNode* node = NULL;
+  ProfileVolume->SetPresetNode(node);
+
   // Remove old rendering Display
   int ndnodes = ProfileVolume->GetNumberOfDisplayNodes();
   for (int ii = 0; ii < ndnodes; ii++)

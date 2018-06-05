@@ -1155,6 +1155,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     ZeroMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
 
+    vtkMRMLNode* node = NULL;
+    ZeroMomentVolume->SetPresetNode(node);
+
     // Remove old rendering Display
     int ndnodes = ZeroMomentVolume->GetNumberOfDisplayNodes();
     for (int ii = 0; ii < ndnodes; ii++)
@@ -1266,6 +1269,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     FirstMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
 
+    vtkMRMLNode* node = NULL;
+    FirstMomentVolume->SetPresetNode(node);
+
     // Remove old rendering Display
     int ndnodes = FirstMomentVolume->GetNumberOfDisplayNodes();
     for (int ii = 0; ii < ndnodes; ii++)
@@ -1375,6 +1381,9 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
     SecondMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
+
+    vtkMRMLNode* node = NULL;
+    SecondMomentVolume->SetPresetNode(node);
 
     // Remove old rendering Display
     int ndnodes = SecondMomentVolume->GetNumberOfDisplayNodes();

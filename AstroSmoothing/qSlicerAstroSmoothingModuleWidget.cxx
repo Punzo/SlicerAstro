@@ -2033,6 +2033,9 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
+  vtkMRMLNode* node = NULL;
+  outputVolume->SetPresetNode(node);
+
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
   for (int ii = 0; ii < ndnodes; ii++)
     {

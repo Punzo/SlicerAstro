@@ -1624,7 +1624,7 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
 
   if (inputVolume->GetPresetNode() != NULL)
     {
-    d->PresetsNodeComboBox->setCurrentNodeIndex(d->astroVolumeNode->GetPresetIndex());
+    d->PresetsNodeComboBox->setCurrentNodeIndex(inputVolume->GetPresetIndex());
     }
   else
     {
