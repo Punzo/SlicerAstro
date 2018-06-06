@@ -218,6 +218,9 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::init()
   QObject::connect(this->RulerNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onRulerChanged(vtkMRMLNode*)));
 
+  QObject::connect(this->ColorPickerButton, SIGNAL(colorChanged(QColor)),
+                   q, SLOT(onRulerColorChanged(QColor)));
+
   QObject::connect(this->RotateSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onRotateRulerChanged(double)));
 
@@ -1438,6 +1441,43 @@ void qSlicerAstroPVSliceModuleWidget::onRulerChanged(vtkMRMLNode *mrmlNode)
     {
     d->parametersNode->SetRulerNodeID(NULL);
     }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroPVSliceModuleWidget::onRulerColorChanged(QColor color)
+{
+  Q_D(qSlicerAstroPVSliceModuleWidget);
+
+  if (!d->parametersNode || !this->mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLAnnotationRulerNode *RulerNode =
+    vtkMRMLAnnotationRulerNode::SafeDownCast(this->mrmlScene()->
+      GetNodeByID(d->parametersNode->GetRulerNodeID()));
+  if(!RulerNode)
+    {
+    return;
+    }
+
+  vtkMRMLAnnotationPointDisplayNode* PointDisplayNode =
+    RulerNode->GetAnnotationPointDisplayNode();
+  if (!PointDisplayNode)
+    {
+    RulerNode->CreateAnnotationPointDisplayNode();
+    }
+  PointDisplayNode->SetColor(color.red() / 255., color.green() / 255., color.blue() / 255.);
+  PointDisplayNode->SetEdgeColor(color.red() / 255., color.green() / 255., color.blue() / 255.);
+
+  vtkMRMLAnnotationLineDisplayNode* LineDisplayNode =
+    RulerNode->GetAnnotationLineDisplayNode();
+  if (!LineDisplayNode)
+    {
+    RulerNode->CreateAnnotationLineDisplayNode();
+    }
+  LineDisplayNode->SetColor(color.red() / 255., color.green() / 255., color.blue() / 255.);
+  LineDisplayNode->SetEdgeColor(color.red() / 255., color.green() / 255., color.blue() / 255.);
 }
 
 //---------------------------------------------------------------------------

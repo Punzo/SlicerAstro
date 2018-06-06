@@ -489,7 +489,10 @@ bool vtkSlicerAstroPVSliceLogic::CreateAndSetRuler(vtkMRMLAstroPVSliceParameters
     {
     RulerNode->CreateAnnotationPointDisplayNode();
     }
-  PointDisplayNode->SetGlyphScale(15.);
+  PointDisplayNode->SetGlyphScale(20.);
+  PointDisplayNode->SetColor(1., 0.333, 0.149);
+  PointDisplayNode->SetEdgeColor(1., 0.333, 0.149);
+  PointDisplayNode->SetEdgeVisibility(1);
 
   vtkMRMLAnnotationLineDisplayNode* LineDisplayNode =
     RulerNode->GetAnnotationLineDisplayNode();
@@ -499,8 +502,11 @@ bool vtkSlicerAstroPVSliceLogic::CreateAndSetRuler(vtkMRMLAstroPVSliceParameters
     }
   LineDisplayNode->SetLabelVisibility(0);
   LineDisplayNode->SetMaxTicks(0);
-  LineDisplayNode->SetLineWidth(3);
-  LineDisplayNode->SetLineThickness(3);
+  LineDisplayNode->SetLineWidth(4);
+  LineDisplayNode->SetLineThickness(4);
+  LineDisplayNode->SetColor(1., 0.333, 0.149);
+  LineDisplayNode->SetEdgeColor(1., 0.333, 0.149);
+  LineDisplayNode->SetEdgeVisibility(1);
 
   pnode->SetRulerNodeID(RulerNode->GetID());
 

@@ -108,6 +108,7 @@ protected slots:
   void onRulerCenterRightAscensionIJKChanged(double value);
   void onRulerCenterDeclinationIJKChanged(double value);
   void onRulerChanged(vtkMRMLNode* mrmlNode);
+  void onRulerColorChanged(QColor color);
   void onSetRulerCenterClicked();
   void onShiftXRulerChanged(double shiftX);
   void onShiftYRulerChanged(double shiftY);
