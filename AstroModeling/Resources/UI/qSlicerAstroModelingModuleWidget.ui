@@ -356,7 +356,7 @@
       <bool>true</bool>
      </property>
      <property name="text">
-      <string>Model Fitting Parameters</string>
+      <string>Model Parameters</string>
      </property>
      <property name="checked">
       <bool>true</bool>

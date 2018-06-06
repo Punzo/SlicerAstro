@@ -448,6 +448,7 @@ void vtkFITSReader::ExecuteInformation()
       case 8:
         this->SetDataType( VTK_FLOAT );
         this->SetDataScalarType( VTK_FLOAT );
+        break;
       case 16:
         this->SetDataType( VTK_FLOAT );
         this->SetDataScalarType( VTK_FLOAT );
@@ -2432,6 +2433,8 @@ bool vtkFITSReader::AllocateWCS()
     this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(this->WCS->cdelt[0]);
     }
   this->HeaderKeyValue["SlicerAstro.CRPIX1"] = DoubleToString(this->WCS->crpix[0]);
+  this->HeaderKeyValue["SlicerAstro.CTYPE1"] = this->WCS->ctype[0];
+  this->HeaderKeyValue["SlicerAstro.CUNIT1"] = this->WCS->cunit[0];
 
   if (n > 1)
     {
@@ -2441,6 +2444,8 @@ bool vtkFITSReader::AllocateWCS()
       this->HeaderKeyValue["SlicerAstro.CDELT2"] = DoubleToString(this->WCS->cdelt[1]);
       }
     this->HeaderKeyValue["SlicerAstro.CRPIX2"] = DoubleToString(this->WCS->crpix[1]);
+    this->HeaderKeyValue["SlicerAstro.CTYPE2"] = this->WCS->ctype[1];
+    this->HeaderKeyValue["SlicerAstro.CUNIT2"] = this->WCS->cunit[1];
 
     this->HeaderKeyValue["SlicerAstro.PC1_1"] = DoubleToString(this->WCS->pc[0]);
     this->HeaderKeyValue["SlicerAstro.PC1_2"] = DoubleToString(this->WCS->pc[1]);
@@ -2490,6 +2495,8 @@ bool vtkFITSReader::AllocateWCS()
       this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(this->WCS->cdelt[2]);
       }
     this->HeaderKeyValue["SlicerAstro.CRPIX3"] = DoubleToString(this->WCS->crpix[2]);
+    this->HeaderKeyValue["SlicerAstro.CTYPE3"] = this->WCS->ctype[2];
+    this->HeaderKeyValue["SlicerAstro.CUNIT3"] = this->WCS->cunit[2];
 
     this->HeaderKeyValue["SlicerAstro.PC1_3"] = DoubleToString(this->WCS->pc[2]);
     this->HeaderKeyValue["SlicerAstro.PC2_1"] = DoubleToString(this->WCS->pc[3]);
