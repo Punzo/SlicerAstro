@@ -674,6 +674,7 @@ void qSlicerAstroPVSliceModuleWidget::initializeMomentMapNode(bool forceNew /*= 
   logic->SetMomentMapOnRedWidget(d->parametersNode);
 }
 
+//--------------------------------------------------------------------------
 void qSlicerAstroPVSliceModuleWidget::initializeRulerNode(bool forceNew /*= false*/,
                                                           bool InitRulerPositions /*= true*/)
 {

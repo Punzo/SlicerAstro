@@ -75,15 +75,19 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMomentMapsParametersNode : public vtkMRM
 
   vtkSetMacro(MaskActive,bool);
   vtkGetMacro(MaskActive,bool);
+  vtkBooleanMacro(MaskActive,bool);
 
   vtkSetMacro(GenerateZero,bool);
   vtkGetMacro(GenerateZero,bool);
+  vtkBooleanMacro(GenerateZero,bool);
 
   vtkSetMacro(GenerateFirst,bool);
   vtkGetMacro(GenerateFirst,bool);
+  vtkBooleanMacro(GenerateFirst,bool);
 
   vtkSetMacro(GenerateSecond,bool);
   vtkGetMacro(GenerateSecond,bool);
+  vtkBooleanMacro(GenerateSecond,bool);
 
   vtkSetMacro(IntensityMin,double);
   vtkGetMacro(IntensityMin,double);

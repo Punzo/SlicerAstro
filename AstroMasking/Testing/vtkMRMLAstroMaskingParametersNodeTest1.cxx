@@ -27,9 +27,17 @@ int vtkMRMLAstroMaskingParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), OutputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskVolumeNodeID);
+
+  TEST_SET_GET_STRING(node1.GetPointer(), Mode);
+  TEST_SET_GET_STRING(node1.GetPointer(), Operation);
+  TEST_SET_GET_STRING(node1.GetPointer(), BlankRegion);
+  TEST_SET_GET_STRING(node1.GetPointer(), BlankValue);
+
+  TEST_SET_GET_INT(node1.GetPointer(), OutputSerial, 1);
+  TEST_SET_GET_INT(node1.GetPointer(), Status, 0);
 
   return EXIT_SUCCESS;
 }

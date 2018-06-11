@@ -76,27 +76,35 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroStatisticsParametersNode : public vtkMRM
 
   vtkSetMacro(Max,bool);
   vtkGetMacro(Max,bool);
+  vtkBooleanMacro(Max,bool);
 
   vtkSetMacro(Mean,bool);
   vtkGetMacro(Mean,bool);
+  vtkBooleanMacro(Mean,bool);
 
   vtkSetMacro(Median,bool);
   vtkGetMacro(Median,bool);
+  vtkBooleanMacro(Median,bool);
 
   vtkSetMacro(Min,bool);
   vtkGetMacro(Min,bool);
+  vtkBooleanMacro(Min,bool);
 
   vtkSetMacro(Npixels,bool);
   vtkGetMacro(Npixels,bool);
+  vtkBooleanMacro(Npixels,bool);
 
   vtkSetMacro(Std,bool);
   vtkGetMacro(Std,bool);
+  vtkBooleanMacro(Std,bool);
 
   vtkSetMacro(Sum,bool);
   vtkGetMacro(Sum,bool);
+  vtkBooleanMacro(Sum,bool);
 
   vtkSetMacro(TotalFlux,bool);
   vtkGetMacro(TotalFlux,bool);
+  vtkBooleanMacro(TotalFlux,bool);
 
   vtkSetMacro(Cores,int);
   vtkGetMacro(Cores,int);

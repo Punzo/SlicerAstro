@@ -351,7 +351,11 @@ bool vtkSlicerAstroPVSliceLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVSlicePara
     return false;
     }
 
-  layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
+  int viewArra = layoutManager->layoutLogic()->GetLayoutNode()->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
+    {
+    layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
+    }
 
   vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
     this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));

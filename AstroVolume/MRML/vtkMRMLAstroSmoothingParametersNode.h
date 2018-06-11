@@ -90,21 +90,23 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
 
   vtkSetMacro(Link,bool);
   vtkGetMacro(Link,bool);
+  vtkBooleanMacro(Link,bool);
 
   vtkSetMacro(AutoRun,bool);
   vtkGetMacro(AutoRun,bool);
+  vtkBooleanMacro(AutoRun,bool);
 
   vtkSetMacro(Accuracy,int);
   vtkGetMacro(Accuracy,int);
 
-  vtkSetMacro(Rx,int);
-  vtkGetMacro(Rx,int);
+  vtkSetMacro(Rx,double);
+  vtkGetMacro(Rx,double);
 
-  vtkSetMacro(Ry,int);
-  vtkGetMacro(Ry,int);
+  vtkSetMacro(Ry,double);
+  vtkGetMacro(Ry,double);
 
-  vtkSetMacro(Rz,int);
-  vtkGetMacro(Rz,int);
+  vtkSetMacro(Rz,double);
+  vtkGetMacro(Rz,double);
 
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
@@ -161,9 +163,9 @@ protected:
   int Accuracy;
   int Status;
 
-  int Rx;
-  int Ry;
-  int Rz;
+  double Rx;
+  double Ry;
+  double Rz;
 
   double K;
   double TimeStep;

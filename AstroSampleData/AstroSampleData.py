@@ -18,7 +18,7 @@ class AstroSampleData(ScriptedLoadableModule):
     ScriptedLoadableModule.__init__(self, parent)
     self.parent.title = "Astro Sample Data"
     self.parent.categories = ["Astronomy"]
-    self.parent.dependencies = []
+    self.parent.dependencies = ["AstroVolume"]
     self.parent.contributors = ["""
     Davide Punzo (Kapteyn Astronomical Institute),
     Thijs van der Hulst (Kapteyn Astronomical Institute) and
@@ -33,6 +33,7 @@ class AstroSampleData(ScriptedLoadableModule):
     WEIN069: Mpati Ramatsoku and Marc Verheijen (Kapteyn Astronomical Institute); <br>
     WEIN069_MASK: mask generated using SoFiA (https://github.com/SoFiA-Admin/SoFiA); <br>
     NGC2403: THING survey; <br>
+    NGC2403_DSS: optical image from DSS; <br>
     NGC3379 and NGC4111: ATLAS3D survey. <br>
     This file has been originally edited by Steve Pieper.
     """
@@ -134,7 +135,9 @@ class AstroSampleDataWidget(ScriptedLoadableModuleWidget):
     categories.sort()
     if 'BuiltIn' in categories:
       categories.remove('BuiltIn')
-    categories.insert(0,'BuiltIn')
+    if 'Astronomical Data' in categories:
+      categories.remove('Astronomical Data')
+    categories.insert(0,'Astronomical Data')
     for category in categories:
       frame = ctk.ctkCollapsibleGroupBox(self.parent)
       self.layout.addWidget(frame)
@@ -264,15 +267,16 @@ class AstroSampleDataLogic:
     sourceArguments = (
         ('WEIN069', 'http://slicer.kitware.com/midas3/download/item/337752/WEIN069.fits', 'WEIN069.fits', 'WEIN069'),
         ('WEIN069_MASK', 'http://slicer.kitware.com/midas3/download/item/266403/WEIN069_mask.fits', 'WEIN069_mask.fits', 'WEIN069_mask'),
+        ('NGC2403_DSS', 'http://slicer.kitware.com/midas3/download/item/365486/NGC2403_DSS.fits', 'NGC2403_DSS.fits', 'NGC2403_DSS'),
         ('NGC2403', 'http://slicer.kitware.com/midas3/download/item/359776/NGC2403.fits+%281%29', 'NGC2403.fits', 'NGC2403'),
         ('NGC4111', 'http://slicer.kitware.com/midas3/download/item/242880/NGC4111.fits', 'NGC4111.fits', 'NGC4111'),
         ('NGC3379', 'http://slicer.kitware.com/midas3/download/item/242866/NGC3379.fits', 'NGC3379.fits', 'NGC3379'),
         )
 
-    if not slicer.modules.sampleDataSources.has_key('BuiltIn'):
-      slicer.modules.sampleDataSources['BuiltIn'] = []
+    if not slicer.modules.sampleDataSources.has_key('Astronomical Data'):
+      slicer.modules.sampleDataSources['Astronomical Data'] = []
     for sourceArgument in sourceArguments:
-      slicer.modules.sampleDataSources['BuiltIn'].append(AstroSampleDataSource(*sourceArgument))
+      slicer.modules.sampleDataSources['Astronomical Data'].append(AstroSampleDataSource(*sourceArgument))
 
   def downloadFileIntoCache(self, uri, name):
     """Given a uri and and a filename, download the data into

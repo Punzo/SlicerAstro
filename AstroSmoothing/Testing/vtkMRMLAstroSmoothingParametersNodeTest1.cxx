@@ -27,11 +27,34 @@ int vtkMRMLAstroSmoothingParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-  std::string OutputVolumeNodeID = "WEIN069_filtered";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), OutputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), Mode);
+  TEST_SET_GET_STRING(node1.GetPointer(), MasksCommand);
+
+  TEST_SET_GET_INT(node1.GetPointer(), OutputSerial, 1);
+  TEST_SET_GET_INT(node1.GetPointer(), Status, 0);
+  TEST_SET_GET_INT(node1.GetPointer(), Filter, 2);
+  TEST_SET_GET_INT(node1.GetPointer(), Hardware, 0);
+  TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);
+
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Link);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), AutoRun);
+
+  TEST_SET_GET_INT(node1.GetPointer(), Accuracy, 20);
+
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), TimeStep, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), K, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), ParameterX, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), ParameterY, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), ParameterZ, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), Rx, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), Ry, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), Rz, 0., 10.);
+
+  TEST_SET_GET_INT(node1.GetPointer(), KernelLengthX, 0);
+  TEST_SET_GET_INT(node1.GetPointer(), KernelLengthY, 0);
+  TEST_SET_GET_INT(node1.GetPointer(), KernelLengthZ, 0);
 
   return EXIT_SUCCESS;
 }

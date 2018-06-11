@@ -27,11 +27,26 @@ int vtkMRMLAstroMomentMapsParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-  std::string ZeroMomentVolumeNodeID = "WEIN069_MomentMap0";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), ZeroMomentVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), FirstMomentVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), SecondMomentVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskVolumeNodeID);
+
+  TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);
+
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), MaskActive);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), GenerateZero);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), GenerateFirst);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), GenerateSecond);
+
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), IntensityMin, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), IntensityMax, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), VelocityMin, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), VelocityMax, 0., 10.);
+
+  TEST_SET_GET_INT(node1.GetPointer(), OutputSerial, 1);
+  TEST_SET_GET_INT(node1.GetPointer(), Status, 0);
 
   return EXIT_SUCCESS;
 }

@@ -3673,28 +3673,32 @@ void qSlicerAstroModelingModuleWidget::onApply()
 
   if (!d->parametersNode)
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : parametersNode not found!";
+    qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : "
+                   "parametersNode not found!";
     return;
     }
 
   vtkSlicerAstroModelingLogic *logic = d->logic();
   if (!logic)
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : astroModelingLogic not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                  "astroModelingLogic not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (!this->mrmlScene())
     {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : scene not found!";
+    qCritical() <<"qSlicerAstroModelingModuleWidget::onApply() : "
+                  "scene not found!";
     d->parametersNode->SetStatus(0);
     return;
     }
 
   if (!d->parametersNode->GetParamsTableNode())
     {
-    qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : TableNode not found!";
+    qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : "
+                   "TableNode not found!";
     d->parametersNode->SetStatus(0);
     return;
     }

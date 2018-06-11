@@ -69,6 +69,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroProfilesParametersNode : public vtkMRMLN
 
   vtkSetMacro(MaskActive,bool);
   vtkGetMacro(MaskActive,bool);
+  vtkBooleanMacro(MaskActive,bool);
 
   vtkSetMacro(IntensityMin,double);
   vtkGetMacro(IntensityMin,double);

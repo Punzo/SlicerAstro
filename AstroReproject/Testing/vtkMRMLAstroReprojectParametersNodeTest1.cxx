@@ -27,11 +27,17 @@ int vtkMRMLAstroReprojectParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-  std::string OutputVolumeNodeID = "WEIN069_reprojected";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), ReferenceVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), OutputVolumeNodeID);
+
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), ReprojectRotation);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), ReprojectData);
+
+  TEST_SET_GET_INT(node1.GetPointer(), OutputSerial, 1);
+  TEST_SET_GET_INT(node1.GetPointer(), InterpolationOrder, 1);
+  TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);
+  TEST_SET_GET_INT(node1.GetPointer(), Status, 0);
 
   return EXIT_SUCCESS;
 }

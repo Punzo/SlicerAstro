@@ -173,6 +173,7 @@ protected:
   std::map <std::string, std::string> HeaderKeyValue;
 
   virtual void ExecuteInformation() VTK_OVERRIDE;
+  virtual bool AstroExecuteInformation();
   virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo) VTK_OVERRIDE;
 
   // SlicerAstro can read up to NAXIS = 3 and it assumes

@@ -56,6 +56,8 @@ public:
   virtual QString acknowledgementText()const;
   virtual QStringList contributors()const;
 
+  virtual QStringList dependencies()const;
+
 protected:
 
   /// Create and return the widget representation associated to this module

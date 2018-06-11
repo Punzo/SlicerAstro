@@ -90,6 +90,12 @@ QStringList qSlicerAstroWelcomeModule::contributors()const
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroWelcomeModule::dependencies() const
+{
+  return QStringList() << "AstroVolume";
+}
+
+//-----------------------------------------------------------------------------
 qSlicerAbstractModuleRepresentation* qSlicerAstroWelcomeModule::createWidgetRepresentation()
 {
   return new qSlicerAstroWelcomeModuleWidget;

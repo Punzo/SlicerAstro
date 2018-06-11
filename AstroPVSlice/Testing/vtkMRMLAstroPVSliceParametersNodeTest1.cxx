@@ -27,9 +27,14 @@ int vtkMRMLAstroPVSliceParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MomentMapNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), RulerNodeID);
+
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), RulerAngle, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), RulerOldAngle, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), RulerShiftX, 0., 10.);
+  TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), RulerOldShiftX, 0., 10.);
 
   return EXIT_SUCCESS;
 }

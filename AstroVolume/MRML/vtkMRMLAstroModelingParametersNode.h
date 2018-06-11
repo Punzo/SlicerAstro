@@ -78,6 +78,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   vtkSetMacro(MaskActive,bool);
   vtkGetMacro(MaskActive,bool);
+  vtkBooleanMacro(MaskActive,bool);
 
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
@@ -131,30 +132,39 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   vtkSetMacro(PositionAngleFit,bool);
   vtkGetMacro(PositionAngleFit,bool);
+  vtkBooleanMacro(PositionAngleFit,bool);
 
   vtkSetMacro(RotationVelocityFit,bool);
   vtkGetMacro(RotationVelocityFit,bool);
+  vtkBooleanMacro(RotationVelocityFit,bool);
 
   vtkSetMacro(RadialVelocityFit,bool);
   vtkGetMacro(RadialVelocityFit,bool);
+  vtkBooleanMacro(RadialVelocityFit,bool);
 
   vtkSetMacro(VelocityDispersionFit,bool);
   vtkGetMacro(VelocityDispersionFit,bool);
+  vtkBooleanMacro(VelocityDispersionFit,bool);
 
   vtkSetMacro(InclinationFit,bool);
   vtkGetMacro(InclinationFit,bool);
+  vtkBooleanMacro(InclinationFit,bool);
 
   vtkSetMacro(XCenterFit,bool);
   vtkGetMacro(XCenterFit,bool);
+  vtkBooleanMacro(XCenterFit,bool);
 
   vtkSetMacro(YCenterFit,bool);
   vtkGetMacro(YCenterFit,bool);
+  vtkBooleanMacro(YCenterFit,bool);
 
   vtkSetMacro(SystemicVelocityFit,bool);
   vtkGetMacro(SystemicVelocityFit,bool);
+  vtkBooleanMacro(SystemicVelocityFit,bool);
 
   vtkSetMacro(ScaleHeightFit,bool);
   vtkGetMacro(ScaleHeightFit,bool);
+  vtkBooleanMacro(ScaleHeightFit,bool);
 
   vtkSetMacro(LayerType,int);
   vtkGetMacro(LayerType,int);
@@ -244,12 +254,14 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
 
   vtkSetMacro(FitSuccess,bool);
   vtkGetMacro(FitSuccess,bool);
+  vtkBooleanMacro(FitSuccess,bool);
 
   vtkSetStringMacro(Normalize);
   vtkGetStringMacro(Normalize);
 
   vtkSetMacro(ForceSliceUpdate,bool);
   vtkGetMacro(ForceSliceUpdate,bool);
+  vtkBooleanMacro(ForceSliceUpdate,bool);
 
   vtkSetMacro(ContourLevel,double);
   vtkGetMacro(ContourLevel,double);

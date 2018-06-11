@@ -1440,26 +1440,50 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
       d->LogPushButton->blockSignals(true);
       if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
         {
+        if (!d->ReversePushButton->isChecked())
+          {
+          this->ReverseColorFunction(colorNode);
+          }
         d->ReversePushButton->setChecked(true);
         }
       else
         {
+        if (d->ReversePushButton->isChecked())
+          {
+          this->ReverseColorFunction(colorNode);
+          }
         d->ReversePushButton->setChecked(false);
         }
       if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
         {
+        if (!d->InversePushButton->isChecked())
+          {
+          this->InvertColorFunction(colorNode);
+          }
         d->InversePushButton->setChecked(true);
         }
       else
         {
+        if (d->InversePushButton->isChecked())
+          {
+          this->InvertColorFunction(colorNode);
+          }
         d->InversePushButton->setChecked(false);
         }
       if (!strcmp(colorNode->GetAttribute("SlicerAstro.Log"), "on"))
         {
+        if (colorNode->GetLookupTable())
+          {
+          colorNode->GetLookupTable()->SetScaleToLog10();
+          }
         d->LogPushButton->setChecked(true);
         }
       else
         {
+        if (colorNode->GetLookupTable())
+          {
+          colorNode->GetLookupTable()->SetScaleToLinear();
+          }
         d->LogPushButton->setChecked(false);
         }
       d->ReversePushButton->blockSignals(false);
@@ -1650,18 +1674,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::setLog(bool toggled)
   if (toggled)
     {
     colorNode->SetAttribute("SlicerAstro.Log", "on");
-    if (colorNode->GetLookupTable())
-      {
-      colorNode->GetLookupTable()->SetScaleToLog10();
-      }
     }
   else
     {
     colorNode->SetAttribute("SlicerAstro.Log", "off");
-    if (colorNode->GetLookupTable())
-      {
-      colorNode->GetLookupTable()->SetScaleToLinear();
-      }
     }
 }
 
@@ -1845,6 +1861,8 @@ if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::setColorNode(vtkMRMLNode* colorNode)
 {
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
   vtkMRMLAstroVolumeDisplayNode* displayNode =
     this->volumeDisplayNode();
   if (!displayNode || !colorNode)
@@ -1852,5 +1870,28 @@ void qSlicerAstroScalarVolumeDisplayWidget::setColorNode(vtkMRMLNode* colorNode)
     return;
     }
   Q_ASSERT(vtkMRMLColorNode::SafeDownCast(colorNode));
+
+  d->ReversePushButton->blockSignals(true);
+  if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
+    {
+    d->ReversePushButton->setChecked(true);
+    }
+  else
+    {
+    d->ReversePushButton->setChecked(false);
+    }
+  d->ReversePushButton->blockSignals(false);
+
+  d->InversePushButton->blockSignals(true);
+  if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
+    {
+    d->InversePushButton->setChecked(true);
+    }
+  else
+    {
+    d->InversePushButton->setChecked(false);
+    }
+  d->InversePushButton->blockSignals(false);
+
   displayNode->SetAndObserveColorNodeID(colorNode->GetID());
 }

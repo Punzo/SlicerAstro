@@ -1669,6 +1669,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     shift = 0.;
     }
   // WCS are not thread safe, no OpenMP
+  bool overlay = false;
   for (int ii = 0; ii < referenceDims[0]; ii++)
     {  
     for (int jj = 0; jj < referenceDims[1]; jj++)
@@ -1682,6 +1683,15 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
       referenceGrid[ii][jj][0] = ijk[0];
       referenceGrid[ii][jj][1] = ijk[1];
+
+      if (!overlay)
+        {
+        if (ijk[0] > 0 && ijk[0] < inputDims[0] &&
+            ijk[1] > 0 && ijk[1] < inputDims[1])
+          {
+          overlay = true;
+          }
+        }
       }
 
     if(ii / (referenceDims[0] / 10.) > status)
@@ -1692,6 +1702,13 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     }
 
   pnode->SetStatus(10);
+
+  if (!overlay)
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
+                  "datasets WCS have no overlay");
+    return false;
+    }
 
   // Interpolate
   int numElements = referenceDims[0] * referenceDims[1] * inputDims[2];

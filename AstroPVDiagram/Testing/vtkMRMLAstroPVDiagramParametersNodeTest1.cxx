@@ -27,9 +27,14 @@ int vtkMRMLAstroPVDiagramParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MomentMapNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), OutputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), FiducialsMarkupsID);
+  TEST_SET_GET_STRING(node1.GetPointer(), ModelID);
+
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Interpolation);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), AutoUpdate);
 
   return EXIT_SUCCESS;
 }

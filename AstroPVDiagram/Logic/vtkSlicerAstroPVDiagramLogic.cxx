@@ -258,7 +258,7 @@ bool vtkSlicerAstroPVDiagramLogic::Calculate0thMomentMap(vtkMRMLAstroPVDiagramPa
   // Create Astro Volume for the moment map
   std::string name = inputVolume->GetName();
   name += "_";
-  name += this->GetMRMLScene()->GetUniqueNameByString("PVSliceMomentMap");
+  name += this->GetMRMLScene()->GetUniqueNameByString("PVDiagramMomentMap");
 
   vtkMRMLAstroVolumeNode* MomentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
      (this->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(this->GetMRMLScene(), inputVolume, name.c_str()));
@@ -408,7 +408,11 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
     return false;
     }
 
-  layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
+  int viewArra = layoutManager->layoutLogic()->GetLayoutNode()->GetViewArrangement();
+  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
+    {
+    layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
+    }
 
   vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
     this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));

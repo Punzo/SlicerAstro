@@ -267,6 +267,19 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
 
   this->Superclass::enter();
 
+  qSlicerApplication* app = qSlicerApplication::application();
+
+  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
+     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
+    {
+    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews : "
+                   "qSlicerApplication not found.";
+    return;
+    }
+
+  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+          (vtkMRMLLayoutNode::SlicerLayoutFourUpView);
+
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
     {
@@ -274,19 +287,6 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
                    "appLogic not found!";
     return;
     }
-
-  qSlicerApplication* app = qSlicerApplication::application();
-
-  if(!app || !app->layoutManager() || !app->layoutManager()->layoutLogic()
-     || !app->layoutManager()->layoutLogic()->GetLayoutNode())
-    {
-    qCritical() << "qSlicerAstroSmoothingModuleWidget::enter : "
-                   "qSlicerApplication not found.";
-    return;
-    }
-
-  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
-          (vtkMRMLLayoutNode::SlicerLayoutFourUpView);
 
   d->selectionNode = appLogic->GetSelectionNode();
   if (!d->selectionNode)
@@ -312,9 +312,7 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
                       this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
   this->onMRMLSelectionNodeModified(d->selectionNode);
 
-  this->initializeMomentMapNode();
-  this->initializeLineModelNode();
-  this->initializeFiducialsMarkupsNode();
+  this->initializeNodes();
 
   if (!d->parametersNode || !this->mrmlScene())
     {
@@ -347,13 +345,6 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
       LineModelDisplayNode = ModelNode->GetModelDisplayNode();
       }
     LineModelDisplayNode->SetVisibility(1);
-    }
-
-  int viewArra = app->layoutManager()->layoutLogic()->GetLayoutNode()->GetViewArrangement();
-  if (viewArra != vtkMRMLLayoutNode::SlicerLayoutFourUpView)
-    {
-    app->layoutManager()->layoutLogic()->GetLayoutNode()->
-      SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutFourUpView);
     }
 
   vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
@@ -558,9 +549,9 @@ void qSlicerAstroPVDiagramModuleWidget::initializeNodes(bool forceNew /*= false*
 
   this->initializeMomentMapNode(forceNew);
 
-  this->initializeLineModelNode(forceNew);
-
   this->initializeFiducialsMarkupsNode(forceNew);
+
+  this->initializeLineModelNode(forceNew);
 }
 
 //-----------------------------------------------------------------------------
@@ -583,6 +574,21 @@ void qSlicerAstroPVDiagramModuleWidget::onEndCloseEvent()
                    " : selectionNode not found!";
     return;
     }
+
+  vtkMRMLInteractionNode *interactionNode = appLogic->GetInteractionNode();
+  if (!interactionNode)
+    {
+    qCritical() << "qSlicerAstroPVDiagramModuleWidget::enter : "
+                   "interactionNode not found.";
+    return;
+    }
+
+  d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode");
+  interactionNode->SetPlaceModePersistence(1);
+
+  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
+  this->onMRMLSelectionNodeModified(d->selectionNode);
 
   this->initializeNodes(true);
   this->onMRMLAstroPVDiagramParametersNodeModified();
@@ -734,11 +740,18 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
       continue;
       }
     std::string name = astroVolume->GetName();
-    if (name.find("PVSliceMomentMap") != std::string::npos &&
-        name.find(inputVolume->GetName()) != std::string::npos && !forceNew)
+    if (name.find("PVDiagramMomentMap") != std::string::npos &&
+        name.find(inputVolume->GetName()) != std::string::npos)
       {
-      MomentMapNode = astroVolume;
-      break;
+      if (forceNew)
+        {
+        this->mrmlScene()->RemoveNode(astroVolume);
+        }
+      else
+        {
+        MomentMapNode = astroVolume;
+        break;
+        }
       }
     }
 
@@ -786,10 +799,17 @@ void qSlicerAstroPVDiagramModuleWidget::initializeFiducialsMarkupsNode(bool forc
       continue;
       }
     std::string name = FiducialsMarkupsNode->GetName();
-    if (name.find("PVDiagramSourcePoints") != std::string::npos && !forceNew)
+    if (name.find("PVDiagramSourcePoints") != std::string::npos)
       {
-      SourcePointNode = FiducialsMarkupsNode;
-      break;
+      if (forceNew)
+        {
+        this->mrmlScene()->RemoveNode(FiducialsMarkupsNode);
+        }
+      else
+        {
+        SourcePointNode = FiducialsMarkupsNode;
+        break;
+        }
       }
     }
 
@@ -840,10 +860,17 @@ void qSlicerAstroPVDiagramModuleWidget::initializeLineModelNode(bool forceNew)
       continue;
       }
     std::string name = ModelNode->GetName();
-    if (name.find("PVDiagramLineSelection") != std::string::npos && !forceNew)
+    if (name.find("PVDiagramLineSelection") != std::string::npos)
       {
-      LineModelNode = ModelNode;
-      break;
+      if (forceNew)
+        {
+        this->mrmlScene()->RemoveNode(ModelNode);
+        }
+      else
+        {
+        LineModelNode = ModelNode;
+        break;
+        }
       }
     }
 

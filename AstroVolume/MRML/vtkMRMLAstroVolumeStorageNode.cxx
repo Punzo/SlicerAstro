@@ -215,7 +215,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   if (fullName.empty())
     {
-    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : file name not specified");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
+                  "file name not specified");
     return 0;
     }
 
@@ -224,7 +225,8 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   // Check if this is a FITS file that we can read
   if (!reader->CanReadFile(fullName.c_str()))
     {
-    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : this is not a fits file");
+    vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
+                  "this is not a fits file or corrupted header");
     return 0;
     }
 

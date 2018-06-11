@@ -18,7 +18,7 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
     ScriptedLoadableModule.__init__(self, parent)
     parent.title = "SlicerAstro Data Probe"
     parent.categories = ["Quantification", "Astronomy"]
-    parent.dependencies = ["DataProbe"]
+    parent.dependencies = ["DataProbe", "AstroVolume"]
     parent.contributors = ["""
     Davide Punzo (Kapteyn Astronomical Institute),
     Thijs van der Hulst (Kapteyn Astronomical Institute),

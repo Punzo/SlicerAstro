@@ -72,6 +72,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
 
   void SetInterpolation(bool interpolation);
   vtkGetMacro(Interpolation,bool);
+  vtkBooleanMacro(Interpolation,bool);
 
   //
   enum
@@ -81,6 +82,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
 
   vtkSetMacro(AutoUpdate,bool);
   vtkGetMacro(AutoUpdate,bool);
+  vtkBooleanMacro(AutoUpdate,bool);
 
 protected:
   vtkMRMLAstroPVDiagramParametersNode();

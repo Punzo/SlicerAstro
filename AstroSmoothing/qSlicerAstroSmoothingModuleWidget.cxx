@@ -1607,9 +1607,9 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
   if (index == 1)
     {
     d->parametersNode->SetAccuracy(3);
-    d->parametersNode->SetRx(0);
-    d->parametersNode->SetRy(0);
-    d->parametersNode->SetRz(0);
+    d->parametersNode->SetRx(0.);
+    d->parametersNode->SetRy(0.);
+    d->parametersNode->SetRz(0.);
     }
 
   if (index == 2)

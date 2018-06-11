@@ -127,7 +127,7 @@ vtkFITSReader::~vtkFITSReader()
       }
     delete [] this->ReadWCS;
     this->ReadWCS = NULL;
-    }
+  }
 }
 
 namespace
@@ -319,61 +319,107 @@ int vtkFITSReader::CanReadFile(const char* filename)
     if (!vtkFITSReader::decompress_one_file(filename, FileName.c_str()))
       {
       vtkErrorMacro(<<"vtkFITSReader::CanReadFile: Decompression failed.");
+      return false;
       }
     this->SetFileName(FileName.c_str());
     this->SetCompression(true);
     }
-  // We have the correct extension, so now check for the Fits magic.
-  std::ifstream inputStream;
 
-  inputStream.open(FileName.c_str(), std::ios::in | std::ios::binary );
-
-  if (inputStream.fail())
+  if (this->AstroExecuteInformation())
     {
-    return false;
-    }
-
-  char magic[5] = {'\0','\0','\0','\0','\0'};
-  inputStream.read(magic,4*sizeof(char));
-
-  if (inputStream.eof())
-    {
-    inputStream.close();
-    return false;
-    }
-
-  if (strcmp(magic,"SIMP")==0)
-    {
-    inputStream.close();
     return true;
     }
 
-  inputStream.close();
   return false;
 }
 
 //----------------------------------------------------------------------------
+bool vtkFITSReader::AstroExecuteInformation()
+{
+  if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &ReadStatus))
+    {
+    vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: ERROR IN CFITSIO! Error reading"
+                  " "<< this->GetFileName() << ": \n");
+    fits_report_error(stderr, this->ReadStatus);
+    return false;
+    }
+
+  // Push FITS header key/value pair data into std::map
+  if(!this->AllocateHeader())
+    {
+    vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: "
+                  "Failed to allocateFitsHeader. The data will not be loaded.")
+    return false;
+    }
+
+  // Set type information
+  std::string dataModel = this->GetHeaderValue("SlicerAstro.DATAMODEL");
+
+  if (!dataModel.compare("MASK"))
+    {
+    this->SetDataType( VTK_SHORT );
+    this->SetDataScalarType( VTK_SHORT );
+    }
+  else if (!dataModel.compare("DATA") ||
+           !dataModel.compare("MODEL") ||
+           !dataModel.compare("ZEROMOMENTMAP") ||
+           !dataModel.compare("FIRSTMOMENTMAP") ||
+           !dataModel.compare("SECONDMOMENTMAP") ||
+           !dataModel.compare("PROFILE") ||
+           !dataModel.compare("PVDIAGRAM"))
+    {
+    switch(StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")))
+      {
+      case 8:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case 16:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case 32:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case -32:
+        this->SetDataType( VTK_FLOAT );
+        this->SetDataScalarType( VTK_FLOAT );
+        break;
+      case 64:
+        this->SetDataType( VTK_DOUBLE );
+        this->SetDataScalarType( VTK_DOUBLE );
+        break;
+      case -64:
+        this->SetDataType( VTK_DOUBLE );
+        this->SetDataScalarType( VTK_DOUBLE );
+        break;
+      default:
+        vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: Could not allocate data type.");
+        return false;
+      }
+    }
+  else
+    {
+    vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: Could not find the DATAMODEL keyword.");
+    return false;
+    }
+
+  if (fits_close_file(this->fptr, &this->ReadStatus))
+    {
+    fits_report_error(stderr, this->ReadStatus);
+    }
+
+  return true;
+}
+
+
+//----------------------------------------------------------------------------
 void vtkFITSReader::ExecuteInformation()
 {
-
-  // This method determines the following and sets the appropriate value in
-  // the parent IO class:
-  //
-  // binary/ascii file type
-  // endianness
-  // pixel type
-  // pixel component type
-  // number of pixel components
-  // number of image dimensions
-  // image spacing
-  // image origin
-  // meta data dictionary information
-  // save the Fits struct for the current file and
-  // don't re-execute the read unless the filename changes
   if (this->CurrentFileName != NULL &&
-       !strcmp (this->CurrentFileName, this->GetFileName()))
+      !strcmp (this->CurrentFileName, this->GetFileName()))
     {
-    // filename hasn't changed, don't re-execute
     return;
     }
 
@@ -384,7 +430,6 @@ void vtkFITSReader::ExecuteInformation()
 
   this->CurrentFileName = new char[1 + strlen(this->GetFileName())];
   strcpy (this->CurrentFileName, this->GetFileName());
-
 
   if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &ReadStatus))
     {
@@ -1615,6 +1660,204 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.OBJECT"] = "";
      }
 
+   // Check pc, cd matrices and cdelt values
+   if (n > 1)
+     {
+     bool pcMatrixFound = false;
+     bool cdMatrixFound = false;
+     bool cDeltNotValid = false;
+
+     // pc matrix
+     if (this->HeaderKeyValue.find("SlicerAstro.PC1_1") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC1_1"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.PC1_2") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC1_2"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.PC2_1") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC2_1"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.PC2_2") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC2_2"] = "0.";
+       }
+
+     if (this->HeaderKeyValue.find("SlicerAstro.PC001001") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC001001"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.PC001002") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC001002"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.PC002001") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC002001"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.PC002002") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.PC002002"] = "0.";
+       }
+
+
+     if (fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_1").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_2").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_1").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_2").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001001").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001002").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002001").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002002").c_str())) > 1.E-6)
+       {
+       pcMatrixFound = true;
+       }
+
+     if (n == 3)
+       {
+       if (this->HeaderKeyValue.find("SlicerAstro.PC1_3") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC1_3"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC2_3") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC2_3"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC3_1") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC3_1"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC3_2") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC3_2"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC3_3") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC3_3"] = "0.";
+         }
+
+       if (this->HeaderKeyValue.find("SlicerAstro.PC001003") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC001003"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC002003") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC002003"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC003001") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC003001"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC003002") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC003002"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.PC003003") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.PC003003"] = "0.";
+         }
+
+       if (fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_3").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_3").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC3_1").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC3_2").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC3_3").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001003").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002003").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC003001").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC003002").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC003003").c_str())) > 1.E-6)
+         {
+         pcMatrixFound = true;
+         }
+       }
+
+     // cdelti
+     if (fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT1").c_str())) < 1.E-9 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT1").c_str()) - 1.) < 1.E-9 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT2").c_str())) < 1.E-9 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT2").c_str()) - 1.) < 1.E-9 )
+       {
+       cDeltNotValid = true;
+       }
+     if (n > 2)
+       {
+       if (fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT3").c_str())) < 1.E-9 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CDELT3").c_str()) - 1.) < 1.E-9)
+         {
+         cDeltNotValid = true;
+         }
+       }
+
+     // cd matrix
+     if (this->HeaderKeyValue.find("SlicerAstro.CD1_1") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.CD1_1"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.CD1_2") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.CD1_2"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.CD2_1") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.CD2_1"] = "0.";
+       }
+     if (this->HeaderKeyValue.find("SlicerAstro.CD2_2") == this->HeaderKeyValue.end())
+       {
+       this->HeaderKeyValue["SlicerAstro.CD2_2"] = "0.";
+       }
+
+     if (fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD1_1").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD1_2").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD2_1").c_str())) > 1.E-6 ||
+         fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD2_2").c_str())) > 1.E-6)
+       {
+       cdMatrixFound = true;
+       }
+
+     if (n == 3)
+       {
+       if (this->HeaderKeyValue.find("SlicerAstro.CD1_3") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.CD1_3"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.CD2_3") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.CD2_3"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.CD3_1") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.CD3_1"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.CD3_2") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.CD3_2"] = "0.";
+         }
+       if (this->HeaderKeyValue.find("SlicerAstro.CD3_3") == this->HeaderKeyValue.end())
+         {
+         this->HeaderKeyValue["SlicerAstro.CD3_3"] = "0.";
+         }
+       if (fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD1_3").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD2_3").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD3_1").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD3_2").c_str())) > 1.E-6 ||
+           fabs(StringToDouble(this->HeaderKeyValue.at("SlicerAstro.CD3_3").c_str())) > 1.E-6)
+         {
+         cdMatrixFound = true;
+         }
+       }
+
+     if (cdMatrixFound && !cDeltNotValid && !pcMatrixFound)
+       {
+       vtkErrorMacro("vtkFITSReader::AllocateWCS: "
+                     "cd matrix and cdelti found and pc matrix missing. This wcs keyword "
+                     "combiantion is prohibited by FITS standards.");
+       return false;
+       }
+     }
+
    if (this->ReadStatus) fits_report_error(stderr, this->ReadStatus); /* print any error message */
 
    return true;
@@ -2094,7 +2337,7 @@ bool vtkFITSReader::AllocateWCS()
       {
       this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_1").c_str());
       }
-    else if (this->HeaderKeyValue.find("SlicerAstro.PC1_1") != this->HeaderKeyValue.end())
+    if (fabs(this->WCS->pc[0]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC001001") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001001").c_str());
       }
@@ -2109,7 +2352,7 @@ bool vtkFITSReader::AllocateWCS()
       {
       this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_2").c_str());
       }
-    else if (this->HeaderKeyValue.find("SlicerAstro.PC001002") != this->HeaderKeyValue.end())
+    if (fabs(this->WCS->pc[1]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC001002") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001002").c_str());
       }
@@ -2124,7 +2367,7 @@ bool vtkFITSReader::AllocateWCS()
       {
       this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_1").c_str());
       }
-    else if (this->HeaderKeyValue.find("SlicerAstro.PC002001") != this->HeaderKeyValue.end())
+    if (fabs(this->WCS->pc[2]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC002001") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002001").c_str());
       }
@@ -2139,7 +2382,7 @@ bool vtkFITSReader::AllocateWCS()
       {
       this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_2").c_str());
       }
-    else if (this->HeaderKeyValue.find("SlicerAstro.PC002002") != this->HeaderKeyValue.end())
+    if (fabs(this->WCS->pc[3]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC002002") != this->HeaderKeyValue.end())
       {
       this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002002").c_str());
       }
@@ -2194,23 +2437,16 @@ bool vtkFITSReader::AllocateWCS()
   if (n > 1)
     {
     bool pcMatrixFound = false;
-    if (n == 2)
+    if ((fabs(this->WCS->pc[0]) > 1.E-6 ||
+         fabs(this->WCS->pc[1]) > 1.E-6 ||
+         fabs(this->WCS->pc[2]) > 1.E-6 ||
+         fabs(this->WCS->pc[3]) > 1.E-6))
       {
-      if ((fabs(this->WCS->pc[0]) > 1.E-6 ||
-           fabs(this->WCS->pc[1]) > 1.E-6 ||
-           fabs(this->WCS->pc[2]) > 1.E-6 ||
-           fabs(this->WCS->pc[3]) > 1.E-6))
-        {
-        pcMatrixFound = true;
-        }
+      pcMatrixFound = true;
       }
-    else if (n == 3)
+    if (n > 2)
       {
-      if (fabs(this->WCS->pc[0]) > 1.E-6 ||
-          fabs(this->WCS->pc[1]) > 1.E-6 ||
-          fabs(this->WCS->pc[2]) > 1.E-6 ||
-          fabs(this->WCS->pc[3]) > 1.E-6 ||
-          fabs(this->WCS->pc[4]) > 1.E-6 ||
+      if (fabs(this->WCS->pc[4]) > 1.E-6 ||
           fabs(this->WCS->pc[5]) > 1.E-6 ||
           fabs(this->WCS->pc[6]) > 1.E-6 ||
           fabs(this->WCS->pc[7]) > 1.E-6 ||
@@ -2221,15 +2457,12 @@ bool vtkFITSReader::AllocateWCS()
       }
 
     bool cDeltNotValid = false;
-    if (n > 1)
+    if (fabs(this->WCS->cdelt[0]) < 1.E-9 ||
+        fabs(this->WCS->cdelt[0] - 1.) < 1.E-9 ||
+        fabs(this->WCS->cdelt[1]) < 1.E-9 ||
+        fabs(this->WCS->cdelt[1] - 1.) < 1.E-9 )
       {
-      if (fabs(this->WCS->cdelt[0]) < 1.E-9 ||
-          fabs(this->WCS->cdelt[0] - 1.) < 1.E-9 ||
-          fabs(this->WCS->cdelt[1]) < 1.E-9 ||
-          fabs(this->WCS->cdelt[1] - 1.) < 1.E-9 )
-        {
-        cDeltNotValid = true;
-        }
+      cDeltNotValid = true;
       }
     if (n > 2)
       {
@@ -2240,15 +2473,12 @@ bool vtkFITSReader::AllocateWCS()
         }
       }
 
-    if (n > 1)
+    if ((fabs(this->WCS->cd[0]) > 1.E-6 ||
+         fabs(this->WCS->cd[1]) > 1.E-6 ||
+         fabs(this->WCS->cd[2]) > 1.E-6 ||
+         fabs(this->WCS->cd[3]) > 1.E-6))
       {
-      if ((fabs(this->WCS->cd[0]) > 1.E-6 ||
-           fabs(this->WCS->cd[1]) > 1.E-6 ||
-           fabs(this->WCS->cd[2]) > 1.E-6 ||
-           fabs(this->WCS->cd[3]) > 1.E-6))
-        {
-        cdMatrixFound = true;
-        }
+      cdMatrixFound = true;
       }
     if (n > 2)
       {

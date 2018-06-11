@@ -27,9 +27,22 @@ int vtkMRMLAstroStatisticsParametersNodeTest1(int , char * [] )
 
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
-  std::string InputVolumeNodeID = "WEIN069";
-
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), Mode);
+
+  TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);
+
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Max);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Mean);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Median);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Npixels);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Std);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), Sum);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), TotalFlux);
+
+  TEST_SET_GET_INT(node1.GetPointer(), OutputSerial, 1);
+  TEST_SET_GET_INT(node1.GetPointer(), Status, 0);
 
   return EXIT_SUCCESS;
 }
