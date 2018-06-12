@@ -1509,7 +1509,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "the input and reference volume keywords relative to the WCS coordinates match. \n"
                   "No reprojection is needed. ");
-  return true;
+  return false;
   }
 
   // Check that the input volume has not already been reprojected to the reference volume
@@ -1519,7 +1519,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "the input volume is already aligned to the north pole. \n"
                   "No reprojection is needed. ");
-  return true;
+  return false;
   }
 
   // Check if the images need rotation or change of equinox
@@ -1584,6 +1584,8 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   const int *inputDims = inputVolume->GetImageData()->GetDimensions();
   const int inputSliceDim = inputDims[0] * inputDims[1];
   const int *referenceDims = referenceVolume->GetImageData()->GetDimensions();
+  const int referenceLengthX = referenceDims[0];
+  const int referenceLengthY = referenceDims[1];
   const int referenceSliceDim = referenceDims[0] * referenceDims[1];
   const int inputNumComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int referenceNumComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -1598,7 +1600,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   // and of velocity dimension equal to the input volume
   // (the reprojection takes place only for the spatial axis)
   vtkNew<vtkImageData> imageDataTemp;
-  imageDataTemp->SetDimensions(referenceDims[0], referenceDims[1], inputDims[2]);
+  imageDataTemp->SetDimensions(referenceLengthX, referenceLengthY, inputDims[2]);
   imageDataTemp->SetSpacing(1.,1.,1.);
   imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
 
@@ -1652,14 +1654,14 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   pnode->SetStatus(1);
 
   // Calculate the 2D interpolation grid
-  double ***referenceGrid = NULL;
-  referenceGrid = new double**[referenceDims[0]];
-  for (int ii = 0; ii < referenceDims[0]; ii++)
+  std::vector<std::vector<std::vector<double> > > referenceGrid;
+  referenceGrid.resize(referenceLengthX);
+  for (int jj = 0; jj < referenceLengthX; jj++)
     {
-    referenceGrid[ii] = new double*[referenceDims[1]];
-    for (int jj = 0; jj < referenceDims[1]; jj++)
+    referenceGrid[jj].resize(referenceLengthY);
+    for (int kk = 0; kk < referenceLengthY; kk++)
       {
-      referenceGrid[ii][jj] = new double[2];
+      referenceGrid[jj][kk].resize(2);
       }
     }
 
@@ -1669,10 +1671,11 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     shift = 0.;
     }
   // WCS are not thread safe, no OpenMP
+
   bool overlay = false;
-  for (int ii = 0; ii < referenceDims[0]; ii++)
+  for (int ii = 0; ii < referenceLengthX; ii++)
     {  
-    for (int jj = 0; jj < referenceDims[1]; jj++)
+    for (int jj = 0; jj < referenceLengthY; jj++)
       {
       double ijk[3] = {0.}, world[3] = {0.};
       ijk[0] = ii + shift;
@@ -1694,7 +1697,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
         }
       }
 
-    if(ii / (referenceDims[0] / 10.) > status)
+    if(ii / (referenceLengthX / 10.) > status)
       {
       status += 1.;
       pnode->SetStatus(status);
@@ -1711,7 +1714,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     }
 
   // Interpolate
-  int numElements = referenceDims[0] * referenceDims[1] * inputDims[2];
+  int numElements = referenceLengthX * referenceLengthY * inputDims[2];
 
   if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
@@ -1736,15 +1739,15 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
       if (!cancel)
         {
-        int ref  = (int) floor(elemCnt / referenceDims[0]);
-        ref *= referenceDims[0];
+        int ref  = (int) floor(elemCnt / referenceLengthX);
+        ref *= referenceLengthX;
         int ii = elemCnt - ref;
 
         ref = (int) floor(elemCnt / referenceSliceDim);
         int kk = ref;
         ref *= referenceSliceDim;
         ref = elemCnt - ref;
-        int jj = (int) floor(ref / referenceDims[0]);
+        int jj = (int) floor(ref / referenceLengthX);
 
         int x = (int) round(referenceGrid[ii][jj][0]);
         bool xInside = x > 0 && x < inputDims[0];
@@ -1818,15 +1821,15 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
       if (!cancel)
         {
-        int ref  = (int) floor(elemCnt / referenceDims[0]);
-        ref *= referenceDims[0];
+        int ref  = (int) floor(elemCnt / referenceLengthX);
+        ref *= referenceLengthX;
         int ii = elemCnt - ref;
 
         ref = (int) floor(elemCnt / referenceSliceDim);
         int kk = ref;
         ref *= referenceSliceDim;
         ref = elemCnt - ref;
-        int jj = (int) floor(ref / referenceDims[0]);
+        int jj = (int) floor(ref / referenceLengthX);
 
         double x = referenceGrid[ii][jj][0];
         int x1 = (int) floor(x);
@@ -1985,15 +1988,15 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
       if (!cancel)
         {
-        int ref  = (int) floor(elemCnt / referenceDims[0]);
-        ref *= referenceDims[0];
+        int ref  = (int) floor(elemCnt / referenceLengthX);
+        ref *= referenceLengthX;
         int ii = elemCnt - ref;
 
         ref = (int) floor(elemCnt / referenceSliceDim);
         int kk = ref;
         ref *= referenceSliceDim;
         ref = elemCnt - ref;
-        int jj = (int) floor(ref / referenceDims[0]);
+        int jj = (int) floor(ref / referenceLengthX);
 
         double x = referenceGrid[ii][jj][0];
         int x1 = (int) floor(x) - 1;
@@ -2363,15 +2366,8 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   delete inDPixel;
   delete outDPixel;
 
-  for(int ii = 0; ii < referenceDims[0]; ii++)
-      {
-      for(int jj = 0; jj < referenceDims[1]; jj++)
-        {
-        delete[] referenceGrid[ii][jj];
-        }
-      delete[] referenceGrid[ii];
-      }
-    delete referenceGrid;
+  referenceGrid.clear();
+  referenceGrid.shrink_to_fit();
 
   if (cancel)
     {

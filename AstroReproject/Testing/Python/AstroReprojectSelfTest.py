@@ -171,7 +171,7 @@ class AstroReprojectSelfTestTest(unittest.TestCase):
     self.delayDisplay('Apply Reprojection (Rotation)', 700)
     ApplyPushButton.click()
 
-    outputVolume = slicer.mrmlScene.GetNodeByID(AstroReprojectParameterNode.GetOutputVolumeNodeID())
+    outputVolume = slicer.util.getNode("NGC2403_DSS_Reprojected_1")
     pixelValue = outputVolume.GetImageData().GetScalarComponentAsFloat(340, 330, 0, 0)
 
     if (math.fabs(pixelValue - 13034.2) < 0.1):

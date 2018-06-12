@@ -651,13 +651,13 @@ void qSlicerAstroReprojectModuleWidget::onMRMLAstroReprojectParametersNodeModifi
 
   if (d->parametersNode->GetReprojectData())
     {
-    d->ReferenceVolumeNodeSelector->show();
-    d->ReferenceVolumeLabel->show();
+    d->ReferenceVolumeNodeSelector->setEnabled(true);
+    d->ReferenceVolumeLabel->setEnabled(true);
     }
   else
     {
-    d->ReferenceVolumeNodeSelector->hide();
-    d->ReferenceVolumeLabel->hide();
+    d->ReferenceVolumeNodeSelector->setEnabled(false);
+    d->ReferenceVolumeLabel->setEnabled(false);
     }
 
   d->ReprojectRotationCheckBox->setChecked(d->parametersNode->GetReprojectRotation());
@@ -863,8 +863,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
       d->parametersNode->SetOutputVolumeNodeID("");
       }
     }
-
-  if (ReprojectToReference)
+  else if (ReprojectToReference)
     {
     if (logic->Reproject(d->parametersNode))
       {
