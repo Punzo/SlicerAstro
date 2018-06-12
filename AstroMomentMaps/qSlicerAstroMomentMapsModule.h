@@ -28,7 +28,7 @@
 class qSlicerAstroMomentMapsModulePrivate;
 
 /// \ingroup Slicer_QtModules_AstroMomentMaps
-class Q_SLICER_QTMODULES_ASTROMOMENTMAPS_EXPORT qSlicerAstroMomentMapsModule :
+class Q_SLICERASTRO_QTMODULES_ASTROMOMENTMAPS_EXPORT qSlicerAstroMomentMapsModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT

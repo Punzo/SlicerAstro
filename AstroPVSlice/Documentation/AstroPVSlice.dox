@@ -1,6 +1,9 @@
 /**
-\defgroup Slicer_QtModules_Smoothing Smoothing
-\ingroup Slicer_QtModules
-This module allows to extract rectangular subvolume from a scalar image, with the subvolume defined by Slicer ROI widget.
-
+\defgroup SlicerAstro_QtModules_AstroPVSlice AstroPVSlice
+\ingroup SlicerAstro_QtModules
+The AstroPVSlice module shows Position Velocity (PV) Slices by providing
+customized controls over the GUI. This module provides fast inspection
+tool with a PVSlice linked both with the 2D and 3D views.
+For creating a PV Diagram (i.e., a curvilinear PV and able to save it as
+fits file), please navigate to the AstroPVDiagram module.
 */

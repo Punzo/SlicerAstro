@@ -34,7 +34,7 @@ class vtkMRMLNode;
 class vtkSegment;
 
 /// \ingroup Slicer_QtModules_AstroMasking
-class Q_SLICER_QTMODULES_ASTROMASKING_EXPORT qSlicerAstroMaskingModuleWidget :
+class Q_SLICERASTRO_QTMODULES_ASTROMASKING_EXPORT qSlicerAstroMaskingModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT

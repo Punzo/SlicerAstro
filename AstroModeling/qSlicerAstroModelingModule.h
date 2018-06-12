@@ -28,7 +28,7 @@
 class qSlicerAstroModelingModulePrivate;
 
 /// \ingroup Slicer_QtModules_AstroModeling
-class Q_SLICER_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModule :
+class Q_SLICERASTRO_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT

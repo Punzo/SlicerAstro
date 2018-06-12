@@ -31,7 +31,7 @@ class vtkSlicerAstroVolumeLogic;
 class vtkMRMLAstroPVDiagramParametersNode;
 
 /// \ingroup Slicer_QtModules_AstroPVDiagram
-class VTK_SLICER_ASTROPVDIAGRAM_MODULE_LOGIC_EXPORT vtkSlicerAstroPVDiagramLogic
+class VTK_SLICERASTRO_ASTROPVDIAGRAM_MODULE_LOGIC_EXPORT vtkSlicerAstroPVDiagramLogic
   : public vtkSlicerModuleLogic
 {
 public:

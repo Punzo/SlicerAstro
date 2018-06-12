@@ -43,7 +43,7 @@ class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkIntArray;
 
-class VTK_SLICER_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
+class VTK_SLICERASTRO_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerVolumesLogic
 {
 public:

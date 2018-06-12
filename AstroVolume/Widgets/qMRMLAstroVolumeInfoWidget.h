@@ -35,7 +35,7 @@ class vtkMRMLNode;
 class vtkMRMLVolumeNode;
 
 /// \ingroup Slicer_QtModules_AstroVolume_Widgets
-class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qMRMLAstroVolumeInfoWidget : public qMRMLWidget
+class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qMRMLAstroVolumeInfoWidget : public qMRMLWidget
 {
   Q_OBJECT
   QVTK_OBJECT

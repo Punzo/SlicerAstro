@@ -32,7 +32,7 @@
 class qSlicerAstroVolumeLayoutSliceViewFactoryPrivate;
 
 /// \ingroup Slicer_QtModules_AstroVolume
-class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeLayoutSliceViewFactory
+class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeLayoutSliceViewFactory
  : public qMRMLLayoutSliceViewFactory
 {
   Q_OBJECT

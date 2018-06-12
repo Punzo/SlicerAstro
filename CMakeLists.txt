@@ -6,19 +6,19 @@ project(SlicerAstro)
 set(EXTENSION_NAME SlicerAstro)
 
 # ------------------------------------------------------------------------
-set(SLICERRT_VERSION_MAJOR "1")
-set(SLICERRT_VERSION_MINOR "0")
-set(SLICERRT_VERSION_PATCH "0")
-set(SLICERRT_VERSION ${SLICERRT_VERSION_MAJOR}.${SLICERRT_VERSION_MINOR}.${SLICERRT_VERSION_PATCH})
+set(SLICERASTRO_VERSION_MAJOR "1")
+set(SLICERASTRO_VERSION_MINOR "0")
+set(SLICERASTRO_VERSION_PATCH "0")
+set(SLICERASTRO_VERSION ${SLICERASTRO_VERSION_MAJOR}.${SLICERASTRO_VERSION_MINOR}.${SLICERASTRO_VERSION_PATCH})
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
 set(EXTENSION_HOMEPAGE "https://github.com/Punzo/SlicerAstro/wiki")
 set(EXTENSION_CATEGORY "Astronomy")
 set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute), Thijs van der Hulst (Kapteyn Astronomical institute), Jos Roerdink (Johann Bernoulli Institute), Jean-Christophe Fillion-Robin (Kitware)")
-set(EXTENSION_DESCRIPTION "Extension for enabling Astronomical (HI) visualization in Slicer")
+set(EXTENSION_DESCRIPTION "SlicerAstro, an Astronomy (HI) extension for 3DSlicer")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Punzo/SlicerAstro/master/SlicerAstroIcon.png")
-set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/Screenshoot.png")
+set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/Screenshot.png")
 set(EXTENSION_STATUS "Beta")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated list or 'NA' if any
 set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
@@ -149,6 +149,7 @@ if(UNIX)
   add_subdirectory(AstroModeling)
   add_subdirectory(AstroSampleData)
   add_subdirectory(SlicerAstroDataProbe)
+  add_subdirectory(Doxygen)
 endif(UNIX)
 
 #-----------------------------------------------------------------------------

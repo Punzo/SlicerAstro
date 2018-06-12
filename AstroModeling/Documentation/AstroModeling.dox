@@ -1,6 +1,10 @@
 /**
-\defgroup Slicer_QtModules_Smoothing Smoothing
-\ingroup Slicer_QtModules
-This module allows to extract rectangular subvolume from a scalar image, with the subvolume defined by Slicer ROI widget.
+\defgroup SlicerAstro_QtModules_AstroModeling AstroModeling
+\ingroup SlicerAstro_QtModules
+AstroModeling module fits tilted-ring models on a HI datacube using 3DBarolo
+(http://editeodoro.github.io/Bbarolo/).
+Specifically, SlicerAstro wraps a branch of 3DBarolo
+(https://github.com/Punzo/Bbarolo) which corresponds to
+3DBarolo v1.3 (git tag: 3c9a1fa39e9154f3120d0ded0847d77314275e17)
 
 */

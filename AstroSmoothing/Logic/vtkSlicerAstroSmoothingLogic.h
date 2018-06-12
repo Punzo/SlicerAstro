@@ -31,7 +31,7 @@ class vtkRenderWindow;
 class vtkMRMLAstroSmoothingParametersNode;
 
 /// \ingroup Slicer_QtModules_AstroSmoothing
-class VTK_SLICER_ASTROSMOOTHING_MODULE_LOGIC_EXPORT vtkSlicerAstroSmoothingLogic
+class VTK_SLICERASTRO_ASTROSMOOTHING_MODULE_LOGIC_EXPORT vtkSlicerAstroSmoothingLogic
   : public vtkSlicerModuleLogic
 {
 public:

@@ -32,7 +32,7 @@ class vtkMRMLNode;
 class vtkStringArray;
 
 /// \ingroup Slicer_QtModules_AstroModeling
-class Q_SLICER_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWidget :
+class Q_SLICERASTRO_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT

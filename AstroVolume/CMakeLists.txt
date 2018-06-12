@@ -15,7 +15,7 @@ add_subdirectory(MRMLDM)
 add_subdirectory(EditorEffects)
 
 #-----------------------------------------------------------------------------
-set(MODULE_EXPORT_DIRECTIVE "Q_SLICER_QTMODULES_${MODULE_NAME_UPPER}_EXPORT")
+set(MODULE_EXPORT_DIRECTIVE "Q_SLICERASTRO_QTMODULES_${MODULE_NAME_UPPER}_EXPORT")
 
 # Additional includes - Current_{source,binary} and Slicer_{Libs,Base} already included
 list(GET qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS 0 qSlicerSegmentationsModuleEditorEffects_INCLUDE_DIR)

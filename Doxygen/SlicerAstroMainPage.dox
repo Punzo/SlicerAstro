@@ -1,0 +1,34 @@
+/** \mainpage SlicerAstro, an Astronomy (HI) extension for 3DSlicer
+ *
+ * \section intro Introduction
+ *
+ * Upcoming HI (neutral Hydrogen) surveys will deliver large datasets,
+ * and automated processing using the full 3D information
+ * (two positional dimensions and one spectral dimension)
+ * to find and characterize HI objects is imperative.
+ * In this context, visualization is an essential tool for
+ * enabling qualitative and quantitative human control on an
+ * automated source finding and analysis pipeline.
+ * Visual Analytics, the combination of automated data processing
+ * and human reasoning, creativity and intuition, supported by
+ * interactive visualization, enables flexible and fast interaction
+ * with the 3D data, helping the astronomer to deal with the analysis
+ * of complex sources. 3D visualization, coupled to modeling, provides
+ * additional capabilities helping the discovery and analysis of
+ * subtle structures in the 3D domain.
+ *
+ * \subsection implinks Important Links
+ * - <a href="https://github.com/Punzo/SlicerAstro/wiki">Development documents</a> on SlicerAstro wiki.
+ * - <a href="http://wiki.slicer.org/slicerWiki/index.php/Documentation/Nightly/Developers">Development documents</a> on 3DSlicer wiki.
+ * - <a href="http://na-mic.org/Mantis">3DSlicer Bug tracker</a>
+ * - <a href="http://slicer.cdash.org/index.php?project=Slicer4">3DSlicer CDash quality dashboard</a>
+ * - <a href="https://discourse.slicer.org/">3DSlicer discord forum</a>
+ *
+ * \subsection other Other
+ * For more information on using Slicer browse to http://www.slicer.org
+ *
+ */
+
+/**
+ * \defgroup SlicerAstro_QtModules SlicerAstro Qt Loadable Modules
+ */

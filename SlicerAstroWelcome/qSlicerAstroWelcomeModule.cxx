@@ -64,7 +64,7 @@ QIcon qSlicerAstroWelcomeModule::icon()const
 //-----------------------------------------------------------------------------
 QString qSlicerAstroWelcomeModule::helpText()const
 {
-  return QString();
+  return QString("This module is intended as a welcome screen and basic overview of the SlicerAstro software.");
 }
 
 //-----------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 /**
-\defgroup Slicer_QtModules_Volumes Volumes
-\ingroup Slicer_QtModules
-This module allows to load, save and adjust display parameters of volume data.
+\defgroup SlicerAstro_QtModules_AstroVolume AstroVolume
+\ingroup SlicerAstro_QtModules
+The AstroVolume Module loads and adjusts display parameters of astronomical datasets (FITS file).
 
 */

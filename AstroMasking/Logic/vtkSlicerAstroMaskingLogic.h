@@ -34,7 +34,7 @@ class vtkSegment;
 class vtkMRMLAstroMaskingParametersNode;
 
 /// \ingroup Slicer_QtModules_AstroMasking
-class VTK_SLICER_ASTROMASKING_MODULE_LOGIC_EXPORT vtkSlicerAstroMaskingLogic
+class VTK_SLICERASTRO_ASTROMASKING_MODULE_LOGIC_EXPORT vtkSlicerAstroMaskingLogic
   : public vtkSlicerModuleLogic
 {
 public:

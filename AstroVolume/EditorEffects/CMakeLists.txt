@@ -2,7 +2,7 @@ project(qSlicer${MODULE_NAME}EditorEffects)
 
 set(KIT ${PROJECT_NAME})
 
-set(${KIT}_EXPORT_DIRECTIVE "Q_SLICER_${MODULE_NAME_UPPER}_EFFECTS_EXPORT")
+set(${KIT}_EXPORT_DIRECTIVE "Q_SLICERASTRO_${MODULE_NAME_UPPER}_EFFECTS_EXPORT")
 
 list(GET qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS 0 qSlicerSegmentationsModuleEditorEffects_INCLUDE_DIR)
 set(qSlicerSegmentationsModuleEditorEffects_INCLUDE_DIR ${qSlicerSegmentationsModuleEditorEffects_INCLUDE_DIR}/../EditorEffects)

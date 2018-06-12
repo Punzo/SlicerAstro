@@ -32,7 +32,7 @@ class vtkMRMLTableNode;
 class vtkSlicerAstroModelingLogic;
 
 /// \ingroup Slicer_QtModules_AstroModeling
-class Q_SLICER_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWorker :
+class Q_SLICERASTRO_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWorker :
   public QObject
 {
   Q_OBJECT

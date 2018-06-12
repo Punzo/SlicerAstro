@@ -34,7 +34,7 @@ class vtkMRMLSliceLogic;
 class vtkObject;
 
 /// \ingroup Slicer_QtModules_AstroVolume
-class Q_SLICER_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModule :
+class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT

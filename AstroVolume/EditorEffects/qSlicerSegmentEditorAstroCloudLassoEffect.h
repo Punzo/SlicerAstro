@@ -34,7 +34,7 @@ class vtkPolyData;
 class vtkObject;
 
 /// \ingroup SlicerRt_QtModules_Segmentations
-class Q_SLICER_ASTROVOLUME_EFFECTS_EXPORT qSlicerSegmentEditorAstroCloudLassoEffect :
+class Q_SLICERASTRO_ASTROVOLUME_EFFECTS_EXPORT qSlicerSegmentEditorAstroCloudLassoEffect :
   public qSlicerSegmentEditorAbstractLabelEffect
 {
 public:

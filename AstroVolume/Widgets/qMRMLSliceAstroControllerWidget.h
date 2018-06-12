@@ -30,7 +30,7 @@ class qMRMLSliceAstroControllerWidgetPrivate;
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 /// \ingroup Slicer_QtModules_AstroVolume_Widgets
-class Q_SLICER_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qMRMLSliceAstroControllerWidget
+class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qMRMLSliceAstroControllerWidget
   : public qMRMLSliceControllerWidget
 {
   Q_OBJECT

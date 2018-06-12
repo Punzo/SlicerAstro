@@ -148,11 +148,7 @@ qSlicerAstroVolumeModule::~qSlicerAstroVolumeModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroVolumeModule::helpText()const
 {
-  QString help = QString(
-    "The AstroVolume Module loads and adjusts display parameters of volume data.<br>"
-    "<a href=\"%1/Documentation/%2.%3/Modules/AstroVolume\">"
-    "%1/Documentation/%2.%3/Modules/AstroVolume</a><br>");
-  return help.arg(this->slicerWikiUrl()).arg(Slicer_VERSION_MAJOR).arg(Slicer_VERSION_MINOR);
+  return "The AstroVolume Module loads and adjusts display parameters of astronomical datasets (FITS file).";
 }
 
 //-----------------------------------------------------------------------------

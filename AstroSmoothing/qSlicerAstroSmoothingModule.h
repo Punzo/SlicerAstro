@@ -28,7 +28,7 @@
 class qSlicerAstroSmoothingModulePrivate;
 
 /// \ingroup Slicer_QtModules_AstroSmoothing
-class Q_SLICER_QTMODULES_ASTROSMOOTHING_EXPORT qSlicerAstroSmoothingModule :
+class Q_SLICERASTRO_QTMODULES_ASTROSMOOTHING_EXPORT qSlicerAstroSmoothingModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT

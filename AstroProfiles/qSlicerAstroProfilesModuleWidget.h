@@ -33,7 +33,7 @@ class vtkMRMLAstroProfilesParametersNode;
 class vtkMRMLNode;
 
 /// \ingroup Slicer_QtModules_AstroProfiles
-class Q_SLICER_QTMODULES_ASTROPROFILES_EXPORT qSlicerAstroProfilesModuleWidget :
+class Q_SLICERASTRO_QTMODULES_ASTROPROFILES_EXPORT qSlicerAstroProfilesModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT

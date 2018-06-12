@@ -37,7 +37,7 @@ class vtkRenderWindow;
 class vtkRenderer;
 
 /// \ingroup Slicer_QtModules_AstroPVSlice
-class Q_SLICER_QTMODULES_ASTROPVSLICE_EXPORT qSlicerAstroPVSliceModuleWidget :
+class Q_SLICERASTRO_QTMODULES_ASTROPVSLICE_EXPORT qSlicerAstroPVSliceModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT

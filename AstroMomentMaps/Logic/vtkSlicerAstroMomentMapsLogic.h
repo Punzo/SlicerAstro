@@ -30,7 +30,7 @@ class vtkSlicerAstroVolumeLogic;
 class vtkMRMLAstroMomentMapsParametersNode;
 
 /// \ingroup Slicer_QtModules_AstroMomentMaps
-class VTK_SLICER_ASTROMOMENTMAPS_MODULE_LOGIC_EXPORT vtkSlicerAstroMomentMapsLogic
+class VTK_SLICERASTRO_ASTROMOMENTMAPS_MODULE_LOGIC_EXPORT vtkSlicerAstroMomentMapsLogic
   : public vtkSlicerModuleLogic
 {
 public:

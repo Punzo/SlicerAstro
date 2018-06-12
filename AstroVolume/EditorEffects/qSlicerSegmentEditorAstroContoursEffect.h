@@ -29,7 +29,7 @@ class qSlicerSegmentEditorAstroContoursEffectPrivate;
 class QString;
 
 /// \ingroup SlicerRt_QtModules_Segmentations
-class Q_SLICER_SEGMENTATIONS_EFFECTS_EXPORT qSlicerSegmentEditorAstroContoursEffect :
+class Q_SLICERASTRO_ASTROVOLUME_EFFECTS_EXPORT qSlicerSegmentEditorAstroContoursEffect :
   public qSlicerSegmentEditorAbstractLabelEffect
 {
 public:

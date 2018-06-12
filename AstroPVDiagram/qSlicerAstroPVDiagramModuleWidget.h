@@ -33,7 +33,7 @@ class vtkMRMLAstroPVDiagramParametersNode;
 class vtkMRMLNode;
 
 /// \ingroup Slicer_QtModules_AstroPVDiagram
-class Q_SLICER_QTMODULES_ASTROPVDIAGRAM_EXPORT qSlicerAstroPVDiagramModuleWidget :
+class Q_SLICERASTRO_QTMODULES_ASTROPVDIAGRAM_EXPORT qSlicerAstroPVDiagramModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT

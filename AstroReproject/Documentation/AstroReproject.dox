@@ -1,6 +1,14 @@
 /**
-\defgroup Slicer_QtModules_Smoothing Smoothing
-\ingroup Slicer_QtModules
-This module allows to extract rectangular subvolume from a scalar image, with the subvolume defined by Slicer ROI widget.
+\defgroup SlicerAstro_QtModules_AstroReproject AstroReproject
+\ingroup SlicerAstro_QtModules
+The AstroReproject module implements image reprojection (resampling) methods
+for astronomical datasets. Specifically, the methods have been designed to
+reproject the spatial axis, (e.g., 2D images or 3D datacubes over 2D images).
+For example in the case of datacubes, the algorithm reprojects each slice
+(spatial celestial axis) of the datacube with the reference data (treating each slice as independent).
+However, overlaying two 3D astronomical datasets requires also to resample the velocity axes,
+which is not implemented in this module.
+The AstroReproject module requires that the WCS information contained in the fits header are correct
+and that the two datasets ahve the same celestial system of reference (e.g., J2000/FK5).
 
 */

@@ -30,7 +30,7 @@ class vtkSlicerAstroVolumeLogic;
 class vtkMRMLAstroProfilesParametersNode;
 
 /// \ingroup Slicer_QtModules_AstroProfiles
-class VTK_SLICER_ASTROPROFILES_MODULE_LOGIC_EXPORT vtkSlicerAstroProfilesLogic
+class VTK_SLICERASTRO_ASTROPROFILES_MODULE_LOGIC_EXPORT vtkSlicerAstroProfilesLogic
   : public vtkSlicerModuleLogic
 {
 public:
