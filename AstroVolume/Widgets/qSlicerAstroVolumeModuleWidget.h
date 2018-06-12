@@ -107,7 +107,6 @@ protected slots:
   void onCreateHistogram();
   void onCreateSurfaceButtonToggled(bool toggle);
   void onCropToggled(bool toggle);
-  void onCurrentRenderingMethodChanged(int index);
   void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
   void onHistoClippingChanged(double percentage);
@@ -134,6 +133,7 @@ protected slots:
   void onMRMLVolumeDisplayNodeModified();
   void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
   void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
+  void onMRMLViewNodeModified(vtkObject* sender);
   void onOffsetValueChanged(double offsetValue);
   void onOpacityValueChanged(double Opacity);
   void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
@@ -144,8 +144,10 @@ protected slots:
   void onStretchValueChanged(double stretchValue);
   void resetAndApplyPreset(vtkMRMLNode* volumePropertyNode);
   void resetOffset(vtkMRMLNode* node);
+  void resetOffsetStep(vtkMRMLNode* node);
   void resetOpacityShift(vtkMRMLNode* node);
   void resetStretch(vtkMRMLNode* node);
+  void resetStretchStep(vtkMRMLNode* node);
   void setDisplayConnection();
   void setDisplayROIEnabled(bool visibility);
   void setOpticalVelocity();

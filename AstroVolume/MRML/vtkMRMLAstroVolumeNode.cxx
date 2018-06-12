@@ -193,8 +193,8 @@ vtkMRMLAstroVolumeDisplayNode* vtkMRMLAstroVolumeNode::GetAstroVolumeDisplayNode
 
 //---------------------------------------------------------------------------
 vtkMRMLVolumeRenderingDisplayNode *vtkMRMLAstroVolumeNode::GetAstroVolumeRenderingDisplayNode()
-{
-  return vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(this->GetNthDisplayNode(1));
+{  
+  return vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(this->GetNthDisplayNode(this->GetNumberOfDisplayNodes() - 1));
 }
 
 //---------------------------------------------------------------------------
@@ -605,11 +605,6 @@ void vtkMRMLAstroVolumeNode::SetROINode(vtkMRMLAnnotationROINode* node)
 //----------------------------------------------------------------------------
 vtkMRMLAnnotationROINode *vtkMRMLAstroVolumeNode::GetROINode()
 {
-  if (!this->Scene)
-    {
-    return NULL;
-    }
-
   return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
 }
 
@@ -636,13 +631,8 @@ void vtkMRMLAstroVolumeNode::DeleteROIAlignmentTransformNode()
 //----------------------------------------------------------------------------
 vtkMRMLTransformNode *vtkMRMLAstroVolumeNode::GetROIAlignmentTransformNode()
 {
-  if (!this->Scene)
-    {
-    return NULL;
-    }
-
   return vtkMRMLTransformNode::SafeDownCast(this->GetNodeReference
-                                            (this->GetROIAlignmentTransformNodeReferenceRole()));
+                                           (this->GetROIAlignmentTransformNodeReferenceRole()));
 }
 
 //----------------------------------------------------------------------------
@@ -666,11 +656,6 @@ void vtkMRMLAstroVolumeNode::SetPresetNode(vtkMRMLNode *node)
 //-----------------------------------------------------------
 vtkMRMLNode *vtkMRMLAstroVolumeNode::GetPresetNode()
 {
-  if (!this->Scene)
-    {
-    return NULL;
-    }
-
   return this->GetNodeReference(this->GetPresetNodeReferenceRole());
 }
 
@@ -738,11 +723,6 @@ void vtkMRMLAstroVolumeNode::SetVolumePropertyNode(vtkMRMLNode *node)
 //-----------------------------------------------------------
 vtkMRMLNode *vtkMRMLAstroVolumeNode::GetVolumePropertyNode()
 {
-  if (!this->Scene)
-    {
-    return NULL;
-    }
-
   return this->GetNodeReference(this->GetVolumePropertyNodeReferenceRole());
 }
 

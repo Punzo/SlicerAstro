@@ -1106,6 +1106,65 @@
         </item>
        </layout>
       </item>
+      <item row="6" column="0">
+       <widget class="QLabel" name="OpacityLabel">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="text">
+         <string>Opacity:</string>
+        </property>
+       </widget>
+      </item>
+      <item row="6" column="1">
+       <widget class="ctkSliderWidget" name="OpacitySliderWidget">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>30</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>This slider shifts all the opacities of the current color function.</string>
+        </property>
+        <property name="decimals">
+         <number>2</number>
+        </property>
+        <property name="singleStep">
+         <double>0.050000000000000</double>
+        </property>
+        <property name="pageStep">
+         <double>0.200000000000000</double>
+        </property>
+        <property name="minimum">
+         <double>-1.000000000000000</double>
+        </property>
+        <property name="maximum">
+         <double>1.000000000000000</double>
+        </property>
+        <property name="value">
+         <double>0.000000000000000</double>
+        </property>
+       </widget>
+      </item>
       <item row="7" column="0">
        <widget class="QLabel" name="CropLabel">
         <property name="enabled">
@@ -1238,47 +1297,6 @@
        </layout>
       </item>
       <item row="8" column="0">
-       <widget class="QLabel" name="RenderingMethodLabel">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>30</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-        <property name="text">
-         <string>Rendering:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="8" column="1">
-       <widget class="QComboBox" name="RenderingMethodComboBox">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>30</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string/>
-        </property>
-       </widget>
-      </item>
-      <item row="9" column="0">
        <widget class="QLabel" name="qualityLabel">
         <property name="enabled">
          <bool>true</bool>
@@ -1303,7 +1321,7 @@
         </property>
        </widget>
       </item>
-      <item row="9" column="1">
+      <item row="8" column="1">
        <widget class="QComboBox" name="QualityControlComboBox">
         <property name="enabled">
          <bool>true</bool>
@@ -1335,65 +1353,6 @@
           <string>Maximum Quality</string>
          </property>
         </item>
-       </widget>
-      </item>
-      <item row="6" column="0">
-       <widget class="QLabel" name="OpacityLabel">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>30</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Opacity:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="6" column="1">
-       <widget class="ctkSliderWidget" name="OpacitySliderWidget">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>30</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string>This slider shifts all the opacities of the current color function.</string>
-        </property>
-        <property name="decimals">
-         <number>2</number>
-        </property>
-        <property name="singleStep">
-         <double>0.050000000000000</double>
-        </property>
-        <property name="pageStep">
-         <double>0.200000000000000</double>
-        </property>
-        <property name="minimum">
-         <double>-1.000000000000000</double>
-        </property>
-        <property name="maximum">
-         <double>1.000000000000000</double>
-        </property>
-        <property name="value">
-         <double>0.000000000000000</double>
-        </property>
        </widget>
       </item>
      </layout>
