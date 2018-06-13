@@ -339,6 +339,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(this->PresetsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(resetAndApplyPreset(vtkMRMLNode*)));
 
+  QObject::connect(this->PresetsNodeComboBox, SIGNAL(nodeActivated(vtkMRMLNode*)),
+                   q, SLOT(resetAndApplyPreset(vtkMRMLNode*)));
+
   QObject::connect(this->PresetOffsetSlider, SIGNAL(valueChanged(double)),
                    q, SLOT(onOffsetValueChanged(double)));
 
