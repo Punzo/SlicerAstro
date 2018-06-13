@@ -1,6 +1,7 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroVolume AstroVolume
 \ingroup SlicerAstro_QtModules
-The AstroVolume Module loads and adjusts display parameters of astronomical datasets (FITS file).
-
+The AstroVolume Module loads and adjusts display parameters of astronomical datasets (FITS file). <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroVolume-Module">link</a>.
 */

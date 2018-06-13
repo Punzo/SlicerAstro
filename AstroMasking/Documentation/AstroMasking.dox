@@ -1,6 +1,7 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroMasking AstroMasking
 \ingroup SlicerAstro_QtModules
-AstroMasking module can blank or crop datacubes given a selection.
-
+AstroMasking module can blank or crop datacubes given a selection. <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroMasking-Module">link</a>.
 */

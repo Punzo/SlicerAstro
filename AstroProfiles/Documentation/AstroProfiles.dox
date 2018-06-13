@@ -1,6 +1,7 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroProfiles AstroProfiles
 \ingroup SlicerAstro_QtModules
-AstroProfiles module generates datacube profiles given a selection.
-
+AstroProfiles module generates datacube profiles given a selection. <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroProfiles-Module">link</a>.
 */

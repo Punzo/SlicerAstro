@@ -1,6 +1,8 @@
 /**
 \defgroup SlicerAstro_QtModules_SlicerAstroWelcome SlicerAstroWelcome
 \ingroup SlicerAstro_QtModules
-This module is intended as a welcome screen and basic overview of the SlicerAstro software.
+This module is intended as a welcome screen and basic overview of the SlicerAstro software. <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/SlicerAstroWelcome-Module">link</a>.
 
 */

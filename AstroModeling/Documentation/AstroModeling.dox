@@ -1,10 +1,12 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroModeling AstroModeling
 \ingroup SlicerAstro_QtModules
-AstroModeling module fits tilted-ring models on a HI datacube using 3DBarolo
-(http://editeodoro.github.io/Bbarolo/).
-Specifically, SlicerAstro wraps a branch of 3DBarolo
-(https://github.com/Punzo/Bbarolo) which corresponds to
-3DBarolo v1.3 (git tag: 3c9a1fa39e9154f3120d0ded0847d77314275e17)
+AstroModeling module fits tilted-ring models on a HI datacube using
+<a href="http://editeodoro.github.io/Bbarolo/">3DBarolo</a>. <br>
+Specifically, SlicerAstro wraps a <a href="https://github.com/Punzo/Bbarolo">branch</a>
+of 3DBarolo which corresponds to
+3DBarolo v1.3 (git tag: 3c9a1fa39e9154f3120d0ded0847d77314275e17). <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroModeling-Module">link</a>.
 
 */

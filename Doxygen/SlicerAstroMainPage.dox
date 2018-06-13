@@ -18,11 +18,11 @@
  * subtle structures in the 3D domain.
  *
  * \subsection implinks Important Links
- * - <a href="https://github.com/Punzo/SlicerAstro/wiki">Development documents</a> on SlicerAstro wiki.
- * - <a href="http://wiki.slicer.org/slicerWiki/index.php/Documentation/Nightly/Developers">Development documents</a> on 3DSlicer wiki.
- * - <a href="http://na-mic.org/Mantis">3DSlicer Bug tracker</a>
- * - <a href="http://slicer.cdash.org/index.php?project=Slicer4">3DSlicer CDash quality dashboard</a>
- * - <a href="https://discourse.slicer.org/">3DSlicer discord forum</a>
+ * - <a href="https://github.com/Punzo/SlicerAstro/wiki">Development documents</a> on SlicerAstro wiki;
+ * - <a href="http://wiki.slicer.org/slicerWiki/index.php/Documentation/Nightly/Developers">Development documents</a> on 3DSlicer wiki;
+ * - <a href="http://na-mic.org/Mantis">3DSlicer Bug tracker</a>;
+ * - <a href="http://slicer.cdash.org/index.php?project=Slicer4">3DSlicer CDash quality dashboard</a>;
+ * - <a href="https://discourse.slicer.org/">3DSlicer discord forum</a>.
  *
  * \subsection other Other
  * For more information on using Slicer browse to http://www.slicer.org

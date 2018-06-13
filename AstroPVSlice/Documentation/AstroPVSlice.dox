@@ -5,5 +5,7 @@ The AstroPVSlice module shows Position Velocity (PV) Slices by providing
 customized controls over the GUI. This module provides fast inspection
 tool with a PVSlice linked both with the 2D and 3D views.
 For creating a PV Diagram (i.e., a curvilinear PV and able to save it as
-fits file), please navigate to the AstroPVDiagram module.
+fits file), please navigate to the AstroPVDiagram module. <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroPVSlice-Module">link</a>.
 */

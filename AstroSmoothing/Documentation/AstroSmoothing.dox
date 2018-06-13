@@ -1,6 +1,8 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroSmoothing AstroSmoothing
 \ingroup SlicerAstro_QtModules
-AstroSmoothing module filters a Volume using several techniques.
-The algorithms are optmized for Astronomical Neutral Hydrogen (HI) data.
+AstroSmoothing module filters a Volume using several techniques. <br>
+The algorithms are optmized for Astronomical Neutral Hydrogen (HI) data.  <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroSmoothing-Module">link</a>.
 */

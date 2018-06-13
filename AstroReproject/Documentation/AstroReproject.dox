@@ -7,8 +7,9 @@ reproject the spatial axis, (e.g., 2D images or 3D datacubes over 2D images).
 For example in the case of datacubes, the algorithm reprojects each slice
 (spatial celestial axis) of the datacube with the reference data (treating each slice as independent).
 However, overlaying two 3D astronomical datasets requires also to resample the velocity axes,
-which is not implemented in this module.
+which is not implemented in this module. <br> <br>
 The AstroReproject module requires that the WCS information contained in the fits header are correct
-and that the two datasets ahve the same celestial system of reference (e.g., J2000/FK5).
-
+and that the two datasets ahve the same celestial system of reference (e.g., J2000/FK5). <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroReproject-Module">link</a>.
 */

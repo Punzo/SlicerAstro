@@ -1,6 +1,7 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroMomentMaps AstroMomentMaps
 \ingroup SlicerAstro_QtModules
-AstroMomentMaps module generates Moment Maps given a selection.
-
+AstroMomentMaps module generates Moment Maps given a selection. <br> <br>
+Users documents are available at the following
+<a href="https://github.com/Punzo/SlicerAstro/wiki/AstroMomentMaps-Module">link</a>.
 */
