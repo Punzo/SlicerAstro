@@ -158,8 +158,7 @@ if(UNIX)
   # Install libraries
   include(SlicerFunctionInstallLibrary)
   foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${BBAROLO_LIBRARY})
-    message(STATUS "lib dir:  ${Slicer_THIRDPARTY_LIB_DIR}")
-    message(STATUS "library:  ${library}")
+    message(STATUS "installing library:  ${library}" )
     slicerInstallLibrary(FILE ${library}
       DESTINATION ${Slicer_THIRDPARTY_LIB_DIR}
       COMPONENT RuntimeLibraries
