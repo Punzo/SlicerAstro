@@ -28,7 +28,7 @@
 #include <vtkMRMLVolumeNode.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class qSlicerAstroVolumeDisplayWidgetPrivate
 {
   Q_DECLARE_PUBLIC(qSlicerAstroVolumeDisplayWidget);

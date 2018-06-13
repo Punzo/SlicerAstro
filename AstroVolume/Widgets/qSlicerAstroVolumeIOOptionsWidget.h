@@ -31,7 +31,7 @@
 
 class qSlicerAstroVolumeIOOptionsWidgetPrivate;
 
-/// \ingroup Slicer_QtModules_AstroVolume_Widgets
+/// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroVolumeIOOptionsWidget :
   public qSlicerIOOptionsWidget
 {

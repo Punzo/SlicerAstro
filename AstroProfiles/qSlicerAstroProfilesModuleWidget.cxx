@@ -94,7 +94,7 @@
 #include <sys/time.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroProfiles
+/// \ingroup SlicerAstro_QtModules_AstroProfiles
 class qSlicerAstroProfilesModuleWidgetPrivate: public Ui_qSlicerAstroProfilesModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroProfilesModuleWidget);

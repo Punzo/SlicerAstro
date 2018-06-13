@@ -88,7 +88,7 @@
 #include <sys/time.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroMomentMaps
+/// \ingroup SlicerAstro_QtModules_AstroMomentMaps
 class qSlicerAstroMomentMapsModuleWidgetPrivate: public Ui_qSlicerAstroMomentMapsModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroMomentMapsModuleWidget);

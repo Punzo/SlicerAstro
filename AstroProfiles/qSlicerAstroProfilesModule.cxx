@@ -40,7 +40,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroProfilesModule, qSlicerAstroProfilesModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroProfiles
+/// \ingroup SlicerAstro_QtModules_AstroProfiles
 class qSlicerAstroProfilesModulePrivate
 {
 public:

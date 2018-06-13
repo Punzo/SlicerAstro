@@ -111,7 +111,7 @@
 #include <vtkSlicerVolumeRenderingLogic.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class qSlicerAstroVolumeModuleWidgetPrivate
   : public Ui_qSlicerAstroVolumeModuleWidget
 {

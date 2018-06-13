@@ -29,7 +29,7 @@ class qSlicerAstroReprojectModuleWidgetPrivate;
 class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLNode;
 
-/// \ingroup Slicer_QtModules_AstroReproject
+/// \ingroup SlicerAstro_QtModules_AstroReproject
 class Q_SLICERASTRO_QTMODULES_ASTROREPROJECT_EXPORT qSlicerAstroReprojectModuleWidget :
   public qSlicerAbstractModuleWidget
 {

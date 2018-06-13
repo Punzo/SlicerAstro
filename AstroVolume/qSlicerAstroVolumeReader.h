@@ -28,7 +28,7 @@
 class qSlicerAstroVolumeReaderPrivate;
 class vtkSlicerVolumesLogic;
 
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeReader
   : public qSlicerFileReader
 {

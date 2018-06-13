@@ -30,7 +30,7 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroPVSliceModuleLogicExport.h"
 class vtkMRMLAstroPVSliceParametersNode;
 
-/// \ingroup Slicer_QtModules_AstroPVSlice
+/// \ingroup SlicerAstro_QtModules_AstroPVSlice
 class VTK_SLICERASTRO_ASTROPVSLICE_MODULE_LOGIC_EXPORT vtkSlicerAstroPVSliceLogic
   : public vtkSlicerModuleLogic
 {

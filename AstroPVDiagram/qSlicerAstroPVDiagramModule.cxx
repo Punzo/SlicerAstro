@@ -41,7 +41,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroPVDiagramModule, qSlicerAstroPVDiagramModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroPVDiagram
+/// \ingroup SlicerAstro_QtModules_AstroPVDiagram
 class qSlicerAstroPVDiagramModulePrivate
 {
 public:

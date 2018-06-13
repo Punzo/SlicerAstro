@@ -31,7 +31,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroWelcomeModule, qSlicerAstroWelcomeModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_SlicerAstroWelcome
+/// \ingroup SlicerAstro_QtModules_SlicerAstroWelcome
 class qSlicerAstroWelcomeModulePrivate
 {
 public:

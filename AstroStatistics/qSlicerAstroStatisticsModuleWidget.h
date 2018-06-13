@@ -32,7 +32,7 @@ class qSlicerAstroStatisticsModuleWidgetPrivate;
 class vtkMRMLAstroStatisticsParametersNode;
 class vtkMRMLNode;
 
-/// \ingroup Slicer_QtModules_AstroStatistics
+/// \ingroup SlicerAstro_QtModules_AstroStatistics
 class Q_SLICERASTRO_QTMODULES_ASTROSTATISTICS_EXPORT qSlicerAstroStatisticsModuleWidget :
   public qSlicerAbstractModuleWidget
 {

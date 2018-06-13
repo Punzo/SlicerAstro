@@ -41,7 +41,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroModelingModule, qSlicerAstroModelingModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroModeling
+/// \ingroup SlicerAstro_QtModules_AstroModeling
 class qSlicerAstroModelingModulePrivate
 {
 public:

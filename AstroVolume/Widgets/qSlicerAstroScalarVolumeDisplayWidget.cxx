@@ -81,7 +81,7 @@
 #include <limits>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_Volumes
+/// \ingroup SlicerAstro_QtModules_Volumes
 class qSlicerAstroScalarVolumeDisplayWidgetPrivate
   : public Ui_qSlicerAstroScalarVolumeDisplayWidget
 {

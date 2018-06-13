@@ -27,7 +27,7 @@
 
 class qSlicerAstroReprojectModulePrivate;
 
-/// \ingroup Slicer_QtModules_AstroReproject
+/// \ingroup SlicerAstro_QtModules_AstroReproject
 class Q_SLICERASTRO_QTMODULES_ASTROREPROJECT_EXPORT qSlicerAstroReprojectModule :
   public qSlicerLoadableModule
 {

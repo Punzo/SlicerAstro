@@ -66,7 +66,7 @@
 #define SigmatoFWHM 2.3548200450309493
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroReproject
+/// \ingroup SlicerAstro_QtModules_AstroReproject
 class qSlicerAstroReprojectModuleWidgetPrivate: public Ui_qSlicerAstroReprojectModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroReprojectModuleWidget);

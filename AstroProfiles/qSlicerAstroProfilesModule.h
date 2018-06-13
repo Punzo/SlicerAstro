@@ -27,7 +27,7 @@
 
 class qSlicerAstroProfilesModulePrivate;
 
-/// \ingroup Slicer_QtModules_AstroProfiles
+/// \ingroup SlicerAstro_QtModules_AstroProfiles
 class Q_SLICERASTRO_QTMODULES_ASTROPROFILES_EXPORT qSlicerAstroProfilesModule :
   public qSlicerLoadableModule
 {

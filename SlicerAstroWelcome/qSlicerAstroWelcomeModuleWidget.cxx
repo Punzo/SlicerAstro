@@ -51,7 +51,7 @@
 class qSlicerAppMainWindow;
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_SlicerAstroWelcome
+/// \ingroup SlicerAstro_QtModules_SlicerAstroWelcome
 class qSlicerAstroWelcomeModuleWidgetPrivate: public Ui_qSlicerAstroWelcomeModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroWelcomeModuleWidget);

@@ -30,7 +30,7 @@
 class qSlicerAbstractModuleWidget;
 class qSlicerAstroWelcomeModulePrivate;
 
-/// \ingroup Slicer_QtModules_SlicerAstroWelcome
+/// \ingroup SlicerAstro_QtModules_SlicerAstroWelcome
 class Q_SLICERASTRO_QTMODULES_ASTROWELCOME_EXPORT qSlicerAstroWelcomeModule :
   public qSlicerLoadableModule
 {

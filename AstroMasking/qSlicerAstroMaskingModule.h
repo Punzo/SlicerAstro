@@ -27,7 +27,7 @@
 
 class qSlicerAstroMaskingModulePrivate;
 
-/// \ingroup Slicer_QtModules_AstroMasking
+/// \ingroup SlicerAstro_QtModules_AstroMasking
 class Q_SLICERASTRO_QTMODULES_ASTROMASKING_EXPORT qSlicerAstroMaskingModule :
   public qSlicerLoadableModule
 {

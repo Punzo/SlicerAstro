@@ -85,7 +85,7 @@
 #define SigmatoFWHM 2.3548200450309493
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroSmoothing
+/// \ingroup SlicerAstro_QtModules_AstroSmoothing
 class qSlicerAstroSmoothingModuleWidgetPrivate: public Ui_qSlicerAstroSmoothingModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroSmoothingModuleWidget);

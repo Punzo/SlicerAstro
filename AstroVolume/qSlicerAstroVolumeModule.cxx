@@ -104,7 +104,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class qSlicerAstroVolumeModulePrivate
 {
   Q_DECLARE_PUBLIC(qSlicerAstroVolumeModule);

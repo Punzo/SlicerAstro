@@ -39,7 +39,7 @@ class vtkMRMLColorNode;
 class qSlicerAstroScalarVolumeDisplayWidgetPrivate;
 class vtkImageData;
 
-/// \ingroup Slicer_QtModules_AstroVolume_Widgets
+/// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroScalarVolumeDisplayWidget : public qSlicerWidget
 {
   Q_OBJECT

@@ -27,7 +27,7 @@
 
 class qSlicerAstroPVSliceModulePrivate;
 
-/// \ingroup Slicer_QtModules_AstroPVSlice
+/// \ingroup SlicerAstro_QtModules_AstroPVSlice
 class Q_SLICERASTRO_QTMODULES_ASTROPVSLICE_EXPORT qSlicerAstroPVSliceModule :
   public qSlicerLoadableModule
 {

@@ -33,7 +33,7 @@ class vtkSegment;
 #include "vtkSlicerAstroMaskingModuleLogicExport.h"
 class vtkMRMLAstroMaskingParametersNode;
 
-/// \ingroup Slicer_QtModules_AstroMasking
+/// \ingroup SlicerAstro_QtModules_AstroMasking
 class VTK_SLICERASTRO_ASTROMASKING_MODULE_LOGIC_EXPORT vtkSlicerAstroMaskingLogic
   : public vtkSlicerModuleLogic
 {

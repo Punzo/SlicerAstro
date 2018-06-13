@@ -34,7 +34,7 @@
 
 class vtkMRMLTableNode;
 
-/// \ingroup Slicer_QtModules_AstroModeling
+/// \ingroup SlicerAstro_QtModules_AstroModeling
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLNode
 {
   public:

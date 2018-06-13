@@ -32,7 +32,7 @@ class vtkSlicerMarkupsLogic;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLAstroVolumeDisplayNode;
 
-/// \ingroup Slicer_QtModules_AstroModeling
+/// \ingroup SlicerAstro_QtModules_AstroModeling
 class VTK_SLICERASTRO_ASTROMODELING_MODULE_LOGIC_EXPORT vtkSlicerAstroModelingLogic
   : public vtkSlicerModuleLogic
 {

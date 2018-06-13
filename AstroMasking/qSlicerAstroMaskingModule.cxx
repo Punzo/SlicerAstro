@@ -40,7 +40,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroMaskingModule, qSlicerAstroMaskingModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroMasking
+/// \ingroup SlicerAstro_QtModules_AstroMasking
 class qSlicerAstroMaskingModulePrivate
 {
 public:

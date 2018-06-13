@@ -124,7 +124,7 @@ std::string IntToString(int Value)
 } // end namespace
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroPVDiagram
+/// \ingroup SlicerAstro_QtModules_AstroPVDiagram
 class qSlicerAstroPVDiagramModuleWidgetPrivate: public Ui_qSlicerAstroPVDiagramModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroPVDiagramModuleWidget);

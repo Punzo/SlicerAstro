@@ -30,7 +30,7 @@
 // VTK includes
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_Volumes
+/// \ingroup SlicerAstro_QtModules_Volumes
 class qSlicerAstroLabelMapVolumeDisplayWidgetPrivate:
   public Ui_qSlicerAstroLabelMapVolumeDisplayWidget
 {

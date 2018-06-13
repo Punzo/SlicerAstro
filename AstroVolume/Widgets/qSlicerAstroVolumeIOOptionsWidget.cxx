@@ -41,7 +41,7 @@
 #include <vtkSlicerApplicationLogic.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroVolume
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class qSlicerAstroVolumeIOOptionsWidgetPrivate
   : public qSlicerIOOptionsPrivate
   , public Ui_qSlicerAstroVolumeIOOptionsWidget

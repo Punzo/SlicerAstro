@@ -139,7 +139,7 @@ int StringToInt(const char* str)
 } // end namespace
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroPVSlice
+/// \ingroup SlicerAstro_QtModules_AstroPVSlice
 class qSlicerAstroPVSliceModuleWidgetPrivate: public Ui_qSlicerAstroPVSliceModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroPVSliceModuleWidget);

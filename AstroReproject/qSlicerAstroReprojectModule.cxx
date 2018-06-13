@@ -41,7 +41,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroReprojectModule, qSlicerAstroReprojectModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroReproject
+/// \ingroup SlicerAstro_QtModules_AstroReproject
 class qSlicerAstroReprojectModulePrivate
 {
 public:

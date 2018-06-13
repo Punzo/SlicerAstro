@@ -39,7 +39,7 @@ class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeRenderingDisplayNode;
 
-/// \ingroup Slicer_QtModules_AstroVolumeNode
+/// \ingroup SlicerAstro_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
 {
   public:

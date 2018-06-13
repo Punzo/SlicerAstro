@@ -29,7 +29,7 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroStatisticsModuleLogicExport.h"
 class vtkMRMLAstroStatisticsParametersNode;
 
-/// \ingroup Slicer_QtModules_AstroStatistics
+/// \ingroup SlicerAstro_QtModules_AstroStatistics
 class VTK_SLICERASTRO_ASTROSTATISTICS_MODULE_LOGIC_EXPORT vtkSlicerAstroStatisticsLogic
   : public vtkSlicerModuleLogic
 {

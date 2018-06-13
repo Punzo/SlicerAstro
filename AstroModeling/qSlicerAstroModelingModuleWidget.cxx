@@ -103,7 +103,7 @@
 #include <sys/time.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroModeling
+/// \ingroup SlicerAstro_QtModules_AstroModeling
 class qSlicerAstroModelingModuleWidgetPrivate: public Ui_qSlicerAstroModelingModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroModelingModuleWidget);

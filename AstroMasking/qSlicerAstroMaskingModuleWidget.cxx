@@ -92,7 +92,7 @@
 #include <sys/time.h>
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroMasking
+/// \ingroup SlicerAstro_QtModules_AstroMasking
 class qSlicerAstroMaskingModuleWidgetPrivate: public Ui_qSlicerAstroMaskingModuleWidget
 {
   Q_DECLARE_PUBLIC(qSlicerAstroMaskingModuleWidget);

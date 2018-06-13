@@ -40,7 +40,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroMomentMapsModule, qSlicerAstroMomentMapsModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroMomentMaps
+/// \ingroup SlicerAstro_QtModules_AstroMomentMaps
 class qSlicerAstroMomentMapsModulePrivate
 {
 public:

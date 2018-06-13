@@ -30,7 +30,7 @@ class vtkRenderWindow;
 #include "vtkSlicerAstroSmoothingModuleLogicExport.h"
 class vtkMRMLAstroSmoothingParametersNode;
 
-/// \ingroup Slicer_QtModules_AstroSmoothing
+/// \ingroup SlicerAstro_QtModules_AstroSmoothing
 class VTK_SLICERASTRO_ASTROSMOOTHING_MODULE_LOGIC_EXPORT vtkSlicerAstroSmoothingLogic
   : public vtkSlicerModuleLogic
 {

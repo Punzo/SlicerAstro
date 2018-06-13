@@ -41,7 +41,7 @@ Q_EXPORT_PLUGIN2(qSlicerAstroSmoothingModule, qSlicerAstroSmoothingModule);
 #endif
 
 //-----------------------------------------------------------------------------
-/// \ingroup Slicer_QtModules_AstroSmoothing
+/// \ingroup SlicerAstro_QtModules_AstroSmoothing
 class qSlicerAstroSmoothingModulePrivate
 {
 public:

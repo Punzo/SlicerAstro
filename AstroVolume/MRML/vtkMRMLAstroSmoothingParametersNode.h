@@ -28,7 +28,7 @@
 
 class vtkDoubleArray;
 
-/// \ingroup Slicer_QtModules_AstroSmoothing
+/// \ingroup SlicerAstro_QtModules_AstroSmoothing
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRMLNode
 {
   public:

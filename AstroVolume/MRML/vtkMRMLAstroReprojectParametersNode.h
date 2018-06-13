@@ -32,7 +32,7 @@ class vtkMRMLAnnotationROINode;
 class vtkMRMLTableNode;
 class vtkMRMLTransformNode;
 
-/// \ingroup Slicer_QtModules_AstroReproject
+/// \ingroup SlicerAstro_QtModules_AstroReproject
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroReprojectParametersNode : public vtkMRMLNode
 {
   public:

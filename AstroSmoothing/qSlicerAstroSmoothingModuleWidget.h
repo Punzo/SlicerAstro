@@ -29,7 +29,7 @@ class qSlicerAstroSmoothingModuleWidgetPrivate;
 class vtkMRMLNode;
 class vtkMRMLAstroSmoothingParametersNode;
 
-/// \ingroup Slicer_QtModules_AstroSmoothing
+/// \ingroup SlicerAstro_QtModules_AstroSmoothing
 class Q_SLICERASTRO_QTMODULES_ASTROSMOOTHING_EXPORT qSlicerAstroSmoothingModuleWidget :
   public qSlicerAbstractModuleWidget
 {

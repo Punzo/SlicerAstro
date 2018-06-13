@@ -28,7 +28,7 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroReprojectModuleLogicExport.h"
 class vtkMRMLAstroReprojectParametersNode;
 
-/// \ingroup Slicer_QtModules_AstroReproject
+/// \ingroup SlicerAstro_QtModules_AstroReproject
 class VTK_SLICER_ASTROREPROJECT_MODULE_LOGIC_EXPORT vtkSlicerAstroReprojectLogic
   : public vtkSlicerModuleLogic
 {

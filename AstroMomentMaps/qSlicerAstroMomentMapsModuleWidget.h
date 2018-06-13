@@ -32,7 +32,7 @@ class qSlicerAstroMomentMapsModuleWidgetPrivate;
 class vtkMRMLAstroMomentMapsParametersNode;
 class vtkMRMLNode;
 
-/// \ingroup Slicer_QtModules_AstroMomentMaps
+/// \ingroup SlicerAstro_QtModules_AstroMomentMaps
 class Q_SLICERASTRO_QTMODULES_ASTROMOMENTMAPS_EXPORT qSlicerAstroMomentMapsModuleWidget :
   public qSlicerAbstractModuleWidget
 {
