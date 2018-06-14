@@ -1,7 +1,7 @@
 /**
 \defgroup SlicerAstro_QtModules_AstroStatistics AstroStatistics
 \ingroup SlicerAstro_QtModules
-AstroStatistics module calculates statistics given a selection. <br> <br>
+AstroStatistics module calculates statistics given a selection (ROI or segmentation). <br> <br>
 Users documents are available at the following
 <a href="https://github.com/Punzo/SlicerAstro/wiki/AstroStatistics-Module">link</a>.
 */

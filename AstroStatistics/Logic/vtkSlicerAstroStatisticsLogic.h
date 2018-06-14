@@ -29,6 +29,9 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroStatisticsModuleLogicExport.h"
 class vtkMRMLAstroStatisticsParametersNode;
 
+/// \class vtkSlicerAstroStatisticsLogic
+/// \brief Calculate statistics given selection (ROI or segmentation).
+///
 /// \ingroup SlicerAstro_QtModules_AstroStatistics
 class VTK_SLICERASTRO_ASTROSTATISTICS_MODULE_LOGIC_EXPORT vtkSlicerAstroStatisticsLogic
   : public vtkSlicerModuleLogic
@@ -39,19 +42,34 @@ public:
   vtkTypeMacro(vtkSlicerAstroStatisticsLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
+
+  /// Get AstroVolume module logic
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
+  /// Register MRML Node classes to Scene.
+  /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() VTK_OVERRIDE;
 
+  /// Run statistics calculation algorithm
+  /// \param MRML parameter node
+  /// \return Success flag
   bool CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode);
 
   /// Sets ROI to fit to input volume.
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.
+  /// \param MRML parameter node
+  /// \return Success flag
   virtual bool FitROIToInputVolume(vtkMRMLAstroStatisticsParametersNode* parametersNode);
 
+  /// Snap the ROI to the voxel grid of the input volume
+  /// \param MRML parameter node
   virtual void SnapROIToVoxelGrid(vtkMRMLAstroStatisticsParametersNode* parametersNode);
 
+  /// Check if the ROI is aligned with the input volume
+  /// \param MRML parameter node
+  /// \return Success flag
   virtual bool IsROIAlignedWithInputVolume(vtkMRMLAstroStatisticsParametersNode* parametersNode);
 
 protected:

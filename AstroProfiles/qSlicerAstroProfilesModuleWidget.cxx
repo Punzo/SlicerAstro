@@ -1010,6 +1010,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   int serial = d->parametersNode->GetOutputSerial();
 
+  // Create ProfileVolume
   std::ostringstream outSS;
   outSS << inputVolume->GetName() << "_Profile";
   outSS <<"_"<< IntToString(serial);
@@ -1053,11 +1054,11 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   imageDataTemp->SetSpacing(1.,1.,1.);
   imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
 
-  // create Astro Volume for the moment map
+  // Create Astro Volume for the profile
   ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast
      (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
 
-  // modify fits attributes
+  // Modify fits attributes
   ProfileVolume->SetAttribute("SlicerAstro.NAXIS", "1");
   ProfileVolume->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "1");
   ProfileVolume->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
@@ -1109,7 +1110,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   ProfileVolume->RemoveAttribute("SlicerAstro.PC3_2");
   ProfileVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
-  // copy 1D image into the Astro Volume object
+  // Copy 1D image into the Astro Volume object
   ProfileVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
   double Origin[3];
@@ -1138,6 +1139,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   ProfileVolume->SetAttribute("SlicerAstro.DATAMODEL", "PROFILE");
 
+  // Run computation
   if (!logic->CalculateProfile(d->parametersNode))
     {
     qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "

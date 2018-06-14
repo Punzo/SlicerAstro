@@ -84,36 +84,64 @@ protected:
   static void processEvents(vtkObject* caller, unsigned long eid,
                             void* clientData, void* callData);
 
+  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
+
+  /// Initialization of MRML moment map node
   void initializeMomentMapNode(bool forceNew = false);
-  void initializeRulerNode(bool forceNew = false, bool InitRulerPositions = true);
+
+  /// Initialization of MRML ruler node
+  void initializeRulerNode(bool forceNew = false,
+                           bool InitRulerPositions = true);
 
 protected slots:
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML moment map input node
+  void onMomentMapChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML ruler node
+  void onRulerChanged(vtkMRMLNode* mrmlNode);
+
+  /// Update widget GUI from MRML ruler node
+  void onMRMLPVSliceRulerNodeModified();
+
+  /// Update widget GUI from MRML ruler node
+  void onMRMLAstroPVSliceCenterModified();
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroPVSliceParametersNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroPVSliceParametersNode(vtkMRMLNode*);
+
   void on3DViewParallel();
   void on3DViewPerpendicular();
+
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onLayoutChanged(int layoutIndex);
-  void onMRMLAstroPVSliceCenterModified();
-  void onMRMLAstroPVSliceParametersNodeModified();
-  void onMRMLPVSliceRulerNodeModified();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMomentMapChanged(vtkMRMLNode* mrmlNode);
+  void onStartImportEvent();
+
+  void onLayoutChanged(int layoutIndex); 
   void onRotateRulerChanged(double theta);
   void onRulerCenterRightAscensionWCSChanged(double value);
   void onRulerCenterDeclinationWCSChanged(double value);
   void onRulerCenterRightAscensionIJKChanged(double value);
   void onRulerCenterDeclinationIJKChanged(double value);
-  void onRulerChanged(vtkMRMLNode* mrmlNode);
   void onRulerColorChanged(QColor color);
   void onSetRulerCenterClicked();
   void onShiftXRulerChanged(double shiftX);
   void onShiftYRulerChanged(double shiftY);
-  void onStartImportEvent();
-  void setMRMLAstroPVSliceParametersNode(vtkMRMLNode*);
+
+  void onMRMLSelectionNodeModified(vtkObject* sender);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroPVSliceModuleWidget);

@@ -72,7 +72,6 @@
 // Segment editor effects includes
 #include "qSlicerSegmentEditorEffectFactory.h"
 #include "qSlicerSegmentEditorAstroCloudLassoEffect.h"
-#include "qSlicerSegmentEditorAstroContoursEffect.h"
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
@@ -192,9 +191,7 @@ QStringList qSlicerAstroVolumeModule::categories() const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
-  QStringList moduleDependencies;
-  moduleDependencies << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor";
-  return moduleDependencies;
+  return QStringList() << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor";
 }
 
 //-----------------------------------------------------------------------------
@@ -220,6 +217,7 @@ void qSlicerAstroVolumeModule::setup()
 
   this->setMRMLScene(d->app->mrmlScene());
 
+  // Get Volumes logic
   qSlicerAbstractCoreModule* volumes = d->app->moduleManager()->module("Volumes");
   if (!volumes)
     {
@@ -237,6 +235,7 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
+  // Register I/O manager
   logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
   qSlicerCoreIOManager* ioManager = d->app->coreIOManager();
   ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
@@ -245,25 +244,15 @@ void qSlicerAstroVolumeModule::setup()
     QStringList() << "vtkMRMLVolumeNode", true, this));
 
 
-  //removing Volumes action from mainWindow interface:
-  //for the moment I just disable the widget creation,
-  //i.e. the action is still present on mainWindows.
-  //For the moment it is satisfactory.
+  // Removing Volumes action from mainWindow interface:
+  // this disable the creration of teh widget for the volumes module.
   volumes->setWidgetRepresentationCreationEnabled(false);
 
-  //modify precision in VolumeRenderingWidgets
+  // Modify VolumeRenderingWidgets
   d->volumeRendering = d->app->moduleManager()->module("VolumeRendering");
   if(!d->volumeRendering)
     {
     qCritical() << "qSlicerAstroVolumeModule::setup() : volumeRendering module not found!";
-    return;
-    }
-
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-    this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if(!selectionNode)
-    {
-    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found!";
     return;
     }
 
@@ -306,7 +295,15 @@ void qSlicerAstroVolumeModule::setup()
     }
   PresetsNodeComboBox->hide();
 
-  // modify units nodes
+  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
+    this->mrmlScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  if(!selectionNode)
+    {
+    qCritical() << "qSlicerAstroVolumeModule::setup() : selectionNode not found!";
+    return;
+    }
+
+  // Modify units nodes
   vtkMRMLUnitNode* unitNodeLength = selectionNode->GetUnitNode("length");
   unitNodeLength->SetMaximumValue(180.);
   unitNodeLength->SetMinimumValue(-180.);
@@ -343,7 +340,7 @@ void qSlicerAstroVolumeModule::setup()
   unitNodeFrequency->SetAttribute("DisplayHint","");
   selectionNode->SetUnitNodeID("frequency", unitNodeFrequency->GetID());
 
-  // set Slice Default Node
+  // Set Slice Default Node
   vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
       (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
   if (!defaultNode)
@@ -357,7 +354,7 @@ void qSlicerAstroVolumeModule::setup()
   defaultSliceNode->RenameSliceOrientationPreset("Sagittal", "ZY");
   defaultSliceNode->RenameSliceOrientationPreset("Coronal", "XY");
 
-  // modify SliceNodes already allocated
+  // Modify SliceNodes already allocated
   vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
 
@@ -375,7 +372,7 @@ void qSlicerAstroVolumeModule::setup()
       }
     }
 
-  // set the Slice Factory
+  // Set the Slice Factory
   qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
     d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
@@ -387,7 +384,7 @@ void qSlicerAstroVolumeModule::setup()
   d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
   d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
 
-  // modify orietation in default Layouts
+  // Modify orietation in default Layouts
   vtkMRMLLayoutNode* layoutNode =  vtkMRMLLayoutNode::SafeDownCast(
     this->mrmlScene()->GetSingletonNode("vtkMRMLLayoutNode","vtkMRMLLayoutNode"));
   if(!layoutNode)
@@ -427,23 +424,22 @@ void qSlicerAstroVolumeModule::setup()
     }
 
 
-  // unregister RulerDisplayableManager
+  // Unregister RulerDisplayableManager
   vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
     UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
 
-  // register AstroTwoDAxesDisplayableManager
+  // Register AstroTwoDAxesDisplayableManager
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroTwoDAxesDisplayableManager");
 
-  // register AstroTwoDAxesDisplayableManager
+  // Register AstroTwoDAxesDisplayableManager
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
     RegisterDisplayableManager("vtkMRMLAstroBeamDisplayableManager");
 
-  // register Astro Editor Effects in the Segmentation Editor
+  // Register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
-  //qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroContoursEffect());
 
   // Set Default ColorNodeTable
   defaultNode = vtkMRMLColorTableNode::SafeDownCast
@@ -495,6 +491,8 @@ vtkMRMLAbstractLogic* qSlicerAstroVolumeModule::createLogic()
 QStringList qSlicerAstroVolumeModule::associatedNodeTypes() const
 {
   return QStringList()
-    << "vtkMRMLVolumeNode"
-    << "vtkMRMLVolumeDisplayNode";
+    << "vtkMRMLAstroVolumeNode"
+    << "vtkMRMLAstroVolumeDisplayNode"
+    << "vtkMRMLAstroLabelMapVolumeNode"
+    << "vtkMRMLAstroLabelMapVolumeDisplayNode";
 }

@@ -40,11 +40,20 @@ class Q_SLICERASTRO_QTMODULES_ASTROMODELING_EXPORT qSlicerAstroModelingModuleWor
 public:
   qSlicerAstroModelingModuleWorker(QObject *parent = 0);
   virtual ~qSlicerAstroModelingModuleWorker();
+
+  /// External thread has requested to start computations
   void requestWork();
+
+  /// External thread has requested to stop computations
   void abort();
 
+  /// Set AstroModeling module logic
   void SetAstroModelingLogic(vtkSlicerAstroModelingLogic* logic);
+
+  /// Set AstroModeling module parameters node
   void SetAstroModelingParametersNode(vtkMRMLAstroModelingParametersNode* pnode);
+
+  /// Set AstroModeling module table node
   void SetTableNode(vtkMRMLTableNode* tnode);
 
 private:
@@ -60,6 +69,7 @@ signals:
   void finished();
 
 public slots:
+  /// Run the computation
   void doWork();
 };
 

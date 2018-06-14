@@ -103,10 +103,15 @@ public:
   qSlicerAstroMaskingModuleWidgetPrivate(qSlicerAstroMaskingModuleWidget& object);
   ~qSlicerAstroMaskingModuleWidgetPrivate();
 
+  /// Initialization function of the widgets
   void init();
+
+  /// clean pointers before importing a scene
   void cleanPointers();
 
+  /// return the logic
   vtkSlicerAstroMaskingLogic* logic() const;
+
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroMaskingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLAnnotationROINode> InputROINode;
@@ -438,7 +443,7 @@ void qSlicerAstroMaskingModuleWidget::onEndImportEvent()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMaskingModuleWidget::onInputROIChanged(vtkMRMLNode *node)
+void qSlicerAstroMaskingModuleWidget::onInputROIChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
 
@@ -447,7 +452,7 @@ void qSlicerAstroMaskingModuleWidget::onInputROIChanged(vtkMRMLNode *node)
     return;
     }
 
-  vtkMRMLAnnotationROINode* roiNode = vtkMRMLAnnotationROINode::SafeDownCast(node);
+  vtkMRMLAnnotationROINode* roiNode = vtkMRMLAnnotationROINode::SafeDownCast(mrmlNode);
   if (d->InputROINode == roiNode)
     {
     return;
@@ -684,6 +689,7 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
 
   d->parametersNode->SetMaskVolumeNodeID(labelMapNode->GetID());
 
+  // this is necessary to calculate the bondaries later on.
   return currentSegmentationNode->GetSegmentation()->GetSegment(selectedSegmentIDs[0].toStdString());
 }
 
@@ -1147,6 +1153,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
     return;
     }
 
+  // Create output volume node
   std::ostringstream outSS;
   outSS << inputVolume->GetName();
 
@@ -1195,6 +1202,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
       }
     }
 
+  // Create Astro Volume for the output
   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
@@ -1203,6 +1211,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
   vtkMRMLNode* node = NULL;
   outputVolume->SetPresetNode(node);
 
+  // Remove old rendering Display
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
   for (int ii = 0; ii < ndnodes; ii++)
     {
@@ -1220,6 +1229,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
   outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
+  // Run computation
   if (logic->ApplyMask(d->parametersNode, d->segmentEditorNode->GetSegmentationNode(), segment))
     {
     if (!(strcmp(d->parametersNode->GetOperation(), "Blank")))

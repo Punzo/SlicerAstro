@@ -763,6 +763,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
 
   const char* outputNameReference = "_Reprojected_";
 
+  // Create output volume
   std::ostringstream outSS;
   outSS << inputVolume->GetName() << outputNameReference;
 
@@ -775,6 +776,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
 
+  // Create Astro Volume for the output volume
   outputVolume = logic->GetAstroVolumeLogic()->CloneAstroVolume
     (this->mrmlScene(), inputVolume, outputVolume, outputNameReference, outSS.str().c_str());
   if(!outputVolume || !outputVolume->GetImageData())
@@ -789,6 +791,19 @@ void qSlicerAstroReprojectModuleWidget::onApply()
 
   vtkMRMLNode* node = NULL;
   outputVolume->SetPresetNode(node);
+
+  // Remove old rendering Display
+  int ndnodes = outputVolume->GetNumberOfDisplayNodes();
+  for (int ii = 0; ii < ndnodes; ii++)
+    {
+    vtkMRMLVolumeRenderingDisplayNode *dnode =
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+        outputVolume->GetNthDisplayNode(ii));
+    if (dnode)
+      {
+      outputVolume->RemoveNthDisplayNodeID(ii);
+      }
+    }
 
   vtkMRMLAstroVolumeDisplayNode *outputVolumeDisplay =
     outputVolume->GetAstroVolumeDisplayNode();

@@ -822,7 +822,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyMask(vtkMRMLAstroMaskingParametersNode *pn
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMaskingLogic::FitROIToInputVolume(vtkMRMLAstroMaskingParametersNode *parametersNode)
 {
-  if (!parametersNode)
+  if (!parametersNode || !this->GetAstroVolumeLogic())
     {
     return false;
     }
@@ -839,7 +839,7 @@ bool vtkSlicerAstroMaskingLogic::FitROIToInputVolume(vtkMRMLAstroMaskingParamete
 //----------------------------------------------------------------------------
 void vtkSlicerAstroMaskingLogic::SnapROIToVoxelGrid(vtkMRMLAstroMaskingParametersNode *parametersNode)
 {
-  if (!parametersNode)
+  if (!parametersNode || !this->GetAstroVolumeLogic())
     {
     return;
     }
@@ -856,7 +856,7 @@ void vtkSlicerAstroMaskingLogic::SnapROIToVoxelGrid(vtkMRMLAstroMaskingParameter
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMaskingLogic::IsROIAlignedWithInputVolume(vtkMRMLAstroMaskingParametersNode *parametersNode)
 {
-  if (!parametersNode)
+  if (!parametersNode || !this->GetAstroVolumeLogic())
     {
     return false;
     }

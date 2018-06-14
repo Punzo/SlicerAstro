@@ -51,39 +51,70 @@ public:
   Q_INVOKABLE vtkMRMLAstroProfilesParametersNode* mrmlAstroProfilesParametersNode()const;
 
 public slots:
+  /// Slots to generate the profile.
+  /// It creates an output volume and calls the logic
   void onCalculate();
 
 protected:
   QScopedPointer<qSlicerAstroProfilesModuleWidgetPrivate> d_ptr;
 
+  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene* scene);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
+
+  /// Initialization of MRML plot nodes
   void initializePlotNodes(bool forceNew = false);
+
+  /// Initialization of MRML segmentation nodes
   void initializeSegmentations(bool forceNew = false);
+
+  /// Convert a segmentation to LabelMap volume (a mask).
+  /// The LabelMap ID is stored in the MRML parameter node of the module
+  /// \return Success flag
   bool convertSelectedSegmentToLabelMap();
 
 protected slots:
-  void onComputationStarted();
-  void onComputationCancelled();
-  void onComputationFinished();
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML profile output node
+  void onProfileVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML segmentation editor node
+  void onSegmentEditorNodeModified(vtkObject* sender);
+
+  /// Update widget GUI from MRML input node
+  void onInputVolumeModified();
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroProfilesParametersNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroProfilesParametersNode(vtkMRMLNode*);
+
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onInputVolumeModified();
-  void onMaskActiveToggled(bool active);
-  void onMRMLAstroProfilesParametersNodeModified();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-  void onProfileVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onSegmentEditorNodeModified(vtkObject* sender);
   void onStartImportEvent();
+
+  void onMaskActiveToggled(bool active);
   void onThresholdRangeChanged(double min, double max);
   void onUnitNodeIntensityChanged(vtkObject* sender);
   void onUnitNodeVelocityChanged(vtkObject* sender);
   void onVelocityRangeChanged(double min, double max);
-  void setMRMLAstroProfilesParametersNode(vtkMRMLNode*);
+
+  void onMRMLSelectionNodeModified(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+
+  void onComputationStarted();
+  void onComputationCancelled();
+  void onComputationFinished();
   void updateProgress(int value);
 
 private:

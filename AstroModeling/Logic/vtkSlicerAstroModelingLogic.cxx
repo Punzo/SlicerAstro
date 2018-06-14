@@ -347,13 +347,6 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
     return 0;
     }
 
-  if(!tnode)
-    {
-    vtkWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                    " table node not found!");
-    return 0;
-    }
-
   if (!this->GetMRMLScene())
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"

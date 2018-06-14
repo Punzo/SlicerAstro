@@ -39,38 +39,47 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  // Description:
-  // Set node attributes
+  /// Set node attributes
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  // Description:
-  // Write this node's information to a MRML file in XML format.
+  /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  // Description:
-  // Copy the node's attributes to this object
+  /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  // Description:
-  // Get node XML tag name (like Volume, Model)
+  /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroPVDiagramParameters";};
 
+  /// Set/Get the InputVolumeNodeID.
+  /// \sa SetInputVolumeNodeID(), GetInputVolumeNodeID()
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
 
+  /// Set/Get the MomentMapNodeID.
+  /// \sa SetMomentMapNodeID(), GetMomentMapNodeID()
   vtkSetStringMacro(MomentMapNodeID);
   vtkGetStringMacro(MomentMapNodeID);
 
+  /// Set/Get the OutputVolumeNodeID.
+  /// \sa SetOutputVolumeNodeID(), GetOutputVolumeNodeID()
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
+  /// Set/Get the FiducialsMarkupsID.
+  /// \sa SetFiducialsMarkupsID(), GetFiducialsMarkupsID()
   vtkSetStringMacro(FiducialsMarkupsID);
   vtkGetStringMacro(FiducialsMarkupsID);
 
+  /// Set/Get the ModelID.
+  /// \sa SetModelID(), GetModelID()
   vtkSetStringMacro(ModelID);
   vtkGetStringMacro(ModelID);
 
+  /// Set Interpolation
   void SetInterpolation(bool interpolation);
+
+  /// Get Interpolation
   vtkGetMacro(Interpolation,bool);
   vtkBooleanMacro(Interpolation,bool);
 
@@ -80,6 +89,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
     InterpolationModifiedEvent = 130000
     };
 
+  /// Set/Get the AutoUpdate.
+  /// \sa SetAutoUpdate(), GetAutoUpdate()
   vtkSetMacro(AutoUpdate,bool);
   vtkGetMacro(AutoUpdate,bool);
   vtkBooleanMacro(AutoUpdate,bool);

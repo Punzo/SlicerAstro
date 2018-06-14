@@ -52,41 +52,72 @@ public:
   Q_INVOKABLE vtkMRMLAstroMaskingParametersNode* mrmlAstroMaskingParametersNode()const;
 
 public slots:
+  /// Slots to apply the masking operation.
+  /// It creates an output volume and calls the logic
   void onApply();
 
 protected:
   QScopedPointer<qSlicerAstroMaskingModuleWidgetPrivate> d_ptr;
 
+  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
+
+  /// Initialization of MRML segmentation nodes
   void initializeSegmentations(bool forceNew = false);
+
+  /// Initialization of MRML ROI node
   void initializeROINode(bool forceNew = false);
+
+  /// Convert a segmentation to LabelMap volume (a mask).
+  /// The LabelMap ID is stored in the MRML parameter node of the module
+  /// \return the selected vtkSegment (only one segment can be selected for masking)
   vtkSegment* convertSelectedSegmentToLabelMap();
 
 protected slots:
-  void onBlankValueChanged();
-  void onComputationStarted();
-  void onComputationCancelled();
-  void onComputationFinished();
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML ROI node
+  void onInputROIChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML output node
+  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML segmentation editor node
+  void onSegmentEditorNodeModified(vtkObject* sender);
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroMaskingParametersNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroMaskingParametersNode(vtkMRMLNode* mrmlNode);
+
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onInputROIChanged(vtkMRMLNode* node);
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onStartImportEvent();
+
+  void onBlankValueChanged();
   void onInsideBlankRegionChanged();
   void onModeChanged();
-  void onMRMLAstroMaskingParametersNodeModified();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
   void onOperationChanged(QString Operation);
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onOutsideBlankRegionChanged();
   void onROIFit();
   void onROIVisibilityChanged(bool visible);
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  void onStartImportEvent();
-  void setMRMLAstroMaskingParametersNode(vtkMRMLNode*);
+
+  void onMRMLSelectionNodeModified(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+
+  void onComputationStarted();
+  void onComputationCancelled();
+  void onComputationFinished();
   void updateProgress(int value);
 
 private:

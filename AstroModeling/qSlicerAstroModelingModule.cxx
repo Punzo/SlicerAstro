@@ -114,6 +114,12 @@ QStringList qSlicerAstroModelingModule::categories()const
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroModelingModule::associatedNodeTypes() const
+{
+  return QStringList() << "vtkMRMLAstroModelingParametersNode";
+}
+
+//-----------------------------------------------------------------------------
 QStringList qSlicerAstroModelingModule::dependencies()const
 {
   return QStringList() << "AstroVolume" << "Markups" << "Segmentations" ;
@@ -123,9 +129,12 @@ QStringList qSlicerAstroModelingModule::dependencies()const
 void qSlicerAstroModelingModule::setup()
 {
   this->Superclass::setup();
+
+  // Register logic
   vtkSlicerAstroModelingLogic* AstroModelingLogic =
     vtkSlicerAstroModelingLogic::SafeDownCast(this->logic());
 
+  // Register AstroVolume module logic
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
   if (!astroVolumeModule)
@@ -133,6 +142,7 @@ void qSlicerAstroModelingModule::setup()
     qCritical() << "AstroVolume module is not found";
     return;
     }
+
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
   if (!astroVolumeLogic)
@@ -140,8 +150,10 @@ void qSlicerAstroModelingModule::setup()
     qCritical() << "AstroVolume logic is not found";
     return;
     }
+
   AstroModelingLogic->SetAstroVolumeLogic(astroVolumeLogic);
 
+  // Register Markups module logic
   qSlicerAbstractCoreModule* markupsModule =
     qSlicerCoreApplication::application()->moduleManager()->module("Markups");
   if (!markupsModule)
@@ -149,6 +161,7 @@ void qSlicerAstroModelingModule::setup()
     qCritical() << "Markups module is not found";
     return;
     }
+
   vtkSlicerMarkupsLogic* markupsLogic =
     vtkSlicerMarkupsLogic::SafeDownCast(markupsModule->logic());
   if (!markupsLogic)
@@ -156,6 +169,7 @@ void qSlicerAstroModelingModule::setup()
     qCritical() << "Markups logic is not found";
     return;
     }
+
   AstroModelingLogic->SetMarkupsLogic(markupsLogic);
 }
 

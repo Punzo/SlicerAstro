@@ -106,6 +106,12 @@ QStringList qSlicerAstroStatisticsModule::categories()const
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroStatisticsModule::associatedNodeTypes() const
+{
+  return QStringList() << "vtkMRMLAstroStatisticsParametersNode";
+}
+
+//-----------------------------------------------------------------------------
 QStringList qSlicerAstroStatisticsModule::dependencies()const
 {
   return QStringList() << "AstroVolume" << "Segmentations" ;
@@ -115,9 +121,12 @@ QStringList qSlicerAstroStatisticsModule::dependencies()const
 void qSlicerAstroStatisticsModule::setup()
 {
   this->Superclass::setup();
+
+  // Register logic
   vtkSlicerAstroStatisticsLogic* AstroStatisticsLogic =
     vtkSlicerAstroStatisticsLogic::SafeDownCast(this->logic());
 
+  // Register AstroVolume module logic
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
   if (!astroVolumeModule)
@@ -125,8 +134,15 @@ void qSlicerAstroStatisticsModule::setup()
     qCritical() << "AstroVolume module is not found";
     return;
     }
+
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
+  if (!astroVolumeLogic)
+    {
+    qCritical() << "AstroVolume logic is not found";
+    return;
+    }
+
   AstroStatisticsLogic->SetAstroVolumeLogic(astroVolumeLogic);
 }
 

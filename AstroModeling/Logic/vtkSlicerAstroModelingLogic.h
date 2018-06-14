@@ -32,6 +32,11 @@ class vtkSlicerMarkupsLogic;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLAstroVolumeDisplayNode;
 
+/// \class vtkSlicerAstroMaskingLogic
+/// \brief This is a C++ SlicerAstro wrapping of 3DBAROLO,
+/// a 3D algorithm to derive rotation curves of galaxies,
+/// developed by Enrico di Teodoro.
+///
 /// \ingroup SlicerAstro_QtModules_AstroModeling
 class VTK_SLICERASTRO_ASTROMODELING_MODULE_LOGIC_EXPORT vtkSlicerAstroModelingLogic
   : public vtkSlicerModuleLogic
@@ -42,25 +47,45 @@ public:
   vtkTypeMacro(vtkSlicerAstroModelingLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
+
+  /// Get AstroVolume module logic
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
+  /// Set Markups module logic
   void SetMarkupsLogic(vtkSlicerMarkupsLogic* logic);
-  vtkSlicerMarkupsLogic *GetMarkupsLogic();
 
+  /// Get Markups module logic
+  vtkSlicerMarkupsLogic* GetMarkupsLogic();
+
+  /// Register MRML Node classes to Scene.
+  /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() VTK_OVERRIDE;
 
+  /// Run Estimation, Crate Model or Fitting Model
+  /// \param MRML parameter node
+  /// \param MRML table node
+  /// \return Success flag
   int OperateModel(vtkMRMLAstroModelingParametersNode *pnode,
                    vtkMRMLTableNode *tnode);
 
+  /// Recalculate the model from new parameters in the mrml table
+  /// \param MRML parameter node
+  /// \param MRML table node
+  /// \return Success flag
   int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode);
 
+  /// Clean all the pointers of the instantiated calsses of 3DBarolo
   void cleanPointers();
 
 protected:
   vtkSlicerAstroModelingLogic();
   virtual ~vtkSlicerAstroModelingLogic();
 
+  /// Calculate the wcs velocity in the center of the data-cube
+  /// \param MRML astro volume display node
+  /// \return value
   double CalculateCentralVelocity(vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode);
 
 private:

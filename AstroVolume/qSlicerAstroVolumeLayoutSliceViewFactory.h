@@ -41,11 +41,15 @@ public:
   qSlicerAstroVolumeLayoutSliceViewFactory(QObject* parent);
   virtual ~qSlicerAstroVolumeLayoutSliceViewFactory();
 
+  /// Return the class name
   virtual QString viewClassName()const;
 
 protected:
 
+  /// Create and return the widget associated with the MRML view node
   virtual QWidget* createViewFromNode(vtkMRMLAbstractViewNode* viewNode);
+
+  /// Delete the MRML view node
   virtual void deleteView(vtkMRMLAbstractViewNode* viewNode);
 
 private:

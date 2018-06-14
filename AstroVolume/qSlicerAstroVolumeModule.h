@@ -50,13 +50,28 @@ public:
   qSlicerAstroVolumeModule(QObject *parent=0);
   virtual ~qSlicerAstroVolumeModule();
 
-  virtual QString helpText()const;
-  virtual QString acknowledgementText()const;
-  virtual QStringList contributors()const;
-  virtual QIcon icon()const;
-  virtual QStringList categories()const;
-  virtual QStringList dependencies()const;
   qSlicerGetTitleMacro(QTMODULE_TITLE);
+
+  /// Help to use the module
+  virtual QString helpText()const;
+
+  /// Return acknowledgments
+  virtual QString acknowledgementText()const;
+
+  /// Return the authors of the module
+  virtual QStringList contributors()const;
+
+  /// Return module dependencies
+  virtual QStringList dependencies()const;
+
+  /// Return a custom icon for the module
+  virtual QIcon icon()const;
+
+  /// Return the categories for the module
+  virtual QStringList categories()const;
+
+  /// Define associated node types
+  virtual QStringList associatedNodeTypes()const;
 
 protected:
   /// Initialize the module. Register the AstroVolume reader/writer
@@ -67,9 +82,6 @@ protected:
 
   /// Create and return the logic associated to this module
   virtual vtkMRMLAbstractLogic* createLogic();
-
-  /// Specify editable node types
-  virtual QStringList associatedNodeTypes()const;
 
   QScopedPointer<qSlicerAstroVolumeModulePrivate> d_ptr;
 

@@ -110,6 +110,12 @@ QStringList qSlicerAstroPVDiagramModule::categories()const
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroPVDiagramModule::associatedNodeTypes() const
+{
+  return QStringList() << "vtkMRMLAstroPVDiagramParametersNode";
+}
+
+//-----------------------------------------------------------------------------
 QStringList qSlicerAstroPVDiagramModule::dependencies()const
 {
   return QStringList() << "AstroVolume" << "AstroMomentMaps" << "Markups";
@@ -119,9 +125,12 @@ QStringList qSlicerAstroPVDiagramModule::dependencies()const
 void qSlicerAstroPVDiagramModule::setup()
 {
   this->Superclass::setup();
+
+  // Register logic
   vtkSlicerAstroPVDiagramLogic* AstroPVDiagramLogic =
     vtkSlicerAstroPVDiagramLogic::SafeDownCast(this->logic());
 
+  // Register AstroVolume module logic
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
   if (!astroVolumeModule)
@@ -131,17 +140,31 @@ void qSlicerAstroPVDiagramModule::setup()
     }
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
+  if (!astroVolumeLogic)
+    {
+    qCritical() << "AstroVolume logic is not found";
+    return;
+    }
+
   AstroPVDiagramLogic->SetAstroVolumeLogic(astroVolumeLogic);
 
+  // Register AstroMomentMaps module logic
   qSlicerAbstractCoreModule* astroMomentMapsModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroMomentMaps");
   if (!astroMomentMapsModule)
     {
-    qCritical() << "astroMomentMaps module is not found";
+    qCritical() << "AstroMomentMaps module is not found";
     return;
     }
+
   vtkSlicerAstroMomentMapsLogic* astroMomentMapsLogic =
     vtkSlicerAstroMomentMapsLogic::SafeDownCast(astroMomentMapsModule->logic());
+  if (!astroMomentMapsLogic)
+    {
+    qCritical() << "AstroMomentMaps logic is not found";
+    return;
+    }
+
   AstroPVDiagramLogic->SetAstroMomentMapsLogic(astroMomentMapsLogic);
 }
 

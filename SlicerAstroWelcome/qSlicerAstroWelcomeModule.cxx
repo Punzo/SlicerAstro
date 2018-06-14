@@ -52,7 +52,13 @@ qSlicerAstroWelcomeModule::~qSlicerAstroWelcomeModule()
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroWelcomeModule::categories()const
 {
-  return QStringList() << "Astronomy"<<"";
+  return QStringList() << "Astronomy";
+}
+
+//-----------------------------------------------------------------------------
+QStringList qSlicerAstroWelcomeModule::associatedNodeTypes() const
+{
+  return QStringList() << "";
 }
 
 //-----------------------------------------------------------------------------
@@ -104,5 +110,5 @@ qSlicerAbstractModuleRepresentation* qSlicerAstroWelcomeModule::createWidgetRepr
 //-----------------------------------------------------------------------------
 vtkMRMLAbstractLogic* qSlicerAstroWelcomeModule::createLogic()
 {
-  return 0;
+  return NULL;
 }

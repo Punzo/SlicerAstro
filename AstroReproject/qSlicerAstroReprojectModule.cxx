@@ -115,6 +115,12 @@ QStringList qSlicerAstroReprojectModule::categories()const
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroReprojectModule::associatedNodeTypes() const
+{
+  return QStringList() << "vtkMRMLAstroReprojectParametersNode";
+}
+
+//-----------------------------------------------------------------------------
 QStringList qSlicerAstroReprojectModule::dependencies()const
 {
   return QStringList() << "AstroVolume" ;
@@ -124,9 +130,12 @@ QStringList qSlicerAstroReprojectModule::dependencies()const
 void qSlicerAstroReprojectModule::setup()
 {
   this->Superclass::setup();
+
+  // Register logic
   vtkSlicerAstroReprojectLogic* AstroReprojectLogic =
     vtkSlicerAstroReprojectLogic::SafeDownCast(this->logic());
 
+  // Register AstroVolume module logic
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
   if (!astroVolumeModule)
@@ -134,8 +143,15 @@ void qSlicerAstroReprojectModule::setup()
     qCritical() << "AstroVolume module is not found";
     return;
     }
+
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
+  if (!astroVolumeLogic)
+    {
+    qCritical() << "AstroVolume logic is not found";
+    return;
+    }
+
   AstroReprojectLogic->SetAstroVolumeLogic(astroVolumeLogic);
 }
 

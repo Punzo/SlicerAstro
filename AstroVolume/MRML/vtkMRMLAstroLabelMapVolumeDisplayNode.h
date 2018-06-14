@@ -48,137 +48,113 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  ///
   /// Set node attributes
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  ///
   /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  ///
   /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  ///
   /// Copy WCS to this object
   virtual void CopyWCS(vtkMRMLNode *node);
 
-  ///
   /// Copy only the spatial WCS information to this object
   virtual void CopySpatialWCS(vtkMRMLNode *node);
 
-  ///
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroLabelMapVolumeDisplay";};
 
-  ///
-  /// set default labels colormap
+  /// Set default labels colormap
   virtual void SetDefaultColorMap() VTK_OVERRIDE;
 
-  ///
   /// Set/Get the CoordinateSystem.
-  /// Default is "WCS".
+  /// Default is "WCS"
   /// \sa SetSpace(), GetSpace()
   vtkGetStringMacro(Space);
   vtkSetStringMacro(Space);
 
-  ///
   /// Set/Get the SpaceQuantities.
-  /// The default is 3 and the values are "length; length; velocity".
+  /// The default is 3 and the values are "length; length; velocity"
   /// \sa SetSpaceQuantities(), GetSpaceQuantities()
   vtkGetObjectMacro(SpaceQuantities, vtkStringArray);
   vtkSetObjectMacro(SpaceQuantities, vtkStringArray);
 
-  ///
   /// Set the i-th SpaceQunatity name
   bool SetSpaceQuantity(int ind, const char *name);
 
-  ///
-  ///Set WCSStruct
+  /// Set WCSStruct
   virtual void SetWCSStruct(struct wcsprm*);
 
-  ///
-  ///Get WCSStruct
+  /// Get WCSStruct
   virtual struct wcsprm* GetWCSStruct();
 
-  ///
   /// WcsStatus
   vtkSetMacro(WCSStatus,int);
   vtkGetMacro(WCSStatus,int);
 
-  ///
   /// Set radio as velocity definition
   virtual bool SetRadioVelocityDefinition(bool update = true);
 
-  ///
   /// Set optical as velocity definition
   virtual bool SetOpticalVelocityDefinition(bool update = true);
 
-  ///
   /// Get the velocity definition currently in use
   virtual std::string GetVelocityDefinition();
 
-  ///
   /// Get WCS Coordinates from IJK
   virtual bool GetReferenceSpace(const double ijk[3],
                                  double SpaceCoordinates[3]);
 
-  ///
   /// Get IJK Coordinates from WCS
   virtual bool GetIJKSpace(const double SpaceCoordinates[3],
                            double ijk[3]);
 
-  ///
   /// Get IJK Coordinates from WCS
   virtual bool GetIJKSpace(std::vector<double> SpaceCoordinates,
                            double ijk[3]);
 
-  ///
   /// Get the first tick for the display of axes at given unitNode in WCS units
   virtual double GetFirstWcsTickAxis(const double worldA, const double worldB,
                                      const double wcsStep, vtkMRMLUnitNode *node);
 
-  ///
   /// Get the first tick for the display of the axis X in WCS units
   virtual double GetFirstWcsTickAxisX(const double worldA, const double worldB, const double wcsStep);
 
-  ///
   /// Get the first tick for the display of the axis Y in WCS units
   virtual double GetFirstWcsTickAxisY(const double worldA, const double worldB, const double wcsStep);
 
-  ///
   /// Get the first tick for the display of the axis Z in WCS units
   virtual double GetFirstWcsTickAxisZ(const double worldA, const double worldB, const double wcsStep);
 
-  ///
   /// Get the ticks step for the display of axes at given unitNode in WCS units
   virtual double GetWcsTickStepAxis(const double wcsLength,
                                     int *numberOfPoints,
                                     vtkMRMLUnitNode *node);
 
-  ///
   /// Get the ticks step for the display of the axis X in WCS units
   virtual double GetWcsTickStepAxisX(const double wcsLength,
                                      int* numberOfPoints);
 
-  ///
   /// Get the ticks step for the display of the axis Y in WCS units
   virtual double GetWcsTickStepAxisY(const double wcsLength,
                                      int* numberOfPoints);
 
-  ///
   /// Get the ticks step for the display of the axis Z in WCS units
   virtual double GetWcsTickStepAxisZ(const double wcsLength,
                                      int* numberOfPoints);
 
-  ///
   /// Given a volume node, create a human
   /// readable string describing the contents
   virtual std::string GetPixelString(double *ijk);
 
   ///
-  /// Given a coordinate of the volume and unit node,
+  /// \brief Get display string from a value
+  /// \param world wcs coordinate
+  /// \param unit node
+  /// \param decimal precision
+  /// \param language (C++ or Python)
   /// create a string if special formatting is required
   virtual std::string GetDisplayStringFromValue(const double world,
                                                 vtkMRMLUnitNode *node,
@@ -188,35 +164,61 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
                                                 double outputValues[3],
                                                 bool additionalSpace = false);
 
-  ///
-  /// \brief GetDisplayStringFromValueAxes
-  /// \param world
-  /// \return Given a coordinate of the volume,
-  /// create a string if special formatting is required
-
+  /// \brief Get display string from a value for the axes X
+  /// \param world wcs coordinate
+  /// \return Given a coordinate of the volume
+  /// create a string if special formatting is required (C++ method)
   virtual std::string GetDisplayStringFromValueX(const double world,
                                                  const double oldOutputValues[3],
                                                  double outputValues[3],
                                                  int precision = 0,
                                                  bool additionalSpace = false);
+
+  /// \brief Get display string from a value for the axes Y
+  /// \param world wcs coordinate
+  /// \return Given a coordinate of the volume
+  /// create a string if special formatting is required (C++ method)
   virtual std::string GetDisplayStringFromValueY(const double world,
                                                  const double oldOutputValues[3],
                                                  double outputValues[3],
                                                  int precision = 0,
                                                  bool additionalSpace = false);
+
+  /// \brief Get display string from a value for the axes Z
+  /// \param world wcs coordinate
+  /// \return Given a coordinate of the volume
+  /// create a string if special formatting is required (C++ method)
   virtual std::string GetDisplayStringFromValueZ(const double world,
                                                  const double oldOutputValues[3],
                                                  double outputValues[3],
                                                  int precision = 0,
                                                  bool additionalSpace = false);
 
+  /// \brief Get display string from a value for the axes X
+  /// \param world wcs coordinate
+  /// \return Given a coordinate of the volume
+  /// create a string if special formatting is required (Python method)
   virtual std::string GetPythonDisplayStringFromValueX(const double world,
                                                        int precision = 0);
+
+  /// \brief Get display string from a value for the axes Y
+  /// \param world wcs coordinate
+  /// \return Given a coordinate of the volume
+  /// create a string if special formatting is required (Python method)
   virtual std::string GetPythonDisplayStringFromValueY(const double world,
                                                        int precision = 0);
+
+  ///
+  /// \brief Get display string from a value for the axes Z
+  /// \param world wcs coordinate
+  /// \return Given a coordinate of the volume
+  /// create a string if special formatting is required (Python method)
   virtual std::string GetPythonDisplayStringFromValueZ(const double world,
                                                        int precision = 0);
 
+  /// \brief add velocity type to a display string from a value for the axes Z
+  /// \param string value (alrady fromatted by GetDisplayStringFromValue)
+  /// \return string value formatted with velocity information
   virtual std::string AddVelocityInfoToDisplayStringZ(std::string value);
 
 protected:

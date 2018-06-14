@@ -53,17 +53,27 @@ public:
   bool isDataTypeEditable()const;
 
 public slots:
+
   /// Utility function to be connected with generic signals
   void setVolumeNode(vtkMRMLNode *node);
+
   /// Set the volume node to display
   void setVolumeNode(vtkMRMLVolumeNode *node);
 
+  /// Set the spacing of the volume
   void setImageSpacing(double*);
+
+  /// Set the center of the volume
   void setImageOrigin(double*);
+
+  /// Center the volume in the RAS coordinates
   void center();
+
+  /// Set the number of scalar component
   void setNumberOfScalars(int);
 
 protected slots:
+  /// Update widget GUI from MRML AstroVolume node
   void updateWidgetFromMRML();
 
 protected:

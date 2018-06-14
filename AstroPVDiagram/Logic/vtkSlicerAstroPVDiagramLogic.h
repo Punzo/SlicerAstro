@@ -30,6 +30,9 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroPVDiagramModuleLogicExport.h"
 class vtkMRMLAstroPVDiagramParametersNode;
 
+/// \class vtkSlicerAstroMomentMapsLogic
+/// \brief Generates a Position Velocity (PV) diagram from fiducial markups.
+///
 /// \ingroup SlicerAstro_QtModules_AstroPVDiagram
 class VTK_SLICERASTRO_ASTROPVDIAGRAM_MODULE_LOGIC_EXPORT vtkSlicerAstroPVDiagramLogic
   : public vtkSlicerModuleLogic
@@ -40,19 +43,40 @@ public:
   vtkTypeMacro(vtkSlicerAstroPVDiagramLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
+
+  /// Get AstroVolume module logic
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
+  /// Set AstroMomentMaps module logic
   void SetAstroMomentMapsLogic(vtkSlicerAstroMomentMapsLogic* logic);
-  vtkSlicerAstroMomentMapsLogic *GetAstroMomentMapsLogic();
 
+  /// Get AstroMomentMaps module logic
+  vtkSlicerAstroMomentMapsLogic* GetAstroMomentMapsLogic();
+
+  /// Register MRML Node classes to Scene.
+  /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() VTK_OVERRIDE;
 
+  /// Run 0th moment maps calculation algorithm
+  /// \param MRML parameter node
+  /// \return Success flag
   bool Calculate0thMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
+  /// Set current selected moment map on Red slice widget
+  /// \param MRML parameter node
+  /// \return Success flag
   bool SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagramParametersNode *pnode);
 
+  /// Update the slice selection from the MRML fiducial markups node
+  /// \param MRML parameter node
+  /// \return Success flag
   bool UpdateSliceSelection(vtkMRMLAstroPVDiagramParametersNode *pnode);
 
+  /// Run the calculation to generate the PV diagram and set in the layout
+  /// \param MRML parameter node
+  /// \return Success flag
   bool GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode);
 
 protected:

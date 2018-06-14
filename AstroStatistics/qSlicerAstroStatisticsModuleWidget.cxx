@@ -1311,6 +1311,7 @@ void qSlicerAstroStatisticsModuleWidget::onCalculate()
       }
     }
 
+  // Run computation
   if (!logic->CalculateStatistics(d->parametersNode))
     {
     qCritical() <<"qSlicerAstroStatisticsModuleWidget::onCalculate : "

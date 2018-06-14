@@ -39,8 +39,10 @@ public:
   vtkTypeMacro(vtkMRMLAstroBeamDisplayableManager,vtkMRMLAbstractDisplayableManager);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Get vtkMarkerRenderer
   vtkRenderer* vtkMarkerRenderer();
 
+  /// Set annotation color
   void SetAnnotationsColor(double red,
                            double green,
                            double blue);
@@ -54,7 +56,7 @@ protected:
   virtual void Create() VTK_OVERRIDE;
 
   /// Called each time the view node is modified.
-  /// Internally update the renderer from the view node.
+  /// Internally update the renderer from the view node
   /// \sa UpdateFromMRMLViewNode()
   virtual void OnMRMLDisplayableNodeModifiedEvent(vtkObject* caller) VTK_OVERRIDE;
 

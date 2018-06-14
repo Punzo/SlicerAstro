@@ -38,14 +38,18 @@ public:
   vtkTypeMacro(vtkMRMLAstroTwoDAxesDisplayableManager,vtkMRMLAbstractDisplayableManager);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Get vtkMarkerRenderer
   vtkRenderer* vtkMarkerRenderer();
 
+  /// Set annotation color
   void SetAnnotationsColor(double red,
                            double green,
                            double blue);
 
+  /// Set font style
   void SetAnnotationsFontStyle(const char* font);
 
+  /// Set font size
   void SetAnnotationsFontSize(int size);
 
 protected:
@@ -57,7 +61,7 @@ protected:
   virtual void Create() VTK_OVERRIDE;
 
   /// Called each time the view node is modified.
-  /// Internally update the renderer from the view node.
+  /// Internally update the renderer from the view node
   /// \sa UpdateFromMRMLViewNode()
   virtual void OnMRMLDisplayableNodeModifiedEvent(vtkObject* caller) VTK_OVERRIDE;
 
@@ -66,7 +70,6 @@ protected:
 
   /// Update the renderer based on the master renderer (the one that the orientation marker follows)
   void UpdateFromRenderer();
-
 
 private:
 

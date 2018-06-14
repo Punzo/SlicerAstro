@@ -51,36 +51,71 @@ public:
   Q_INVOKABLE vtkMRMLAstroPVDiagramParametersNode* mrmlAstroPVDiagramParametersNode()const;
 
 public slots:
+  /// Slots to generate the PV diagram.
+  /// It creates the output volume and calls the logic
   void generatePVDiagram();
 
 protected:
   QScopedPointer<qSlicerAstroPVDiagramModuleWidgetPrivate> d_ptr;
 
+  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
+
+  /// Initialization of MRML moment map node
   void initializeMomentMapNode(bool forceNew = false);
+
+  /// Initialization of MRML fiducial markups node
   void initializeFiducialsMarkupsNode(bool forceNew = false);
+
+  /// Initialization of MRML model (line) node
   void initializeLineModelNode(bool forceNew = false);
 
 protected slots:
-  void onAutoUpdateToggled(bool toggled);
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML fiducial markups node
+  void onFiducialsMarkupsChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML model (line) node
+  void onModelChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML moment map input node
+  void onMomentMapChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML output node
+  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroPVDiagramInterpolationModeModified();
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroPVDiagramParametersNodeModified();
+
+  /// Update widget GUI from MRML fiducial markups node
+  void onMRMLSourcePointsNodeMarkupAdded();
+
+  /// Update widget GUI from MRML fiducial markups node
+  void onMRMLSourcePointsNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroPVDiagramParametersNode(vtkMRMLNode*);
+
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onFiducialsMarkupsChanged(vtkMRMLNode* mrmlNode);
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onStartImportEvent();
+
+  void onAutoUpdateToggled(bool toggled);
   void onInterpolationNone(bool toggled);
   void onInterpolationSpline(bool toggled);
-  void onModelChanged(vtkMRMLNode* mrmlNode);
-  void onMomentMapChanged(vtkMRMLNode* mrmlNode);
-  void onMRMLAstroPVDiagramInterpolationModeModified();
-  void onMRMLAstroPVDiagramParametersNodeModified();
   void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSourcePointsNodeMarkupAdded();
-  void onMRMLSourcePointsNodeModified();
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onStartImportEvent();
-  void setMRMLAstroPVDiagramParametersNode(vtkMRMLNode*);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroPVDiagramModuleWidget);

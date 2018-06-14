@@ -69,16 +69,28 @@ public:
   virtual void exit();
 
 public slots:
+
+  /// Clear the selection of the current 3D color function presets
   void clearPresets();
+
+  /// Changing the rendering quality
   void onCurrentQualityControlChanged(int);
+
+  /// Activate/Deactivate the 3D rendering
   void onVisibilityChanged(bool visibility);
+
+  /// Set comparative layout 1 (used by smoothing module)
   void setComparative3DViews(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
                              bool generateMasks = false,
                              bool overlay2D = true);
+
+  /// Set comparative layout 2 (used by reprojection module)
   void setThreeComparativeView(const char* volumeNodeOneID,
                                const char* volumeNodeTwoID,
                                const char* volumeNodeThreeID);
+
+  /// Set quantitative layout (used by modeling module)
   void setQuantitative3DView(const char* volumeNodeOneID,
                              const char* volumeNodeTwoID,
                              const char* volumeNodeThreeID,
@@ -86,6 +98,8 @@ public slots:
                              double PVPhiMajor,
                              double PVPhiMinor,
                              double RAS[3]);
+
+  /// Update quantitative layout (used by modeling module)
   void updateQuantitative3DView(const char* volumeNodeOneID,
                                 const char* volumeNodeTwoID,
                                 double ContourLevel,
@@ -94,10 +108,20 @@ public slots:
                                 double yellowRAS[3],
                                 double greenRAS[3],
                                 bool overrideSegments = false);
+
+  /// Utility function to be connected with generic signals
   void setMRMLVolumeNode(vtkMRMLNode* node);
+
+  /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
+
+  /// Utility function to start to rock the view
   void startRockView();
+
+  /// Utility function to stop to rock the view
   void stopRockView();
 
 protected slots:
@@ -164,11 +188,19 @@ signals:
 protected:
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
 
+  /// Initialization of module widgets
   virtual void setup();
+
+  /// Initialization of MRML scene
   virtual void setMRMLScene(vtkMRMLScene*);
 
+  /// Initialization of MRML color nodes
   void initializeColorNodes();
+
+  /// Initialization of MRML plot nodes
   void initializePlotNodes(bool forceNew = false);
+
+  /// Initialization of MRML segmentation nodes
   void initializeSegmentations(bool forceNew = false);
 
   /// Update master representation in segmentation to a given representation.

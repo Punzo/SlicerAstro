@@ -111,6 +111,12 @@ QStringList qSlicerAstroPVSliceModule::categories()const
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroPVSliceModule::associatedNodeTypes() const
+{
+  return QStringList() << "vtkMRMLAstroPVSliceParametersNode";
+}
+
+//-----------------------------------------------------------------------------
 QStringList qSlicerAstroPVSliceModule::dependencies()const
 {
   return QStringList() << "AstroVolume" << "AstroMomentMaps" ;
@@ -120,9 +126,12 @@ QStringList qSlicerAstroPVSliceModule::dependencies()const
 void qSlicerAstroPVSliceModule::setup()
 {
   this->Superclass::setup();
+
+  // Register logic
   vtkSlicerAstroPVSliceLogic* AstroPVSliceLogic =
     vtkSlicerAstroPVSliceLogic::SafeDownCast(this->logic());
 
+  // Register AstroVolume module logic
   qSlicerAbstractCoreModule* astroVolumeModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume");
   if (!astroVolumeModule)
@@ -130,10 +139,18 @@ void qSlicerAstroPVSliceModule::setup()
     qCritical() << "AstroVolume module is not found";
     return;
     }
+
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic());
+  if (!astroVolumeLogic)
+    {
+    qCritical() << "AstroVolume logic is not found";
+    return;
+    }
+
   AstroPVSliceLogic->SetAstroVolumeLogic(astroVolumeLogic);
 
+  // Register AstroMomentMaps module logic
   qSlicerAbstractCoreModule* astroMomentMapsModule =
     qSlicerCoreApplication::application()->moduleManager()->module("AstroMomentMaps");
   if (!astroMomentMapsModule)
@@ -141,8 +158,15 @@ void qSlicerAstroPVSliceModule::setup()
     qCritical() << "astroMomentMaps module is not found";
     return;
     }
+
   vtkSlicerAstroMomentMapsLogic* astroMomentMapsLogic =
     vtkSlicerAstroMomentMapsLogic::SafeDownCast(astroMomentMapsModule->logic());
+  if (!astroMomentMapsLogic)
+    {
+    qCritical() << "AstroMomentMaps logic is not found";
+    return;
+    }
+
   AstroPVSliceLogic->SetAstroMomentMapsLogic(astroMomentMapsLogic);
 }
 

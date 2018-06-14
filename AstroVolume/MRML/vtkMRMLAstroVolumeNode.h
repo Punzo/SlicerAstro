@@ -50,55 +50,54 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  ///
   /// Set node attributes
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  ///
   /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  ///
   /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  ///
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroVolume";};
 
-  ///
   /// Make a 'None' volume node with blank image data
   static void CreateNoneNode(vtkMRMLScene *scene);
 
-  ///
   /// Create and return default Storage node
   virtual vtkMRMLStorageNode* CreateDefaultStorageNode() VTK_OVERRIDE;
 
-  ///
   /// Create and observe default display node
   virtual void CreateDefaultDisplayNodes() VTK_OVERRIDE;
   
-  ///
   /// Get AstroVolume display node
   virtual vtkMRMLAstroVolumeDisplayNode* GetAstroVolumeDisplayNode();
 
-  ///
   /// Get rendering display node
   virtual vtkMRMLVolumeRenderingDisplayNode* GetAstroVolumeRenderingDisplayNode();
 
+  /// Get MRML ROI node
   vtkMRMLAnnotationROINode* GetROINode();
+
+  /// Set MRML ROI node
   void SetROINode(vtkMRMLAnnotationROINode* node);
 
+  /// Get MRML ROI alignment transform node
   vtkMRMLTransformNode* GetROIAlignmentTransformNode();
+
+  /// Set MRML ROI alignment transform node ID
   void SetROIAlignmentTransformNodeID(const char *nodeID);
+
+  /// Set MRML ROI alignment transform node
   void SetROIAlignmentTransformNode(vtkMRMLTransformNode* node);
+
+  /// Delete MRML ROI alignment transform node
   void DeleteROIAlignmentTransformNode();
 
-  ///
   /// Update Max and Min Attributes
   virtual bool UpdateRangeAttributes();
 
-  ///
   /// Update DisplayThreshold Attribute
    virtual bool UpdateDisplayThresholdAttributes();
 
@@ -107,21 +106,21 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
      DisplayThresholdModifiedEvent = 71000,
      };
 
-  ///
   /// Set the SlicerAstro.DisplayThreshold keyword and fire the signal
   void SetDisplayThreshold(double DisplayThreshold);
 
-  ///
   /// Get the SlicerAstro.DisplayThreshold keyword
   double GetDisplayThreshold();
 
-  ///
-  /// Set/Get reference to a Preset Node
+  /// Set reference to a Preset Node
   void SetPresetNode(vtkMRMLVolumePropertyNode* node);
+
+  /// Set reference to a Preset Node
   void SetPresetNode(vtkMRMLNode* node);
+
+  /// Get reference to a Preset Node
   vtkMRMLNode *GetPresetNode();
 
-  ///
   /// Utility method to get the PresetComboBoxIndex from the PresetNode
   int GetPresetIndex();
 
@@ -137,10 +136,13 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
       BrightSurface
      };
 
-  ///
-  /// Set/Get reference to the current VolumeProperty Node
+  /// Set reference to the current VolumeProperty Node
   void SetVolumePropertyNode(vtkMRMLVolumePropertyNode* node);
+
+  /// Set reference to the current VolumeProperty Node
   void SetVolumePropertyNode(vtkMRMLNode* node);
+
+  /// Get reference to the current VolumeProperty Node
   vtkMRMLNode *GetVolumePropertyNode();
 
 protected:

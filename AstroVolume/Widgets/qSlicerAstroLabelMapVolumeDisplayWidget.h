@@ -54,16 +54,20 @@ public:
   int sliceIntersectionThickness()const;
 
 public slots:
+  /// Utility function to be connected with generic signals
+  void setMRMLVolumeNode(vtkMRMLNode* node);
 
   /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
-  void setMRMLVolumeNode(vtkMRMLNode* node);
 
+  /// Set MRML color node
   void setColorNode(vtkMRMLNode* colorNode);
 
+  /// Set Slice intersection thickness
   void setSliceIntersectionThickness(int);
 
 protected slots:
+  /// Update widget GUI from MRML AstroVolume node
   void updateWidgetFromMRML();
 
 protected:

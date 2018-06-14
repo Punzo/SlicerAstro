@@ -477,7 +477,7 @@ void qSlicerAstroSmoothingModuleWidget::initializeNodes(bool forceNew /*= false*
 
   this->initializeSegmentations(forceNew);
 
-  this->initializeCamera();
+  this->initializeCameras();
 }
 
 //-----------------------------------------------------------------------------
@@ -718,7 +718,7 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLAstroSmoothingParametersNode(vtkM
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroSmoothingModuleWidget::initializeCamera()
+void qSlicerAstroSmoothingModuleWidget::initializeCameras()
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
 
@@ -1998,6 +1998,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   serial++;
   d->parametersNode->SetOutputSerial(serial);
 
+  // Create output volume
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast(scene->
       GetNodeByID(d->parametersNode->GetOutputVolumeNodeID()));
@@ -2028,6 +2029,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
       }
     }
 
+  // Create Astro Volume for the output volume
   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
      (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
 
@@ -2036,6 +2038,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   vtkMRMLNode* node = NULL;
   outputVolume->SetPresetNode(node);
 
+  // Remove old rendering Display
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
   for (int ii = 0; ii < ndnodes; ii++)
     {
@@ -2057,6 +2060,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   d->GaussianKernelView->show();
   d->GaussianKernelView->hide();
 
+  // Run calculation
   if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
     {
     if (!strcmp(d->parametersNode->GetMasksCommand(), "Generate"))

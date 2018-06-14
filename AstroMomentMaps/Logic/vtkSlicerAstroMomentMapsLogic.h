@@ -29,6 +29,9 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroMomentMapsModuleLogicExport.h"
 class vtkMRMLAstroMomentMapsParametersNode;
 
+/// \class vtkSlicerAstroMomentMapsLogic
+/// \brief Create 0th, 1st and 2nd moment maps given a selection or segmentation.
+///
 /// \ingroup SlicerAstro_QtModules_AstroMomentMaps
 class VTK_SLICERASTRO_ASTROMOMENTMAPS_MODULE_LOGIC_EXPORT vtkSlicerAstroMomentMapsLogic
   : public vtkSlicerModuleLogic
@@ -39,11 +42,19 @@ public:
   vtkTypeMacro(vtkSlicerAstroMomentMapsLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
+
+  /// Get AstroVolume module logic
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
+  /// Register MRML Node classes to Scene.
+  /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() VTK_OVERRIDE;
 
+  /// Run moment maps calculation algorithm
+  /// \param MRML parameter node
+  /// \return Success flag
   bool CalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode);
 
 protected:

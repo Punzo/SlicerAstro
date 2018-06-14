@@ -43,49 +43,70 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMaskingParametersNode : public vtkMRMLNo
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  // Description:
-  // Set node attributes
+  /// Set node attributes
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  // Description:
-  // Write this node's information to a MRML file in XML format.
+  /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  // Description:
-  // Copy the node's attributes to this object
+  /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  // Description:
-  // Get node XML tag name (like Volume, Model)
+  /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroMaskingParameters";};
 
+  /// Set/Get the InputVolumeNodeID.
+  /// \sa SetInputVolumeNodeID(), GetInputVolumeNodeID()
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
 
+  /// Set/Get the MaskVolumeNodeID.
+  /// \sa SetMaskVolumeNodeID(), GetMaskVolumeNodeID()
   vtkSetStringMacro(MaskVolumeNodeID);
   vtkGetStringMacro(MaskVolumeNodeID);
 
+  /// Set/Get the OutputVolumeNodeID.
+  /// \sa SetOutputVolumeNodeID(), GetOutputVolumeNodeID()
   vtkSetStringMacro(OutputVolumeNodeID);
   vtkGetStringMacro(OutputVolumeNodeID);
 
+  /// Get MRML ROI node
   vtkMRMLAnnotationROINode* GetROINode();
+
+  /// Set MRML ROI node
   void SetROINode(vtkMRMLAnnotationROINode* node);
 
+  /// Set/Get the Mode.
+  /// Default is "ROI"
+  /// \sa SetMode(), GetMode()
   vtkSetStringMacro(Mode);
   vtkGetStringMacro(Mode);
 
+  /// Set/Get the Operation.
+  /// Default is "Blank"
+  /// \sa SetOperation(), GetOperation()
   vtkSetStringMacro(Operation);
   vtkGetStringMacro(Operation);
 
+  /// Set/Get the BlankRegion.
+  /// Default is "Outside"
+  /// \sa SetBlankRegion(), GetBlankRegion()
   vtkSetStringMacro(BlankRegion);
   vtkGetStringMacro(BlankRegion);
 
+  /// Set/Get the BlankValue.
+  /// Default is "NaN"
+  /// \sa SetBlankValue(), GetBlankValue()
   vtkSetStringMacro(BlankValue);
   vtkGetStringMacro(BlankValue);
 
+  /// Set/Get the OutputSerial.
+  /// \sa SetOutputSerial(), GetOutputSerial()
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
+  /// Set/Get the Status.
+  /// \sa SetStatus(), GetStatus()
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 

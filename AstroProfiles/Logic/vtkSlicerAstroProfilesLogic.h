@@ -29,6 +29,9 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroProfilesModuleLogicExport.h"
 class vtkMRMLAstroProfilesParametersNode;
 
+/// \class vtkSlicerAstroProfilesLogic
+/// \brief Create profiles given a a selection or segmentation.
+///
 /// \ingroup SlicerAstro_QtModules_AstroProfiles
 class VTK_SLICERASTRO_ASTROPROFILES_MODULE_LOGIC_EXPORT vtkSlicerAstroProfilesLogic
   : public vtkSlicerModuleLogic
@@ -39,11 +42,19 @@ public:
   vtkTypeMacro(vtkSlicerAstroProfilesLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
+
+  /// Get AstroVolume module logic
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
+  /// Register MRML Node classes to Scene.
+  /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() VTK_OVERRIDE;
 
+  /// Run profile calculation algorithm
+  /// \param MRML parameter node
+  /// \return Success flag
   bool CalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode);
 
 protected:

@@ -39,71 +39,104 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMomentMapsParametersNode : public vtkMRM
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  // Description:
-  // Set node attributes
+  /// Set node attributes
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  // Description:
-  // Write this node's information to a MRML file in XML format.
+  /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  // Description:
-  // Copy the node's attributes to this object
+  /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  // Description:
-  // Get node XML tag name (like Volume, Model)
+  /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroMomentMapsParameters";};
 
+  /// Set/Get the InputVolumeNodeID.
+  /// \sa SetInputVolumeNodeID(), GetInputVolumeNodeID()
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
 
+  /// Set/Get the ZeroMomentVolumeNodeID.
+  /// \sa SetZeroMomentVolumeNodeID(), GetZeroMomentVolumeNodeID()
   vtkSetStringMacro(ZeroMomentVolumeNodeID);
   vtkGetStringMacro(ZeroMomentVolumeNodeID);
 
+  /// Set/Get the FirstMomentVolumeNodeID.
+  /// \sa SetFirstMomentVolumeNodeID(), GetFirstMomentVolumeNodeID()
   vtkSetStringMacro(FirstMomentVolumeNodeID);
   vtkGetStringMacro(FirstMomentVolumeNodeID);
 
+  /// Set/Get the SecondMomentVolumeNodeID.
+  /// \sa SetSecondMomentVolumeNodeID(), GetSecondMomentVolumeNodeID()
   vtkSetStringMacro(SecondMomentVolumeNodeID);
   vtkGetStringMacro(SecondMomentVolumeNodeID);
 
+  /// Set/Get the MaskVolumeNodeID.
+  /// \sa SetMaskVolumeNodeID(), GetMaskVolumeNodeID()
   vtkSetStringMacro(MaskVolumeNodeID);
   vtkGetStringMacro(MaskVolumeNodeID);
 
+  /// Set/Get the Cores.
+  /// Default is 0 (all the free cores will be used)
+  /// \sa SetCores(), GetCores()
   vtkSetMacro(Cores,int);
   vtkGetMacro(Cores,int);
 
+  /// Set/Get the MaskActive.
+  /// Default is false
+  /// \sa SetMaskActive(), GetMaskActive()
   vtkSetMacro(MaskActive,bool);
   vtkGetMacro(MaskActive,bool);
   vtkBooleanMacro(MaskActive,bool);
 
+  /// Set/Get the GenerateZero.
+  /// Default is true
+  /// \sa SetGenerateZero(), GetGenerateZero()
   vtkSetMacro(GenerateZero,bool);
   vtkGetMacro(GenerateZero,bool);
   vtkBooleanMacro(GenerateZero,bool);
 
+  /// Set/Get the GenerateFirst.
+  /// Default is true
+  /// \sa SetGenerateFirst(), GetGenerateFirst()
   vtkSetMacro(GenerateFirst,bool);
   vtkGetMacro(GenerateFirst,bool);
   vtkBooleanMacro(GenerateFirst,bool);
 
+  /// Set/Get the GenerateSecond.
+  /// Default is true
+  /// \sa SetGenerateSecond(), GetGenerateSecond()
   vtkSetMacro(GenerateSecond,bool);
   vtkGetMacro(GenerateSecond,bool);
   vtkBooleanMacro(GenerateSecond,bool);
 
+  /// Set/Get the IntensityMin.
+  /// \sa SetIntensityMin(), GetIntensityMin()
   vtkSetMacro(IntensityMin,double);
   vtkGetMacro(IntensityMin,double);
 
+  /// Set/Get the IntensityMax.
+  /// \sa SetIntensityMax(), GetIntensityMax()
   vtkSetMacro(IntensityMax,double);
   vtkGetMacro(IntensityMax,double);
 
+  /// Set/Get the VelocityMin.
+  /// \sa SetVelocityMin(), GetVelocityMin()
   vtkSetMacro(VelocityMin,double);
   vtkGetMacro(VelocityMin,double);
 
+  /// Set/Get the VelocityMax.
+  /// \sa SetVelocityMax(), GetVelocityMax()
   vtkSetMacro(VelocityMax,double);
   vtkGetMacro(VelocityMax,double);
 
+  /// Set/Get the OutputSerial.
+  /// \sa SetOutputSerial(), GetOutputSerial()
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
+  /// Set/Get the Status.
+  /// \sa SetStatus(), GetStatus()
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 

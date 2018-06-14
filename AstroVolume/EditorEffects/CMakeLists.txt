@@ -27,14 +27,11 @@ set(${KIT}_SRCS
   qSlicerSegmentEditorAstroCloudLassoEffect.h
   qSlicerSegmentEditorAstroCloudLassoEffect_p.h
   qSlicerSegmentEditorAstroCloudLassoEffect.cxx
-  qSlicerSegmentEditorAstroContoursEffect.h
-  qSlicerSegmentEditorAstroContoursEffect.cxx
   )
 
 set(${KIT}_MOC_SRCS
   qSlicerSegmentEditorAstroCloudLassoEffect.h
   qSlicerSegmentEditorAstroCloudLassoEffect_p.h
-  qSlicerSegmentEditorAstroContoursEffect.h
   )
 
 set(${KIT}_UI_SRCS

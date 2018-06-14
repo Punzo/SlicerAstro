@@ -43,75 +43,107 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroStatisticsParametersNode : public vtkMRM
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  // Description:
-  // Set node attributes
+  /// Set node attributes
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  // Description:
-  // Write this node's information to a MRML file in XML format.
+  /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  // Description:
-  // Copy the node's attributes to this object
+  /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  // Description:
-  // Get node XML tag name (like Volume, Model)
+  /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroStatisticsParameters";};
 
+  /// Set/Get the InputVolumeNodeID.
+  /// \sa SetInputVolumeNodeID(), GetInputVolumeNodeID()
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
 
+  /// Set/Get the MaskVolumeNodeID.
+  /// \sa SetMaskVolumeNodeID(), GetMaskVolumeNodeID()
   vtkSetStringMacro(MaskVolumeNodeID);
   vtkGetStringMacro(MaskVolumeNodeID);
 
+  /// Get MRML ROI node
   vtkMRMLAnnotationROINode* GetROINode();
+
+  /// Set MRML ROI node
   void SetROINode(vtkMRMLAnnotationROINode* node);
 
+  /// Get MRML table node
   vtkMRMLTableNode* GetTableNode();
+
+  /// Set MRML table node
   void SetTableNode(vtkMRMLTableNode* node);
 
+  /// Set/Get the Mode.
+  /// Default is "ROI"
+  /// \sa SetMode(), GetMode()
   vtkSetStringMacro(Mode);
   vtkGetStringMacro(Mode);
 
+  /// Set/Get calculate Max (true/false).
+  /// \sa SetMax(), GetMax()
   vtkSetMacro(Max,bool);
   vtkGetMacro(Max,bool);
   vtkBooleanMacro(Max,bool);
 
+  /// Set/Get calculate Mean (true/false).
+  /// \sa SetMean(), GetMean()
   vtkSetMacro(Mean,bool);
   vtkGetMacro(Mean,bool);
   vtkBooleanMacro(Mean,bool);
 
+  /// Set/Get calculate Median (true/false).
+  /// \sa SetMedian(), GetMedian()
   vtkSetMacro(Median,bool);
   vtkGetMacro(Median,bool);
   vtkBooleanMacro(Median,bool);
 
+  /// Set/Get calculate Min (true/false).
+  /// \sa SetMin(), GetMin()
   vtkSetMacro(Min,bool);
   vtkGetMacro(Min,bool);
   vtkBooleanMacro(Min,bool);
 
+  /// Set/Get calculate Npixels (true/false).
+  /// \sa SetNpixels(), GetNpixels()
   vtkSetMacro(Npixels,bool);
   vtkGetMacro(Npixels,bool);
   vtkBooleanMacro(Npixels,bool);
 
+  /// Set/Get calculate Std (true/false).
+  /// \sa SetStd(), GetStd()
   vtkSetMacro(Std,bool);
   vtkGetMacro(Std,bool);
   vtkBooleanMacro(Std,bool);
 
+  /// Set/Get calculate Sum (true/false).
+  /// \sa SetSum(), GetSum()
   vtkSetMacro(Sum,bool);
   vtkGetMacro(Sum,bool);
   vtkBooleanMacro(Sum,bool);
 
+  /// Set/Get calculate TotalFlux (true/false).
+  /// \sa SetTotalFlux(), GetTotalFlux()
   vtkSetMacro(TotalFlux,bool);
   vtkGetMacro(TotalFlux,bool);
   vtkBooleanMacro(TotalFlux,bool);
 
+  /// Set/Get the Cores.
+  /// Default is 0 (all the free cores will be used)
+  /// \sa SetCores(), GetCores()
   vtkSetMacro(Cores,int);
   vtkGetMacro(Cores,int);
 
+  /// Set/Get the OutputSerial.
+  /// \sa SetOutputSerial(), GetOutputSerial()
   vtkSetMacro(OutputSerial,int);
   vtkGetMacro(OutputSerial,int);
 
+  /// Set/Get the Status.
+  /// \sa SetStatus(), GetStatus()
   vtkSetMacro(Status,int);
   vtkGetMacro(Status,int);
 

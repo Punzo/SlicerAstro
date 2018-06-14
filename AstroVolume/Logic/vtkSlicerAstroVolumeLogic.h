@@ -43,6 +43,10 @@ class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkIntArray;
 
+/// \class vtkSlicerAstroMaskingLogic
+/// \brief I/O and color funtions handling for AstroVolumes (FITS files).
+///
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class VTK_SLICERASTRO_ASTROVOLUME_MODULE_LOGIC_EXPORT vtkSlicerAstroVolumeLogic :
   public vtkSlicerVolumesLogic
 {
@@ -59,19 +63,19 @@ public:
   void RegisterArchetypeVolumeNodeSetFactory(vtkSlicerVolumesLogic* volumesLogic);
 
   /// Return the scene containing the volume rendering presets.
-  /// If there is no presets scene, a scene is created and presets are loaded
-  /// into.
+  /// If there is no presets scene, a scene is created and presets are loaded into.
   /// The presets scene is loaded from a file (presets.xml) located in the
   /// module share directory
   /// \sa vtkMRMLVolumePropertyNode, GetModuleShareDirectory()
   vtkMRMLScene *GetPresetsScene();
 
   /// \brief synchronizePresetsToVolumeNode
-  /// \param volumeNode,
+  /// \param astroVolumeNode,
   /// \return succees
   bool synchronizePresetsToVolumeNode(vtkMRMLNode *node);
 
   /// Update the units nodes to the metadata stored in the active volume
+  /// \param astroVolumeNode,
   void updateIntensityUnitsNode(vtkMRMLNode *astroVolumeNode);
 
   /// Create a deep copy of a \a astroVolumeNode and add it to the \a scene
@@ -91,16 +95,27 @@ public:
 
   /// Sets ROI to fit to input volume.
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.
+  /// \param MRML parameter node
+  /// \return Success flag
   virtual bool FitROIToInputVolume(vtkMRMLAnnotationROINode* roiNode,
                                    vtkMRMLAstroVolumeNode *inputVolume);
 
+  /// Snap the ROI to the voxel grid of the input volume
+  /// \param MRML parameter node
   virtual void SnapROIToVoxelGrid(vtkMRMLAnnotationROINode* roiNode,
                                   vtkMRMLAstroVolumeNode *inputVolume);
 
+  /// Check if the ROI is aligned with the input volume
+  /// \param MRML parameter node
+  /// \return Success flag
   virtual bool IsROIAlignedWithInputVolume(vtkMRMLAnnotationROINode* roiNode,
                                            vtkMRMLAstroVolumeNode *inputVolume);
 
   /// Calculate the Bounds of a ROI within a Volume in IJK coordinates
+  /// \param MRML ROI node
+  /// \param MRML input volume node
+  /// \param extent (i.e., dimensions)
+  /// \return Success flag
   virtual bool CalculateROICropVolumeBounds(vtkMRMLAnnotationROINode* roiNode,
                                             vtkMRMLAstroVolumeNode *inputVolume,
                                             double outputExtent[6]);
@@ -115,28 +130,37 @@ public:
   virtual double CalculateDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,
                                                   vtkMRMLAstroVolumeNode *inputVolume);
 
-  /// Calculate an histogram of a volume
+  /// Calculate an histogram of a astroVolumeNode
   virtual void CalculateHistogram(vtkMRMLAstroVolumeNode *Volume,
                                   vtkIntArray *histoArray,
                                   double binSpacing,
                                   int numberOfBins);
-  /// Reproject
+
+  /// Reproject an astroVolumeNode over another
   bool Reproject(vtkMRMLAstroReprojectParametersNode *pnode);
 
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
 
+  virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene) VTK_OVERRIDE;
+  virtual void UpdateFromMRMLScene() VTK_OVERRIDE;
+
   /// Register MRML Node classes to Scene. Gets called automatically when the MRMLScene is attached to this logic class.
   virtual void RegisterNodes() VTK_OVERRIDE;
 
-  virtual void SetMRMLSceneInternal(vtkMRMLScene * newScene) VTK_OVERRIDE;
-  virtual void UpdateFromMRMLScene() VTK_OVERRIDE;
+  /// Handle MRML node added events
   virtual void OnMRMLSceneNodeAdded(vtkMRMLNode* node) VTK_OVERRIDE;
+
+  /// Handle MRML node removed events
   virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) VTK_OVERRIDE;
+
+  /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() VTK_OVERRIDE;
 
+  /// Load presets for the 3D color function from xml file
   bool LoadPresets(vtkMRMLScene* scene);
+
   vtkMRMLScene* PresetsScene;
   bool Init;
 

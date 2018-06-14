@@ -48,34 +48,55 @@ public:
   Q_INVOKABLE vtkMRMLAstroReprojectParametersNode* mrmlAstroReprojectParametersNode()const;
 
 public slots:
+  /// Slots to reproject the data.
+  /// It creates the output volume and calls the logic.
   void onApply();
 
 protected:
   QScopedPointer<qSlicerAstroReprojectModuleWidgetPrivate> d_ptr;
 
+  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene* scene);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
 
 protected slots:
-  void onComputationCancelled();
-  void onComputationFinished();
-  void onComputationStarted();
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML reference node
+  void onReferenceVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML output node
+  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroReprojectParametersNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroReprojectParametersNode(vtkMRMLNode*);
+
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onStartImportEvent();
+
   void onInterpolationNearestNeighbour(bool toggled);
   void onInterpolationBilinear(bool toggled);
   void onInterpolationBicubic(bool toggled);
-  void onMRMLAstroReprojectParametersNodeModified();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onReferenceVolumeChanged(vtkMRMLNode* mrmlNode);
   void onReprojectDataChanged(bool toggled);
   void onReprojectRotationChanged(bool toggled);
-  void onStartImportEvent();
+
+  void onMRMLSelectionNodeModified(vtkObject* sender);
+
+  void onComputationCancelled();
+  void onComputationFinished();
+  void onComputationStarted();
   void updateProgress(int value);
-  void setMRMLAstroReprojectParametersNode(vtkMRMLNode*);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroReprojectModuleWidget);

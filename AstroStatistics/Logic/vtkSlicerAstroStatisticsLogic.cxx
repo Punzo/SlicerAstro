@@ -1096,7 +1096,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroStatisticsLogic::FitROIToInputVolume(vtkMRMLAstroStatisticsParametersNode *parametersNode)
 {
-  if (!parametersNode)
+  if (!parametersNode || !this->GetAstroVolumeLogic())
     {
     return false;
     }
@@ -1113,7 +1113,7 @@ bool vtkSlicerAstroStatisticsLogic::FitROIToInputVolume(vtkMRMLAstroStatisticsPa
 //----------------------------------------------------------------------------
 void vtkSlicerAstroStatisticsLogic::SnapROIToVoxelGrid(vtkMRMLAstroStatisticsParametersNode *parametersNode)
 {
-  if (!parametersNode)
+  if (!parametersNode || !this->GetAstroVolumeLogic())
     {
     return;
     }
@@ -1130,7 +1130,7 @@ void vtkSlicerAstroStatisticsLogic::SnapROIToVoxelGrid(vtkMRMLAstroStatisticsPar
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroStatisticsLogic::IsROIAlignedWithInputVolume(vtkMRMLAstroStatisticsParametersNode *parametersNode)
 {
-  if (!parametersNode)
+  if (!parametersNode || !this->GetAstroVolumeLogic())
     {
     return false;
     }

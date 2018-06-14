@@ -48,50 +48,77 @@ public:
   Q_INVOKABLE vtkMRMLAstroSmoothingParametersNode* mrmlAstroSmoothingParametersNode()const;
 
 public slots:
+  /// Slots to run smoothing algorithms.
+  /// It creates the output volume and calls the logic
   void onApply();
 
 protected:
   QScopedPointer<qSlicerAstroSmoothingModuleWidgetPrivate> d_ptr;
 
-  virtual void setMRMLScene(vtkMRMLScene* scene);
+  /// Initialization of the qvtk connections between MRML nodes
+  virtual void setMRMLScene(vtkMRMLScene*);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
+
+  /// Initialization of MRML segmentation nodes
   void initializeSegmentations(bool forceNew = false);
-  void initializeCamera();
+
+  /// Initialization of MRML camera nodes
+  void initializeCameras();
 
 protected slots:
-  void onAccuracyChanged(double value);
-  void onAutoRunChanged(bool value);
-  void onComputationCancelled();
-  void onComputationFinished();
-  void onComputationStarted();
-  void onCurrentFilterChanged(int index);
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML output node
+  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML segmentation editor node
+  void onSegmentEditorNodeModified(vtkObject* sender);
+
+  /// Update widget GUI from MRML input node
+  void onInputVolumeModified();
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroSmoothingParametersNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
+
   void onEndCloseEvent();
   void onEndImportEvent();
+  void onStartImportEvent();
+
+  void onAccuracyChanged(double value);
+  void onAutoRunChanged(bool value);
+  void onCurrentFilterChanged(int index);
   void onHardwareChanged(int index);
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onInputVolumeModified();
   void onKChanged(double value);
   void onLinkChanged(bool value);
   void onMasksCommandChanged();
   void onModeChanged();
-  void onMRMLAstroSmoothingParametersNodeModified();
   void onMRMLCameraNodeModified();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
   void onParameterXChanged(double value);
   void onParameterYChanged(double value);
   void onParameterZChanged(double value);
   void onRxChanged(double value);
   void onRyChanged(double value);
   void onRzChanged(double value);
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  void onStartImportEvent();
   void onTimeStepChanged(double value);
+
+  void onMRMLSelectionNodeModified(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+
+  void onComputationCancelled();
+  void onComputationFinished();
+  void onComputationStarted();
   void updateProgress(int value);
-  void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroSmoothingModuleWidget);

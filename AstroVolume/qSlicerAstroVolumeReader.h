@@ -39,12 +39,22 @@ public:
   qSlicerAstroVolumeReader(vtkSlicerVolumesLogic* logic, QObject* parent = 0);
   virtual ~qSlicerAstroVolumeReader();
 
+  /// Get Volumes logic
   vtkSlicerVolumesLogic* logic()const;
+
+  /// Set Volumes logic
   void setLogic(vtkSlicerVolumesLogic* logic);
 
+  /// Return the description
   virtual QString description()const;
+
+  /// Return the type of file readed by the class
   virtual IOFileType fileType()const;
+
+  /// Return the the accepted file extensions
   virtual QStringList extensions()const;
+
+  /// Define and return the I/O options widget
   virtual qSlicerIOOptions* options()const;
 
   virtual bool load(const IOProperties& properties);

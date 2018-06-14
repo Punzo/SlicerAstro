@@ -37,31 +37,27 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorag
 
   virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
 
-  ///
   /// Read node attributes from XML file
   virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
 
-  ///
   /// Write this node's information to a MRML file in XML format.
   virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
 
-  ///
   /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
 
-  ///
   /// Get node XML tag name (like Storage, Model)
   virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroStorage";};
 
-  ///
-  /// Center image on read
+  /// Set/Get the CenterImage.
+  /// Default is 2.
+  /// \sa CenterImage(), CenterImage()
   vtkGetMacro(CenterImage, int);
   vtkSetMacro(CenterImage, int);
 
   /// Return true if the node can be read in.
   virtual bool CanReadInReferenceNode(vtkMRMLNode *refNode) VTK_OVERRIDE;
 
-  ///
   /// Configure the storage node for data exchange. This is an
   /// opportunity to optimize the storage node's settings, for
   /// instance to turn off compression.
@@ -86,7 +82,6 @@ protected:
   virtual int WriteDataInternal(vtkMRMLNode *refNode) VTK_OVERRIDE;
 
   int CenterImage;
-
 };
 
 #endif

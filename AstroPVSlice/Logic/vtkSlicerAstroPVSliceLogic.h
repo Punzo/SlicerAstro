@@ -30,6 +30,9 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroPVSliceModuleLogicExport.h"
 class vtkMRMLAstroPVSliceParametersNode;
 
+/// \class vtkSlicerAstroMomentMapsLogic
+/// \brief Calculate Position Velocity (PV) Slices.
+///
 /// \ingroup SlicerAstro_QtModules_AstroPVSlice
 class VTK_SLICERASTRO_ASTROPVSLICE_MODULE_LOGIC_EXPORT vtkSlicerAstroPVSliceLogic
   : public vtkSlicerModuleLogic
@@ -40,23 +43,60 @@ public:
   vtkTypeMacro(vtkSlicerAstroPVSliceLogic,vtkSlicerModuleLogic);
   void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
 
+  /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
+
+  /// Get AstroVolume module logic
   vtkSlicerAstroVolumeLogic* GetAstroVolumeLogic();
 
+  /// Set AstroMomentMaps module logic
   void SetAstroMomentMapsLogic(vtkSlicerAstroMomentMapsLogic* logic);
-  vtkSlicerAstroMomentMapsLogic *GetAstroMomentMapsLogic();
 
+  /// Get AstroMomentMaps module logic
+  vtkSlicerAstroMomentMapsLogic* GetAstroMomentMapsLogic();
+
+  /// Register MRML Node classes to Scene.
+  /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() VTK_OVERRIDE;
 
+  /// Run 0th moment maps calculation algorithm
+  /// \param MRML parameter node
+  /// \return Success flag
   bool Calculate0thMomentMap(vtkMRMLAstroPVSliceParametersNode *pnode);
+
+  /// Set current selected moment map on Red slice widget
+  /// \param MRML parameter node
+  /// \return Success flag
   bool SetMomentMapOnRedWidget(vtkMRMLAstroPVSliceParametersNode *pnode);
 
+  /// Create the MRML ruler node
+  /// \param MRML parameter node
+  /// \return Success flag
   bool CreateAndSetRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+
+  /// Initialize the MRML ruler node
+  /// \param MRML parameter node
+  /// \return Success flag
   bool InitializeRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+
+  /// Update the MRML ruler node
+  /// \param MRML parameter node
+  /// \return Success flag
   bool UpdateRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+
+  /// Update the MRML ruler node when the position is given by center coordinates
+  /// \param MRML parameter node
+  /// \return Success flag
   bool UpdateRulerFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode);
 
+  /// Initialize the PV Slice node
+  /// \param MRML parameter node
+  /// \return Success flag
   bool InitializePV(vtkMRMLAstroPVSliceParametersNode *pnode);
+
+  /// Calculate the orientation and set the PV Slice node
+  /// \param MRML parameter node
+  /// \return Success flag
   bool UpdatePV(vtkMRMLAstroPVSliceParametersNode *pnode);
 
 protected:

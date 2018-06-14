@@ -51,43 +51,76 @@ public:
   Q_INVOKABLE vtkMRMLAstroMomentMapsParametersNode* mrmlAstroMomentMapsParametersNode()const;
 
 public slots:
+  /// Slots to generate the moment maps.
+  /// It creates the output volumes and calls the logic
   void onCalculate();
 
 protected:
   QScopedPointer<qSlicerAstroMomentMapsModuleWidgetPrivate> d_ptr;
 
+  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
+
+  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
+
+  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
+
+  /// Initialization of MRML segmentation nodes
   void initializeSegmentations(bool forceNew = false);
+
+  /// Convert a segmentation to LabelMap volume (a mask).
+  /// The LabelMap ID is stored in the MRML parameter node of the module
+  /// \return Success flag
   bool convertSelectedSegmentToLabelMap();
 
 protected slots:
-  void onComputationStarted();
-  void onComputationCancelled();
-  void onComputationFinished();
+
+  /// Set the MRML input node
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML zero moment output node
+  void onZeroMomentVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML first moment output node
+  void onFirstMomentVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML second moment output node
+  void onSecondMomentVolumeChanged(vtkMRMLNode* mrmlNode);
+
+  /// Set the MRML segmentation editor node
+  void onSegmentEditorNodeModified(vtkObject* sender);
+
+  /// Update widget GUI from MRML input node
+  void onInputVolumeModified();
+
+  /// Update widget GUI from MRML parameter node
+  void onMRMLAstroMomentMapsParametersNodeModified();
+
+  /// Set the MRML parameter node
+  void setMRMLAstroMomentMapsParametersNode(vtkMRMLNode*);
+
   void onEndCloseEvent();
   void onEndImportEvent();
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onInputVolumeModified();
-  void onFirstMomentVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onStartImportEvent();
+
   void onGenerateFirstToggled(bool generate);
   void onGenerateSecondToggled(bool generate);
   void onGenerateZeroToggled(bool generate);
   void onMaskActiveToggled(bool active);
-  void onMRMLAstroMomentMapsParametersNodeModified();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-  void onSecondMomentVolumeChanged(vtkMRMLNode* mrmlNode);
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  void onStartImportEvent();
   void onThresholdRangeChanged(double min, double max);
   void onUnitNodeIntensityChanged(vtkObject* sender);
   void onUnitNodeVelocityChanged(vtkObject* sender);
   void onVelocityRangeChanged(double min, double max);
-  void onZeroMomentVolumeChanged(vtkMRMLNode* mrmlNode);
-  void setMRMLAstroMomentMapsParametersNode(vtkMRMLNode*);
+
+  void onMRMLSelectionNodeModified(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
+  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
+
+  void onComputationStarted();
+  void onComputationCancelled();
+  void onComputationFinished();
   void updateProgress(int value);
 
 private:

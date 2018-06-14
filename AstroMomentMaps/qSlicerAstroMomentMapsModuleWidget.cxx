@@ -1119,11 +1119,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     imageDataTemp->SetSpacing(1.,1.,1.);
     imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
 
-    // create Astro Volume for the moment map
+    // Create Astro Volume for the moment map
     ZeroMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
        (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
 
-    // modify fits attributes
+    // Modify fits attributes
     ZeroMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
     ZeroMomentVolume->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
@@ -1149,7 +1149,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC3_2");
     ZeroMomentVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
-    // copy 2D image into the Astro Volume object
+    // Copy 2D image into the Astro Volume object
     ZeroMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
     ZeroMomentVolume->SetName(outSS.str().c_str());
@@ -1222,11 +1222,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     imageDataTemp->SetSpacing(1.,1.,1.);
     imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
 
-    // create Astro Volume for the moment map
+    // Create Astro Volume for the moment map
     FirstMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
        (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
 
-    // modify fits attributes
+    // Modify fits attributes
     FirstMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
     FirstMomentVolume->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
     FirstMomentVolume->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
@@ -1250,10 +1250,10 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     FirstMomentVolume->RemoveAttribute("SlicerAstro.PC3_2");
     FirstMomentVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
-    // copy 2D image into the Astro Volume object
+    // Copy 2D image into the Astro Volume object
     FirstMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
-    // change colorMap of the 2D image
+    // Change colorMap of the 2D image
     vtkMRMLAstroVolumeDisplayNode* displayNode = FirstMomentVolume->GetAstroVolumeDisplayNode();
     vtkMRMLColorTableNode* velocityFieldColorTableNode = vtkMRMLColorTableNode::SafeDownCast
       (scene->GetFirstNodeByName("VelocityField"));
@@ -1335,11 +1335,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     imageDataTemp->SetSpacing(1.,1.,1.);
     imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
 
-    // create Astro Volume for the moment map
+    // Create Astro Volume for the moment map
     SecondMomentVolume = vtkMRMLAstroVolumeNode::SafeDownCast
        (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
 
-    // modify fits attributes
+    // Modify fits attributes
     SecondMomentVolume->SetAttribute("SlicerAstro.NAXIS", "2");
     SecondMomentVolume->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
     SecondMomentVolume->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
@@ -1363,10 +1363,10 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     SecondMomentVolume->RemoveAttribute("SlicerAstro.PC3_2");
     SecondMomentVolume->RemoveAttribute("SlicerAstro.PC3_3");
 
-    // copy 2D image into the Astro Volume object
+    // Copy 2D image into the Astro Volume object
     SecondMomentVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
-    // change colorMap of the 2D image
+    // Change colorMap of the 2D image
     vtkMRMLAstroVolumeDisplayNode* displayNode = SecondMomentVolume->GetAstroVolumeDisplayNode();
     vtkMRMLColorTableNode* RainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
       (scene->GetFirstNodeByName("Rainbow"));
@@ -1404,6 +1404,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
   serial++;
   d->parametersNode->SetOutputSerial(serial);
 
+  // Run computation
   if (!logic->CalculateMomentMaps(d->parametersNode))
     {
     qCritical() <<"qSlicerAstroMomentMapsModuleWidget::onCalculate : "

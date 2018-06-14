@@ -52,8 +52,13 @@ public:
   explicit qSlicerAstroScalarVolumeDisplayWidget(QWidget* parent);
   virtual ~qSlicerAstroScalarVolumeDisplayWidget();
 
+  /// Return the current AstroVolume node
   vtkMRMLAstroVolumeNode* volumeNode()const;
+
+  /// Return the current AstroVolume display node
   vtkMRMLAstroVolumeDisplayNode* volumeDisplayNode()const;
+
+  /// Return the current AstroVolume imagedata
   vtkImageData* volumeImageData()const;
 
   bool isColorTableComboBoxEnabled()const;
@@ -63,29 +68,53 @@ public:
   void setMRMLWindowLevelWidgetEnabled(bool);
 
 public slots:
-  void ExtendAllSlices();
+
+  /// Utility function to be connected with generic signals
+  void setMRMLVolumeNode(vtkMRMLNode* node);
+
+  /// Set the volume node to display
+  void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Set the volume node to contour
+  void onContoursVolumeChanged(vtkMRMLNode *node);
+
+  /// Set the color node for 2D color function
+  void setColorNode(vtkMRMLNode* colorNode);
+
+  /// Set the color for contours
   void onColorChanged(QColor color);
   void onContours2DOriginChanged(double value);
-  void onContoursVolumeChanged(vtkMRMLNode *node);
   void onConvertContoursChanged(bool toggled);
   void onCreateContours();
+
+  void ExtendAllSlices();
   void onFitSlicesToViewsChanged(bool toggled);
-  void onWindowLevelPopupShow(bool show);
-  void onWindowLevelPopupShow(int);
-  void setColorNode(vtkMRMLNode* colorNode);
+
   void setInterpolate(bool interpolate);
+
   void setInverse(bool toggled);
   void setLog(bool toggled);
-  void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
-  void setMRMLVolumeNode(vtkMRMLNode* node);
   void setReverse(bool toggled);
+
+  void onWindowLevelPopupShow(bool show);
+  void onWindowLevelPopupShow(int);
   void setThreshold(bool threshold);
 
 protected slots:
-  void onFitSlicesModified();
+
+  /// Update widget GUI from MRML AstroVolume node
   void updateWidgetFromActiveVolumeMRML();
+
+  /// Update widget GUI from MRML AstroVolume node to contour
   void updateWidgetFromContoursMRML();
+
+  /// Update widget GUI from MRML AstroVolume display node
   void updateWidgetFromDisplayMRML();
+
+  /// Update widget GUI from MRML AstroVolume display node
+  void onFitSlicesModified();
+
+  /// Update 2D color function
   void updateTransferFunction();
 
 protected:
