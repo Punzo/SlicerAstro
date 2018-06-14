@@ -34,6 +34,8 @@
 
 class vtkMRMLTableNode;
 
+/// \brief MRML parameter node for the AstroModeling module.
+///
 /// \ingroup SlicerAstro_QtModules_AstroModeling
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLNode
 {

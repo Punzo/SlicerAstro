@@ -43,7 +43,7 @@ class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkIntArray;
 
-/// \class vtkSlicerAstroMaskingLogic
+/// \class vtkSlicerAstroVolumeLogic
 /// \brief I/O and color funtions handling for AstroVolumes (FITS files).
 ///
 /// \ingroup SlicerAstro_QtModules_AstroVolume

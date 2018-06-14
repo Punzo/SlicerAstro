@@ -39,6 +39,10 @@ class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeRenderingDisplayNode;
 
+/// \brief MRML node for representing an astro volume.
+///
+/// An astro volume is loaded from fits file.
+///
 /// \ingroup SlicerAstro_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeNode
 {

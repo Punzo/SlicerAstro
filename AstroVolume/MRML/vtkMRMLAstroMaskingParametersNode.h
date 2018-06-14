@@ -32,6 +32,8 @@ class vtkMRMLAnnotationROINode;
 class vtkMRMLTableNode;
 class vtkMRMLTransformNode;
 
+/// \brief MRML parameter node for the AstroMasking module.
+///
 /// \ingroup SlicerAstro_QtModules_AstroMasking
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMaskingParametersNode : public vtkMRMLNode
 {

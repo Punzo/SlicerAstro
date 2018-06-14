@@ -104,7 +104,6 @@
 #include "vtkSlicerApplicationLogic.h"
 
 //-----------------------------------------------------------------------------
-/// Visualization objects and pipeline for each slice view for the paint brush
 class BrushPipeline
 {
 public:

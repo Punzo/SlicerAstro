@@ -27,7 +27,8 @@
 /// \brief MRML node for representing a volume storage.
 ///
 /// vtkMRMLAstroVolumeStorageNode nodes describe the archetybe based volume storage
-/// node that allows to read/write volume data from/to AstroVolume file
+/// node that allows to read/write volume data from/to AstroVolume files
+/// \ingroup SlicerAstro_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorageNode
 {
   public:

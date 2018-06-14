@@ -39,6 +39,7 @@ class vtkMRMLUnitNode;
 /// \brief MRML node for representing a volume display attributes.
 ///
 /// vtkMRMLAstroLabelMapVolumeDisplayNode nodes describe how volume is displayed.
+/// \ingroup SlicerAstro_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMRMLLabelMapVolumeDisplayNode
 {
   public:

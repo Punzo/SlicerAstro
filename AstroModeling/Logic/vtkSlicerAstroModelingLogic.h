@@ -32,7 +32,7 @@ class vtkSlicerMarkupsLogic;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLAstroVolumeDisplayNode;
 
-/// \class vtkSlicerAstroMaskingLogic
+/// \class vtkSlicerAstroModelingLogic
 /// \brief This is a C++ SlicerAstro wrapping of 3DBAROLO,
 /// a 3D algorithm to derive rotation curves of galaxies,
 /// developed by Enrico di Teodoro.

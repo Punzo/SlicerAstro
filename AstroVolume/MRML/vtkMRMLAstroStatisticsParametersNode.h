@@ -32,6 +32,8 @@ class vtkMRMLAnnotationROINode;
 class vtkMRMLTableNode;
 class vtkMRMLTransformNode;
 
+/// \brief MRML parameter node for the AstroStatistics module.
+///
 /// \ingroup SlicerAstro_QtModules_AstroStatistics
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroStatisticsParametersNode : public vtkMRMLNode
 {

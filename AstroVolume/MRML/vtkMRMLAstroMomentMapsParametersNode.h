@@ -28,6 +28,8 @@
 // Export includes
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
+/// \brief MRML parameter node for the AstroMomentMaps module.
+///
 /// \ingroup SlicerAstro_QtModules_AstroMomentMaps
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMomentMapsParametersNode : public vtkMRMLNode
 {

@@ -30,7 +30,7 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroPVSliceModuleLogicExport.h"
 class vtkMRMLAstroPVSliceParametersNode;
 
-/// \class vtkSlicerAstroMomentMapsLogic
+/// \class vtkSlicerAstroPVSliceLogic
 /// \brief Calculate Position Velocity (PV) Slices.
 ///
 /// \ingroup SlicerAstro_QtModules_AstroPVSlice

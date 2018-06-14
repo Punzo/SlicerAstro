@@ -30,7 +30,7 @@ class vtkSlicerAstroVolumeLogic;
 #include "vtkSlicerAstroPVDiagramModuleLogicExport.h"
 class vtkMRMLAstroPVDiagramParametersNode;
 
-/// \class vtkSlicerAstroMomentMapsLogic
+/// \class vtkSlicerAstroPVDiagramLogic
 /// \brief Generates a Position Velocity (PV) diagram from fiducial markups.
 ///
 /// \ingroup SlicerAstro_QtModules_AstroPVDiagram

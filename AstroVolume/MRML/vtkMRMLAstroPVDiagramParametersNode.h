@@ -28,6 +28,8 @@
 // Export includes
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
+/// \brief MRML parameter node for the AstroPVDiagram module.
+///
 /// \ingroup SlicerAstro_QtModules_AstroPVDiagram
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRMLNode
 {

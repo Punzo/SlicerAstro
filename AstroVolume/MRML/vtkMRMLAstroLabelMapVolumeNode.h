@@ -27,12 +27,12 @@
 
 class vtkMRMLAstroLabelMapVolumeDisplayNode;
 
-/// \brief MRML node for representing a label map volume.
+/// \brief MRML node for representing an astro label map volume.
 ///
 /// A label map volume is typically the output of a segmentation procedure that
 /// labels each voxel according to its segment
 ///
-/// /// \ingroup SlicerAstro_QtModules_AstroVolumeNode
+/// \ingroup SlicerAstro_QtModules_AstroVolumeNode
 class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabelMapVolumeNode
 {
   public:
