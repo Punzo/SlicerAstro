@@ -45,9 +45,9 @@ endif(WIN32)
 #-----------------------------------------------------------------------------
 # configurating additional Flags
 if(UNIX)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -flto")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -std=c++11")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -std=c++11")
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -flto -std=c++11")
 endif()
 
 #-----------------------------------------------------------------------------

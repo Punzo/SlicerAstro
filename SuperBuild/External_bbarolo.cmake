@@ -19,8 +19,8 @@ endforeach()
 
 if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
-  set(BBAROLO_DOWNLOAD_VERSION "1.3" CACHE STRING "Version of Bbarolo source package to download")
-  set_property(CACHE BBAROLO_DOWNLOAD_VERSION PROPERTY STRINGS "1.3")
+  set(BBAROLO_DOWNLOAD_VERSION "1.4" CACHE STRING "Version of Bbarolo source package to download")
+  set_property(CACHE BBAROLO_DOWNLOAD_VERSION PROPERTY STRINGS "1.4")
 
   if(NOT DEFINED git_protocol)
     set(git_protocol "git")
@@ -33,7 +33,7 @@ if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/Punzo/Bbarolo"
-    GIT_TAG "5beed1dcacb166aaebfccaa3273589be7692b8c4"
+    GIT_TAG "68c5a02ddb138753d094851eb016d230cde7d356"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS
@@ -61,8 +61,10 @@ if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT 
     )
   set(BBAROLO_INCLUDE_DIR
       ${${proj}_SOURCE_DIR}
+      ${${proj}_SOURCE_DIR}/src
       ${${proj}_SOURCE_DIR}/src/Arrays
       ${${proj}_SOURCE_DIR}/src/Map
+      ${${proj}_SOURCE_DIR}/src/Tasks
       ${${proj}_SOURCE_DIR}/src/Utilities
       ${${proj}_BINARY_DIR}
   )

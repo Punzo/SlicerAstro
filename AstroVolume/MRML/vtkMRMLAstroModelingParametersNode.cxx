@@ -55,19 +55,22 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->SetMode("Automatic");
   this->Normalize = NULL;
   this->SetNormalize("LOCAL");
-  this->RadSep = 0.;
-  this->XCenter = 0.;
-  this->YCenter = 0.;
-  this->SystemicVelocity = 0.;
-  this->RotationVelocity = 0.;
+  this->RadSep = -1;
+  this->XCenter = -1;
+  this->YCenter = -1;
+  this->SystemicVelocity = -1;
+  this->RotationVelocity = -1;
   this->RadialVelocity = 0.;
-  this->VelocityDispersion = 0.;
-  this->Inclination = 0.;
+  this->VerticalVelocity = 0.;
+  this->VerticalRotationalGradient = 0.;
+  this->VerticalRotationalGradientHeight = 0.;
+  this->VelocityDispersion = -1;
+  this->Inclination = -1;
   this->InclinationError = 5.;
-  this->PositionAngle = 0.;
+  this->PositionAngle = -1;
   this->PositionAngleError = 15.;
-  this->ScaleHeight = 0.;
-  this->Distance = 0.;
+  this->ScaleHeight = -1;
+  this->Distance = -1;
   this->ColumnDensity = 1.;
   this->PositionAngleFit = true;
   this->RotationVelocityFit = true;
@@ -78,11 +81,13 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->YCenterFit = false;
   this->SystemicVelocityFit = false;
   this->ScaleHeightFit = false;
+  this->ADRIFTCorrection = false;
   this->LayerType = 0;
   this->FittingFunction = 1;
   this->WeightingFunction = 1;
-  this->NumberOfClounds = 0;
+  this->NumberOfClounds = -1;
   this->CloudsColumnDensity = 10.;
+  this->Tollerance = 0.001;
   this->XPosCenterIJK = 0.;
   this->YPosCenterIJK = 0.;
   this->XPosCenterRAS = 0.;
@@ -97,7 +102,7 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->Operation = vtkMRMLAstroModelingParametersNode::ESTIMATE;
   this->FitSuccess = false;
   this->ForceSliceUpdate = true;
-  this->NumberOfRings = 0;
+  this->NumberOfRings = -1;
   this->ContourLevel = 3.;
 }
 
@@ -260,6 +265,24 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "VerticalVelocity"))
+      {
+      this->VerticalVelocity = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "VerticalRotationalGradient"))
+      {
+      this->VerticalRotationalGradient = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "VerticalRotationalGradientHeight"))
+      {
+      this->VerticalRotationalGradientHeight = StringToDouble(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "VelocityDispersion"))
       {
       this->VelocityDispersion = StringToDouble(attValue);
@@ -362,6 +385,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "ADRIFTCorrection"))
+      {
+      this->ADRIFTCorrection = StringToInt(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "LayerType"))
       {
       this->LayerType = StringToInt(attValue);
@@ -389,6 +418,12 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
     if (!strcmp(attName, "CloudsColumnDensity"))
       {
       this->CloudsColumnDensity = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Tollerance"))
+      {
+      this->Tollerance = StringToDouble(attValue);
       continue;
       }
 
@@ -536,6 +571,9 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " SystemicVelocity=\"" << this->SystemicVelocity << "\"";
   of << indent << " RotationVelocity=\"" << this->RotationVelocity << "\"";
   of << indent << " RadialVelocity=\"" << this->RadialVelocity << "\"";
+  of << indent << " VerticalVelocity=\"" << this->VerticalVelocity << "\"";
+  of << indent << " VerticalRotationalGradient=\"" << this->VerticalRotationalGradient << "\"";
+  of << indent << " VerticalRotationalGradientHeight=\"" << this->VerticalRotationalGradientHeight << "\"";
   of << indent << " VelocityDispersion=\"" << this->VelocityDispersion << "\"";
   of << indent << " Inclination=\"" << this->Inclination << "\"";
   of << indent << " InclinationError=\"" << this->InclinationError << "\"";
@@ -553,11 +591,13 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " YCenterFit=\"" << this->YCenterFit << "\"";
   of << indent << " SystemicVelocityFit=\"" << this->SystemicVelocityFit << "\"";
   of << indent << " ScaleHeightFit=\"" << this->ScaleHeightFit << "\"";
+  of << indent << " ADRIFTCorrection=\"" << this->ADRIFTCorrection << "\"";
   of << indent << " LayerType=\"" << this->LayerType << "\"";
   of << indent << " FittingFunction=\"" << this->FittingFunction << "\"";
   of << indent << " WeightingFunction=\"" << this->WeightingFunction << "\"";
   of << indent << " NumberOfClounds=\"" << this->NumberOfClounds << "\"";
   of << indent << " CloudsColumnDensity=\"" << this->CloudsColumnDensity << "\"";
+  of << indent << " Tollerance=\"" << this->Tollerance << "\"";
   of << indent << " XPosCenterIJK=\"" << this->XPosCenterIJK << "\"";
   of << indent << " YPosCenterIJK=\"" << this->YPosCenterIJK << "\"";
   of << indent << " XPosCenterRAS=\"" << this->XPosCenterRAS << "\"";
@@ -598,6 +638,9 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetSystemicVelocity(node->GetSystemicVelocity());
   this->SetRotationVelocity(node->GetRotationVelocity());
   this->SetRadialVelocity(node->GetRadialVelocity());
+  this->SetVerticalVelocity(node->GetVerticalVelocity());
+  this->SetVerticalRotationalGradient(node->GetVerticalRotationalGradient());
+  this->SetVerticalRotationalGradientHeight(node->GetVerticalRotationalGradientHeight());
   this->SetVelocityDispersion(node->GetVelocityDispersion());
   this->SetInclination(node->GetInclination());
   this->SetInclinationError(node->GetInclinationError());
@@ -616,11 +659,13 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetYCenterFit(node->GetYCenterFit());
   this->SetSystemicVelocityFit(node->GetSystemicVelocityFit());
   this->SetScaleHeightFit(node->GetScaleHeightFit());
+  this->SetADRIFTCorrection(node->GetADRIFTCorrection());
   this->SetLayerType(node->GetLayerType());
   this->SetFittingFunction(node->GetFittingFunction());
   this->SetWeightingFunction(node->GetWeightingFunction());
   this->SetNumberOfClounds(node->GetNumberOfClounds());
   this->SetCloudsColumnDensity(node->GetCloudsColumnDensity());
+  this->SetTollerance(node->GetTollerance());
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetStatus(node->GetStatus());
   this->SetOperation(node->GetOperation());
@@ -725,6 +770,9 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "SystemicVelocity: " << this->SystemicVelocity << "\n";
   os << "RotationVelocity: " << this->RotationVelocity << "\n";
   os << "RadialVelocity: " << this->RadialVelocity << "\n";
+  os << "VerticalVelocity: " << this->VerticalVelocity << "\n";
+  os << "VerticalRotationalGradient: " << this->VerticalRotationalGradient << "\n";
+  os << "VerticalRotationalGradientHeight: " << this->VerticalRotationalGradientHeight << "\n";
   os << "VelocityDispersion: " << this->VelocityDispersion << "\n";
   os << "InclinationError: " << this->InclinationError << "\n";
   os << "PositionAngle: " << this->PositionAngle << "\n";
@@ -742,11 +790,13 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "YCenterFit: " << this->YCenterFit << "\n";
   os << "SystemicVelocityFit: " << this->SystemicVelocityFit << "\n";
   os << "ScaleHeightFit: " << this->ScaleHeightFit << "\n";
+  os << "ADRIFTCorrection: " << this->ADRIFTCorrection << "\n";
   os << "LayerType: " << this->LayerType << "\n";
   os << "FittingFunction: " << this->FittingFunction << "\n";
   os << "WeightingFunction: " << this->WeightingFunction << "\n";
   os << "NumberOfClounds: " << this->NumberOfClounds << "\n";
   os << "CloudsColumnDensity: " << this->CloudsColumnDensity << "\n";
+  os << "Tollerance: " << this->Tollerance << "\n";
   os << "Status: " << this->Status << "\n";
   os << "Operation: " << this->GetOperationAsString(this->Operation) << "\n";
   os << "FitSuccess: " << this->FitSuccess << "\n";

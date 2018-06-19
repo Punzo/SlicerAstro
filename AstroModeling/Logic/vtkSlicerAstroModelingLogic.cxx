@@ -494,133 +494,145 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   this->Internal->par->setOutfolder(outputFolder);
   this->Internal->par->setVerbosity(true);
   this->Internal->par->setShowbar(false);
-  this->Internal->par->setSearch(false);
+  this->Internal->par->getParSE().flagSearch = false;
   this->Internal->par->setflagGalFit(true);
 
   if (!strcmp(pnode->GetMode(), "Manual"))
     {
-    if (pnode->GetNumberOfRings() > 0 && fabs(pnode->GetNumberOfRings() - 1) > 0.001)
+    if (fabs(pnode->GetNumberOfRings() - 1) > 0.001)
       {
-      this->Internal->par->setNRADII(pnode->GetNumberOfRings());
+      this->Internal->par->getParGF().NRADII = pnode->GetNumberOfRings();
       }
     else if (pnode->GetNumberOfRings() > 0 && fabs(pnode->GetNumberOfRings() - 1) < 0.001 )
       {
       pnode->SetStatus(100);
       pnode->SetFitSuccess(false);
       inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                     " insufficient number of rings."
                     " 3DBarolo needs at least two rings!");
       return 0;
       }
     else
       {
-      this->Internal->par->setNRADII(-1);
+      this->Internal->par->getParGF().NRADII = -1;
       }
 
-    if (pnode->GetRadSep() > 0.)
+    if (pnode->GetRadSep() > -1)
       {
-      this->Internal->par->setRADSEP(pnode->GetRadSep());
+      this->Internal->par->getParGF().RADSEP = pnode->GetRadSep();
       }
     else
       {
-      this->Internal->par->setRADSEP(-1);
+      this->Internal->par->getParGF().RADSEP = -1;
       }
 
-    if (pnode->GetXCenter() > 0.)
+    if (pnode->GetXCenter() > -1)
       {
-      this->Internal->par->setXPOS(DoubleToString(pnode->GetXCenter()));
+      this->Internal->par->getParGF().XPOS = DoubleToString(pnode->GetXCenter());
       }
     else
       {
-      this->Internal->par->setXPOS("-1");
+      this->Internal->par->getParGF().XPOS = "-1";
       }
 
-    if (pnode->GetYCenter() > 0.)
+    if (pnode->GetYCenter() > -1)
       {
-      this->Internal->par->setYPOS(DoubleToString(pnode->GetYCenter()));
+      this->Internal->par->getParGF().YPOS = DoubleToString(pnode->GetYCenter());
       }
     else
       {
-      this->Internal->par->setYPOS("-1");
+      this->Internal->par->getParGF().YPOS = "-1";
       }
 
-    if (pnode->GetSystemicVelocity() > 0.)
+    if (pnode->GetSystemicVelocity() > -1)
       {
-      this->Internal->par->setVSYS(DoubleToString(pnode->GetSystemicVelocity()- VsysShift));
+      this->Internal->par->getParGF().VSYS = DoubleToString(pnode->GetSystemicVelocity()- VsysShift);
       }
     else
       {
-      this->Internal->par->setVSYS("-1");
+      this->Internal->par->getParGF().VSYS = "-1";
       }
 
-    if (pnode->GetRotationVelocity() > 0.)
+    if (pnode->GetRotationVelocity() > -1)
       {
-      this->Internal->par->setVROT(DoubleToString(pnode->GetRotationVelocity()));
+      this->Internal->par->getParGF().VROT = DoubleToString(pnode->GetRotationVelocity());
       }
     else
       {
-      this->Internal->par->setVROT("-1");
+      this->Internal->par->getParGF().VROT = "-1";
       }
 
-    this->Internal->par->setVRAD(DoubleToString(pnode->GetRadialVelocity()));
+    this->Internal->par->getParGF().VRAD = DoubleToString(pnode->GetRadialVelocity());
+    this->Internal->par->getParGF().VVERT = DoubleToString(pnode->GetVerticalVelocity());
+    this->Internal->par->getParGF().DVDZ = DoubleToString(pnode->GetVerticalRotationalGradient());
+    this->Internal->par->getParGF().ZCYL = DoubleToString(pnode->GetVerticalRotationalGradientHeight());
 
-    if (pnode->GetVelocityDispersion() > 0.)
+    if (pnode->GetVelocityDispersion() > -1)
       {
-      this->Internal->par->setVDISP(DoubleToString(pnode->GetVelocityDispersion()));
+      this->Internal->par->getParGF().VDISP = DoubleToString(pnode->GetVelocityDispersion());
       }
     else
       {
-      this->Internal->par->setVDISP("-1");
+      this->Internal->par->getParGF().VDISP = "-1";
       }
 
-    if (pnode->GetInclination() > 0.)
+    if (pnode->GetInclination() > -1)
       {
-      this->Internal->par->setINC(DoubleToString(pnode->GetInclination()));
+      this->Internal->par->getParGF().INC = DoubleToString(pnode->GetInclination());
       }
     else
       {
-      this->Internal->par->setINC("-1");
+      this->Internal->par->getParGF().INC = "-1";
       }
 
-    this->Internal->par->setDELTAINC(pnode->GetInclinationError());
+    this->Internal->par->getParGF().DELTAINC = pnode->GetInclinationError();
 
-    if (pnode->GetPositionAngle() > 0.)
+    if (pnode->GetPositionAngle() > -1)
       {
-      this->Internal->par->setPHI(DoubleToString(pnode->GetPositionAngle()));
+      this->Internal->par->getParGF().PHI = DoubleToString(pnode->GetPositionAngle());
       }
     else
       {
-      this->Internal->par->setPHI("-1");
+      this->Internal->par->getParGF().PHI = "-1";
       }
 
-    this->Internal->par->setDELTAPHI(pnode->GetPositionAngleError());
+    this->Internal->par->getParGF().DELTAPHI = pnode->GetPositionAngleError();
 
-    if (pnode->GetScaleHeight() > 0.)
+    if (pnode->GetScaleHeight() > -1)
       {
-      this->Internal->par->setZ0(DoubleToString(pnode->GetScaleHeight()));
+      this->Internal->par->getParGF().Z0 = DoubleToString(pnode->GetScaleHeight());
       }
     else
       {
-      this->Internal->par->setZ0("-1");
+      this->Internal->par->getParGF().Z0 = "-1";
       }
 
-    if (pnode->GetDistance() > 0.)
+    if (pnode->GetDistance() > -1)
       {
-      this->Internal->par->setDistance(pnode->GetDistance());
+      this->Internal->par->getParGF().DISTANCE = pnode->GetDistance();
       }
     else
       {
-      this->Internal->par->setDistance(-1);
+      this->Internal->par->getParGF().DISTANCE = -1;
       }
 
-    if (pnode->GetColumnDensity() > 0.)
+    if (pnode->GetColumnDensity() > -1)
       {
-      this->Internal->par->setDENS(DoubleToString(pnode->GetColumnDensity()));
+      this->Internal->par->getParGF().DENS = DoubleToString(pnode->GetColumnDensity());
       }
     else
       {
-      this->Internal->par->setDENS("-1");
+      this->Internal->par->getParGF().DENS = "-1";
+      }
+
+    if (pnode->GetNumberOfClounds() > -1)
+      {
+      this->Internal->par->getParGF().NV = pnode->GetNumberOfClounds();
+      }
+    else
+      {
+      this->Internal->par->getParGF().NV = -1;
       }
 
     string freeParameters;
@@ -670,68 +682,70 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       freeParameters += "Z0";
       }
 
-    this->Internal->par->setFREE(freeParameters);
-    this->Internal->par->setLTYPE(pnode->GetLayerType() + 1);
-    this->Internal->par->setFTYPE(pnode->GetFittingFunction() + 1);
-    this->Internal->par->setWFUNC(pnode->GetWeightingFunction());
-    this->Internal->par->setCDENS(pnode->GetCloudsColumnDensity());
+    this->Internal->par->getParGF().FREE = freeParameters;
+    this->Internal->par->getParGF().LTYPE = pnode->GetLayerType() + 1;
+    this->Internal->par->getParGF().FTYPE = pnode->GetFittingFunction() + 1;
+    this->Internal->par->getParGF().WFUNC = pnode->GetWeightingFunction();
+    this->Internal->par->getParGF().CDENS = pnode->GetCloudsColumnDensity();
 
     if (pnode->GetNumberOfClounds() > 0)
       {
-      this->Internal->par->setNV(pnode->GetNumberOfClounds());
+      this->Internal->par->getParGF().NV = pnode->GetNumberOfClounds();
       }
     else
       {
-      this->Internal->par->setNV(-1);
+      this->Internal->par->getParGF().NV = -1;
       }
     }
   else
     {
-    this->Internal->par->setNRADII(-1);
-    this->Internal->par->setRADSEP(-1);
-    this->Internal->par->setXPOS("-1");
-    this->Internal->par->setYPOS("-1");
-    this->Internal->par->setVSYS("-1");
-    this->Internal->par->setVROT("-1");
-    this->Internal->par->setVRAD("0");
-    this->Internal->par->setPHI("-1");
-    this->Internal->par->setINC("-1");
-    this->Internal->par->setZ0("-1");
-    this->Internal->par->setDistance(-1);
-    this->Internal->par->setVDISP("-1");
-    this->Internal->par->setDENS("-1");
-    this->Internal->par->setNV(-1);
+    this->Internal->par->getParGF().NRADII = -1;
+    this->Internal->par->getParGF().RADSEP = -1;
+    this->Internal->par->getParGF().XPOS = "-1";
+    this->Internal->par->getParGF().YPOS = "-1";
+    this->Internal->par->getParGF().VSYS = "-1";
+    this->Internal->par->getParGF().VROT = "-1";
+    this->Internal->par->getParGF().VRAD = "0";
+    this->Internal->par->getParGF().PHI = "-1";
+    this->Internal->par->getParGF().INC = "-1";
+    this->Internal->par->getParGF().Z0 = "-1";
+    this->Internal->par->getParGF().DISTANCE = -1;
+    this->Internal->par->getParGF().VDISP = "-1";
+    this->Internal->par->getParGF().DENS = "-1";
+    this->Internal->par->getParGF().NV = -1;
     }
 
   if (maskActive)
     {
-    if (this->Internal->par->getNRADII() == -1 ||
-        this->Internal->par->getRADSEP() == -1 ||
-        this->Internal->par->getXPOS() == "-1" ||
-        this->Internal->par->getYPOS() == "-1" ||
-        this->Internal->par->getVSYS() == "-1" ||
-        this->Internal->par->getVROT() == "-1" ||
-        this->Internal->par->getPHI() == "-1" ||
-        this->Internal->par->getINC() == "-1" ||
-        this->Internal->par->getZ0() == "-1" ||
-        this->Internal->par->getDistance() == -1 ||
-        this->Internal->par->getVDISP() == "-1" ||
-        this->Internal->par->getDENS() == "-1" ||
-        this->Internal->par->getNV() == -1)
+    if (this->Internal->par->getParGF().NRADII == -1 ||
+        this->Internal->par->getParGF().RADSEP == -1 ||
+        this->Internal->par->getParGF().XPOS == "-1" ||
+        this->Internal->par->getParGF().YPOS == "-1" ||
+        this->Internal->par->getParGF().VSYS == "-1" ||
+        this->Internal->par->getParGF().VROT == "-1" ||
+        this->Internal->par->getParGF().PHI == "-1" ||
+        this->Internal->par->getParGF().INC == "-1" ||
+        this->Internal->par->getParGF().Z0 == "-1" ||
+        this->Internal->par->getParGF().DISTANCE == -1 ||
+        this->Internal->par->getParGF().VDISP == "-1" ||
+        this->Internal->par->getParGF().DENS == "-1" ||
+        this->Internal->par->getParGF().NV == -1)
       {
-      this->Internal->par->setSearch(true);
+      this->Internal->par->getParSE().flagSearch = true;
       }
     else
       {
-      this->Internal->par->setSearch(false);
+      this->Internal->par->getParSE().flagSearch = false;
       }
     }
   else
     {
-    this->Internal->par->setSearch(true);
+    this->Internal->par->getParSE().flagSearch = true;
     }
 
-  this->Internal->par->setNORM(pnode->GetNormalize());
+  this->Internal->par->getParGF().flagADRIFT = pnode->GetADRIFTCorrection();
+  this->Internal->par->getParGF().TOL = pnode->GetTollerance();
+  this->Internal->par->getParGF().NORM = pnode->GetNormalize();
 
   // set header
   this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
@@ -870,7 +884,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         }
 
       // Searching stuff if the user has not provided a mask
-      if (this->Internal->par->getSearch())
+      if (this->Internal->par->getParSE().flagSearch)
         {
         this->Internal->cubeF->Search();
         }
@@ -886,7 +900,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         this->Internal->fitF = new Model::Galfit<float>();
         int error = this->Internal->fitF->input(this->Internal->cubeF);
-        if (error == 0)
+
+        if (error == 2)
           {
           this->cleanPointers();
           pnode->SetStatus(100);
@@ -896,7 +911,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "3DBarolo could not find the source.");
           return 0;
           }
-        else if (error == 2)
+        else if (error == 3)
           {
           this->cleanPointers();
           pnode->SetStatus(100);
@@ -913,21 +928,24 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         wasModifying = pnode->StartModify();
 
-        pnode->SetNumberOfRings(this->Internal->par->getNRADII());
-        pnode->SetRadSep(this->Internal->par->getRADSEP());
-        pnode->SetXCenter(StringToDouble(this->Internal->par->getXPOS().c_str()));
-        pnode->SetYCenter(StringToDouble(this->Internal->par->getYPOS().c_str()));
-        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getVSYS().c_str()) + VsysShift);
-        pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getVROT().c_str()));
-        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getVRAD().c_str()));
-        pnode->SetPositionAngle(StringToDouble(this->Internal->par->getPHI().c_str()));
-        pnode->SetInclination(StringToDouble(this->Internal->par->getINC().c_str()));
-        pnode->SetScaleHeight(StringToDouble(this->Internal->par->getZ0().c_str()));
-        pnode->SetDistance(this->Internal->par->getDistance());
-        pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getVDISP().c_str()));
-        pnode->SetColumnDensity(StringToDouble(this->Internal->par->getDENS().c_str()));
-        pnode->SetCloudsColumnDensity((double) this->Internal->par->getCDENS());
-        pnode->SetNumberOfClounds(this->Internal->par->getNV());
+        pnode->SetNumberOfRings(this->Internal->par->getParGF().NRADII);
+        pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
+        pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
+        pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
+        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()) + VsysShift);
+        pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
+        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
+        pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
+        pnode->SetVerticalRotationalGradient(StringToDouble(this->Internal->par->getParGF().DVDZ.c_str()));
+        pnode->SetVerticalRotationalGradientHeight(StringToDouble(this->Internal->par->getParGF().ZCYL.c_str()));
+        pnode->SetPositionAngle(StringToDouble(this->Internal->par->getParGF().PHI.c_str()));
+        pnode->SetInclination(StringToDouble(this->Internal->par->getParGF().INC.c_str()));
+        pnode->SetScaleHeight(StringToDouble(this->Internal->par->getParGF().Z0.c_str()));
+        pnode->SetDistance(this->Internal->par->getParGF().DISTANCE);
+        pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getParGF().VDISP.c_str()));
+        pnode->SetColumnDensity(StringToDouble(this->Internal->par->getParGF().DENS.c_str()));
+        pnode->SetCloudsColumnDensity((double) this->Internal->par->getParGF().CDENS);
+        pnode->SetNumberOfClounds(this->Internal->par->getParGF().NV);
 
         pnode->EndModify(wasModifying);
 
@@ -954,7 +972,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
           pnode->SetStatus(60);
 
-          if (this->Internal->par->getTwoStage())
+          if (this->Internal->par->getParGF().TWOSTAGE)
             {
             this->Internal->fitF->SecondStage(pnode->GetStatusPointer());
             if (pnode->GetStatus() == -1)
@@ -969,7 +987,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         pnode->SetStatus(80);
 
-        float *ringreg = this->Internal->fitF->getFinalRingsRegion();
+        float *ringreg = RingRegion(this->Internal->fitF->Outrings(),
+                                    this->Internal->cubeF->Head());
         if (!ringreg)
           {
           this->cleanPointers();
@@ -1005,13 +1024,13 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                                        this->Internal->fitF->Outrings()->nr);
         int nseg = 1;
         float segments[4] = {0, 360., 0., 0};
-        if (this->Internal->par->getSIDE() != "A")
+        if (this->Internal->par->getParGF().SIDE != "A")
           {
           nseg = 2;
           segments[2] = -90;
           segments[3] = 90;
           }
-        else if (this->Internal->par->getSIDE() == "R")
+        else if (this->Internal->par->getParGF().SIDE == "R")
           {
           nseg = 2;
           segments[2] = 90;
@@ -1090,11 +1109,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           // thus just need to rescale the model to the total flux of data inside last ring.
 
           // Calculate total flux of model within last ring
-          for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+          for (int ii = 0; ii < this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
             {
             if (!isNaN(ringreg[ii]))
               {
-              for (size_t z = 0; z < (size_t)this->Internal->cubeF->DimZ(); z++)
+              for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
                 {
                 totflux_model += outarray[ii + z * this->Internal->cubeF->DimY() * this->Internal->cubeF->DimX()];
                 }
@@ -1102,7 +1121,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
             }
 
           double factor = this->Internal->totflux_data/totflux_model;
-          for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
+          for (size_t ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
             {
             outarray[ii] *= factor;
             }
@@ -1253,7 +1272,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         }
 
       // Searching stuff if the user has not provided a mask
-      if (this->Internal->par->getSearch())
+      if (this->Internal->par->getParSE().flagSearch)
         {
         this->Internal->cubeD->Search();
         }
@@ -1270,7 +1289,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         this->Internal->fitD = new Model::Galfit<double>();
         int error = this->Internal->fitD->input(this->Internal->cubeD);
 
-        if (error == 0)
+        if (error == 2)
           {
           this->cleanPointers();
           pnode->SetStatus(100);
@@ -1280,7 +1299,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "3DBarolo could not find the source.");
           return 0;
           }
-        else if (error == 2)
+        else if (error == 3)
           {
           this->cleanPointers();
           pnode->SetStatus(100);
@@ -1297,21 +1316,24 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         wasModifying = pnode->StartModify();
 
-        pnode->SetNumberOfRings(this->Internal->par->getNRADII());
-        pnode->SetRadSep(this->Internal->par->getRADSEP());
-        pnode->SetXCenter(StringToDouble(this->Internal->par->getXPOS().c_str()));
-        pnode->SetYCenter(StringToDouble(this->Internal->par->getYPOS().c_str()));
-        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getVSYS().c_str()) + VsysShift);
-        pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getVROT().c_str()));
-        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getVRAD().c_str()));
-        pnode->SetPositionAngle(StringToDouble(this->Internal->par->getPHI().c_str()));
-        pnode->SetInclination(StringToDouble(this->Internal->par->getINC().c_str()));
-        pnode->SetScaleHeight(StringToDouble(this->Internal->par->getZ0().c_str()));
-        pnode->SetDistance(this->Internal->par->getDistance());
-        pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getVDISP().c_str()));
-        pnode->SetColumnDensity(StringToDouble(this->Internal->par->getDENS().c_str()));
-        pnode->SetCloudsColumnDensity((double) this->Internal->par->getCDENS());
-        pnode->SetNumberOfClounds(this->Internal->par->getNV());
+        pnode->SetNumberOfRings(this->Internal->par->getParGF().NRADII);
+        pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
+        pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
+        pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
+        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()) + VsysShift);
+        pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
+        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
+        pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
+        pnode->SetVerticalRotationalGradient(StringToDouble(this->Internal->par->getParGF().DVDZ.c_str()));
+        pnode->SetVerticalRotationalGradientHeight(StringToDouble(this->Internal->par->getParGF().ZCYL.c_str()));
+        pnode->SetPositionAngle(StringToDouble(this->Internal->par->getParGF().PHI.c_str()));
+        pnode->SetInclination(StringToDouble(this->Internal->par->getParGF().INC.c_str()));
+        pnode->SetScaleHeight(StringToDouble(this->Internal->par->getParGF().Z0.c_str()));
+        pnode->SetDistance(this->Internal->par->getParGF().DISTANCE);
+        pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getParGF().VDISP.c_str()));
+        pnode->SetColumnDensity(StringToDouble(this->Internal->par->getParGF().DENS.c_str()));
+        pnode->SetCloudsColumnDensity((double) this->Internal->par->getParGF().CDENS);
+        pnode->SetNumberOfClounds(this->Internal->par->getParGF().NV);
 
         pnode->EndModify(wasModifying);
 
@@ -1338,7 +1360,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
           pnode->SetStatus(60);
 
-          if (this->Internal->par->getTwoStage())
+          if (this->Internal->par->getParGF().TWOSTAGE)
             {
             this->Internal->fitD->SecondStage(pnode->GetStatusPointer());
             if (pnode->GetStatus() == -1)
@@ -1354,7 +1376,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         pnode->SetStatus(80);
 
         // Calculate the total flux inside last ring in data
-        double *ringreg = this->Internal->fitD->getFinalRingsRegion();
+        double *ringreg = RingRegion(this->Internal->fitD->Outrings(),
+                                     this->Internal->cubeD->Head());
         if (!ringreg)
           {
           this->cleanPointers();
@@ -1389,13 +1412,13 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                                          this->Internal->fitD->Outrings()->nr);
         int nseg = 1;
         float segments[4] = {0, 360., 0., 0};
-        if (this->Internal->par->getSIDE() != "A")
+        if (this->Internal->par->getParGF().SIDE != "A")
           {
           nseg = 2;
           segments[2] = -90;
           segments[3] = 90;
           }
-        else if (this->Internal->par->getSIDE() == "R")
+        else if (this->Internal->par->getParGF().SIDE == "R")
           {
           nseg = 2;
           segments[2] = 90;
@@ -1473,11 +1496,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           // thus just need to rescale the model to the total flux of data inside last ring.
 
           // Calculate total flux of model within last ring
-          for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+          for (int ii = 0; ii < this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
             {
             if (!isNaN(ringreg[ii]))
               {
-              for (size_t z = 0; z < (size_t)this->Internal->cubeD->DimZ(); z++)
+              for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
                 {
                 totflux_model += outarray[ii + z * this->Internal->cubeD->DimY() * this->Internal->cubeD->DimX()];
                 }
@@ -1485,7 +1508,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
             }
 
           double factor = this->Internal->totflux_data / totflux_model;
-          for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
+          for (size_t ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
             {
             outarray[ii] *= factor;
             }
@@ -1938,7 +1961,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   wcsprm* WCS = inputVolumeDisplay->GetWCSStruct();
   if (!WCS)
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                   " WCS NULL!");
     return 0;
     }
@@ -1949,7 +1972,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
     if (!inputVolumeDisplay->SetRadioVelocityDefinition(false))
       {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                     " Conversion to radio velocity definition failed!");
       return 0;
       }
@@ -1962,7 +1985,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     {
     if (!inputVolumeDisplay->SetOpticalVelocityDefinition(false))
       {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                     " Conversion to radio velocity definition failed!");
       return 0;
       }
@@ -1971,7 +1994,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
     if (!inputVolumeDisplay->SetRadioVelocityDefinition(false))
       {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                     " Conversion to radio velocity definition failed!");
       return 0;
       }
@@ -2014,127 +2037,140 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->par->setShowbar(false);
     this->Internal->par->setflagGalFit(true);
 
-    if (pnode->GetNumberOfRings() > 0)
+    if (fabs(pnode->GetNumberOfRings() - 1) > 0.001)
       {
-      this->Internal->par->setNRADII(pnode->GetNumberOfRings());
+      this->Internal->par->getParGF().NRADII = pnode->GetNumberOfRings();
+      }
+    else if (pnode->GetNumberOfRings() > 0 && fabs(pnode->GetNumberOfRings() - 1) < 0.001 )
+      {
+      pnode->SetStatus(100);
+      pnode->SetFitSuccess(false);
+      inputVolumeDisplay->SetOpticalVelocityDefinition(false);
+      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                    " insufficient number of rings."
+                    " 3DBarolo needs at least two rings!");
+      return 0;
       }
     else
       {
-      this->Internal->par->setNRADII(-1);
+      this->Internal->par->getParGF().NRADII = -1;
       }
 
-    if (pnode->GetRadSep() > 0.)
+    if (pnode->GetRadSep() > -1)
       {
-      this->Internal->par->setRADSEP(pnode->GetRadSep());
+      this->Internal->par->getParGF().RADSEP = pnode->GetRadSep();
       }
     else
       {
-      this->Internal->par->setRADSEP(-1);
+      this->Internal->par->getParGF().RADSEP = -1;
       }
 
-    if (pnode->GetXCenter() > 0.)
+    if (pnode->GetXCenter() > -1)
       {
-      this->Internal->par->setXPOS(DoubleToString(pnode->GetXCenter()));
+      this->Internal->par->getParGF().XPOS = DoubleToString(pnode->GetXCenter());
       }
     else
       {
-      this->Internal->par->setXPOS("-1");
+      this->Internal->par->getParGF().XPOS = "-1";
       }
 
-    if (pnode->GetYCenter() > 0.)
+    if (pnode->GetYCenter() > -1)
       {
-      this->Internal->par->setYPOS(DoubleToString(pnode->GetYCenter()));
+      this->Internal->par->getParGF().YPOS = DoubleToString(pnode->GetYCenter());
       }
     else
       {
-      this->Internal->par->setYPOS("-1");
+      this->Internal->par->getParGF().YPOS = "-1";
       }
 
-    if (pnode->GetSystemicVelocity() > 0.)
+    if (pnode->GetSystemicVelocity() > -1)
       {
-      this->Internal->par->setVSYS(DoubleToString(pnode->GetSystemicVelocity() - VsysShift));
+      this->Internal->par->getParGF().VSYS = DoubleToString(pnode->GetSystemicVelocity()- VsysShift);
       }
     else
       {
-      this->Internal->par->setVSYS("-1");
+      this->Internal->par->getParGF().VSYS = "-1";
       }
 
-    if (pnode->GetRotationVelocity() > 0.)
+    if (pnode->GetRotationVelocity() > -1)
       {
-      this->Internal->par->setVROT(DoubleToString(pnode->GetRotationVelocity()));
+      this->Internal->par->getParGF().VROT = DoubleToString(pnode->GetRotationVelocity());
       }
     else
       {
-      this->Internal->par->setVROT("-1");
+      this->Internal->par->getParGF().VROT = "-1";
       }
 
-    this->Internal->par->setVRAD(DoubleToString(pnode->GetRadialVelocity()));
+    this->Internal->par->getParGF().VRAD = DoubleToString(pnode->GetRadialVelocity());
+    this->Internal->par->getParGF().VVERT = DoubleToString(pnode->GetVerticalVelocity());
+    this->Internal->par->getParGF().DVDZ = DoubleToString(pnode->GetVerticalRotationalGradient());
+    this->Internal->par->getParGF().ZCYL = DoubleToString(pnode->GetVerticalRotationalGradientHeight());
 
-    if (pnode->GetVelocityDispersion() > 0.)
+    if (pnode->GetVelocityDispersion() > -1)
       {
-      this->Internal->par->setVDISP(DoubleToString(pnode->GetVelocityDispersion()));
+      this->Internal->par->getParGF().VDISP = DoubleToString(pnode->GetVelocityDispersion());
       }
     else
       {
-      this->Internal->par->setVDISP("-1");
+      this->Internal->par->getParGF().VDISP = "-1";
       }
 
-    if (pnode->GetInclination() > 0.)
+    if (pnode->GetInclination() > -1)
       {
-      this->Internal->par->setINC(DoubleToString(pnode->GetInclination()));
+      this->Internal->par->getParGF().INC = DoubleToString(pnode->GetInclination());
       }
     else
       {
-      this->Internal->par->setINC("-1");
+      this->Internal->par->getParGF().INC = "-1";
       }
 
-    this->Internal->par->setDELTAINC(pnode->GetInclinationError());
+    this->Internal->par->getParGF().DELTAINC = pnode->GetInclinationError();
 
-    if (pnode->GetPositionAngle() > 0.)
+    if (pnode->GetPositionAngle() > -1)
       {
-      this->Internal->par->setPHI(DoubleToString(pnode->GetPositionAngle()));
+      this->Internal->par->getParGF().PHI = DoubleToString(pnode->GetPositionAngle());
       }
     else
       {
-      this->Internal->par->setPHI("-1");
+      this->Internal->par->getParGF().PHI = "-1";
       }
 
-    this->Internal->par->setDELTAPHI(pnode->GetPositionAngleError());
+    this->Internal->par->getParGF().DELTAPHI = pnode->GetPositionAngleError();
 
-    if (pnode->GetScaleHeight() > 0.)
+    if (pnode->GetScaleHeight() > -1)
       {
-      this->Internal->par->setZ0(DoubleToString(pnode->GetScaleHeight()));
+      this->Internal->par->getParGF().Z0 = DoubleToString(pnode->GetScaleHeight());
       }
     else
       {
-      this->Internal->par->setZ0("-1");
+      this->Internal->par->getParGF().Z0 = "-1";
       }
 
-    if (pnode->GetDistance() > 0.)
+    if (pnode->GetDistance() > -1)
       {
-      this->Internal->par->setDistance(pnode->GetDistance());
+      this->Internal->par->getParGF().DISTANCE = pnode->GetDistance();
       }
     else
       {
-      this->Internal->par->setDistance(-1);
+      this->Internal->par->getParGF().DISTANCE = -1;
       }
 
-    if (pnode->GetColumnDensity() > 0.)
+    if (pnode->GetColumnDensity() > -1)
       {
-      this->Internal->par->setDENS(DoubleToString(pnode->GetColumnDensity()));
+      this->Internal->par->getParGF().DENS = DoubleToString(pnode->GetColumnDensity());
       }
     else
       {
-      this->Internal->par->setDENS("-1");
+      this->Internal->par->getParGF().DENS = "-1";
       }
 
-    if (pnode->GetNumberOfClounds() > 0)
+    if (pnode->GetNumberOfClounds() > -1)
       {
-      this->Internal->par->setNV(pnode->GetNumberOfClounds());
+      this->Internal->par->getParGF().NV = pnode->GetNumberOfClounds();
       }
     else
       {
-      this->Internal->par->setNV(-1);
+      this->Internal->par->getParGF().NV = -1;
       }
 
     string freeParameters;
@@ -2184,19 +2220,19 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       freeParameters += "Z0";
       }
 
-    if (this->Internal->par->getNRADII() == -1 ||
-        this->Internal->par->getRADSEP() == -1 ||
-        this->Internal->par->getXPOS() == "-1" ||
-        this->Internal->par->getYPOS() == "-1" ||
-        this->Internal->par->getVSYS() == "-1" ||
-        this->Internal->par->getVROT() == "-1" ||
-        this->Internal->par->getPHI() == "-1" ||
-        this->Internal->par->getINC() == "-1" ||
-        this->Internal->par->getZ0() == "-1" ||
-        this->Internal->par->getDistance() == -1 ||
-        this->Internal->par->getVDISP() == "-1" ||
-        this->Internal->par->getDENS() == "-1" ||
-        this->Internal->par->getNV() == -1)
+    if (this->Internal->par->getParGF().NRADII == -1 ||
+        this->Internal->par->getParGF().RADSEP == -1 ||
+        this->Internal->par->getParGF().XPOS == "-1" ||
+        this->Internal->par->getParGF().YPOS == "-1" ||
+        this->Internal->par->getParGF().VSYS == "-1" ||
+        this->Internal->par->getParGF().VROT == "-1" ||
+        this->Internal->par->getParGF().PHI == "-1" ||
+        this->Internal->par->getParGF().INC == "-1" ||
+        this->Internal->par->getParGF().Z0 == "-1" ||
+        this->Internal->par->getParGF().DISTANCE == -1 ||
+        this->Internal->par->getParGF().VDISP == "-1" ||
+        this->Internal->par->getParGF().DENS == "-1" ||
+        this->Internal->par->getParGF().NV == -1)
       {
       inputVolumeDisplay->SetOpticalVelocityDefinition();
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -2204,18 +2240,19 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       return 0;
       }
 
-    this->Internal->par->setFREE(freeParameters);
-    this->Internal->par->setLTYPE(pnode->GetLayerType() + 1);
-    this->Internal->par->setFTYPE(pnode->GetFittingFunction() + 1);
-    this->Internal->par->setWFUNC(pnode->GetWeightingFunction());
-    this->Internal->par->setCDENS(pnode->GetCloudsColumnDensity());
+    this->Internal->par->getParGF().FREE = freeParameters;
+    this->Internal->par->getParGF().LTYPE = pnode->GetLayerType() + 1;
+    this->Internal->par->getParGF().FTYPE = pnode->GetFittingFunction() + 1;
+    this->Internal->par->getParGF().WFUNC = pnode->GetWeightingFunction();
+    this->Internal->par->getParGF().CDENS = pnode->GetCloudsColumnDensity();
 
-    this->Internal->par->setSearch(false);
-    this->Internal->par->setMASK("SMOOTH");
+    this->Internal->par->getParGF().flagADRIFT = pnode->GetADRIFTCorrection();
+    this->Internal->par->getParSE().flagSearch = false;
+    this->Internal->par->getParGF().MASK = "SMOOTH";
     this->Internal->par->setBeamFWHM(this->Internal->par->getBeamFWHM()/3600.);
-    this->Internal->par->setTOL(1.E-3);
+    this->Internal->par->getParGF().TOL = pnode->GetTollerance();
 
-    this->Internal->par->setNORM(pnode->GetNormalize());
+    this->Internal->par->getParGF().NORM = pnode->GetNormalize();
 
     // set header
     this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
@@ -2294,7 +2331,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
         this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
         // Calculate the total flux inside last ring in data
-        float *ringreg = this->Internal->fitF->getFinalRingsRegion();
+        float *ringreg = RingRegion(this->Internal->fitF->Outrings(),
+                                    this->Internal->cubeF->Head());
         this->Internal->totflux_data = 0.;
         MomentMap<float> *totalmap = new MomentMap<float>;
         totalmap->input(this->Internal->cubeF);
@@ -2327,7 +2365,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
         this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
         // Calculate the total flux inside last ring in data
-        double *ringreg = this->Internal->fitD->getFinalRingsRegion();
+        double *ringreg = RingRegion(this->Internal->fitD->Outrings(),
+                                     this->Internal->cubeD->Head());
         this->Internal->totflux_data = 0.;
         MomentMap<double> *totalmap = new MomentMap<double>;
         totalmap->input(this->Internal->cubeD);
@@ -2446,7 +2485,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
-      float *ringreg = this->Internal->fitF->getFinalRingsRegion(); 
+      float *ringreg = RingRegion(this->Internal->fitF->Outrings(),
+                                  this->Internal->cubeF->Head());
       if (!ringreg)
         {
         inputVolumeDisplay->SetOpticalVelocityDefinition();
@@ -2479,13 +2519,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                                      this->Internal->fitF->Outrings()->nr);
       int nseg = 1;
       float segments[4] = {0, 360., 0., 0};
-      if (this->Internal->par->getSIDE() != "A")
+      if (this->Internal->par->getParGF().SIDE != "A")
         {
         nseg = 2;
         segments[2] = -90;
         segments[3] = 90;
         }
-      else if (this->Internal->par->getSIDE() == "R")
+      else if (this->Internal->par->getParGF().SIDE == "R")
         {
         nseg = 2;
         segments[2] = 90;
@@ -2558,11 +2598,11 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         // thus just need to rescale the model to the total flux of data inside last ring.
 
         // Calculate total flux of model within last ring
-        for (size_t ii = 0; ii < (size_t)this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
+        for (int ii = 0; ii < this->Internal->cubeF->DimX() * this->Internal->cubeF->DimY(); ii++)
           {
           if (!isNaN(ringreg[ii]))
             {
-            for (size_t z = 0; z < (size_t)this->Internal->cubeF->DimZ(); z++)
+            for (int z = 0; z < this->Internal->cubeF->DimZ(); z++)
               {
               totflux_model += outarray[ii + z * this->Internal->cubeF->DimY() * this->Internal->cubeF->DimX()];
               }
@@ -2570,7 +2610,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
 
         double factor = this->Internal->totflux_data/totflux_model;
-        for (int ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
+        for (size_t ii = 0; ii < this->Internal->cubeF->NumPix(); ii++)
           {
           outarray[ii] *= factor;
           }
@@ -2743,7 +2783,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       this->Internal->fitD->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
-      double *ringreg = this->Internal->fitD->getFinalRingsRegion();
+      double *ringreg = RingRegion(this->Internal->fitD->Outrings(),
+                                   this->Internal->cubeD->Head());
       if (!ringreg)
         {
         inputVolumeDisplay->SetOpticalVelocityDefinition();
@@ -2776,13 +2817,13 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                                        this->Internal->fitD->Outrings()->nr);
       int nseg = 1;
       float segments[4] = {0, 360., 0., 0};
-      if (this->Internal->par->getSIDE() != "A")
+      if (this->Internal->par->getParGF().SIDE != "A")
         {
         nseg = 2;
         segments[2] = -90;
         segments[3] = 90;
         }
-      else if (this->Internal->par->getSIDE() == "R")
+      else if (this->Internal->par->getParGF().SIDE == "R")
         {
         nseg = 2;
         segments[2] = 90;
@@ -2855,11 +2896,11 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         // thus just need to rescale the model to the total flux of data inside last ring.
 
         // Calculate total flux of model within last ring
-        for (size_t ii = 0; ii < (size_t)this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
+        for (int ii = 0; ii < this->Internal->cubeD->DimX() * this->Internal->cubeD->DimY(); ii++)
           {
           if (!isNaN(ringreg[ii]))
             {
-            for (size_t z = 0; z < (size_t)this->Internal->cubeD->DimZ(); z++)
+            for (int z = 0; z < this->Internal->cubeD->DimZ(); z++)
               {
               totflux_model += outarray[ii + z * this->Internal->cubeD->DimY() * this->Internal->cubeD->DimX()];
               }
@@ -2867,7 +2908,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
 
         double factor = this->Internal->totflux_data / totflux_model;
-        for (int ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
+        for (size_t ii = 0; ii < this->Internal->cubeD->NumPix(); ii++)
           {
           outarray[ii] *= factor;
           }
@@ -2959,7 +3000,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   // Transform back the velocity definition to optical one
   if (!inputVolumeDisplay->SetOpticalVelocityDefinition())
     {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
                   " Conversion to optical velocity definition failed!");
     return 0;
     }

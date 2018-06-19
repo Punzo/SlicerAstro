@@ -294,6 +294,15 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->RadVelSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onRadialVelocityChanged(double)));
 
+  QObject::connect(this->VerVelSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onVerticalVelocityChanged(double)));
+
+  QObject::connect(this->DVDZSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onVerticalRotationalGradientChanged(double)));
+
+  QObject::connect(this->ZCYLSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onVerticalRotationalGradientHeightChanged(double)));
+
   QObject::connect(this->VelDispSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onVelocityDispersionChanged(double)));
 
@@ -345,6 +354,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->SCRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onScaleHeightFitChanged(bool)));
 
+  QObject::connect(this->ADRIFTCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onADRIFTCorrectionChanged(bool)));
+
   QObject::connect(this->LayerTypeComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onLayerTypeChanged(int)));
 
@@ -359,6 +371,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 
   QObject::connect(this->CloudCDSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onCloudsColumnDensityChanged(double)));
+
+  QObject::connect(this->TolleranceSliderWidget, SIGNAL(valueChanged(double)),
+                   q, SLOT(onTolleranceChanged(double)));
 
   QObject::connect(this->ContourSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onContourLevelChanged(double)));
@@ -2938,6 +2953,18 @@ void qSlicerAstroModelingModuleWidget::centerPVOffset()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onADRIFTCorrectionChanged(bool toggled)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetADRIFTCorrection(toggled);
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -3016,6 +3043,10 @@ void qSlicerAstroModelingModuleWidget::onModeChanged()
     d->parametersNode->SetSystemicVelocity(0.);
     d->parametersNode->SetRotationVelocity(0.);
     d->parametersNode->SetVelocityDispersion(0.);
+    d->parametersNode->SetRadialVelocity(0.);
+    d->parametersNode->SetVerticalVelocity(0.);
+    d->parametersNode->SetVerticalRotationalGradient(0.);
+    d->parametersNode->SetVerticalRotationalGradientHeight(0.);
     d->parametersNode->SetInclination(0.);
     d->parametersNode->SetInclinationError(5.);
     d->parametersNode->SetPositionAngle(0.);
@@ -3032,11 +3063,13 @@ void qSlicerAstroModelingModuleWidget::onModeChanged()
     d->parametersNode->SetYCenterFit(false);
     d->parametersNode->SetSystemicVelocityFit(false);
     d->parametersNode->SetScaleHeightFit(false);
+    d->parametersNode->SetADRIFTCorrection(false);
     d->parametersNode->SetLayerType(0);
     d->parametersNode->SetFittingFunction(1);
     d->parametersNode->SetWeightingFunction(1);
     d->parametersNode->SetNumberOfClounds(0);
     d->parametersNode->SetCloudsColumnDensity(10.);
+    d->parametersNode->SetTollerance(0.001);
     }
 
   d->parametersNode->EndModify(wasModifying);
@@ -3352,6 +3385,9 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->SysVelSliderWidget->setValue(d->parametersNode->GetSystemicVelocity());
   d->RotVelSliderWidget->setValue(d->parametersNode->GetRotationVelocity());
   d->RadVelSliderWidget->setValue(d->parametersNode->GetRadialVelocity());
+  d->VerVelSliderWidget->setValue(d->parametersNode->GetVerticalVelocity());
+  d->DVDZSliderWidget->setValue(d->parametersNode->GetVerticalRotationalGradient());
+  d->ZCYLSliderWidget->setValue(d->parametersNode->GetVerticalRotationalGradientHeight());
   d->VelDispSliderWidget->setValue(d->parametersNode->GetVelocityDispersion());
   d->InclinationSliderWidget->setValue(d->parametersNode->GetInclination());
   d->InclinationErrorSpinBox->setValue(d->parametersNode->GetInclinationError());
@@ -3369,11 +3405,13 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->YCenterRadioButton->setChecked(d->parametersNode->GetYCenterFit());
   d->VSYSRadioButton->setChecked(d->parametersNode->GetSystemicVelocityFit());
   d->SCRadioButton->setChecked(d->parametersNode->GetScaleHeightFit());
+  d->ADRIFTCheckBox->setChecked(d->parametersNode->GetADRIFTCorrection());
   d->LayerTypeComboBox->setCurrentIndex(d->parametersNode->GetLayerType());
   d->FittingFunctionComboBox->setCurrentIndex(d->parametersNode->GetFittingFunction());
   d->WeightingFunctionComboBox->setCurrentIndex(d->parametersNode->GetWeightingFunction());
   d->NumCloudsSliderWidget->setValue(d->parametersNode->GetNumberOfClounds());
   d->CloudCDSliderWidget->setValue(d->parametersNode->GetCloudsColumnDensity());
+  d->TolleranceSliderWidget->setValue(d->parametersNode->GetTollerance());
 
   d->ContourSliderWidget->setValue(d->parametersNode->GetContourLevel());
 
@@ -3747,8 +3785,9 @@ void qSlicerAstroModelingModuleWidget::onApply()
       !strcmp(inputVolume->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
       !strcmp(inputVolume->GetAttribute("SlicerAstro.BPA"), "UNDEFINED") )
     {
-    QString message = QString("Beam information (BMAJ, BMIN and/or BPA) not available."
-                              " It is not possible to procede with the model fitting.");
+    QString message = QString("Beam information (BMAJ, BMIN and/or BPA) not available. "
+                              "It is not possible to procede with the model fitting. "
+                              "You may edit these values in the Data module.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
     d->parametersNode->SetStatus(0);
@@ -3881,7 +3920,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
   residualVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   residualVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
-  // Check if there are segment and feed the mask to 3DBarolo
+  // Check if there are segments and feed the mask to 3DBarolo
   if (d->parametersNode->GetMaskActive())
     {
     if (!this->convertSelectedSegmentToLabelMap())
@@ -3892,10 +3931,12 @@ void qSlicerAstroModelingModuleWidget::onApply()
       return;
       }
     }
-  else if (!d->parametersNode->GetMaskActive() && d->parametersNode->GetNumberOfRings() == 0)
+  else if (!d->parametersNode->GetMaskActive() && d->parametersNode->GetNumberOfRings() == -1)
     {
-    QString message = QString("No mask has been provided. 3DBarolo will search and fit the"
-                              " largest source in the datacube. Do you wish to continue?");
+    QString message = QString("No mask has been provided. 3DBarolo will search the "
+                              "largest source in the datacube. The mask is necessary for fitting "
+                              "and/or normalizing (see advanced options) the output model. "
+                              "Do you wish to continue?");
     qWarning() << Q_FUNC_INFO << ": " << message;
     QMessageBox::StandardButton reply;
     reply = QMessageBox::question(NULL, tr("3DBarolo"), message);
@@ -4009,6 +4050,18 @@ void qSlicerAstroModelingModuleWidget::onSystemicVelocityFitChanged(bool flag)
 }
 
 //--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onTolleranceChanged(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetTollerance(value);
+}
+
+//--------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -4029,6 +4082,17 @@ void qSlicerAstroModelingModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
                       this, SLOT(onMRMLTableNodeModified()));
 
   d->parametersNode->SetParamsTableNode(tableNode);
+
+  d->PlotSeriesNodeVRot->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeVRad->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeInc->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodePhi->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeVSys->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeVDisp->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeDens->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeZ0->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeXPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->PlotSeriesNodeYPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
 }
 
 //--------------------------------------------------------------------------
@@ -4053,6 +4117,42 @@ void qSlicerAstroModelingModuleWidget::onVelocityDispersionFitChanged(bool flag)
     return;
     }
   d->parametersNode->SetVelocityDispersionFit(flag);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onVerticalVelocityChanged(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetVerticalVelocity(value);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onVerticalRotationalGradientChanged(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetVerticalRotationalGradient(value);
+}
+
+//--------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onVerticalRotationalGradientHeightChanged(double value)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetVerticalRotationalGradientHeight(value);
 }
 
 //--------------------------------------------------------------------------
@@ -4347,6 +4447,16 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       }
 
     d->parametersNode->GetParamsTableNode()->GetTable()->DeepCopy(d->internalTableNode->GetTable());
+    d->PlotSeriesNodeVRot->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeVRad->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeInc->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodePhi->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeVSys->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeVDisp->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeDens->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeZ0->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeXPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->PlotSeriesNodeYPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
 
     vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
       (d->parametersNode->GetParamsTableNode()
@@ -4747,20 +4857,20 @@ void qSlicerAstroModelingModuleWidget::onCleanInitialParameters()
 
   int wasModifying = d->parametersNode->StartModify();
 
-  d->parametersNode->SetNumberOfRings(0);
-  d->parametersNode->SetRadSep(0.);
-  d->parametersNode->SetXCenter(0.);
-  d->parametersNode->SetYCenter(0.);
-  d->parametersNode->SetSystemicVelocity(0.);
-  d->parametersNode->SetRotationVelocity(0.);
-  d->parametersNode->SetVelocityDispersion(0.);
-  d->parametersNode->SetInclination(0.);
+  d->parametersNode->SetNumberOfRings(-1);
+  d->parametersNode->SetRadSep(-1);
+  d->parametersNode->SetXCenter(-1);
+  d->parametersNode->SetYCenter(-1.);
+  d->parametersNode->SetSystemicVelocity(-1);
+  d->parametersNode->SetRotationVelocity(-1);
+  d->parametersNode->SetVelocityDispersion(-1);
+  d->parametersNode->SetInclination(-1);
   d->parametersNode->SetInclinationError(5.);
-  d->parametersNode->SetPositionAngle(0.);
+  d->parametersNode->SetPositionAngle(-1);
   d->parametersNode->SetPositionAngleError(15.);
-  d->parametersNode->SetScaleHeight(0.);
+  d->parametersNode->SetScaleHeight(-1);
   d->parametersNode->SetColumnDensity(1.);
-  d->parametersNode->SetDistance(0.);
+  d->parametersNode->SetDistance(-1);
   d->parametersNode->SetPositionAngleFit(true);
   d->parametersNode->SetRotationVelocityFit(true);
   d->parametersNode->SetRadialVelocityFit(false);
@@ -4773,7 +4883,7 @@ void qSlicerAstroModelingModuleWidget::onCleanInitialParameters()
   d->parametersNode->SetLayerType(0);
   d->parametersNode->SetFittingFunction(1);
   d->parametersNode->SetWeightingFunction(1);
-  d->parametersNode->SetNumberOfClounds(0);
+  d->parametersNode->SetNumberOfClounds(-1);
   d->parametersNode->SetCloudsColumnDensity(10.);
 
   d->parametersNode->EndModify(wasModifying);

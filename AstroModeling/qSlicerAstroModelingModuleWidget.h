@@ -145,6 +145,7 @@ protected slots:
   void onMRMLSceneStartImportEvent();
 
   void centerPVOffset();
+  void onADRIFTCorrectionChanged(bool toggled);
   void onCloudsColumnDensityChanged(double value);
   void onColumnDensityChanged(double value);
   void onContourLevelChanged(double value);
@@ -176,8 +177,12 @@ protected slots:
   void onScaleHeightFitChanged(bool flag);
   void onSystemicVelocityChanged(double value);
   void onSystemicVelocityFitChanged(bool flag);
+  void onTolleranceChanged(double value);
   void onVelocityDispersionChanged(double value);
   void onVelocityDispersionFitChanged(bool flag);
+  void onVerticalVelocityChanged(double value);
+  void onVerticalRotationalGradientChanged(double value);
+  void onVerticalRotationalGradientHeightChanged(double value);
   void onWeightingFunctionChanged(int flag);
   void onXCenterChanged(double value);
   void onXCenterFitChanged(bool flag);

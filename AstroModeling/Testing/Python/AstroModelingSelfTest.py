@@ -164,22 +164,23 @@ class AstroModelingSelfTestTest(unittest.TestCase):
 
     self.delayDisplay('Test passed')
     """
-    selfTest does not work because the computation are run on another QThread.
-    3DBarolo 1.4 implement paralellization on OpenMP, the class worker will be deleted
-    and this test can be used again.
-    self.delayDisplay('Calculating model', 700)
-    astroModelingModuleWidget.onCreate()
+    selfTest is not safe on the fitting because the computations run on another QThread.
+    Therefore we test only the estimation of the parameters which is fast and
+    it is reasonable that it runs in 5 sec even on a very slow hardware.
+    """
+    AstroModelingParameterNode.SetNumberOfRings(20)
+    astroModelingModuleWidget.onEstimateInitialParameters()
 
-    outputVolume = slicer.mrmlScene.GetNodeByID(AstroModelingParameterNode.GetOutputVolumeNodeID())
-    pixelValue = outputVolume.GetImageData().GetScalarComponentAsFloat(83, 53, 24, 0)
+    self.delayDisplay('Estimating parameters', 5000)
+    RotVelocity = AstroModelingParameterNode.GetRotationVelocity()
 
-    if (math.fabs(pixelValue - 0.000433179) < 1.e-9):
+    if (math.fabs(RotVelocity - 155.711) < 1.e-2):
        self.delayDisplay('Test passed', 700)
     else:
        self.delayDisplay('Test failed', 700)
        # if run from Slicer interface remove the followinf exit
        sys.exit()
-     """
+
 
   def downloadNGC2403(self):
     import AstroSampleData

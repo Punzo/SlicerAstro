@@ -132,6 +132,21 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(RadialVelocity,double);
   vtkGetMacro(RadialVelocity,double);
 
+  /// Set/Get the VerticalVelocity.
+  /// \sa SetVerticalVelocity(), GetVerticalVelocity()
+  vtkSetMacro(VerticalVelocity,double);
+  vtkGetMacro(VerticalVelocity,double);
+
+  /// Set/Get the VerticalRotationalGradient.
+  /// \sa SetVerticalRotationalGradient(), GetVerticalRotationalGradient()
+  vtkSetMacro(VerticalRotationalGradient,double);
+  vtkGetMacro(VerticalRotationalGradient,double);
+
+  /// Set/Get the VerticalRotationalGradientHeight.
+  /// \sa SetVerticalRotationalGradientHeight(), GetVerticalRotationalGradientHeight()
+  vtkSetMacro(VerticalRotationalGradientHeight,double);
+  vtkGetMacro(VerticalRotationalGradientHeight,double);
+
   /// Set/Get the VelocityDispersion.
   /// \sa SetVelocityDispersion(), GetVelocityDispersion()
   vtkSetMacro(VelocityDispersion,double);
@@ -226,6 +241,12 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkGetMacro(ScaleHeightFit,bool);
   vtkBooleanMacro(ScaleHeightFit,bool);
 
+  /// Set/Get the ADRIFTCorrection.
+  /// \sa SetADRIFTCorrection(), GetADRIFTCorrection()
+  vtkSetMacro(ADRIFTCorrection,bool);
+  vtkGetMacro(ADRIFTCorrection,bool);
+  vtkBooleanMacro(ADRIFTCorrection,bool);
+
   /// Set/Get the LayerType.
   /// \sa SetLayerType(), GetLayerType()
   vtkSetMacro(LayerType,int);
@@ -250,6 +271,11 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   /// \sa SetCloudsColumnDensity(), GetCloudsColumnDensity()
   vtkSetMacro(CloudsColumnDensity,double);
   vtkGetMacro(CloudsColumnDensity,double);
+
+  /// Set/Get the Tollerance for the fitting.
+  /// \sa SetTollerance(), GetTollerance()
+  vtkSetMacro(Tollerance,double);
+  vtkGetMacro(Tollerance,double);
 
   /// IJK coordinates of the center
   /// for the PV on the semi-major axis.
@@ -424,6 +450,9 @@ protected:
   double SystemicVelocity;
   double RotationVelocity;
   double RadialVelocity;
+  double VerticalVelocity;
+  double VerticalRotationalGradient;
+  double VerticalRotationalGradientHeight;
   double VelocityDispersion;
   double Inclination;
   double InclinationError;
@@ -454,11 +483,15 @@ protected:
   bool SystemicVelocityFit;
   bool ScaleHeightFit;
 
+  bool ADRIFTCorrection;
+
   int LayerType;
   int FittingFunction;
   int WeightingFunction;
   int NumberOfClounds;
   double CloudsColumnDensity;
+
+  double Tollerance;
 
   int Status;
   int Operation;
