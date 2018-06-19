@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>480</width>
-    <height>1489</height>
+    <width>481</width>
+    <height>1530</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -612,7 +612,7 @@
            <double>-1.000000000000000</double>
           </property>
           <property name="suffix">
-           <string> &quot;</string>
+           <string> arcsec</string>
           </property>
          </widget>
         </item>
@@ -882,7 +882,7 @@
            <double>-1.000000000000000</double>
           </property>
           <property name="maximum">
-           <double>600.000000000000000</double>
+           <double>1000.000000000000000</double>
           </property>
           <property name="value">
            <double>-1.000000000000000</double>
@@ -1018,10 +1018,10 @@
            <string>The default value of the radial velocity parameter is zero. This parameter will not be estimated by 3DBarolo.</string>
           </property>
           <property name="singleStep">
-           <double>2.000000000000000</double>
+           <double>1.000000000000000</double>
           </property>
           <property name="pageStep">
-           <double>20.000000000000000</double>
+           <double>5.000000000000000</double>
           </property>
           <property name="minimum">
            <double>-100.000000000000000</double>
@@ -1065,10 +1065,10 @@
            <string>The default value of the vertical velocity parameter is zero. This parameter will not be estimated by 3DBarolo.</string>
           </property>
           <property name="singleStep">
-           <double>2.000000000000000</double>
+           <double>1.000000000000000</double>
           </property>
           <property name="pageStep">
-           <double>20.000000000000000</double>
+           <double>5.000000000000000</double>
           </property>
           <property name="minimum">
            <double>-100.000000000000000</double>
@@ -1112,10 +1112,10 @@
            <string>The default value of the vertical rotational gradient velocity parameter is zero. This parameter will not be estimated by 3DBarolo.</string>
           </property>
           <property name="singleStep">
-           <double>2.000000000000000</double>
+           <double>1.000000000000000</double>
           </property>
           <property name="pageStep">
-           <double>20.000000000000000</double>
+           <double>5.000000000000000</double>
           </property>
           <property name="minimum">
            <double>-100.000000000000000</double>
@@ -1159,10 +1159,10 @@
            <string>The default value of the vertical rotational gradient height parameter is zero. This parameter will not be estimated by 3DBarolo.</string>
           </property>
           <property name="singleStep">
-           <double>2.000000000000000</double>
+           <double>1.000000000000000</double>
           </property>
           <property name="pageStep">
-           <double>20.000000000000000</double>
+           <double>5.000000000000000</double>
           </property>
           <property name="minimum">
            <double>-100.000000000000000</double>
@@ -1310,7 +1310,7 @@
            <double>-1.000000000000000</double>
           </property>
           <property name="maximum">
-           <double>50.000000000000000</double>
+           <double>500.000000000000000</double>
           </property>
           <property name="value">
            <double>-1.000000000000000</double>
@@ -1703,13 +1703,13 @@
            <double>-1.000000000000000</double>
           </property>
           <property name="maximum">
-           <double>100.000000000000000</double>
+           <double>1000.000000000000000</double>
           </property>
           <property name="value">
            <double>-1.000000000000000</double>
           </property>
           <property name="suffix">
-           <string> &quot;</string>
+           <string> arcsec</string>
           </property>
          </widget>
         </item>
@@ -1796,10 +1796,10 @@
          <string>Advanced</string>
         </property>
         <property name="checked">
-         <bool>true</bool>
+         <bool>false</bool>
         </property>
         <property name="collapsed">
-         <bool>false</bool>
+         <bool>true</bool>
         </property>
         <layout class="QFormLayout" name="formLayout_3">
          <property name="fieldGrowthPolicy">
@@ -4336,6 +4336,102 @@
     <hint type="destinationlabel">
      <x>265</x>
      <y>887</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>VVertLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>390</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>59</x>
+     <y>490</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>VerVelSliderWidget</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>390</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>303</x>
+     <y>490</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DVDZLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>390</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>49</x>
+     <y>522</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>DVDZSliderWidget</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>390</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>303</x>
+     <y>522</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>ZCYLLabel</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>390</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>45</x>
+     <y>554</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>ManualModeRadioButton</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>ZCYLSliderWidget</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>390</x>
+     <y>173</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>303</x>
+     <y>554</y>
     </hint>
    </hints>
   </connection>

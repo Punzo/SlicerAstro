@@ -3036,24 +3036,24 @@ void qSlicerAstroModelingModuleWidget::onModeChanged()
   if (d->AutomaticModeRadioButton->isChecked())
     {
     d->parametersNode->SetMode("Automatic");
-    d->parametersNode->SetNumberOfRings(0);
-    d->parametersNode->SetRadSep(0.);
-    d->parametersNode->SetXCenter(0.);
-    d->parametersNode->SetYCenter(0.);
-    d->parametersNode->SetSystemicVelocity(0.);
-    d->parametersNode->SetRotationVelocity(0.);
-    d->parametersNode->SetVelocityDispersion(0.);
+    d->parametersNode->SetNumberOfRings(-1);
+    d->parametersNode->SetRadSep(-1);
+    d->parametersNode->SetXCenter(-1);
+    d->parametersNode->SetYCenter(-1.);
+    d->parametersNode->SetSystemicVelocity(-1);
+    d->parametersNode->SetRotationVelocity(-1);
+    d->parametersNode->SetVelocityDispersion(-1);
     d->parametersNode->SetRadialVelocity(0.);
     d->parametersNode->SetVerticalVelocity(0.);
     d->parametersNode->SetVerticalRotationalGradient(0.);
     d->parametersNode->SetVerticalRotationalGradientHeight(0.);
-    d->parametersNode->SetInclination(0.);
+    d->parametersNode->SetInclination(-1);
     d->parametersNode->SetInclinationError(5.);
-    d->parametersNode->SetPositionAngle(0.);
+    d->parametersNode->SetPositionAngle(-1);
     d->parametersNode->SetPositionAngleError(15.);
-    d->parametersNode->SetScaleHeight(0.);
+    d->parametersNode->SetScaleHeight(-1);
     d->parametersNode->SetColumnDensity(1.);
-    d->parametersNode->SetDistance(0.);
+    d->parametersNode->SetDistance(-1);
     d->parametersNode->SetPositionAngleFit(true);
     d->parametersNode->SetRotationVelocityFit(true);
     d->parametersNode->SetRadialVelocityFit(false);
@@ -3067,7 +3067,7 @@ void qSlicerAstroModelingModuleWidget::onModeChanged()
     d->parametersNode->SetLayerType(0);
     d->parametersNode->SetFittingFunction(1);
     d->parametersNode->SetWeightingFunction(1);
-    d->parametersNode->SetNumberOfClounds(0);
+    d->parametersNode->SetNumberOfClounds(-1);
     d->parametersNode->SetCloudsColumnDensity(10.);
     d->parametersNode->SetTollerance(0.001);
     }
@@ -4864,6 +4864,10 @@ void qSlicerAstroModelingModuleWidget::onCleanInitialParameters()
   d->parametersNode->SetSystemicVelocity(-1);
   d->parametersNode->SetRotationVelocity(-1);
   d->parametersNode->SetVelocityDispersion(-1);
+  d->parametersNode->SetRadialVelocity(0.);
+  d->parametersNode->SetVerticalVelocity(0.);
+  d->parametersNode->SetVerticalRotationalGradient(0.);
+  d->parametersNode->SetVerticalRotationalGradientHeight(0.);
   d->parametersNode->SetInclination(-1);
   d->parametersNode->SetInclinationError(5.);
   d->parametersNode->SetPositionAngle(-1);
@@ -4880,11 +4884,13 @@ void qSlicerAstroModelingModuleWidget::onCleanInitialParameters()
   d->parametersNode->SetYCenterFit(false);
   d->parametersNode->SetSystemicVelocityFit(false);
   d->parametersNode->SetScaleHeightFit(false);
+  d->parametersNode->SetADRIFTCorrection(false);
   d->parametersNode->SetLayerType(0);
   d->parametersNode->SetFittingFunction(1);
   d->parametersNode->SetWeightingFunction(1);
   d->parametersNode->SetNumberOfClounds(-1);
   d->parametersNode->SetCloudsColumnDensity(10.);
+  d->parametersNode->SetTollerance(0.001);
 
   d->parametersNode->EndModify(wasModifying);
 }
