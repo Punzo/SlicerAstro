@@ -230,7 +230,7 @@
            </size>
           </property>
           <property name="text">
-           <string>A&amp;utomatic</string>
+           <string>Automatic</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -258,7 +258,7 @@
            </size>
           </property>
           <property name="text">
-           <string>Manua&amp;l</string>
+           <string>Manual</string>
           </property>
           <property name="checked">
            <bool>false</bool>
@@ -296,7 +296,7 @@
            <string>If selected, the Smoothing module will automatically calculate masks (and display as segmentation) of the data and their filtered version at 3 rms.</string>
           </property>
           <property name="text">
-           <string>&amp;Generate</string>
+           <string>Generate</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -327,7 +327,7 @@
            <string>If selected, the generation of the masks at 3 rms will be skipped.</string>
           </property>
           <property name="text">
-           <string>S&amp;kip</string>
+           <string>Skip</string>
           </property>
           <property name="checked">
            <bool>false</bool>
