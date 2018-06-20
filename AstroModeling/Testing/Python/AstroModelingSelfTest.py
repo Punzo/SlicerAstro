@@ -172,9 +172,9 @@ class AstroModelingSelfTestTest(unittest.TestCase):
     astroModelingModuleWidget.onEstimateInitialParameters()
 
     self.delayDisplay('Estimating parameters', 5000)
-    RotVelocity = AstroModelingParameterNode.GetRotationVelocity()
+    SysVelocity = AstroModelingParameterNode.GetSystemicVelocity()
 
-    if (math.fabs(RotVelocity - 155.711) < 1.e-2):
+    if (math.fabs(SysVelocity - 132.77) < 1.e-2):
        self.delayDisplay('Test passed', 700)
     else:
        self.delayDisplay('Test failed', 700)
