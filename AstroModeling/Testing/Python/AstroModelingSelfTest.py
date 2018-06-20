@@ -171,7 +171,7 @@ class AstroModelingSelfTestTest(unittest.TestCase):
     AstroModelingParameterNode.SetNumberOfRings(20)
     astroModelingModuleWidget.onEstimateInitialParameters()
 
-    self.delayDisplay('Estimating parameters', 5000)
+    self.delayDisplay('Estimating parameters', 10000)
     SysVelocity = AstroModelingParameterNode.GetSystemicVelocity()
 
     if (math.fabs(SysVelocity - 132.77) < 1.e-2):
