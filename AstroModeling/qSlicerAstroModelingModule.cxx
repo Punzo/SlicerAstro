@@ -78,7 +78,7 @@ QString qSlicerAstroModelingModule::helpText()const
          "(http://editeodoro.github.io/Bbarolo/). "
          "Specifically, SlicerAstro wraps a branch of 3DBarolo "
          "(https://github.com/Punzo/Bbarolo) which corresponds to "
-         "3DBarolo v1.3 (git tag: 3c9a1fa39e9154f3120d0ded0847d77314275e17)";
+         "3DBarolo v1.4 (git tag: cffc01c97dabfa7f9fe98d94b8e743088df56562)";
 }
 
 //-----------------------------------------------------------------------------
