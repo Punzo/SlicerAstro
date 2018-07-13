@@ -48,6 +48,13 @@
 // CTK includes
 #include "ctkButtonGroup.h"
 
+#if defined(_WIN32)
+  {
+  #include <windows.h>
+  #include <ShellApi.h>
+  }
+#endif
+
 class qSlicerAppMainWindow;
 
 //-----------------------------------------------------------------------------
@@ -247,6 +254,10 @@ int qSlicerAstroWelcomeModuleWidget::navigateToTutorial()
 #elif defined(__APPLE__)
   {
   return system("open https://github.com/Punzo/SlicerAstro/wiki/Tutorial &");
+  }
+#elif defined(_WIN32)
+  {
+  ShellExecute(NULL, "open", L"https://github.com/Punzo/SlicerAstro/wiki/Tutorial", NULL, NULL, SW_SHOWNORMAL);
   }
 #endif
 }
