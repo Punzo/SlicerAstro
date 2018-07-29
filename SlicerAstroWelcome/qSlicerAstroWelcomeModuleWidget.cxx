@@ -48,13 +48,6 @@
 // CTK includes
 #include "ctkButtonGroup.h"
 
-#if defined(_WIN32)
-  {
-  #include <windows.h>
-  #include <ShellApi.h>
-  }
-#endif
-
 class qSlicerAppMainWindow;
 
 //-----------------------------------------------------------------------------
