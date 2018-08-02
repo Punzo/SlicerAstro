@@ -430,24 +430,8 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
     return 0;
     }
 
-  // Calculate Vsys shift between Optical and Radio velocity definitions
-  // 3DBarolo works on input with the radio velocity definition
-  double VsysShift = 0;
-
-  if (!strncmp(inputVolumeDisplay->GetVelocityDefinition().c_str(), "VOPT", 4))
-    {
-    double VSys1 = this->CalculateCentralVelocity(inputVolumeDisplay);
-    if (!inputVolumeDisplay->SetRadioVelocityDefinition(false))
-      {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                    " Conversion to radio velocity definition failed!");
-      return 0;
-      }
-
-    double VSys2 = this->CalculateCentralVelocity(inputVolumeDisplay);
-    VsysShift = (VSys1 - VSys2) * 0.001;
-    }
-  else if (!strncmp(inputVolumeDisplay->GetVelocityDefinition().c_str(), "VRAD", 4))
+  // 3DBarolo works on input with the optical velocity definition
+  if (!strncmp(inputVolumeDisplay->GetVelocityDefinition().c_str(), "VRAD", 4))
     {
     if (!inputVolumeDisplay->SetOpticalVelocityDefinition(false))
       {
@@ -455,17 +439,6 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                     " Conversion to radio velocity definition failed!");
       return 0;
       }
-
-    double VSys1 = this->CalculateCentralVelocity(inputVolumeDisplay);
-    if (!inputVolumeDisplay->SetRadioVelocityDefinition(false))
-      {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                    " Conversion to radio velocity definition failed!");
-      return 0;
-      }
-
-    double VSys2 = this->CalculateCentralVelocity(inputVolumeDisplay);
-    VsysShift = (VSys1 - VSys2) * 0.001;
     }
 
   const int DataType = dataArray->GetDataType();
@@ -547,7 +520,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
     if (pnode->GetSystemicVelocity() > -1)
       {
-      this->Internal->par->getParGF().VSYS = DoubleToString(pnode->GetSystemicVelocity()- VsysShift);
+      this->Internal->par->getParGF().VSYS = DoubleToString(pnode->GetSystemicVelocity());
       }
     else
       {
@@ -932,7 +905,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
         pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
         pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
-        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()) + VsysShift);
+        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()));
         pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
         pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
         pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
@@ -1320,7 +1293,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
         pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
         pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
         pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
-        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()) + VsysShift);
+        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()));
         pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
         pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
         pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
@@ -1699,7 +1672,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VSys->SetValue(ii, this->Internal->fitF->Outrings()->vsys[ii] + VsysShift);
+        VSys->SetValue(ii, this->Internal->fitF->Outrings()->vsys[ii]);
         }
       }
 
@@ -1790,7 +1763,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        VSys->SetValue(ii, this->Internal->fitD->Outrings()->vsys[ii] + VsysShift);
+        VSys->SetValue(ii, this->Internal->fitD->Outrings()->vsys[ii]);
         }
       }
 
@@ -1954,10 +1927,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     return 0;
     }
 
-  // Calculate Vsys shift between Optical and Radio velocity definitions
-  // 3DBarolo works on input with the radio velocity definition
-  double VsysShift = 0;
-
+  // 3DBarolo works on input with the optical velocity definition
   wcsprm* WCS = inputVolumeDisplay->GetWCSStruct();
   if (!WCS)
     {
@@ -1966,22 +1936,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     return 0;
     }
 
-  if (!strncmp(WCS->ctype[2], "VOPT", 4))
-    {
-    double VSys1 = this->CalculateCentralVelocity(inputVolumeDisplay);
-
-    if (!inputVolumeDisplay->SetRadioVelocityDefinition(false))
-      {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                    " Conversion to radio velocity definition failed!");
-      return 0;
-      }
-
-    double VSys2 = this->CalculateCentralVelocity(inputVolumeDisplay);
-
-    VsysShift = (VSys1 - VSys2) * 0.001;
-    }
-  else if (!strncmp(WCS->ctype[2], "VRAD", 4))
+  if (!strncmp(WCS->ctype[2], "VRAD", 4))
     {
     if (!inputVolumeDisplay->SetOpticalVelocityDefinition(false))
       {
@@ -1989,19 +1944,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                     " Conversion to radio velocity definition failed!");
       return 0;
       }
-
-    double VSys1 = this->CalculateCentralVelocity(inputVolumeDisplay);
-
-    if (!inputVolumeDisplay->SetRadioVelocityDefinition(false))
-      {
-      vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                    " Conversion to radio velocity definition failed!");
-      return 0;
-      }
-
-    double VSys2 = this->CalculateCentralVelocity(inputVolumeDisplay);
-
-    VsysShift = (VSys1 - VSys2) * 0.001;
     }
 
   const int DataType = dataArray->GetDataType();
@@ -2085,7 +2027,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
     if (pnode->GetSystemicVelocity() > -1)
       {
-      this->Internal->par->getParGF().VSYS = DoubleToString(pnode->GetSystemicVelocity()- VsysShift);
+      this->Internal->par->getParGF().VSYS = DoubleToString(pnode->GetSystemicVelocity());
       }
     else
       {
@@ -2234,7 +2176,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         this->Internal->par->getParGF().DENS == "-1" ||
         this->Internal->par->getParGF().NV == -1)
       {
-      inputVolumeDisplay->SetOpticalVelocityDefinition();
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                     "Run again the estimation of the input parameters. ");
       return 0;
@@ -2308,7 +2249,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
     if(!this->Internal->head->saveWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()))
       {
-      inputVolumeDisplay->SetOpticalVelocityDefinition();
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : the WCS copy failed!");
       return 0;
       }
@@ -2391,7 +2331,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   vtkMRMLTableNode* paramsTableNode = pnode->GetParamsTableNode();
   if (!paramsTableNode)
     {
-    inputVolumeDisplay->SetOpticalVelocityDefinition();
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                   "Unable to find the parameters table.");
     return 0;
@@ -2403,7 +2342,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       {
       if (!this->Internal->fitF || !this->Internal->fitF->Outrings())
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find fitF pointer.");
         return 0;
@@ -2412,7 +2350,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       float *inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer());
       if (!inFPixel)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find inFPixel pointer.");
         return 0;
@@ -2442,7 +2379,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnYPos).c_str()));
         this->Internal->fitF->Outrings()->vsys.push_back(
             StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()) - VsysShift);
+                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()));
         this->Internal->fitF->Outrings()->radii.push_back(
             StringToFloat(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()) * 0.5);
@@ -2477,7 +2414,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         {
         if (this->Internal->fitF->Outrings()->radii[ii] < this->Internal->fitF->Outrings()->radii[ii-1])
           {
-          inputVolumeDisplay->SetOpticalVelocityDefinition();
           vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                         "Radii are not in ascending order.");
           return 0;
@@ -2489,7 +2425,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                                   this->Internal->cubeF->Head());
       if (!ringreg)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find ringreg pointer.");
         return 0;
@@ -2575,7 +2510,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->modF = this->Internal->fitF->getModel();
       if (!this->Internal->modF || !this->Internal->modF->Out())
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find modF pointer.");
         return 0;
@@ -2585,7 +2519,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       float *outarray = this->Internal->modF->Out()->Array();
       if (!outarray)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find outarray pointer.");
         return 0;
@@ -2649,7 +2582,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       float *outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer());
       if (!outFPixel)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find outFPixel pointer.");
         return 0;
@@ -2664,7 +2596,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         float *residualFPixel = static_cast<float*> (residualVolume->GetImageData()->GetScalarPointer());
         if (!residualFPixel)
           {
-          inputVolumeDisplay->SetOpticalVelocityDefinition();
           vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                         "Unable to find residualFPixel pointer.");
           return 0;
@@ -2701,7 +2632,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       {
       if (!this->Internal->fitD || !this->Internal->fitD->Outrings())
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find fitD pointer.");
         return 0;
@@ -2710,7 +2640,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       double *inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer());
       if (!inDPixel)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find inDPixel pointer.");
         return 0;
@@ -2740,7 +2669,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnYPos).c_str()));
         this->Internal->fitD->Outrings()->vsys.push_back(
             StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()) - VsysShift);
+                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()));
         this->Internal->fitD->Outrings()->radii.push_back(
             StringToDouble(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()) * 0.5);
@@ -2775,7 +2704,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         {
         if (this->Internal->fitD->Outrings()->radii[ii] < this->Internal->fitD->Outrings()->radii[ii-1])
           {
-          inputVolumeDisplay->SetOpticalVelocityDefinition();
           vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                         "Radii are not in ascending order.");
           return 0;
@@ -2787,7 +2715,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                                    this->Internal->cubeD->Head());
       if (!ringreg)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find ringreg pointer.");
         return 0;
@@ -2873,7 +2800,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->modD = this->Internal->fitD->getModel();
       if (!this->Internal->modD || !this->Internal->modD->Out())
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find modF pointer.");
         return 0;
@@ -2883,7 +2809,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       double *outarray = this->Internal->modD->Out()->Array();
       if (!outarray)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find outarray pointer.");
         return 0;
@@ -2947,7 +2872,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       double *outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer());
       if (!outDPixel)
         {
-        inputVolumeDisplay->SetOpticalVelocityDefinition();
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                       "Unable to find outDPixel pointer.");
         return 0;
@@ -2962,7 +2886,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         double *residualDPixel = static_cast<double*> (residualVolume->GetImageData()->GetScalarPointer());
         if (!residualDPixel)
           {
-          inputVolumeDisplay->SetOpticalVelocityDefinition();
           vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                         "Unable to find residualDPixel pointer.");
           return 0;
@@ -2995,14 +2918,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       inDPixel = NULL;
       break;
       }
-    }
-
-  // Transform back the velocity definition to optical one
-  if (!inputVolumeDisplay->SetOpticalVelocityDefinition())
-    {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                  " Conversion to optical velocity definition failed!");
-    return 0;
     }
 
   return 1;
