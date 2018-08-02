@@ -248,6 +248,12 @@ int qSlicerAstroWelcomeModuleWidget::navigateToTutorial()
   {
   return system("open https://github.com/Punzo/SlicerAstro/wiki/Tutorial &");
   }
+#elif defined(_WIN32)
+  {
+  QString message = QString("Please navigate to https://github.com/Punzo/SlicerAstro/wiki/Tutorial");
+  QMessageBox::information(NULL, tr("SlicerAstro tutorial"), message);
+  return 1;
+  }
 #endif
 }
 
