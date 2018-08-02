@@ -142,6 +142,7 @@ protected slots:
   void onMRMLSceneEndRestoreEvent();
   void onMRMLSceneEndBatchProcessEvent();
   void onMRMLSceneEndCloseEvent();
+  void onMRMLSceneStartCloseEvent();
   void onMRMLSceneStartImportEvent();
 
   void centerPVOffset();

@@ -162,7 +162,7 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
 {
   this->astroVolumeWidget = 0;
   this->parametersNode = 0;
-  this->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
+  this->internalTableNode = 0;
   this->astroTableNode = 0;
   this->selectionNode = 0;
   this->segmentEditorNode = 0;
@@ -431,7 +431,6 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 
   this->worker->SetAstroModelingLogic(this->logic());
   this->worker->SetAstroModelingParametersNode(this->parametersNode);
-  this->worker->SetTableNode(this->internalTableNode);
 
   QObject::connect(this->worker, SIGNAL(workRequested()), this->thread, SLOT(start()));
 
@@ -760,6 +759,8 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSceneEndImportEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndBatchProcessEvent,
                       this, SLOT(onMRMLSceneEndBatchProcessEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::StartCloseEvent,
+                      this, SLOT(onMRMLSceneStartCloseEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
                       this, SLOT(onMRMLSceneEndCloseEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndRestoreEvent,
@@ -1084,7 +1085,13 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
 
   if (!d->internalTableNode)
     {
-    d->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
+    vtkSmartPointer<vtkMRMLNode> tempInternalTableNode = NULL;
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode");
+    tempInternalTableNode.TakeReference(foo);
+    std::string internalTableNodeName = this->mrmlScene()->GenerateUniqueName("InternalTable");
+    tempInternalTableNode->SetName(internalTableNodeName.c_str());
+    this->mrmlScene()->AddNode(tempInternalTableNode);
+    d->internalTableNode = vtkMRMLTableNode::SafeDownCast(tempInternalTableNode);
     }
 
   vtkSmartPointer<vtkMRMLNode> tableNode = NULL;
@@ -1125,7 +1132,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
       }
     }
 
-  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode");
+  vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode");
   tableNode.TakeReference(foo);
   std::string paramsTableNodeName = this->mrmlScene()->GenerateUniqueName("ModelingParamsTable");
   tableNode->SetName(paramsTableNodeName.c_str());
@@ -3646,6 +3653,14 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLSceneStartCloseEvent()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  d->cleanPointers();
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLSceneStartImportEvent()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -3733,7 +3748,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     return;
     }
 
-  if (!d->parametersNode->GetParamsTableNode())
+  if (!d->parametersNode->GetParamsTableNode() || !d->internalTableNode)
     {
     qCritical() << "qSlicerAstroModelingModuleWidget::onApply() : "
                    "TableNode not found!";
