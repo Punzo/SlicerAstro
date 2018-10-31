@@ -22,6 +22,7 @@
 #include <QLabel>
 #include <QtPlugin>
 #include <QSettings>
+#include <QMainWindow>
 
 //VTK includes
 #include <vtkCollection.h>
@@ -243,6 +244,17 @@ void qSlicerAstroVolumeModule::setup()
     "AstroVolume", QString("AstroVolumeFile"),
     QStringList() << "vtkMRMLVolumeNode", true, this));
 
+  // Set Module GUI (dockWidgetContents) size policy
+  if (d->app->mainWindow())
+    {
+    QWidget *dockWidgetContents =
+      d->app->mainWindow()->findChild<QWidget*>
+        (QString("dockWidgetContents"));
+    QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    sizePolicy.setHorizontalStretch(0);
+    sizePolicy.setVerticalStretch(0);
+    dockWidgetContents->setSizePolicy(sizePolicy);
+    }
 
   // Removing Volumes action from mainWindow interface:
   // this disable the creration of teh widget for the volumes module.
