@@ -30,6 +30,9 @@
 #include <vtkObjectFactory.h>
 #include <vtkLookupTable.h>
 
+//CTK includes
+#include <ctkCollapsibleButton.h>
+
 // Slicer includes
 #include <vtkSlicerConfigure.h>
 #include <vtkSlicerVolumesLogic.h>
@@ -247,13 +250,14 @@ void qSlicerAstroVolumeModule::setup()
   // Set Module GUI (dockWidgetContents) size policy
   if (d->app->mainWindow())
     {
-    QWidget *dockWidgetContents =
-      d->app->mainWindow()->findChild<QWidget*>
-        (QString("dockWidgetContents"));
-    QSizePolicy sizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    ctkCollapsibleButton *DataProbeCollapsibleWidget =
+      d->app->mainWindow()->findChild<ctkCollapsibleButton*>
+        (QString("DataProbeCollapsibleWidget"));
+    QSizePolicy sizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Preferred);
     sizePolicy.setHorizontalStretch(0);
     sizePolicy.setVerticalStretch(0);
-    dockWidgetContents->setSizePolicy(sizePolicy);
+    DataProbeCollapsibleWidget->setSizePolicy(sizePolicy);
+    DataProbeCollapsibleWidget->setMinimumWidth(620);
     }
 
   // Removing Volumes action from mainWindow interface:
