@@ -635,13 +635,13 @@ void qSlicerAstroPVDiagramModuleWidget::onFiducialsMarkupsChanged(vtkMRMLNode *m
     {
     d->parametersNode->SetFiducialsMarkupsID(SourcePointsNode->GetID());
 
-    this->qvtkReconnect(SourcePointsNode, vtkCommand::ModifiedEvent,
+    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::PointModifiedEvent,
                         this, SLOT(onMRMLSourcePointsNodeModified()));
 
-    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::MarkupRemovedEvent,
+    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::PointRemovedEvent,
                         this, SLOT(onMRMLSourcePointsNodeModified()));
 
-    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::MarkupAddedEvent,
+    this->qvtkReconnect(SourcePointsNode, vtkMRMLMarkupsNode::PointAddedEvent,
                         this, SLOT(onMRMLSourcePointsNodeMarkupAdded()));
 
     this->onMRMLSourcePointsNodeModified();
@@ -889,7 +889,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeLineModelNode(bool forceNew)
     LineModelDisplayNode = LineModelNode->GetModelDisplayNode();
     }
   LineModelDisplayNode->SetColor(0., 0.5, 1.);
-  LineModelDisplayNode->SetSliceIntersectionVisibility(true);
+  LineModelDisplayNode->SetVisibility2D(true);
   LineModelDisplayNode->SetSliceDisplayModeToProjection();
   LineModelDisplayNode->RemoveAllViewNodeIDs();
   LineModelDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
