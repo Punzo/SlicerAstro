@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from __future__ import division
 import os
 import unittest
@@ -190,16 +191,16 @@ class SlicerAstroDataProbeLogic(ScriptedLoadableModuleLogic):
 
     dataProbeInstance = slicer.modules.DataProbeInstance
     funcType = type(dataProbeInstance.infoWidget.generateViewDescription)
-    dataProbeInstance.infoWidget.generateViewDescription = funcType(generateViewDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+    dataProbeInstance.infoWidget.generateViewDescription = funcType(generateViewDescriptionAstro, dataProbeInstance.infoWidget)
 
     funcType = type(dataProbeInstance.infoWidget.generateLayerName)
-    dataProbeInstance.infoWidget.generateLayerName = funcType(generateLayerNameAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+    dataProbeInstance.infoWidget.generateLayerName = funcType(generateLayerNameAstro, dataProbeInstance.infoWidget)
 
     funcType = type(dataProbeInstance.infoWidget.generateIJKPixelDescription)
-    dataProbeInstance.infoWidget.generateIJKPixelDescription = funcType(generateIJKPixelDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+    dataProbeInstance.infoWidget.generateIJKPixelDescription = funcType(generateIJKPixelDescriptionAstro, dataProbeInstance.infoWidget)
 
     funcType = type(dataProbeInstance.infoWidget.generateIJKPixelValueDescription)
-    dataProbeInstance.infoWidget.generateIJKPixelValueDescription = funcType(generateIJKPixelValueDescriptionAstro, dataProbeInstance.infoWidget, DataProbeInfoWidget)
+    dataProbeInstance.infoWidget.generateIJKPixelValueDescription = funcType(generateIJKPixelValueDescriptionAstro, dataProbeInstance.infoWidget)
 
 
 class SlicerAstroDataProbeTest(ScriptedLoadableModuleTest):
@@ -242,51 +243,52 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
-          worldX = displayNode.GetPythonDisplayStringFromValueX(world[0], 3)
+          worldTemp = [0., 0., 0.]
+          worldX = displayNode.GetDisplayStringFromValueX(world[0], worldTemp, worldTemp, 3)
           equinox = float(volumeNode.GetAttribute("SlicerAstro.EQUINOX"))
           if equinox > 1975:
             equinoxString = "J" + str(equinox)[:4]
           elif equinox < 1975:
             equinoxString = "B" + str(equinox)[:4]
           if dimensionality > 1:
-            worldY = displayNode.GetPythonDisplayStringFromValueY(world[1], 3)
+            worldY = displayNode.GetDisplayStringFromValueY(world[1], worldTemp, worldTemp, 3)
           if dimensionality > 2:
-            worldZ = displayNode.GetPythonDisplayStringFromValueZ(world[2], 3)
+            worldZ = displayNode.GetDisplayStringFromValueZ(world[2], worldTemp, worldTemp, 3)
             worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
           break
 
     if CoordinateSystemName == "WCS":
       if dimensionality > 2:
-        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({equinoxString:>5}), {worldZ:>10s}" \
+        return " {sys}[{orient}]: {worldX}, {worldY} ({equinoxString}), {worldZ}" \
                 .format(
                 sys = CoordinateSystemName,
                 orient = sliceNode.GetOrientation(),
                 worldX = worldX,
                 worldY = worldY,
                 equinoxString = equinoxString,
-                worldZ = worldZ,
+                worldZ = worldZ
                 )
       elif dimensionality > 1:
-        return " {sys:s}[{orient:s}]:{worldX:>16s},{worldY:>16s} ({equinoxString:>5})" \
+        return " {sys}[{orient}]: {worldX}, {worldY} ({equinoxString})" \
                 .format(
                 sys = CoordinateSystemName,
                 orient = sliceNode.GetOrientation(),
                 worldX = worldX,
                 worldY = worldY,
-                equinoxString = equinoxString,
+                equinoxString = equinoxString
                 )
       else:
-        return " {sys:s}[{orient:s}]:{worldX:>16s} ({equinoxString:>5})" \
+        return " {sys}[{orient}]: {worldX} ({equinoxString})" \
                 .format(
                 sys = CoordinateSystemName,
                 orient = sliceNode.GetOrientation(),
                 worldX = worldX,
-                equinoxString = equinoxString,
+                equinoxString = equinoxString
                 )
     else:
-      return " {layoutName: <8s} WCS in View {orient: >2s} not found" \
+      return " {layoutName} WCS in View {orient} not found" \
         .format(layoutName=sliceNode.GetLayoutName(),
-                orient=sliceNode.GetOrientation(),
+                orient=sliceNode.GetOrientation()
                 )
 
 

@@ -1193,7 +1193,6 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetPixelString(double *ijk)
 std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const double world,
                                                                      vtkMRMLUnitNode *node,
                                                                      int precision,
-                                                                     const char* language,
                                                                      const double oldOutputValues[3],
                                                                      double outputValues[3],
                                                                      bool additionalSpace /* = false */)
@@ -1226,19 +1225,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue(const doubl
 
    if (!strcmp(node->GetAttribute("DisplayHint"), "DegreeAsArcMinutesArcSeconds"))
      {
-     if (!strcmp(language, "C++"))
-       {
-       firstPrefix = "\u00B0 "; //C++
-       }
-     else if (!strcmp(language, "Python"))
-       {
-       firstPrefix = "\xB0 "; //Python
-       }
-     else
-       {
-       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValue : "
-                     "no degree uft-8 code found for "<<language);
-       }
+     firstPrefix = "\u00B0 ";
      secondPrefix = "\x27 ";
      thirdPrefix = "\x22";
      }
@@ -1372,7 +1359,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const doub
     }
 
   vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-  return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, additionalSpace);
+  return this->GetDisplayStringFromValue(world, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
 
 //----------------------------------------------------------------------------
@@ -1398,7 +1385,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const doub
     }
 
    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-   return this->GetDisplayStringFromValue(DeclinationDegree, unitNode, precision, "C++", oldOutputValues, outputValues, additionalSpace);
+   return this->GetDisplayStringFromValue(DeclinationDegree, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
 
 //----------------------------------------------------------------------------
@@ -1416,55 +1403,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const doub
     }
 
   vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-  return this->GetDisplayStringFromValue(world, unitNode, precision, "C++", oldOutputValues, outputValues, additionalSpace);
-}
-
-//----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueX(const double world,
-                                                                            int precision /* = 0 */)
-{
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if (!selectionNode)
-    {
-    return "";
-    }
-
-  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
-  double outputValues[3], oldOutputValues[3];
-  return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, false);
-}
-
-//----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueY(const double world,
-                                                                            int precision /* = 0 */)
-{
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if (!selectionNode)
-    {
-    return "";
-    }
-
-  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
-  double outputValues[3], oldOutputValues[3];
-  return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, false);
-}
-
-//----------------------------------------------------------------------------
-std::string vtkMRMLAstroVolumeDisplayNode::GetPythonDisplayStringFromValueZ(const double world,
-                                                                            int precision /* = 0 */)
-{
-  vtkMRMLSelectionNode* selectionNode =  vtkMRMLSelectionNode::SafeDownCast(
-              this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
-  if (!selectionNode)
-    {
-    return "";
-    }
-
-  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
-  double outputValues[3], oldOutputValues[3];
-  return this->GetDisplayStringFromValue(world, unitNode, precision, "Python", oldOutputValues, outputValues, false);
+  return this->GetDisplayStringFromValue(world, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
 
 //----------------------------------------------------------------------------

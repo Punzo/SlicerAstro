@@ -207,7 +207,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
   virtual std::string GetDisplayStringFromValue(const double world,
                                                 vtkMRMLUnitNode *node,
                                                 int precision,
-                                                const char *language,
                                                 const double oldOutputValues[3],
                                                 double outputValues[3],
                                                 bool additionalSpace = false);
@@ -241,27 +240,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeDisplayNode : public vtkMRMLScalar
                                                  double outputValues[3],
                                                  int precision = 0,
                                                  bool additionalSpace = false);
-
-  /// \brief Get display string from a value for the axes X
-  /// \param world wcs coordinate
-  /// \return Given a coordinate of the volume
-  /// create a string if special formatting is required (Python method)
-  virtual std::string GetPythonDisplayStringFromValueX(const double world,
-                                                       int precision = 0);
-
-  /// \brief Get display string from a value for the axes Y
-  /// \param world wcs coordinate
-  /// \return Given a coordinate of the volume
-  /// create a string if special formatting is required (Python method)
-  virtual std::string GetPythonDisplayStringFromValueY(const double world,
-                                                       int precision = 0);
-
-  /// \brief Get display string from a value for the axes Z
-  /// \param world wcs coordinate
-  /// \return Given a coordinate of the volume
-  /// create a string if special formatting is required (Python method)
-  virtual std::string GetPythonDisplayStringFromValueZ(const double world,
-                                                       int precision = 0);
 
   /// \brief add velocity type to a display string from a value for the axes Z
   /// \param string value (alrady fromatted by GetDisplayStringFromValue)
