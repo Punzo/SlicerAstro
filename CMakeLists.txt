@@ -19,7 +19,7 @@ set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute), Thijs
 set(EXTENSION_DESCRIPTION "SlicerAstro, an Astronomy (HI) extension for 3DSlicer")
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Punzo/SlicerAstro/master/SlicerAstroIcon.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/Screenshot.png")
-set(EXTENSION_STATUS "Beta")
+set(EXTENSION_STATUS "Release")
 set(EXTENSION_DEPENDS "NA") # Specified as a space separated list or 'NA' if any
 set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
 
@@ -165,24 +165,6 @@ if(UNIX)
       )
   endforeach()
 endif()
-
-#-----------------------------------------------------------------------------
-# Install extension python packages
-if(UNIX)
-  install(CODE "message(\"CPack: - Install directory: ${python_astropy_DIR}\")")
-  install(
-    DIRECTORY "${python_astropy_DIR}/"
-    DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
-    COMPONENT RuntimeLibraries
-    )
-
-  install(CODE "message(\"CPack: - Install directory: ${python_scipy_DIR}\")")
-  install(
-    DIRECTORY "${python_scipy_DIR}/"
-    DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
-    COMPONENT RuntimeLibraries
-    )
-endif(UNIX)
 
 #-----------------------------------------------------------------------------
 # Install extension deps packages
