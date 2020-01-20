@@ -167,6 +167,15 @@ if(UNIX)
 endif()
 
 #-----------------------------------------------------------------------------
+# Install extension python packages
+install(CODE "message(\"CPack: - Install directory: ${python_packages_DIR}\")")
+install(
+    DIRECTORY "${python_packages_DIR}/"
+    DESTINATION ${Slicer_INSTALL_ROOT}${Slicer_BUNDLE_EXTENSIONS_LOCATION}
+    COMPONENT RuntimeLibraries
+    )
+
+#-----------------------------------------------------------------------------
 # Install extension deps packages
 set(CPACK_INSTALL_CMAKE_PROJECTS "${CPACK_INSTALL_CMAKE_PROJECTS};${CMAKE_BINARY_DIR};${EXTENSION_NAME};ALL;/")
 if(UNIX)
