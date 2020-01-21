@@ -491,11 +491,26 @@ qSlicerAstroVolumeModuleWidget::qSlicerAstroVolumeModuleWidget(QWidget* _parent)
   : Superclass(_parent)
   , d_ptr(new qSlicerAstroVolumeModuleWidgetPrivate(*this))
 {
+  this->contoursSegNodeSmoothing = nullptr;
+  this->contoursSegNodeModeling = nullptr;
 }
 
 //-----------------------------------------------------------------------------
 qSlicerAstroVolumeModuleWidget::~qSlicerAstroVolumeModuleWidget()
 {
+  if (this->contoursSegNodeSmoothing)
+    {
+    this->mrmlScene()->RemoveNode(this->contoursSegNodeSmoothing);
+    this->contoursSegNodeSmoothing->Delete();
+    }
+  this->contoursSegNodeSmoothing = nullptr;
+
+  if (this->contoursSegNodeModeling)
+    {
+    this->mrmlScene()->RemoveNode(this->contoursSegNodeModeling);
+    this->contoursSegNodeModeling->Delete();
+    }
+  this->contoursSegNodeModeling = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -1875,7 +1890,7 @@ void qSlicerAstroVolumeModuleWidget::clearPresets()
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
+void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(vtkMRMLSegmentationNode* segmentationNode)
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
@@ -1885,12 +1900,12 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
     return;
     }
 
-  vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode->GetSegmentationNode();
   if (!segmentationNode || !segmentationNode->GetSegmentation())
     {
     qCritical() << Q_FUNC_INFO << ": Invalid segmentationNode";
     return;
     }
+
   vtkMRMLSegmentationDisplayNode* displayNode = vtkMRMLSegmentationDisplayNode::SafeDownCast(
     segmentationNode->GetDisplayNode());
   if (!displayNode)
@@ -1899,28 +1914,16 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(bool toggle)
     return;
     }
 
-  // If just have been checked, then create closed surface representation and show it
-  if (toggle)
-    {
-    // Make sure closed surface representation exists
-    if (segmentationNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() ))
-      {
-      // Set closed surface as displayed poly data representation
-      displayNode->SetPreferredDisplayRepresentationName3D(
-        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
-      // But keep binary labelmap for 2D
-      displayNode->SetPreferredDisplayRepresentationName2D(
-        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName() );
-      }
-    }
-  // If unchecked, then remove representation (but only if it's not the master representation)
-  else if (segmentationNode->GetSegmentation()->GetMasterRepresentationName() !=
-           vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName())
-    {
-    segmentationNode->GetSegmentation()->RemoveRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-    }
+  segmentationNode->GetSegmentation()->CreateRepresentation(
+    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+  // Set closed surface as displayed poly data representation
+  displayNode->SetPreferredDisplayRepresentationName3D(
+    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+  displayNode->SetPreferredDisplayRepresentationName2D(
+    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+  segmentationNode->GetSegmentation()->RemoveRepresentation(
+    vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+
 }
 
 //---------------------------------------------------------------------------
@@ -2087,7 +2090,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
 
   currentSegmentationNode->CreateDefaultDisplayNodes();
 
-  this->onCreateSurfaceButtonToggled(true);
+  this->onCreateSurfaceButtonToggled(currentSegmentationNode);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
@@ -2658,19 +2661,29 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
-  vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode)
+  vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
+    (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroSmoothingContoursSeg"));
+  this->contoursSegNodeSmoothing = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
+  if (!this->contoursSegNodeSmoothing)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setComparative3DViews() :"
-                   " segmentation not found.";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);
-    return;
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
+    this->contoursSegNodeSmoothing = vtkMRMLSegmentationNode::SafeDownCast(foo);
+    this->contoursSegNodeSmoothing->SetName("AstroSmoothingContoursSeg");
+    this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
     }
 
-  for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+  d->segmentEditorNode->SetAndObserveSegmentationNode
+    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNodeSmoothing));
+
+  if (!this->contoursSegNodeSmoothing->GetDisplayNode())
+    {
+    this->contoursSegNodeSmoothing->CreateDefaultDisplayNodes();
+    }
+
+  for (int ii = 0; ii < this->contoursSegNodeSmoothing->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeSmoothing->GetNthDisplayNode(ii));
     if (!SegmentationDisplayNode)
       {
       continue;
@@ -2679,15 +2692,14 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     }
 
   // Create empty segment in current segmentation
-  this->mrmlScene()->SaveStateForUndo();
 
   std::string SegmentOneID = volumeOne->GetName();
   SegmentOneID += "_3RMS";
-  vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
+  vtkSegment *SegmentOne = this->contoursSegNodeSmoothing->GetSegmentation()->GetSegment(SegmentOneID);
   if(!SegmentOne)
     {
     double color[3] = {0.5, 0.68, 0.5};
-    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
+    SegmentOneID = this->contoursSegNodeSmoothing->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
@@ -2705,8 +2717,13 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
@@ -2714,11 +2731,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   std::string SegmentTwoID = volumeTwo->GetName();
   SegmentTwoID += "_3RMS";
-  vtkSegment *SegmentTwo = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentTwoID);
+  vtkSegment *SegmentTwo = this->contoursSegNodeSmoothing->GetSegmentation()->GetSegment(SegmentTwoID);
   if(!SegmentTwo)
     {
     double color[3] = {1., 0.9, 0.13};
-    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
+    SegmentTwoID = this->contoursSegNodeSmoothing->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -2736,21 +2753,27 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
 
-  for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+  for (int ii = 0; ii < this->contoursSegNodeSmoothing->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeSmoothing->GetNthDisplayNode(ii));
     if (!SegmentationDisplayNode)
       {
       continue;
       }
+
     SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
     SegmentationDisplayNode->SetSegmentVisibility(SegmentTwoID, true);
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentOneID, false);
@@ -2762,7 +2785,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     SegmentationDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.8);
     }
 
-  this->onCreateSurfaceButtonToggled(true);
+  this->onCreateSurfaceButtonToggled(this->contoursSegNodeSmoothing);
   d->AutoPropagateCheckBox->setChecked(autoPropagate);
 }
 
@@ -3204,25 +3227,34 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     return;
     }
 
-  vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode->GetSegmentation())
+  vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
+    (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroModelingContoursSeg"));
+  this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
+  if (!this->contoursSegNodeModeling)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setQuantitative3DView() :"
-                   " segmentation not found.";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);
-    return;
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
+    this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
+    this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
+    this->mrmlScene()->AddNode(this->contoursSegNodeModeling);
+    }
+
+  d->segmentEditorNode->SetAndObserveSegmentationNode
+    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNodeModeling));
+
+  if (!this->contoursSegNodeModeling->GetDisplayNode())
+    {
+    this->contoursSegNodeModeling->CreateDefaultDisplayNodes();
     }
 
   // Create empty segment in current segmentation
-  this->mrmlScene()->SaveStateForUndo();
 
   std::string SegmentOneID = volumeOne->GetName();
   SegmentOneID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
+  vtkSegment *SegmentOne = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentOneID);
   if(!SegmentOne)
     {
     double color[3] = {0.5, 0.68, 0.5};
-    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
+    SegmentOneID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
@@ -3240,8 +3272,13 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
@@ -3249,11 +3286,11 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   std::string SegmentTwoID = volumeTwo->GetName();
   SegmentTwoID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentTwo = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentTwoID);
+  vtkSegment *SegmentTwo = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentTwoID);
   if(!SegmentTwo)
     {
     double color[3] = {1., 0.9, 0.13};
-    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
+    SegmentTwoID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -3271,8 +3308,13 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
@@ -3280,11 +3322,11 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   std::string SegmentThreeID = volumeTwo->GetName();
   SegmentThreeID += "_asMask";
-  vtkSegment *SegmentThree = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentThreeID);
+  vtkSegment *SegmentThree = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentThreeID);
   if(!SegmentThree)
     {
     double color[3] = {0.73, 0.06, 0.59};
-    SegmentThreeID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentThreeID, SegmentThreeID, color);
+    SegmentThreeID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentThreeID, SegmentThreeID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -3301,23 +3343,28 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentThreeID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentThreeID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
 
-  if (currentSegmentationNode->GetNumberOfDisplayNodes() < 1)
+  if (this->contoursSegNodeModeling->GetNumberOfDisplayNodes() < 1)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView error :"
                    " SegmentationNode has no displayNodes!"<<endl;
     }
 
-  for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+  for (int ii = 0; ii < this->contoursSegNodeModeling->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeModeling->GetNthDisplayNode(ii));
     if (!SegmentationDisplayNode)
       {
       continue;
@@ -3337,7 +3384,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentThreeID, false);
     }
 
-  this->onCreateSurfaceButtonToggled(true);
+  this->onCreateSurfaceButtonToggled(this->contoursSegNodeModeling);
 
   // Create PV major
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
@@ -3540,21 +3587,31 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     return;
     }
 
-  vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
+  vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
+    (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroModelingContoursSeg"));
+  this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
+  if (!this->contoursSegNodeModeling)
     {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView() : segmentationNode not valid.";
-    d->AutoPropagateCheckBox->setChecked(autoPropagate);
-    return;
+    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
+    this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
+    this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
+    this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
+    }
+
+  d->segmentEditorNode->SetAndObserveSegmentationNode
+    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNodeModeling));
+
+  if (!this->contoursSegNodeModeling->GetDisplayNode())
+    {
+    this->contoursSegNodeModeling->CreateDefaultDisplayNodes();
     }
 
   // Create empty segment in current segmentation
-  this->mrmlScene()->SaveStateForUndo();
 
   if (overrideSegments)
     {
     std::vector<std::string> segmentIds;
-    currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIds);
+    this->contoursSegNodeModeling->GetSegmentation()->GetSegmentIDs(segmentIds);
 
     for (unsigned int ii = 0; ii < segmentIds.size(); ii++)
       {
@@ -3563,20 +3620,20 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
 
       if (foundVolumeOne != std::string::npos || foundVolumeTwo != std::string::npos)
         {
-        currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOff();
-        currentSegmentationNode->GetSegmentation()->RemoveSegment(segmentIds[ii]);
-        currentSegmentationNode->GetSegmentation()->GlobalWarningDisplayOn();
+        this->contoursSegNodeModeling->GetSegmentation()->GlobalWarningDisplayOff();
+        this->contoursSegNodeModeling->GetSegmentation()->RemoveSegment(segmentIds[ii]);
+        this->contoursSegNodeModeling->GetSegmentation()->GlobalWarningDisplayOn();
         }
       }
     }
 
   std::string SegmentOneID = volumeOne->GetName();
   SegmentOneID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentOne = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentOneID);
+  vtkSegment *SegmentOne = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentOneID);
   if (!SegmentOne)
     {
     double color[3] = {0.5, 0.68, 0.5};
-    SegmentOneID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
+    SegmentOneID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeOne->GetImageData());
@@ -3594,8 +3651,13 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
        {
        qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
        }
@@ -3603,11 +3665,11 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
 
   std::string SegmentTwoID = volumeTwo->GetName();
   SegmentTwoID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentTwo = currentSegmentationNode->GetSegmentation()->GetSegment(SegmentTwoID);
+  vtkSegment *SegmentTwo = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentTwoID);
   if(!SegmentTwo)
     {
     double color[3] = {1., 0.9, 0.13};
-    SegmentTwoID = currentSegmentationNode->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
+    SegmentTwoID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -3625,23 +3687,28 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), currentSegmentationNode, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_MERGE_MAX))
+        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
 
-  if (currentSegmentationNode->GetNumberOfDisplayNodes() < 1)
+  if (this->contoursSegNodeModeling->GetNumberOfDisplayNodes() < 1)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView error :"
                    " SegmentationNode has no displayNodes!"<<endl;
     }
 
-  for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
+  for (int ii = 0; ii < this->contoursSegNodeModeling->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeModeling->GetNthDisplayNode(ii));
     if (!SegmentationDisplayNode)
       {
       continue;
@@ -3657,7 +3724,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentTwoID, false);
     }
 
-  this->onCreateSurfaceButtonToggled(true);
+  this->onCreateSurfaceButtonToggled(this->contoursSegNodeModeling);
 
   // Create PV major
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast

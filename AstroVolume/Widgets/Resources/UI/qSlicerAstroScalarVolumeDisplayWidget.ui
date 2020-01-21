@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>438</width>
+    <width>481</width>
     <height>450</height>
    </rect>
   </property>
@@ -29,7 +29,7 @@
    <item row="4" column="0" colspan="2">
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
-      <widget class="qMRMLWindowLevelWidget" name="MRMLWindowLevelWidget">
+      <widget class="qMRMLWindowLevelWidget" name="MRMLWindowLevelWidget" native="true">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -271,7 +271,7 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLColorTableComboBox" name="ColorTableComboBox">
+      <widget class="qMRMLColorTableComboBox" name="ColorTableComboBox" native="true">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -281,13 +281,13 @@
          <height>30</height>
         </size>
        </property>
-       <property name="showChildNodeTypes">
+       <property name="showChildNodeTypes" stdset="0">
         <bool>true</bool>
        </property>
-       <property name="addEnabled">
+       <property name="addEnabled" stdset="0">
         <bool>false</bool>
        </property>
-       <property name="removeEnabled">
+       <property name="removeEnabled" stdset="0">
         <bool>false</bool>
        </property>
       </widget>
@@ -295,7 +295,7 @@
     </layout>
    </item>
    <item row="7" column="0" colspan="2">
-    <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget">
+    <widget class="qMRMLVolumeThresholdWidget" name="MRMLVolumeThresholdWidget" native="true">
      <property name="enabled">
       <bool>true</bool>
      </property>
@@ -395,14 +395,14 @@
          <height>24</height>
         </size>
        </property>
-       <property name="color">
+       <property name="color" stdset="0">
         <color>
          <red>255</red>
          <green>187</green>
          <blue>20</blue>
         </color>
        </property>
-       <property name="displayColorName">
+       <property name="displayColorName" stdset="0">
         <bool>false</bool>
        </property>
       </widget>
@@ -426,45 +426,13 @@
        </property>
        <property name="icon">
         <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
-         <normaloff>:/Icons/Small/SlicerAddModel.png</normaloff>:/Icons/Small/SlicerAddModel.png</iconset>
+         <normaloff>:/Icons/AstroContours.png</normaloff>:/Icons/AstroContours.png</iconset>
        </property>
        <property name="iconSize">
         <size>
          <width>24</width>
          <height>24</height>
         </size>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QPushButton" name="ConvertToClosedContoursPushButton">
-       <property name="minimumSize">
-        <size>
-         <width>45</width>
-         <height>30</height>
-        </size>
-       </property>
-       <property name="toolTip">
-        <string>Toggle (before or after having generated the contours) to convert from/to binary contours from/to closed ones.</string>
-       </property>
-       <property name="text">
-        <string/>
-       </property>
-       <property name="icon">
-        <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
-         <normaloff>:/Icons/AstroContours.png</normaloff>:/Icons/AstroContours.png</iconset>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>20</width>
-         <height>20</height>
-        </size>
-       </property>
-       <property name="checkable">
-        <bool>true</bool>
-       </property>
-       <property name="checked">
-        <bool>false</bool>
        </property>
       </widget>
      </item>
@@ -637,7 +605,7 @@
       </widget>
      </item>
      <item>
-      <widget class="qMRMLNodeComboBox" name="ContoursVolumeNodeSelector">
+      <widget class="qMRMLNodeComboBox" name="ContoursVolumeNodeSelector" native="true">
        <property name="enabled">
         <bool>true</bool>
        </property>
@@ -656,24 +624,24 @@
        <property name="toolTip">
         <string>The input data for the contours. If the data selection is different from the active data, the data will be reprojected to the WCS of the active data, and then reprojected contours will be generated.</string>
        </property>
-       <property name="nodeTypes">
+       <property name="nodeTypes" stdset="0">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
         </stringlist>
        </property>
-       <property name="noneEnabled">
+       <property name="noneEnabled" stdset="0">
         <bool>false</bool>
        </property>
-       <property name="addEnabled">
+       <property name="addEnabled" stdset="0">
         <bool>false</bool>
        </property>
-       <property name="removeEnabled">
+       <property name="removeEnabled" stdset="0">
         <bool>false</bool>
        </property>
-       <property name="renameEnabled">
+       <property name="renameEnabled" stdset="0">
         <bool>false</bool>
        </property>
-       <property name="selectNodeUponCreation">
+       <property name="selectNodeUponCreation" stdset="0">
         <bool>false</bool>
        </property>
       </widget>
@@ -702,7 +670,7 @@
       </widget>
      </item>
      <item>
-      <widget class="ctkSliderWidget" name="Contours2DSliderWidget">
+      <widget class="ctkSliderWidget" name="Contours2DSliderWidget" native="true">
        <property name="minimumSize">
         <size>
          <width>0</width>
@@ -712,7 +680,7 @@
        <property name="toolTip">
         <string>This widget moves a 2D image over 3D reprojected contours along the velocity axes. Specifically, this widget changes the origin of the 2D active data (i.e., the reference data used for the reprojection) and the z bounds are given by the reprojected segmentation. The slice offset and bounds are in ijk coordinates (of the contours data).</string>
        </property>
-       <property name="decimals">
+       <property name="decimals" stdset="0">
         <number>0</number>
        </property>
       </widget>
@@ -722,12 +690,6 @@
   </layout>
  </widget>
  <customwidgets>
-  <customwidget>
-   <class>qMRMLColorTableComboBox</class>
-   <extends>qMRMLNodeComboBox</extends>
-   <header>qMRMLColorTableComboBox.h</header>
-   <container>1</container>
-  </customwidget>
   <customwidget>
    <class>qMRMLNodeComboBox</class>
    <extends>QWidget</extends>
@@ -760,10 +722,15 @@
    <extends>QWidget</extends>
    <header>ctkSliderWidget.h</header>
   </customwidget>
+  <customwidget>
+   <class>qMRMLColorTableComboBox</class>
+   <extends>qMRMLNodeComboBox</extends>
+   <header>qMRMLColorTableComboBox.h</header>
+   <container>1</container>
+  </customwidget>
  </customwidgets>
  <resources>
   <include location="../qSlicerAstroVolumeWidgetsModule.qrc"/>
-  <include location="../../../EditorEffects/Resources/qSlicerAstroVolumeEditorEffects.qrc"/>
  </resources>
  <connections>
   <connection>

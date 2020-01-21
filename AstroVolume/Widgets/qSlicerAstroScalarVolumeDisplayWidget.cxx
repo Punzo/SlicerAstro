@@ -222,8 +222,6 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                    q, SLOT(onColorChanged(QColor)));
   QObject::connect(this->ContourPushButton, SIGNAL(clicked()),
                    q, SLOT(onCreateContours()));
-  QObject::connect(this->ConvertToClosedContoursPushButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onConvertContoursChanged(bool)));
   QObject::connect(this->Contours2DSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onContours2DOriginChanged(double)));
 
@@ -239,6 +237,7 @@ qSlicerAstroScalarVolumeDisplayWidget::qSlicerAstroScalarVolumeDisplayWidget(QWi
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
   d->init();
 
+  this->contoursSegNode = nullptr;
   // disable as there is not MRML Node associated with the widget
   this->setEnabled(false);
 }
@@ -246,6 +245,13 @@ qSlicerAstroScalarVolumeDisplayWidget::qSlicerAstroScalarVolumeDisplayWidget(QWi
 // --------------------------------------------------------------------------
 qSlicerAstroScalarVolumeDisplayWidget::~qSlicerAstroScalarVolumeDisplayWidget()
 {
+  if (this->contoursSegNode)
+    {
+    this->mrmlScene()->RemoveNode(this->contoursSegNode);
+    this->contoursSegNode->Delete();
+    }
+
+  this->contoursSegNode = nullptr;
 }
 
 // --------------------------------------------------------------------------
@@ -539,88 +545,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onContoursVolumeChanged(vtkMRMLNode 
 }
 
 // --------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::onConvertContoursChanged(bool toggled)
-{
-  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-
-  std::string segmentEditorSingletonTag = "SegmentEditor";
-  vtkMRMLSegmentEditorNode *segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-  if (!segmentEditorNode->GetSegmentationNode())
-    {
-    vtkSmartPointer<vtkMRMLNode> segmentationNode;
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    segmentationNode.TakeReference(foo);
-    this->mrmlScene()->AddNode(segmentationNode);
-    segmentEditorNode->SetAndObserveSegmentationNode
-      (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
-    }
-
-  vtkMRMLSegmentationNode* segmentationNode = segmentEditorNode->GetSegmentationNode();
-
-  if (!segmentationNode)
-    {
-    QString message = QString("segmentation node not found.");
-    qWarning() << Q_FUNC_INFO << ": " << message;
-    QApplication::restoreOverrideCursor();
-    return;
-    }
-
-  if (!segmentationNode->GetDisplayNode())
-    {
-    segmentationNode->CreateDefaultDisplayNodes();
-    }
-
-  this->mrmlScene()->SaveStateForUndo();
-
-  if (!segmentationNode->GetSegmentation())
-    {
-    return;
-    }
-
-  if (segmentationNode->GetSegmentation()->GetNumberOfSegments() < 1)
-    {
-    return;
-    }
-
-  if (toggled)
-    {
-    segmentationNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-    }
-  else
-    {
-    segmentationNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    }
-
-  for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
-    {
-    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
-    if (!SegmentationDisplayNode)
-      {
-      continue;
-      }
-    SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-
-    if (!d->ConvertToClosedContoursPushButton->isChecked())
-      {
-      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
-        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-      }
-    else
-      {
-      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
-        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-      }
-    }
-
-  QApplication::restoreOverrideCursor();
-}
-
-// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
@@ -824,35 +748,29 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   std::string segmentEditorSingletonTag = "SegmentEditor";
   vtkMRMLSegmentEditorNode *segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
     this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-  if (!segmentEditorNode->GetSegmentationNode())
+  vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
+    (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg"));
+  this->contoursSegNode = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
+  if (!this->contoursSegNode)
     {
-    vtkSmartPointer<vtkMRMLNode> segmentationNode;
     vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    segmentationNode.TakeReference(foo);
-    this->mrmlScene()->AddNode(segmentationNode);
-    segmentEditorNode->SetAndObserveSegmentationNode
-      (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
+    this->contoursSegNode = vtkMRMLSegmentationNode::SafeDownCast(foo);
+    this->contoursSegNode->SetName("AstroContoursSeg");
+    this->mrmlScene()->AddNode(this->contoursSegNode);
     }
 
-  vtkMRMLSegmentationNode* segmentationNode = segmentEditorNode->GetSegmentationNode();
+  segmentEditorNode->SetAndObserveSegmentationNode
+    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNode));
 
-  if (!segmentationNode)
+  if (!this->contoursSegNode->GetDisplayNode())
     {
-    QString message = QString("segmentation node not found.");
-    qWarning() << Q_FUNC_INFO << ": " << message;
-    QApplication::restoreOverrideCursor();
-    return;
-    }
-
-  if (!segmentationNode->GetDisplayNode())
-    {
-    segmentationNode->CreateDefaultDisplayNodes();
+    this->contoursSegNode->CreateDefaultDisplayNodes();
     }
 
   bool duplicateName = false;
-  for (int ii = 0; ii <segmentationNode->GetSegmentation()->GetNumberOfSegments(); ii++)
+  for (int ii = 0; ii < this->contoursSegNode->GetSegmentation()->GetNumberOfSegments(); ii++)
     {
-    std::string segmentID = segmentationNode->GetSegmentation()->GetNthSegmentID(ii);
+    std::string segmentID = this->contoursSegNode->GetSegmentation()->GetNthSegmentID(ii);
     if (segmentID.find(NamePrefixStdString) != std::string::npos)
       {
       duplicateName = true;
@@ -1087,8 +1005,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     }
 
   // Create empty segment in current segmentation
-  this->mrmlScene()->SaveStateForUndo();
-
   int LevelDim = 0;
 
   for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
@@ -1103,11 +1019,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     std::string SegmentID = NamePrefixStdString;
     SegmentID += "Contour" + IntToString(ii + 1);
     SegmentIDs->InsertNextValue(SegmentID.c_str());
-    vtkSegment *Segment = segmentationNode->GetSegmentation()->GetSegment(SegmentID);
+    vtkSegment *Segment = this->contoursSegNode->GetSegmentation()->GetSegment(SegmentID);
     if(!Segment)
       {
-      SegmentID = segmentationNode->GetSegmentation()->AddEmptySegment(SegmentID, SegmentID);
-      Segment = segmentationNode->GetSegmentation()->GetSegment(SegmentID);
+      SegmentID = this->contoursSegNode->GetSegmentation()->AddEmptySegment(SegmentID, SegmentID);
+      Segment = this->contoursSegNode->GetSegmentation()->GetSegment(SegmentID);
       }
 
     vtkDoubleArray* ContoursColor =  astroDisplayNode->GetContoursColor();
@@ -1157,11 +1073,13 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     masterVolume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    segmentationNode->GetSegmentation()->CreateRepresentation(
+    this->contoursSegNode->GetSegmentation()->CreateRepresentation(
       vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+    this->contoursSegNode->GetSegmentation()->CreateRepresentation(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), segmentationNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
+        modifierLabelmap.GetPointer(), this->contoursSegNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
@@ -1174,16 +1092,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       }
     }
 
-  if (d->ConvertToClosedContoursPushButton->isChecked())
-    {
-    segmentationNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-    }
-
-  for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
+  for (int ii = 0; ii < this->contoursSegNode->GetNumberOfDisplayNodes(); ii++)
     {
     vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNode->GetNthDisplayNode(ii));
     if (!SegmentationDisplayNode)
       {
       continue;
@@ -1210,17 +1122,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
 
-    if (!d->ConvertToClosedContoursPushButton->isChecked())
-      {
-      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
-        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-      }
-    else
-      {
-      SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
-        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-      }
+    SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
+      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
+
+  this->contoursSegNode->GetSegmentation()->RemoveRepresentation(
+    vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
 
   if (masterVolume != this->volumeNode())
     {

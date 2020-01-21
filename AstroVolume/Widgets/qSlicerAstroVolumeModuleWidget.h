@@ -39,6 +39,7 @@ class qSlicerVolumeRenderingModuleWidget;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLNode;
+class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeRenderingDisplayNode;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
@@ -129,7 +130,7 @@ protected slots:
   void fitROIToVolume();
   void onCalculateRMS();
   void onCreateHistogram();
-  void onCreateSurfaceButtonToggled(bool toggle);
+  void onCreateSurfaceButtonToggled(vtkMRMLSegmentationNode*);
   void onCropToggled(bool toggle);
   void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
@@ -210,6 +211,9 @@ protected:
   /// 3. Segmentation is non-empty and master differs -> Choice presented to user
   /// \return False only if user chose not to change master representation on option 3, or if error occurred, otherwise true
   bool updateMasterRepresentationInSegmentation(vtkSegmentation* segmentation, QString representation);
+
+  vtkMRMLSegmentationNode* contoursSegNodeSmoothing;
+  vtkMRMLSegmentationNode* contoursSegNodeModeling;
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModuleWidget);

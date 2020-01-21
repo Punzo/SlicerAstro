@@ -36,6 +36,7 @@ class vtkMRMLNode;
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLColorNode;
+class vtkMRMLSegmentationNode;
 class qSlicerAstroScalarVolumeDisplayWidgetPrivate;
 class vtkImageData;
 
@@ -84,18 +85,21 @@ public slots:
   /// Set the color for contours
   void onColorChanged(QColor color);
   void onContours2DOriginChanged(double value);
-  void onConvertContoursChanged(bool toggled);
+
+  /// Generate closed contours (see tooltip for the options)
   void onCreateContours();
 
+  /// Method to change the display visualization of the 2D slices.
   void ExtendAllSlices();
   void onFitSlicesToViewsChanged(bool toggled);
-
   void setInterpolate(bool interpolate);
 
+  /// 2D color function proprieties
   void setInverse(bool toggled);
   void setLog(bool toggled);
   void setReverse(bool toggled);
 
+  /// customize popup behaviour of double slider for 2D color function
   void onWindowLevelPopupShow(bool show);
   void onWindowLevelPopupShow(int);
   void setThreshold(bool threshold);
@@ -122,6 +126,7 @@ protected:
   void ReverseColorFunction(vtkMRMLColorNode *colorNode);
   void showEvent(QShowEvent * event);
   QScopedPointer<qSlicerAstroScalarVolumeDisplayWidgetPrivate> d_ptr;
+  vtkMRMLSegmentationNode* contoursSegNode;
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroScalarVolumeDisplayWidget);
