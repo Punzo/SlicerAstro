@@ -480,14 +480,14 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 {
   if (!pnode)
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank : "
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop : "
                   "parameterNode not found.");
     return false;
     }
 
   if (!this->GetMRMLScene())
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                   " scene not found.");
     return false;
     }
@@ -497,7 +497,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
   if(!inputVolume || !inputVolume->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                   " inputVolume not found.");
     return false;
     }
@@ -507,7 +507,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
   if (!outputVolume || !outputVolume->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank : "
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop : "
                   "outputVolume not found.");
     return 0;
     }
@@ -520,7 +520,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   if((!segment || !segmentationNode) && segmentationActive)
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                   " segment not found.");
     return false;
     }
@@ -548,7 +548,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     vtkMRMLAnnotationROINode *roiNode = pnode->GetROINode();
     if(!roiNode)
       {
-      vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+      vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                     " roiNode not found!");
       return false;
       }
@@ -745,7 +745,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   vtkMRMLAstroVolumeDisplayNode* astroDisplay = outputVolume->GetAstroVolumeDisplayNode();
   if (!astroDisplay)
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                   " astroDisplay not found!");
     pnode->SetStatus(100);
     return false;
@@ -754,7 +754,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   wcsprm* wcs = astroDisplay->GetWCSStruct();
   if (!wcs)
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                   " wcs not found!");
     pnode->SetStatus(100);
     return false;
@@ -767,7 +767,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   int wcsStatus;
   if ((wcsStatus = wcsset(wcs)))
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
                   "wcsset ERROR "<<wcsStatus<<":\n"<<
                   "Message from "<<wcs->err->function<<
                   "at line "<<wcs->err->line_no<<
