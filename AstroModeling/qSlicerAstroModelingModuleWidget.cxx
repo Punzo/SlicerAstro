@@ -2734,8 +2734,6 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
 {
-  Q_D(qSlicerAstroModelingModuleWidget);
-
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
@@ -4752,6 +4750,10 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
   d->TableView->resizeColumnsToContents();
   d->parametersNode->SetStatus(0);
+
+  d->astroTableNode = d->parametersNode->GetParamsTableNode();
+  this->qvtkReconnect(d->astroTableNode, vtkCommand::ModifiedEvent,
+                      this, SLOT(onMRMLTableNodeModified()));
 }
 
 //--------------------------------------------------------------------------

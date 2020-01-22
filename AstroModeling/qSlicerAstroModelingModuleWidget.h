@@ -63,7 +63,7 @@ public slots:
   /// Slots to fit the data.
   void onFit();
 
-  /// Slots to run teh computations.
+  /// Slots to run the computations.
   /// It creates the output volume and calls the logic
   void onApply();
 
