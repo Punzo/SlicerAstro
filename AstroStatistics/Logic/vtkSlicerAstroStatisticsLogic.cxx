@@ -47,6 +47,7 @@
 #include <vtkVersion.h>
 
 // Std includes
+#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <sys/time.h>
@@ -105,79 +106,6 @@ bool DoubleIsNaN(double Value)
 bool FloatIsNaN(float Value)
 {
   return isNaN<float>(Value);
-}
-
-// Swapping algorithm
-static inline void swap(float *a, float *b)
-{
-  float temp = *a;
-  *a = *b;
-  *b = temp;
-}
-
-// Partitioning algorithm
-static int partition(float *L, int left, int right)
-{
-  int min = left;
-  int max = right;
-  int pivot = left;
-  float p_val = L[pivot];
-
-  while (left < right)
-    {
-    while (L[left] <= p_val)
-      {
-      left++;
-      }
-    while (L[right] > p_val)
-      {
-      right--;
-      }
-    if (left < right)
-      {
-      if (left > max)
-        {
-        left = max;
-        }
-
-      if (right < min)
-        {
-        right = min;
-        }
-      swap(&L[left], &L[right]);
-      }
-    }
-
-  swap(&L[pivot], &L[right]);
-  return right;
-}
-
-// Quicksort recursion
-static void quicksort(float *L, int start, int end)
-{
-  if (!L)
-    {
-    return;
-    }
-
-  if (start >= end)
-    {
-    return;
-    }
-
-  int splitPoint = partition(L, start, end);
-
-  if (splitPoint == start)
-    {
-    splitPoint++;
-    }
-  if (splitPoint == end)
-    {
-    splitPoint--;
-    }
-
-  quicksort(L, start, splitPoint - 1);
-  quicksort(L, splitPoint + 1, end);
 }
 
 }// end namespace
@@ -663,7 +591,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         }
 
-      quicksort(TempPixel, 0, Npixels - 1);
+      std::sort(TempPixel, TempPixel + Npixels);
 
       pnode->SetStatus(95);
 
@@ -972,7 +900,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         }
 
-      quicksort(TempPixel, 0, Npixels - 1);
+      std::sort(TempPixel, TempPixel + Npixels);
 
       pnode->SetStatus(95);
 
