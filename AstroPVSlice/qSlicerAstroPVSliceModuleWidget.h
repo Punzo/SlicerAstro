@@ -45,7 +45,7 @@ class Q_SLICERASTRO_QTMODULES_ASTROPVSLICE_EXPORT qSlicerAstroPVSliceModuleWidge
 public:
 
   typedef qSlicerAbstractModuleWidget Superclass;
-  qSlicerAstroPVSliceModuleWidget(QWidget *parent=0);
+  qSlicerAstroPVSliceModuleWidget(QWidget *parent=nullptr);
   virtual ~qSlicerAstroPVSliceModuleWidget();
 
   virtual void enter();
@@ -53,25 +53,6 @@ public:
 
   /// Get vtkMRMLAstroPVSliceParametersNode
   Q_INVOKABLE vtkMRMLAstroPVSliceParametersNode* mrmlAstroPVSliceParametersNode()const;
-
-  /// Create observations between slice view interactor and the widget.
-  /// The captured events are propagated to the active effect if any.
-  /// NOTE: This method should be called from the enter function of the
-  ///   embedding module widget so that the events are correctly processed.
-  Q_INVOKABLE void setupViewObservations();
-
-  /// Remove observations
-  /// NOTE: This method should be called from the exit function of the
-  ///   embedding module widget so that events are not processed unnecessarily.
-  Q_INVOKABLE void removeViewObservations();
-
-  /// Callback function invoked when interaction happens
-  /// \param callerInteractor Interactor object that was observed to catch the event
-  /// \param eid Event identifier
-  /// \param viewWidget Widget of the Slicer layout view. Can be \sa qMRMLSliceWidget or \sa qMRMLThreeDWidget
-  virtual bool processInteractionEvents(vtkRenderWindowInteractor* callerInteractor,
-                                        unsigned long eid, qMRMLWidget* viewWidget);
-
   /// Get render window for view widget
   Q_INVOKABLE static vtkRenderWindow* renderWindow(qMRMLWidget* viewWidget);
   /// Get renderer for view widget
@@ -129,7 +110,6 @@ protected slots:
   void onEndImportEvent();
   void onStartImportEvent();
 
-  void onLayoutChanged(int layoutIndex); 
   void onRotateLineChanged(double theta);
   void onLineCenterRightAscensionWCSChanged(double value);
   void onLineCenterDeclinationWCSChanged(double value);
