@@ -19,8 +19,8 @@ endforeach()
 
 if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
 
-  set(WCSLIB_DOWNLOAD_VERSION "5.18" CACHE STRING "Version of WCSlib source package to download")
-  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "5.18")
+  set(WCSLIB_DOWNLOAD_VERSION "7.1" CACHE STRING "Version of WCSlib source package to download")
+  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "7.1")
 
   if(NOT DEFINED git_protocol)
     set(git_protocol "git")
@@ -33,7 +33,7 @@ if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
     GIT_REPOSITORY "${git_protocol}://github.com/Punzo/wcslib"
-    GIT_TAG "e6e4570a42197a5ca1b494b0cd1f3175b114ac3e"
+    GIT_TAG "9b45438b15c6421e15da2c1a942fa9bd125339e7"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}
     CMAKE_CACHE_ARGS
