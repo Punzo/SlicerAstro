@@ -97,8 +97,7 @@ protected:
   void initializeMomentMapNode(bool forceNew = false);
 
   /// Initialization of MRML Line node
-  void initializeLineNode(bool forceNew = false,
-                           bool InitLinePositions = true);
+  void initializeLineNode(bool InitLinePositions = true);
 
 protected slots:
 
@@ -136,7 +135,6 @@ protected slots:
   void onLineCenterDeclinationWCSChanged(double value);
   void onLineCenterRightAscensionIJKChanged(double value);
   void onLineCenterDeclinationIJKChanged(double value);
-  void onLineColorChanged(QColor color);
   void onSetLineCenterClicked();
 
   void onMRMLSelectionNodeModified(vtkObject* sender);

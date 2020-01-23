@@ -176,8 +176,8 @@ public:
 qSlicerAstroPVSliceModuleWidgetPrivate::qSlicerAstroPVSliceModuleWidgetPrivate(qSlicerAstroPVSliceModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = 0;
-  this->selectionNode = 0;
+  this->parametersNode = nullptr;
+  this->selectionNode = nullptr;
   this->ViewsObserved = false;
   this->CenterInteractionActive = false;
   this->reportDimensionalityError = false;
@@ -217,9 +217,6 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::init()
 
   QObject::connect(this->LineNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onLineChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->ColorPickerButton, SIGNAL(colorChanged(QColor)),
-                   q, SLOT(onLineColorChanged(QColor)));
 
   QObject::connect(this->RotateSpinBox, SIGNAL(valueChanged(double)),
                    q, SLOT(onRotateLineChanged(double)));
@@ -262,7 +259,7 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::cleanPointers()
     {
     q->mrmlScene()->RemoveNode(this->parametersNode);
     }
-  this->parametersNode = 0;
+  this->parametersNode = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -319,7 +316,7 @@ void qSlicerAstroPVSliceModuleWidget::enter()
   this->onMRMLSelectionNodeModified(d->selectionNode);
 
   this->initializeMomentMapNode();
-  this->initializeLineNode(false, false);
+  this->initializeLineNode(false);
 
   if (!d->parametersNode || !this->mrmlScene())
     {
@@ -534,7 +531,7 @@ void qSlicerAstroPVSliceModuleWidget::initializeParameterNode(bool forceNew /*= 
     return;
     }
 
-  vtkMRMLAstroPVSliceParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroPVSliceParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroPVSliceParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -590,13 +587,13 @@ void qSlicerAstroPVSliceModuleWidget::initializeMomentMapNode(bool forceNew /*= 
       QString message = QString("It is possible to create PVSlice only"
                                 " for datacube with dimensionality 3 (NAXIS = 3).");
       qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(NULL, tr("Failed to create PVSlice"), message);
+      QMessageBox::warning(nullptr, tr("Failed to create PVSlice"), message);
       d->reportDimensionalityError = false;
       }
     return;
     }
 
-  vtkMRMLAstroVolumeNode *MomentMapNode = NULL;
+  vtkMRMLAstroVolumeNode *MomentMapNode = nullptr;
 
   vtkSmartPointer<vtkCollection> AstroVolumeNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
@@ -639,8 +636,7 @@ void qSlicerAstroPVSliceModuleWidget::initializeMomentMapNode(bool forceNew /*= 
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroPVSliceModuleWidget::initializeLineNode(bool forceNew /*= false*/,
-                                                          bool InitLinePositions /*= true*/)
+void qSlicerAstroPVSliceModuleWidget::initializeLineNode(bool InitLinePositions /*= true*/)
 {
   Q_D(qSlicerAstroPVSliceModuleWidget);
 
@@ -657,7 +653,7 @@ void qSlicerAstroPVSliceModuleWidget::initializeLineNode(bool forceNew /*= false
     return;
     }
 
-  vtkMRMLMarkupsLineNode *LineNode = NULL;
+  vtkMRMLMarkupsLineNode *LineNode = nullptr;
 
   vtkSmartPointer<vtkCollection> LineNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClassByName("vtkMRMLMarkupsLineNode", "PVSliceLine"));
@@ -933,8 +929,8 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
   }
 }
 
@@ -1029,7 +1025,7 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceLineNodeModified()
       QString message = QString("PVSlice is available only"
                                 " for datacube with dimensionality 3 (NAXIS = 3).");
       qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(NULL, tr("Failed to calculate PVSlice"), message);
+      QMessageBox::warning(nullptr, tr("Failed to calculate PVSlice"), message);
       }
     d->reportDimensionalityError = false;
     return;
@@ -1104,7 +1100,7 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceLineNodeModified()
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
 
-  vtkMRMLAstroVolumeDisplayNode* astroDisplay = NULL;
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = nullptr;
   if (inputVolumeNode)
     {
     astroDisplay = inputVolumeNode->GetAstroVolumeDisplayNode();
@@ -1206,7 +1202,7 @@ void qSlicerAstroPVSliceModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode)
     }
   else
     {
-    d->parametersNode->SetMomentMapNodeID(NULL);
+    d->parametersNode->SetMomentMapNodeID(nullptr);
     }
 }
 
@@ -1362,8 +1358,7 @@ void qSlicerAstroPVSliceModuleWidget::onLineChanged(vtkMRMLNode *mrmlNode)
     return;
     }
 
-  vtkMRMLMarkupsLineNode *LineNode = vtkMRMLMarkupsLineNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(d->parametersNode->GetLineNodeID()));
+  vtkMRMLMarkupsLineNode *LineNode = vtkMRMLMarkupsLineNode::SafeDownCast(mrmlNode);
   if (LineNode)
     {
     d->parametersNode->SetLineNodeID(LineNode->GetID());
@@ -1375,31 +1370,8 @@ void qSlicerAstroPVSliceModuleWidget::onLineChanged(vtkMRMLNode *mrmlNode)
     }
   else
     {
-    d->parametersNode->SetLineNodeID(NULL);
+    d->parametersNode->SetLineNodeID(nullptr);
     }
-}
-
-//---------------------------------------------------------------------------
-void qSlicerAstroPVSliceModuleWidget::onLineColorChanged(QColor color)
-{
-  Q_D(qSlicerAstroPVSliceModuleWidget);
-
-  if (!d->parametersNode || !this->mrmlScene())
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsLineNode *LineNode = vtkMRMLMarkupsLineNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(d->parametersNode->GetLineNodeID()));
-  if(!LineNode)
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsDisplayNode* LineDisplayNode =
-    vtkMRMLMarkupsDisplayNode::SafeDownCast(LineNode->GetDisplayNode());
-
-  LineDisplayNode->SetColor(color.red() / 255., color.green() / 255., color.blue() / 255.);
 }
 
 //---------------------------------------------------------------------------
@@ -1583,7 +1555,7 @@ vtkRenderWindow *qSlicerAstroPVSliceModuleWidget::renderWindow(qMRMLWidget *view
 {
   if (!viewWidget)
     {
-    return NULL;
+    return nullptr;
     }
 
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
@@ -1593,7 +1565,7 @@ vtkRenderWindow *qSlicerAstroPVSliceModuleWidget::renderWindow(qMRMLWidget *view
     if (!sliceWidget->sliceView())
       {
       // probably the application is closing
-      return NULL;
+      return nullptr;
       }
     return sliceWidget->sliceView()->renderWindow();
     }
@@ -1602,13 +1574,13 @@ vtkRenderWindow *qSlicerAstroPVSliceModuleWidget::renderWindow(qMRMLWidget *view
     if (!threeDWidget->threeDView())
       {
       // probably the application is closing
-      return NULL;
+      return nullptr;
       }
       return threeDWidget->threeDView()->renderWindow();
     }
 
   qCritical() << Q_FUNC_INFO << ": Unsupported view widget type!";
-  return NULL;
+  return nullptr;
 }
 
 //---------------------------------------------------------------------------
@@ -1617,7 +1589,7 @@ vtkRenderer *qSlicerAstroPVSliceModuleWidget::renderer(qMRMLWidget *viewWidget)
   vtkRenderWindow* renderWindow = qSlicerAstroPVSliceModuleWidget::renderWindow(viewWidget);
   if (!renderWindow)
     {
-    return NULL;
+    return nullptr;
     }
 
   return vtkRenderer::SafeDownCast(renderWindow->GetRenderers()->GetItemAsObject(0));
