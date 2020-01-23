@@ -24,7 +24,6 @@
 #include "vtkSlicerAstroConfigure.h"
 
 // MRML includes
-#include <vtkMRMLAnnotationRulerNode.h>
 #include <vtkMRMLAnnotationTextDisplayNode.h>
 #include <vtkMRMLAnnotationPointDisplayNode.h>
 #include <vtkMRMLAnnotationLineDisplayNode.h>
@@ -34,6 +33,8 @@
 #include <vtkMRMLAstroPVSliceParametersNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
+#include <vtkMRMLMarkupsDisplayNode.h>
+#include <vtkMRMLMarkupsLineNode.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceCompositeNode.h>
@@ -411,7 +412,7 @@ bool vtkSlicerAstroPVSliceLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVSlicePara
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVSliceLogic::CreateAndSetRuler(vtkMRMLAstroPVSliceParametersNode *pnode)
+bool vtkSlicerAstroPVSliceLogic::CreateAndSetLine(vtkMRMLAstroPVSliceParametersNode *pnode)
 {
   if (!this->GetMRMLScene() || !pnode)
     {
@@ -426,13 +427,13 @@ bool vtkSlicerAstroPVSliceLogic::CreateAndSetRuler(vtkMRMLAstroPVSliceParameters
     return false;
     }
 
-  vtkSmartPointer<vtkMRMLAnnotationRulerNode> RulerNode;
-  vtkMRMLNode *foo = this->GetMRMLScene()->CreateNodeByClass("vtkMRMLAnnotationRulerNode");
-  RulerNode.TakeReference(vtkMRMLAnnotationRulerNode::SafeDownCast(foo));
+  vtkSmartPointer<vtkMRMLMarkupsLineNode> LineNode;
+  vtkMRMLNode *foo = this->GetMRMLScene()->CreateNodeByClass("vtkMRMLMarkupsLineNode");
+  LineNode.TakeReference(vtkMRMLMarkupsLineNode::SafeDownCast(foo));
 
   // Set name
-  std::string name = this->GetMRMLScene()->GetUniqueNameByString("PVSliceRuler");
-  RulerNode->SetName(name.c_str());
+  std::string name = this->GetMRMLScene()->GetUniqueNameByString("PVSliceLine");
+  LineNode->SetName(name.c_str());
 
   // Set control points
   vtkImageData* image = PVMomentMap->GetImageData();
@@ -467,58 +468,37 @@ bool vtkSlicerAstroPVSliceLogic::CreateAndSetRuler(vtkMRMLAstroPVSliceParameters
   IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
   double RASposition[3] = {0.};
   IJKtoRASTransform->TransformPoint(position, RASposition);
-  RulerNode->SetPosition1(RASposition);
+  vtkVector3d point1(RASposition);
+  LineNode->AddControlPointWorld(point1);
 
   position[0] = dimensions[0] - (dimensions[0] * 0.1);
   position[1] = dimensions[1] - (dimensions[1] * 0.1);
   position[2] = IJKOrigin[2];
   IJKtoRASTransform->TransformPoint(position, RASposition);
-  RulerNode->SetPosition2(RASposition);
+  vtkVector3d point2(RASposition);
+  LineNode->AddControlPointWorld(point2);
 
   // Add to the scene
-  this->GetMRMLScene()->AddNode(RulerNode);
+  this->GetMRMLScene()->AddNode(LineNode);
 
-  // Change the look of the ruler
-  vtkMRMLAnnotationTextDisplayNode* TextDisplayNode =
-    RulerNode->GetAnnotationTextDisplayNode();
-  if (!TextDisplayNode)
-    {
-    RulerNode->CreateAnnotationTextDisplayNode();
-    }
-  TextDisplayNode->SetVisibility(0);
+  pnode->SetLineNodeID(LineNode->GetID());
 
-  vtkMRMLAnnotationPointDisplayNode* PointDisplayNode =
-    RulerNode->GetAnnotationPointDisplayNode();
-  if (!PointDisplayNode)
-    {
-    RulerNode->CreateAnnotationPointDisplayNode();
-    }
-  PointDisplayNode->SetGlyphScale(20.);
-  PointDisplayNode->SetColor(1., 0.333, 0.149);
-  PointDisplayNode->SetEdgeColor(1., 0.333, 0.149);
-  PointDisplayNode->SetEdgeVisibility(1);
+  // Set line dimension
+  vtkMRMLMarkupsDisplayNode *displayNode =
+    vtkMRMLMarkupsDisplayNode::SafeDownCast(LineNode->GetDisplayNode());
+  if (!displayNode)
+  {
+    LineNode->CreateDefaultDisplayNodes();
+    displayNode = vtkMRMLMarkupsDisplayNode::SafeDownCast(LineNode->GetDisplayNode());
+  }
 
-  vtkMRMLAnnotationLineDisplayNode* LineDisplayNode =
-    RulerNode->GetAnnotationLineDisplayNode();
-  if (!LineDisplayNode)
-    {
-    RulerNode->CreateAnnotationLineDisplayNode();
-    }
-  LineDisplayNode->SetLabelVisibility(0);
-  LineDisplayNode->SetMaxTicks(0);
-  LineDisplayNode->SetLineWidth(4);
-  LineDisplayNode->SetLineThickness(4);
-  LineDisplayNode->SetColor(1., 0.333, 0.149);
-  LineDisplayNode->SetEdgeColor(1., 0.333, 0.149);
-  LineDisplayNode->SetEdgeVisibility(1);
-
-  pnode->SetRulerNodeID(RulerNode->GetID());
+  displayNode->SetGlyphScale(2.5);
 
   return true;
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVSliceLogic::InitializeRuler(vtkMRMLAstroPVSliceParametersNode *pnode)
+bool vtkSlicerAstroPVSliceLogic::InitializeLine(vtkMRMLAstroPVSliceParametersNode *pnode)
 {
   if (!this->GetMRMLScene() || !pnode)
     {
@@ -530,18 +510,18 @@ bool vtkSlicerAstroPVSliceLogic::InitializeRuler(vtkMRMLAstroPVSliceParametersNo
       GetNodeByID(pnode->GetMomentMapNodeID()));
   if(!PVMomentMap || !PVMomentMap->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroPVSliceLogic::InitializeRuler :"
+    vtkErrorMacro("vtkSlicerAstroPVSliceLogic::InitializeLine :"
                   " PVMomentMap not found.");
     return false;
     }
 
-  vtkMRMLAnnotationRulerNode *RulerNode =
-    vtkMRMLAnnotationRulerNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetRulerNodeID()));
-  if(!RulerNode)
+  vtkMRMLMarkupsLineNode *LineNode =
+    vtkMRMLMarkupsLineNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetLineNodeID()));
+  if(!LineNode)
     {
-    vtkErrorMacro("vtkSlicerAstroPVSliceLogic::InitializeRuler :"
-                  " RulerNode not found.");
+    vtkErrorMacro("vtkSlicerAstroPVSliceLogic::InitializeLine :"
+                  " LineNode not found.");
     return false;
     }
 
@@ -578,19 +558,19 @@ bool vtkSlicerAstroPVSliceLogic::InitializeRuler(vtkMRMLAstroPVSliceParametersNo
   IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
   double RASposition[3] = {0.};
   IJKtoRASTransform->TransformPoint(position, RASposition);
-  RulerNode->SetPosition1(RASposition);
+  LineNode->SetNthControlPointPositionFromPointer(0, RASposition);
 
   position[0] = dimensions[0] - (dimensions[0] * 0.1);
   position[1] = dimensions[1] - (dimensions[1] * 0.1);
   position[2] = IJKOrigin[2];
   IJKtoRASTransform->TransformPoint(position, RASposition);
-  RulerNode->SetPosition2(RASposition);
+  LineNode->SetNthControlPointPositionFromPointer(1, RASposition);
 
   return true;
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *pnode)
+bool vtkSlicerAstroPVSliceLogic::UpdateLine(vtkMRMLAstroPVSliceParametersNode *pnode)
 {
   if (!this->GetMRMLScene() || !pnode)
     {
@@ -605,32 +585,30 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *
     return false;
     }
 
-  vtkMRMLAnnotationRulerNode *RulerNode =
-    vtkMRMLAnnotationRulerNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetRulerNodeID()));
-  if(!RulerNode)
+  vtkMRMLMarkupsLineNode *LineNode =
+    vtkMRMLMarkupsLineNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetLineNodeID()));
+  if(!LineNode)
     {
     return false;
     }
 
-  if (fabs(pnode->GetRulerAngle() - pnode->GetRulerOldAngle()) < 0.01 &&
-      fabs(pnode->GetRulerShiftX() - pnode->GetRulerOldShiftX()) < 0.01 &&
-      fabs(pnode->GetRulerShiftY() - pnode->GetRulerOldShiftY()) < 0.01)
+  if (fabs(pnode->GetLineAngle() - pnode->GetLineOldAngle()) < 0.01)
     {
     return false;
     }
 
   double* RASOrigin = PVMomentMap->GetOrigin();
   double position1[3] = {0};
-  RulerNode->GetPosition1(position1);
+  LineNode->GetNthControlPointPosition(0, position1);
   double position2[3] = {0};
-  RulerNode->GetPosition2(position2);
+  LineNode->GetNthControlPointPosition(1, position2);
 
-  double RulerCenter[3], Shift[3];
+  double LineCenter[3], Shift[3];
   for (int ii = 0; ii < 3; ii++)
     {
-    RulerCenter[ii] = (position1[ii] + position2[ii]) * 0.5;
-    Shift[ii] = RulerCenter[ii] - RASOrigin[ii];
+    LineCenter[ii] = (position1[ii] + position2[ii]) * 0.5;
+    Shift[ii] = LineCenter[ii] - RASOrigin[ii];
     position1[ii] -= Shift[ii];
     position2[ii] -= Shift[ii];
     }
@@ -644,26 +622,16 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *
 
   RAStoIJKTransform->TransformPoint(position1,position1);
   RAStoIJKTransform->TransformPoint(position2,position2);
-  RAStoIJKTransform->TransformPoint(RulerCenter,RulerCenter);
+  RAStoIJKTransform->TransformPoint(LineCenter,LineCenter);
 
-  vtkNew<vtkGeneralTransform> RulerRotateTransform;
-  RulerRotateTransform->Identity();
-  RulerRotateTransform->PostMultiply();
-  RulerRotateTransform->RotateZ(pnode->GetRulerOldAngle() -
-                                pnode->GetRulerAngle());
+  vtkNew<vtkGeneralTransform> LineRotateTransform;
+  LineRotateTransform->Identity();
+  LineRotateTransform->PostMultiply();
+  LineRotateTransform->RotateZ(pnode->GetLineOldAngle() -
+                                pnode->GetLineAngle());
 
-  RulerRotateTransform->TransformPoint(position1, position1);
-  RulerRotateTransform->TransformPoint(position2, position2);
-
-  vtkNew<vtkGeneralTransform> RulerShiftTransform;
-  RulerShiftTransform->Identity();
-  RulerShiftTransform->PostMultiply();
-  RulerShiftTransform->Translate(pnode->GetRulerShiftX() - pnode->GetRulerOldShiftX(),
-                                 pnode->GetRulerShiftY() - pnode->GetRulerOldShiftY(),
-                                 0.);
-
-  RulerShiftTransform->TransformPoint(position1, position1);
-  RulerShiftTransform->TransformPoint(position2, position2);
+  LineRotateTransform->TransformPoint(position1, position1);
+  LineRotateTransform->TransformPoint(position2, position2);
 
   RAStoIJKTransform->Identity();
   RAStoIJKMatrix->Invert();
@@ -678,30 +646,28 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRuler(vtkMRMLAstroPVSliceParametersNode *
     position2[ii] += Shift[ii];
     }
 
-  int wasModifying = RulerNode->StartModify();
-  RulerNode->SetPosition1(position1);
-  RulerNode->SetPosition2(position2);
-  RulerNode->EndModify(wasModifying);
+  int wasModifying = LineNode->StartModify();
+  LineNode->SetNthControlPointPositionFromPointer(0, position1);
+  LineNode->SetNthControlPointPositionFromPointer(1, position2);
+  LineNode->EndModify(wasModifying);
 
   pnode->DisableModifiedEventOn();
-  pnode->SetRulerOldAngle(pnode->GetRulerAngle());
-  pnode->SetRulerOldShiftX(pnode->GetRulerShiftX());
-  pnode->SetRulerOldShiftY(pnode->GetRulerShiftY());
+  pnode->SetLineOldAngle(pnode->GetLineAngle());
   pnode->DisableModifiedEventOff();
 
   return true;
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVSliceLogic::UpdateRulerFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode)
+bool vtkSlicerAstroPVSliceLogic::UpdateLineFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode)
 {
   if (!this->GetMRMLScene() || !pnode)
     {
     return false;
     }
 
-  int NewIJKRulerCenter[2];
-  pnode->GetRulerCenter(NewIJKRulerCenter);
+  int NewIJKLineCenter[2];
+  pnode->GetLineCenter(NewIJKLineCenter);
 
   vtkMRMLAstroVolumeNode *PVMomentMap =
     vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
@@ -711,23 +677,23 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRulerFromCenter(vtkMRMLAstroPVSliceParame
     return false;
     }
 
-  vtkMRMLAnnotationRulerNode *RulerNode =
-    vtkMRMLAnnotationRulerNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetRulerNodeID()));
-  if(!RulerNode)
+  vtkMRMLMarkupsLineNode *LineNode =
+    vtkMRMLMarkupsLineNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetLineNodeID()));
+  if(!LineNode)
     {
     return false;
     }
 
   double position1[3] = {0};
-  RulerNode->GetPosition1(position1);
+  LineNode->GetNthControlPointPosition(0, position1);
   double position2[3] = {0};
-  RulerNode->GetPosition2(position2);
+  LineNode->GetNthControlPointPosition(1, position2);
 
-  double RulerCenter[3];
+  double LineCenter[3];
   for (int ii = 0; ii < 3; ii++)
     {
-    RulerCenter[ii] = (position1[ii] + position2[ii]) * 0.5;
+    LineCenter[ii] = (position1[ii] + position2[ii]) * 0.5;
     }
 
   vtkNew<vtkGeneralTransform> RAStoIJKTransform;
@@ -739,17 +705,17 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRulerFromCenter(vtkMRMLAstroPVSliceParame
 
   RAStoIJKTransform->TransformPoint(position1,position1);
   RAStoIJKTransform->TransformPoint(position2,position2);
-  RAStoIJKTransform->TransformPoint(RulerCenter,RulerCenter);
+  RAStoIJKTransform->TransformPoint(LineCenter,LineCenter);
 
-  vtkNew<vtkGeneralTransform> RulerShiftTransform;
-  RulerShiftTransform->Identity();
-  RulerShiftTransform->PostMultiply();
-  RulerShiftTransform->Translate(NewIJKRulerCenter[0] - RulerCenter[0],
-                                 NewIJKRulerCenter[1] - RulerCenter[1],
+  vtkNew<vtkGeneralTransform> LineShiftTransform;
+  LineShiftTransform->Identity();
+  LineShiftTransform->PostMultiply();
+  LineShiftTransform->Translate(NewIJKLineCenter[0] - LineCenter[0],
+                                 NewIJKLineCenter[1] - LineCenter[1],
                                  0.);
 
-  RulerShiftTransform->TransformPoint(position1, position1);
-  RulerShiftTransform->TransformPoint(position2, position2);
+  LineShiftTransform->TransformPoint(position1, position1);
+  LineShiftTransform->TransformPoint(position2, position2);
 
   RAStoIJKTransform->Identity();
   RAStoIJKMatrix->Invert();
@@ -758,10 +724,10 @@ bool vtkSlicerAstroPVSliceLogic::UpdateRulerFromCenter(vtkMRMLAstroPVSliceParame
   RAStoIJKTransform->TransformPoint(position1,position1);
   RAStoIJKTransform->TransformPoint(position2,position2);
 
-  int wasModifying = RulerNode->StartModify();
-  RulerNode->SetPosition1(position1);
-  RulerNode->SetPosition2(position2);
-  RulerNode->EndModify(wasModifying);
+  int wasModifying = LineNode->StartModify();
+  LineNode->SetNthControlPointPositionFromPointer(0, position1);
+  LineNode->SetNthControlPointPositionFromPointer(1, position2);
+  LineNode->EndModify(wasModifying);
 
   return true;
 }
@@ -775,10 +741,10 @@ bool vtkSlicerAstroPVSliceLogic::InitializePV(vtkMRMLAstroPVSliceParametersNode 
     }
 
   // Calculate PVPhiMajor and Minor
-  vtkMRMLAnnotationRulerNode *RulerNode =
-    vtkMRMLAnnotationRulerNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetRulerNodeID()));
-  if(!RulerNode)
+  vtkMRMLMarkupsLineNode *LineNode =
+    vtkMRMLMarkupsLineNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetLineNodeID()));
+  if(!LineNode)
     {
     return false;
     }
@@ -792,9 +758,9 @@ bool vtkSlicerAstroPVSliceLogic::InitializePV(vtkMRMLAstroPVSliceParametersNode 
     }
 
   double position1[3] = {0};
-  RulerNode->GetPosition1(position1);
+  LineNode->GetNthControlPointPosition(0, position1);
   double position2[3] = {0};
-  RulerNode->GetPosition2(position2);
+  LineNode->GetNthControlPointPosition(1, position2);
 
   // Get PV center
   int *dims = inputVolume->GetImageData()->GetDimensions();
@@ -939,10 +905,10 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
     }
 
   // Calculate PVPhiMajor and Minor
-  vtkMRMLAnnotationRulerNode *RulerNode =
-    vtkMRMLAnnotationRulerNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetRulerNodeID()));
-  if(!RulerNode)
+  vtkMRMLMarkupsLineNode *LineNode =
+    vtkMRMLMarkupsLineNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetLineNodeID()));
+  if(!LineNode)
     {
     return false;
     }
@@ -956,9 +922,9 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
     }
 
   double position1[3] = {0};
-  RulerNode->GetPosition1(position1);
+  LineNode->GetNthControlPointPosition(0, position1);
   double position2[3] = {0};
-  RulerNode->GetPosition2(position2);
+  LineNode->GetNthControlPointPosition(1, position2);
 
   // Get PV center
   int dims[3];
@@ -988,7 +954,7 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   IJKtoRASTransform->TransformPoint(ijk, RAS);
 
   // Get PV inclination
-  double RulerLength = sqrt(((position1[0] - position2[0]) * (position1[0] - position2[0])) +
+  double LineLength = sqrt(((position1[0] - position2[0]) * (position1[0] - position2[0])) +
                             ((position1[1] - position2[1]) * (position1[1] - position2[1])));
   double distX = (position2[0] - position1[0]);
   double distY = (position2[1] - position1[1]);
@@ -1057,7 +1023,7 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
   yellowSliceNode->UpdateMatrices();
   double FieldOfView[3];
   yellowSliceNode->GetFieldOfView(FieldOfView);
-  FieldOfView[0] = RulerLength;
+  FieldOfView[0] = LineLength;
   yellowSliceNode->SetFieldOfView(FieldOfView[0] + (FieldOfView[0] * 0.2),
                                   dims[2] + (dims[2] * 0.2),
                                   FieldOfView[2]);
@@ -1105,7 +1071,7 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
 
   greenSliceNode->UpdateMatrices();
   greenSliceNode->GetFieldOfView(FieldOfView);
-  FieldOfView[0] = RulerLength;
+  FieldOfView[0] = LineLength;
   greenSliceNode->SetFieldOfView(FieldOfView[0] + (FieldOfView[0] * 0.2),
                                  dims[2] + (dims[2] * 0.2),
                                  FieldOfView[2]);

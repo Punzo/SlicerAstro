@@ -63,60 +63,40 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVSliceParametersNode : public vtkMRMLNo
   vtkSetStringMacro(MomentMapNodeID);
   vtkGetStringMacro(MomentMapNodeID);
 
-  /// Set/Get the RulerNodeID.
-  /// \sa SetRulerNodeID(), GetRulerNodeID()
-  vtkSetStringMacro(RulerNodeID);
-  vtkGetStringMacro(RulerNodeID);
+  /// Set/Get the LineNodeID.
+  /// \sa SetLineNodeID(), GetLineNodeID()
+  vtkSetStringMacro(LineNodeID);
+  vtkGetStringMacro(LineNodeID);
 
-  /// Set/Get the Ruler angle value respect to the center of the slice.
-  /// \sa SetRulerAngle(), GetRulerAngle()
-  vtkSetMacro(RulerAngle,double);
-  vtkGetMacro(RulerAngle,double);
+  /// Set/Get the Line angle value respect to the center of the slice.
+  /// \sa SetLineAngle(), GetLineAngle()
+  vtkSetMacro(LineAngle,double);
+  vtkGetMacro(LineAngle,double);
 
-  /// Set/Get the Ruler old angle value respect to the center of the slice.
-  /// \sa SetRulerNodeID(), GetRulerNodeID()
-  vtkSetMacro(RulerOldAngle,double);
-  vtkGetMacro(RulerOldAngle,double);
+  /// Set/Get the Line old angle value respect to the center of the slice.
+  /// \sa SetLineNodeID(), GetLineNodeID()
+  vtkSetMacro(LineOldAngle,double);
+  vtkGetMacro(LineOldAngle,double);
 
-  /// Set/Get the RulerShiftX value respect to the center of the slice.
-  /// \sa SetRulerShiftX(), GetRulerShiftX()
-  vtkSetMacro(RulerShiftX,double);
-  vtkGetMacro(RulerShiftX,double);
+  /// Get Line center in MRML node is in IJK coordinates
+  vtkGetVector2Macro (LineCenter, int);
 
-  /// Set/Get the RulerOldShiftX old value respect to the center of the slice.
-  /// \sa SetRulerOldShiftX(), GetRulerOldShiftX()
-  vtkSetMacro(RulerOldShiftX,double);
-  vtkGetMacro(RulerOldShiftX,double);
+  /// Set Line center. No modification event is fired
+  virtual void SetLineCenterRightAscension(int value);
 
-  /// Set/Get the RulerShiftY value respect to the center of the slice.
-  /// \sa SetRulerShiftY(), GetRulerShiftY()
-  vtkSetMacro(RulerShiftY,double);
-  vtkGetMacro(RulerShiftY,double);
+  /// Set Line center. No modification event is fired
+  virtual void SetLineCenterDeclination(int value);
 
-  /// Set/Get the RulerOldShiftY old value respect to the center of the slice.
-  /// \sa SetRulerOldShiftY(), GetRulerOldShiftY()
-  vtkSetMacro(RulerOldShiftY,double);
-  vtkGetMacro(RulerOldShiftY,double);
+  /// Set Line center. No modification event is fired
+  virtual void SetLineCenter(int arg1, int arg2);
 
-  /// Get Ruler center in MRML node is in IJK coordinates
-  vtkGetVector2Macro (RulerCenter, int);
-
-  /// Set Ruler center. No modification event is fired
-  virtual void SetRulerCenterRightAscension(int value);
-
-  /// Set Ruler center. No modification event is fired
-  virtual void SetRulerCenterDeclination(int value);
-
-  /// Set Ruler center. No modification event is fired
-  virtual void SetRulerCenter(int arg1, int arg2);
-
-  /// Set Ruler center. No modification event is fired
-  virtual void SetRulerCenter(int arg[2]);
+  /// Set Line center. No modification event is fired
+  virtual void SetLineCenter(int arg[2]);
 
   //
   enum
     {
-    RulerCenterModifiedEvent = 78000
+    LineCenterModifiedEvent = 78000
     };
 
 protected:
@@ -128,18 +108,12 @@ protected:
 
   char *InputVolumeNodeID;
   char *MomentMapNodeID;
-  char *RulerNodeID;
+  char *LineNodeID;
 
-  double RulerAngle;
-  double RulerOldAngle;
+  double LineAngle;
+  double LineOldAngle;
 
-  double RulerShiftX;
-  double RulerOldShiftX;
-
-  double RulerShiftY;
-  double RulerOldShiftY;
-
-  int RulerCenter[2];
+  int LineCenter[2];
 };
 
 #endif

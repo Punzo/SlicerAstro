@@ -69,25 +69,25 @@ public:
   /// \return Success flag
   bool SetMomentMapOnRedWidget(vtkMRMLAstroPVSliceParametersNode *pnode);
 
-  /// Create the MRML ruler node
+  /// Create the MRML Line node
   /// \param MRML parameter node
   /// \return Success flag
-  bool CreateAndSetRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+  bool CreateAndSetLine(vtkMRMLAstroPVSliceParametersNode *pnode);
 
-  /// Initialize the MRML ruler node
+  /// Initialize the MRML Line node
   /// \param MRML parameter node
   /// \return Success flag
-  bool InitializeRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+  bool InitializeLine(vtkMRMLAstroPVSliceParametersNode *pnode);
 
-  /// Update the MRML ruler node
+  /// Update the MRML Line node
   /// \param MRML parameter node
   /// \return Success flag
-  bool UpdateRuler(vtkMRMLAstroPVSliceParametersNode *pnode);
+  bool UpdateLine(vtkMRMLAstroPVSliceParametersNode *pnode);
 
-  /// Update the MRML ruler node when the position is given by center coordinates
+  /// Update the MRML Line node when the position is given by center coordinates
   /// \param MRML parameter node
   /// \return Success flag
-  bool UpdateRulerFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode);
+  bool UpdateLineFromCenter(vtkMRMLAstroPVSliceParametersNode *pnode);
 
   /// Initialize the PV Slice node
   /// \param MRML parameter node

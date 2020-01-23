@@ -43,6 +43,7 @@ set(MODULE_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleLogic
   vtkSlicerAstroMomentMapsModuleLogic
   vtkSlicerAstroVolumeModuleMRML
+  vtkSlicerMarkupsModuleMRML
   )
 
 set(MODULE_RESOURCES

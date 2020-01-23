@@ -19,6 +19,7 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
   vtkSlicerAstroMomentMapsModuleLogic
+  vtkSlicerMarkupsModuleMRML
   )
 
 #-----------------------------------------------------------------------------

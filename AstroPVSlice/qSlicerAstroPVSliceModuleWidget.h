@@ -96,9 +96,9 @@ protected:
   /// Initialization of MRML moment map node
   void initializeMomentMapNode(bool forceNew = false);
 
-  /// Initialization of MRML ruler node
-  void initializeRulerNode(bool forceNew = false,
-                           bool InitRulerPositions = true);
+  /// Initialization of MRML Line node
+  void initializeLineNode(bool forceNew = false,
+                           bool InitLinePositions = true);
 
 protected slots:
 
@@ -108,13 +108,13 @@ protected slots:
   /// Set the MRML moment map input node
   void onMomentMapChanged(vtkMRMLNode* mrmlNode);
 
-  /// Set the MRML ruler node
-  void onRulerChanged(vtkMRMLNode* mrmlNode);
+  /// Set the MRML Line node
+  void onLineChanged(vtkMRMLNode* mrmlNode);
 
-  /// Update widget GUI from MRML ruler node
-  void onMRMLPVSliceRulerNodeModified();
+  /// Update widget GUI from MRML Line node
+  void onMRMLPVSliceLineNodeModified();
 
-  /// Update widget GUI from MRML ruler node
+  /// Update widget GUI from MRML Line node
   void onMRMLAstroPVSliceCenterModified();
 
   /// Update widget GUI from MRML parameter node
@@ -131,15 +131,13 @@ protected slots:
   void onStartImportEvent();
 
   void onLayoutChanged(int layoutIndex); 
-  void onRotateRulerChanged(double theta);
-  void onRulerCenterRightAscensionWCSChanged(double value);
-  void onRulerCenterDeclinationWCSChanged(double value);
-  void onRulerCenterRightAscensionIJKChanged(double value);
-  void onRulerCenterDeclinationIJKChanged(double value);
-  void onRulerColorChanged(QColor color);
-  void onSetRulerCenterClicked();
-  void onShiftXRulerChanged(double shiftX);
-  void onShiftYRulerChanged(double shiftY);
+  void onRotateLineChanged(double theta);
+  void onLineCenterRightAscensionWCSChanged(double value);
+  void onLineCenterDeclinationWCSChanged(double value);
+  void onLineCenterRightAscensionIJKChanged(double value);
+  void onLineCenterDeclinationIJKChanged(double value);
+  void onLineColorChanged(QColor color);
+  void onSetLineCenterClicked();
 
   void onMRMLSelectionNodeModified(vtkObject* sender);
 
