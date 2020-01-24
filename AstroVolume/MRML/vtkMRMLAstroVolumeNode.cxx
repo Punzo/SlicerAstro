@@ -210,9 +210,9 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
   int numElements = dims[0] * dims[1] * dims[2];
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   double max_val = this->GetImageData()->GetScalarTypeMin(), min_val = this->GetImageData()->GetScalarTypeMax();
-  short *inSPixel = NULL;
-  float *inFPixel = NULL;
-  double *inDPixel = NULL;
+  short *inSPixel = nullptr;
+  float *inFPixel = nullptr;
+  double *inDPixel = nullptr;
 
   #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   omp_set_num_threads(omp_get_num_procs());
@@ -306,9 +306,9 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 
   this->EndModify(wasModifying);
 
-  inSPixel = NULL;
-  inFPixel = NULL;
-  inDPixel = NULL;
+  inSPixel = nullptr;
+  inFPixel = nullptr;
+  inDPixel = nullptr;
   delete inSPixel;
   delete inFPixel;
   delete inDPixel;
@@ -329,9 +329,9 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
   // 3D color function starts from 3 times the value of DisplayThreshold.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  short *outSPixel = NULL;
-  float *outFPixel = NULL;
-  double *outDPixel = NULL;
+  short *outSPixel = nullptr;
+  float *outFPixel = nullptr;
+  double *outDPixel = nullptr;
   switch (DataType)
     {
     case VTK_SHORT:
@@ -564,9 +564,9 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
 
   noise = (noise1 + noise2) * 0.5;
 
-  outSPixel = NULL;
-  outFPixel = NULL;
-  outDPixel = NULL;
+  outSPixel = nullptr;
+  outFPixel = nullptr;
+  outDPixel = nullptr;
   delete outSPixel;
   delete outFPixel;
   delete outDPixel;
@@ -599,7 +599,7 @@ double vtkMRMLAstroVolumeNode::GetDisplayThreshold()
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::SetROINode(vtkMRMLAnnotationROINode* node)
 {
-  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
@@ -611,7 +611,7 @@ vtkMRMLAnnotationROINode *vtkMRMLAstroVolumeNode::GetROINode()
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::SetROIAlignmentTransformNode(vtkMRMLTransformNode* node)
 {
-  this->SetNodeReferenceID(this->GetROIAlignmentTransformNodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetROIAlignmentTransformNodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
@@ -620,7 +620,7 @@ void vtkMRMLAstroVolumeNode::DeleteROIAlignmentTransformNode()
   vtkMRMLTransformNode* transformNode = this->GetROIAlignmentTransformNode();
   if (transformNode)
     {
-    this->SetROIAlignmentTransformNodeID(NULL);
+    this->SetROIAlignmentTransformNodeID(nullptr);
     if (this->GetScene())
       {
       this->GetScene()->RemoveNode(transformNode);
@@ -644,7 +644,7 @@ void vtkMRMLAstroVolumeNode::SetROIAlignmentTransformNodeID(const char *nodeID)
 //-----------------------------------------------------------
 void vtkMRMLAstroVolumeNode::SetPresetNode(vtkMRMLVolumePropertyNode *node)
 {
-  this->SetNodeReferenceID(this->GetPresetNodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetPresetNodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //-----------------------------------------------------------
@@ -711,7 +711,7 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
 //-----------------------------------------------------------
 void vtkMRMLAstroVolumeNode::SetVolumePropertyNode(vtkMRMLVolumePropertyNode *node)
 {
-  this->SetNodeReferenceID(this->GetVolumePropertyNodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetVolumePropertyNodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //-----------------------------------------------------------
@@ -757,7 +757,7 @@ void vtkMRMLAstroVolumeNode::CreateDefaultDisplayNodes()
 {
   vtkMRMLAstroVolumeDisplayNode *displayNode = 
     vtkMRMLAstroVolumeDisplayNode::SafeDownCast(this->GetDisplayNode());
-  if(displayNode == NULL)
+  if(displayNode == nullptr)
     {
     displayNode = vtkMRMLAstroVolumeDisplayNode::New();
     if(this->GetScene())

@@ -153,20 +153,20 @@ qSlicerAstroVolumeModuleWidgetPrivate::qSlicerAstroVolumeModuleWidgetPrivate(
   qSlicerAstroVolumeModuleWidget& object)
   : q_ptr(&object)
 {
-  this->MRMLAstroVolumeInfoWidget = 0;
-  this->segmentationsLogic = 0;
-  this->volumeRenderingWidget = 0;
-  this->plotChartNodeHistogram = 0;
-  this->astroVolumeNode = 0;
-  this->astroLabelVolumeNode = 0;
-  this->selectionNode = 0;
-  this->segmentEditorNode = 0;
-  this->PlotSeriesNodeMinLine = 0;
-  this->TableMinNode = 0;
-  this->PlotSeriesNodeMaxLine = 0;
-  this->TableMaxNode = 0;
-  this->PlotSeriesNodeThresholdLine = 0;
-  this->TableThresholdNode = 0;
+  this->MRMLAstroVolumeInfoWidget = nullptr;
+  this->segmentationsLogic = nullptr;
+  this->volumeRenderingWidget = nullptr;
+  this->plotChartNodeHistogram = nullptr;
+  this->astroVolumeNode = nullptr;
+  this->astroLabelVolumeNode = nullptr;
+  this->selectionNode = nullptr;
+  this->segmentEditorNode = nullptr;
+  this->PlotSeriesNodeMinLine = nullptr;
+  this->TableMinNode = nullptr;
+  this->PlotSeriesNodeMaxLine = nullptr;
+  this->TableMaxNode = nullptr;
+  this->PlotSeriesNodeThresholdLine = nullptr;
+  this->TableThresholdNode = nullptr;
   this->Lock = false;
 }
 
@@ -415,7 +415,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -427,7 +427,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -1086,10 +1086,10 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
                       this, SLOT(onMRMLPlotChartNodeHistogramModified()));
   this->onMRMLPlotChartNodeHistogramModified();
 
-  // Select NULL Chart
+  // Select nullptr Chart
   if (d->selectionNode)
     {
-    d->selectionNode->SetActivePlotChartID(NULL);
+    d->selectionNode->SetActivePlotChartID(nullptr);
     }
 
   // Check (and create) TableMinNode
@@ -1383,7 +1383,7 @@ bool qSlicerAstroVolumeModuleWidget::updateMasterRepresentationInSegmentation(vt
     .arg(segmentationNode->GetName()).arg(newMasterRepresentation.c_str())
     .arg(segmentation->GetMasterRepresentationName().c_str());
   QMessageBox::StandardButton answer =
-    QMessageBox::question(NULL, tr("Master representation is needed to be changed to add segment"), message,
+    QMessageBox::question(nullptr, tr("Master representation is needed to be changed to add segment"), message,
     QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
   if (answer == QMessageBox::No)
     {
@@ -1485,10 +1485,10 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
-    d->selectionNode->SetReferenceActiveLabelVolumeID(NULL);
-    d->selectionNode->SetActiveLabelVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
+    d->selectionNode->SetReferenceActiveLabelVolumeID(nullptr);
+    d->selectionNode->SetActiveLabelVolumeID(nullptr);
     }
 
   if (d->plotChartNodeHistogram)
@@ -1646,7 +1646,7 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
                   " encountered in adjusting the Color Function for the 3D display.";
     }
 
-  if (inputVolume->GetPresetNode() != NULL)
+  if (inputVolume->GetPresetNode() != nullptr)
     {
     d->PresetsNodeComboBox->setCurrentNodeIndex(inputVolume->GetPresetIndex());
     }
@@ -2067,7 +2067,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     {
     QString message = QString("the current volume is not a labelmap volume (Mask)!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
+    QMessageBox::warning(nullptr, tr("Failed to import from labelmap volume"), message);
     return;
     }
 
@@ -2081,7 +2081,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
       {
       QString message = QString("Failed to copy labels from labelmap volume node %1!").arg(labelMapNode->GetName());
       qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(NULL, tr("Failed to import from labelmap volume"), message);
+      QMessageBox::warning(nullptr, tr("Failed to import from labelmap volume"), message);
       return;
       }
     }
@@ -2147,7 +2147,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
     {
     QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     return;
     }
 
@@ -2211,7 +2211,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
                               "Be sure that segments are available in the table view. \n\n").
                                 arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     return;
     }
 
@@ -2225,7 +2225,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
                               "please provide one or more segments by selecting them (Shift + leftClick).");
     qWarning() << Q_FUNC_INFO << ": " << message;
     QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(NULL, tr("Failed to select a segment"), message);
+    reply = QMessageBox::question(nullptr, tr("Failed to select a segment"), message);
     if (reply != QMessageBox::Yes)
       {
       return;
@@ -2256,7 +2256,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonConvertSegmentationToLabelMapCl
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return;
     }
@@ -4158,7 +4158,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
 
   vtkSmartPointer<vtkCollection> PlotSeriesNodes = vtkSmartPointer<vtkCollection>::Take
       (scene->GetNodesByClassByName("vtkMRMLPlotSeriesNode", name.c_str()));
-  vtkMRMLPlotSeriesNode *PlotSeriesNode = NULL;
+  vtkMRMLPlotSeriesNode *PlotSeriesNode = nullptr;
   if (PlotSeriesNodes->GetNumberOfItems() == 0)
     {
     vtkNew<vtkMRMLPlotSeriesNode> newPlotSeriesNode;
@@ -4550,7 +4550,7 @@ void qSlicerAstroVolumeModuleWidget::onPlotSelectionChanged(vtkStringArray *mrml
     return;
     }
 
-  vtkTable *histoTable = NULL;
+  vtkTable *histoTable = nullptr;
   int minIndex = 0;
   int maxIndex = 0;
   for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
@@ -4930,7 +4930,7 @@ void qSlicerAstroVolumeModuleWidget::onHistoClippingChanged(double percentage)
     return;
     }
 
-  vtkTable *histoTable = NULL;
+  vtkTable *histoTable = nullptr;
   for (int ii = 0; ii < d->plotChartNodeHistogram->GetNumberOfPlotSeriesNodes(); ii++)
     {
     vtkMRMLPlotSeriesNode *PlotSeriesNode = d->plotChartNodeHistogram->GetNthPlotSeriesNode(ii);
@@ -5094,7 +5094,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection()
   this->qvtkConnect(displayNode->GetROINode(), vtkMRMLDisplayableNode::DisplayModifiedEvent,
                     this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
 
-  vtkMRMLViewNode* firstViewNode = NULL;
+  vtkMRMLViewNode* firstViewNode = nullptr;
   if (displayNode && displayNode->GetScene())
     {
     firstViewNode = displayNode->GetFirstViewNode();
@@ -5733,7 +5733,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     this->onVisibilityChanged(false);
     d->ActiveVolumeNodeSelector->setCurrentNode(volumeNode);
     d->volumeRenderingWidget->setMRMLVolumeNode(volumeNode);
-    d->astroVolumeNode = NULL;
+    d->astroVolumeNode = nullptr;
     return;
     }
 
@@ -5765,7 +5765,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     d->LockPushButton->setIcon(QIcon(":Icons/astrounlock.png"));
 
     bool forcePreset = false;
-    if (d->astroVolumeNode->GetVolumePropertyNode() == NULL)
+    if (d->astroVolumeNode->GetVolumePropertyNode() == nullptr)
       {
       d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
       d->PresetsNodeComboBox->setCurrentNodeIndex(0);
@@ -5823,7 +5823,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolum
   if (!volumeNode)
     {
     d->ActiveVolumeNodeSelector->setCurrentNode(volumeNode);
-    d->astroLabelVolumeNode = NULL;
+    d->astroLabelVolumeNode = nullptr;
     return;
     }
 

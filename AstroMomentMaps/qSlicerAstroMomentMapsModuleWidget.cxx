@@ -117,11 +117,11 @@ public:
 qSlicerAstroMomentMapsModuleWidgetPrivate::qSlicerAstroMomentMapsModuleWidgetPrivate(qSlicerAstroMomentMapsModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = 0;
-  this->selectionNode = 0;
-  this->segmentEditorNode = 0;
-  this->unitNodeIntensity = 0;
-  this->unitNodeVelocity = 0;
+  this->parametersNode = nullptr;
+  this->selectionNode = nullptr;
+  this->segmentEditorNode = nullptr;
+  this->unitNodeIntensity = nullptr;
+  this->unitNodeVelocity = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -211,7 +211,7 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -220,7 +220,7 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -433,7 +433,7 @@ void qSlicerAstroMomentMapsModuleWidget::initializeParameterNode(bool forceNew /
     return;
     }
 
-  vtkMRMLAstroMomentMapsParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroMomentMapsParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroMomentMapsParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -525,7 +525,7 @@ bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -541,7 +541,7 @@ bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segment selected from the segmentation node! Please provide a segment.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -584,7 +584,7 @@ bool qSlicerAstroMomentMapsModuleWidget::convertSelectedSegmentToLabelMap()
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
@@ -670,7 +670,7 @@ void qSlicerAstroMomentMapsModuleWidget::onSecondMomentVolumeChanged(vtkMRMLNode
     }
   else
     {
-    d->parametersNode->SetSecondMomentVolumeNodeID(NULL);
+    d->parametersNode->SetSecondMomentVolumeNodeID(nullptr);
     }
 }
 
@@ -724,8 +724,8 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
 
@@ -837,7 +837,7 @@ void qSlicerAstroMomentMapsModuleWidget::onFirstMomentVolumeChanged(vtkMRMLNode 
     }
   else
     {
-    d->parametersNode->SetFirstMomentVolumeNodeID(NULL);
+    d->parametersNode->SetFirstMomentVolumeNodeID(nullptr);
     }
 }
 
@@ -1052,7 +1052,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     QString message = QString("It is possible to create Moment Maps only"
                               " for datacubes with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to create the Moment Maps"), message);
+    QMessageBox::warning(nullptr, tr("Failed to create the Moment Maps"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1089,7 +1089,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       name = ZeroMomentVolume->GetName();
       if (!name.compare(inputVolume->GetName()))
         {
-        ZeroMomentVolume = NULL;
+        ZeroMomentVolume = nullptr;
         }
       else if (name.find("_mom0th_") != std::string::npos)
         {
@@ -1155,7 +1155,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     ZeroMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetZeroMomentVolumeNodeID(ZeroMomentVolume->GetID());
 
-    vtkMRMLNode* node = NULL;
+    vtkMRMLNode* node = nullptr;
     ZeroMomentVolume->SetPresetNode(node);
 
     // Remove old rendering Display
@@ -1192,7 +1192,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       name = FirstMomentVolume->GetName();
       if (!name.compare(inputVolume->GetName()))
         {
-        FirstMomentVolume = NULL;
+        FirstMomentVolume = nullptr;
         }
       else if (name.find("_mom1st_") != std::string::npos)
         {
@@ -1269,7 +1269,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     FirstMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetFirstMomentVolumeNodeID(FirstMomentVolume->GetID());
 
-    vtkMRMLNode* node = NULL;
+    vtkMRMLNode* node = nullptr;
     FirstMomentVolume->SetPresetNode(node);
 
     // Remove old rendering Display
@@ -1305,7 +1305,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
       name = SecondMomentVolume->GetName();
       if (!name.compare(inputVolume->GetName()))
         {
-        SecondMomentVolume = NULL;
+        SecondMomentVolume = nullptr;
         }
       else if (name.find("_mom2nd_") != std::string::npos)
         {
@@ -1382,7 +1382,7 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     SecondMomentVolume->SetName(outSS.str().c_str());
     d->parametersNode->SetSecondMomentVolumeNodeID(SecondMomentVolume->GetID());
 
-    vtkMRMLNode* node = NULL;
+    vtkMRMLNode* node = nullptr;
     SecondMomentVolume->SetPresetNode(node);
 
     // Remove old rendering Display
@@ -1734,7 +1734,7 @@ void qSlicerAstroMomentMapsModuleWidget::onZeroMomentVolumeChanged(vtkMRMLNode *
     }
   else
     {
-    d->parametersNode->SetZeroMomentVolumeNodeID(NULL);
+    d->parametersNode->SetZeroMomentVolumeNodeID(nullptr);
     }
 }
 

@@ -128,11 +128,11 @@ public:
 qSlicerAstroMaskingModuleWidgetPrivate::qSlicerAstroMaskingModuleWidgetPrivate(qSlicerAstroMaskingModuleWidget& object)
   : q_ptr(&object)
 {
-  this->astroVolumeWidget = 0;
-  this->parametersNode = 0;
-  this->InputROINode = 0;
-  this->selectionNode = 0;
-  this->segmentEditorNode = 0;
+  this->astroVolumeWidget = nullptr;
+  this->parametersNode = nullptr;
+  this->InputROINode = nullptr;
+  this->selectionNode = nullptr;
+  this->segmentEditorNode = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -231,7 +231,7 @@ void qSlicerAstroMaskingModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -240,7 +240,7 @@ void qSlicerAstroMaskingModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -472,7 +472,7 @@ void qSlicerAstroMaskingModuleWidget::initializeParameterNode(bool forceNew /*= 
     return;
     }
 
-  vtkMRMLAstroMaskingParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroMaskingParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroMaskingParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -505,7 +505,7 @@ void qSlicerAstroMaskingModuleWidget::initializeROINode(bool forceNew /*= false*
     return;
     }
 
-  vtkSmartPointer<vtkMRMLNode> roiNode = NULL;
+  vtkSmartPointer<vtkMRMLNode> roiNode = nullptr;
 
   if (!forceNew)
     {
@@ -607,13 +607,13 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
 
   if (!this->mrmlScene())
     {
-    return NULL;
+    return nullptr;
     }
 
   if (!d->segmentEditorNode)
     {
     qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
-    return NULL;
+    return nullptr;
     }
 
   vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
@@ -621,8 +621,8 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
-    return NULL;
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
+    return nullptr;
     }
 
   // Export selected segments into a multi-label labelmap volume
@@ -637,8 +637,8 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segment selected from the segmentation node! Please provide a segment.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
-    return NULL;
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
+    return nullptr;
     }
 
   segmentIDs.clear();
@@ -654,14 +654,14 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
     if (!astroMaskinglogic)
       {
       qCritical() << Q_FUNC_INFO << ": astroMaskinglogic not found!";
-      return NULL;
+      return nullptr;
       }
     vtkSlicerAstroVolumeLogic* astroVolumelogic =
       vtkSlicerAstroVolumeLogic::SafeDownCast(astroMaskinglogic->GetAstroVolumeLogic());
     if (!astroVolumelogic)
       {
       qCritical() << Q_FUNC_INFO << ": vtkSlicerAstroVolumeLogic not found!";
-      return NULL;
+      return nullptr;
       }
     std::string name(activeVolumeNode->GetName());
     name += "Copy_mask" + IntToString(d->parametersNode->GetOutputSerial());
@@ -671,7 +671,7 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
     {
     qCritical() << Q_FUNC_INFO << ": converting current segmentation Node into labelMap Node (Mask),"
                                   " but the labelMap Node is invalid!";
-    return NULL;
+    return nullptr;
     }
 
   if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
@@ -680,9 +680,9 @@ vtkSegment* qSlicerAstroMaskingModuleWidget::convertSelectedSegmentToLabelMap()
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
-    return NULL;
+    return nullptr;
     }
 
   labelMapNode->UpdateRangeAttributes();
@@ -793,7 +793,7 @@ void qSlicerAstroMaskingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNod
     }
   else
     {
-    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
 }
 
@@ -891,8 +891,8 @@ void qSlicerAstroMaskingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
 
@@ -1120,7 +1120,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
   d->FitROI = false;
   d->parametersNode->SetStatus(1);
 
-  vtkSegment *segment = NULL;
+  vtkSegment *segment = nullptr;
   if (!(strcmp(d->parametersNode->GetMode(), "Segmentation")))
     {
     segment = this->convertSelectedSegmentToLabelMap();
@@ -1181,7 +1181,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
     name = outputVolume->GetName();
     if (!name.compare(inputVolume->GetName()))
       {
-      outputVolume = NULL;
+      outputVolume = nullptr;
       }
     else if (name.find("_Blank_") != std::string::npos ||
              name.find("_Crop_") != std::string::npos )
@@ -1206,7 +1206,7 @@ void qSlicerAstroMaskingModuleWidget::onApply()
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
-  vtkMRMLNode* node = NULL;
+  vtkMRMLNode* node = nullptr;
   outputVolume->SetPresetNode(node);
 
   // Remove old rendering Display

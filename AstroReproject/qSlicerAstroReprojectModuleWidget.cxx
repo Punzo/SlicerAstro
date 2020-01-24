@@ -94,9 +94,9 @@ public:
 qSlicerAstroReprojectModuleWidgetPrivate::qSlicerAstroReprojectModuleWidgetPrivate(qSlicerAstroReprojectModuleWidget& object)
   : q_ptr(&object)
 {
-  this->astroVolumeWidget = 0;
-  this->parametersNode = 0;
-  this->selectionNode = 0;
+  this->astroVolumeWidget = nullptr;
+  this->parametersNode = nullptr;
+  this->selectionNode = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -393,7 +393,7 @@ void qSlicerAstroReprojectModuleWidget::initializeParameterNode(bool forceNew /*
     return;
     }
 
-  vtkMRMLAstroReprojectParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroReprojectParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroReprojectParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -485,8 +485,8 @@ void qSlicerAstroReprojectModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
   }
 }
 
@@ -554,7 +554,7 @@ void qSlicerAstroReprojectModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
 }
 
@@ -574,7 +574,7 @@ void qSlicerAstroReprojectModuleWidget::onReferenceVolumeChanged(vtkMRMLNode *mr
     }
   else
     {
-    d->parametersNode->SetReferenceVolumeNodeID(NULL);
+    d->parametersNode->SetReferenceVolumeNodeID(nullptr);
   }
 }
 
@@ -789,7 +789,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
-  vtkMRMLNode* node = NULL;
+  vtkMRMLNode* node = nullptr;
   outputVolume->SetPresetNode(node);
 
   // Remove old rendering Display

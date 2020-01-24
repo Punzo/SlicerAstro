@@ -122,14 +122,14 @@ public:
 qSlicerAstroStatisticsModuleWidgetPrivate::qSlicerAstroStatisticsModuleWidgetPrivate(qSlicerAstroStatisticsModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = 0;
-  this->InputROINode = 0;
-  this->astroTableNode = 0;
-  this->selectionNode = 0;
-  this->segmentEditorNode = 0;
-  this->CopyAction = 0;
-  this->PasteAction = 0;
-  this->PlotAction = 0;
+  this->parametersNode = nullptr;
+  this->InputROINode = nullptr;
+  this->astroTableNode = nullptr;
+  this->selectionNode = nullptr;
+  this->segmentEditorNode = nullptr;
+  this->CopyAction = nullptr;
+  this->PasteAction = nullptr;
+  this->PlotAction = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -229,7 +229,7 @@ void qSlicerAstroStatisticsModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -238,7 +238,7 @@ void qSlicerAstroStatisticsModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -466,7 +466,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeParameterNode(bool forceNew /
     return;
     }
 
-  vtkMRMLAstroStatisticsParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroStatisticsParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroStatisticsParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -499,7 +499,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeROINode(bool forceNew /*= fal
     return;
     }
 
-  vtkSmartPointer<vtkMRMLNode> roiNode = NULL;
+  vtkSmartPointer<vtkMRMLNode> roiNode = nullptr;
 
   if (!forceNew)
     {
@@ -560,7 +560,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     return;
     }
 
-  vtkSmartPointer<vtkMRMLNode> tableNode = NULL;
+  vtkSmartPointer<vtkMRMLNode> tableNode = nullptr;
 
   if (!forceNew)
     {
@@ -780,7 +780,7 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -796,7 +796,7 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segment selected from the segmentation node! Please provide a segment.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -839,7 +839,7 @@ bool qSlicerAstroStatisticsModuleWidget::convertSelectedSegmentToLabelMap()
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
@@ -1051,8 +1051,8 @@ void qSlicerAstroStatisticsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
 

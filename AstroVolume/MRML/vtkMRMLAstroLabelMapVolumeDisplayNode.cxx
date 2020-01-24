@@ -47,7 +47,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::vtkMRMLAstroLabelMapVolumeDisplayNode()
   this->SpaceQuantities->SetValue(0, "time");
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
-  this->Space = NULL;
+  this->Space = nullptr;
   this->SetSpace("WCS");
   this->WCSStatus = 0;
   this->WCS = new struct wcsprm;
@@ -86,7 +86,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::~vtkMRMLAstroLabelMapVolumeDisplayNode()
                     ": \n"<<this->WCS->err->msg<<"\n");
       }
     delete [] this->WCS;
-    this->WCS = NULL;
+    this->WCS = nullptr;
     }
 }
 
@@ -726,7 +726,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::ReadXMLAttributes(const char** atts)
   const char* attName;
   const char* attValue;
 
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -788,7 +788,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     return;
     }
 
-  wcsprm *WCSNew = NULL;
+  wcsprm *WCSNew = nullptr;
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
@@ -885,7 +885,7 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopySpatialWCS(vtkMRMLNode *node)
     return;
     }
 
-  wcsprm *WCSNew = NULL;
+  wcsprm *WCSNew = nullptr;
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
@@ -1010,7 +1010,7 @@ bool vtkMRMLAstroLabelMapVolumeDisplayNode::SetSpaceQuantity(int ind, const char
 //----------------------------------------------------------------------------
 std::string vtkMRMLAstroLabelMapVolumeDisplayNode::GetPixelString(double *ijk)
 {
-  if(this->GetVolumeNode()->GetImageData() == NULL)
+  if(this->GetVolumeNode()->GetImageData() == nullptr)
     {
     return "No Image";
     }

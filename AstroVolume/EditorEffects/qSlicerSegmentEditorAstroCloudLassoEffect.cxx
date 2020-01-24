@@ -249,12 +249,12 @@ qSlicerSegmentEditorAstroCloudLassoEffectPrivate::qSlicerSegmentEditorAstroCloud
   , UndoLastMask(true)
   , DelayedPaint(true)
   , IsPainting(false)
-  , ActiveViewWidget(NULL)
-  , CloudLassoFrame(NULL)
-  , EraseModeCheckbox(NULL)
-  , AutomaticThresholdCheckbox(NULL)
-  , ThresholdRangeLabel(NULL)
-  , ThresholdRangeWidget(NULL)
+  , ActiveViewWidget(nullptr)
+  , CloudLassoFrame(nullptr)
+  , EraseModeCheckbox(nullptr)
+  , AutomaticThresholdCheckbox(nullptr)
+  , ThresholdRangeLabel(nullptr)
+  , ThresholdRangeWidget(nullptr)
   , distance(0.)
 {
   this->Normals[0] = 0.;
@@ -407,7 +407,7 @@ BrushPipeline* qSlicerSegmentEditorAstroCloudLassoEffectPrivate::brushForWidget(
     return pipeline;
     }
 
-  return NULL;
+  return nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -605,7 +605,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushStencil(qMRMLW
   vtkNew<vtkMatrix4x4> worldToSegmentationTransformMatrix;
   // We don't support painting in non-linearly transformed node (it could be implemented, but would probably slow down things too much)
   // TODO: show a meaningful error message to the user if attempted
-  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(NULL, segmentationNode->GetParentTransformNode(), worldToSegmentationTransformMatrix.GetPointer());
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(nullptr, segmentationNode->GetParentTransformNode(), worldToSegmentationTransformMatrix.GetPointer());
   this->WorldOriginToModifierLabelmapIjkTransform->Concatenate(worldToSegmentationTransformMatrix.GetPointer());
 
   this->WorldOriginToModifierLabelmapIjkTransformer->Update();
@@ -687,7 +687,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::createClosedSurfacePolyMa
   vtkNew<vtkMatrix4x4> segmentationToWorldMatrix;
   // We don't support painting in non-linearly transformed node (it could be implemented, but would probably slow down things too much)
   // TODO: show a meaningful error message to the user if attempted
-  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(segmentationNode->GetParentTransformNode(), NULL, segmentationToWorldMatrix.GetPointer());
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(segmentationNode->GetParentTransformNode(), nullptr, segmentationToWorldMatrix.GetPointer());
 
   vtkRenderer* renderer = qSlicerSegmentEditorAbstractEffect::renderer(threeDWidget);
   if (!renderer)
@@ -1039,7 +1039,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrush(qMRMLWidget* 
     pipeline->SetBrushVisibility(false);
     return;
     }
-  pipeline->SetBrushVisibility(this->ActiveViewWidget != NULL);
+  pipeline->SetBrushVisibility(this->ActiveViewWidget != nullptr);
 
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
   if (sliceWidget)
@@ -1264,7 +1264,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
   d->ClosedSurfacePoints->Initialize();
   d->ClosedSurfaceStrips->Initialize();
   d->ClosedSurfacePolys->Initialize();
-  d->ActiveViewWidget = NULL;
+  d->ActiveViewWidget = nullptr;
 }
 
 //---------------------------------------------------------------------------
@@ -1278,7 +1278,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
 
   qMRMLSliceWidget* sliceWidget = qobject_cast<qMRMLSliceWidget*>(viewWidget);
   qMRMLThreeDWidget* threeDWidget = qobject_cast<qMRMLThreeDWidget*>(viewWidget);
-  BrushPipeline* brushPipeline = NULL;
+  BrushPipeline* brushPipeline = nullptr;
   if (sliceWidget)
     {
     brushPipeline = d->brushForWidget(sliceWidget);
@@ -1416,7 +1416,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
   else if (eid == vtkCommand::LeaveEvent)
     {
     brushPipeline->SetBrushVisibility(false);
-    d->ActiveViewWidget = NULL;
+    d->ActiveViewWidget = nullptr;
     }
   else if (eid == vtkCommand::KeyPressEvent)
     {
@@ -1519,7 +1519,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::processViewNodeEvents(
         }
       else
         {
-        d->updateBrushModel(viewWidget, NULL);
+        d->updateBrushModel(viewWidget, nullptr);
         }
       d->updateBrushes();
       qSlicerSegmentEditorAbstractEffect::scheduleRender(d->ActiveViewWidget);

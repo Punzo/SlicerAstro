@@ -124,12 +124,12 @@ public:
 qSlicerAstroProfilesModuleWidgetPrivate::qSlicerAstroProfilesModuleWidgetPrivate(qSlicerAstroProfilesModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = 0;
-  this->selectionNode = 0;
-  this->plotChartNodeProfile = 0;
-  this->segmentEditorNode = 0;
-  this->unitNodeIntensity = 0;
-  this->unitNodeVelocity = 0;
+  this->parametersNode = nullptr;
+  this->selectionNode = nullptr;
+  this->plotChartNodeProfile = nullptr;
+  this->segmentEditorNode = nullptr;
+  this->unitNodeIntensity = nullptr;
+  this->unitNodeVelocity = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -204,7 +204,7 @@ void qSlicerAstroProfilesModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -213,7 +213,7 @@ void qSlicerAstroProfilesModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -433,7 +433,7 @@ void qSlicerAstroProfilesModuleWidget::initializeParameterNode(bool forceNew /*=
     return;
     }
 
-  vtkMRMLAstroProfilesParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroProfilesParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroProfilesParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -492,10 +492,10 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       }
     }
 
-  // Select NULL Chart
+  // Select nullptr Chart
   if (d->selectionNode)
     {
-    d->selectionNode->SetActivePlotChartID(NULL);
+    d->selectionNode->SetActivePlotChartID(nullptr);
     }
 }
 
@@ -564,7 +564,7 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -580,7 +580,7 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
     {
     QString message = QString("No segment selected from the segmentation node! Please provide a segment.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
     return false;
     }
 
@@ -623,7 +623,7 @@ bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
                               "Be sure that segment to export has been selected in the table view (left click). \n\n").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
@@ -741,8 +741,8 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
 
@@ -992,7 +992,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     QString message = QString("It is possible to create Profiles only"
                               " for datacubes with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to create the Profile"), message);
+    QMessageBox::warning(nullptr, tr("Failed to create the Profile"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -1025,7 +1025,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     name = ProfileVolume->GetName();
     if (!name.compare(inputVolume->GetName()))
       {
-      ProfileVolume = NULL;
+      ProfileVolume = nullptr;
       }
     else if (name.find("_Profile_") != std::string::npos)
       {
@@ -1121,7 +1121,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   ProfileVolume->SetName(outSS.str().c_str());
   d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
 
-  vtkMRMLNode* node = NULL;
+  vtkMRMLNode* node = nullptr;
   ProfileVolume->SetPresetNode(node);
 
   // Remove old rendering Display
@@ -1442,7 +1442,7 @@ void qSlicerAstroProfilesModuleWidget::onProfileVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->parametersNode->SetProfileVolumeNodeID(NULL);
+    d->parametersNode->SetProfileVolumeNodeID(nullptr);
     }
 }
 

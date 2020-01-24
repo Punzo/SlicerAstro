@@ -43,11 +43,11 @@ vtkMRMLAstroPVDiagramParametersNode::vtkMRMLAstroPVDiagramParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->MomentMapNodeID = NULL;
-  this->OutputVolumeNodeID = NULL;
-  this->FiducialsMarkupsID = NULL;
-  this->ModelID = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->MomentMapNodeID = nullptr;
+  this->OutputVolumeNodeID = nullptr;
+  this->FiducialsMarkupsID = nullptr;
+  this->ModelID = nullptr;
   this->Interpolation = true;
   this->AutoUpdate = true;
 }
@@ -58,31 +58,31 @@ vtkMRMLAstroPVDiagramParametersNode::~vtkMRMLAstroPVDiagramParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->MomentMapNodeID)
     {
     delete [] this->MomentMapNodeID;
-    this->MomentMapNodeID = NULL;
+    this->MomentMapNodeID = nullptr;
     }
 
   if (this->OutputVolumeNodeID)
     {
     delete [] this->OutputVolumeNodeID;
-    this->OutputVolumeNodeID = NULL;
+    this->OutputVolumeNodeID = nullptr;
     }
 
   if (this->FiducialsMarkupsID)
     {
     delete [] this->FiducialsMarkupsID;
-    this->FiducialsMarkupsID = NULL;
+    this->FiducialsMarkupsID = nullptr;
     }
 
   if (this->ModelID)
     {
     delete [] this->ModelID;
-    this->ModelID = NULL;
+    this->ModelID = nullptr;
     }
 }
 
@@ -113,7 +113,7 @@ void vtkMRMLAstroPVDiagramParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -168,27 +168,27 @@ void vtkMRMLAstroPVDiagramParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " InputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->MomentMapNodeID != NULL)
+  if (this->MomentMapNodeID != nullptr)
     {
     of << indent << " MomentMapNodeID=\"" << this->MomentMapNodeID << "\"";
     }
 
-  if (this->OutputVolumeNodeID != NULL)
+  if (this->OutputVolumeNodeID != nullptr)
     {
     of << indent << " OutputVolumeNodeID=\"" << this->OutputVolumeNodeID << "\"";
     }
 
-  if (this->FiducialsMarkupsID != NULL)
+  if (this->FiducialsMarkupsID != nullptr)
     {
     of << indent << " FiducialsMarkupsID=\"" << this->FiducialsMarkupsID << "\"";
     }
 
-  if (this->ModelID != NULL)
+  if (this->ModelID != nullptr)
     {
     of << indent << " ModelID=\"" << this->ModelID << "\"";
     }

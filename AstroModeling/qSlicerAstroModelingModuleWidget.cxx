@@ -456,7 +456,7 @@ void qSlicerAstroModelingModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -465,7 +465,7 @@ void qSlicerAstroModelingModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -1043,7 +1043,7 @@ void qSlicerAstroModelingModuleWidget::initializeParameterNode(bool forceNew /*=
     return;
     }
 
-  vtkMRMLAstroModelingParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroModelingParametersNode *astroParametersNode = nullptr;
 
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroModelingParametersNode");
   if(numNodes > 0 && !forceNew)
@@ -1084,7 +1084,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     d->internalTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
     }
 
-  vtkSmartPointer<vtkMRMLNode> tableNode = NULL;
+  vtkSmartPointer<vtkMRMLNode> tableNode = nullptr;
 
   if (!forceNew)
     {
@@ -1923,10 +1923,10 @@ void qSlicerAstroModelingModuleWidget::initializePlotNodes(bool forceNew /*= fal
   d->plotChartNodeXPos->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeXPos->GetID());
   d->plotChartNodeYPos->AddAndObservePlotSeriesNodeID(d->PlotSeriesNodeYPos->GetID());
 
-  //Select NULL Chart
+  //Select nullptr Chart
   if (d->selectionNode)
     {
-    d->selectionNode->SetActivePlotChartID(NULL);
+    d->selectionNode->SetActivePlotChartID(nullptr);
     }
 }
 
@@ -1996,7 +1996,7 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
     QString message = QString("No segmentation available! Please create a segmentation or untoggle the input"
                               " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a mask"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
     return false;
     }
 
@@ -2013,7 +2013,7 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
     QString message = QString("No segment selected from the segmentation node! Please provide a mask or untoggle the input"
                               " mask option to perform automatic masking with 3DBarolo.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to select a mask"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
     return false;
     }
 
@@ -2058,7 +2058,7 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
     QString message = QString("Failed to export segments from segmentation '%1'' to representation node '%2!.").
                               arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to export segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
     this->mrmlScene()->RemoveNode(labelMapNode);
     return false;
     }
@@ -2984,8 +2984,8 @@ void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
 
@@ -3086,7 +3086,7 @@ void qSlicerAstroModelingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNo
     }
   else
     {
-    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
 }
 
@@ -3240,7 +3240,7 @@ void qSlicerAstroModelingModuleWidget::onResidualVolumeChanged(vtkMRMLNode *mrml
     }
   else
     {
-    d->parametersNode->SetResidualVolumeNodeID(NULL);
+    d->parametersNode->SetResidualVolumeNodeID(nullptr);
     }
 }
 
@@ -3779,7 +3779,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     QString message = QString("Model fitting is  available only"
                               " for datacube with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
+    QMessageBox::warning(nullptr, tr("Failed to run 3DBarolo"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3792,7 +3792,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
                               "It is not possible to procede with the model fitting. "
                               "You may edit these values in the Data module.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run 3DBarolo"), message);
+    QMessageBox::warning(nullptr, tr("Failed to run 3DBarolo"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -3824,7 +3824,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     name = outputVolume->GetName();
     if (!name.compare(inputVolume->GetName()))
       {
-      outputVolume = NULL;
+      outputVolume = nullptr;
       }
     else if (name.find("_model_") != std::string::npos)
       {
@@ -3849,7 +3849,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
-  vtkMRMLNode* node = NULL;
+  vtkMRMLNode* node = nullptr;
   outputVolume->SetPresetNode(node);
 
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
@@ -3942,7 +3942,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
                               "Do you wish to continue?");
     qWarning() << Q_FUNC_INFO << ": " << message;
     QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(NULL, tr("3DBarolo"), message);
+    reply = QMessageBox::question(nullptr, tr("3DBarolo"), message);
     if (reply != QMessageBox::Yes)
       {
       d->parametersNode->SetStatus(0);

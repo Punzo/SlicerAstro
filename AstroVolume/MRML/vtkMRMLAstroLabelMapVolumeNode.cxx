@@ -118,12 +118,12 @@ void vtkMRMLAstroLabelMapVolumeNode::PrintSelf(ostream &os, vtkIndent indent)
 //----------------------------------------------------------------------------
 void vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes()
 {
-  if (vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(this->GetDisplayNode())!=NULL)
+  if (vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(this->GetDisplayNode())!=nullptr)
     {
     // display node already exists
     return;
     }
-  if (this->GetScene()==NULL)
+  if (this->GetScene()==nullptr)
     {
     vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::CreateDefaultDisplayNodes failed: scene is invalid");
     return;
@@ -164,7 +164,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode *vtkMRMLAstroLabelMapVolumeNode::GetAstroL
 //----------------------------------------------------------------------------
 bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
 {
-  if (this->GetImageData() == NULL)
+  if (this->GetImageData() == nullptr)
    {
    return false;
    }
@@ -174,7 +174,7 @@ bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
   int numElements = dims[0] * dims[1] * dims[2];
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   double max_val = this->GetImageData()->GetScalarTypeMin(), min_val = this->GetImageData()->GetScalarTypeMax();
-  short *inSPixel = NULL;
+  short *inSPixel = nullptr;
 
   #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   omp_set_num_threads(omp_get_num_procs());
@@ -214,7 +214,7 @@ bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
   this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());
   this->EndModify(wasModifying);
 
-  inSPixel = NULL;
+  inSPixel = nullptr;
   delete inSPixel;
 
   return true;

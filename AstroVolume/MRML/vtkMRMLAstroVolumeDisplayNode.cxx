@@ -58,7 +58,7 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->SpaceQuantities->SetValue(0, "time");
   this->SpaceQuantities->SetValue(1, "length");
   this->SpaceQuantities->SetValue(2, "velocity");
-  this->Space = NULL;
+  this->Space = nullptr;
   this->SetSpace("WCS");
   this->FitSlices = false;
   this->WCSStatus = 0;
@@ -114,7 +114,7 @@ vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
                     ": \n"<<this->WCS->err->msg<<"\n");
       }
     delete [] this->WCS;
-    this->WCS = NULL;
+    this->WCS = nullptr;
     }
 }
 
@@ -780,7 +780,7 @@ void vtkMRMLAstroVolumeDisplayNode::ReadXMLAttributes(const char** atts)
   const char* attName;
   const char* attValue;
 
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -905,7 +905,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     return;
     }
 
-  wcsprm *WCSNew = NULL;
+  wcsprm *WCSNew = nullptr;
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
@@ -1004,7 +1004,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopySpatialWCS(vtkMRMLNode *node)
     return;
     }
 
-  wcsprm *WCSNew = NULL;
+  wcsprm *WCSNew = nullptr;
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);

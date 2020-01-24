@@ -44,7 +44,7 @@ vtkStandardNewMacro(vtkFITSWriter);
 //----------------------------------------------------------------------------
 vtkFITSWriter::vtkFITSWriter()
 {
-  this->FileName = NULL;
+  this->FileName = nullptr;
   this->UseCompression = 0;
   this->FileType = VTK_BINARY;
   this->WriteErrorOff();
@@ -161,7 +161,7 @@ void vtkFITSWriter::WriteData()
 {
 
   this->WriteErrorOff();
-  if (this->GetFileName() == NULL)
+  if (this->GetFileName() == nullptr)
     {
     vtkErrorMacro("FileName has not been set. Cannot save file");
     this->WriteErrorOn();
@@ -389,7 +389,7 @@ const char* vtkFITSWriter::GetAttribute(const std::string &key)
     }
   else
     {
-    return NULL;
+    return nullptr;
     }
 }
 

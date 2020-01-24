@@ -42,9 +42,9 @@ vtkMRMLAstroProfilesParametersNode::vtkMRMLAstroProfilesParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->ProfileVolumeNodeID = NULL;
-  this->MaskVolumeNodeID = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->ProfileVolumeNodeID = nullptr;
+  this->MaskVolumeNodeID = nullptr;
   this->Cores = 0;
   this->MaskActive = false;
   this->IntensityMin = -1.;
@@ -61,19 +61,19 @@ vtkMRMLAstroProfilesParametersNode::~vtkMRMLAstroProfilesParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->ProfileVolumeNodeID)
     {
     delete [] this->ProfileVolumeNodeID;
-    this->ProfileVolumeNodeID = NULL;
+    this->ProfileVolumeNodeID = nullptr;
     }
 
   if (this->MaskVolumeNodeID)
     {
     delete [] this->MaskVolumeNodeID;
-    this->MaskVolumeNodeID = NULL;
+    this->MaskVolumeNodeID = nullptr;
     }
 }
 
@@ -108,7 +108,7 @@ void vtkMRMLAstroProfilesParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -187,17 +187,17 @@ void vtkMRMLAstroProfilesParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->ProfileVolumeNodeID != NULL)
+  if (this->ProfileVolumeNodeID != nullptr)
     {
     of << indent << " ProfileVolumeNodeID=\"" << this->ProfileVolumeNodeID << "\"";
     }
 
-  if (this->MaskVolumeNodeID != NULL)
+  if (this->MaskVolumeNodeID != nullptr)
     {
     of << indent << " MaskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
     }

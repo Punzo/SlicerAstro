@@ -71,7 +71,7 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroSmoothingLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
+  this->AstroVolumeLogic = nullptr;
   this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
 }
 
@@ -314,10 +314,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     }
   const int Zmax = (int) ((nItemsZ - 1) / 2.);
   const int cont = nItemsX * nItemsY * nItemsZ;
-  float *inFPixel = NULL;
-  float *outFPixel = NULL;
-  double *inDPixel = NULL;
-  double *outDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outFPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -355,7 +355,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -480,7 +480,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -489,10 +489,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   vtkDebugMacro("Box Filter (CPU) Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  outFPixel = NULL;
-  inDPixel = NULL;
-  outDPixel = NULL;
+  inFPixel = nullptr;
+  outFPixel = nullptr;
+  inDPixel = nullptr;
+  outDPixel = nullptr;
 
   delete inFPixel;
   delete outFPixel;
@@ -505,7 +505,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     return 0;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -514,7 +514,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -593,10 +593,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     }
   const int is = (int) ((nItems - 1) / 2.);
 
-  float *outFPixel = NULL;
-  float *tempFPixel = NULL;
-  double *outDPixel = NULL;
-  double *tempDPixel = NULL;
+  float *outFPixel = nullptr;
+  float *tempFPixel = nullptr;
+  double *outDPixel = nullptr;
+  double *tempDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -633,7 +633,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -734,10 +734,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (cancel)
     {
-    outFPixel = NULL;
-    tempFPixel = NULL;
-    outDPixel = NULL;
-    tempDPixel = NULL;
+    outFPixel = nullptr;
+    tempFPixel = nullptr;
+    outDPixel = nullptr;
+    tempDPixel = nullptr;
 
     delete outFPixel;
     delete tempFPixel;
@@ -867,10 +867,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (cancel)
     {
-    outFPixel = NULL;
-    tempFPixel = NULL;
-    outDPixel = NULL;
-    tempDPixel = NULL;
+    outFPixel = nullptr;
+    tempFPixel = nullptr;
+    outDPixel = nullptr;
+    tempDPixel = nullptr;
 
     delete outFPixel;
     delete tempFPixel;
@@ -981,7 +981,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -989,10 +989,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro("Box Filter (CPU) Time : "<<mtime<<" ms.");
 
-  outFPixel = NULL;
-  tempFPixel = NULL;
-  outDPixel = NULL;
-  tempDPixel = NULL;
+  outFPixel = nullptr;
+  tempFPixel = nullptr;
+  outDPixel = nullptr;
+  tempDPixel = nullptr;
 
   delete outFPixel;
   delete tempFPixel;
@@ -1007,7 +1007,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     return 0;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1016,7 +1016,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1060,7 +1060,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   struct timeval start, end;
   long mtime, seconds, useconds;
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1117,7 +1117,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1125,7 +1125,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro(" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1134,7 +1134,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1211,10 +1211,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   const int Ymax = (int) (pnode->GetKernelLengthY() - 1) / 2.;
   const int Zmax = (int) (pnode->GetKernelLengthZ() - 1) / 2.;
   const int numKernelSlice = pnode->GetKernelLengthX() * pnode->GetKernelLengthY();
-  float *inFPixel = NULL;
-  float *outFPixel = NULL;
-  double *inDPixel = NULL;
-  double *outDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outFPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -1254,7 +1254,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -1372,7 +1372,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1380,10 +1380,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  outFPixel = NULL;
-  inDPixel = NULL;
-  outDPixel = NULL;
+  inFPixel = nullptr;
+  outFPixel = nullptr;
+  inDPixel = nullptr;
+  outDPixel = nullptr;
 
   delete inFPixel;
   delete outFPixel;
@@ -1396,7 +1396,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
     return 0;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1404,7 +1404,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   outputVolume->EndModify(wasModifying);
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1481,10 +1481,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     is++;
     }
   const int is2 = (int) - ((is - 1)/ 2);
-  float *outFPixel = NULL;
-  float *tempFPixel = NULL;
-  double *outDPixel = NULL;
-  double *tempDPixel = NULL;
+  float *outFPixel = nullptr;
+  float *tempFPixel = nullptr;
+  double *outDPixel = nullptr;
+  double *tempDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -1522,7 +1522,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -1616,10 +1616,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   if (cancel)
     {  
-    outFPixel = NULL;
-    tempFPixel = NULL;
-    outDPixel = NULL;
-    tempDPixel = NULL;
+    outFPixel = nullptr;
+    tempFPixel = nullptr;
+    outDPixel = nullptr;
+    tempDPixel = nullptr;
 
     delete outFPixel;
     delete tempFPixel;
@@ -1742,10 +1742,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   if (cancel)
     {  
-    outFPixel = NULL;
-    tempFPixel = NULL;
-    outDPixel = NULL;
-    tempDPixel = NULL;
+    outFPixel = nullptr;
+    tempFPixel = nullptr;
+    outDPixel = nullptr;
+    tempDPixel = nullptr;
 
     delete outFPixel;
     delete tempFPixel;
@@ -1848,7 +1848,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1856,10 +1856,10 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
 
-  outFPixel = NULL;
-  tempFPixel = NULL;
-  outDPixel = NULL;
-  tempDPixel = NULL;
+  outFPixel = nullptr;
+  tempFPixel = nullptr;
+  outDPixel = nullptr;
+  tempDPixel = nullptr;
 
   delete outFPixel;
   delete tempFPixel;
@@ -1874,7 +1874,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     return 0;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1883,7 +1883,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1927,7 +1927,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   struct timeval start, end;
   long mtime, seconds, useconds;
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1990,7 +1990,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -1998,7 +1998,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro("Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -2007,7 +2007,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
 
@@ -2085,10 +2085,10 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   const int numSlice = dims[0] * dims[1];
   const double noise = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
   const double noise2 = noise * noise * pnode->GetK() * pnode->GetK();
-  float *outFPixel = NULL;
-  float *tempFPixel = NULL;
-  double *outDPixel = NULL;
-  double *tempDPixel = NULL;
+  float *outFPixel = nullptr;
+  float *tempFPixel = nullptr;
+  double *outDPixel = nullptr;
+  double *tempDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -2124,7 +2124,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -2248,10 +2248,10 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
     if (cancel)
       {  
-      outFPixel = NULL;
-      tempFPixel = NULL;
-      outDPixel = NULL;
-      tempDPixel = NULL;
+      outFPixel = nullptr;
+      tempFPixel = nullptr;
+      outDPixel = nullptr;
+      tempDPixel = nullptr;
 
       delete outFPixel;
       delete tempFPixel;
@@ -2284,7 +2284,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     }
 
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -2293,7 +2293,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   vtkDebugMacro("Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -2302,7 +2302,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -2311,10 +2311,10 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
-  outFPixel = NULL;
-  tempFPixel = NULL;
-  outDPixel = NULL;
-  tempDPixel = NULL;
+  outFPixel = nullptr;
+  tempFPixel = nullptr;
+  outDPixel = nullptr;
+  tempDPixel = nullptr;
 
   delete outFPixel;
   delete tempFPixel;
@@ -2358,7 +2358,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   struct timeval start, end;
   long mtime, seconds, useconds;
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -2420,7 +2420,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -2428,7 +2428,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro(" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -2437,7 +2437,7 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;

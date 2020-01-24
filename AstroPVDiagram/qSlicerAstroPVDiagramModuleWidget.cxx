@@ -151,8 +151,8 @@ public:
 qSlicerAstroPVDiagramModuleWidgetPrivate::qSlicerAstroPVDiagramModuleWidgetPrivate(qSlicerAstroPVDiagramModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = 0;
-  this->selectionNode = 0;
+  this->parametersNode = nullptr;
+  this->selectionNode = nullptr;
   this->reportDimensionalityError = false;
 }
 
@@ -649,7 +649,7 @@ void qSlicerAstroPVDiagramModuleWidget::onFiducialsMarkupsChanged(vtkMRMLNode *m
     }
   else
     {
-    d->parametersNode->SetFiducialsMarkupsID(NULL);
+    d->parametersNode->SetFiducialsMarkupsID(nullptr);
     }
 }
 
@@ -663,7 +663,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeParameterNode(bool forceNew /*
     return;
     }
 
-  vtkMRMLAstroPVDiagramParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroPVDiagramParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroPVDiagramParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -720,13 +720,13 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
       QString message = QString("It is possible to create PVDiagram only"
                                 " for datacubes with dimensionality 3 (NAXIS = 3).");
       qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(NULL, tr("Failed to create the PVDiagram"), message);
+      QMessageBox::warning(nullptr, tr("Failed to create the PVDiagram"), message);
       d->reportDimensionalityError = false;
       }
     return;
     }
 
-  vtkMRMLAstroVolumeNode *MomentMapNode = NULL;
+  vtkMRMLAstroVolumeNode *MomentMapNode = nullptr;
 
   vtkSmartPointer<vtkCollection> AstroVolumeNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
@@ -785,7 +785,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeFiducialsMarkupsNode(bool forc
     return;
     }
 
-  vtkSmartPointer<vtkMRMLMarkupsFiducialNode> SourcePointNode = NULL;
+  vtkSmartPointer<vtkMRMLMarkupsFiducialNode> SourcePointNode = nullptr;
 
   vtkSmartPointer<vtkCollection> FiducialsMarkupsNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLMarkupsFiducialNode"));
@@ -846,7 +846,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeLineModelNode(bool forceNew)
     return;
     }
 
-  vtkSmartPointer<vtkMRMLModelNode> LineModelNode = NULL;
+  vtkSmartPointer<vtkMRMLModelNode> LineModelNode = nullptr;
 
   vtkSmartPointer<vtkCollection> ModelNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLModelNode"));
@@ -927,7 +927,7 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
       QString message = QString("It is possible to create PVDiagram only"
                                 " for datacubes with dimensionality 3 (NAXIS = 3).");
       qCritical() << Q_FUNC_INFO << ": " << message;
-      QMessageBox::warning(NULL, tr("Failed to create the PVDiagram"), message);
+      QMessageBox::warning(nullptr, tr("Failed to create the PVDiagram"), message);
       d->reportDimensionalityError = false;
       }
     return;
@@ -1024,7 +1024,7 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
   // Update parameter Node
   d->parametersNode->SetOutputVolumeNodeID(PVDiagramVolume->GetID());
 
-  vtkMRMLNode* node = NULL;
+  vtkMRMLNode* node = nullptr;
   PVDiagramVolume->SetPresetNode(node);
 
   vtkSlicerAstroPVDiagramLogic *logic = d->logic();
@@ -1121,8 +1121,8 @@ void qSlicerAstroPVDiagramModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNo
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
   }
 }
 
@@ -1179,7 +1179,7 @@ void qSlicerAstroPVDiagramModuleWidget::onModelChanged(vtkMRMLNode *mrmlNode)
     }
   else
     {
-    d->parametersNode->SetModelID(NULL);
+    d->parametersNode->SetModelID(nullptr);
     }
 }
 
@@ -1417,7 +1417,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode
     }
   else
     {
-    d->parametersNode->SetMomentMapNodeID(NULL);
+    d->parametersNode->SetMomentMapNodeID(nullptr);
     }
 }
 
@@ -1461,7 +1461,7 @@ void qSlicerAstroPVDiagramModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
 }
 

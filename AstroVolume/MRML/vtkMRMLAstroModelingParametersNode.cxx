@@ -45,15 +45,15 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->OutputVolumeNodeID = NULL;
-  this->ResidualVolumeNodeID = NULL;
-  this->MaskVolumeNodeID = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->OutputVolumeNodeID = nullptr;
+  this->ResidualVolumeNodeID = nullptr;
+  this->MaskVolumeNodeID = nullptr;
   this->MaskActive = false;
   this->OutputSerial = 1;
-  this->Mode = NULL;
+  this->Mode = nullptr;
   this->SetMode("Automatic");
-  this->Normalize = NULL;
+  this->Normalize = nullptr;
   this->SetNormalize("LOCAL");
   this->RadSep = -1;
   this->XCenter = -1;
@@ -112,37 +112,37 @@ vtkMRMLAstroModelingParametersNode::~vtkMRMLAstroModelingParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->OutputVolumeNodeID)
     {
     delete [] this->OutputVolumeNodeID;
-    this->OutputVolumeNodeID = NULL;
+    this->OutputVolumeNodeID = nullptr;
     }
 
   if (this->ResidualVolumeNodeID)
     {
     delete [] this->ResidualVolumeNodeID;
-    this->ResidualVolumeNodeID = NULL;
+    this->ResidualVolumeNodeID = nullptr;
     }
 
   if (this->MaskVolumeNodeID)
     {
     delete [] this->MaskVolumeNodeID;
-    this->MaskVolumeNodeID = NULL;
+    this->MaskVolumeNodeID = nullptr;
     }
 
   if (this->Mode)
     {
     delete [] this->Mode;
-    this->Mode = NULL;
+    this->Mode = nullptr;
     }
 
   if (this->Normalize)
     {
     delete [] this->Normalize;
-    this->Normalize = NULL;
+    this->Normalize = nullptr;
     }
 }
 
@@ -183,7 +183,7 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -532,32 +532,32 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->OutputVolumeNodeID != NULL)
+  if (this->OutputVolumeNodeID != nullptr)
     {
     of << indent << " outputVolumeNodeID=\"" << this->OutputVolumeNodeID << "\"";
     }
 
-  if (this->ResidualVolumeNodeID != NULL)
+  if (this->ResidualVolumeNodeID != nullptr)
     {
     of << indent << " ResidualVolumeNodeID=\"" << this->ResidualVolumeNodeID << "\"";
     }
 
-  if (this->MaskVolumeNodeID != NULL)
+  if (this->MaskVolumeNodeID != nullptr)
     {
     of << indent << " maskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
     }
 
-  if (this->Mode != NULL)
+  if (this->Mode != nullptr)
     {
     of << indent << " Mode=\"" << this->Mode << "\"";
     }
 
-  if (this->Normalize != NULL)
+  if (this->Normalize != nullptr)
     {
     of << indent << " Normalize=\"" << this->Normalize << "\"";
     }
@@ -716,7 +716,7 @@ const char *vtkMRMLAstroModelingParametersNode::GetOperationAsString(int id)
 //----------------------------------------------------------------------------
 int vtkMRMLAstroModelingParametersNode::GetOperationFromString(const char *name)
 {
-  if (name == NULL)
+  if (name == nullptr)
     {
     // invalid name
     return -1;
@@ -738,7 +738,7 @@ vtkMRMLTableNode *vtkMRMLAstroModelingParametersNode::GetParamsTableNode()
 {
   if (!this->Scene)
     {
-    return NULL;
+    return nullptr;
     }
 
   return vtkMRMLTableNode::SafeDownCast(this->GetNodeReference(this->GetTableNodeReferenceRole()));
@@ -747,7 +747,7 @@ vtkMRMLTableNode *vtkMRMLAstroModelingParametersNode::GetParamsTableNode()
 //----------------------------------------------------------------------------
 void vtkMRMLAstroModelingParametersNode::SetParamsTableNode(vtkMRMLTableNode* node)
 {
-  this->SetNodeReferenceID(this->GetTableNodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetTableNodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------

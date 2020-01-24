@@ -110,5 +110,5 @@ qSlicerAbstractModuleRepresentation* qSlicerAstroWelcomeModule::createWidgetRepr
 //-----------------------------------------------------------------------------
 vtkMRMLAbstractLogic* qSlicerAstroWelcomeModule::createLogic()
 {
-  return NULL;
+  return nullptr;
 }

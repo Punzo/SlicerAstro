@@ -55,12 +55,12 @@ vtkStandardNewMacro(vtkFITSReader);
 //----------------------------------------------------------------------------
 vtkFITSReader::vtkFITSReader()
 {
-  this->RasToIjkMatrix = NULL;
-  this->HeaderKeys = NULL;
-  this->CurrentFileName = NULL;
+  this->RasToIjkMatrix = nullptr;
+  this->HeaderKeys = nullptr;
+  this->CurrentFileName = nullptr;
   this->UseNativeOrigin = true;
   this->Compression = false;
-  this->fptr = NULL;
+  this->fptr = nullptr;
   this->ReadStatus = 0;
   this->WCS = new struct wcsprm;
   this->WCS->flag = -1;
@@ -92,19 +92,19 @@ vtkFITSReader::~vtkFITSReader()
   if (this->RasToIjkMatrix)
     {
     this->RasToIjkMatrix->Delete();
-    this->RasToIjkMatrix = NULL;
+    this->RasToIjkMatrix = nullptr;
     }
 
   if (this->HeaderKeys)
     {
     delete [] this->HeaderKeys;
-    this->HeaderKeys = NULL;
+    this->HeaderKeys = nullptr;
     }
 
   if (this->CurrentFileName)
     {
     delete [] this->CurrentFileName;
-    this->CurrentFileName = NULL;
+    this->CurrentFileName = nullptr;
     }
 
   if(this->WCS)
@@ -115,7 +115,7 @@ vtkFITSReader::~vtkFITSReader()
                     <<wcshdr_errmsg[this->WCSStatus]<<"\n");
       }
     delete [] this->WCS;
-    this->WCS = NULL;
+    this->WCS = nullptr;
     }
 
   if(this->ReadWCS)
@@ -126,7 +126,7 @@ vtkFITSReader::~vtkFITSReader()
                     <<wcshdr_errmsg[this->WCSStatus]<<"\n");
       }
     delete [] this->ReadWCS;
-    this->ReadWCS = NULL;
+    this->ReadWCS = nullptr;
   }
 }
 
@@ -220,7 +220,7 @@ char* vtkFITSReader::GetHeaderKeys()
     {
     delete [] this->HeaderKeys;
     }
-  this->HeaderKeys = NULL;
+  this->HeaderKeys = nullptr;
 
   if (keys.size() > 0)
     {
@@ -253,7 +253,7 @@ const char* vtkFITSReader::GetHeaderValue(const char *key)
     }
   else
     {
-    return NULL;
+    return nullptr;
     }
 }
 
@@ -417,13 +417,13 @@ bool vtkFITSReader::AstroExecuteInformation()
 //----------------------------------------------------------------------------
 void vtkFITSReader::ExecuteInformation()
 {
-  if (this->CurrentFileName != NULL &&
+  if (this->CurrentFileName != nullptr &&
       !strcmp (this->CurrentFileName, this->GetFileName()))
     {
     return;
     }
 
-  if (this->CurrentFileName != NULL)
+  if (this->CurrentFileName != nullptr)
     {
     delete [] this->CurrentFileName;
     }
@@ -631,7 +631,7 @@ bool vtkFITSReader::AllocateHeader()
      return false;
      }
 
-   fits_get_hdrspace(this->fptr, &nkeys, NULL, &this->ReadStatus); /* get # of keywords */
+   fits_get_hdrspace(this->fptr, &nkeys, nullptr, &this->ReadStatus); /* get # of keywords */
 
    /* Read and print each keywords */
    int histCont = 0, commCont = 0;
@@ -2020,7 +2020,7 @@ bool vtkFITSReader::AllocateWCS()
   int  i, nkeyrec, nreject, stat[NWCSFIX];
 
   // read header from fits file
-  if ((this->WCSStatus = fits_hdr2str(this->fptr, 1, NULL, 0, &header, &nkeyrec, &this->WCSStatus)))
+  if ((this->WCSStatus = fits_hdr2str(this->fptr, 1, nullptr, 0, &header, &nkeyrec, &this->WCSStatus)))
     {
     fits_report_error(stderr, this->WCSStatus);
     }
@@ -2806,7 +2806,7 @@ vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformati
     {
     vtkErrorMacro("vtkFITSReader::AllocateOutputData: Call to AllocateOutputData with"
                     " non vtkImageData output.");
-    return NULL;
+    return nullptr;
     }
 
   this->ExecuteInformation();
@@ -2816,7 +2816,7 @@ vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformati
   if (!this->AllocatePointData(res, outInfo))
     {
     vtkErrorMacro("vtkFITSReader::AllocateOutputData: AllocatePointData failed.");
-    return NULL;
+    return nullptr;
     }
 
   return res;
@@ -2825,7 +2825,7 @@ vtkImageData *vtkFITSReader::AllocateOutputData(vtkDataObject *out, vtkInformati
 //----------------------------------------------------------------------------
 bool vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo) {
 
-  vtkDataArray *pd = NULL;
+  vtkDataArray *pd = nullptr;
   int Extent[6];
   out->GetExtent(Extent);
 
@@ -2900,14 +2900,14 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     }
   vtkImageData *data = this->AllocateOutputData(output, outInfo);
 
-  if (data == NULL)
+  if (data == nullptr)
     {
     vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: "
                      "data not allocated.");
     return;
     }
 
-  if (this->GetFileName() == NULL)
+  if (this->GetFileName() == nullptr)
     {
     vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: "
                      "Either a FileName or FilePrefix must be specified.");
@@ -2926,7 +2926,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
 
   data->GetPointData()->GetScalars()->SetName("FITSImage");
   // Get data pointer
-  void *ptr = NULL;
+  void *ptr = nullptr;
   ptr = data->GetPointData()->GetScalars()->GetVoidPointer(0);
   this->ComputeDataIncrements();
   unsigned int naxes = data->GetDataDimension();
@@ -2937,32 +2937,32 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     {
     dim *= naxe[axii];
     }
-  float nullval = NAN;
-  int anynull;
+  float nullptrval = NAN;
+  int anynullptr;
   // load the data
   switch (this->DataType)
     {
     case VTK_DOUBLE:
-      if(fits_read_img(this->fptr, TDOUBLE, 1, dim, &nullval, ptr, &anynull, &this->ReadStatus))
+      if(fits_read_img(this->fptr, TDOUBLE, 1, dim, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
         fits_report_error(stderr, this->ReadStatus);
-        vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is null.");
+        vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
         return;
         }
       break;
     case VTK_FLOAT:
-      if(fits_read_img(this->fptr, TFLOAT, 1, dim, &nullval, ptr, &anynull, &this->ReadStatus))
+      if(fits_read_img(this->fptr, TFLOAT, 1, dim, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
         fits_report_error(stderr, this->ReadStatus);
-        vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is null.");
+        vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
         return;
         }
       break;
   case VTK_SHORT:
-    if(fits_read_img(this->fptr, TSHORT, 1, dim, &nullval, ptr, &anynull, &this->ReadStatus))
+    if(fits_read_img(this->fptr, TSHORT, 1, dim, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
       {
       fits_report_error(stderr, this->ReadStatus);
-      vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is null.");
+      vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
       return;
       }
     break;

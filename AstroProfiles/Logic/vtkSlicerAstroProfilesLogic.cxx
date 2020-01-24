@@ -103,7 +103,7 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroProfilesLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
+  this->AstroVolumeLogic = nullptr;
 }
 
 //---------------------------------------------------------------------------
@@ -239,11 +239,11 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numSlice = dims[0] * dims[1] * numComponents;
 
-  float *inFPixel = NULL;
-  float *outProfileFPixel = NULL;
-  short *maskPixel = NULL;
-  double *inDPixel = NULL;
-  double *outProfileDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outProfileFPixel = nullptr;
+  short *maskPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outProfileDPixel = nullptr;
 
   const int DataType = ProfileVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
@@ -282,7 +282,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -558,7 +558,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -567,21 +567,21 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   vtkDebugMacro("Profile Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  inDPixel = NULL;
+  inFPixel = nullptr;
+  inDPixel = nullptr;
 
   delete inFPixel;
   delete inDPixel;
 
-  outProfileFPixel = NULL;
-  outProfileDPixel = NULL;
+  outProfileFPixel = nullptr;
+  outProfileDPixel = nullptr;
 
   delete outProfileFPixel;
   delete outProfileDPixel;
 
   if (pnode->GetMaskActive())
     {
-    maskPixel = NULL;
+    maskPixel = nullptr;
     delete maskPixel;
     }
 
@@ -591,7 +591,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     return false;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = ProfileVolume->StartModify();
   ProfileVolume->UpdateRangeAttributes();
@@ -610,7 +610,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);;
+  gettimeofday(&end, nullptr);;
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;

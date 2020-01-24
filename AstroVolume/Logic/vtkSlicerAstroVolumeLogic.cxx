@@ -88,7 +88,7 @@ vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
 //----------------------------------------------------------------------------
 vtkSlicerAstroVolumeLogic::vtkSlicerAstroVolumeLogic()
 {
-  this->PresetsScene = 0;
+  this->PresetsScene = nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -630,7 +630,7 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene
 {
   if (!scene || !inputVolume || !outputNameReference || !name)
     {
-    return NULL;
+    return nullptr;
     }
 
   if (outputVolume)
@@ -639,7 +639,7 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene
     name = outputVolume->GetName();
     if (!name.compare(inputVolume->GetName()))
       {
-      outputVolume = NULL;
+      outputVolume = nullptr;
       }
     else if (name.find(outputNameReference) != std::string::npos)
       {
@@ -689,7 +689,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
 {
   if (!scene || !volumeNode || !name)
     {
-    return NULL;
+    return nullptr;
     }
 
   // Create a display node if the label node does not have one
@@ -713,7 +713,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
                   "WCS not found!");
-    return NULL;
+    return nullptr;
     }
   labelWCS->flag=-1;
 
@@ -725,7 +725,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
                   "Message from "<<labelWCS->err->function<<
                   "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
                   ": \n"<<labelWCS->err->msg<<"\n");
-    return NULL;
+    return nullptr;
     }
 
   labelDisplayNode->SetWCSStatus(wcsset(labelWCS));
@@ -736,7 +736,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
                   "Message from "<<labelWCS->err->function<<
                   "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
                   ": \n"<<labelWCS->err->msg<<"\n");
-    return NULL;
+    return nullptr;
     }
 
   scene->AddNode(labelDisplayNode.GetPointer());
@@ -752,7 +752,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
   // and re-set the name after the copy.
   std::string origName(labelNode->GetName());
   labelNode->Copy(volumeNode);
-  labelNode->SetAndObserveStorageNodeID(NULL);
+  labelNode->SetAndObserveStorageNodeID(nullptr);
   labelNode->SetName(origName.c_str());
   labelNode->SetAndObserveDisplayNodeID(labelDisplayNode->GetID());
 
@@ -794,12 +794,12 @@ bool vtkSlicerAstroVolumeLogic::FitROIToInputVolume(vtkMRMLAnnotationROINode *ro
   vtkMRMLTransformNode* roiTransform = roiNode->GetParentTransformNode();
   if (roiTransform && !roiTransform->IsTransformToWorldLinear())
     {
-    roiTransform = NULL;
-    roiNode->SetAndObserveTransformNodeID(NULL);
+    roiTransform = nullptr;
+    roiNode->SetAndObserveTransformNodeID(nullptr);
     inputVolume->DeleteROIAlignmentTransformNode();
     }
   vtkNew<vtkMatrix4x4> worldToROI;
-  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(NULL, roiTransform, worldToROI.GetPointer());
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(nullptr, roiTransform, worldToROI.GetPointer());
 
   double volumeBounds_ROI[6] = { 0 }; // volume bounds in ROI's coordinate system
   inputVolume->GetSliceBounds(volumeBounds_ROI, worldToROI.GetPointer());
@@ -836,9 +836,9 @@ void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLAnnotationROINode *roi
   roiNode->GetRASBounds(originalBounds_World);
 
   // If we don't transform it, is it aligned?
-  if (roiNode->GetParentTransformNode() != NULL)
+  if (roiNode->GetParentTransformNode() != nullptr)
     {
-    roiNode->SetAndObserveTransformNodeID(NULL);
+    roiNode->SetAndObserveTransformNodeID(nullptr);
     if (IsROIAlignedWithInputVolume(roiNode, inputVolume))
       {
       // ROI is aligned if it's not transformed, no need for ROI alignment transform
@@ -857,7 +857,7 @@ void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLAnnotationROINode *roi
   // It's a non-trivial rotation, use the ROI alignment transform node to align
   vtkNew<vtkMatrix4x4> volumeRasToWorld;
   vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(inputVolume->GetParentTransformNode(),
-    NULL, volumeRasToWorld.GetPointer());
+    nullptr, volumeRasToWorld.GetPointer());
   vtkNew<vtkMatrix4x4> volumeIJKToRAS;
   inputVolume->GetIJKToRASMatrix(volumeIJKToRAS.GetPointer());
   vtkNew<vtkMatrix4x4> volumeIJKToWorld;
@@ -873,7 +873,7 @@ void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLAnnotationROINode *roi
     inputVolume->GetScene()->AddNode(roiTransformNode.GetPointer());
     inputVolume->SetROIAlignmentTransformNodeID(roiTransformNode->GetID());
     }
-  inputVolume->GetROIAlignmentTransformNode()->SetAndObserveTransformNodeID(NULL);
+  inputVolume->GetROIAlignmentTransformNode()->SetAndObserveTransformNodeID(nullptr);
   inputVolume->GetROIAlignmentTransformNode()->SetMatrixTransformToParent(volumeIJKToWorld.GetPointer());
   roiNode->SetAndObserveTransformNodeID(inputVolume->GetROIAlignmentTransformNode()->GetID());
 
@@ -976,7 +976,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLAnnotationRO
     {
     vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds :"
                            "  ROI is transformed using a non-linear transform. The transformation will be ignored");
-    roiTransform = NULL;
+    roiTransform = nullptr;
     }
 
   if (inputVolume->GetParentTransformNode() && !inputVolume->GetParentTransformNode()->IsTransformToWorldLinear())
@@ -1067,7 +1067,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmenta
     {
     vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds :"
                            "  segment is transformed using a non-linear transform. The transformation will be ignored");
-    segmentTransform = NULL;
+    segmentTransform = nullptr;
     }
 
   if (inputVolume->GetParentTransformNode() && !inputVolume->GetParentTransformNode()->IsTransformToWorldLinear())
@@ -1163,8 +1163,8 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLAnnotati
     }
   int numSlice = dims[0] * dims[1];
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  float *inFPixel = NULL;
-  double *inDPixel = NULL;
+  float *inFPixel = nullptr;
+  double *inDPixel = nullptr;
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -1304,8 +1304,8 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLAnnotati
       break;
     }
 
-  inFPixel = NULL;
-  inDPixel = NULL;
+  inFPixel = nullptr;
+  inDPixel = nullptr;
   delete inFPixel;
   delete inDPixel;
 
@@ -1335,8 +1335,8 @@ void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *input
     }
   int numElements = dims[0] * dims[1] * dims[2];
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  float *inFPixel = NULL;
-  double *inDPixel = NULL;
+  float *inFPixel = nullptr;
+  double *inDPixel = nullptr;
   switch (DataType)
     {
     case VTK_FLOAT:
@@ -1607,10 +1607,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   // copy data into the Astro Volume object
   outputVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
-  float *inFPixel = NULL;
-  float *outFPixel = NULL;
-  double *inDPixel = NULL;
-  double *outDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outFPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -1649,7 +1649,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -2348,7 +2348,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -2356,10 +2356,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
   vtkDebugMacro("Reprojection Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  outFPixel = NULL;
-  inDPixel = NULL;
-  outDPixel = NULL;
+  inFPixel = nullptr;
+  outFPixel = nullptr;
+  inDPixel = nullptr;
+  outDPixel = nullptr;
 
   delete inFPixel;
   delete outFPixel;
@@ -2375,7 +2375,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   this->CenterVolume(outputVolume);
@@ -2387,7 +2387,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;

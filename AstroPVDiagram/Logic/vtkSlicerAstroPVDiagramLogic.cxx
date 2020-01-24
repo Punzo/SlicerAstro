@@ -96,8 +96,8 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroPVDiagramLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
-  this->AstroMomentMapsLogic = 0;
+  this->AstroVolumeLogic = nullptr;
+  this->AstroMomentMapsLogic = nullptr;
   this->CurvePoly = vtkSmartPointer<vtkPolyData>::New();
 }
 
@@ -841,10 +841,10 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS1", IntToString(N1).c_str());
   PVDiagramVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
 
-  float *inFPixel = NULL;
-  float *PVDiagramFPixel = NULL;
-  double *inDPixel = NULL;
-  double *PVDiagramDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *PVDiagramFPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *PVDiagramDPixel = nullptr;
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
     {
@@ -916,10 +916,10 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       }
     }
 
-  inFPixel = NULL;
-  PVDiagramFPixel = NULL;
-  inDPixel = NULL;
-  PVDiagramDPixel = NULL;
+  inFPixel = nullptr;
+  PVDiagramFPixel = nullptr;
+  inDPixel = nullptr;
+  PVDiagramDPixel = nullptr;
 
   delete inFPixel;
   delete PVDiagramFPixel;

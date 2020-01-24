@@ -47,16 +47,16 @@ vtkMRMLAstroMaskingParametersNode::vtkMRMLAstroMaskingParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->MaskVolumeNodeID = NULL;
-  this->OutputVolumeNodeID = NULL;
-  this->Mode = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->MaskVolumeNodeID = nullptr;
+  this->OutputVolumeNodeID = nullptr;
+  this->Mode = nullptr;
   this->SetMode("ROI");
-  this->Operation = NULL;
+  this->Operation = nullptr;
   this->SetOperation("Blank");
-  this->BlankRegion = NULL;
+  this->BlankRegion = nullptr;
   this->SetBlankRegion("Outside");
-  this->BlankValue = NULL;
+  this->BlankValue = nullptr;
   this->SetBlankValue("NaN");
   this->OutputSerial = 1;
   this->Status = 0;
@@ -68,43 +68,43 @@ vtkMRMLAstroMaskingParametersNode::~vtkMRMLAstroMaskingParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->MaskVolumeNodeID)
     {
     delete [] this->MaskVolumeNodeID;
-    this->MaskVolumeNodeID = NULL;
+    this->MaskVolumeNodeID = nullptr;
     }
 
   if (this->OutputVolumeNodeID)
     {
     delete [] this->OutputVolumeNodeID;
-    this->OutputVolumeNodeID = NULL;
+    this->OutputVolumeNodeID = nullptr;
     }
 
   if (this->Mode)
     {
     delete [] this->Mode;
-    this->Mode = NULL;
+    this->Mode = nullptr;
     }
 
   if (this->Operation)
     {
     delete [] this->Operation;
-    this->Operation = NULL;
+    this->Operation = nullptr;
     }
 
   if (this->BlankRegion)
     {
     delete [] this->BlankRegion;
-    this->BlankRegion = NULL;
+    this->BlankRegion = nullptr;
     }
 
   if (this->BlankValue)
     {
     delete [] this->BlankValue;
-    this->BlankValue = NULL;
+    this->BlankValue = nullptr;
     }
 }
 
@@ -135,7 +135,7 @@ int StringToInt(const char* str)
 //----------------------------------------------------------------------------
 void vtkMRMLAstroMaskingParametersNode::SetROINode(vtkMRMLAnnotationROINode* node)
 {
-  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
@@ -143,7 +143,7 @@ vtkMRMLAnnotationROINode *vtkMRMLAstroMaskingParametersNode::GetROINode()
 {
   if (!this->Scene)
     {
-    return NULL;
+    return nullptr;
     }
 
   return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
@@ -156,7 +156,7 @@ void vtkMRMLAstroMaskingParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -223,37 +223,37 @@ void vtkMRMLAstroMaskingParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->MaskVolumeNodeID != NULL)
+  if (this->MaskVolumeNodeID != nullptr)
     {
     of << indent << " MaskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
     }
 
-  if (this->OutputVolumeNodeID != NULL)
+  if (this->OutputVolumeNodeID != nullptr)
     {
     of << indent << " outputVolumeNodeID=\"" << this->OutputVolumeNodeID << "\"";
     }
 
-  if (this->Mode != NULL)
+  if (this->Mode != nullptr)
     {
     of << indent << " Mode=\"" << this->Mode << "\"";
     }
 
-  if (this->Operation != NULL)
+  if (this->Operation != nullptr)
     {
     of << indent << " Operation=\"" << this->Operation << "\"";
     }
 
-  if (this->BlankRegion != NULL)
+  if (this->BlankRegion != nullptr)
     {
     of << indent << " BlankRegion=\"" << this->BlankRegion << "\"";
     }
 
-  if (this->BlankValue != NULL)
+  if (this->BlankValue != nullptr)
     {
     of << indent << " BlankValue=\"" << this->BlankValue << "\"";
     }

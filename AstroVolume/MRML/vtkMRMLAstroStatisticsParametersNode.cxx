@@ -48,9 +48,9 @@ vtkMRMLAstroStatisticsParametersNode::vtkMRMLAstroStatisticsParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->MaskVolumeNodeID = NULL;
-  this->Mode = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->MaskVolumeNodeID = nullptr;
+  this->Mode = nullptr;
   this->SetMode("ROI");
   this->Cores = 0;
   this->Max = true;
@@ -71,19 +71,19 @@ vtkMRMLAstroStatisticsParametersNode::~vtkMRMLAstroStatisticsParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->MaskVolumeNodeID)
     {
     delete [] this->MaskVolumeNodeID;
-    this->MaskVolumeNodeID = NULL;
+    this->MaskVolumeNodeID = nullptr;
     }
 
   if (this->Mode)
     {
     delete [] this->Mode;
-    this->Mode = NULL;
+    this->Mode = nullptr;
     }
 }
 
@@ -120,7 +120,7 @@ int StringToInt(const char* str)
 //----------------------------------------------------------------------------
 void vtkMRMLAstroStatisticsParametersNode::SetTableNode(vtkMRMLTableNode* node)
 {
-  this->SetNodeReferenceID(this->GetTableNodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetTableNodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
@@ -128,7 +128,7 @@ vtkMRMLTableNode *vtkMRMLAstroStatisticsParametersNode::GetTableNode()
 {
   if (!this->Scene)
     {
-    return NULL;
+    return nullptr;
     }
 
   return vtkMRMLTableNode::SafeDownCast(this->GetNodeReference(this->GetTableNodeReferenceRole()));
@@ -137,7 +137,7 @@ vtkMRMLTableNode *vtkMRMLAstroStatisticsParametersNode::GetTableNode()
 //----------------------------------------------------------------------------
 void vtkMRMLAstroStatisticsParametersNode::SetROINode(vtkMRMLAnnotationROINode* node)
 {
-  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : NULL));
+  this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
@@ -145,7 +145,7 @@ vtkMRMLAnnotationROINode *vtkMRMLAstroStatisticsParametersNode::GetROINode()
 {
   if (!this->Scene)
     {
-    return NULL;
+    return nullptr;
     }
 
   return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
@@ -158,7 +158,7 @@ void vtkMRMLAstroStatisticsParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -255,17 +255,17 @@ void vtkMRMLAstroStatisticsParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->MaskVolumeNodeID != NULL)
+  if (this->MaskVolumeNodeID != nullptr)
     {
     of << indent << " MaskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
     }
 
-  if (this->Mode != NULL)
+  if (this->Mode != nullptr)
     {
     of << indent << " Mode=\"" << this->Mode << "\"";
     }

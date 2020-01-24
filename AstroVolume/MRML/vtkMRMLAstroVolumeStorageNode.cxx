@@ -110,7 +110,7 @@ void vtkMRMLAstroVolumeStorageNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -162,10 +162,10 @@ bool vtkMRMLAstroVolumeStorageNode::CanReadInReferenceNode(vtkMRMLNode *refNode)
 //----------------------------------------------------------------------------
 int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 {
-  vtkMRMLAstroVolumeNode *volNode = NULL;
-  vtkMRMLAstroLabelMapVolumeNode *labvolNode = NULL;
-  vtkMRMLAstroVolumeDisplayNode *disNode = NULL;
-  vtkMRMLAstroLabelMapVolumeDisplayNode *labdisNode = NULL;
+  vtkMRMLAstroVolumeNode *volNode = nullptr;
+  vtkMRMLAstroLabelMapVolumeNode *labvolNode = nullptr;
+  vtkMRMLAstroVolumeDisplayNode *disNode = nullptr;
+  vtkMRMLAstroLabelMapVolumeDisplayNode *labdisNode = nullptr;
 
   if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
@@ -200,14 +200,14 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     {
     if (volNode->GetImageData())
       {
-      volNode->SetAndObserveImageData (NULL);
+      volNode->SetAndObserveImageData (nullptr);
       }
     }
   else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     if (labvolNode->GetImageData())
       {
-      labvolNode->SetAndObserveImageData (NULL);
+      labvolNode->SetAndObserveImageData (nullptr);
       }
     }
 
@@ -246,7 +246,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
   reader->Update();
 
-  if (reader->GetWCSStruct() == NULL)
+  if (reader->GetWCSStruct() == nullptr)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
                   "WCS not allocated.");
@@ -294,7 +294,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
       vtkImageData *imageData = reader->GetOutput();
-      if (imageData == NULL)
+      if (imageData == nullptr)
         {
         vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : "
                       "imageData not allocated.");
@@ -440,7 +440,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 //----------------------------------------------------------------------------
 int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
 {
-  vtkMRMLVolumeNode *volNode = NULL;
+  vtkMRMLVolumeNode *volNode = nullptr;
 
   if ( refNode->IsA("vtkMRMLAstroVolumeNode") )
     {
@@ -463,10 +463,10 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     return 0;
     }
 
-  if (volNode->GetImageData() == NULL)
+  if (volNode->GetImageData() == nullptr)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal :"
-                  " cannot write NULL ImageData");
+                  " cannot write nullptr ImageData");
     }
 
   std::string fullName = this->GetFullNameFromFileName();
@@ -497,7 +497,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     {
     vtkErrorMacro("vtkMRMLAstroVolumeStorageNode::WriteDataInternal : "
                   "ERROR writing FITS file " <<
-                  (writer->GetFileName() == NULL ? "null" : writer->GetFileName()));
+                  (writer->GetFileName() == nullptr ? "nullptr" : writer->GetFileName()));
     writeFlag = 0;
     }
 

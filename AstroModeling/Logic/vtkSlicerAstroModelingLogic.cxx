@@ -76,69 +76,69 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroModelingLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
-  this->MarkupsLogic = 0;
-  this->par = NULL;
-  this->head = NULL;
-  this->cubeF = NULL;
-  this->cubeD = NULL;
-  this->modF = NULL;
-  this->modD = NULL;
-  this->fitF = NULL;
-  this->fitD = NULL;
+  this->AstroVolumeLogic = nullptr;
+  this->MarkupsLogic = nullptr;
+  this->par = nullptr;
+  this->head = nullptr;
+  this->cubeF = nullptr;
+  this->cubeD = nullptr;
+  this->modF = nullptr;
+  this->modD = nullptr;
+  this->fitF = nullptr;
+  this->fitD = nullptr;
   this->totflux_data = 0.;
 }
 
 //---------------------------------------------------------------------------
 vtkSlicerAstroModelingLogic::vtkInternal::~vtkInternal()
 {
-  if (head != NULL)
+  if (head != nullptr)
     {
     delete head;
     }
-  head = NULL;
+  head = nullptr;
 
-  if (par != NULL)
+  if (par != nullptr)
     {
     delete par;
     }
-  par = NULL;
+  par = nullptr;
 
-  if (cubeF != NULL)
+  if (cubeF != nullptr)
     {
     delete cubeF;
     }
-  cubeF = NULL;
+  cubeF = nullptr;
 
-  if (cubeD != NULL)
+  if (cubeD != nullptr)
     {
     delete cubeD;
     }
-  cubeD = NULL;
+  cubeD = nullptr;
 
-  if (modF != NULL)
+  if (modF != nullptr)
     {
     delete modF;
     }
-  modF = NULL;
+  modF = nullptr;
 
-  if (modD != NULL)
+  if (modD != nullptr)
     {
     delete modD;
     }
-  modD = NULL;
+  modD = nullptr;
 
-  if (fitF != NULL)
+  if (fitF != nullptr)
     {
     delete fitF;
     }
-  fitF = NULL;
+  fitF = nullptr;
 
-  if (fitD != NULL)
+  if (fitD != nullptr)
     {
     delete fitD;
     }
-  fitD = NULL;
+  fitD = nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -241,52 +241,52 @@ double vtkSlicerAstroModelingLogic::CalculateCentralVelocity(vtkMRMLAstroVolumeD
 //----------------------------------------------------------------------------
 void vtkSlicerAstroModelingLogic::cleanPointers()
 {
-  if (this->Internal->fitF != NULL)
+  if (this->Internal->fitF != nullptr)
     {
     delete this->Internal->fitF;
-    this->Internal->fitF = NULL;
+    this->Internal->fitF = nullptr;
     }
 
-  if (this->Internal->cubeF != NULL)
+  if (this->Internal->cubeF != nullptr)
     {
     delete this->Internal->cubeF;
-    this->Internal->cubeF = NULL;
+    this->Internal->cubeF = nullptr;
     }
 
-  if (this->Internal->modF != NULL)
+  if (this->Internal->modF != nullptr)
     {
     delete this->Internal->modF;
-    this->Internal->modF = NULL;
+    this->Internal->modF = nullptr;
     }
 
-  if (this->Internal->fitD != NULL)
+  if (this->Internal->fitD != nullptr)
     {
     delete this->Internal->fitD;
-    this->Internal->fitD = NULL;
+    this->Internal->fitD = nullptr;
     }
 
-  if (this->Internal->cubeD != NULL)
+  if (this->Internal->cubeD != nullptr)
     {
     delete this->Internal->cubeD;
-    this->Internal->cubeD = NULL;
+    this->Internal->cubeD = nullptr;
     }
 
-  if (this->Internal->modD != NULL)
+  if (this->Internal->modD != nullptr)
     {
     delete this->Internal->modD;
-    this->Internal->modD = NULL;
+    this->Internal->modD = nullptr;
     }
 
-  if (this->Internal->par != NULL)
+  if (this->Internal->par != nullptr)
     {
     delete this->Internal->par;
-    this->Internal->par = NULL;
+    this->Internal->par = nullptr;
     }
 
-  if (this->Internal->head != NULL)
+  if (this->Internal->head != nullptr)
     {
     delete this->Internal->head;
-    this->Internal->head = NULL;
+    this->Internal->head = nullptr;
     }
 }
 
@@ -401,7 +401,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   if (!imageData)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " input imageData NULL!");
+                  " input imageData nullptr!");
     return 0;
     }
 
@@ -409,7 +409,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   if (!pointData)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " input pointData NULL!");
+                  " input pointData nullptr!");
     return 0;
     }
 
@@ -417,7 +417,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   if (!dataArray)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " input dataArray NULL!");
+                  " input dataArray nullptr!");
     return 0;
     }
 
@@ -426,7 +426,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   if (!inputVolumeDisplay)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " inputVolumeDisplay NULL!");
+                  " inputVolumeDisplay nullptr!");
     return 0;
     }
 
@@ -445,18 +445,18 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
   string file = inputVolume->GetName();
 
-  if (this->Internal->par != NULL)
+  if (this->Internal->par != nullptr)
     {
     delete this->Internal->par;
-    this->Internal->par = NULL;
+    this->Internal->par = nullptr;
     }
 
   this->Internal->par = new Param;
 
-  if (this->Internal->head != NULL)
+  if (this->Internal->head != nullptr)
     {
     delete this->Internal->head;
-    this->Internal->head = NULL;
+    this->Internal->head = nullptr;
     }
 
   this->Internal->head = new Header;
@@ -800,10 +800,10 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
     {
     case VTK_FLOAT:
       {
-      if (this->Internal->cubeF != NULL)
+      if (this->Internal->cubeF != nullptr)
         {
         delete this->Internal->cubeF;
-        this->Internal->cubeF = NULL;
+        this->Internal->cubeF = nullptr;
         }
 
       this->Internal->cubeF = new Cube<float>;
@@ -853,7 +853,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         this->Internal->cubeF->setMask(mask);
         delete [] mask;
-        mask = NULL;
+        mask = nullptr;
         }
 
       // Searching stuff if the user has not provided a mask
@@ -865,10 +865,10 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       // Cube Fitting
       if (this->Internal->par->getflagGalFit())
         {
-        if (this->Internal->fitF != NULL)
+        if (this->Internal->fitF != nullptr)
           {
           delete this->Internal->fitF;
-          this->Internal->fitF = NULL;
+          this->Internal->fitF = nullptr;
           }
 
         this->Internal->fitF = new Model::Galfit<float>();
@@ -1171,27 +1171,27 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         delete totalmap;
-        totalmap = NULL;
+        totalmap = nullptr;
         delete ringreg;
-        ringreg = NULL;
-        outarray = NULL;
-        if (this->Internal->modF != NULL)
+        ringreg = nullptr;
+        outarray = nullptr;
+        if (this->Internal->modF != nullptr)
           {
           delete this->Internal->modF;
-          this->Internal->modF = NULL;
+          this->Internal->modF = nullptr;
           }
-        outFPixel = NULL;
-        inFPixel = NULL;
-        residualFPixel = NULL;
+        outFPixel = nullptr;
+        inFPixel = nullptr;
+        residualFPixel = nullptr;
         }
       break;
       }
     case VTK_DOUBLE:
       {
-      if (this->Internal->cubeD != NULL)
+      if (this->Internal->cubeD != nullptr)
         {
         delete this->Internal->cubeD;
-        this->Internal->cubeD = NULL;
+        this->Internal->cubeD = nullptr;
         }
 
       this->Internal->cubeD = new Cube<double>;
@@ -1241,7 +1241,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         this->Internal->cubeD->setMask(mask);
         delete [] mask;
-        mask = NULL;
+        mask = nullptr;
         }
 
       // Searching stuff if the user has not provided a mask
@@ -1253,10 +1253,10 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
       // Cube Fitting
       if (this->Internal->par->getflagGalFit())
         {
-        if (this->Internal->fitD != NULL)
+        if (this->Internal->fitD != nullptr)
           {
           delete this->Internal->fitD;
-          this->Internal->fitD = NULL;
+          this->Internal->fitD = nullptr;
           }
 
         this->Internal->fitD = new Model::Galfit<double>();
@@ -1558,18 +1558,18 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         delete totalmap;
-        totalmap = NULL;
+        totalmap = nullptr;
         delete ringreg;
-        ringreg = NULL;
-        outarray = NULL;
-        if (this->Internal->modD != NULL)
+        ringreg = nullptr;
+        outarray = nullptr;
+        if (this->Internal->modD != nullptr)
           {
           delete this->Internal->modD;
-          this->Internal->modD = NULL;
+          this->Internal->modD = nullptr;
           }
-        outDPixel = NULL;
-        inDPixel = NULL;
-        residualDPixel = NULL;
+        outDPixel = nullptr;
+        inDPixel = nullptr;
+        residualDPixel = nullptr;
         }
       break;
       }
@@ -1898,7 +1898,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   if (!imageData)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                  " input imageData NULL!");
+                  " input imageData nullptr!");
     return 0;
     }
 
@@ -1906,7 +1906,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   if (!pointData)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                  " input pointData NULL!");
+                  " input pointData nullptr!");
     return 0;
     }
 
@@ -1914,7 +1914,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   if (!dataArray)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                  " input dataArray NULL!");
+                  " input dataArray nullptr!");
     return 0;
     }
 
@@ -1923,7 +1923,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   if (!inputVolumeDisplay)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                  " inputVolumeDisplay NULL!");
+                  " inputVolumeDisplay nullptr!");
     return 0;
     }
 
@@ -1932,7 +1932,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
   if (!WCS)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                  " WCS NULL!");
+                  " WCS nullptr!");
     return 0;
     }
 
@@ -1954,18 +1954,18 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
   if (!this->Internal->fitF && !this->Internal->fitD)
     {
-    if (this->Internal->par != NULL)
+    if (this->Internal->par != nullptr)
       {
       delete this->Internal->par;
-      this->Internal->par = NULL;
+      this->Internal->par = nullptr;
       }
 
     this->Internal->par = new Param;
 
-    if (this->Internal->head != NULL)
+    if (this->Internal->head != nullptr)
       {
       delete this->Internal->head;
-      this->Internal->head = NULL;
+      this->Internal->head = nullptr;
       }
 
     this->Internal->head = new Header;
@@ -2286,9 +2286,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             }
           }
         delete totalmap;
-        totalmap = NULL;
+        totalmap = nullptr;
         delete ringreg;
-        ringreg = NULL;
+        ringreg = nullptr;
         break;
         }
       case VTK_DOUBLE:
@@ -2320,9 +2320,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             }
           }
         delete totalmap;
-        totalmap = NULL;
+        totalmap = nullptr;
         delete ringreg;
-        ringreg = NULL;
+        ringreg = nullptr;
         break;
         }
       }
@@ -2611,21 +2611,21 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             *(residualFPixel + ii) = 0.;
             }
           }
-        residualFPixel = NULL;
+        residualFPixel = nullptr;
         }
 
       delete totalmap;
-      totalmap = NULL;
+      totalmap = nullptr;
       delete ringreg;
-      ringreg = NULL;
-      outarray = NULL;
-      if (this->Internal->modF != NULL)
+      ringreg = nullptr;
+      outarray = nullptr;
+      if (this->Internal->modF != nullptr)
         {
         delete this->Internal->modF;
-        this->Internal->modF = NULL;
+        this->Internal->modF = nullptr;
         }
-      outFPixel = NULL;
-      inFPixel = NULL;
+      outFPixel = nullptr;
+      inFPixel = nullptr;
       break;
       }
     case VTK_DOUBLE:
@@ -2901,21 +2901,21 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             *(residualDPixel + ii) = 0.;
             }
           }
-        residualDPixel = NULL;
+        residualDPixel = nullptr;
         }
 
       delete totalmap;
-      totalmap = NULL;
+      totalmap = nullptr;
       delete ringreg;
-      ringreg = NULL;
-      outarray = NULL;
-      if (this->Internal->modD != NULL)
+      ringreg = nullptr;
+      outarray = nullptr;
+      if (this->Internal->modD != nullptr)
         {
         delete this->Internal->modD;
-        this->Internal->modD = NULL;
+        this->Internal->modD = nullptr;
         }
-      outDPixel = NULL;
-      inDPixel = NULL;
+      outDPixel = nullptr;
+      inDPixel = nullptr;
       break;
       }
     }

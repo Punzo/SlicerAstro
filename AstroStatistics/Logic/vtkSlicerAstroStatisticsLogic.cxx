@@ -124,7 +124,7 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroStatisticsLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
+  this->AstroVolumeLogic = nullptr;
   this->MedianTempArray = vtkSmartPointer<vtkFloatArray>::New();
 }
 
@@ -296,9 +296,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   const int numSlice = dims[0] * dims[1] * numComponents;
   int numElements = dims[0] * dims[1] * dims[2] * numComponents;
 
-  float *inFPixel = NULL;
-  double *inDPixel = NULL;
-  short *maskPixel = NULL;
+  float *inFPixel = nullptr;
+  double *inDPixel = nullptr;
+  short *maskPixel = nullptr;
   double Max = inputVolume->GetImageData()->GetScalarTypeMin(), Min = inputVolume->GetImageData()->GetScalarTypeMax();
   double Mean = 0., Median = 0., Std = 0., Sum = 0., TotalFlux = 0.;
   int Npixels = 0;
@@ -338,7 +338,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -435,9 +435,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = NULL;
-        inDPixel = NULL;
-        maskPixel = NULL;
+        inFPixel = nullptr;
+        inDPixel = nullptr;
+        maskPixel = nullptr;
 
         delete inFPixel;
         delete inDPixel;
@@ -527,9 +527,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = NULL;
-        inDPixel = NULL;
-        maskPixel = NULL;
+        inFPixel = nullptr;
+        inDPixel = nullptr;
+        maskPixel = nullptr;
 
         delete inFPixel;
         delete inDPixel;
@@ -604,7 +604,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         Median = *(TempPixel + (int) ((Npixels - 1) * 0.5));
         }
 
-      TempPixel = NULL;
+      TempPixel = nullptr;
 
       delete TempPixel;
 
@@ -729,9 +729,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = NULL;
-        inDPixel = NULL;
-        maskPixel = NULL;
+        inFPixel = nullptr;
+        inDPixel = nullptr;
+        maskPixel = nullptr;
 
         delete inFPixel;
         delete inDPixel;
@@ -829,9 +829,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = NULL;
-        inDPixel = NULL;
-        maskPixel = NULL;
+        inFPixel = nullptr;
+        inDPixel = nullptr;
+        maskPixel = nullptr;
 
         delete inFPixel;
         delete inDPixel;
@@ -913,7 +913,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         Median = *(TempPixel + (int) ((Npixels - 1) * 0.5));
         }
 
-      TempPixel = NULL;
+      TempPixel = nullptr;
 
       delete TempPixel;
 
@@ -921,7 +921,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -930,9 +930,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   vtkDebugMacro("Statistics Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  inDPixel = NULL;
-  maskPixel = NULL;
+  inFPixel = nullptr;
+  inDPixel = nullptr;
+  maskPixel = nullptr;
 
   delete inFPixel;
   delete inDPixel;
@@ -945,7 +945,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     return false;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   double NaN = sqrt(-1);
   int serial = pnode->GetOutputSerial() - 1;
@@ -1009,7 +1009,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   serial++;
   pnode->SetOutputSerial(serial + 1);
 
-  gettimeofday(&end, NULL);;
+  gettimeofday(&end, nullptr);;
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;

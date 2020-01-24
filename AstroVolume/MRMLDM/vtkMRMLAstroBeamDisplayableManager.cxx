@@ -75,7 +75,7 @@ public:
     }
   vtkAstroBeamRendererUpdateObserver()
     {
-    this->DisplayableManager = 0;
+    this->DisplayableManager = nullptr;
     }
   virtual void Execute(vtkObject* vtkNotUsed(wdg), unsigned long vtkNotUsed(event), void* vtkNotUsed(calldata))
     {
@@ -167,7 +167,7 @@ vtkMRMLAstroBeamDisplayableManager::vtkInternal::vtkInternal(vtkMRMLAstroBeamDis
   this->beamActor = vtkSmartPointer<vtkActor2D>::New();
   this->beamMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
   this->col = vtkSmartPointer<vtkCollection>::New();
-  this->app = 0;
+  this->app = nullptr;
   this->Color = vtkSmartPointer<vtkDoubleArray>::New();
   this->Color->SetNumberOfValues(3);
   this->Color->SetValue(0, COLOR_INVALID[0]);
@@ -218,7 +218,7 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::RemoveRendererUpdateObserv
     {
     this->ObservedRenderer->RemoveObserver(this->RendererUpdateObservationId);
     this->RendererUpdateObservationId = 0;
-    this->ObservedRenderer = NULL;
+    this->ObservedRenderer = nullptr;
     }
 }
 
@@ -226,7 +226,7 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::RemoveRendererUpdateObserv
 void vtkMRMLAstroBeamDisplayableManager::vtkInternal::SetupMarkerRenderer()
 {
   vtkRenderer* renderer = this->External->GetRenderer();
-  if (renderer==NULL)
+  if (renderer==nullptr)
     {
     vtkErrorWithObjectMacro(this->External, "vtkMRMLAstroBeamDisplayableManager"
                                             "::vtkInternal::SetupMarkerRenderer() failed: renderer is invalid");

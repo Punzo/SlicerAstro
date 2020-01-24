@@ -111,7 +111,7 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroMaskingLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
+  this->AstroVolumeLogic = nullptr;
   this->MedianTempArray = vtkSmartPointer<vtkFloatArray>::New();
   this->blankImageDataTemp = vtkSmartPointer<vtkImageData>::New();
 }
@@ -244,11 +244,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   const int numSlice = dims[0] * dims[1] * numComponents;
   const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
 
-  float *inFPixel = NULL;
-  float *outFPixel = NULL;
-  double *inDPixel = NULL;
-  double *outDPixel = NULL;
-  short *maskPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outFPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outDPixel = nullptr;
+  short *maskPixel = nullptr;
 
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
@@ -273,7 +273,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -328,11 +328,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
                     " roiNode not found!");
-      inFPixel = NULL;
-      outFPixel = NULL;
-      inDPixel = NULL;
-      outFPixel = NULL;
-      maskPixel = NULL;
+      inFPixel = nullptr;
+      outFPixel = nullptr;
+      inDPixel = nullptr;
+      outFPixel = nullptr;
+      maskPixel = nullptr;
 
       delete inFPixel;
       delete outFPixel;
@@ -360,11 +360,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
                     " can not fill the entire datacube with NaN!");
-      inFPixel = NULL;
-      outFPixel = NULL;
-      inDPixel = NULL;
-      outFPixel = NULL;
-      maskPixel = NULL;
+      inFPixel = nullptr;
+      outFPixel = nullptr;
+      inDPixel = nullptr;
+      outFPixel = nullptr;
+      maskPixel = nullptr;
 
       delete inFPixel;
       delete outFPixel;
@@ -427,7 +427,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -436,11 +436,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  outFPixel = NULL;
-  inDPixel = NULL;
-  outFPixel = NULL;
-  maskPixel = NULL;
+  inFPixel = nullptr;
+  outFPixel = nullptr;
+  inDPixel = nullptr;
+  outFPixel = nullptr;
+  maskPixel = nullptr;
 
   delete inFPixel;
   delete outFPixel;
@@ -454,7 +454,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     return false;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -534,10 +534,10 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   int firstElement = 0, lastElement = 0;
   double cropBounds[6] = {0.};
 
-  float *inFPixel = NULL;
-  float *outFPixel = NULL;
-  double *inDPixel = NULL;
-  double *outDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outFPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outDPixel = nullptr;
 
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
 
@@ -645,7 +645,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -691,7 +691,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -700,8 +700,8 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  inDPixel = NULL;
+  inFPixel = nullptr;
+  inDPixel = nullptr;
 
   delete inFPixel;
   delete inDPixel;
@@ -710,8 +710,8 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   if (cancel)
     {
-    outFPixel = NULL;
-    outDPixel = NULL;
+    outFPixel = nullptr;
+    outDPixel = nullptr;
     delete outFPixel;
     delete outDPixel;
 
@@ -719,7 +719,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     return false;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateDisplayThresholdAttributes();
@@ -777,7 +777,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);;
+  gettimeofday(&end, nullptr);;
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;

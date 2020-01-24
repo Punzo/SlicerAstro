@@ -35,13 +35,13 @@ qSlicerAstroModelingModuleWorker::qSlicerAstroModelingModuleWorker(QObject *pare
 {
   _working =false;
   _abort = false;
-  astroModelingLogic = NULL;
+  astroModelingLogic = nullptr;
 }
 
 //-----------------------------------------------------------------------------
 qSlicerAstroModelingModuleWorker::~qSlicerAstroModelingModuleWorker()
 {
-  astroModelingLogic = NULL;
+  astroModelingLogic = nullptr;
 }
 
 //-----------------------------------------------------------------------------

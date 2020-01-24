@@ -106,7 +106,7 @@ public:
     }
   vtkAstroTwoDAxesRendererUpdateObserver()
     {
-    this->DisplayableManager = 0;
+    this->DisplayableManager = nullptr;
     }
   virtual void Execute(vtkObject* vtkNotUsed(wdg), unsigned long vtkNotUsed(event), void* vtkNotUsed(calldata))
     {
@@ -182,7 +182,7 @@ vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::vtkInternal(vtkMRMLAstroTwo
   this->twoDAxesActor = vtkSmartPointer<vtkActor2D>::New();
   this->twoDAxesMapper = vtkSmartPointer<vtkPolyDataMapper2D>::New();
   this->col = vtkSmartPointer<vtkCollection>::New();
-  this->app = 0;
+  this->app = nullptr;
   this->Color = vtkSmartPointer<vtkDoubleArray>::New();
   this->Color->SetNumberOfValues(3);
   this->Color->SetValue(0, COLOR_INVALID[0]);
@@ -235,7 +235,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::RemoveRendererUpdateOb
     {
     this->ObservedRenderer->RemoveObserver(this->RendererUpdateObservationId);
     this->RendererUpdateObservationId = 0;
-    this->ObservedRenderer = NULL;
+    this->ObservedRenderer = nullptr;
     }
 }
 
@@ -243,7 +243,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::RemoveRendererUpdateOb
 void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::SetupMarkerRenderer()
 {
   vtkRenderer* renderer = this->External->GetRenderer();
-  if (renderer==NULL)
+  if (renderer==nullptr)
     {
     vtkErrorWithObjectMacro(this->External, "vtkMRMLAstroTwoDAxesDisplayableManager"
                                             "::vtkInternal::SetupMarkerRenderer() failed: renderer is invalid");

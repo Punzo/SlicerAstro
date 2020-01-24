@@ -103,7 +103,7 @@ public:
 //----------------------------------------------------------------------------
 vtkSlicerAstroMomentMapsLogic::vtkInternal::vtkInternal()
 {
-  this->AstroVolumeLogic = 0;
+  this->AstroVolumeLogic = nullptr;
 }
 
 //---------------------------------------------------------------------------
@@ -239,15 +239,15 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
   const int numSlice = dims[0] * dims[1] * numComponents;
 
-  float *inFPixel = NULL;
-  float *outZeroFPixel = NULL;
-  float *outFirstFPixel = NULL;
-  float *outSecondFPixel = NULL;
-  short *maskPixel = NULL;
-  double *inDPixel = NULL;
-  double *outZeroDPixel = NULL;
-  double *outFirstDPixel = NULL;
-  double *outSecondDPixel = NULL;
+  float *inFPixel = nullptr;
+  float *outZeroFPixel = nullptr;
+  float *outFirstFPixel = nullptr;
+  float *outSecondFPixel = nullptr;
+  short *maskPixel = nullptr;
+  double *inDPixel = nullptr;
+  double *outZeroDPixel = nullptr;
+  double *outFirstDPixel = nullptr;
+  double *outSecondDPixel = nullptr;
 
   bool forceGenerateFirst = false;
 
@@ -309,7 +309,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   long mtime, seconds, useconds;
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   pnode->SetStatus(1);
 
@@ -856,7 +856,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       }
     }
 
-  gettimeofday(&end, NULL);
+  gettimeofday(&end, nullptr);
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;
@@ -865,18 +865,18 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   vtkDebugMacro("Moment Maps Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = NULL;
-  inDPixel = NULL;
+  inFPixel = nullptr;
+  inDPixel = nullptr;
 
   delete inFPixel;
   delete inDPixel;
 
-  outZeroFPixel = NULL;
-  outFirstFPixel = NULL;
-  outSecondFPixel = NULL;
-  outZeroDPixel = NULL;
-  outFirstDPixel = NULL;
-  outSecondDPixel = NULL;
+  outZeroFPixel = nullptr;
+  outFirstFPixel = nullptr;
+  outSecondFPixel = nullptr;
+  outZeroDPixel = nullptr;
+  outFirstDPixel = nullptr;
+  outSecondDPixel = nullptr;
 
   delete outZeroFPixel;
   delete outFirstFPixel;
@@ -887,7 +887,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   if (pnode->GetMaskActive())
     {
-    maskPixel = NULL;
+    maskPixel = nullptr;
     delete maskPixel;
     }
 
@@ -897,7 +897,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     return false;
     }
 
-  gettimeofday(&start, NULL);
+  gettimeofday(&start, nullptr);
 
   if (pnode->GetGenerateZero())
     {
@@ -953,7 +953,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, NULL);;
+  gettimeofday(&end, nullptr);;
 
   seconds  = end.tv_sec  - start.tv_sec;
   useconds = end.tv_usec - start.tv_usec;

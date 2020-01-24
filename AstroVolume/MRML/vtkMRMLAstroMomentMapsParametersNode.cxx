@@ -42,11 +42,11 @@ vtkMRMLAstroMomentMapsParametersNode::vtkMRMLAstroMomentMapsParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->ZeroMomentVolumeNodeID = NULL;
-  this->FirstMomentVolumeNodeID = NULL;
-  this->SecondMomentVolumeNodeID = NULL;
-  this->MaskVolumeNodeID = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->ZeroMomentVolumeNodeID = nullptr;
+  this->FirstMomentVolumeNodeID = nullptr;
+  this->SecondMomentVolumeNodeID = nullptr;
+  this->MaskVolumeNodeID = nullptr;
   this->Cores = 0;
   this->MaskActive = false;
   this->GenerateZero = true;
@@ -66,31 +66,31 @@ vtkMRMLAstroMomentMapsParametersNode::~vtkMRMLAstroMomentMapsParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->ZeroMomentVolumeNodeID)
     {
     delete [] this->ZeroMomentVolumeNodeID;
-    this->ZeroMomentVolumeNodeID = NULL;
+    this->ZeroMomentVolumeNodeID = nullptr;
     }
 
   if (this->FirstMomentVolumeNodeID)
     {
     delete [] this->FirstMomentVolumeNodeID;
-    this->FirstMomentVolumeNodeID = NULL;
+    this->FirstMomentVolumeNodeID = nullptr;
     }
 
   if (this->SecondMomentVolumeNodeID)
     {
     delete [] this->SecondMomentVolumeNodeID;
-    this->SecondMomentVolumeNodeID = NULL;
+    this->SecondMomentVolumeNodeID = nullptr;
     }
 
   if (this->MaskVolumeNodeID)
     {
     delete [] this->MaskVolumeNodeID;
-    this->MaskVolumeNodeID = NULL;
+    this->MaskVolumeNodeID = nullptr;
     }
 }
 
@@ -125,7 +125,7 @@ void vtkMRMLAstroMomentMapsParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -234,27 +234,27 @@ void vtkMRMLAstroMomentMapsParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->ZeroMomentVolumeNodeID != NULL)
+  if (this->ZeroMomentVolumeNodeID != nullptr)
     {
     of << indent << " ZeroMomentVolumeNodeID=\"" << this->ZeroMomentVolumeNodeID << "\"";
     }
 
-  if (this->FirstMomentVolumeNodeID != NULL)
+  if (this->FirstMomentVolumeNodeID != nullptr)
     {
     of << indent << " FirstMomentVolumeNodeID=\"" << this->FirstMomentVolumeNodeID << "\"";
     }
 
-  if (this->SecondMomentVolumeNodeID != NULL)
+  if (this->SecondMomentVolumeNodeID != nullptr)
     {
     of << indent << " SecondMomentVolumeNodeID=\"" << this->SecondMomentVolumeNodeID << "\"";
     }
 
-  if (this->MaskVolumeNodeID != NULL)
+  if (this->MaskVolumeNodeID != nullptr)
     {
     of << indent << " MaskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
     }

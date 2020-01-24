@@ -41,9 +41,9 @@ vtkMRMLAstroReprojectParametersNode::vtkMRMLAstroReprojectParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->ReferenceVolumeNodeID = NULL;
-  this->OutputVolumeNodeID = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->ReferenceVolumeNodeID = nullptr;
+  this->OutputVolumeNodeID = nullptr;
   this->ReprojectRotation = false;
   this->ReprojectData = false;
   this->OutputSerial = 1;
@@ -58,19 +58,19 @@ vtkMRMLAstroReprojectParametersNode::~vtkMRMLAstroReprojectParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->ReferenceVolumeNodeID)
     {
     delete [] this->ReferenceVolumeNodeID;
-    this->ReferenceVolumeNodeID = NULL;
+    this->ReferenceVolumeNodeID = nullptr;
     }
 
   if (this->OutputVolumeNodeID)
     {
     delete [] this->OutputVolumeNodeID;
-    this->OutputVolumeNodeID = NULL;
+    this->OutputVolumeNodeID = nullptr;
     }
 }
 
@@ -100,7 +100,7 @@ void vtkMRMLAstroReprojectParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -167,17 +167,17 @@ void vtkMRMLAstroReprojectParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->ReferenceVolumeNodeID != NULL)
+  if (this->ReferenceVolumeNodeID != nullptr)
     {
     of << indent << " referenceVolumeNodeID=\"" << this->ReferenceVolumeNodeID << "\"";
     }
 
-  if (this->OutputVolumeNodeID != NULL)
+  if (this->OutputVolumeNodeID != nullptr)
     {
     of << indent << " outputVolumeNodeID=\"" << this->OutputVolumeNodeID << "\"";
     }

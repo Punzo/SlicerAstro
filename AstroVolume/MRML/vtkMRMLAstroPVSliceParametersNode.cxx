@@ -43,9 +43,9 @@ vtkMRMLAstroPVSliceParametersNode::vtkMRMLAstroPVSliceParametersNode()
 {
   this->HideFromEditors = 1;
 
-  this->InputVolumeNodeID = NULL;
-  this->MomentMapNodeID = NULL;
-  this->LineNodeID = NULL;
+  this->InputVolumeNodeID = nullptr;
+  this->MomentMapNodeID = nullptr;
+  this->LineNodeID = nullptr;
 
   this->LineAngle = 0.;
   this->LineOldAngle = 0.;
@@ -80,19 +80,19 @@ vtkMRMLAstroPVSliceParametersNode::~vtkMRMLAstroPVSliceParametersNode()
   if (this->InputVolumeNodeID)
     {
     delete [] this->InputVolumeNodeID;
-    this->InputVolumeNodeID = NULL;
+    this->InputVolumeNodeID = nullptr;
     }
 
   if (this->MomentMapNodeID)
     {
     delete [] this->MomentMapNodeID;
-    this->MomentMapNodeID = NULL;
+    this->MomentMapNodeID = nullptr;
     }
 
   if (this->LineNodeID)
     {
     delete [] this->LineNodeID;
-    this->LineNodeID = NULL;
+    this->LineNodeID = nullptr;
     }
 }
 
@@ -103,7 +103,7 @@ void vtkMRMLAstroPVSliceParametersNode::ReadXMLAttributes(const char** atts)
 
   const char* attName;
   const char* attValue;
-  while (*atts != NULL)
+  while (*atts != nullptr)
     {
     attName = *(atts++);
     attValue = *(atts++);
@@ -160,17 +160,17 @@ void vtkMRMLAstroPVSliceParametersNode::WriteXML(ostream& of, int nIndent)
 
   vtkIndent indent(nIndent);
 
-  if (this->InputVolumeNodeID != NULL)
+  if (this->InputVolumeNodeID != nullptr)
     {
     of << indent << " inputVolumeNodeID=\"" << this->InputVolumeNodeID << "\"";
     }
 
-  if (this->MomentMapNodeID != NULL)
+  if (this->MomentMapNodeID != nullptr)
     {
     of << indent << " MomentMapNodeID=\"" << this->MomentMapNodeID << "\"";
     }
 
-  if (this->LineNodeID != NULL)
+  if (this->LineNodeID != nullptr)
     {
     of << indent << " LineNodeID=\"" << this->LineNodeID << "\"";
     }

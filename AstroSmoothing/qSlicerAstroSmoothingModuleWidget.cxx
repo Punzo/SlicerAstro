@@ -122,11 +122,11 @@ public:
 qSlicerAstroSmoothingModuleWidgetPrivate::qSlicerAstroSmoothingModuleWidgetPrivate(qSlicerAstroSmoothingModuleWidget& object)
   : q_ptr(&object)
 {
-  this->astroVolumeWidget = 0;
-  this->parametersNode = 0;
-  this->selectionNode = 0;
-  this->cameraNodeOne = 0;
-  this->segmentEditorNode = 0;
+  this->astroVolumeWidget = nullptr;
+  this->parametersNode = nullptr;
+  this->selectionNode = nullptr;
+  this->cameraNodeOne = nullptr;
+  this->segmentEditorNode = nullptr;
   this->parametricVTKEllipsoid = vtkSmartPointer<vtkParametricEllipsoid>::New();
   this->parametricFunctionSource = vtkSmartPointer<vtkParametricFunctionSource>::New();
   this->transformationMatrix = vtkSmartPointer<vtkMatrix4x4>::New();
@@ -291,7 +291,7 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::cleanPointers()
     if (this->segmentEditorNode->GetSegmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(NULL);
+      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
       }
     q->mrmlScene()->RemoveNode(this->segmentEditorNode);
     }
@@ -300,7 +300,7 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::cleanPointers()
     if (this->SegmentsTableView->segmentationNode())
       {
       q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(NULL);
+      this->SegmentsTableView->setSegmentationNode(nullptr);
       }
     }
 
@@ -540,7 +540,7 @@ void qSlicerAstroSmoothingModuleWidget::initializeParameterNode(bool forceNew /*
     return;
     }
 
-  vtkMRMLAstroSmoothingParametersNode *astroParametersNode = NULL;
+  vtkMRMLAstroSmoothingParametersNode *astroParametersNode = nullptr;
   unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroSmoothingParametersNode");
   if(numNodes > 0 && !forceNew)
     {
@@ -772,8 +772,8 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(NULL);
-    d->selectionNode->SetActiveVolumeID(NULL);
+    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
 
@@ -913,7 +913,7 @@ void qSlicerAstroSmoothingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->parametersNode->SetOutputVolumeNodeID(NULL);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
 }
 
@@ -1966,7 +1966,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     QString message = QString("Filtering is available only"
                               " for datacube with dimensionality 3 (NAXIS = 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(NULL, tr("Failed to run the filter"), message);
+    QMessageBox::warning(nullptr, tr("Failed to run the filter"), message);
     d->parametersNode->SetStatus(0);
     return;
     }
@@ -2009,7 +2009,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     name = outputVolume->GetName();
     if (!name.compare(inputVolume->GetName()))
       {
-      outputVolume = NULL;
+      outputVolume = nullptr;
       }
     else if (name.find("_Filtered_") != std::string::npos)
       {
@@ -2035,7 +2035,7 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 
-  vtkMRMLNode* node = NULL;
+  vtkMRMLNode* node = nullptr;
   outputVolume->SetPresetNode(node);
 
   // Remove old rendering Display
