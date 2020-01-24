@@ -1103,7 +1103,6 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
         if (volumeRenderingDisplay)
           {
           scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-          scene->RemoveNode(volumeRenderingDisplay);
           }
         scene->RemoveNode(ZeroMomentVolume);
         }
@@ -1206,7 +1205,6 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
         if (volumeRenderingDisplay)
           {
           scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-          scene->RemoveNode(volumeRenderingDisplay);
           }
         scene->RemoveNode(FirstMomentVolume);
         }
@@ -1312,14 +1310,11 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
         vtkMRMLAstroVolumeStorageNode* astroStorage =
           vtkMRMLAstroVolumeStorageNode::SafeDownCast(SecondMomentVolume->GetStorageNode());
         scene->RemoveNode(astroStorage);
-        scene->RemoveNode(SecondMomentVolume->GetAstroVolumeDisplayNode());
-
         vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
           vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(SecondMomentVolume->GetDisplayNode());
         if (volumeRenderingDisplay)
           {
           scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-          scene->RemoveNode(volumeRenderingDisplay);
           }
         scene->RemoveNode(SecondMomentVolume);
         }
