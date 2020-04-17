@@ -899,22 +899,22 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModi
     return;
     }
 
-  char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
+  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
   d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
-  char *zeroMomentVolumeNodeID = d->parametersNode->GetZeroMomentVolumeNodeID();
+  const char *zeroMomentVolumeNodeID = d->parametersNode->GetZeroMomentVolumeNodeID();
   vtkMRMLAstroVolumeNode *zeroMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(zeroMomentVolumeNodeID));
   d->ZeroMomentVolumeNodeSelector->setCurrentNode(zeroMomentVolumeNode);
 
-  char *firstMomentVolumeNodeID = d->parametersNode->GetFirstMomentVolumeNodeID();
+  const char *firstMomentVolumeNodeID = d->parametersNode->GetFirstMomentVolumeNodeID();
   vtkMRMLAstroVolumeNode *firstMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(firstMomentVolumeNodeID));
   d->FirstMomentVolumeNodeSelector->setCurrentNode(firstMomentVolumeNode);
 
-  char *secondMomentVolumeNodeID = d->parametersNode->GetSecondMomentVolumeNodeID();
+  const char *secondMomentVolumeNodeID = d->parametersNode->GetSecondMomentVolumeNodeID();
   vtkMRMLAstroVolumeNode *secondMomentVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(secondMomentVolumeNodeID));
   d->SecondMomentVolumeNodeSelector->setCurrentNode(secondMomentVolumeNode);

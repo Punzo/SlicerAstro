@@ -1193,28 +1193,28 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramParametersNodeModifi
     return;
     }
 
-  char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
+  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
   d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
-  char *momentMapNodeID = d->parametersNode->GetMomentMapNodeID();
+  const char *momentMapNodeID = d->parametersNode->GetMomentMapNodeID();
   vtkMRMLAstroVolumeNode *momentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(momentMapNodeID));
   d->MomentMapNodeSelector->setCurrentNode(momentMapNode);
 
-  char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
+  const char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
   d->OutputNodeSelector->setCurrentNode(outputVolumeNode);
 
-  char *fiducialsMarkupsNodeID = d->parametersNode->GetFiducialsMarkupsID();
+  const char *fiducialsMarkupsNodeID = d->parametersNode->GetFiducialsMarkupsID();
   vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(fiducialsMarkupsNodeID));
   d->SourcePointsNodeComboBox->setCurrentNode(fiducialsMarkupsNode);
   d->PointsMarkupsPlaceWidget->setCurrentNode(fiducialsMarkupsNode);
 
-  char *modelNodeID = d->parametersNode->GetModelID();
+  const char *modelNodeID = d->parametersNode->GetModelID();
   vtkMRMLModelNode *modelNode = vtkMRMLModelNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(modelNodeID));
   d->CurveModelNodeComboBox->setCurrentNode(modelNode);

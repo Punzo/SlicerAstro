@@ -917,17 +917,17 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceParametersNodeModified()
     return;
     }
 
-  char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
+  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
   d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
-  char *MomentMapNodeID = d->parametersNode->GetMomentMapNodeID();
+  const char *MomentMapNodeID = d->parametersNode->GetMomentMapNodeID();
   vtkMRMLAstroVolumeNode *MomentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(MomentMapNodeID));
   d->MomentMapNodeSelector->setCurrentNode(MomentMapNode);
 
-  char *LineNodeID = d->parametersNode->GetLineNodeID();
+  const char *LineNodeID = d->parametersNode->GetLineNodeID();
   vtkMRMLMarkupsLineNode *LineNode = vtkMRMLMarkupsLineNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(LineNodeID));
   d->LineNodeComboBox->setCurrentNode(LineNode);

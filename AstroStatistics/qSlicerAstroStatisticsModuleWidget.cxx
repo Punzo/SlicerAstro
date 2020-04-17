@@ -1141,7 +1141,7 @@ void qSlicerAstroStatisticsModuleWidget::onMRMLAstroStatisticsParametersNodeModi
     return;
     }
 
-  char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
+  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
   d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);

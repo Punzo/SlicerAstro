@@ -2097,8 +2097,8 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     return;
     }
 
-  char *activeVolumeNodeID = d->selectionNode->GetActiveVolumeID();
-  char *secondaryVolumeNodeID = d->selectionNode->GetSecondaryVolumeID();
+  const char *activeVolumeNodeID = d->selectionNode->GetActiveVolumeID();
+  const char *secondaryVolumeNodeID = d->selectionNode->GetSecondaryVolumeID();
 
   if (!d->logic())
     {
@@ -3346,17 +3346,17 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
     return;
     }
 
-  char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
+  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
   vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
   d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
-  char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
+  const char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
   d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
 
-  char *residualVolumeNodeID = d->parametersNode->GetResidualVolumeNodeID();
+  const char *residualVolumeNodeID = d->parametersNode->GetResidualVolumeNodeID();
   vtkMRMLAstroVolumeNode *residualVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(residualVolumeNodeID));
   d->ResidualVolumeNodeSelector->setCurrentNode(residualVolumeNode);
@@ -4184,8 +4184,8 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
     return;
     }
 
-  char *activeVolumeNodeID = d->selectionNode->GetActiveVolumeID();
-  char *secondaryVolumeNodeID = d->selectionNode->GetSecondaryVolumeID();
+  const char *activeVolumeNodeID = d->selectionNode->GetActiveVolumeID();
+  const char *secondaryVolumeNodeID = d->selectionNode->GetSecondaryVolumeID();
 
   vtkMRMLAstroVolumeNode *activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));

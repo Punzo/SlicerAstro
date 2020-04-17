@@ -1604,8 +1604,6 @@ void qSlicerAstroVolumeModuleWidget::resetOffsetStep(vtkMRMLNode *node)
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::resetOpacityShift(vtkMRMLNode *node)
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
   if (!volume)
     {
@@ -5111,8 +5109,6 @@ void qSlicerAstroVolumeModuleWidget::setDisplayConnection()
 //-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender)
 {
-  Q_D(qSlicerAstroVolumeModuleWidget);
-
   vtkMRMLSelectionNode *selectionNode =
       vtkMRMLSelectionNode::SafeDownCast(sender);
 
@@ -5120,8 +5116,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSelectionNodeModified(vtkObject* send
     {
     return;
     }
-  char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
-  char *activeLabelMapVolumeNodeID = selectionNode->GetActiveLabelVolumeID();
+  const char *activeVolumeNodeID = selectionNode->GetActiveVolumeID();
+  const char *activeLabelMapVolumeNodeID = selectionNode->GetActiveLabelVolumeID();
 
   vtkMRMLAstroVolumeNode *activeVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(activeVolumeNodeID));
