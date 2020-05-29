@@ -83,8 +83,6 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
-#include <vtkMRMLChartNode.h>
-#include <vtkMRMLChartViewNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLMarkupsFiducialNode.h>
