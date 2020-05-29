@@ -70,7 +70,6 @@
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
-#include <vtkMRMLDoubleArrayNode.h>
 #include <vtkMRMLInteractionNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
