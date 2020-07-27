@@ -82,7 +82,7 @@ void qSlicerAstroWelcomeModuleWidgetPrivate::setupUi(qSlicerWidget* widget)
 
   this->Ui_qSlicerAstroWelcomeModuleWidget::setupUi(widget);
 
-  this->IconLabel->setPixmap(QPixmap(QLatin1String(":/Images/SlicerAstroIcon.png")));
+  //this->IconLabel->setPixmap(QPixmap(QLatin1String(":/Images/SlicerAstroIcon.png")));
   // Create the button group ensuring that only one collabsibleWidgetButton will be open at a time
   ctkButtonGroup * group = new ctkButtonGroup(widget);
 
