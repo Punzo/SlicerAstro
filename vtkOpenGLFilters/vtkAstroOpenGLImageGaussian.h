@@ -37,7 +37,7 @@ class VTK_OPENGLFILTERS_EXPORT vtkAstroOpenGLImageGaussian : public vtkImageGrad
 public:
   static vtkAstroOpenGLImageGaussian *New();
   vtkTypeMacro(vtkAstroOpenGLImageGaussian,vtkImageGradient);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   // Description:
   // Set the render window to get the OpenGL resources from
@@ -73,7 +73,7 @@ protected:
                            vtkInformationVector **inputVector,
                            vtkInformationVector *outputVector,
                            vtkImageData ***inData, vtkImageData **outData,
-                           int extent[6], int id) VTK_OVERRIDE;
+                           int extent[6], int id) override;
 
   int KernelLength[3];
   double FWHM[3];

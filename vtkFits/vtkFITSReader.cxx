@@ -348,7 +348,7 @@ bool vtkFITSReader::AstroExecuteInformation()
   if(!this->AllocateHeader())
     {
     vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: "
-                  "Failed to allocateFitsHeader. The data will not be loaded.")
+                  "Failed to allocateFitsHeader. The data will not be loaded.");
     return false;
     }
 
@@ -454,14 +454,14 @@ void vtkFITSReader::ExecuteInformation()
   // Push FITS header key/value pair data into std::map
   if(!this->AllocateHeader())
     {
-    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateFitsHeader.")
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateFitsHeader.");
     return;
     }
 
   // Push FITS header key/value pair data into std::map
   if(this->FixGipsyHeader() == 0)
     {
-    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to FixGipsyHeader.")
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to FixGipsyHeader.");
     return;
     }
 
@@ -469,7 +469,7 @@ void vtkFITSReader::ExecuteInformation()
   if(!this->AllocateWCS())
     {
     this->WCSStatus = -1;
-    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateWCS.")
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: Failed to allocateWCS.");
     }
 
   // Set type information

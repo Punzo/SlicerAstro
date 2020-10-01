@@ -44,7 +44,7 @@ class VTK_FITS_EXPORT vtkFITSWriter : public vtkWriter
 public:
 
   vtkTypeMacro(vtkFITSWriter,vtkWriter);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   static vtkFITSWriter *New();
 
@@ -80,11 +80,11 @@ protected:
   vtkFITSWriter();
   ~vtkFITSWriter();
 
-  virtual int FillInputPortInformation(int port, vtkInformation *info) VTK_OVERRIDE;
+  virtual int FillInputPortInformation(int port, vtkInformation *info) override;
 
   ///
   /// Write method. It is called by vtkWriter::Write();
-  void WriteData() VTK_OVERRIDE;
+  void WriteData() override;
 
   ///
   /// Flag to set to on when a write error occured

@@ -41,7 +41,7 @@ public:
 
   static vtkSlicerAstroPVDiagramLogic *New();
   vtkTypeMacro(vtkSlicerAstroPVDiagramLogic,vtkSlicerModuleLogic);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /// Set AstroVolume module logic
   void SetAstroVolumeLogic(vtkSlicerAstroVolumeLogic* logic);
@@ -57,7 +57,7 @@ public:
 
   /// Register MRML Node classes to Scene.
   /// Gets called automatically when the MRMLScene is attached to this logic class
-  virtual void RegisterNodes() VTK_OVERRIDE;
+  virtual void RegisterNodes() override;
 
   /// Run 0th moment maps calculation algorithm
   /// \param MRML parameter node

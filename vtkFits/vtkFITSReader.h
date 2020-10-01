@@ -75,21 +75,21 @@ public:
   ///
   struct wcsprm* GetWCSStruct();
 
-  virtual void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  virtual void PrintSelf(ostream& os, vtkIndent indent) override;
 
   ///  is the given file name a FITS file?
-  virtual int CanReadFile(const char* filename) VTK_OVERRIDE;
+  virtual int CanReadFile(const char* filename) override;
 
   ///
   /// Valid extentsions
-  virtual const char* GetFileExtensions() VTK_OVERRIDE
+  virtual const char* GetFileExtensions() override
     {
     return ".fits .fits.gz";
     }
 
   ///
   /// A descriptive name for this format
-  virtual const char* GetDescriptiveName() VTK_OVERRIDE
+  virtual const char* GetDescriptiveName() override
     {
     return "FITS - Flexible Image Transport System";
     }
@@ -139,9 +139,9 @@ public:
     UseNativeOrigin = false;
     }
 
-  virtual vtkImageData * AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo) VTK_OVERRIDE;
+  virtual vtkImageData * AllocateOutputData(vtkDataObject *out, vtkInformation* outInfo) override;
 
-  virtual void AllocateOutputData(vtkImageData *out, vtkInformation* outInfo, int *uExtent) VTK_OVERRIDE
+  virtual void AllocateOutputData(vtkImageData *out, vtkInformation* outInfo, int *uExtent) override
     { Superclass::AllocateOutputData(out, outInfo, uExtent); }
 
   bool AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
@@ -172,9 +172,9 @@ protected:
 
   std::map <std::string, std::string> HeaderKeyValue;
 
-  virtual void ExecuteInformation() VTK_OVERRIDE;
+  virtual void ExecuteInformation() override;
   virtual bool AstroExecuteInformation();
-  virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo) VTK_OVERRIDE;
+  virtual void ExecuteDataWithInformation(vtkDataObject *output, vtkInformation* outInfo) override;
 
   // SlicerAstro can read up to NAXIS = 3 and it assumes
   // the first 2 axes are the spatial (celestial) and

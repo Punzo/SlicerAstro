@@ -38,30 +38,30 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
   public:
   static vtkMRMLAstroLabelMapVolumeNode *New();
   vtkTypeMacro(vtkMRMLAstroLabelMapVolumeNode,vtkMRMLLabelMapVolumeNode);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
+  virtual vtkMRMLNode* CreateNodeInstance() override;
 
   /// Set node attributes
-  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
+  virtual void ReadXMLAttributes( const char** atts) override;
 
   /// Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
+  virtual void WriteXML(ostream& of, int indent) override;
 
   /// Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+  virtual void Copy(vtkMRMLNode *node) override;
 
   /// Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroLabelMapVolume";};
+  virtual const char* GetNodeTagName() override {return "AstroLabelMapVolume";};
 
   /// Create and observe default display node
-  virtual void CreateDefaultDisplayNodes() VTK_OVERRIDE;
+  virtual void CreateDefaultDisplayNodes() override;
 
   /// Make a 'None' volume node with blank image data
   static void CreateNoneNode(vtkMRMLScene *scene);
 
   /// Create and observe default Storage node
-  virtual vtkMRMLStorageNode* CreateDefaultStorageNode() VTK_OVERRIDE;
+  virtual vtkMRMLStorageNode* CreateDefaultStorageNode() override;
 
   /// Get AstroVolume display node
   virtual vtkMRMLAstroLabelMapVolumeDisplayNode* GetAstroLabelMapVolumeDisplayNode();
@@ -71,7 +71,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeNode : public vtkMRMLLabel
 
 protected:
   vtkMRMLAstroLabelMapVolumeNode();
-  ~vtkMRMLAstroLabelMapVolumeNode();
+  ~vtkMRMLAstroLabelMapVolumeNode() override;
   vtkMRMLAstroLabelMapVolumeNode(const vtkMRMLAstroLabelMapVolumeNode&);
   void operator=(const vtkMRMLAstroLabelMapVolumeNode&);
 };

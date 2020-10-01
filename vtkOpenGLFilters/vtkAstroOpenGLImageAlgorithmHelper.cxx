@@ -123,7 +123,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   fbo->SetContext(this->RenderWindow);
 
   outputTex->Create2D(outDims[0], outDims[1], 1, VTK_FLOAT, false);
-  fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.Get());
+  fbo->AddColorAttachment(0, outputTex.Get());
 
   // because the same FBO can be used in another pass but with several color
   // buffers, force this pass to use 1, to avoid side effects from the
@@ -178,7 +178,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     outPBO->Delete();
     }
 
-  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  fbo->RemoveColorAttachment(0);
   inputTex->Deactivate();
 
   vtkNew<vtkImageCast> castFilter;
@@ -291,8 +291,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    fbo->RemoveColorAttachment(0);
+    fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -321,8 +321,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, inputTex.GetPointer(), slice);
+    fbo->RemoveColorAttachment(0);
+    fbo->AddColorAttachment(0, inputTex.GetPointer(), slice);
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -351,8 +351,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    fbo->RemoveColorAttachment(0);
+    fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -378,7 +378,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
                      newDims, 1, increments);
   outPBO->Delete();
 
-  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  fbo->RemoveColorAttachment(0);
   inputTex->Deactivate();
   outputTex->Deactivate();
 
@@ -503,15 +503,15 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     for (int i = outExt[4]; i <= outExt[5]; i++)
       {
       int slice = i - outExt[4];
-      fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+      fbo->RemoveColorAttachment(0);
 
       if ((ii % 2) < 0.001)
         {
-        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+        fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
         }
       else
         {
-        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, inputTex.GetPointer(), slice);
+        fbo->AddColorAttachment(0, inputTex.GetPointer(), slice);
         }
 
       fbo->ActivateDrawBuffer(0);
@@ -540,7 +540,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
                      newDims, 1, increments);
   outPBO->Delete();
 
-  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  fbo->RemoveColorAttachment(0);
   inputTex->Deactivate();
   outputTex->Deactivate();
 

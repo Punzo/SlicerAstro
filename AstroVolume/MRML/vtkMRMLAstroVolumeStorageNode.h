@@ -34,21 +34,21 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorag
   public:
   static vtkMRMLAstroVolumeStorageNode *New();
   vtkTypeMacro(vtkMRMLAstroVolumeStorageNode,vtkMRMLStorageNode);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
+  virtual vtkMRMLNode* CreateNodeInstance() override;
 
   /// Read node attributes from XML file
-  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
+  virtual void ReadXMLAttributes( const char** atts) override;
 
   /// Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
+  virtual void WriteXML(ostream& of, int indent) override;
 
   /// Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+  virtual void Copy(vtkMRMLNode *node) override;
 
   /// Get node XML tag name (like Storage, Model)
-  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroStorage";};
+  virtual const char* GetNodeTagName() override {return "AstroStorage";};
 
   /// Set/Get the CenterImage.
   /// Default is 2.
@@ -57,30 +57,30 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorag
   vtkSetMacro(CenterImage, int);
 
   /// Return true if the node can be read in.
-  virtual bool CanReadInReferenceNode(vtkMRMLNode *refNode) VTK_OVERRIDE;
+  virtual bool CanReadInReferenceNode(vtkMRMLNode *refNode) override;
 
   /// Configure the storage node for data exchange. This is an
   /// opportunity to optimize the storage node's settings, for
   /// instance to turn off compression.
-  virtual void ConfigureForDataExchange() VTK_OVERRIDE;
+  virtual void ConfigureForDataExchange() override;
 
 protected:
   vtkMRMLAstroVolumeStorageNode();
-  ~vtkMRMLAstroVolumeStorageNode();
+  ~vtkMRMLAstroVolumeStorageNode() override;
   vtkMRMLAstroVolumeStorageNode(const vtkMRMLAstroVolumeStorageNode&);
   void operator=(const vtkMRMLAstroVolumeStorageNode&);
 
   /// Initialize all the supported write file types
-  virtual void InitializeSupportedReadFileTypes() VTK_OVERRIDE;
+  virtual void InitializeSupportedReadFileTypes() override;
 
   /// Initialize all the supported write file types
-  virtual void InitializeSupportedWriteFileTypes() VTK_OVERRIDE;
+  virtual void InitializeSupportedWriteFileTypes() override;
 
   /// Read data and set it in the referenced node
-  virtual int ReadDataInternal(vtkMRMLNode *refNode) VTK_OVERRIDE;
+  virtual int ReadDataInternal(vtkMRMLNode *refNode) override;
 
   /// Write data from a  referenced node
-  virtual int WriteDataInternal(vtkMRMLNode *refNode) VTK_OVERRIDE;
+  virtual int WriteDataInternal(vtkMRMLNode *refNode) override;
 
   int CenterImage;
 };

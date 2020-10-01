@@ -79,35 +79,38 @@ install(TARGETS ${lib_name}
   )
 
 # --------------------------------------------------------------------------
-# Python wrapping
+# Python Wrapping
 # --------------------------------------------------------------------------
-if(VTK_WRAP_PYTHON AND BUILD_SHARED_LIBS)
+if(VTK_WRAP_PYTHON)
+  include(vtkMacroKitPythonWrap)
 
-  set(Slicer_Wrapped_LIBRARIES
+  vtkMacroKitPythonWrap(
+    KIT_NAME ${lib_name}
+    KIT_SRCS ${vtkFits_SRCS}
+    KIT_INSTALL_BIN_DIR ${Slicer_INSTALL_QTLOADABLEMODULES_BIN_DIR}
+    KIT_INSTALL_LIB_DIR ${Slicer_INSTALL_QTLOADABLEMODULES_LIB_DIR}
     )
-
-  foreach(library ${lib_name})
-    if(TARGET ${library}PythonD)
-      list(APPEND Slicer_Wrapped_LIBRARIES ${library}PythonD)
-    endif()
-  endforeach()
-
-  SlicerMacroPythonWrapModuleVTKLibrary(
-    NAME ${PROJECT_NAME}
-    SRCS ${vtkFits_SRCS}
-    WRAPPED_TARGET_LIBRARIES ${Slicer_Wrapped_LIBRARIES}
-    RELATIVE_PYTHON_DIR "."
-    )
-
   # Set python module logic output
-  set_target_properties(${PROJECT_NAME}Python ${PROJECT_NAME}PythonD PROPERTIES
+  set_target_properties(${PROJECT_NAME}Python PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${Slicer_QTLOADABLEMODULES_BIN_DIR}"
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${Slicer_QTLOADABLEMODULES_LIB_DIR}"
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${Slicer_QTLOADABLEMODULES_LIB_DIR}"
     )
-
   # Export target
-  set_property(GLOBAL APPEND PROPERTY Slicer_TARGETS ${PROJECT_NAME}Python ${PROJECT_NAME}PythonD)
+  export(TARGETS ${lib_name}Python APPEND FILE ${${PROJECT_NAME}_EXPORT_FILE})
+  if(${VTK_VERSION} VERSION_LESS "8.90")
+    export(TARGETS ${lib_name}PythonD APPEND FILE ${${PROJECT_NAME}_EXPORT_FILE})
+  endif()
+  # Folder
+  if(NOT "${${PROJECT_NAME}_FOLDER}" STREQUAL "")
+    set_target_properties(${lib_name}Python PROPERTIES FOLDER ${${PROJECT_NAME}_FOLDER})
+    if(${VTK_VERSION} VERSION_LESS "8.90")
+      set_target_properties(${lib_name}PythonD PROPERTIES FOLDER ${${PROJECT_NAME}_FOLDER})
+    endif()
+    if(TARGET ${lib_name}Hierarchy)
+      set_target_properties(${lib_name}Hierarchy PROPERTIES FOLDER ${${PROJECT_NAME}_FOLDER})
+    endif()
+  endif()
 endif()
 
 # --------------------------------------------------------------------------

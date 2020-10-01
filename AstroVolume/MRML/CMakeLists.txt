@@ -1,11 +1,13 @@
 project(vtkSlicer${MODULE_NAME}ModuleMRML)
 
-set(module_mrml_name "vtkSlicer${MODULE_NAME}ModuleMRML")
+set(KIT ${PROJECT_NAME})
+
+set(${KIT}_EXPORT_DIRECTIVE "VTK_MRML_ASTRO_EXPORT")
 
 # --------------------------------------------------------------------------
 # Include dirs
 # --------------------------------------------------------------------------
-set(module_mrml_include_directory
+set(${KIT}_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}
   ${CMAKE_CURRENT_BINARY_DIR}/../../
@@ -15,12 +17,11 @@ set(module_mrml_include_directory
   ${vtkFits_INCLUDE_DIRS}
   ${Slicer_Base_INCLUDE_DIRS}
   )
-include_directories(BEFORE ${module_mrml_include_directory})
 
 # --------------------------------------------------------------------------
 # Sources
 # --------------------------------------------------------------------------
-set(module_mrml_SRCS
+set(${KIT}_SRCS
     vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
     vtkMRMLAstroLabelMapVolumeDisplayNode.h
     vtkMRMLAstroLabelMapVolumeNode.cxx
@@ -50,21 +51,19 @@ set(module_mrml_SRCS
     vtkMRMLAstroVolumeStorageNode.cxx
     vtkMRMLAstroVolumeStorageNode.h)
 
-# The header '${module_mrml_name}Export.h' will be automatically configured.
-set(module_mrml_export_directive "VTK_MRML_ASTRO_EXPORT")
-
-set(module_mrml_target_libraries
+set(${KIT}_TARGET_LIBRARIES
   ${Slicer_GUI_LIBRARY}
   MRMLCore
   vtkFits
   )
 
+# --------------------------------------------------------------------------
 SlicerMacroBuildModuleMRML(
-  NAME ${module_mrml_name}
-  EXPORT_DIRECTIVE ${module_mrml_export_directive}
-  INCLUDE_DIRECTORIES ${module_mrml_include_directories}
-  SRCS ${module_mrml_SRCS}
-  TARGET_LIBRARIES ${module_mrml_target_libraries}
+  NAME ${KIT}
+  EXPORT_DIRECTIVE ${${KIT}_EXPORT_DIRECTIVE}
+  INCLUDE_DIRECTORIES ${${KIT}_INCLUDE_DIRECTORIES}
+  SRCS ${${KIT}_SRCS}
+  TARGET_LIBRARIES ${${KIT}_TARGET_LIBRARIES}
   )
 
 # --------------------------------------------------------------------------

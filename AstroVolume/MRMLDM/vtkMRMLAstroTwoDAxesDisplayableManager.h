@@ -36,7 +36,7 @@ class VTK_MRMLDISPLAYABLEMANAGER_ASTRO_EXPORT vtkMRMLAstroTwoDAxesDisplayableMan
 public:
   static vtkMRMLAstroTwoDAxesDisplayableManager* New();
   vtkTypeMacro(vtkMRMLAstroTwoDAxesDisplayableManager,vtkMRMLAbstractDisplayableManager);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
   /// Get vtkMarkerRenderer
   vtkRenderer* vtkMarkerRenderer();
@@ -58,12 +58,12 @@ protected:
   virtual ~vtkMRMLAstroTwoDAxesDisplayableManager();
 
   /// Observe the View node and initialize the renderer accordingly.
-  virtual void Create() VTK_OVERRIDE;
+  virtual void Create() override;
 
   /// Called each time the view node is modified.
   /// Internally update the renderer from the view node
   /// \sa UpdateFromMRMLViewNode()
-  virtual void OnMRMLDisplayableNodeModifiedEvent(vtkObject* caller) VTK_OVERRIDE;
+  virtual void OnMRMLDisplayableNodeModifiedEvent(vtkObject* caller) override;
 
   /// Update the renderer from the view node properties.
   void UpdateFromViewNode();
