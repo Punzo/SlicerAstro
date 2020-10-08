@@ -50,30 +50,30 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   static vtkMRMLAstroVolumeNode *New();
   vtkTypeMacro(vtkMRMLAstroVolumeNode,vtkMRMLScalarVolumeNode);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
+  virtual vtkMRMLNode* CreateNodeInstance() override;
 
   /// Set node attributes
-  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
+  virtual void ReadXMLAttributes( const char** atts) override;
 
   /// Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
+  virtual void WriteXML(ostream& of, int indent) override;
 
   /// Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+  virtual void Copy(vtkMRMLNode *node) override;
 
   /// Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroVolume";};
+  virtual const char* GetNodeTagName() override {return "AstroVolume";};
 
   /// Make a 'None' volume node with blank image data
   static void CreateNoneNode(vtkMRMLScene *scene);
 
   /// Create and return default Storage node
-  virtual vtkMRMLStorageNode* CreateDefaultStorageNode() VTK_OVERRIDE;
+  virtual vtkMRMLStorageNode* CreateDefaultStorageNode() override;
 
   /// Create and observe default display node
-  virtual void CreateDefaultDisplayNodes() VTK_OVERRIDE;
+  virtual void CreateDefaultDisplayNodes() override;
   
   /// Get AstroVolume display node
   virtual vtkMRMLAstroVolumeDisplayNode* GetAstroVolumeDisplayNode();
@@ -151,7 +151,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
 protected:
   vtkMRMLAstroVolumeNode();
-  virtual ~vtkMRMLAstroVolumeNode();
+  ~vtkMRMLAstroVolumeNode() override;
 
   static const char* PRESET_REFERENCE_ROLE;
   const char *GetPresetNodeReferenceRole();

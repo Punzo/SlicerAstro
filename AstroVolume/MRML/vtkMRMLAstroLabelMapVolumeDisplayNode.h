@@ -45,18 +45,18 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   public:
   static vtkMRMLAstroLabelMapVolumeDisplayNode *New();
   vtkTypeMacro(vtkMRMLAstroLabelMapVolumeDisplayNode,vtkMRMLLabelMapVolumeDisplayNode);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
+  virtual vtkMRMLNode* CreateNodeInstance() override;
 
   /// Set node attributes
-  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
+  virtual void ReadXMLAttributes( const char** atts) override;
 
   /// Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
+  virtual void WriteXML(ostream& of, int indent) override;
 
   /// Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+  virtual void Copy(vtkMRMLNode *node) override;
 
   /// Copy WCS to this object
   virtual void CopyWCS(vtkMRMLNode *node);
@@ -65,10 +65,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   virtual void CopySpatialWCS(vtkMRMLNode *node);
 
   /// Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroLabelMapVolumeDisplay";};
+  virtual const char* GetNodeTagName() override {return "AstroLabelMapVolumeDisplay";};
 
   /// Set default labels colormap
-  virtual void SetDefaultColorMap() VTK_OVERRIDE;
+  virtual void SetDefaultColorMap() override;
 
   /// Set/Get the CoordinateSystem.
   /// Default is "WCS"
@@ -206,7 +206,7 @@ protected:
   int WCSStatus;
 
   vtkMRMLAstroLabelMapVolumeDisplayNode();
-  virtual ~vtkMRMLAstroLabelMapVolumeDisplayNode();
+  ~vtkMRMLAstroLabelMapVolumeDisplayNode() override;
   vtkMRMLAstroLabelMapVolumeDisplayNode(const vtkMRMLAstroLabelMapVolumeDisplayNode&);
   void operator=(const vtkMRMLAstroLabelMapVolumeDisplayNode&);
 };

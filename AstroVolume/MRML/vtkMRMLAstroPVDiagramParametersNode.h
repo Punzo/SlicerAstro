@@ -37,21 +37,21 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
 
   static vtkMRMLAstroPVDiagramParametersNode *New();
   vtkTypeMacro(vtkMRMLAstroPVDiagramParametersNode,vtkMRMLNode);
-  void PrintSelf(ostream& os, vtkIndent indent) VTK_OVERRIDE;
+  void PrintSelf(ostream& os, vtkIndent indent) override;
 
-  virtual vtkMRMLNode* CreateNodeInstance() VTK_OVERRIDE;
+  virtual vtkMRMLNode* CreateNodeInstance() override;
 
   /// Set node attributes
-  virtual void ReadXMLAttributes( const char** atts) VTK_OVERRIDE;
+  virtual void ReadXMLAttributes( const char** atts) override;
 
   /// Write this node's information to a MRML file in XML format.
-  virtual void WriteXML(ostream& of, int indent) VTK_OVERRIDE;
+  virtual void WriteXML(ostream& of, int indent) override;
 
   /// Copy the node's attributes to this object
-  virtual void Copy(vtkMRMLNode *node) VTK_OVERRIDE;
+  virtual void Copy(vtkMRMLNode *node) override;
 
   /// Get node XML tag name (like Volume, Model)
-  virtual const char* GetNodeTagName() VTK_OVERRIDE {return "AstroPVDiagramParameters";};
+  virtual const char* GetNodeTagName() override {return "AstroPVDiagramParameters";};
 
   /// Set/Get the InputVolumeNodeID.
   /// \sa SetInputVolumeNodeID(), GetInputVolumeNodeID()
@@ -99,7 +99,7 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
 
 protected:
   vtkMRMLAstroPVDiagramParametersNode();
-  ~vtkMRMLAstroPVDiagramParametersNode();
+  ~vtkMRMLAstroPVDiagramParametersNode() override;
 
   vtkMRMLAstroPVDiagramParametersNode(const vtkMRMLAstroPVDiagramParametersNode&);
   void operator=(const vtkMRMLAstroPVDiagramParametersNode&);

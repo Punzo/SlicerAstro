@@ -82,13 +82,10 @@ if(UNIX)
   find_package(OpenGL)
   set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ${OPENGL_FOUND})
   set(status "disabled")
-  if(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
+  if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
     set(status "enabled")
-  else(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
-    message(STATUS "VTK_RENDERING_BACKEND OpenGL2 not supported")
-    set(VTK_SLICER_ASTRO_SUPPORT_OPENGL 0)
-  endif(VTK_SLICER_ASTRO_SUPPORT_OPENGL AND ${VTK_RENDERING_BACKEND} STREQUAL "OpenGL2")
-  message(STATUS "OpenGL filtering support ${status}")
+    message(STATUS "OpenGL filtering support ${status}")
+  endif()
   configure_file(
     ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
     ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
