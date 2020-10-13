@@ -663,7 +663,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroPVDiagram algorithm may show poor performance.")
+                  "the AstroPVDiagram algorithm may show poor performance.");
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!this->GetMRMLScene() || !pnode)

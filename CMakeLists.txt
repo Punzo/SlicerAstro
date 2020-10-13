@@ -53,7 +53,7 @@ endif()
 #-----------------------------------------------------------------------------
 # configurating OpenMP
 if(UNIX)
-  find_package(OpenMP)
+  include(FindOpenMP)
   set(VTK_SLICER_ASTRO_SUPPORT_OPENMP ${OPENMP_FOUND})
   set(status "disabled")
   if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)

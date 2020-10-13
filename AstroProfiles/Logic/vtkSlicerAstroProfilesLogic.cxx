@@ -165,7 +165,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   vtkWarningMacro("vtkSlicerAstroProfilesLogic::CalculateProfile : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
-                  "the AstroProfiles algorithm may show poor performance.")
+                  "the AstroProfiles algorithm may show poor performance.");
   #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
