@@ -389,15 +389,16 @@ void qSlicerAstroVolumeModule::setup()
     }
 
   // Set the Slice Factory
-  qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
+  /*qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
-    d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));
+    d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));*/
 
   qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
     new qSlicerAstroVolumeLayoutSliceViewFactory(d->app->layoutManager());
-  astroSliceViewFactory->setSliceLogics(mrmlSliceViewFactory->sliceLogics());
 
-  d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
+  //d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
+  // TO DO: this should be disabled, but SlicerAstro with the last Slicer version (16/02/2021)
+  // crash if the default slice view factory is disabled
   d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
 
   // Modify orietation in default Layouts

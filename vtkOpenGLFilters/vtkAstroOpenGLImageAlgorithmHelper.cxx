@@ -36,6 +36,7 @@
 #include "vtkShaderProgram.h"
 #include "vtkTextureObject.h"
 #include "vtk_glew.h"
+#include "vtkVersionMacros.h"
 
 vtkStandardNewMacro(vtkAstroOpenGLImageAlgorithmHelper);
 
@@ -123,7 +124,12 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   fbo->SetContext(this->RenderWindow);
 
   outputTex->Create2D(outDims[0], outDims[1], 1, VTK_FLOAT, false);
-  fbo->AddColorAttachment(0, outputTex.Get());
+
+  #if VTK_MAJOR_VERSION >= 9
+  fbo->AddColorAttachment(0, outputTex.GetPointer());
+  #else
+  fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer());
+  #endif
 
   // because the same FBO can be used in another pass but with several color
   // buffers, force this pass to use 1, to avoid side effects from the
@@ -178,7 +184,12 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     outPBO->Delete();
     }
 
+  #if VTK_MAJOR_VERSION >= 9
   fbo->RemoveColorAttachment(0);
+  #else
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  #endif
+
   inputTex->Deactivate();
 
   vtkNew<vtkImageCast> castFilter;
@@ -291,8 +302,15 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
+
+    #if VTK_MAJOR_VERSION >= 9
     fbo->RemoveColorAttachment(0);
     fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
+    #else
+    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    #endif
+
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -321,8 +339,13 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
+    #if VTK_MAJOR_VERSION >= 9
     fbo->RemoveColorAttachment(0);
-    fbo->AddColorAttachment(0, inputTex.GetPointer(), slice);
+    fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
+    #else
+    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    #endif
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -351,8 +374,13 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
+    #if VTK_MAJOR_VERSION >= 9
     fbo->RemoveColorAttachment(0);
     fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
+    #else
+    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+    #endif
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -378,7 +406,11 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
                      newDims, 1, increments);
   outPBO->Delete();
 
+  #if VTK_MAJOR_VERSION >= 9
   fbo->RemoveColorAttachment(0);
+  #else
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  #endif
   inputTex->Deactivate();
   outputTex->Deactivate();
 
@@ -503,15 +535,27 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     for (int i = outExt[4]; i <= outExt[5]; i++)
       {
       int slice = i - outExt[4];
+      #if VTK_MAJOR_VERSION >= 9
       fbo->RemoveColorAttachment(0);
+      #else
+      fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+      #endif
 
       if ((ii % 2) < 0.001)
         {
+        #if VTK_MAJOR_VERSION >= 9
         fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
+        #else
+        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
+        #endif
         }
       else
         {
+        #if VTK_MAJOR_VERSION >= 9
         fbo->AddColorAttachment(0, inputTex.GetPointer(), slice);
+        #else
+        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, inputTex.GetPointer(), slice);
+        #endif
         }
 
       fbo->ActivateDrawBuffer(0);
@@ -540,7 +584,11 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
                      newDims, 1, increments);
   outPBO->Delete();
 
+  #if VTK_MAJOR_VERSION >= 9
   fbo->RemoveColorAttachment(0);
+  #else
+  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
+  #endif
   inputTex->Deactivate();
   outputTex->Deactivate();
 

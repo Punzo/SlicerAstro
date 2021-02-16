@@ -42,6 +42,7 @@
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLSliceViewDisplayableManagerFactory.h>
 
 
 
@@ -76,14 +77,16 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   QColor sliceLayoutColor = QColor::fromRgbF(sliceNode->GetLayoutColor()[0],
                                              sliceNode->GetLayoutColor()[1],
                                              sliceNode->GetLayoutColor()[2]);
-  sliceWidget->setSliceViewName(sliceLayoutName);
   sliceWidget->setObjectName(QString("qMRMLSliceWidget" + sliceLayoutName));
-  sliceWidget->setSliceViewLabel(sliceViewLabel);
   sliceWidget->setSliceViewColor(sliceLayoutColor);
   sliceWidget->setMRMLScene(this->mrmlScene());
   sliceWidget->setMRMLSliceNode(sliceNode);
-  sliceWidget->setSliceLogics(this->sliceLogics());
+  sliceWidget->setSliceViewName(sliceLayoutName);
+  sliceWidget->setSliceViewLabel(sliceViewLabel);
 
+  sliceWidget->setSliceLogics(this->sliceLogics());
+  vtkMRMLApplicationLogic* applicationLogic = vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->GetMRMLApplicationLogic();
+  sliceWidget->sliceLogic()->SetMRMLApplicationLogic(applicationLogic);
   this->sliceLogics()->AddItem(sliceWidget->sliceLogic());
 
   QObject::connect(sliceWidget, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)),
