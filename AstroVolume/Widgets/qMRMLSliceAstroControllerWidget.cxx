@@ -154,17 +154,17 @@ void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSli
 {
   Q_Q(qMRMLSliceAstroControllerWidget);
 
-  if (newSliceNode == this->MRMLSliceNode)
+  if (newSliceNode == q->mrmlSliceNode())
     {
     return;
     }
 
-  this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
+  this->qvtkReconnect(q->mrmlSliceNode(), newSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(updateWidgetFromMRMLSliceNode()));
-  this->qvtkReconnect(this->MRMLSliceNode, newSliceNode, vtkCommand::ModifiedEvent,
+  this->qvtkReconnect(q->mrmlSliceNode(), newSliceNode, vtkCommand::ModifiedEvent,
                       this, SLOT(updateAstroWidgetFromMRMLSliceNode()));
 
-  this->MRMLSliceNode = newSliceNode;
+  q->setMRMLSliceNode(newSliceNode);
 
   // Update widget state given the new slice node
   this->updateWidgetFromMRMLSliceNode();
@@ -178,25 +178,25 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateAstroWidgetFromMRMLSliceNode(
 {
   Q_Q(qMRMLSliceAstroControllerWidget);
 
-  if (!this->MRMLSliceNode)
+  if (!q->mrmlSliceNode())
     {
     return;
     }
 
   q->setWCSDisplay();
 
-  if (!this->MRMLSliceNode->GetAttribute("SlicerAstro.Beam"))
+  if (!q->mrmlSliceNode()->GetAttribute("SlicerAstro.Beam"))
     {
     return;
     }
 
-  if (!strcmp(this->MRMLSliceNode->GetAttribute("SlicerAstro.Beam"), "on"))
+  if (!strcmp(q->mrmlSliceNode()->GetAttribute("SlicerAstro.Beam"), "on"))
     {
-    BeamButton->setChecked(true);
+    this->BeamButton->setChecked(true);
     }
   else
     {
-    BeamButton->setChecked(false);
+    this->BeamButton->setChecked(false);
     }
 }
 
@@ -217,11 +217,11 @@ void qMRMLSliceAstroControllerWidgetPrivate::onBeamToggled(bool toggled)
       return;
       }
 
-    if ((sliceNode == this->MRMLSliceNode || q->isLinked()) && toggled)
+    if ((sliceNode == q->mrmlSliceNode() || q->isLinked()) && toggled)
       {
       sliceNode->SetAttribute("SlicerAstro.Beam", "on");
       }
-    else if ((sliceNode == this->MRMLSliceNode || q->isLinked()) && !toggled)
+    else if ((sliceNode == q->mrmlSliceNode() || q->isLinked()) && !toggled)
       {
       sliceNode->SetAttribute("SlicerAstro.Beam", "off");
       }

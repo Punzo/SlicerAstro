@@ -4035,7 +4035,7 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     return;
     }
 
-  vtkMRMLAnnotationROINode *roiNode = d->volumeRenderingWidget->mrmlROINode();
+  vtkMRMLAnnotationROINode *roiNode = d->volumeRenderingWidget->mrmlAnnotationROINode();
   if (!roiNode)
     {
     return;
@@ -4650,7 +4650,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
     return;
     }
 
-  vtkMRMLAnnotationROINode* ROINode = displayNode->GetROINode();
+  vtkMRMLAnnotationROINode* ROINode = displayNode->GetAnnotationROINode();
   if (!ROINode)
     {
     return;
