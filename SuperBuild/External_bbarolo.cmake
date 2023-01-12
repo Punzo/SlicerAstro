@@ -32,7 +32,7 @@ if((NOT DEFINED BBAROLO_LIBRARY_DIR OR NOT DEFINED BBAROLO_INCLUDE_DIR) AND NOT 
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    GIT_REPOSITORY "${git_protocol}://github.com/Punzo/Bbarolo"
+    GIT_REPOSITORY "https://github.com/Punzo/Bbarolo.git"
     GIT_TAG "68c5a02ddb138753d094851eb016d230cde7d356"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}

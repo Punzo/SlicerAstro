@@ -32,7 +32,7 @@ if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT 
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    GIT_REPOSITORY "${git_protocol}://github.com/Punzo/CFITSIO.git"
+    GIT_REPOSITORY "https://github.com/Punzo/CFITSIO.git"
     GIT_TAG "b4b701ddfc11f69f84dded6647f32b2d4d8569bf"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}

@@ -32,7 +32,7 @@ if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    GIT_REPOSITORY "${git_protocol}://github.com/Punzo/wcslib"
+    GIT_REPOSITORY "https://github.com/Punzo/wcslib.git"
     GIT_TAG "b1ed2e4d09d68a4b53ef83bbee8b31b110291884"
     SOURCE_DIR ${${proj}_SOURCE_DIR}
     BINARY_DIR ${${proj}_BINARY_DIR}

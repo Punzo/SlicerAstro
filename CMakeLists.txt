@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.4)
 
-project(SlicerAstro)
-
 #-----------------------------------------------------------------------------
 set(EXTENSION_NAME SlicerAstro)
 
@@ -28,12 +26,11 @@ set(SUPERBUILD_TOPLEVEL_PROJECT inner)
 #-----------------------------------------------------------------------------
 # Extension dependencies
 #find_package(Slicer COMPONENTS ConfigurePrerequisites REQUIRED)
+
+project(SlicerAstro)
 find_package(Slicer REQUIRED)
 include(${Slicer_USE_FILE})
 mark_as_superbuild(Slicer_DIR)
-
-find_package(Git REQUIRED)
-mark_as_superbuild(GIT_EXECUTABLE)
 
 #-----------------------------------------------------------------------------
 # check OS
@@ -41,14 +38,6 @@ if(WIN32)
   message(STATUS "SlicerAstro is not available on windows platforms.
                   Only the SlicerAstro Welcoming module will be compiled.")
 endif(WIN32)
-
-#-----------------------------------------------------------------------------
-# configurating additional Flags
-if(UNIX)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -std=c++11")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -std=c++11")
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2 -ftree-vectorize -fPIC -Wuninitialized -flto -std=c++11")
-endif()
 
 #-----------------------------------------------------------------------------
 # configurating OpenMP

@@ -33,6 +33,7 @@
 #include "vtkShaderProgram.h"
 
 #include <algorithm> // for std::nth_element
+#include <cmath>
 
 vtkStandardNewMacro(vtkAstroOpenGLImageBox);
 
