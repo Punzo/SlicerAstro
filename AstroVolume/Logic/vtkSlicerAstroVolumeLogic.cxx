@@ -1137,7 +1137,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmenta
 
 //---------------------------------------------------------------------------
 double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLAnnotationROINode *roiNode,
-                                                                   vtkMRMLAstroVolumeNode *inputVolume)
+                                                                 vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode)
     {
