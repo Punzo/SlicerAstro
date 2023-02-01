@@ -9,7 +9,6 @@ set(${KIT}_INCLUDE_DIRECTORIES
    ${CMAKE_CURRENT_BINARY_DIR}/../MRML
    ${CMAKE_CURRENT_BINARY_DIR}/../../
    ${WCSLIB_INCLUDE_DIR}
-   ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
    ${Slicer_AstroLibs_INCLUDE_DIRS}
   )
 
@@ -23,8 +22,8 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerVolumesModuleLogic
   vtkSlicerUnitsModuleLogic
   vtkSlicerVolumeRenderingModuleMRML
+  vtkSlicerAnnotationsModuleMRML
   )
-
 
 #-----------------------------------------------------------------------------
 SlicerMacroBuildModuleLogic(

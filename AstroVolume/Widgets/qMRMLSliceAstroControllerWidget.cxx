@@ -109,15 +109,16 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
   this->Superclass::init();
 
   this->SliceOrientationSelector->setToolTip(QApplication::translate("qMRMLAstroSliceControllerWidget", "Slice orientation (XY, XZ, ZY, Reformat).", 0));
-  qMRMLOrientation XZOrientation = {qMRMLSliceControllerWidget::tr("S: "), qMRMLSliceControllerWidget::tr("S <-----> N")};
-  qMRMLOrientation ZYOrientation = {qMRMLSliceControllerWidget::tr("R: "), qMRMLSliceControllerWidget::tr("W <-----> E")};
-  qMRMLOrientation XYOrientation = {qMRMLSliceControllerWidget::tr("A: "), qMRMLSliceControllerWidget::tr("z <-----> Z")};
-  qMRMLOrientation obliqueOrientation = {qMRMLSliceControllerWidget::tr(""), qMRMLSliceControllerWidget::tr("Oblique")};
+  // To Do: update To Slicer5
+  //qMRMLOrientation XZOrientation = {qMRMLSliceControllerWidget::tr("S: "), qMRMLSliceControllerWidget::tr("S <-----> N")};
+  //qMRMLOrientation ZYOrientation = {qMRMLSliceControllerWidget::tr("R: "), qMRMLSliceControllerWidget::tr("W <-----> E")};
+  //qMRMLOrientation XYOrientation = {qMRMLSliceControllerWidget::tr("A: "), qMRMLSliceControllerWidget::tr("z <-----> Z")};
+  //qMRMLOrientation obliqueOrientation = {qMRMLSliceControllerWidget::tr(""), qMRMLSliceControllerWidget::tr("Oblique")};
 
-  this->SliceOrientationToDescription["XZ"] = XZOrientation;
-  this->SliceOrientationToDescription["ZY"] = ZYOrientation;
-  this->SliceOrientationToDescription["XY"] = XYOrientation;
-  this->SliceOrientationToDescription["Reformat"] = obliqueOrientation;
+  //this->SliceOrientationToDescription["XZ"] = XZOrientation;
+  //this->SliceOrientationToDescription["ZY"] = ZYOrientation;
+  //this->SliceOrientationToDescription["XY"] = XYOrientation;
+  //this->SliceOrientationToDescription["Reformat"] = obliqueOrientation;
 
   this->SliceOffsetSlider->setSpinBoxVisible(false);
   this->WCSDisplay = new QLabel();

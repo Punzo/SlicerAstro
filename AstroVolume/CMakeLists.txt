@@ -37,6 +37,7 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${qSlicerSegmentationsModuleEditorEffects_INCLUDE_DIR}
   ${qSlicerSegmentationsModuleEditorEffects_INCLUDE_BINARY_DIR}
   ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
+  ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
   ${WCSLIB_INCLUDE_DIR}
   )
 
@@ -65,6 +66,7 @@ set(MODULE_TARGET_LIBRARIES
   vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicer${MODULE_NAME}ModuleMRML
   vtkSlicer${MODULE_NAME}ModuleMRMLDisplayableManager
+  vtkSlicerAnnotationsModuleMRML
   )
 
 set(MODULE_RESOURCES

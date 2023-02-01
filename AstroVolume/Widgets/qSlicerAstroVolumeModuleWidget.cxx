@@ -53,7 +53,6 @@
 #include <vtkVolumeProperty.h>
 
 // qMRMLWidgets include
-#include <qMRMLAnnotationROIWidget.h>
 #include <qMRMLAstroVolumeInfoWidget.h>
 #include <qMRMLPlotView.h>
 #include <qMRMLPlotWidget.h>
@@ -3958,43 +3957,6 @@ void qSlicerAstroVolumeModuleWidget::fitROIToVolume()
     {
     return;
     }
-
-  qMRMLAnnotationROIWidget* ROIWidget =
-    d->volumeRenderingWidget->findChild<qMRMLAnnotationROIWidget*>
-      (QString("ROIWidget"));
-  if (!ROIWidget)
-    {
-    return;
-    }
-
-  if ( ROIWidget->mrmlROINode() != d->volumeRenderingWidget->mrmlROINode()
-       || ROIWidget->mrmlROINode() != displayNode->GetROINode())
-    {
-    qCritical() << Q_FUNC_INFO << ": ROI node mismatch";
-    return;
-    }
-
-  if (!ROIWidget->mrmlROINode())
-    {
-    return;
-    }
-
-  double xyz[3] = {0.0};
-  double rxyz[3] = {0.0};
-
-  ROIWidget->mrmlROINode()->GetXYZ(xyz);
-  ROIWidget->mrmlROINode()->GetRadiusXYZ(rxyz);
-
-  double bounds[6] = {0.0};
-  for (int ii= 0; ii < 3; ++ii)
-    {
-    bounds[ii]   = xyz[ii] - rxyz[ii];
-    bounds[3+ii] = xyz[ii] + rxyz[ii];
-    }
-
-  ROIWidget->setExtent(bounds[0], bounds[3],
-                       bounds[1], bounds[4],
-                       bounds[2], bounds[5]);
 }
 
 //---------------------------------------------------------------------------
@@ -4035,7 +3997,8 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     return;
     }
 
-  vtkMRMLAnnotationROINode *roiNode = d->volumeRenderingWidget->mrmlAnnotationROINode();
+  // To Do: Update To Slicer5
+  vtkMRMLAnnotationROINode *roiNode = nullptr;
   if (!roiNode)
     {
     return;
