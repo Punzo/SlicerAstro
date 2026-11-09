@@ -54,6 +54,7 @@ protected:
 
 protected slots:
   void loadSource(QWidget*);
+  void onLazyWidgetCollapsed();
 
 protected:
   QScopedPointer<qSlicerAstroWelcomeModuleWidgetPrivate> d_ptr;

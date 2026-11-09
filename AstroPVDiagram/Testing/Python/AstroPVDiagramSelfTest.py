@@ -164,9 +164,9 @@ class AstroPVDiagramSelfTestTest(unittest.TestCase):
     sourceNode = slicer.util.getNode("PVDiagramSourcePoints")
 
     self.delayDisplay('Adding fiducials and calculating PVDiagram', 700)
-    sourceNode.AddFiducial(0, 0, 0)
-    sourceNode.AddFiducial(30, 0, 0)
-    sourceNode.AddFiducial(30, 0, 40)
+    sourceNode.AddControlPoint(0, 0, 0)
+    sourceNode.AddControlPoint(30, 0, 0)
+    sourceNode.AddControlPoint(30, 0, 40)
 
     outputVolume = slicer.mrmlScene.GetNodeByID(AstroPVDiagramParameterNode.GetOutputVolumeNodeID())
     pixelValue = outputVolume.GetImageData().GetScalarComponentAsFloat(50, 25, 0, 0)

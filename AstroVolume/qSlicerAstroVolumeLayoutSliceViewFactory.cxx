@@ -34,6 +34,7 @@
 #include <qMRMLLayoutManager_p.h>
 #include <qMRMLSliceAstroControllerWidget.h>
 #include <qMRMLSliceAstroWidget.h>
+#include <qMRMLSliceView.h>
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
@@ -70,24 +71,22 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   Q_ASSERT(!this->viewWidget(viewNode));
 
   qMRMLSliceAstroWidget * sliceWidget = new qMRMLSliceAstroWidget(this->layoutManager()->viewport());
-  sliceWidget->sliceController()->setControllerButtonGroup(this->SliceControllerButtonGroup);
-  QString sliceLayoutName(viewNode->GetLayoutName());
-  QString sliceViewLabel(viewNode->GetLayoutLabel());
-  vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(viewNode);
-  QColor sliceLayoutColor = QColor::fromRgbF(sliceNode->GetLayoutColor()[0],
-                                             sliceNode->GetLayoutColor()[1],
-                                             sliceNode->GetLayoutColor()[2]);
-  sliceWidget->setObjectName(QString("qMRMLSliceWidget" + sliceLayoutName));
-  sliceWidget->setSliceViewColor(sliceLayoutColor);
-  sliceWidget->setMRMLScene(this->mrmlScene());
-  sliceWidget->setMRMLSliceNode(sliceNode);
-  sliceWidget->setSliceViewName(sliceLayoutName);
-  sliceWidget->setSliceViewLabel(sliceViewLabel);
 
+  // Same initialization sequence as qMRMLLayoutSliceViewFactory:
+  // set the slice logic before the slice node, so that displayable managers
+  // can use the slice logic during initialization.
   sliceWidget->setSliceLogics(this->sliceLogics());
-  vtkMRMLApplicationLogic* applicationLogic = vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->GetMRMLApplicationLogic();
-  sliceWidget->sliceLogic()->SetMRMLApplicationLogic(applicationLogic);
   this->sliceLogics()->AddItem(sliceWidget->sliceLogic());
+
+  // Associate logic with its matching displayable manager group
+  sliceWidget->sliceLogic()->SetDisplayableManagerGroup(sliceWidget->sliceView()->displayableManagerGroup());
+
+  sliceWidget->sliceController()->setControllerButtonGroup(this->SliceControllerButtonGroup);
+  sliceWidget->setObjectName(QString("qMRMLSliceWidget%1").arg(viewNode->GetLayoutName()));
+  // set slice node before setting the scene to allow using slice node names
+  // in the slice transform, display, and model nodes
+  sliceWidget->setMRMLSliceNode(vtkMRMLSliceNode::SafeDownCast(viewNode));
+  sliceWidget->setMRMLScene(this->mrmlScene());
 
   QObject::connect(sliceWidget, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)),
                    this->layoutManager(), SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)));

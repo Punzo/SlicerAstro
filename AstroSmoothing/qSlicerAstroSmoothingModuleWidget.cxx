@@ -763,7 +763,7 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onInputVolumeModified()));
@@ -772,7 +772,7 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }

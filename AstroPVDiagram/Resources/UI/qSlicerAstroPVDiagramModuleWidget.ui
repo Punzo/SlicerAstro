@@ -375,7 +375,7 @@
         <property name="buttonsVisible">
          <bool>true</bool>
         </property>
-        <property name="deleteAllMarkupsOptionVisible">
+        <property name="deleteAllControlPointsOptionVisible">
          <bool>true</bool>
         </property>
        </widget>

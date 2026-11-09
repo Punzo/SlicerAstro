@@ -480,12 +480,12 @@ void qSlicerAstroReprojectModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
   }
 }

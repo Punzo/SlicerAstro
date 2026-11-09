@@ -542,7 +542,7 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
     return false;
     }
 
-  int nOfControlPoints = PointsSourceNode->GetNumberOfFiducials();
+  int nOfControlPoints = PointsSourceNode->GetNumberOfControlPoints();
   if (nOfControlPoints < 2)
     {
     this->Internal->CurvePoly->Initialize();
@@ -563,7 +563,7 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
     double pos[3] = {0.}, oldPos[3] = {0.};
     for (int ii = 0; ii < nOfControlPoints; ii++)
       {
-      PointsSourceNode->GetNthFiducialPosition(ii, pos);
+      PointsSourceNode->GetNthControlPointPosition(ii, pos);
       if (ii == 0)
         {
         points->SetPoint(ii, pos);
@@ -571,7 +571,7 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
         }
       else
         {
-        PointsSourceNode->GetNthFiducialPosition(ii - 1, oldPos);
+        PointsSourceNode->GetNthControlPointPosition(ii - 1, oldPos);
         double deltaX = (pos[0] - oldPos[0]) * 0.1;
         double deltaY = (pos[1] - oldPos[1]) * 0.1;
         double deltaZ = (pos[2] - oldPos[2]) * 0.1;
@@ -601,7 +601,7 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
 
     for (int ii = 0; ii < nOfControlPoints; ii++)
       {
-      PointsSourceNode->GetNthFiducialPosition(ii, pos);
+      PointsSourceNode->GetNthControlPointPosition(ii, pos);
       aSplineX->AddPoint(ii, pos[0]);
       aSplineY->AddPoint(ii, pos[1]);
       aSplineZ->AddPoint(ii, pos[2]);
@@ -707,7 +707,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     return false;
     }
 
-  int nOfControlPoints = PointsSourceNode->GetNumberOfFiducials();
+  int nOfControlPoints = PointsSourceNode->GetNumberOfControlPoints();
   if (nOfControlPoints < 2)
     {
     return false;
@@ -727,7 +727,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     {
     for (int ii = 0; ii < nOfControlPoints; ii++)
       {
-      PointsSourceNode->GetNthFiducialPosition(ii, posRAS);
+      PointsSourceNode->GetNthControlPointPosition(ii, posRAS);
       RAStoIJKTransform->TransformPoint(posRAS, posIJK);
       if (ii == 0)
         {
@@ -735,7 +735,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
         }
       else
         {
-        PointsSourceNode->GetNthFiducialPosition(ii - 1, oldPosRAS);
+        PointsSourceNode->GetNthControlPointPosition(ii - 1, oldPosRAS);
         RAStoIJKTransform->TransformPoint(oldPosRAS, oldPosIJK);
         double step = 0.5;
         double deltaX = (posIJK[0] - oldPosIJK[0]) * step;
@@ -769,7 +769,7 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
 
     for (int ii = 0; ii < nOfControlPoints; ii++)
       {
-      PointsSourceNode->GetNthFiducialPosition(ii, posRAS);
+      PointsSourceNode->GetNthControlPointPosition(ii, posRAS);
       RAStoIJKTransform->TransformPoint(posRAS, posIJK);
       if (ii == 0)
         {

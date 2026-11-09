@@ -820,7 +820,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeFiducialsMarkupsNode(bool forc
     this->mrmlScene()->AddNode(SourcePointNode);
     }
 
-  SourcePointNode->RemoveAllMarkups();
+  SourcePointNode->RemoveAllControlPoints();
 
   vtkMRMLMarkupsDisplayNode* SourcePointDisplayNode = SourcePointNode->GetMarkupsDisplayNode();
   if (!SourcePointDisplayNode)
@@ -1113,14 +1113,14 @@ void qSlicerAstroPVDiagramModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNo
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->reportDimensionalityError = true;
     this->initializeMomentMapNode();
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
   }
 }
@@ -1280,13 +1280,13 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeMarkupAdded()
     return;
     }
 
-  int FiducialIndex = fiducialsMarkupsNode->GetNumberOfFiducials() - 1;
+  int FiducialIndex = fiducialsMarkupsNode->GetNumberOfControlPoints() - 1;
   if (FiducialIndex < 0)
     {
     return;
     }
 
-  fiducialsMarkupsNode->SetNthFiducialLabel(FiducialIndex, IntToString(FiducialIndex + 1));
+  fiducialsMarkupsNode->SetNthControlPointLabel(FiducialIndex, IntToString(FiducialIndex + 1));
 }
 
 //-----------------------------------------------------------------------------
@@ -1315,7 +1315,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
     return;
     }
 
-  int nOfControlPoints = fiducialsMarkupsNode->GetNumberOfFiducials();
+  int nOfControlPoints = fiducialsMarkupsNode->GetNumberOfControlPoints();
   if (nOfControlPoints < 1)
     {
     return;
@@ -1345,7 +1345,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
   double position[3] = {0};
   for (int fiducialIndex = 0; fiducialIndex < nOfControlPoints; fiducialIndex++)
     {
-    fiducialsMarkupsNode->GetNthFiducialPosition(fiducialIndex, position);
+    fiducialsMarkupsNode->GetNthControlPointPosition(fiducialIndex, position);
     // RAS Origin Z is the second axes
     if (fabs(position[1] - RASOrigin[1]) > 0.01)
       {
@@ -1369,7 +1369,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
       {
       position[2] = dimsRAS[2];
       }
-    fiducialsMarkupsNode->SetNthFiducialPositionFromArray(fiducialIndex, position);
+    fiducialsMarkupsNode->SetNthControlPointPosition(fiducialIndex, position);
     }
   fiducialsMarkupsNode->DisableModifiedEventOff();
 

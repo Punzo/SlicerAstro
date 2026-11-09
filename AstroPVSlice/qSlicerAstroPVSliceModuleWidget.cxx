@@ -876,7 +876,7 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
 
   if (mrmlNode)
     {  
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->reportDimensionalityError = true;
     this->initializeMomentMapNode();
@@ -884,7 +884,7 @@ void qSlicerAstroPVSliceModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
   }
 }

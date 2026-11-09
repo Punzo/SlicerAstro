@@ -25,7 +25,6 @@
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QSettings>
-#include <QSignalMapper>
 #include <QLatin1String>
 #include <QTextStream>
 
@@ -63,7 +62,6 @@ public:
 
   bool selectModule(const QString& moduleName);
 
-  QSignalMapper CollapsibleButtonMapper;
 };
 
 //-----------------------------------------------------------------------------
@@ -88,7 +86,7 @@ void qSlicerAstroWelcomeModuleWidgetPrivate::setupUi(qSlicerWidget* widget)
 
   // Add all collabsibleWidgetButton to a button group
   QList<ctkCollapsibleButton*> collapsibles = widget->findChildren<ctkCollapsibleButton*>();
-  foreach(ctkCollapsibleButton* collapsible, collapsibles)
+  for (ctkCollapsibleButton* collapsible : collapsibles)
     {
     group->addButton(collapsible);
     }
@@ -100,20 +98,16 @@ void qSlicerAstroWelcomeModuleWidgetPrivate::setupUi(qSlicerWidget* widget)
   this->OverviewCollapsibleWidget->setProperty("source", ":HTML/AstroOverview.html");
   this->AcknowledgmentCollapsibleWidget->setProperty("source", ":HTML/AstroAcknowledgment.html");
 
-  foreach(QWidget* widget, QWidgetList()
-          << this->FeedbackCollapsibleWidget
-          << this->WelcomeAndAboutCollapsibleWidget
-          << this->OverviewCollapsibleWidget
-          << this->AcknowledgmentCollapsibleWidget
-          )
+  const QWidgetList lazyLoadedWidgets = QWidgetList()
+    << this->FeedbackCollapsibleWidget
+    << this->WelcomeAndAboutCollapsibleWidget
+    << this->OverviewCollapsibleWidget
+    << this->AcknowledgmentCollapsibleWidget;
+  for (QWidget* lazyWidget : lazyLoadedWidgets)
     {
-    this->CollapsibleButtonMapper.setMapping(widget, widget);
-    QObject::connect(widget, SIGNAL(contentsCollapsed(bool)),
-                     &this->CollapsibleButtonMapper, SLOT(map()));
+    QObject::connect(lazyWidget, SIGNAL(contentsCollapsed(bool)),
+                     q, SLOT(onLazyWidgetCollapsed()));
     }
-
-  QObject::connect(&this->CollapsibleButtonMapper, SIGNAL(mapped(QWidget*)),
-                   q, SLOT(loadSource(QWidget*)));
 }
 
 //-----------------------------------------------------------------------------
@@ -257,3 +251,9 @@ int qSlicerAstroWelcomeModuleWidget::navigateToTutorial()
 #endif
 }
 
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroWelcomeModuleWidget::onLazyWidgetCollapsed()
+{
+  this->loadSource(qobject_cast<QWidget*>(this->sender()));
+}

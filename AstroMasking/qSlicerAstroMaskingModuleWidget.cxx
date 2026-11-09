@@ -189,7 +189,7 @@ void qSlicerAstroMaskingModuleWidgetPrivate::init()
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
   this->SegmentsTableView->hide();
 
-  QObject::connect(this->OperationComboBox, SIGNAL(currentIndexChanged(QString)),
+  QObject::connect(this->OperationComboBox, SIGNAL(currentTextChanged(QString)),
                    q, SLOT(onOperationChanged(QString)));
 
   QObject::connect(this->InsidePushButton, SIGNAL(toggled(bool)),
@@ -885,12 +885,12 @@ void qSlicerAstroMaskingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }

@@ -2425,7 +2425,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
   if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
     {
     if (!d->fiducialNodeMajor ||
-        d->fiducialNodeMajor->GetNumberOfFiducials() != Radii->GetNumberOfValues() * 2)
+        d->fiducialNodeMajor->GetNumberOfControlPoints() != Radii->GetNumberOfValues() * 2)
       {
       return;
       }
@@ -2435,7 +2435,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
   else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
     {
     if (!d->fiducialNodeMinor ||
-        d->fiducialNodeMinor->GetNumberOfFiducials() != Radii->GetNumberOfValues() * 2)
+        d->fiducialNodeMinor->GetNumberOfControlPoints() != Radii->GetNumberOfValues() * 2)
       {
       return;
       }
@@ -2611,17 +2611,17 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
       {
       if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
         {
-        d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, 0., 0., 0.);
-        d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, 0., 0., 0.);
-        d->fiducialNodeMajor->SetNthFiducialVisibility(positiveIndex, false);
-        d->fiducialNodeMajor->SetNthFiducialVisibility(negativeIndex, false);
+        d->fiducialNodeMajor->SetNthControlPointPosition(positiveIndex, 0., 0., 0.);
+        d->fiducialNodeMajor->SetNthControlPointPosition(negativeIndex, 0., 0., 0.);
+        d->fiducialNodeMajor->SetNthControlPointVisibility(positiveIndex, false);
+        d->fiducialNodeMajor->SetNthControlPointVisibility(negativeIndex, false);
         }
       else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
         {
-        d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, 0., 0., 0.);
-        d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, 0., 0., 0.);
-        d->fiducialNodeMinor->SetNthFiducialVisibility(positiveIndex, false);
-        d->fiducialNodeMinor->SetNthFiducialVisibility(negativeIndex, false);
+        d->fiducialNodeMinor->SetNthControlPointPosition(positiveIndex, 0., 0., 0.);
+        d->fiducialNodeMinor->SetNthControlPointPosition(negativeIndex, 0., 0., 0.);
+        d->fiducialNodeMinor->SetNthControlPointVisibility(positiveIndex, false);
+        d->fiducialNodeMinor->SetNthControlPointVisibility(negativeIndex, false);
         }
       continue;
       }
@@ -2666,13 +2666,13 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
     IJKtoRASTransform->TransformPoint(IJK, RAS);
     if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
       {
-      d->fiducialNodeMajor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMajor->SetNthFiducialVisibility(positiveIndex, true);
+      d->fiducialNodeMajor->SetNthControlPointPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMajor->SetNthControlPointVisibility(positiveIndex, true);
       }
     else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
       {
-      d->fiducialNodeMinor->SetNthFiducialPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMinor->SetNthFiducialVisibility(positiveIndex, true);
+      d->fiducialNodeMinor->SetNthControlPointPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMinor->SetNthControlPointVisibility(positiveIndex, true);
       }
     // Project velocity
     double e2 = arctan(y[1], x[1]);
@@ -2698,13 +2698,13 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
     IJKtoRASTransform->TransformPoint(IJK, RAS);
     if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
       {
-      d->fiducialNodeMajor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMajor->SetNthFiducialVisibility(negativeIndex, true);
+      d->fiducialNodeMajor->SetNthControlPointPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMajor->SetNthControlPointVisibility(negativeIndex, true);
       }
     else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
       {
-      d->fiducialNodeMinor->SetNthFiducialPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMinor->SetNthFiducialVisibility(negativeIndex, true);
+      d->fiducialNodeMinor->SetNthControlPointPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
+      d->fiducialNodeMinor->SetNthControlPointVisibility(negativeIndex, true);
       }
     }
 
@@ -2974,14 +2974,14 @@ void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->XcenterSliderWidget->setMaximum(StringToInt(mrmlNode->GetAttribute("SlicerAstro.NAXIS1")));
     d->YcenterSliderWidget->setMaximum(StringToInt(mrmlNode->GetAttribute("SlicerAstro.NAXIS2")));
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }
@@ -3101,9 +3101,9 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
   d->fiducialNodeMajor->GlobalWarningDisplayOff();
   d->fiducialNodeMinor->GlobalWarningDisplayOff();
 
-  for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMajor->GetNumberOfFiducials(); fiducialIndex++)
+  for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMajor->GetNumberOfControlPoints(); fiducialIndex++)
     {
-    d->fiducialNodeMajor->SetNthFiducialSelected(fiducialIndex, false);
+    d->fiducialNodeMajor->SetNthControlPointSelected(fiducialIndex, false);
     }
 
   for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
@@ -3129,15 +3129,15 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
         {
         int positiveIndex = selectionArray->GetValue(selectionArrayIndex) * 2;
         int negativeIndex = (selectionArray->GetValue(selectionArrayIndex) * 2) + 1;
-        d->fiducialNodeMajor->SetNthFiducialSelected(positiveIndex, true);
-        d->fiducialNodeMajor->SetNthFiducialSelected(negativeIndex, true);
+        d->fiducialNodeMajor->SetNthControlPointSelected(positiveIndex, true);
+        d->fiducialNodeMajor->SetNthControlPointSelected(negativeIndex, true);
         }
       }
     }
 
-  for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMinor->GetNumberOfFiducials(); fiducialIndex++)
+  for (int fiducialIndex = 0; fiducialIndex < d->fiducialNodeMinor->GetNumberOfControlPoints(); fiducialIndex++)
     {
-    d->fiducialNodeMinor->SetNthFiducialSelected(fiducialIndex, false);
+    d->fiducialNodeMinor->SetNthControlPointSelected(fiducialIndex, false);
     }
 
   for (int mrmlPlotDataIndex = 0; mrmlPlotDataIndex < mrmlPlotDataIDs->GetNumberOfValues(); mrmlPlotDataIndex++)
@@ -3163,8 +3163,8 @@ void qSlicerAstroModelingModuleWidget::onPlotSelectionChanged(vtkStringArray* mr
         {
         int positiveIndex = selectionArray->GetValue(selectionArrayIndex) * 2;
         int negativeIndex = (selectionArray->GetValue(selectionArrayIndex) * 2) + 1;
-        d->fiducialNodeMinor->SetNthFiducialSelected(positiveIndex, true);
-        d->fiducialNodeMinor->SetNthFiducialSelected(negativeIndex, true);
+        d->fiducialNodeMinor->SetNthControlPointSelected(positiveIndex, true);
+        d->fiducialNodeMinor->SetNthControlPointSelected(negativeIndex, true);
         }
       }
     }
@@ -4611,19 +4611,19 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     d->fiducialNodeMajor->GlobalWarningDisplayOff();
     d->fiducialNodeMinor->GlobalWarningDisplayOff();
-    d->fiducialNodeMajor->RemoveAllMarkups();
-    d->fiducialNodeMinor->RemoveAllMarkups();
+    d->fiducialNodeMajor->RemoveAllControlPoints();
+    d->fiducialNodeMinor->RemoveAllControlPoints();
 
-    MarkupsLogic->SetActiveListID(d->fiducialNodeMinor);
+    MarkupsLogic->SetActiveList(d->fiducialNodeMinor);
     for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
       {
-      MarkupsLogic->AddFiducial(0., 0., 0.);
+      MarkupsLogic->AddControlPoint(0., 0., 0.);
       }
 
-    MarkupsLogic->SetActiveListID(d->fiducialNodeMajor);
+    MarkupsLogic->SetActiveList(d->fiducialNodeMajor);
     for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues() * 2; radiiIndex++)
       {
-      MarkupsLogic->AddFiducial(0., 0., 0.);
+      MarkupsLogic->AddControlPoint(0., 0., 0.);
       }
 
     int MajorWasModifying = d->fiducialNodeMajor->StartModify();
@@ -4638,23 +4638,23 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       std::string fiducialLabelNegative = "-RMajor";
       fiducialLabelPositive += IntToString(radiiIndex);
       fiducialLabelNegative += IntToString(radiiIndex);
-      d->fiducialNodeMajor->SetNthFiducialLabel(positiveIndex, fiducialLabelPositive);
-      d->fiducialNodeMajor->SetNthFiducialSelected(positiveIndex, false);
-      d->fiducialNodeMajor->SetNthMarkupLocked(positiveIndex, true);
-      d->fiducialNodeMajor->SetNthFiducialLabel(negativeIndex, fiducialLabelNegative);
-      d->fiducialNodeMajor->SetNthFiducialSelected(negativeIndex, false);
-      d->fiducialNodeMajor->SetNthMarkupLocked(negativeIndex, true);
+      d->fiducialNodeMajor->SetNthControlPointLabel(positiveIndex, fiducialLabelPositive);
+      d->fiducialNodeMajor->SetNthControlPointSelected(positiveIndex, false);
+      d->fiducialNodeMajor->SetNthControlPointLocked(positiveIndex, true);
+      d->fiducialNodeMajor->SetNthControlPointLabel(negativeIndex, fiducialLabelNegative);
+      d->fiducialNodeMajor->SetNthControlPointSelected(negativeIndex, false);
+      d->fiducialNodeMajor->SetNthControlPointLocked(negativeIndex, true);
 
       fiducialLabelPositive = "RMinor";
       fiducialLabelNegative = "-RMinor";
       fiducialLabelPositive += IntToString(radiiIndex);
       fiducialLabelNegative += IntToString(radiiIndex);
-      d->fiducialNodeMinor->SetNthFiducialLabel(positiveIndex, fiducialLabelPositive);
-      d->fiducialNodeMinor->SetNthFiducialSelected(positiveIndex, false);
-      d->fiducialNodeMinor->SetNthMarkupLocked(positiveIndex, true);
-      d->fiducialNodeMinor->SetNthFiducialLabel(negativeIndex, fiducialLabelNegative);
-      d->fiducialNodeMinor->SetNthFiducialSelected(negativeIndex, false);
-      d->fiducialNodeMinor->SetNthMarkupLocked(negativeIndex, true);
+      d->fiducialNodeMinor->SetNthControlPointLabel(positiveIndex, fiducialLabelPositive);
+      d->fiducialNodeMinor->SetNthControlPointSelected(positiveIndex, false);
+      d->fiducialNodeMinor->SetNthControlPointLocked(positiveIndex, true);
+      d->fiducialNodeMinor->SetNthControlPointLabel(negativeIndex, fiducialLabelNegative);
+      d->fiducialNodeMinor->SetNthControlPointSelected(negativeIndex, false);
+      d->fiducialNodeMinor->SetNthControlPointLocked(negativeIndex, true);
       }
 
     d->fiducialNodeMajor->EndModify(MajorWasModifying);
@@ -4721,8 +4721,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
     d->fiducialNodeMajor->GlobalWarningDisplayOff();
     d->fiducialNodeMinor->GlobalWarningDisplayOff();
-    d->fiducialNodeMajor->RemoveAllMarkups();
-    d->fiducialNodeMinor->RemoveAllMarkups();
+    d->fiducialNodeMajor->RemoveAllControlPoints();
+    d->fiducialNodeMinor->RemoveAllControlPoints();
     d->fiducialNodeMajor->GlobalWarningDisplayOn();
     d->fiducialNodeMinor->GlobalWarningDisplayOn();
 

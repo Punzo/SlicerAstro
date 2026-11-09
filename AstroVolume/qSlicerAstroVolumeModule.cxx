@@ -411,12 +411,9 @@ void qSlicerAstroVolumeModule::setup()
   newOrietation.push_back("XY");
   newOrietation.push_back("XZ");
   newOrietation.push_back("ZY");
-  for(int i = 1 ; i < 36; i++)
+  for (int i : layoutNode->GetLayoutIndices())
     {
-    if (i == 5 || i == 11 || i == 13 || i == 18 || i == 20)
-      {
-      continue;
-      }
+    // Rename slice orientations (no-op for layouts without slice views)
 
     std::string layoutDescription = layoutNode->GetLayoutDescription(i);
     std::vector<std::string>::const_iterator it;

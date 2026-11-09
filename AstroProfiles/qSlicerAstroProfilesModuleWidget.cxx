@@ -731,7 +731,7 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onInputVolumeModified()));
@@ -740,7 +740,7 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }

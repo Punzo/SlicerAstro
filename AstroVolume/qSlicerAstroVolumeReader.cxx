@@ -145,7 +145,7 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
   if (properties.contains("fileNames"))
     {
     fileList = vtkSmartPointer<vtkStringArray>::New();
-    foreach(QString file, properties["fileNames"].toStringList())
+    for (const QString& file : properties["fileNames"].toStringList())
       {
       fileList->InsertNextValue(file.toLatin1());
       }
@@ -176,11 +176,11 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
       {
       if (vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node))
         {
-        selectionNode->SetReferenceActiveLabelVolumeID(node->GetID());
+        selectionNode->SetActiveLabelVolumeID(node->GetID());
         }
       else
         {
-        selectionNode->SetReferenceActiveVolumeID(node->GetID());
+        selectionNode->SetActiveVolumeID(node->GetID());
         }
       if (appLogic)
         {

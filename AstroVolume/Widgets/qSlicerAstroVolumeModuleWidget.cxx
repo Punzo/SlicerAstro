@@ -1351,17 +1351,17 @@ bool qSlicerAstroVolumeModuleWidget::updateMasterRepresentationInSegmentation(vt
     {
     return false;
     }
-  std::string newMasterRepresentation(representation.toLatin1().constData());
+  std::string newSourceRepresentation(representation.toLatin1().constData());
 
   // Set master representation to the added one if segmentation is empty or master representation is undefined
   if (segmentation->GetNumberOfSegments() == 0)
     {
-    segmentation->SetMasterRepresentationName(newMasterRepresentation);
+    segmentation->SetSourceRepresentationName(newSourceRepresentation);
     return true;
     }
 
   // No action is necessary if segmentation is non-empty and the master representation matches the contained one in segment
-  if (segmentation->GetMasterRepresentationName() == newMasterRepresentation)
+  if (segmentation->GetSourceRepresentationName() == newSourceRepresentation)
     {
     return true;
     }
@@ -1382,8 +1382,8 @@ bool qSlicerAstroVolumeModuleWidget::updateMasterRepresentationInSegmentation(vt
   QString message = QString("Segment is to be added in segmentation '%1' that contains a representation (%2) different than the master representation in the segmentation (%3). "
     "The master representation need to be changed so that the segment can be added. This might result in unwanted data loss.\n\n"
     "Do you wish to change the master representation to %2?")
-    .arg(segmentationNode->GetName()).arg(newMasterRepresentation.c_str())
-    .arg(segmentation->GetMasterRepresentationName().c_str());
+    .arg(segmentationNode->GetName()).arg(newSourceRepresentation.c_str())
+    .arg(segmentation->GetSourceRepresentationName().c_str());
   QMessageBox::StandardButton answer =
     QMessageBox::question(nullptr, tr("Master representation is needed to be changed to add segment"), message,
     QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
@@ -1393,7 +1393,7 @@ bool qSlicerAstroVolumeModuleWidget::updateMasterRepresentationInSegmentation(vt
     }
 
   // Make sure the new master representation exists before setting it
-  if (!segmentation->CreateRepresentation(newMasterRepresentation.c_str()))
+  if (!segmentation->CreateRepresentation(newSourceRepresentation.c_str()))
     {
     std::vector<std::string> containedRepresentationNamesInSegmentation;
     segmentation->GetContainedRepresentationNames(containedRepresentationNamesInSegmentation);
@@ -1405,12 +1405,12 @@ bool qSlicerAstroVolumeModuleWidget::updateMasterRepresentationInSegmentation(vt
 
     std::string firstContainedRepresentation = (*containedRepresentationNamesInSegmentation.begin());
     qCritical() << Q_FUNC_INFO << ": Master representation cannot be created in segmentation! Setting master to the first representation found: " << firstContainedRepresentation.c_str();
-    segmentation->SetMasterRepresentationName(newMasterRepresentation.c_str());
+    segmentation->SetSourceRepresentationName(newSourceRepresentation.c_str());
     return false;
     }
 
   // Set master representation to the added one if user agreed
-  segmentation->SetMasterRepresentationName(newMasterRepresentation.c_str());
+  segmentation->SetSourceRepresentationName(newSourceRepresentation.c_str());
   return true;
 }
 
@@ -1471,7 +1471,7 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     d->HistoCollapsibleButton->setEnabled(true);
 
     astroVolumeNode->Modified();
-    d->selectionNode->SetReferenceActiveVolumeID(astroVolumeNode->GetID());
+    d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
     d->selectionNode->SetActiveVolumeID(astroVolumeNode->GetID());
     }
   else if (labelMapVolumeNode)
@@ -1482,14 +1482,14 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     d->HistoCollapsibleButton->setEnabled(false);
     d->HistoCollapsibleButton->setCollapsed(true);
     labelMapVolumeNode->Modified();
-    d->selectionNode->SetReferenceActiveLabelVolumeID(labelMapVolumeNode->GetID());
+    d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
     d->selectionNode->SetActiveLabelVolumeID(labelMapVolumeNode->GetID());
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
-    d->selectionNode->SetReferenceActiveLabelVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveLabelVolumeID(nullptr);
     d->selectionNode->SetActiveLabelVolumeID(nullptr);
     }
 
@@ -2103,7 +2103,7 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
     return;
     }
 
-  d->selectionNode->SetReferenceActiveLabelVolumeID("");
+  d->selectionNode->SetActiveLabelVolumeID("");
   appLogic->PropagateLabelVolumeSelection(1);
 
   if (!d->ActiveVolumeNodeSelector || !this->mrmlScene())
@@ -2538,8 +2538,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
         continue;
         }
 
-      if (cameraNode->GetActiveTag() &&
-          !strcmp(cameraNode->GetActiveTag(), View1->GetID()))
+      if (cameraNode->GetLayoutName() && View1->GetLayoutName() &&
+          !strcmp(cameraNode->GetLayoutName(), View1->GetLayoutName()))
         {
         int* dims = volumeOne->GetImageData()->GetDimensions();
         // In RAS the z axes is on the second index
@@ -2569,8 +2569,8 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
         continue;
         }
 
-      if (cameraNode->GetActiveTag() &&
-          !strcmp(cameraNode->GetActiveTag(), View2->GetID()))
+      if (cameraNode->GetLayoutName() && View2->GetLayoutName() &&
+          !strcmp(cameraNode->GetLayoutName(), View2->GetLayoutName()))
         {
         int* dims = volumeTwo->GetImageData()->GetDimensions();
         // In RAS the z axes is on the second index
@@ -2904,8 +2904,8 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
         continue;
         }
 
-      if (cameraNode->GetActiveTag() &&
-          !strcmp(cameraNode->GetActiveTag(), View1->GetID()))
+      if (cameraNode->GetLayoutName() && View1->GetLayoutName() &&
+          !strcmp(cameraNode->GetLayoutName(), View1->GetLayoutName()))
         {
         int* dims = volumeOne->GetImageData()->GetDimensions();
         // In RAS the z axes is on the second index
@@ -3163,8 +3163,8 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
         continue;
         }
 
-      if (cameraNode->GetActiveTag() &&
-          !strcmp(cameraNode->GetActiveTag(), View1->GetID()))
+      if (cameraNode->GetLayoutName() && View1->GetLayoutName() &&
+          !strcmp(cameraNode->GetLayoutName(), View1->GetLayoutName()))
         {
         int* dims = volumeOne->GetImageData()->GetDimensions();
         // In RAS the z axes is on the second index

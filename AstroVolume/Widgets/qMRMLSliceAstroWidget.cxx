@@ -66,55 +66,21 @@ void qMRMLSliceAstroWidgetPrivate::init()
 
   this->setupUi(q);
 
-  this->verticalLayout->removeWidget(this->SliceView);
-  this->verticalLayout_2->removeWidget(this->SliceController);
-  this->verticalLayout_2->removeWidget(this->frame);
-
-  delete this->SliceView;
-  delete this->verticalLayout;
-  delete this->SliceController;
-  delete this->frame;
-  delete this->verticalLayout_2;
-
-  q->resize(595, 518);
-  verticalLayout_2 = new QVBoxLayout(q);
-  verticalLayout_2->setSpacing(0);
-  verticalLayout_2->setContentsMargins(0, 0, 0, 0);
-  verticalLayout_2->setObjectName(QStringLiteral("verticalLayout_2"));
-
+  // Replace the standard slice controller by the astro one (which displays
+  // world coordinates), keeping the rest of the standard qMRMLSliceWidget
+  // layout (slice view frame and vertical slice controller).
+  qMRMLSliceControllerWidget* standardController = this->SliceController;
   this->SliceController = new qMRMLSliceAstroControllerWidget(q);
   this->SliceController->setObjectName(QLatin1String("SliceController"));
-  this->verticalLayout_2->addWidget(this->SliceController);
-
-  this->frame = new QFrame(q);
-  this->frame->setObjectName(QLatin1String("frame"));
-  QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Expanding);
-  sizePolicy.setHorizontalStretch(0);
-  sizePolicy.setVerticalStretch(0);
-  sizePolicy.setHeightForWidth(frame->sizePolicy().hasHeightForWidth());
-  frame->setSizePolicy(sizePolicy);
-  this->frame->setFrameShadow(QFrame::Raised);
-
-  this->verticalLayout = new QVBoxLayout(this->frame);
-  this->verticalLayout->setSpacing(0);
-  this->verticalLayout->setObjectName(QLatin1String("verticalLayout"));
-  this->verticalLayout->setContentsMargins(0, 0, 0, 0);
-
-  this->SliceView = new qMRMLSliceView(this->frame);
-  this->SliceView->setObjectName(QLatin1String("SliceView"));
-  this->SliceView->setRenderEnabled(true);
-  this->verticalLayout->addWidget(this->SliceView);
-
-  this->verticalLayout_2->addWidget(this->frame);
+  delete this->verticalLayout_2->replaceWidget(standardController, this->SliceController);
+  delete standardController;
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    this->SliceController, SLOT(setMRMLScene(vtkMRMLScene*)));
-  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   this->SliceView, SLOT(setMRMLScene(vtkMRMLScene*)));
-  QMetaObject::connectSlotsByName(q);
 
-  this->SliceView->sliceViewInteractorStyle()
-    ->SetSliceLogic(this->SliceController->sliceLogic());
+  vtkMRMLSliceLogic* sliceLogic = this->SliceController->sliceLogic();
+  this->SliceVerticalController->setSliceLogic(sliceLogic);
+  this->SliceView->interactorObserver()->SetSliceLogic(sliceLogic);
 
   connect(this->SliceView, SIGNAL(resized(QSize)),
           this, SLOT(astroResetSliceViewSize(QSize)));
@@ -123,8 +89,12 @@ void qMRMLSliceAstroWidgetPrivate::init()
           this, SLOT(setImageDataConnection(vtkAlgorithmOutput*)));
   connect(this->SliceController, SIGNAL(renderRequested()),
           this->SliceView, SLOT(scheduleRender()), Qt::QueuedConnection);
+  connect(this->SliceVerticalController, SIGNAL(renderRequested()),
+          this->SliceView, SLOT(scheduleRender()), Qt::QueuedConnection);
   connect(this->SliceController, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)),
           q, SIGNAL(nodeAboutToBeEdited(vtkMRMLNode*)));
+
+  this->updateSliceOffsetSliderOrientation();
 }
 
 //---------------------------------------------------------------------------

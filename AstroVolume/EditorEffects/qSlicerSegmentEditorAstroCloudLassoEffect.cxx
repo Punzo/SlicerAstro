@@ -882,13 +882,13 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
     return;
     }
 
-  vtkOrientedImageData* masterVolumeOrientedImageData = q->masterVolumeImageData();
-  if (!masterVolumeOrientedImageData)
+  vtkOrientedImageData* sourceVolumeOrientedImageData = q->sourceVolumeImageData();
+  if (!sourceVolumeOrientedImageData)
     {
     return;
     }
   // Make sure the modifier labelmap has the same geometry as the master volume
-  if (!vtkOrientedImageDataResample::DoGeometriesMatch(this->LastMask, masterVolumeOrientedImageData))
+  if (!vtkOrientedImageDataResample::DoGeometriesMatch(this->LastMask, sourceVolumeOrientedImageData))
     {
     return;
     }
@@ -897,7 +897,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
   double ThresholdMaximumValue = q->doubleParameter("ThresholdMaximumValue");
   // Create threshold image
   vtkNew<vtkImageThreshold> threshold;
-  threshold->SetInputData(masterVolumeOrientedImageData);
+  threshold->SetInputData(sourceVolumeOrientedImageData);
   threshold->ThresholdBetween(ThresholdMinimumValue, ThresholdMaximumValue);
   threshold->SetInValue(1);
   threshold->SetOutValue(0);
@@ -1063,7 +1063,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushes()
   QList<qMRMLWidget*> unusedWidgetPipelines = this->BrushPipelines.keys();
 
   qSlicerLayoutManager* layoutManager = qSlicerApplication::application()->layoutManager();
-  foreach(QString sliceViewName, layoutManager->sliceViewNames())
+  for (const QString& sliceViewName : layoutManager->sliceViewNames())
     {
     qMRMLSliceWidget* sliceWidget = layoutManager->sliceWidget(sliceViewName);
     unusedWidgetPipelines.removeOne(sliceWidget); // not an orphan
@@ -1082,7 +1082,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushes()
     qSlicerSegmentEditorAbstractEffect::scheduleRender(threeDWidget);
     }
 
-  foreach (qMRMLWidget* viewWidget, unusedWidgetPipelines)
+  for (qMRMLWidget* viewWidget : unusedWidgetPipelines)
     {
     BrushPipeline* pipeline = this->BrushPipelines[viewWidget];
     BrushPipeline2D* pipeline2D = dynamic_cast<BrushPipeline2D*>(pipeline);
@@ -1242,7 +1242,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::activate();
-  this->masterVolumeNodeChanged();
+  this->sourceVolumeNodeChanged();
   d->PaintCoordinates_World->Initialize();
   d->PaintLines_World->Initialize();
   d->CloudLasso3DSelectionPoints->Initialize();
@@ -1256,7 +1256,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::deactivate();
-  this->parameterSetNode()->SetMasterVolumeIntensityMask(false);
+  this->parameterSetNode()->SetSourceVolumeIntensityMask(false);
   d->clearBrushPipelines();
   d->PaintCoordinates_World->Initialize();
   d->PaintLines_World->Initialize();
@@ -1342,11 +1342,11 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     vtkMath::Normalize(d->Normals);
 
     int Extents[6];
-    if (!this->masterVolumeImageData())
+    if (!this->sourceVolumeImageData())
       {
       return abortEvent;
       }
-    this->masterVolumeImageData()->GetExtent(Extents);
+    this->sourceVolumeImageData()->GetExtent(Extents);
 
     d->distance = 0.;
     for (int ii = 0; ii < 3; ii++)
@@ -1383,7 +1383,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     {
     d->IsPainting = true;
     QList<qMRMLWidget*> viewWidgets = d->BrushPipelines.keys();
-    foreach (qMRMLWidget* viewWidget, viewWidgets)
+    for (qMRMLWidget* viewWidget : viewWidgets)
       {
       d->BrushPipelines[viewWidget]->SetFeedbackVisibility(d->DelayedPaint);
       }
@@ -1396,7 +1396,7 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
     d->paintApply(viewWidget);
 
     QList<qMRMLWidget*> viewWidgets = d->BrushPipelines.keys();
-    foreach (qMRMLWidget* viewWidget, viewWidgets)
+    for (qMRMLWidget* viewWidget : viewWidgets)
       {
       d->BrushPipelines[viewWidget]->SetFeedbackVisibility(false);
       }
@@ -1557,7 +1557,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setMRMLDefaults()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
+void qSlicerSegmentEditorAstroCloudLassoEffect::sourceVolumeNodeChanged()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
@@ -1566,21 +1566,21 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
     return;
     }
 
-  vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
-  if (!masterVolume)
+  vtkMRMLScalarVolumeNode *sourceVolume = this->parameterSetNode()->GetSourceVolumeNode();
+  if (!sourceVolume)
     {
     return;
     }
 
-  vtkMRMLAstroVolumeNode *astroMasterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(masterVolume);
-  if (!astroMasterVolume)
+  vtkMRMLAstroVolumeNode *astroSourceVolume = vtkMRMLAstroVolumeNode::SafeDownCast(sourceVolume);
+  if (!astroSourceVolume)
     {
     return;
     }
 
-  double min = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMIN"));
+  double min = StringToDouble(astroSourceVolume->GetAttribute("SlicerAstro.DATAMIN"));
   this->setCommonParameter("ThresholdMinimumValueLimit", min);
-  double max = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
+  double max = StringToDouble(astroSourceVolume->GetAttribute("SlicerAstro.DATAMAX"));
   this->setCommonParameter("ThresholdMaximumValue", max);
   this->setCommonParameter("ThresholdMaximumValueLimit", max);
 
@@ -1594,7 +1594,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::masterVolumeNodeChanged()
     ->applicationLogic()->GetSelectionNode()->GetUnitNode("intensity");
   this->setCommonParameter("ThresholdDecimals", unitNodeIntensity->GetPrecision());
 
-  double noise3 = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
+  double noise3 = StringToDouble(astroSourceVolume->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
 
   if (noise3 != 0.)
     {
@@ -1654,7 +1654,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface(bool on)
       }
     }
   // If unchecked, then remove representation (but only if it's not the master representation)
-  else if (segmentationNode->GetSegmentation()->GetMasterRepresentationName() !=
+  else if (segmentationNode->GetSegmentation()->GetSourceRepresentationName() !=
     vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName())
     {
     segmentationNode->GetSegmentation()->RemoveRepresentation(
@@ -1696,8 +1696,8 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
   d->ThresholdRangeWidget->setDecimals(ThresholdDecimals);
 
   int wasModifying = this->parameterSetNode()->StartModify();
-  this->parameterSetNode()->SetMasterVolumeIntensityMask(true);
-  this->parameterSetNode()->SetMasterVolumeIntensityMaskRange(ThresholdMinimumValue,
+  this->parameterSetNode()->SetSourceVolumeIntensityMask(true);
+  this->parameterSetNode()->SetSourceVolumeIntensityMaskRange(ThresholdMinimumValue,
                                                               ThresholdMaximumValue);
   this->parameterSetNode()->EndModify(wasModifying);
 }
@@ -1764,19 +1764,19 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onEraseModeChanged(bool mode)
     return;
     }
 
-  vtkMRMLScalarVolumeNode *masterVolume = this->parameterSetNode()->GetMasterVolumeNode();
-  if (!masterVolume)
+  vtkMRMLScalarVolumeNode *sourceVolume = this->parameterSetNode()->GetSourceVolumeNode();
+  if (!sourceVolume)
     {
     return;
     }
 
-  vtkMRMLAstroVolumeNode *astroMasterVolume = vtkMRMLAstroVolumeNode::SafeDownCast(masterVolume);
-  if (!astroMasterVolume)
+  vtkMRMLAstroVolumeNode *astroSourceVolume = vtkMRMLAstroVolumeNode::SafeDownCast(sourceVolume);
+  if (!astroSourceVolume)
     {
     return;
     }
 
-  double max = StringToDouble(astroMasterVolume->GetAttribute("SlicerAstro.DATAMAX"));
+  double max = StringToDouble(astroSourceVolume->GetAttribute("SlicerAstro.DATAMAX"));
   this->setCommonParameter("ThresholdMaximumValue", max);
   this->updateGUIFromMRML();
 }

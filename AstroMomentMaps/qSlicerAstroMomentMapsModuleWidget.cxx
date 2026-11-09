@@ -712,7 +712,7 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
 
   if (mrmlNode)
     {
-    d->selectionNode->SetReferenceActiveVolumeID(mrmlNode->GetID());
+    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
 
@@ -723,7 +723,7 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     }
   else
     {
-    d->selectionNode->SetReferenceActiveVolumeID(nullptr);
+    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 }

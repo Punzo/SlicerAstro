@@ -81,7 +81,7 @@ public:
   virtual void setMRMLDefaults();
 
   /// Perform actions needed on master volume change
-  virtual void masterVolumeNodeChanged();
+  virtual void sourceVolumeNodeChanged();
 
   /// Show Segment model
   virtual void CreateSurface(bool on);
