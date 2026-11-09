@@ -90,7 +90,7 @@
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
-#include <sys/time.h>
+#include <chrono>
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroProfiles

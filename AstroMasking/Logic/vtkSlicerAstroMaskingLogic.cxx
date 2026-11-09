@@ -53,7 +53,7 @@
 // Std includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 namespace
 {
@@ -269,11 +269,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   bool cancel = false;
   int status = 0;
 
-  struct timeval start, end;
+  std::chrono::steady_clock::time_point start, end;
 
-  long mtime, seconds, useconds;
+  long mtime = 0;
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -427,12 +427,9 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
 
@@ -454,7 +451,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     return false;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -463,10 +460,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   pnode->SetStatus(100);
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -641,11 +635,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   bool cancel = false;
   int status = 0;
 
-  struct timeval start, end;
+  std::chrono::steady_clock::time_point start, end;
 
-  long mtime, seconds, useconds;
+  long mtime = 0;
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -691,12 +685,9 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
       }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
 
@@ -719,7 +710,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     return false;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateDisplayThresholdAttributes();
@@ -777,12 +768,9 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);;
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 

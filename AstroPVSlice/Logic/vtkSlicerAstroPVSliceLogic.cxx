@@ -61,7 +61,7 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 //----------------------------------------------------------------------------
 class vtkSlicerAstroPVSliceLogic::vtkInternal

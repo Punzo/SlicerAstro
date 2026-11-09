@@ -30,11 +30,13 @@
 // Qt includes
 #include <filesystem>
 #include <regex>
+#include <vector>
 
 // VTK includes
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkMath.h>
 #include <vtkInformation.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
@@ -61,7 +63,8 @@ vtkFITSReader::vtkFITSReader()
   this->Compression = false;
   this->fptr = nullptr;
   this->ReadStatus = 0;
-  this->WCS = new struct wcsprm;
+  // wcslib releases wcsprm structs with free(): allocate them with calloc.
+  this->WCS = static_cast<struct wcsprm*>(calloc(1, sizeof(struct wcsprm)));
   this->WCS->flag = -1;
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1, 0, this->WCS)))
@@ -71,15 +74,8 @@ vtkFITSReader::vtkFITSReader()
                   "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
                   ": \n"<<this->WCS->err->msg<<"\n");
     }
-  this->ReadWCS = new struct wcsprm;
-  this->ReadWCS->flag = -1;
-  if((this->WCSStatus = wcsini(1, 0, this->ReadWCS)))
-    {
-    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->ReadWCS->err->function<<
-                  "at line "<<this->ReadWCS->err->line_no<<" of file "<<this->ReadWCS->err->file<<
-                  ": \n"<<this->ReadWCS->err->msg<<"\n");
-    }
+  // ReadWCS (array of NWCS structs) is allocated by wcspih in AllocateWCS()
+  this->ReadWCS = nullptr;
   this->NWCS = 0;
   this->WCSStatus = 0;
   this->FixGipsyHeaderOn = false;
@@ -106,27 +102,23 @@ vtkFITSReader::~vtkFITSReader()
     this->CurrentFileName = nullptr;
     }
 
-  if(this->WCS)
+  // WCS is a single struct owned by the reader
+  if (this->WCS)
     {
-    if((this->WCSStatus = wcsvfree(&this->NWCS, &this->WCS)))
-      {
-      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsfree ERROR "<<this->WCSStatus<<": "
-                    <<wcshdr_errmsg[this->WCSStatus]<<"\n");
-      }
-    delete [] this->WCS;
+    wcsfree(this->WCS);
+    free(this->WCS);
     this->WCS = nullptr;
     }
 
-  if(this->ReadWCS)
+  // ReadWCS is the array of NWCS structs allocated by wcspih
+  if (this->ReadWCS)
     {
-    if((this->WCSStatus = wcsvfree(&this->NWCS, &this->ReadWCS)))
+    if ((this->WCSStatus = wcsvfree(&this->NWCS, &this->ReadWCS)))
       {
-      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsfree ERROR "<<this->WCSStatus<<": "
-                    <<wcshdr_errmsg[this->WCSStatus]<<"\n");
+      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsvfree ERROR " << this->WCSStatus);
       }
-    delete [] this->ReadWCS;
     this->ReadWCS = nullptr;
-  }
+    }
 }
 
 namespace
@@ -539,24 +531,24 @@ void vtkFITSReader::ExecuteInformation()
     spacings[axii] = 1.0;
     }
 
-  double theta1 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) >= 0.) ? 0. : M_PI;
+  double theta1 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) >= 0.) ? 0. : vtkMath::Pi();
   double theta2 = 0.;
   if (naxes > 1)
     {
-    theta2 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT2")) >= 0.) ? 0. : M_PI;
+    theta2 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT2")) >= 0.) ? 0. : vtkMath::Pi();
     }
   double theta3 = 0.;
   if (naxes > 2)
     {
-    theta3 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) >= 0.) ? 0. : M_PI;
+    theta3 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) >= 0.) ? 0. : vtkMath::Pi();
     }
-  theta1 += M_PI/2.;
+  theta1 += vtkMath::Pi()/2.;
 
   if (naxes == 2)
     {
     if (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) < 0.)
       {
-      theta3 += M_PI;
+      theta3 += vtkMath::Pi();
       }
     }
 
@@ -565,13 +557,13 @@ void vtkFITSReader::ExecuteInformation()
     if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) < 0. &&
         StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.)
       {
-      theta3 += M_PI;
+      theta3 += vtkMath::Pi();
       }
 
     if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) > 0. &&
         StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.)
       {
-      theta3 += M_PI;
+      theta3 += vtkMath::Pi();
       }
     }
 
@@ -1999,16 +1991,21 @@ int vtkFITSReader::FixGipsyHeader()
 //----------------------------------------------------------------------------
 bool vtkFITSReader::AllocateWCS()
 {
-  char *header;
-  int  i, nkeyrec, nreject, stat[NWCSFIX];
+  char *header = nullptr;
+  int  i, nkeyrec = 0, nreject, stat[NWCSFIX];
 
   // read header from fits file
-  if ((this->WCSStatus = fits_hdr2str(this->fptr, 1, nullptr, 0, &header, &nkeyrec, &this->WCSStatus)))
+  int hdrStatus = 0;
+  if (fits_hdr2str(this->fptr, 1, nullptr, 0, &header, &nkeyrec, &hdrStatus) || !header)
     {
-    fits_report_error(stderr, this->WCSStatus);
+    fits_report_error(stderr, hdrStatus);
+    this->WCSStatus = hdrStatus;
+    return false;
     }
 
   std::string stdHeader(header);
+  fits_free_memory(header, &hdrStatus);
+  header = nullptr;
   size_t found;
 
   // fix gipsy keywords in wcs
@@ -2119,15 +2116,26 @@ bool vtkFITSReader::AllocateWCS()
     }
 
   // update wcs from fits header
-  header = (char *)malloc(((int)(stdHeader.size())+1)*sizeof(char));
-  std::strcpy(header, stdHeader.c_str());
+  std::vector<char> headerBuffer(stdHeader.begin(), stdHeader.end());
+  headerBuffer.push_back('\0');
 
-  if ((this->WCSStatus = wcspih(header, nkeyrec, WCSHDR_all, 2, &nreject, &this->NWCS, &this->ReadWCS)))
+  // Release the structs of a previous read
+  if (this->ReadWCS)
     {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcspih ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->ReadWCS->err->function<<
-                  "at line "<<this->ReadWCS->err->line_no<<" of file "<<this->ReadWCS->err->file<<
-                  ": \n"<<this->ReadWCS->err->msg<<"\n");
+    wcsvfree(&this->NWCS, &this->ReadWCS);
+    this->ReadWCS = nullptr;
+    }
+
+  if ((this->WCSStatus = wcspih(headerBuffer.data(), nkeyrec, WCSHDR_all, 2, &nreject, &this->NWCS, &this->ReadWCS)))
+    {
+    // ReadWCS may not be allocated when wcspih fails
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcspih ERROR " << this->WCSStatus << ".");
+    return false;
+    }
+  if (this->NWCS < 1 || !this->ReadWCS)
+    {
+    vtkWarningMacro("vtkFITSReader::AllocateWCS: no WCS found in the FITS header.");
+    this->WCSStatus = 1;
     return false;
     }
 
@@ -2197,6 +2205,8 @@ bool vtkFITSReader::AllocateWCS()
     return false;
     }
 
+  // Release the previous content of WCS before copying the sub-image WCS
+  wcsfree(this->WCS);
   this->WCS->flag = -1;
   if ((this->WCSStatus = wcssub(1, this->ReadWCS, &nsub, axes, this->WCS)))
     {
@@ -2778,7 +2788,6 @@ bool vtkFITSReader::AllocateWCS()
       }
     }
 
-  free(header);
   return true;
 }
 

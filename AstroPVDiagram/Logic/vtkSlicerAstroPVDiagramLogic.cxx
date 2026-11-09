@@ -22,6 +22,7 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroPVDiagramLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <vtkSMPTools.h>
 
 // MRML includes
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
@@ -69,12 +70,9 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 
 //----------------------------------------------------------------------------
@@ -655,12 +653,10 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
                   "the AstroPVDiagram algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!this->GetMRMLScene() || !pnode)
     {
@@ -864,11 +860,9 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
   // 2D nearest-neighbour interpolation.
   // Fiducials are restrained on the Moment Map,
   // therefore there are no indexes checks.
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  omp_set_num_threads(omp_get_num_procs());
-  #pragma omp parallel for schedule(static) shared(pnode, points, PVDiagramFPixel, inFPixel, PVDiagramDPixel, inDPixel)
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  for (int PointIndex = 0; PointIndex < points->GetNumberOfPoints(); PointIndex++)
+  vtkSMPTools::For(0, points->GetNumberOfPoints(), [&](vtkIdType firstPoint, vtkIdType lastPoint)
+    {
+    for (vtkIdType PointIndex = firstPoint; PointIndex < lastPoint; PointIndex++)
     {
     double posIJK[3];
     points->GetPoint(PointIndex, posIJK);
@@ -890,27 +884,28 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
 
     for (int kk = 0; kk < N2; kk++)
       {
-      double IndexZ = kk * numSlice;
-      int IndexZLB = IndexLB + IndexZ;
-      int IndexZLT = IndexLT + IndexZ;
-      int IndexZRB = IndexRB + IndexZ;
-      int IndexZRT = IndexRT + IndexZ;
+      const vtkIdType IndexZ = static_cast<vtkIdType>(kk) * numSlice;
+      const vtkIdType IndexZLB = IndexLB + IndexZ;
+      const vtkIdType IndexZLT = IndexLT + IndexZ;
+      const vtkIdType IndexZRB = IndexRB + IndexZ;
+      const vtkIdType IndexZRT = IndexRT + IndexZ;
       double ITop, IBottom;
       switch (DataType)
         {
         case VTK_FLOAT:
           ITop = *(inFPixel + IndexZLT) * (iiInterpolatedRight) + *(inFPixel + IndexZRT) * (iiInterpolatedLeft);
           IBottom = *(inFPixel + IndexZLB) * (iiInterpolatedRight) + *(inFPixel + IndexZRB) * (iiInterpolatedLeft);
-          *(PVDiagramFPixel + PointIndex + kk * N1) = ITop * jjInterpolatedBottom + IBottom * jjInterpolatedTop;
+          *(PVDiagramFPixel + PointIndex + static_cast<vtkIdType>(kk) * N1) = ITop * jjInterpolatedBottom + IBottom * jjInterpolatedTop;
           break;
         case VTK_DOUBLE:
           ITop = *(inDPixel + IndexZLT) * (iiInterpolatedRight) + *(inDPixel + IndexZRT) * (iiInterpolatedLeft);
           IBottom = *(inDPixel + IndexZLB) * (iiInterpolatedRight) + *(inDPixel + IndexZRB) * (iiInterpolatedLeft);
-          *(PVDiagramDPixel + PointIndex + kk * N1) = ITop * jjInterpolatedBottom + IBottom * jjInterpolatedTop;
+          *(PVDiagramDPixel + PointIndex + static_cast<vtkIdType>(kk) * N1) = ITop * jjInterpolatedBottom + IBottom * jjInterpolatedTop;
           break;
         }
       }
     }
+    });
 
   inFPixel = nullptr;
   PVDiagramFPixel = nullptr;

@@ -21,6 +21,8 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroStatisticsLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <vtkSlicerAstroSMPTools.h>
+#include <type_traits>
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
@@ -50,12 +52,9 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 namespace
 {
@@ -183,12 +182,10 @@ void vtkSlicerAstroStatisticsLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
                   "the AstroStatistics algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
     {
@@ -320,25 +317,12 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   bool cancel = false;
   int status = 0;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -352,26 +336,23 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         pnode->GetMean() || pnode->GetStd() ||
         pnode->GetTotalFlux() || pnode->GetMedian())
       {
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) shared(pnode, cancel, status) reduction(max : Max), reduction(min : Min), reduction(+:Sum), reduction(+:Npixels)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+      {
+      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+      vtkSMPThreadLocal<decltype(Max)> MaxLocal(Max);
+      vtkSMPThreadLocal<decltype(Min)> MinLocal(Min);
+      vtkSMPThreadLocal<decltype(Sum)> SumLocal(0);
+      vtkSMPThreadLocal<decltype(Npixels)> NpixelsLocal(0);
+      vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
-        int stat = pnode->GetStatus();
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (stat == -1 && omp_get_thread_num() == 0)
-        #else
-        if (stat == -1)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (progress.IsCancelled())
           {
-          cancel = true;
+          return;
           }
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        #pragma omp flush (cancel)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-        if (!cancel)
+        auto& Max = MaxLocal.Local();
+        auto& Min = MinLocal.Local();
+        auto& Sum = SumLocal.Local();
+        auto& Npixels = NpixelsLocal.Local();
+        for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           if (*(maskPixel + elementCnt) < 1)
             {
@@ -413,25 +394,15 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
             }
 
           Npixels += 1;
-
-          #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-          if (omp_get_thread_num() == 0)
-            {
-            if(elementCnt / (numElements / (numProcs * 33.)) > status)
-              {
-              status += 10;
-              pnode->SetStatus(status);
-              }
-            }
-          #else
-          if(elementCnt / (numElements / 33.) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
           }
-        }
+        progress.Done(lastIndex - firstIndex);
+        });
+      for (auto value : MaxLocal) { Max = std::max(Max, value); }
+      for (auto value : MinLocal) { Min = std::min(Min, value); }
+      for (auto value : SumLocal) { Sum += value; }
+      for (auto value : NpixelsLocal) { Npixels += value; }
+      cancel = progress.IsCancelled();
+      }
 
       if (cancel)
         {
@@ -462,26 +433,17 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     // Calculate Std
     if (pnode->GetStd())
       {
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) shared(pnode, cancel, status) reduction(+:Std)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+      {
+      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+      vtkSMPThreadLocal<decltype(Std)> StdLocal(0);
+      vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
-        int stat = pnode->GetStatus();
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (stat == -1 && omp_get_thread_num() == 0)
-        #else
-        if (stat == -1)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (progress.IsCancelled())
           {
-          cancel = true;
+          return;
           }
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        #pragma omp flush (cancel)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-        if (!cancel)
+        auto& Std = StdLocal.Local();
+        for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           if (*(maskPixel + elementCnt) < 1)
             {
@@ -505,25 +467,12 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
               Std += (*(inDPixel + elementCnt) - Mean) * (*(inDPixel + elementCnt) - Mean);
               break;
             }
-
-          #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-          if (omp_get_thread_num() == 0)
-            {
-            if(33. + (elementCnt / (numElements / (numProcs * 33.))) > status)
-              {
-              status += 10;
-              pnode->SetStatus(status);
-              }
-            }
-          #else
-          if(33. + (elementCnt / (numElements / 33.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
           }
-        }
+        progress.Done(lastIndex - firstIndex);
+        });
+      for (auto value : StdLocal) { Std += value; }
+      cancel = progress.IsCancelled();
+      }
 
       if (cancel)
         {
@@ -638,26 +587,23 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         pnode->GetMean() || pnode->GetStd() ||
         pnode->GetTotalFlux() || pnode->GetMedian())
       {
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) shared(pnode, cancel, status) reduction(max : Max), reduction(min : Min), reduction(+:Sum), reduction(+:Npixels)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
+      {
+      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (lastElement) - (firstElement), 10, 100);
+      vtkSMPThreadLocal<decltype(Max)> MaxLocal(Max);
+      vtkSMPThreadLocal<decltype(Min)> MinLocal(Min);
+      vtkSMPThreadLocal<decltype(Sum)> SumLocal(0);
+      vtkSMPThreadLocal<decltype(Npixels)> NpixelsLocal(0);
+      vtkSMPTools::For(firstElement, lastElement, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
-        int stat = pnode->GetStatus();
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (stat == -1 && omp_get_thread_num() == 0)
-        #else
-        if (stat == -1)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (progress.IsCancelled())
           {
-          cancel = true;
+          return;
           }
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        #pragma omp flush (cancel)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-        if (!cancel)
+        auto& Max = MaxLocal.Local();
+        auto& Min = MinLocal.Local();
+        auto& Sum = SumLocal.Local();
+        auto& Npixels = NpixelsLocal.Local();
+        for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           int ref  = (int) floor(elementCnt / dims[0]);
           ref *= dims[0];
@@ -707,25 +653,15 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
             }
 
           Npixels += 1;
-
-          #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-          if (omp_get_thread_num() == 0)
-            {
-            if((elementCnt - firstElement) / (numElements / (numProcs * 33.)) > status)
-              {
-              status += 10;
-              pnode->SetStatus(status);
-              }
-            }
-          #else
-          if((elementCnt - firstElement) / (numElements / 33.) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
           }
-        }
+        progress.Done(lastIndex - firstIndex);
+        });
+      for (auto value : MaxLocal) { Max = std::max(Max, value); }
+      for (auto value : MinLocal) { Min = std::min(Min, value); }
+      for (auto value : SumLocal) { Sum += value; }
+      for (auto value : NpixelsLocal) { Npixels += value; }
+      cancel = progress.IsCancelled();
+      }
 
       if (cancel)
         {
@@ -756,26 +692,17 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     // Calculate Std
     if (pnode->GetStd())
       {
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) shared(pnode, cancel, status) reduction(+:Std)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
+      {
+      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (lastElement) - (firstElement), 10, 100);
+      vtkSMPThreadLocal<decltype(Std)> StdLocal(0);
+      vtkSMPTools::For(firstElement, lastElement, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
-        int stat = pnode->GetStatus();
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (stat == -1 && omp_get_thread_num() == 0)
-        #else
-        if (stat == -1)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+        if (progress.IsCancelled())
           {
-          cancel = true;
+          return;
           }
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        #pragma omp flush (cancel)
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-        if (!cancel)
+        auto& Std = StdLocal.Local();
+        for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           int ref  = (int) floor(elementCnt / dims[0]);
           ref *= dims[0];
@@ -807,25 +734,12 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
               Std += (*(inDPixel + elementCnt) - Mean) * (*(inDPixel + elementCnt) - Mean);
               break;
             }
-
-          #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-          if (omp_get_thread_num() == 0)
-            {
-            if(33. + ((elementCnt - firstElement) / (numElements / (numProcs * 33.))) > status)
-              {
-              status += 10;
-              pnode->SetStatus(status);
-              }
-            }
-          #else
-          if(33. + ((elementCnt - firstElement) / (numElements / 33.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
           }
-        }
+        progress.Done(lastIndex - firstIndex);
+        });
+      for (auto value : StdLocal) { Std += value; }
+      cancel = progress.IsCancelled();
+      }
 
       if (cancel)
         {
@@ -921,12 +835,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Statistics Kernel Time : "<<mtime<<" ms.");
 
@@ -945,7 +856,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     return false;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   double NaN = sqrt(-1);
   int serial = pnode->GetOutputSerial() - 1;
@@ -1009,12 +920,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   serial++;
   pnode->SetOutputSerial(serial + 1);
 
-  gettimeofday(&end, nullptr);;
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 

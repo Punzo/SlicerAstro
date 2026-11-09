@@ -80,6 +80,12 @@ public:
   void cleanPointers();
 
 protected:
+  /// Implementation of OperateModel and UpdateModelFromTable. They may throw
+  /// bbarolo::Error, which the public methods catch and report.
+  int OperateModelInternal(vtkMRMLAstroModelingParametersNode *pnode,
+                           vtkMRMLTableNode *tnode);
+  int UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode);
+
   vtkSlicerAstroModelingLogic();
   virtual ~vtkSlicerAstroModelingLogic();
 

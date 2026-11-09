@@ -28,6 +28,10 @@
 #include <Arrays/cube.hh>
 #include <Arrays/header.hh>
 #include <Tasks/galfit.hh>
+#include <Utilities/fatal.hh>
+
+// STD includes
+#include <atomic>
 
 // MRML includes
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
@@ -51,7 +55,6 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
 
 //----------------------------------------------------------------------------
 class vtkSlicerAstroModelingLogic::vtkInternal
@@ -140,6 +143,38 @@ vtkSlicerAstroModelingLogic::vtkInternal::~vtkInternal()
     }
   fitD = nullptr;
 }
+
+
+namespace
+{
+//----------------------------------------------------------------------------
+// Run the BBarolo ring fitting (first or second stage). The SlicerAstro
+// cancel request (parameters node status set to -1) is forwarded to BBarolo
+// through its abort flag, checked after each fitted ring.
+template <class T>
+void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* pnode, bool secondStage)
+{
+  std::atomic<bool> abortRequested{false};
+  fit->setAbortFlag(&abortRequested);
+  fit->setProgressCallback([pnode, &abortRequested](int, int)
+    {
+    if (pnode->GetStatus() == -1)
+      {
+      abortRequested = true;
+      }
+    });
+  if (secondStage)
+    {
+    fit->SecondStage();
+    }
+  else
+    {
+    fit->galfit();
+    }
+  fit->setAbortFlag(nullptr);
+  fit->setProgressCallback(nullptr);
+}
+} // end of anonymous namespace
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroModelingLogic);
@@ -336,6 +371,47 @@ void vtkSlicerAstroModelingLogic::RegisterNodes()
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode* pnode,
+                                              vtkMRMLTableNode* tnode)
+{
+  try
+    {
+    return this->OperateModelInternal(pnode, tnode);
+    }
+  catch (const std::exception& e)
+    {
+    this->cleanPointers();
+    if (pnode)
+      {
+      pnode->SetStatus(100);
+      pnode->SetFitSuccess(false);
+      }
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : 3DBarolo failed ("
+                  << e.what() << "). See the application log for details.");
+    return 0;
+    }
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParametersNode* pnode)
+{
+  try
+    {
+    return this->UpdateModelFromTableInternal(pnode);
+    }
+  catch (const std::exception& e)
+    {
+    if (pnode)
+      {
+      pnode->SetStatus(100);
+      }
+    vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : 3DBarolo failed ("
+                  << e.what() << "). See the application log for details.");
+    return 0;
+    }
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParametersNode* pnode,
                                               vtkMRMLTableNode *tnode)
 {
   int wasModifying = 0;
@@ -468,7 +544,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
   this->Internal->par->setVerbosity(true);
   this->Internal->par->setShowbar(false);
   this->Internal->par->getParSE().flagSearch = false;
-  this->Internal->par->setflagGalFit(true);
+  this->Internal->par->getParGF().flagGALFIT = true;
 
   if (!strcmp(pnode->GetMode(), "Manual"))
     {
@@ -794,7 +870,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
   int *dims = inputVolume->GetImageData()->GetDimensions();
   int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  vtkIdType numElements = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2] * numComponents;
 
   switch (DataType)
     {
@@ -838,28 +914,18 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "Unable to find segmentationMask.");
           return 0;
           }
-        bool* mask = new bool[numElements];
-        for(int ii = 0; ii < numElements; ii++)
+        // Fill the BBarolo mask in place (no intermediate copy)
+        bool* mask = this->Internal->cubeF->allocateMask();
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
-          if (*(segmentationMaskPointer + ii) > 0)
-            {
-            *(mask + ii) = true;
-            }
-          else
-            {
-            *(mask + ii) = false;
-            }
+          mask[ii] = segmentationMaskPointer[ii] > 0;
           }
-
-        this->Internal->cubeF->setMask(mask);
-        delete [] mask;
-        mask = nullptr;
         }
 
       // Searching stuff if the user has not provided a mask
       if (this->Internal->par->getParSE().flagSearch)
         {
-        this->Internal->cubeF->Search();
+        this->Internal->cubeF->search();
         }
 
       // Cube Fitting
@@ -871,31 +937,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->Internal->fitF = nullptr;
           }
 
-        this->Internal->fitF = new Model::Galfit<float>();
-        int error = this->Internal->fitF->input(this->Internal->cubeF);
+        // Setup, initial estimates and rings. Fatal errors (e.g. no source found,
 
-        if (error == 2)
-          {
-          this->cleanPointers();
-          pnode->SetStatus(100);
-          pnode->SetFitSuccess(false);
-          inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "3DBarolo could not find the source.");
-          return 0;
-          }
-        else if (error == 3)
-          {
-          this->cleanPointers();
-          pnode->SetStatus(100);
-          pnode->SetFitSuccess(false);
-          inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                        " insufficient number of rings. "
-                        " The identified source has not enough"
-                        " spatial resolution elements.");
-          return 0;
-          }
+        // not enough rings) are reported by BBarolo as bbarolo::Error.
+
+        this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
 
         *this->Internal->par = this->Internal->cubeF->pars();
 
@@ -933,7 +979,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
-          this->Internal->fitF->galfit(pnode->GetStatusPointer());
+          RunGalfitStage(this->Internal->fitF, pnode, false);
 
           if (pnode->GetStatus() == -1)
             {
@@ -947,7 +993,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
           if (this->Internal->par->getParGF().TWOSTAGE)
             {
-            this->Internal->fitF->SecondStage(pnode->GetStatusPointer());
+            RunGalfitStage(this->Internal->fitF, pnode, true);
             if (pnode->GetStatus() == -1)
               {
               this->cleanPointers();
@@ -989,7 +1035,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         float mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-          * fabs(DeltaVel<float>(*this->Internal->head))
+          * fabs(DeltaVel(*this->Internal->head))
           * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
         // Calculate radial profile along the output rings
@@ -1015,7 +1061,6 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         Tasks::Ellprof<float> ell(totalmap, this->Internal->fitF->Outrings(), nseg, segments);
-        ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
         ell.RadialProfile();
 
         if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -1050,7 +1095,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
             }
           }
 
-        this->Internal->modF = this->Internal->fitF->getModel();
+        this->Internal->modF = this->Internal->fitF->getFullModel();
         if (!this->Internal->modF || !this->Internal->modF->Out())
           {
           this->cleanPointers();
@@ -1141,7 +1186,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "Unable to find outFPixel pointer.");
           return 0;
           }
-        for (int ii = 0; ii < numElements; ii++)
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
           *(outFPixel + ii) = *(outarray + ii);
           }
@@ -1158,7 +1203,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           return 0;
           }
 
-        for (int ii = 0; ii < numElements; ii++)
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
           if (*(outFPixel + ii) < 1.E-6)
             {
@@ -1226,28 +1271,18 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "Unable to find segmentationMask.");
           return 0;
           }
-        bool* mask = new bool[numElements];
-        for(int ii = 0; ii < numElements; ii++)
+        // Fill the BBarolo mask in place (no intermediate copy)
+        bool* mask = this->Internal->cubeD->allocateMask();
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
-          if (*(segmentationMaskPointer + ii) > 0)
-            {
-            *(mask + ii) = true;
-            }
-          else
-            {
-            *(mask + ii) = false;
-            }
+          mask[ii] = segmentationMaskPointer[ii] > 0;
           }
-
-        this->Internal->cubeD->setMask(mask);
-        delete [] mask;
-        mask = nullptr;
         }
 
       // Searching stuff if the user has not provided a mask
       if (this->Internal->par->getParSE().flagSearch)
         {
-        this->Internal->cubeD->Search();
+        this->Internal->cubeD->search();
         }
 
       // Cube Fitting
@@ -1259,31 +1294,11 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           this->Internal->fitD = nullptr;
           }
 
-        this->Internal->fitD = new Model::Galfit<double>();
-        int error = this->Internal->fitD->input(this->Internal->cubeD);
+        // Setup, initial estimates and rings. Fatal errors (e.g. no source found,
 
-        if (error == 2)
-          {
-          this->cleanPointers();
-          pnode->SetStatus(100);
-          pnode->SetFitSuccess(false);
-          inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : "
-                        "3DBarolo could not find the source.");
-          return 0;
-          }
-        else if (error == 3)
-          {
-          this->cleanPointers();
-          pnode->SetStatus(100);
-          pnode->SetFitSuccess(false);
-          inputVolumeDisplay->SetOpticalVelocityDefinition(false);
-          vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                        " insufficient number of rings. "
-                        " The identified source has not enough"
-                        " spatial resolution elements.");
-          return 0;
-          }
+        // not enough rings) are reported by BBarolo as bbarolo::Error.
+
+        this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
 
         *this->Internal->par = this->Internal->cubeD->pars();
 
@@ -1321,7 +1336,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
-          this->Internal->fitD->galfit(pnode->GetStatusPointer());
+          RunGalfitStage(this->Internal->fitD, pnode, false);
 
           if (pnode->GetStatus() == -1)
             {
@@ -1335,7 +1350,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 
           if (this->Internal->par->getParGF().TWOSTAGE)
             {
-            this->Internal->fitD->SecondStage(pnode->GetStatusPointer());
+            RunGalfitStage(this->Internal->fitD, pnode, true);
             if (pnode->GetStatus() == -1)
               {
               this->cleanPointers();
@@ -1377,7 +1392,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         double mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-          * fabs(DeltaVel<double>(*this->Internal->head))
+          * fabs(DeltaVel(*this->Internal->head))
           * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
         // Calculate radial profile along the output rings
@@ -1403,7 +1418,6 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           }
 
         Tasks::Ellprof<double> ell(totalmap, this->Internal->fitD->Outrings(), nseg, segments);
-        ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
         ell.RadialProfile();
 
         if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -1438,7 +1452,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
             }
           }
 
-        this->Internal->modD = this->Internal->fitD->getModel();
+        this->Internal->modD = this->Internal->fitD->getFullModel();
         if (!this->Internal->modD || !this->Internal->modD->Out())
           {
           this->cleanPointers();
@@ -1528,7 +1542,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                         "Unable to find outDPixel pointer.");
           return 0;
           }
-        for (int ii = 0; ii < numElements; ii++)
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
           *(outDPixel + ii) = *(outarray + ii);
           }
@@ -1545,7 +1559,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
           return 0;
           }
 
-        for (int ii = 0; ii < numElements; ii++)
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
           if (*(outDPixel + ii) < 1.E-6)
             {
@@ -1849,7 +1863,7 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode)
+int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode)
 {
   if(!pnode)
     {
@@ -1950,7 +1964,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
   int *dims = inputVolume->GetImageData()->GetDimensions();
   int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  vtkIdType numElements = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2] * numComponents;
 
   if (!this->Internal->fitF && !this->Internal->fitD)
     {
@@ -1977,7 +1991,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
     this->Internal->par->setOutfolder(outputFolder);
     this->Internal->par->setVerbosity(false);
     this->Internal->par->setShowbar(false);
-    this->Internal->par->setflagGalFit(true);
+    this->Internal->par->getParGF().flagGALFIT = true;
 
     if (fabs(pnode->GetNumberOfRings() - 1) > 0.001)
       {
@@ -2189,7 +2203,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 
     this->Internal->par->getParGF().flagADRIFT = pnode->GetADRIFTCorrection();
     this->Internal->par->getParSE().flagSearch = false;
-    this->Internal->par->getParGF().MASK = "SMOOTH";
+    this->Internal->par->setMASK("SMOOTH");
     this->Internal->par->setBeamFWHM(this->Internal->par->getBeamFWHM()/3600.);
     this->Internal->par->getParGF().TOL = pnode->GetTollerance();
 
@@ -2366,7 +2380,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->fitF->Outrings()->inc.clear();
       this->Internal->fitF->Outrings()->phi.clear();
       this->Internal->fitF->Outrings()->pa.clear();
-      this->Internal->fitF->Outrings()->nv.clear();
+      this->Internal->fitF->Outrings()->vvert.clear();
+      this->Internal->fitF->Outrings()->dvdz.clear();
+      this->Internal->fitF->Outrings()->zcyl.clear();
+      this->Internal->fitF->Outrings()->nr = pnode->GetNumberOfRings();
       this->Internal->fitF->Outrings()->vrad.clear();
 
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
@@ -2406,7 +2423,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             StringToFloat(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi).c_str()));
         this->Internal->fitF->Outrings()->pa.push_back(0.);
-        this->Internal->fitF->Outrings()->nv.push_back(0);
+        this->Internal->fitF->Outrings()->vvert.push_back(pnode->GetVerticalVelocity());
+        this->Internal->fitF->Outrings()->dvdz.push_back(pnode->GetVerticalRotationalGradient());
+        this->Internal->fitF->Outrings()->zcyl.push_back(pnode->GetVerticalRotationalGradientHeight());
         }
 
       // Check if Radii are in ascending order
@@ -2446,7 +2465,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       float mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-        * fabs(DeltaVel<float>(*this->Internal->head))
+        * fabs(DeltaVel(*this->Internal->head))
         * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
       // Calculate radial profile along the output rings
@@ -2472,7 +2491,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       Tasks::Ellprof<float> ell(totalmap, this->Internal->fitF->Outrings(), nseg, segments);
-      ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
       ell.RadialProfile();
 
       if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -2507,7 +2525,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         }
 
-      this->Internal->modF = this->Internal->fitF->getModel();
+      this->Internal->modF = this->Internal->fitF->getFullModel();
       if (!this->Internal->modF || !this->Internal->modF->Out())
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -2586,7 +2604,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                       "Unable to find outFPixel pointer.");
         return 0;
         }
-      for (int ii = 0; ii < numElements; ii++)
+      for (vtkIdType ii = 0; ii < numElements; ii++)
         {
         *(outFPixel + ii) = *(outarray + ii);
         }
@@ -2600,7 +2618,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                         "Unable to find residualFPixel pointer.");
           return 0;
           }
-        for (int ii = 0; ii < numElements; ii++)
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
           if (*(outFPixel + ii) < 1.E-6)
             {
@@ -2656,7 +2674,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
       this->Internal->fitD->Outrings()->inc.clear();
       this->Internal->fitD->Outrings()->phi.clear();
       this->Internal->fitD->Outrings()->pa.clear();
-      this->Internal->fitD->Outrings()->nv.clear();
+      this->Internal->fitD->Outrings()->vvert.clear();
+      this->Internal->fitD->Outrings()->dvdz.clear();
+      this->Internal->fitD->Outrings()->zcyl.clear();
+      this->Internal->fitD->Outrings()->nr = pnode->GetNumberOfRings();
       this->Internal->fitD->Outrings()->vrad.clear();
 
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
@@ -2696,7 +2717,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
             StringToDouble(paramsTableNode->GetCellText(
                 ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi).c_str()));
         this->Internal->fitD->Outrings()->pa.push_back(0.);
-        this->Internal->fitD->Outrings()->nv.push_back(0);
+        this->Internal->fitD->Outrings()->vvert.push_back(pnode->GetVerticalVelocity());
+        this->Internal->fitD->Outrings()->dvdz.push_back(pnode->GetVerticalRotationalGradient());
+        this->Internal->fitD->Outrings()->zcyl.push_back(pnode->GetVerticalRotationalGradientHeight());
         }
 
       // Check if Radii are in ascending order
@@ -2736,7 +2759,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       double mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-        * fabs(DeltaVel<double>(*this->Internal->head))
+        * fabs(DeltaVel(*this->Internal->head))
         * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
       // Calculate radial profile along the output rings
@@ -2762,7 +2785,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
         }
 
       Tasks::Ellprof<double> ell(totalmap, this->Internal->fitD->Outrings(), nseg, segments);
-      ell.setOptions(mass, this->Internal->par->getDistance());  //To set the mass and the distance
       ell.RadialProfile();
 
       if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -2797,7 +2819,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
           }
         }
 
-      this->Internal->modD = this->Internal->fitD->getModel();
+      this->Internal->modD = this->Internal->fitD->getFullModel();
       if (!this->Internal->modD || !this->Internal->modD->Out())
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -2876,7 +2898,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                       "Unable to find outDPixel pointer.");
         return 0;
         }
-      for (int ii = 0; ii < numElements; ii++)
+      for (vtkIdType ii = 0; ii < numElements; ii++)
         {
         *(outDPixel + ii) = *(outarray + ii);
         }
@@ -2890,7 +2912,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
                         "Unable to find residualDPixel pointer.");
           return 0;
           }
-        for (int ii = 0; ii < numElements; ii++)
+        for (vtkIdType ii = 0; ii < numElements; ii++)
           {
           if (*(outDPixel + ii) < 1.E-6)
             {

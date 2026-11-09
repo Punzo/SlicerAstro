@@ -50,7 +50,8 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::vtkMRMLAstroLabelMapVolumeDisplayNode()
   this->Space = nullptr;
   this->SetSpace("WCS");
   this->WCSStatus = 0;
-  this->WCS = new struct wcsprm;
+  // wcslib uses malloc/free for wcsprm: allocate with calloc and release with free
+  this->WCS = static_cast<struct wcsprm*>(calloc(1, sizeof(struct wcsprm)));
   this->WCS->flag = -1;
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1,0,this->WCS)))
@@ -85,7 +86,7 @@ vtkMRMLAstroLabelMapVolumeDisplayNode::~vtkMRMLAstroLabelMapVolumeDisplayNode()
                     " of file "<<this->WCS->err->file<<
                     ": \n"<<this->WCS->err->msg<<"\n");
       }
-    delete [] this->WCS;
+    free(this->WCS);
     this->WCS = nullptr;
     }
 }
@@ -849,6 +850,10 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
                   "naxis < than the naxis of the current volume. ");
     return;
     }
+
+  // release the previous content before reusing the struct
+
+  wcsfree(this->WCS);
 
   this->WCS->flag = -1;
   if ((this->WCSStatus = wcssub(1, WCSNew, &nsub, axes, this->WCS)))

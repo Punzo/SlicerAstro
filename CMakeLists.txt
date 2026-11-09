@@ -42,14 +42,7 @@ endif()
 
 #-----------------------------------------------------------------------------
 # Configuration header
-# TODO(OpenMP->vtkSMPTools): OpenMP support is removed once all loops are
-# ported to vtkSMPTools (see plan, phase 3b).
-find_package(OpenMP COMPONENTS C CXX)
-set(VTK_SLICER_ASTRO_SUPPORT_OPENMP ${OpenMP_CXX_FOUND})
-if(VTK_SLICER_ASTRO_SUPPORT_OPENMP)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-endif()
+# Multi-threading uses vtkSMPTools (TBB backend in Slicer): no OpenMP.
 configure_file(
   ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
   ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h

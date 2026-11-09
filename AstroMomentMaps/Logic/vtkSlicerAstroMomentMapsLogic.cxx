@@ -21,6 +21,9 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroMomentMapsLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <vtkSlicerAstroSMPTools.h>
+#include <type_traits>
+#include <vector>
 
 // MRML includes
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
@@ -44,12 +47,9 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 #define DOUBLEPRECISION 1.E-16
 
@@ -161,12 +161,10 @@ void vtkSlicerAstroMomentMapsLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkWarningMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
                   "the AstroMomentMaps algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
    if (!pnode)
      {
@@ -291,25 +289,12 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   bool cancel = false;
   int status = 0;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -344,26 +329,28 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     double dV = fabs((pnode->GetVelocityMax() - pnode->GetVelocityMin()) / dims[2]);
     maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outZeroFPixel, outZeroDPixel, outFirstFPixel, outFirstDPixel, outSecondFPixel, outSecondDPixel, ijk, world, maskPixel, cancel, status, forceGenerateFirst, VelFactor, dV)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < numSlice; elemCnt++)
+    // Velocity of each channel at the reference spatial position (the same
+    // for all the pixels): computed once, outside of the parallel loop.
+    std::vector<double> channelVelocity(dims[2], 0.);
+    {
+    double ijkChannel[3] = {ijk[0], ijk[1], 0.}, worldChannel[3] = {0., 0., 0.};
+    for (int kk = 0; kk < dims[2]; kk++)
       {
-      int stat = pnode->GetStatus();
+      ijkChannel[2] = kk;
+      astroDisplay->GetReferenceSpace(ijkChannel, worldChannel);
+      channelVelocity[kk] = worldChannel[2] * VelFactor;
+      }
+    }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numSlice) - (0), 10, 100);
+    vtkSMPTools::For(0, numSlice, [&](vtkIdType firstIndex, vtkIdType lastIndex)
+      {
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         switch (DataType)
           {
@@ -397,12 +384,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
         ijkCoordinates[1] = ijk[1];
         for (int kk = 0; kk < dims[2]; kk++)
           {
-          int posData = elemCnt + kk * numSlice;
+          vtkIdType posData = elemCnt + static_cast<vtkIdType>(kk) * numSlice;
           if (forceGenerateFirst)
             {
-            ijkCoordinates[2] = kk;
-            astroDisplay->GetReferenceSpace(ijkCoordinates, SpaceCoordinates);
-            SpaceCoordinates[2] *= VelFactor;
+            SpaceCoordinates[2] = channelVelocity[kk];
             }
           switch (DataType)
             {
@@ -470,10 +455,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           {
           for (int kk = 0; kk < dims[2]; kk++)
             {
-            int posData = elemCnt + kk * numSlice;
-            ijkCoordinates[2] = kk;
-            astroDisplay->GetReferenceSpace(ijkCoordinates, SpaceCoordinates);
-            SpaceCoordinates[2] *= VelFactor;
+            vtkIdType posData = elemCnt + static_cast<vtkIdType>(kk) * numSlice;
+            SpaceCoordinates[2] = channelVelocity[kk];
             switch (DataType)
               {
               case VTK_FLOAT:
@@ -553,25 +536,11 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               break;
             }
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elemCnt / (numSlice / (numProcs * 100.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(elemCnt / (numSlice / 100.) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
   else
     {
@@ -621,26 +590,28 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       }
 
     double dV = fabs((pnode->GetVelocityMax() - pnode->GetVelocityMin()) / (Zmax - Zmin));
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outZeroFPixel, outZeroDPixel, outFirstFPixel, outFirstDPixel, outSecondFPixel, outSecondDPixel, ijk, world, maskPixel, cancel, status, forceGenerateFirst, VelFactor, Zmin, Zmax, dV)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < numSlice; elemCnt++)
+    // Velocity of each channel at the reference spatial position (the same
+    // for all the pixels): computed once, outside of the parallel loop.
+    std::vector<double> channelVelocity(dims[2], 0.);
+    {
+    double ijkChannel[3] = {ijk[0], ijk[1], 0.}, worldChannel[3] = {0., 0., 0.};
+    for (int kk = 0; kk < dims[2]; kk++)
       {
-      int stat = pnode->GetStatus();
+      ijkChannel[2] = kk;
+      astroDisplay->GetReferenceSpace(ijkChannel, worldChannel);
+      channelVelocity[kk] = worldChannel[2] * VelFactor;
+      }
+    }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numSlice) - (0), 10, 100);
+    vtkSMPTools::For(0, numSlice, [&](vtkIdType firstIndex, vtkIdType lastIndex)
+      {
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         switch (DataType)
           {
@@ -674,12 +645,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
         ijkCoordinates[1] = ijk[1];
         for (int kk = Zmin; kk <= Zmax; kk++)
           {
-          int posData = elemCnt + kk * numSlice;
+          vtkIdType posData = elemCnt + static_cast<vtkIdType>(kk) * numSlice;
           if (forceGenerateFirst)
             {
-            ijkCoordinates[2] = kk;
-            astroDisplay->GetReferenceSpace(ijkCoordinates, SpaceCoordinates);
-            SpaceCoordinates[2] *= VelFactor;
+            SpaceCoordinates[2] = channelVelocity[kk];
             }
           switch (DataType)
             {
@@ -749,10 +718,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           {
           for (int kk = Zmin; kk <= Zmax; kk++)
             {
-            int posData = elemCnt + kk * numSlice;
-            ijkCoordinates[2] = kk;
-            astroDisplay->GetReferenceSpace(ijkCoordinates, SpaceCoordinates);
-            SpaceCoordinates[2] *= VelFactor;
+            vtkIdType posData = elemCnt + static_cast<vtkIdType>(kk) * numSlice;
+            SpaceCoordinates[2] = channelVelocity[kk];
 
             switch (DataType)
               {
@@ -835,33 +802,16 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               break;
             }
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elemCnt / (numSlice / (numProcs * 100.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(elemCnt / (numSlice / 100.) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Moment Maps Kernel Time : "<<mtime<<" ms.");
 
@@ -897,7 +847,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     return false;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   if (pnode->GetGenerateZero())
     {
@@ -953,12 +903,9 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);;
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 

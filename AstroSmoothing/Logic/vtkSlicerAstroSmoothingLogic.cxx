@@ -43,12 +43,9 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
 // vtkOpenGL includes
@@ -244,12 +241,6 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
     {
@@ -337,46 +328,23 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   bool cancel = false;
   int status = 0;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int stat = pnode->GetStatus();
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    if (stat == -1 && omp_get_thread_num() == 0)
-    #else
     if (stat == -1)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       {
       cancel = true;
       }
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp flush (cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     if (!cancel)
       {
       switch (DataType)
@@ -461,31 +429,17 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
           break;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (omp_get_thread_num() == 0)
-        {
-        if(elemCnt / (numElements / (numProcs * 100)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      #else
       if(elemCnt / (numElements / 100) > status)
         {
         status += 10;
         pnode->SetStatus(status);
         }
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Box Filter (CPU) Kernel Time : "<<mtime<<" ms.");
 
@@ -505,7 +459,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     return 0;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -514,12 +468,9 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -530,12 +481,10 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
                   "the AstroSmoothing algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
     {
@@ -615,49 +564,26 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   bool cancel = false;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
   if (pnode->GetParameterX() > 0.001)
     {
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -712,22 +638,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
             break;
           }
 
-         #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-         if (omp_get_thread_num() == 0)
-           {
-           if(elemCnt / (numElements / (numProcs * 33.)) > status)
-             {
-             status += 10;
-             pnode->SetStatus(status);
-             }
-           }
-         #else
          if(elemCnt / (numElements / 33.) > status)
            {
            status += 10;
            pnode->SetStatus(status);
            }
-         #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -753,25 +668,15 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (pnode->GetParameterY() > 0.001)
     {
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -826,22 +731,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
             break;
           }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(33. + (elemCnt / (numElements / (numProcs * 33.))) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
         if(33. + (elemCnt / (numElements / 33.)) > status)
           {
           status += 10;
           pnode->SetStatus(status);
           }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -886,25 +780,15 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   if (pnode->GetParameterZ() > 0.001)
     {
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -957,22 +841,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
             break;
           }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(66. + (elemCnt / (numElements / (numProcs * 33.))) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
         if(66. + (elemCnt / (numElements / 33.)) > status)
           {
           status += 10;
           pnode->SetStatus(status);
           }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -981,12 +854,9 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro("Box Filter (CPU) Time : "<<mtime<<" ms.");
 
   outFPixel = nullptr;
@@ -1007,7 +877,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
     return 0;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1016,12 +886,9 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -1058,9 +925,9 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   bool cancel = false;
 
-  struct timeval start, end;
-  long mtime, seconds, useconds;
-  gettimeofday(&start, nullptr);
+  std::chrono::steady_clock::time_point start, end;
+  long mtime = 0;
+  start = std::chrono::steady_clock::now();
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1117,15 +984,12 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro(" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1134,12 +998,9 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -1156,12 +1017,6 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
    if (!pnode)
      {
@@ -1236,47 +1091,24 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   bool cancel = false;
   int status = 0;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
   for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
     {
     int stat = pnode->GetStatus();
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    if (stat == -1 && omp_get_thread_num() == 0)
-    #else
     if (stat == -1)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       {
       cancel = true;
       }
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp flush (cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     if (!cancel)
       {
       switch (DataType)
@@ -1353,31 +1185,17 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
           }
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (omp_get_thread_num() == 0)
-        {
-        if(elemCnt / (numElements / (numProcs * 100)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      #else
       if(elemCnt / (numElements / 100) > status)
         {
         status += 10;
         pnode->SetStatus(status);
         }
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
 
   inFPixel = nullptr;
@@ -1396,7 +1214,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
     return 0;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1404,12 +1222,9 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
   outputVolume->EndModify(wasModifying);
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -1419,12 +1234,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
     {
@@ -1504,25 +1313,12 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   double *GaussKernel1D = static_cast<double*> (pnode->GetGaussianKernel1D()->GetVoidPointer(0));
   bool cancel = false;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -1530,25 +1326,15 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     {
     pnode->SetStatus(10);
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
       if (!cancel)
         {
@@ -1594,22 +1380,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
             }
           }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elemCnt / (numElements / (numProcs * 33.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
         if(elemCnt / (numElements / 33.) > status)
           {
           status += 10;
           pnode->SetStatus(status);
           }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -1637,25 +1412,15 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     {
     pnode->SetStatus(40);
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
       if (!cancel)
         {
@@ -1701,22 +1466,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
             }
           }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(33. + (elemCnt / (numElements / (numProcs * 33.))) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
         if(33. + (elemCnt / (numElements / 33.)) > status)
           {
           status += 10;
           pnode->SetStatus(status);
           }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -1763,25 +1517,15 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     {
     pnode->SetStatus(70);
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         switch (DataType)
@@ -1824,22 +1568,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
             }
           }
 
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(66. + (elemCnt / (numElements / (numProcs * 33.))) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
         if(66. + (elemCnt / (numElements / 33.)) > status)
           {
           status += 10;
           pnode->SetStatus(status);
           }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
       }
     }
@@ -1848,12 +1581,9 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
 
   outFPixel = nullptr;
@@ -1874,7 +1604,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     return 0;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -1883,12 +1613,9 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -1925,9 +1652,9 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   bool cancel = false;
 
-  struct timeval start, end;
-  long mtime, seconds, useconds;
-  gettimeofday(&start, nullptr);
+  std::chrono::steady_clock::time_point start, end;
+  long mtime = 0;
+  start = std::chrono::steady_clock::now();
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1990,15 +1717,12 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro("Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -2007,11 +1731,8 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+  end = std::chrono::steady_clock::now();
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro("Update : "<<mtime<<" ms.");
 
   if (cancel)
@@ -2026,12 +1747,6 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
    if (!pnode)
      {
@@ -2106,50 +1821,27 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     }
   bool cancel = false;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
   for (int i = 1; i <= pnode->GetAccuracy(); i++)
     {
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, outFPixel, outDPixel, tempFPixel, tempDPixel, cancel)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
     for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
       {
       int status = pnode->GetStatus();
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (status == -1 && omp_get_thread_num() == 0)
-      #else
       if (status == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         {
         cancel = true;
         }
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
       if (!cancel)
         {
         int x1 = elemCnt - 1;
@@ -2284,16 +1976,13 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     }
 
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -2302,12 +1991,9 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
@@ -2356,9 +2042,9 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   bool cancel = false;
 
-  struct timeval start, end;
-  long mtime, seconds, useconds;
-  gettimeofday(&start, nullptr);
+  std::chrono::steady_clock::time_point start, end;
+  long mtime = 0;
+  start = std::chrono::steady_clock::now();
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -2420,15 +2106,12 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro(" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   outputVolume->UpdateRangeAttributes();
@@ -2437,12 +2120,9 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 

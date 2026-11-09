@@ -34,7 +34,7 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 #define UNUSED(expr) (void)(expr)
 

@@ -28,6 +28,7 @@
 
 // AstroVolume includes
 #include <vtkSlicerAstroConfigure.h>
+#include "vtkSlicerAstroSMPTools.h"
 
 // VTK includes
 #include <vtkImageData.h>
@@ -37,9 +38,6 @@
 #include <vtkVolume.h>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroLabelMapVolumeNode);
@@ -170,39 +168,16 @@ bool vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes()
    }
 
   this->GetImageData()->Modified();
-  int *dims = this->GetImageData()->GetDimensions();
-  int numElements = dims[0] * dims[1] * dims[2];
-  const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  double max_val = this->GetImageData()->GetScalarTypeMin(), min_val = this->GetImageData()->GetScalarTypeMax();
-  short *inSPixel = nullptr;
-
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  omp_set_num_threads(omp_get_num_procs());
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkImageData* imageData = this->GetImageData();
+  const int DataType = imageData->GetPointData()->GetScalars()->GetDataType();
+  double max_val = imageData->GetScalarTypeMin(), min_val = imageData->GetScalarTypeMax();
 
   switch (DataType)
     {
-  case VTK_SHORT:
-    inSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
-      {
-      if (ShortIsNaN(*(inSPixel + elementCnt)))
-        {
-        continue;
-        }
-      if (*(inSPixel + elementCnt) > max_val)
-        {
-        max_val = *(inSPixel + elementCnt);
-        }
-      if (*(inSPixel + elementCnt) < min_val)
-        {
-        min_val = *(inSPixel + elementCnt);
-        }
-      }
-    break;
+    case VTK_SHORT:
+      vtkSlicerAstroSMPTools::Range(static_cast<short*>(imageData->GetScalarPointer()),
+                                    0, imageData->GetNumberOfPoints(), min_val, max_val);
+      break;
     default:
       vtkErrorMacro("vtkMRMLAstroLabelMapVolumeNode::UpdateRangeAttributes : "
                     "attempt to allocate scalars of type not allowed");

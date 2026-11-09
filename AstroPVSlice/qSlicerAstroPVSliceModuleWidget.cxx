@@ -94,7 +94,7 @@
 // Qt includes
 #include <QPointer>
 
-#include <sys/time.h>
+#include <chrono>
 
 namespace
 {

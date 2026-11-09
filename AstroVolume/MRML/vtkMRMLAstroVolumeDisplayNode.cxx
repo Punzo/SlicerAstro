@@ -62,7 +62,8 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   this->SetSpace("WCS");
   this->FitSlices = false;
   this->WCSStatus = 0;
-  this->WCS = new struct wcsprm;
+  // wcslib uses malloc/free for wcsprm: allocate with calloc and release with free
+  this->WCS = static_cast<struct wcsprm*>(calloc(1, sizeof(struct wcsprm)));
   this->WCS->flag = -1;
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1, 0, this->WCS)))
@@ -113,7 +114,7 @@ vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
                     " of file "<<this->WCS->err->file<<
                     ": \n"<<this->WCS->err->msg<<"\n");
       }
-    delete [] this->WCS;
+    free(this->WCS);
     this->WCS = nullptr;
     }
 }
@@ -227,6 +228,10 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
                   "WCS not found!");
     return;
     }
+
+  // release the previous content before reusing the struct
+
+  wcsfree(this->WCS);
 
   this->WCS->flag = -1;
   if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
@@ -966,6 +971,10 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
                   "naxis < than the naxis of the current volume. ");
     return;
     }
+
+  // release the previous content before reusing the struct
+
+  wcsfree(this->WCS);
 
   this->WCS->flag = -1;
   if ((this->WCSStatus = wcssub(1, WCSNew, &nsub, axes, this->WCS)))

@@ -6,8 +6,6 @@
 #ifndef __vtkSlicerAstroConfigure_h
 #define __vtkSlicerAstroConfigure_h
 
-#cmakedefine VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
 #cmakedefine VTK_SLICER_ASTRO_SUPPORT_OPENGL
 
 #endif // __vtkSlicerAstroConfigure_h

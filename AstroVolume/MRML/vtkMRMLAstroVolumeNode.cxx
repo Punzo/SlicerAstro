@@ -30,6 +30,7 @@
 
 // AstroVolume includes
 #include <vtkSlicerAstroConfigure.h>
+#include "vtkSlicerAstroSMPTools.h"
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
@@ -43,9 +44,6 @@
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 //------------------------------------------------------------------------------
 const char* vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE = "preset";
@@ -206,82 +204,23 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
    }
 
   this->GetImageData()->Modified();
-  int *dims = this->GetImageData()->GetDimensions();
-  int numElements = dims[0] * dims[1] * dims[2];
-  const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  double max_val = this->GetImageData()->GetScalarTypeMin(), min_val = this->GetImageData()->GetScalarTypeMax();
-  short *inSPixel = nullptr;
-  float *inFPixel = nullptr;
-  double *inDPixel = nullptr;
-
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  omp_set_num_threads(omp_get_num_procs());
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  vtkImageData* imageData = this->GetImageData();
+  const vtkIdType numElements = imageData->GetNumberOfPoints();
+  const int DataType = imageData->GetPointData()->GetScalars()->GetDataType();
+  // Initial values: kept if all the voxels are blank (NaN)
+  double max_val = imageData->GetScalarTypeMin(), min_val = imageData->GetScalarTypeMax();
+  void* scalars = imageData->GetScalarPointer();
 
   switch (DataType)
     {
     case VTK_SHORT:
-      inSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer());
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
-        {
-        if (ShortIsNaN(*(inSPixel + elementCnt)))
-          {
-          continue;
-          }
-        if (*(inSPixel + elementCnt) > max_val)
-          {
-          max_val = *(inSPixel + elementCnt);
-          }
-        if (*(inSPixel + elementCnt) < min_val)
-          {
-          min_val = *(inSPixel + elementCnt);
-          }
-        }
-    break;
+      vtkSlicerAstroSMPTools::Range(static_cast<short*>(scalars), 0, numElements, min_val, max_val);
+      break;
     case VTK_FLOAT:
-      inFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer());
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
-        {
-        if (FloatIsNaN(*(inFPixel + elementCnt)))
-          {
-          continue;
-          }
-        if (*(inFPixel + elementCnt) > max_val)
-          {
-          max_val = *(inFPixel + elementCnt);
-          }
-        if (*(inFPixel + elementCnt) < min_val)
-          {
-          min_val = *(inFPixel + elementCnt);
-          }
-        }
+      vtkSlicerAstroSMPTools::Range(static_cast<float*>(scalars), 0, numElements, min_val, max_val);
       break;
     case VTK_DOUBLE:
-      inDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer());
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(max : max_val), reduction(min : min_val)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
-        {
-        if (DoubleIsNaN(*(inDPixel + elementCnt)))
-          {
-          continue;
-          }
-        if (*(inDPixel + elementCnt) > max_val)
-          {
-          max_val = *(inDPixel + elementCnt);
-          }
-        if (*(inDPixel + elementCnt) < min_val)
-          {
-          min_val = *(inDPixel + elementCnt);
-          }
-        }
+      vtkSlicerAstroSMPTools::Range(static_cast<double*>(scalars), 0, numElements, min_val, max_val);
       break;
     default:
       vtkErrorMacro("vtkSlicerAstroVolumeLogic::UpdateRangeAttributes : "
@@ -329,247 +268,62 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
   // 3D color function starts from 3 times the value of DisplayThreshold.
   int *dims = this->GetImageData()->GetDimensions();
   const int DataType = this->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  short *outSPixel = nullptr;
-  float *outFPixel = nullptr;
-  double *outDPixel = nullptr;
-  switch (DataType)
+  void* scalars = this->GetImageData()->GetScalarPointer(0,0,0);
+  if (DataType != VTK_SHORT && DataType != VTK_FLOAT && DataType != VTK_DOUBLE)
     {
-    case VTK_SHORT:
-      outSPixel = static_cast<short*> (this->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    case VTK_FLOAT:
-      outFPixel = static_cast<float*> (this->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (this->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes : "
-                    "attempt to allocate scalars of type not allowed");
-      return false;
-    }
-  double sum = 0., noise1 = 0., noise2 = 0, noise = 0.;
-  int lowBoundary;
-  int highBoundary;
-
-  if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 3)
-    {
-    lowBoundary = dims[0] * dims[1] * 2;
-    highBoundary = dims[0] * dims[1] * 4;
-    }
-  else if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 2)
-    {
-    lowBoundary = dims[0] * 2;
-    highBoundary = dims[0] * 4;
-    }
-  else
-    {
-    lowBoundary = 2;
-    highBoundary = 4;
+    vtkErrorMacro("vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes : "
+                  "attempt to allocate scalars of type not allowed");
+    return false;
     }
 
-  int cont = highBoundary - lowBoundary;
-
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  omp_set_num_threads(omp_get_num_procs());
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-  switch (DataType)
+  // RMS of the voxels in [lowBoundary, highBoundary] (NaN voxels ignored)
+  auto rms = [&](vtkIdType lowBoundary, vtkIdType highBoundary) -> double
     {
-    case VTK_SHORT:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:sum)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (ShortIsNaN(*(outSPixel + elemCnt)))
-           {
-           continue;
-           }
-        sum += *(outSPixel + elemCnt);
-        }
-      sum /= cont;
+    const vtkIdType cont = highBoundary - lowBoundary;
+    if (cont <= 0)
+      {
+      return 0.;
+      }
+    double mean = 0., sumSq = 0.;
+    switch (DataType)
+      {
+      case VTK_SHORT:
+        mean = vtkSlicerAstroSMPTools::Sum(static_cast<short*>(scalars), lowBoundary, highBoundary + 1) / cont;
+        sumSq = vtkSlicerAstroSMPTools::SumSquaredDeviations(static_cast<short*>(scalars), lowBoundary, highBoundary + 1, mean);
+        break;
+      case VTK_FLOAT:
+        mean = vtkSlicerAstroSMPTools::Sum(static_cast<float*>(scalars), lowBoundary, highBoundary + 1) / cont;
+        sumSq = vtkSlicerAstroSMPTools::SumSquaredDeviations(static_cast<float*>(scalars), lowBoundary, highBoundary + 1, mean);
+        break;
+      case VTK_DOUBLE:
+        mean = vtkSlicerAstroSMPTools::Sum(static_cast<double*>(scalars), lowBoundary, highBoundary + 1) / cont;
+        sumSq = vtkSlicerAstroSMPTools::SumSquaredDeviations(static_cast<double*>(scalars), lowBoundary, highBoundary + 1, mean);
+        break;
+      }
+    return sqrt(sumSq / cont);
+    };
 
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (ShortIsNaN(*(outSPixel + elemCnt)))
-           {
-           continue;
-           }
-        noise1 += (*(outSPixel + elemCnt) - sum) * (*(outSPixel + elemCnt) - sum);
-        }
-      noise1 = sqrt(noise1 / cont);
-      break;
-    case VTK_FLOAT:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:sum)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (FloatIsNaN(*(outFPixel + elemCnt)))
-           {
-           continue;
-           }
-        sum += *(outFPixel + elemCnt);
-        }
-      sum /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (FloatIsNaN(*(outFPixel + elemCnt)))
-           {
-           continue;
-           }
-        noise1 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel + elemCnt) - sum);
-        }
-      noise1 = sqrt(noise1 / cont);
-      break;
-    case VTK_DOUBLE:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:sum)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (DoubleIsNaN(*(outDPixel + elemCnt)))
-           {
-           continue;
-           }
-        sum += *(outDPixel + elemCnt);
-        }
-      sum /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (DoubleIsNaN(*(outDPixel + elemCnt)))
-           {
-           continue;
-           }
-        noise1 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel + elemCnt) - sum);
-        }
-      noise1 = sqrt(noise1 / cont);
-      break;
+  const vtkIdType nx = dims[0], nxy = static_cast<vtkIdType>(dims[0]) * dims[1];
+  const int naxis = StringToInt(this->GetAttribute("SlicerAstro.NAXIS"));
+  double noise1 = 0., noise2 = 0., noise = 0.;
+  // noise from the first and the last channels (rows, pixels for 2D/1D data)
+  if (naxis == 3)
+    {
+    noise1 = rms(nxy * 2, nxy * 4);
+    noise2 = rms(nxy * (dims[2] - 4), nxy * (dims[2] - 2));
     }
-
-  if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 3)
+  else if (naxis == 2)
     {
-    lowBoundary = dims[0] * dims[1] * (dims[2] - 4);
-    highBoundary = dims[0] * dims[1] * (dims[2] - 2);
-    }
-  else if (StringToInt(this->GetAttribute("SlicerAstro.NAXIS")) == 2)
-    {
-    lowBoundary = dims[0] * (dims[1] - 4);
-    highBoundary = dims[0] * (dims[1] - 2);
+    noise1 = rms(nx * 2, nx * 4);
+    noise2 = rms(nx * (dims[1] - 4), nx * (dims[1] - 2));
     }
   else
     {
-    lowBoundary = dims[0] - 4;
-    highBoundary = dims[0] - 2;
-    }
-
-  sum = 0.;
-
-  switch (DataType)
-    {
-    case VTK_SHORT:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:sum)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (ShortIsNaN(*(outSPixel + elemCnt)))
-           {
-           continue;
-           }
-        sum += *(outSPixel + elemCnt);
-        }
-      sum /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise2)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (ShortIsNaN(*(outSPixel + elemCnt)))
-           {
-           continue;
-           }
-        noise2 += (*(outSPixel + elemCnt) - sum) * (*(outSPixel + elemCnt) - sum);
-        }
-      noise2 = sqrt(noise2 / cont);
-      break;
-    case VTK_FLOAT:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:sum)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (FloatIsNaN(*(outFPixel + elemCnt)))
-           {
-           continue;
-           }
-        sum += *(outFPixel + elemCnt);
-        }
-      sum /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise2)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (FloatIsNaN(*(outFPixel + elemCnt)))
-           {
-           continue;
-           }
-        noise2 += (*(outFPixel + elemCnt) - sum) * (*(outFPixel + elemCnt) - sum);
-        }
-      noise2 = sqrt(noise2 / cont);
-      break;
-    case VTK_DOUBLE:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:sum)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (DoubleIsNaN(*(outDPixel + elemCnt)))
-           {
-           continue;
-           }
-        sum += *(outDPixel + elemCnt);
-        }
-      sum /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise2)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = lowBoundary; elemCnt <= highBoundary; elemCnt++)
-        {
-        if (DoubleIsNaN(*(outDPixel + elemCnt)))
-           {
-           continue;
-           }
-        noise2 += (*(outDPixel + elemCnt) - sum) * (*(outDPixel + elemCnt) - sum);
-        }
-      noise2 = sqrt(noise2 / cont);
-      break;
+    noise1 = rms(2, 4);
+    noise2 = rms(dims[0] - 4, dims[0] - 2);
     }
 
   noise = (noise1 + noise2) * 0.5;
-
-  outSPixel = nullptr;
-  outFPixel = nullptr;
-  outDPixel = nullptr;
-  delete outSPixel;
-  delete outFPixel;
-  delete outDPixel;
 
   if (noise < 1.E-6)
     {

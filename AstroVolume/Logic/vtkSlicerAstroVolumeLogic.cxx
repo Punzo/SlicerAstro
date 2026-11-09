@@ -19,6 +19,8 @@
 
 // STD includes
 #include <algorithm>
+#include <type_traits>
+#include <vector>
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
@@ -26,6 +28,7 @@
 // AstroVolume includes
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroConfigure.h>
+#include <vtkSlicerAstroSMPTools.h>
 
 // MRML nodes includes
 #include <vtkMRMLMarkupsROINode.h>
@@ -75,12 +78,9 @@
 #include "wcslib.h"
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 //----------------------------------------------------------------------------
 vtkStandardNewMacro(vtkSlicerAstroVolumeLogic);
@@ -1180,127 +1180,29 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLMarkupsR
     }
 
   double noise = 0., mean = 0., roiBounds[6];
-  int cont = 0, firstElement, lastElement;
 
   this->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
 
-  cont = (roiBounds[1] - roiBounds[0]) *
-         (roiBounds[3] - roiBounds[2]) *
-         (roiBounds[5] - roiBounds[4]);
+  const double cont = (roiBounds[1] - roiBounds[0]) *
+                      (roiBounds[3] - roiBounds[2]) *
+                      (roiBounds[5] - roiBounds[4]);
+  if (cont <= 0.)
+    {
+    return 0.;
+    }
 
-  firstElement = roiBounds[0] + roiBounds[2] * dims[0] +
-                 roiBounds[4] * numSlice;
-
-  lastElement = (roiBounds[1] + roiBounds[3] * dims[0] +
-                roiBounds[5] * numSlice) + 1;
-
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  omp_set_num_threads(omp_get_num_procs());
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
+  const int extent[6] = {static_cast<int>(roiBounds[0]), static_cast<int>(roiBounds[1]),
+                         static_cast<int>(roiBounds[2]), static_cast<int>(roiBounds[3]),
+                         static_cast<int>(roiBounds[4]), static_cast<int>(roiBounds[5])};
   switch (DataType)
     {
     case VTK_FLOAT:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:mean)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
-        { 
-        int ref  = (int) floor(elemCnt / dims[0]);
-        ref *= dims[0];
-        int x = elemCnt - ref;
-        ref = (int) floor(elemCnt / numSlice);
-        ref *= numSlice;
-        ref = elemCnt - ref;
-        int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] || x > roiBounds[1] ||
-            y < roiBounds[2] || y > roiBounds[3])
-          {
-          continue;
-          }
-        if (FloatIsNaN(*(inFPixel + elemCnt)))
-          {
-          continue;
-          }
-        mean += *(inFPixel + elemCnt);
-        }
-      mean /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
-        {
-        int ref  = (int) floor(elemCnt / dims[0]);
-        ref *= dims[0];
-        int x = elemCnt - ref;
-        ref = (int) floor(elemCnt / numSlice);
-        ref *= numSlice;
-        ref = elemCnt - ref;
-        int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] || x > roiBounds[1] ||
-            y < roiBounds[2] || y > roiBounds[3])
-          {
-          continue;
-          }
-        if (FloatIsNaN(*(inFPixel + elemCnt)))
-          {
-          continue;
-          }
-        noise += (*(inFPixel + elemCnt) - mean) * (*(inFPixel + elemCnt) - mean);
-        }
-      noise = sqrt(noise / cont);
+      mean = vtkSlicerAstroSMPTools::ExtentSum(inFPixel, dims, extent) / cont;
+      noise = sqrt(vtkSlicerAstroSMPTools::ExtentSum(inFPixel, dims, extent, mean) / cont);
       break;
     case VTK_DOUBLE:
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:mean)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
-        {
-        int ref  = (int) floor(elemCnt / dims[0]);
-        ref *= dims[0];
-        int x = elemCnt - ref;
-        ref = (int) floor(elemCnt / numSlice);
-        ref *= numSlice;
-        ref = elemCnt - ref;
-        int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] || x > roiBounds[1] ||
-            y < roiBounds[2] || y > roiBounds[3])
-          {
-          continue;
-          }
-        if (DoubleIsNaN(*(inDPixel + elemCnt)))
-          {
-          continue;
-          }
-        mean += *(inDPixel + elemCnt);
-        }
-      mean /= cont;
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp parallel for schedule(static) reduction(+:noise)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      for (int elemCnt = firstElement; elemCnt < lastElement; elemCnt++)
-        {
-        int ref  = (int) floor(elemCnt / dims[0]);
-        ref *= dims[0];
-        int x = elemCnt - ref;
-        ref = (int) floor(elemCnt / numSlice);
-        ref *= numSlice;
-        ref = elemCnt - ref;
-        int y = (int) floor(ref / dims[0]);
-        if (x < roiBounds[0] || x > roiBounds[1] ||
-            y < roiBounds[2] || y > roiBounds[3])
-          {
-          continue;
-          }
-        if (DoubleIsNaN(*(inDPixel + elemCnt)))
-          {
-          continue;
-          }
-        noise += (*(inDPixel + elemCnt) - mean) * (*(inDPixel + elemCnt) - mean);
-        }
-      noise = sqrt(noise / cont);
+      mean = vtkSlicerAstroSMPTools::ExtentSum(inDPixel, dims, extent) / cont;
+      noise = sqrt(vtkSlicerAstroSMPTools::ExtentSum(inDPixel, dims, extent, mean) / cont);
       break;
     }
 
@@ -1333,63 +1235,63 @@ void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *input
                   "imageData with more than one components.");
     return;
     }
-  int numElements = dims[0] * dims[1] * dims[2];
+  const vtkIdType numElements = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2];
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  float *inFPixel = nullptr;
-  double *inDPixel = nullptr;
-  switch (DataType)
+  if (DataType != VTK_FLOAT && DataType != VTK_DOUBLE)
     {
-    case VTK_FLOAT:
-      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateHistogram : "
-                    "attempt to allocate scalars of type not allowed");
-      return;
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CalculateHistogram : "
+                  "attempt to allocate scalars of type not allowed");
+    return;
     }
-
-  histoArray->SetNumberOfValues(numberOfBins);
-  for (int histoIndex = 0; histoIndex < histoArray->GetNumberOfValues(); histoIndex++)
+  if (numberOfBins <= 0 || binSpacing <= 0.)
     {
-    histoArray->SetValue(histoIndex, 0);
+    return;
     }
+  void* scalars = inputVolume->GetImageData()->GetScalarPointer(0,0,0);
+  const double DATAMIN = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN"));
 
-  double DATAMIN = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN"));
-
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  omp_set_num_threads(omp_get_num_procs());
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  #pragma omp parallel for schedule(dynamic)
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+  // Per-thread histograms (no locking), merged at the end.
+  vtkSMPThreadLocal<std::vector<vtkIdType>> localHistograms(std::vector<vtkIdType>(numberOfBins, 0));
+  auto fill = [&](auto* data)
     {
-    int histoIndex = 0;
-    switch (DataType)
+    vtkSMPTools::For(0, numElements, [&](vtkIdType first, vtkIdType last)
       {
-      case VTK_FLOAT:
-        if (FloatIsNaN(*(inFPixel + elemCnt)))
+      std::vector<vtkIdType>& histogram = localHistograms.Local();
+      for (vtkIdType i = first; i < last; ++i)
+        {
+        const double value = data[i];
+        if (vtkSlicerAstroSMPTools::IsNaN(value))
           {
           continue;
           }
-        histoIndex = (int) ((*(inFPixel + elemCnt) - DATAMIN) / binSpacing);
-        break;
-      case VTK_DOUBLE:
-        if (DoubleIsNaN(*(inDPixel + elemCnt)))
-          {
-          continue;
-          }
-        histoIndex = (int) ((*(inDPixel + elemCnt) - DATAMIN) / binSpacing);
-        break;
-      }
+        // clamp: the maximum value falls in the last bin
+        const int histoIndex = std::clamp(static_cast<int>((value - DATAMIN) / binSpacing), 0, numberOfBins - 1);
+        ++histogram[histoIndex];
+        }
+      });
+    };
+  if (DataType == VTK_FLOAT)
+    {
+    fill(static_cast<float*>(scalars));
+    }
+  else
+    {
+    fill(static_cast<double*>(scalars));
+    }
 
-    #pragma omp critical
-    histoArray->SetValue(histoIndex, histoArray->GetValue(histoIndex) + 1);
-  }
+  std::vector<vtkIdType> histogram(numberOfBins, 0);
+  for (const std::vector<vtkIdType>& threadHistogram : localHistograms)
+    {
+    for (int bin = 0; bin < numberOfBins; ++bin)
+      {
+      histogram[bin] += threadHistogram[bin];
+      }
+    }
+  histoArray->SetNumberOfValues(numberOfBins);
+  for (int bin = 0; bin < numberOfBins; ++bin)
+    {
+    histoArray->SetValue(bin, static_cast<int>(histogram[bin]));
+    }
 }
 
 //---------------------------------------------------------------------------
@@ -1631,25 +1533,12 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   int status = 0;
   const double NaN = sqrt(-1);
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(1);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -1718,26 +1607,15 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / referenceLengthX);
         ref *= referenceLengthX;
@@ -1778,48 +1656,23 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
            *(outDPixel + elemCnt) = *(inDPixel + inputSliceDim * kk + inputDims[0] * y + x);
            break;
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(10. + (elemCnt / (numElements / (numProcs * 90.))) > status)
-            {
-            status += 10.;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(10. + (elemCnt / (numElements / 90.)) > status)
-          {
-          status += 10.;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
   else if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bilinear)
     {
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / referenceLengthX);
         ref *= referenceLengthX;
@@ -1945,48 +1798,23 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
            *(outDPixel + elemCnt) =  (y2 - y) * deltay * F1 + (y - y1) * deltay * F2;
            break;
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(10. + (elemCnt / (numElements / (numProcs * 90.))) > status)
-            {
-            status += 10.;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(10. + (elemCnt / (numElements / 90.)) > status)
-          {
-          status += 10.;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
   else if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bicubic)
     {
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outFPixel, outDPixel, cancel, status)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         int ref  = (int) floor(elemCnt / referenceLengthX);
         ref *= referenceLengthX;
@@ -2327,33 +2155,16 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
            *(outDPixel + elemCnt) = F;
            break;
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(10. + (elemCnt / (numElements / (numProcs * 90.))) > status)
-            {
-            status += 10.;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(10. + (elemCnt / (numElements / 90.)) > status)
-          {
-          status += 10.;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
   vtkDebugMacro("Reprojection Time : "<<mtime<<" ms.");
 
   inFPixel = nullptr;
@@ -2375,7 +2186,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = outputVolume->StartModify();
   this->CenterVolume(outputVolume);
@@ -2387,12 +2198,9 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 

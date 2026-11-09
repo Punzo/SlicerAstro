@@ -21,6 +21,8 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroProfilesLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <vtkSlicerAstroSMPTools.h>
+#include <type_traits>
 
 // MRML includes
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
@@ -44,12 +46,9 @@
 // STD includes
 #include <cassert>
 #include <iostream>
-#include <sys/time.h>
+#include <chrono>
 
 // OpenMP includes
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-#include <omp.h>
-#endif
 
 #define DOUBLEPRECISION 1.E-16
 
@@ -161,12 +160,10 @@ void vtkSlicerAstroProfilesLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENMP
   vtkWarningMacro("vtkSlicerAstroProfilesLogic::CalculateProfile : "
                   "this release of SlicerAstro has been built "
                   "without OpenMP support. It may results that "
                   "the AstroProfiles algorithm may show poor performance.");
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
 
   if (!pnode)
     {
@@ -264,25 +261,12 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   bool cancel = false;
   int status = 0;
 
-  #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-  int numProcs = 0;
-  if (pnode->GetCores() == 0)
-    {
-    numProcs = omp_get_num_procs();
-    }
-  else
-    {
-    numProcs = pnode->GetCores();
-    }
 
-  omp_set_num_threads(numProcs);
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+  std::chrono::steady_clock::time_point start, end;
 
-  struct timeval start, end;
+  long mtime = 0;
 
-  long mtime, seconds, useconds;
-
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   pnode->SetStatus(1);
 
@@ -316,26 +300,15 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     {
     maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outProfileFPixel, outProfileDPixel, maskPixel, cancel, status)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < dims[2]; elemCnt++)
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (dims[2]) - (0), 10, 100);
+    vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         switch (DataType)
           {
@@ -349,7 +322,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
         for (int kk = 0; kk < numSlice; kk++)
           {
-          int posData = elemCnt * numSlice + kk;
+          vtkIdType posData = elemCnt * numSlice + kk;
           switch (DataType)
             {
             case VTK_FLOAT:
@@ -392,25 +365,11 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
               }
             break;
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elemCnt / (numSlice / (numProcs * 100.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(elemCnt / (numSlice / 100.) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
   else
     {
@@ -459,26 +418,15 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       Zmax = temp;
       }
 
-    #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    #pragma omp parallel for schedule(static) shared(pnode, inFPixel, inDPixel, outProfileFPixel, outProfileDPixel, maskPixel, cancel, status, Zmin, Zmax)
-    #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-    for (int elemCnt = 0; elemCnt < dims[2]; elemCnt++)
+    {
+    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (dims[2]) - (0), 10, 100);
+    vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
-      int stat = pnode->GetStatus();
-
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      if (stat == -1 && omp_get_thread_num() == 0)
-      #else
-      if (stat == -1)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
+      if (progress.IsCancelled())
         {
-        cancel = true;
+        return;
         }
-      #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-      #pragma omp flush (cancel)
-      #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
-
-      if (!cancel)
+      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
         {
         switch (DataType)
           {
@@ -492,7 +440,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
         for (int kk = 0; kk < numSlice; kk++)
           {
-          int posData = elemCnt * numSlice + kk;
+          vtkIdType posData = elemCnt * numSlice + kk;
           switch (DataType)
             {
             case VTK_FLOAT:
@@ -537,33 +485,16 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
               }
             break;
           }
-
-        #ifdef VTK_SLICER_ASTRO_SUPPORT_OPENMP
-        if (omp_get_thread_num() == 0)
-          {
-          if(elemCnt / (numSlice / (numProcs * 100.)) > status)
-            {
-            status += 10;
-            pnode->SetStatus(status);
-            }
-          }
-        #else
-        if(elemCnt / (numSlice / 100.) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        #endif // VTK_SLICER_ASTRO_SUPPORT_OPENMP
         }
-      }
+      progress.Done(lastIndex - firstIndex);
+      });
+    cancel = progress.IsCancelled();
+    }
     }
 
-  gettimeofday(&end, nullptr);
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Profile Kernel Time : "<<mtime<<" ms.");
 
@@ -591,7 +522,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     return false;
     }
 
-  gettimeofday(&start, nullptr);
+  start = std::chrono::steady_clock::now();
 
   int wasModifying = ProfileVolume->StartModify();
   ProfileVolume->UpdateRangeAttributes();
@@ -610,12 +541,9 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   pnode->SetStatus(100);
 
-  gettimeofday(&end, nullptr);;
+  end = std::chrono::steady_clock::now();
 
-  seconds  = end.tv_sec  - start.tv_sec;
-  useconds = end.tv_usec - start.tv_usec;
-
-  mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
