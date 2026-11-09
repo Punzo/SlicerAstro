@@ -17,6 +17,7 @@
 
 ==============================================================================*/
 
+#include <array>
 #include <map>
 #include <cstdlib>
 #include <zlib.h>
@@ -174,9 +175,25 @@ void vtkFITSWriter::WriteData()
   array = static_cast<vtkDataArray *> (input->GetPointData()->GetScalars());
   int vtkType = array->GetDataType();
   void *buffer = array->GetVoidPointer(0);
-  unsigned int naxes = input->GetDataDimension();
-  long int naxe[naxes];
-  int dim = 1;
+  // Axis sizes: from the SlicerAstro.NAXISn attributes (they may drop
+  // degenerate axes), falling back on the image dimensions.
+  const unsigned int naxes = static_cast<unsigned int>(input->GetDataDimension());
+  int dims[3] = {1, 1, 1};
+  input->GetDimensions(dims);
+  std::array<LONGLONG, 3> naxe = {1, 1, 1};
+  LONGLONG dim = 1;
+  for (unsigned int axii = 0; axii < naxes && axii < 3; axii++)
+    {
+    const char* naxisAttribute = this->GetAttribute("SlicerAstro.NAXIS" + IntToString(axii + 1));
+    naxe[axii] = (naxisAttribute && *naxisAttribute) ? StringToInt(naxisAttribute) : dims[axii];
+    dim *= naxe[axii];
+    }
+  if (dim != static_cast<LONGLONG>(input->GetNumberOfPoints()))
+    {
+    vtkErrorMacro("Write: NAXISn attributes do not match the image dimensions.");
+    this->WriteErrorOn();
+    return;
+    }
 
   //allocate FITS struct
   remove(this->GetFileName());
@@ -185,13 +202,13 @@ void vtkFITSWriter::WriteData()
 
   switch (vtkType){
     case  VTK_DOUBLE:
-      fits_create_img(fptr, DOUBLE_IMG, naxes, naxe, &WriteStatus);
+      fits_create_imgll(fptr, DOUBLE_IMG, naxes, naxe.data(), &WriteStatus);
       break;
     case VTK_FLOAT:
-      fits_create_img(fptr, FLOAT_IMG, naxes, naxe, &WriteStatus);
+      fits_create_imgll(fptr, FLOAT_IMG, naxes, naxe.data(), &WriteStatus);
       break;
     case  VTK_SHORT:
-      fits_create_img(fptr, SHORT_IMG, naxes, naxe, &WriteStatus);
+      fits_create_imgll(fptr, SHORT_IMG, naxes, naxe.data(), &WriteStatus);
       break;
     default:
       vtkErrorMacro("Could not write data type");
@@ -295,11 +312,6 @@ void vtkFITSWriter::WriteData()
     }
 
   // Write the FITS to file.
-  for (unsigned int axii=0; axii < naxes; axii++)
-    {
-    naxe[axii] = StringToInt(this->GetAttribute(("SlicerAstro.NAXIS"+IntToString(axii+1))));
-    dim *= naxe[axii];
-    }
 
   int fileType = this->GetFileType();
 
@@ -309,7 +321,7 @@ void vtkFITSWriter::WriteData()
       switch (vtkType)
         {
         case  VTK_DOUBLE:
-          if(fits_write_img(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
+          if(fits_write_imgll(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
             {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
@@ -317,7 +329,7 @@ void vtkFITSWriter::WriteData()
             }
           break;
         case VTK_FLOAT:
-          if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
+          if(fits_write_imgll(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
             {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
@@ -325,7 +337,7 @@ void vtkFITSWriter::WriteData()
             }
           break;
         case VTK_SHORT:
-          if(fits_write_img(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
+          if(fits_write_imgll(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
             {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");

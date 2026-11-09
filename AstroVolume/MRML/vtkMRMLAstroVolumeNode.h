@@ -32,7 +32,7 @@
 
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
-class vtkMRMLAnnotationROINode;
+class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLTransformNode;
@@ -82,10 +82,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   virtual vtkMRMLVolumeRenderingDisplayNode* GetAstroVolumeRenderingDisplayNode();
 
   /// Get MRML ROI node
-  vtkMRMLAnnotationROINode* GetROINode();
+  vtkMRMLMarkupsROINode* GetROINode();
 
   /// Set MRML ROI node
-  void SetROINode(vtkMRMLAnnotationROINode* node);
+  void SetROINode(vtkMRMLMarkupsROINode* node);
 
   /// Get MRML ROI alignment transform node
   vtkMRMLTransformNode* GetROIAlignmentTransformNode();

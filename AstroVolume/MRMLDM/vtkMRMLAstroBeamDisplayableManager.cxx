@@ -24,7 +24,6 @@
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLLogic.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>

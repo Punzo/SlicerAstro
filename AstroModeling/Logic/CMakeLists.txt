@@ -9,6 +9,7 @@ set(${KIT}_INCLUDE_DIRECTORIES
   ${BBAROLO_INCLUDE_DIR}
   ${WCSLIB_INCLUDE_DIR}
   ${CFITSIO_INCLUDE_DIR}
+  ${FFTW3_INCLUDE_DIR}
   )
 
 set(${KIT}_SRCS
@@ -19,9 +20,14 @@ set(${KIT}_SRCS
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
+  ${BBAROLO_LIBRARIES}
   )
 
 #-----------------------------------------------------------------------------
+# libbbarolo is built with BBAROLO_THROW_ON_ERROR: fatal errors are reported as
+# bbarolo::Error exceptions instead of terminating the application.
+add_compile_definitions(BBAROLO_THROW_ON_ERROR)
+
 SlicerMacroBuildModuleLogic(
   NAME ${KIT}
   EXPORT_DIRECTIVE ${${KIT}_EXPORT_DIRECTIVE}

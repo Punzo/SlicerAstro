@@ -28,7 +28,7 @@
 // Export includes
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
-class vtkMRMLAnnotationROINode;
+class vtkMRMLMarkupsROINode;
 class vtkMRMLTableNode;
 class vtkMRMLTransformNode;
 

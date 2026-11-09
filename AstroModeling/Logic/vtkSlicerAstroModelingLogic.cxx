@@ -24,10 +24,10 @@
 #include "vtkSlicerMarkupsLogic.h"
 
 //3DBarolo includes
-#include "param.hh"
-#include "cube.hh"
-#include "header.hh"
-#include "galfit.hh"
+#include <Arrays/param.hh>
+#include <Arrays/cube.hh>
+#include <Arrays/header.hh>
+#include <Tasks/galfit.hh>
 
 // MRML includes
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>

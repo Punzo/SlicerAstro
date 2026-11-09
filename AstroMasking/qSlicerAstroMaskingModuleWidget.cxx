@@ -67,7 +67,7 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroMaskingParametersNode.h>
@@ -113,7 +113,7 @@ public:
 
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroMaskingParametersNode> parametersNode;
-  vtkSmartPointer<vtkMRMLAnnotationROINode> InputROINode;
+  vtkSmartPointer<vtkMRMLMarkupsROINode> InputROINode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
 
@@ -451,7 +451,7 @@ void qSlicerAstroMaskingModuleWidget::onInputROIChanged(vtkMRMLNode *mrmlNode)
     return;
     }
 
-  vtkMRMLAnnotationROINode* roiNode = vtkMRMLAnnotationROINode::SafeDownCast(mrmlNode);
+  vtkMRMLMarkupsROINode* roiNode = vtkMRMLMarkupsROINode::SafeDownCast(mrmlNode);
   if (d->InputROINode == roiNode)
     {
     return;
@@ -515,7 +515,7 @@ void qSlicerAstroMaskingModuleWidget::initializeROINode(bool forceNew /*= false*
     else
       {
       vtkSmartPointer<vtkCollection> roiNodes = vtkSmartPointer<vtkCollection>::Take
-          (this->mrmlScene()->GetNodesByClass("vtkMRMLAnnotationROINode"));
+          (this->mrmlScene()->GetNodesByClass("vtkMRMLMarkupsROINode"));
 
       for (int ii = roiNodes->GetNumberOfItems() - 1; ii >= 0 ; ii--)
         {
@@ -536,19 +536,19 @@ void qSlicerAstroMaskingModuleWidget::initializeROINode(bool forceNew /*= false*
 
     if (roiNode)
       {
-      d->InputROINode = vtkMRMLAnnotationROINode::SafeDownCast(roiNode);
+      d->InputROINode = vtkMRMLMarkupsROINode::SafeDownCast(roiNode);
       d->parametersNode->SetROINode(d->InputROINode);
       return;
       }
     }
 
-  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLAnnotationROINode");
+  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLMarkupsROINode");
   roiNode.TakeReference(foo);
   std::string ROINodeName = this->mrmlScene()->GenerateUniqueName("MaskingROI");
   roiNode->SetName(ROINodeName.c_str());
   this->mrmlScene()->AddNode(roiNode);
 
-  d->InputROINode = vtkMRMLAnnotationROINode::SafeDownCast(roiNode);
+  d->InputROINode = vtkMRMLMarkupsROINode::SafeDownCast(roiNode);
   d->parametersNode->SetROINode(d->InputROINode);
   int wasModifyingROI = d->InputROINode->StartModify();
   this->onROIFit();
@@ -843,7 +843,7 @@ void qSlicerAstroMaskingModuleWidget::onROIVisibilityChanged(bool visible)
     return;
     }
 
-  vtkMRMLAnnotationROINode *ROINode = d->parametersNode->GetROINode();
+  vtkMRMLMarkupsROINode *ROINode = d->parametersNode->GetROINode();
   if(!ROINode)
     {
     return;

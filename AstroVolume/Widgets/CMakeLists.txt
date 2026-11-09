@@ -15,7 +15,7 @@ set(${KIT}_INCLUDE_DIRECTORIES
     ${vtkSlicerSegmentationsModuleLogic_INCLUDES_DIRS}
     ${vtkSlicerSegmentationsModuleMRML_INCLUDES_DIRS}
     ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
-    ${vtkSlicerVolumeRenderingModuleMRML_INCLUDES_DIRS}
+    ${vtkSlicerVolumeRenderingModuleMRML_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS

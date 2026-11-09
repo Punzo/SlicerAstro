@@ -32,7 +32,6 @@
 
 // VTK includes
 #include <vtkDataSetAttributes.h>
-#include <vtkImageChangeInformation.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -304,7 +303,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       int vtkType = reader->GetDataType();
       int *dims = imageData->GetDimensions();
       const int numComponents = imageData->GetNumberOfScalarComponents();
-      const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+      const vtkIdType numElements = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2] * numComponents;
       switch (vtkType)
         {
         case VTK_DOUBLE:
@@ -313,7 +312,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
 
           if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
             {
-            for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+            for (vtkIdType elemCnt = 0; elemCnt < numElements; elemCnt++)
               {
               *(dPixel+elemCnt) *= 0.005;
               }
@@ -324,7 +323,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
           fPixel = static_cast<float*>(imageData->GetScalarPointer(0,0,0));
           if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
             {
-            for( int elemCnt = 0; elemCnt < numElements; elemCnt++)
+            for (vtkIdType elemCnt = 0; elemCnt < numElements; elemCnt++)
               {
               *(fPixel+elemCnt) *= 0.005;
               }
@@ -374,15 +373,18 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       }
     }
 
-  vtkNew<vtkImageChangeInformation> ici;
-  ici->SetInputConnection(reader->GetOutputPort());
-  ici->SetOutputSpacing( 1, 1, 1 );
-  ici->SetOutputOrigin( 0, 0, 0 );
-  ici->Update();
+  // Detach the image from the reader pipeline: the node keeps a shallow copy
+  // (the voxel buffer is shared, not duplicated). Keeping the pipeline
+  // connected would keep the reader alive and could trigger a full re-read
+  // of the file on any upstream modification.
+  vtkNew<vtkImageData> imageData;
+  imageData->ShallowCopy(reader->GetOutput());
+  imageData->SetSpacing(1., 1., 1.);
+  imageData->SetOrigin(0., 0., 0.);
 
   if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
-    volNode->SetImageDataConnection(ici->GetOutputPort());
+    volNode->SetAndObserveImageData(imageData);
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
       {  
@@ -416,7 +418,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     }
   else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
-    labvolNode->SetImageDataConnection(ici->GetOutputPort());
+    labvolNode->SetAndObserveImageData(imageData);
     if(!strcmp(reader->GetHeaderValue("SlicerAstro.DATAMAX"), "0.") ||
        !strcmp(reader->GetHeaderValue("SlicerAstro.DATAMIN"), "0."))
       {

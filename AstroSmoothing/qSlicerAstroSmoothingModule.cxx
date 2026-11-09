@@ -34,11 +34,6 @@
 #include "qSlicerAstroSmoothingModule.h"
 #include "qSlicerAstroSmoothingModuleWidget.h"
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroSmoothingModule, qSlicerAstroSmoothingModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroSmoothing

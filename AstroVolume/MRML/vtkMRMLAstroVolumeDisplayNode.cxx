@@ -542,7 +542,7 @@ double vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxisX(const double worldA,
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0).c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxis(worldA, worldB, wcsStep, unitNode);
     }
   return 0.;
@@ -557,7 +557,7 @@ double vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxisY(const double worldA,
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1).c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxis(worldA, worldB, wcsStep, unitNode);
     }
   return 0.;
@@ -572,7 +572,7 @@ double vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxisZ(const double worldA,
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2).c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetFirstWcsTickAxis(worldA, worldB, wcsStep, unitNode);
     }
   return 0.;
@@ -738,7 +738,7 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxisX(const double wcsLength
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0).c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(wcsLength, numberOfPoints, unitNode);
     }
   return 0.;
@@ -752,7 +752,7 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxisY(const double wcsLength
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1).c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(wcsLength, numberOfPoints, unitNode);
     }
   return 0.;
@@ -766,7 +766,7 @@ double vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxisZ(const double wcsLength
               this->GetScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
   if (selectionNode)
     {
-    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+    vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2).c_str());
     return vtkMRMLAstroVolumeDisplayNode::GetWcsTickStepAxis(wcsLength, numberOfPoints, unitNode);
     }
   return 0.;
@@ -1358,7 +1358,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueX(const doub
     RightAscensionDegree -= 360.;
     }
 
-  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0));
+  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(0).c_str());
   return this->GetDisplayStringFromValue(world, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
 
@@ -1384,7 +1384,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueY(const doub
     return "";
     }
 
-   vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1));
+   vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(1).c_str());
    return this->GetDisplayStringFromValue(DeclinationDegree, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
 
@@ -1402,7 +1402,7 @@ std::string vtkMRMLAstroVolumeDisplayNode::GetDisplayStringFromValueZ(const doub
     return "";
     }
 
-  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2));
+  vtkMRMLUnitNode* unitNode = selectionNode->GetUnitNode(this->SpaceQuantities->GetValue(2).c_str());
   return this->GetDisplayStringFromValue(world, unitNode, precision, oldOutputValues, outputValues, additionalSpace);
 }
 

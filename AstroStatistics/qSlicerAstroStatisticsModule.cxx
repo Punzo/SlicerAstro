@@ -33,11 +33,6 @@
 #include "qSlicerAstroStatisticsModule.h"
 #include "qSlicerAstroStatisticsModuleWidget.h"
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroStatisticsModule, qSlicerAstroStatisticsModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroStatistics

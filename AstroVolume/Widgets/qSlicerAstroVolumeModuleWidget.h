@@ -35,7 +35,7 @@
 class qMRMLAstroVolumeInfoWidget;
 class qSlicerAstroVolumeDisplayWidget;
 class qSlicerAstroVolumeModuleWidgetPrivate;
-class qSlicerVolumeRenderingModuleWidget;
+class qSlicerAbstractModuleWidget;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLNode;
@@ -64,7 +64,7 @@ public:
   Q_INVOKABLE vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay()const;
 
   /// Get volumeRenderingWidget
-  Q_INVOKABLE qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget()const;
+  Q_INVOKABLE qSlicerAbstractModuleWidget* volumeRenderingWidget()const;
 
   virtual void enter();
   virtual void exit();

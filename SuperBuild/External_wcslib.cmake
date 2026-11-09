@@ -1,76 +1,83 @@
 set(proj wcslib)
 
 # Set dependency list
-set(${proj}_DEPENDENCIES "cfitsio")
+set(${proj}_DEPENDS "cfitsio")
 
 # Include dependent projects if any
-ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
+ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj)
 
-if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
-  message(FATAL_ERROR "Enabling ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj} is not supported !")
+if(${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
+  message(FATAL_ERROR "Enabling ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj} is not supported !")
 endif()
 
 # Sanity checks
-foreach(varname IN ITEMS WCSLIB_LIBRARY_DIR WCSLIB_INCLUDE_DIR)
+foreach(varname IN ITEMS WCSLIB_INCLUDE_DIR WCSLIB_LIBRARY_DIR)
   if(DEFINED ${varname} AND NOT EXISTS ${${varname}})
-    message(FATAL_ERROR "${varname} variable is defined but corresponds to nonexistent directory")
+    message(FATAL_ERROR "${varname} [${${varname}}] variable is defined but corresponds to nonexistent directory")
   endif()
 endforeach()
 
-if((NOT DEFINED WCSLIB_LIBRARY_DIR OR NOT DEFINED WCSLIB_INCLUDE_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+if((NOT DEFINED WCSLIB_INCLUDE_DIR OR NOT DEFINED WCSLIB_LIBRARY_DIR)
+   AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
 
-  set(WCSLIB_DOWNLOAD_VERSION "7.1" CACHE STRING "Version of WCSlib source package to download")
-  set_property(CACHE WCSLIB_DOWNLOAD_VERSION PROPERTY STRINGS "7.1")
+  ExternalProject_SetIfNotDefined(
+    ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY
+    "${EP_GIT_PROTOCOL}://github.com/Punzo/wcslib.git"
+    QUIET
+    )
 
-  if(NOT DEFINED git_protocol)
-    set(git_protocol "git")
-  endif()
+  ExternalProject_SetIfNotDefined(
+    ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
+    "06494ca3e13e9d0503b77507c7e7025d380d4c9c" # branch wcslib-8.10-cmake (WCSLIB 8.10)
+    QUIET
+    )
 
-  set(${proj}_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
-  set(${proj}_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
-  set(${proj}_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
+  set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
+  set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
+  set(EP_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    GIT_REPOSITORY "https://github.com/Punzo/wcslib.git"
-    GIT_TAG "b1ed2e4d09d68a4b53ef83bbee8b31b110291884"
-    SOURCE_DIR ${${proj}_SOURCE_DIR}
-    BINARY_DIR ${${proj}_BINARY_DIR}
+    GIT_REPOSITORY "${${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY}"
+    GIT_TAG "${${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG}"
+    SOURCE_DIR ${EP_SOURCE_DIR}
+    BINARY_DIR ${EP_BINARY_DIR}
+    INSTALL_DIR ${EP_INSTALL_DIR}
     CMAKE_CACHE_ARGS
-      -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
-      -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
+      # Compiler settings
       -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
       -DCMAKE_C_FLAGS:STRING=${ep_common_c_flags}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-      -DBUILD_TESTING:BOOL=OFF
-      -DCFITSIO_LIBRARY_DIR:PATH=${CFITSIO_LIBRARY_DIR}
-      -DCFITSIO_INCLUDE_DIR:PATH=${CFITSIO_INCLUDE_DIR}
-      -DCMAKE_INSTALL_PREFIX:PATH=${${proj}_INSTALL_DIR}
+      -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET}
+      -DCMAKE_OSX_ARCHITECTURES:STRING=${CMAKE_OSX_ARCHITECTURES}
+      # Output directories
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
-      -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
-      -DWCSLIB_INSTALL_RUNTIME_DIR:STRING=${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
-      -DWCSLIB_INSTALL_LIBRARY_DIR:STRING=${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
-      -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET}
-      -DCMAKE_OSX_SYSROOT:PATH=${CMAKE_OSX_SYSROOT}
-      -DCMAKE_MACOSX_RPATH:BOOL=0
+      -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
+      -DCMAKE_INSTALL_PREFIX:PATH=${EP_INSTALL_DIR}
+      -DCMAKE_INSTALL_LIBDIR:STRING=lib
+      # Options and dependencies
+      -DBUILD_SHARED_LIBS:BOOL=ON
+      -DWCSLIB_USE_CFITSIO:BOOL=ON
+      -DCFITSIO_INCLUDE_DIR:PATH=${CFITSIO_INCLUDE_DIR}
+      -DCFITSIO_LIBRARY_DIR:PATH=${CFITSIO_LIBRARY_DIR}
     DEPENDS
-      ${${proj}_DEPENDENCIES}
+      ${${proj}_DEPENDS}
     )
+
+  # Headers are available both as <wcslib/xxx.h> and <xxx.h>
   set(WCSLIB_INCLUDE_DIR
-      ${${proj}_SOURCE_DIR}
-      ${${proj}_SOURCE_DIR}/C
-  )
+    ${EP_INSTALL_DIR}/include
+    ${EP_INSTALL_DIR}/include/wcslib
+    )
   set(WCSLIB_LIBRARY_DIR ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR})
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
 endif()
 
-set(${proj}_DIR ${${proj}_BINARY_DIR})
+set(${proj}_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
 mark_as_superbuild(VARS ${proj}_DIR:PATH)
-
-ExternalProject_Message(${proj} "${proj}_DIR:${${proj}_DIR}")
 
 mark_as_superbuild(
   VARS

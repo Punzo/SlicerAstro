@@ -190,7 +190,7 @@
         </property>
         <property name="nodeTypes">
          <stringlist>
-          <string>vtkMRMLAnnotationROINode</string>
+          <string>vtkMRMLMarkupsROINode</string>
          </stringlist>
         </property>
         <property name="showHidden">

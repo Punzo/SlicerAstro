@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QPointer>
 #include <QAbstractItemView>
 #include <QtDebug>
 #include <QMessageBox>
@@ -71,12 +72,12 @@
 #include <qSlicerPresetComboBox.h>
 #include <qSlicerPresetComboBox_p.h>
 #include <qSlicerUtils.h>
-#include <qSlicerVolumeRenderingModuleWidget.h>
+#include <qSlicerAbstractModuleWidget.h>
 #include <qSlicerVolumeRenderingPresetComboBox.h>
 #include <ui_qSlicerAstroVolumeModuleWidget.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
@@ -125,7 +126,7 @@ public:
   virtual void setupUi(qSlicerAstroVolumeModuleWidget*);
   void cleanPointers();
 
-  qSlicerVolumeRenderingModuleWidget* volumeRenderingWidget;
+  QPointer<qSlicerAbstractModuleWidget> volumeRenderingWidget;
   qMRMLAstroVolumeInfoWidget *MRMLAstroVolumeInfoWidget;
   vtkSlicerSegmentationsModuleLogic* segmentationsLogic;
   vtkSlicerVolumeRenderingLogic* volumeRenderingLogic;
@@ -268,7 +269,9 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
     return;
     }
 
-  this->volumeRenderingWidget = dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
+  // qSlicerVolumeRenderingModuleWidget is internal to the VolumeRendering
+  // module: access it through the generic module widget interface.
+  this->volumeRenderingWidget = dynamic_cast<qSlicerAbstractModuleWidget*>
     (volumeRendering->widgetRepresentation());
 
   if (!this->volumeRenderingWidget)
@@ -562,7 +565,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   if(!d->PresetsNodeComboBox)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene error :"
-                   " PresetsNodeComboBox not found!"<<endl;
+                   " PresetsNodeComboBox not found!";
     return;
     }
 
@@ -571,7 +574,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   if (!astroVolumeLogic)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene error :"
-                   " astroVolumeLogic not found!"<<endl;
+                   " astroVolumeLogic not found!";
     return;
     }
   vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
@@ -632,7 +635,7 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
   if (!this->mrmlScene())
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::initializeColorNodes error :"
-                     " scene not found!"<<endl;
+                     " scene not found!";
     return;
     }
 
@@ -3355,7 +3358,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   if (this->contoursSegNodeModeling->GetNumberOfDisplayNodes() < 1)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView error :"
-                   " SegmentationNode has no displayNodes!"<<endl;
+                   " SegmentationNode has no displayNodes!";
     }
 
   for (int ii = 0; ii < this->contoursSegNodeModeling->GetNumberOfDisplayNodes(); ii++)
@@ -3699,7 +3702,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   if (this->contoursSegNodeModeling->GetNumberOfDisplayNodes() < 1)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::updateQuantitative3DView error :"
-                   " SegmentationNode has no displayNodes!"<<endl;
+                   " SegmentationNode has no displayNodes!";
     }
 
   for (int ii = 0; ii < this->contoursSegNodeModeling->GetNumberOfDisplayNodes(); ii++)
@@ -3895,8 +3898,9 @@ void qSlicerAstroVolumeModuleWidget::applyPreset(vtkMRMLNode *volumePropertyNode
 
   PresetComboBox->applyPreset(volumePropertyNode);
 
+  vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplayNode = this->volumeRenderingDisplay();
   vtkMRMLVolumePropertyNode* newVolumePropertyNode =
-    d->volumeRenderingWidget->mrmlVolumePropertyNode();
+    volumeRenderingDisplayNode ? volumeRenderingDisplayNode->GetVolumePropertyNode() : nullptr;
   if (!newVolumePropertyNode || !d->astroVolumeNode)
     {
     return;
@@ -3997,8 +4001,10 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     return;
     }
 
-  // To Do: Update To Slicer5
-  vtkMRMLAnnotationROINode *roiNode = nullptr;
+  // Use the cropping ROI of the volume rendering display node
+  vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplayNode = this->volumeRenderingDisplay();
+  vtkMRMLMarkupsROINode *roiNode =
+    volumeRenderingDisplayNode ? volumeRenderingDisplayNode->GetMarkupsROINode() : nullptr;
   if (!roiNode)
     {
     return;
@@ -4281,8 +4287,8 @@ void qSlicerAstroVolumeModuleWidget::onMRMLDisplayROINodeModified(vtkObject* sen
     return;
     }
 
-  vtkMRMLAnnotationROINode* ROINode =
-      vtkMRMLAnnotationROINode::SafeDownCast(sender);
+  vtkMRMLMarkupsROINode* ROINode =
+      vtkMRMLMarkupsROINode::SafeDownCast(sender);
   if (!ROINode)
     {
     return;
@@ -4417,7 +4423,7 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndCloseEvent()
   if (!astroVolumeLogic)
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::onMRMLSceneEndCloseEvent error :"
-                   " astroVolumeLogic not found!"<<endl;
+                   " astroVolumeLogic not found!";
     return;
     }
   vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
@@ -4613,14 +4619,14 @@ void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
     return;
     }
 
-  vtkMRMLAnnotationROINode* ROINode = displayNode->GetAnnotationROINode();
+  vtkMRMLMarkupsROINode* ROINode = displayNode->GetMarkupsROINode();
   if (!ROINode)
     {
     return;
     }
 
   int n = ROINode->GetNumberOfDisplayNodes();
-  int wasModifying [n];
+  std::vector<int> wasModifying(n);
   for(int i = 0; i < n; i++)
     {
     wasModifying[i] = ROINode->GetNthDisplayNode(i)->StartModify();
@@ -5691,7 +5697,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     {
     this->onVisibilityChanged(false);
     d->ActiveVolumeNodeSelector->setCurrentNode(volumeNode);
-    d->volumeRenderingWidget->setMRMLVolumeNode(volumeNode);
+    QMetaObject::invokeMethod(d->volumeRenderingWidget, "setMRMLVolumeNode", Q_ARG(vtkMRMLNode*, volumeNode));
     d->astroVolumeNode = nullptr;
     return;
     }
@@ -5716,7 +5722,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     d->RenderingFrame->setCollapsed(false);
     if (d->volumeRenderingWidget)
       {
-      d->volumeRenderingWidget->setMRMLVolumeNode(d->astroVolumeNode);
+      QMetaObject::invokeMethod(d->volumeRenderingWidget, "setMRMLVolumeNode", Q_ARG(vtkMRMLNode*, d->astroVolumeNode));
       }
 
     d->Lock = false;
@@ -5805,7 +5811,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroLabelMapVolum
 }
 
 //--------------------------------------------------------------------------
-qSlicerVolumeRenderingModuleWidget* qSlicerAstroVolumeModuleWidget::volumeRenderingWidget() const
+qSlicerAbstractModuleWidget* qSlicerAstroVolumeModuleWidget::volumeRenderingWidget() const
 {
   Q_D(const qSlicerAstroVolumeModuleWidget);
 
@@ -5828,7 +5834,11 @@ void qSlicerAstroVolumeModuleWidget::exit()
 vtkMRMLVolumeRenderingDisplayNode* qSlicerAstroVolumeModuleWidget::volumeRenderingDisplay() const
 {
   Q_D(const qSlicerAstroVolumeModuleWidget);
-  return d->volumeRenderingWidget->mrmlDisplayNode();
+  if (!d->volumeRenderingLogic || !d->astroVolumeNode)
+    {
+    return nullptr;
+    }
+  return d->volumeRenderingLogic->GetFirstVolumeRenderingDisplayNode(d->astroVolumeNode);
 }
 
 //--------------------------------------------------------------------------

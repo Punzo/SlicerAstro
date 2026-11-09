@@ -33,11 +33,6 @@
 #include "qSlicerAstroMaskingModule.h"
 #include "qSlicerAstroMaskingModuleWidget.h"
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroMaskingModule, qSlicerAstroMaskingModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroMasking

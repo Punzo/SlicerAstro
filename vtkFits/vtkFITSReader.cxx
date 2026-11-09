@@ -28,8 +28,8 @@
 #include <vtkFITSReader.h>
 
 // Qt includes
-#include <QFileInfo>
-#include <QRegExp>
+#include <filesystem>
+#include <regex>
 
 // VTK includes
 #include <vtkDoubleArray.h>
@@ -45,7 +45,6 @@
 #include <vtkStreamingDemandDrivenPipeline.h>
 
 // Slicer includes
-#include "vtkMRMLVolumeArchetypeStorageNode.h"
 
 // STD includes
 #include <sstream>
@@ -1449,63 +1448,47 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.DATAMODEL") == this->HeaderKeyValue.end())
      {
-     bool onlyNumberInExtension = false;
-     vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
-     QFileInfo fileInfo(this->CurrentFileName);
-     QString fileBaseName = fileInfo.baseName();
-     if (fileInfo.isFile())
+     // Guess the data model from the file name (name up to the first '.')
+     const std::string fileName = std::filesystem::path(this->CurrentFileName).filename().string();
+     const std::string baseName = fileName.substr(0, fileName.find('.'));
+     auto nameContains = [&baseName](const char* keyword)
        {
-       std::string fileNameStd = fileInfo.fileName().toStdString();
-       std::string filenameWithoutExtension = snode->GetFileNameWithoutExtension(fileNameStd.c_str());
-       fileBaseName = QString(filenameWithoutExtension.c_str());
-       fileInfo.suffix().toInt(&onlyNumberInExtension);
-       }
+       // keyword delimited by word boundaries or underscores
+       const std::regex pattern(std::string("(\\b|_)(") + keyword + ")(\\b|_)");
+       return std::regex_search(baseName, pattern);
+       };
 
-     QRegExp labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
-     QRegExp segName("(\\b|_)([Ss]eg)(\\b|_)");
-     QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
-     QRegExp modelName("(\\b|_)([Mm]odel)(\\b|_)");
-     QRegExp modelNamesShort("(\\b|_)([Mm]od)(\\b|_)");
-     QRegExp profileName("(\\b|_)([Pp]rofile)(\\b|_)");
-     QRegExp pvDiagramName("(\\b|_)([Pp][Vv][Dd]iagram})(\\b|_)");
-     QRegExp zeroMomentMapName("(\\b|_)(0(th)?[Mm]omentMap)(\\b|_)");
-     QRegExp zeroMomentMapNameShort("(\\b|_)([Mm]om0(th)?)(\\b|_)");
-     QRegExp firstMomentMapName("(\\b|_)(1(st)?[Mm]omentMap)(\\b|_)");
-     QRegExp firstMomentMapNameShort("(\\b|_)([Mm]om1(st)?)(\\b|_)");
-     QRegExp secondMomentMapName("(\\b|_)(2(nd)?[Mm]omentMap)(\\b|_)");
-     QRegExp secondMomentMapNameShort("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
-
-     if (fileInfo.baseName().contains(labelMapName) ||
-         fileInfo.baseName().contains(segName) ||
-         fileInfo.baseName().contains(maskName))
+     if (nameContains("[Ll]abel(s)?") ||
+         nameContains("[Ss]eg") ||
+         nameContains("[Mm]ask"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MASK";
        }
-     else if (fileInfo.baseName().contains(modelName) ||
-              fileInfo.baseName().contains(modelNamesShort))
+     else if (nameContains("[Mm]odel") ||
+              nameContains("[Mm]od"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "MODEL";
        }
-     else if (fileInfo.baseName().contains(profileName))
+     else if (nameContains("[Pp]rofile"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "PROFILE";
        }
-     else if (fileInfo.baseName().contains(pvDiagramName))
+     else if (nameContains("[Pp][Vv][Dd]iagram"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "PVDIAGRAM";
        }
-     else if (fileInfo.baseName().contains(zeroMomentMapName) ||
-              fileInfo.baseName().contains(zeroMomentMapNameShort))
+     else if (nameContains("0(th)?[Mm]omentMap") ||
+              nameContains("[Mm]om0(th)?"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "ZEROMOMENTMAP";
        }
-     else if (fileInfo.baseName().contains(firstMomentMapName) ||
-              fileInfo.baseName().contains(firstMomentMapNameShort))
+     else if (nameContains("1(st)?[Mm]omentMap") ||
+              nameContains("[Mm]om1(st)?"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "FIRSTMOMENTMAP";
        }
-     else if (fileInfo.baseName().contains(secondMomentMapName) ||
-              fileInfo.baseName().contains(secondMomentMapNameShort))
+     else if (nameContains("2(nd)?[Mm]omentMap") ||
+              nameContains("[Mm]om2(nd)?"))
        {
        this->HeaderKeyValue["SlicerAstro.DATAMODEL"] = "SECONDMOMENTMAP";
        }
@@ -2929,21 +2912,18 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   void *ptr = nullptr;
   ptr = data->GetPointData()->GetScalars()->GetVoidPointer(0);
   this->ComputeDataIncrements();
-  unsigned int naxes = data->GetDataDimension();
-  int naxe[naxes];
-  data->GetDimensions(naxe);
-  int dim = 1;
-  for (unsigned int axii=0; axii < naxes; axii++)
-    {
-    dim *= naxe[axii];
-    }
+  // Number of voxels as a 64-bit value: cubes may exceed 2^31 voxels.
+  int dims[3] = {1, 1, 1};
+  data->GetDimensions(dims);
+  const LONGLONG numberOfElements =
+    static_cast<LONGLONG>(dims[0]) * dims[1] * dims[2] * data->GetNumberOfScalarComponents();
   float nullptrval = NAN;
-  int anynullptr;
+  int anynullptr = 0;
   // load the data
   switch (this->DataType)
     {
     case VTK_DOUBLE:
-      if(fits_read_img(this->fptr, TDOUBLE, 1, dim, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+      if(fits_read_imgll(this->fptr, TDOUBLE, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
         fits_report_error(stderr, this->ReadStatus);
         vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
@@ -2951,7 +2931,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
     case VTK_FLOAT:
-      if(fits_read_img(this->fptr, TFLOAT, 1, dim, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+      if(fits_read_imgll(this->fptr, TFLOAT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
         fits_report_error(stderr, this->ReadStatus);
         vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
@@ -2959,7 +2939,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
   case VTK_SHORT:
-    if(fits_read_img(this->fptr, TSHORT, 1, dim, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+    if(fits_read_imgll(this->fptr, TSHORT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
       {
       fits_report_error(stderr, this->ReadStatus);
       vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");

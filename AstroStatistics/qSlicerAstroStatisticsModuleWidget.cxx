@@ -66,7 +66,7 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroStatisticsParametersNode.h>
@@ -105,7 +105,7 @@ public:
 
   vtkSlicerAstroStatisticsLogic* logic() const;
   vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode> parametersNode;
-  vtkSmartPointer<vtkMRMLAnnotationROINode> InputROINode;
+  vtkSmartPointer<vtkMRMLMarkupsROINode> InputROINode;
   vtkSmartPointer<vtkMRMLTableNode> astroTableNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
@@ -445,7 +445,7 @@ void qSlicerAstroStatisticsModuleWidget::onInputROIChanged(vtkMRMLNode *node)
     return;
     }
 
-  vtkMRMLAnnotationROINode* roiNode = vtkMRMLAnnotationROINode::SafeDownCast(node);
+  vtkMRMLMarkupsROINode* roiNode = vtkMRMLMarkupsROINode::SafeDownCast(node);
   if (d->InputROINode == roiNode)
     {
     return;
@@ -509,7 +509,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeROINode(bool forceNew /*= fal
     else
       {
       vtkSmartPointer<vtkCollection> roiNodes = vtkSmartPointer<vtkCollection>::Take
-          (this->mrmlScene()->GetNodesByClass("vtkMRMLAnnotationROINode"));
+          (this->mrmlScene()->GetNodesByClass("vtkMRMLMarkupsROINode"));
 
       for (int ii = roiNodes->GetNumberOfItems() - 1; ii >= 0 ; ii--)
         {
@@ -530,19 +530,19 @@ void qSlicerAstroStatisticsModuleWidget::initializeROINode(bool forceNew /*= fal
 
     if (roiNode)
       {
-      d->InputROINode = vtkMRMLAnnotationROINode::SafeDownCast(roiNode);
+      d->InputROINode = vtkMRMLMarkupsROINode::SafeDownCast(roiNode);
       d->parametersNode->SetROINode(d->InputROINode);
       return;
       }
     }
 
-  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLAnnotationROINode");
+  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLMarkupsROINode");
   roiNode.TakeReference(foo);
   std::string ROINodeName = this->mrmlScene()->GenerateUniqueName("StatisticsROI");
   roiNode->SetName(ROINodeName.c_str());
   this->mrmlScene()->AddNode(roiNode);
 
-  d->InputROINode = vtkMRMLAnnotationROINode::SafeDownCast(roiNode);
+  d->InputROINode = vtkMRMLMarkupsROINode::SafeDownCast(roiNode);
   d->parametersNode->SetROINode(d->InputROINode);
   int wasModifyingROI = d->InputROINode->StartModify();
   this->onROIFit();
@@ -997,7 +997,7 @@ void qSlicerAstroStatisticsModuleWidget::onROIVisibilityChanged(bool visible)
     return;
     }
 
-  vtkMRMLAnnotationROINode *ROINode = d->parametersNode->GetROINode();
+  vtkMRMLMarkupsROINode *ROINode = d->parametersNode->GetROINode();
   if(!ROINode)
     {
     return;

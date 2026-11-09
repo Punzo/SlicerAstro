@@ -28,7 +28,7 @@
 #include <vtkSlicerAstroConfigure.h>
 
 // MRML nodes includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroReprojectParametersNode.h>
@@ -784,7 +784,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
 }
 
 //---------------------------------------------------------------------------
-bool vtkSlicerAstroVolumeLogic::FitROIToInputVolume(vtkMRMLAnnotationROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
+bool vtkSlicerAstroVolumeLogic::FitROIToInputVolume(vtkMRMLMarkupsROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode || !inputVolume)
     {
@@ -818,7 +818,7 @@ bool vtkSlicerAstroVolumeLogic::FitROIToInputVolume(vtkMRMLAnnotationROINode *ro
 }
 
 //---------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLAnnotationROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
+void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLMarkupsROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode || !inputVolume)
     {
@@ -908,7 +908,7 @@ void vtkSlicerAstroVolumeLogic::SnapROIToVoxelGrid(vtkMRMLAnnotationROINode *roi
 }
 
 //---------------------------------------------------------------------------
-bool vtkSlicerAstroVolumeLogic::IsROIAlignedWithInputVolume(vtkMRMLAnnotationROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
+bool vtkSlicerAstroVolumeLogic::IsROIAlignedWithInputVolume(vtkMRMLMarkupsROINode *roiNode, vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode || !inputVolume)
     {
@@ -957,7 +957,7 @@ bool vtkSlicerAstroVolumeLogic::IsROIAlignedWithInputVolume(vtkMRMLAnnotationROI
 }
 
 //---------------------------------------------------------------------------
-bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLAnnotationROINode *roiNode,
+bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLMarkupsROINode *roiNode,
                                                              vtkMRMLAstroVolumeNode *inputVolume,
                                                              double outputExtent[6])
 {
@@ -1136,7 +1136,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmenta
 }
 
 //---------------------------------------------------------------------------
-double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLAnnotationROINode *roiNode,
+double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLMarkupsROINode *roiNode,
                                                                  vtkMRMLAstroVolumeNode *inputVolume)
 {
   if (!roiNode)

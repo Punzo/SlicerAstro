@@ -24,10 +24,6 @@
 #include "vtkSlicerAstroConfigure.h"
 
 // MRML includes
-#include <vtkMRMLAnnotationRulerNode.h>
-#include <vtkMRMLAnnotationTextDisplayNode.h>
-#include <vtkMRMLAnnotationPointDisplayNode.h>
-#include <vtkMRMLAnnotationLineDisplayNode.h>
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>

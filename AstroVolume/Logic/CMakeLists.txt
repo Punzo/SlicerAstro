@@ -22,7 +22,6 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerVolumesModuleLogic
   vtkSlicerUnitsModuleLogic
   vtkSlicerVolumeRenderingModuleMRML
-  vtkSlicerAnnotationsModuleMRML
   )
 
 #-----------------------------------------------------------------------------

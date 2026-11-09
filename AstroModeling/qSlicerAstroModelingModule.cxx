@@ -34,11 +34,6 @@
 #include "qSlicerAstroModelingModule.h"
 #include "qSlicerAstroModelingModuleWidget.h"
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroModelingModule, qSlicerAstroModelingModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroModeling

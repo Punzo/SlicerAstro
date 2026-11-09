@@ -33,11 +33,6 @@
 #include "qSlicerAstroMomentMapsModule.h"
 #include "qSlicerAstroMomentMapsModuleWidget.h"
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroMomentMapsModule, qSlicerAstroMomentMapsModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroMomentMaps

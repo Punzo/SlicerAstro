@@ -34,11 +34,6 @@
 #include "qSlicerAstroPVSliceModule.h"
 #include "qSlicerAstroPVSliceModuleWidget.h"
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroPVSliceModule, qSlicerAstroPVSliceModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroPVSlice

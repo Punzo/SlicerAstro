@@ -56,7 +56,7 @@
 #include <qSlicerPresetComboBox.h>
 #include <qSlicerScriptedLoadableModuleWidget.h>
 #include <qSlicerUtils.h>
-#include <qSlicerVolumeRenderingModuleWidget.h>
+#include <qSlicerAbstractModuleWidget.h>
 #include <qSlicerVolumeRenderingPresetComboBox.h>
 #include <vtkSlicerVersionConfigure.h> // For Slicer_VERSION_MAJOR, Slicer_VERSION_MINOR
 
@@ -95,16 +95,9 @@
 #include <vtkMRMLViewNode.h>
 
 // DisplayableManager initialization
-#if Slicer_VERSION_MAJOR == 4 && Slicer_VERSION_MINOR >= 9
 #include <vtkAutoInit.h>
 VTK_MODULE_INIT(vtkSlicerAstroVolumeModuleMRMLDisplayableManager)
-#endif
 
-//-----------------------------------------------------------------------------
-#if (QT_VERSION < QT_VERSION_CHECK(5, 0, 0))
-#include <QtPlugin>
-Q_EXPORT_PLUGIN2(qSlicerAstroVolumeModule, qSlicerAstroVolumeModule);
-#endif
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroVolume
@@ -272,8 +265,8 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
-  qSlicerVolumeRenderingModuleWidget*  volumeRenderingWidget =
-      dynamic_cast<qSlicerVolumeRenderingModuleWidget*>
+  qSlicerAbstractModuleWidget*  volumeRenderingWidget =
+      dynamic_cast<qSlicerAbstractModuleWidget*>
          (d->volumeRendering->widgetRepresentation());
 
   if(!volumeRenderingWidget)

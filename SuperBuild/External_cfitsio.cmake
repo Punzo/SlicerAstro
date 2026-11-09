@@ -1,79 +1,98 @@
 set(proj cfitsio)
 
 # Set dependency list
-set(${proj}_DEPENDENCIES "")
+set(${proj}_DEPENDS "")
 
 # Include dependent projects if any
-ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj DEPENDS_VAR ${proj}_DEPENDENCIES)
+ExternalProject_Include_Dependencies(${proj} PROJECT_VAR proj)
 
-if(${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
-  message(FATAL_ERROR "Enabling ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj} is not supported !")
+if(${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
+  message(FATAL_ERROR "Enabling ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj} is not supported !")
 endif()
 
 # Sanity checks
-foreach(varname IN ITEMS CFITSIO_LIBRARY_DIR CFITSIO_INCLUDE_DIR)
+foreach(varname IN ITEMS CFITSIO_INCLUDE_DIR CFITSIO_LIBRARY_DIR)
   if(DEFINED ${varname} AND NOT EXISTS ${${varname}})
-    message(FATAL_ERROR "${varname} variable is defined but corresponds to nonexistent directory")
+    message(FATAL_ERROR "${varname} [${${varname}}] variable is defined but corresponds to nonexistent directory")
   endif()
 endforeach()
 
-if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR) AND NOT ${CMAKE_PROJECT_NAME}_USE_SYSTEM_${proj})
+if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR)
+   AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
 
-  set(CFITSIO_DOWNLOAD_VERSION "3.470" CACHE STRING "Version of cfitsio source package to download")
-  set_property(CACHE CFITSIO_DOWNLOAD_VERSION PROPERTY STRINGS "3.470")
+  ExternalProject_SetIfNotDefined(
+    ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY
+    "${EP_GIT_PROTOCOL}://github.com/HEASARC/cfitsio.git"
+    QUIET
+    )
 
-  if(NOT DEFINED git_protocol)
-    set(git_protocol "git")
+  ExternalProject_SetIfNotDefined(
+    ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
+    "d6d27653740864a0483e74cff23c53e34e1dceee" # cfitsio-4.7.0
+    QUIET
+    )
+
+  set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
+  set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
+  set(EP_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
+
+  # cfitsio is built thread-safe with pthreads on Unix; there is no
+  # pthreads implementation available by default on Windows.
+  set(_use_pthreads ON)
+  if(WIN32)
+    set(_use_pthreads OFF)
   endif()
-
-  set(${proj}_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
-  set(${proj}_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
-  set(${proj}_INSTALL_DIR ${CMAKE_BINARY_DIR}/${proj}-install)
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    GIT_REPOSITORY "https://github.com/Punzo/CFITSIO.git"
-    GIT_TAG "b4b701ddfc11f69f84dded6647f32b2d4d8569bf"
-    SOURCE_DIR ${${proj}_SOURCE_DIR}
-    BINARY_DIR ${${proj}_BINARY_DIR}
+    GIT_REPOSITORY "${${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY}"
+    GIT_TAG "${${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG}"
+    SOURCE_DIR ${EP_SOURCE_DIR}
+    BINARY_DIR ${EP_BINARY_DIR}
+    INSTALL_DIR ${EP_INSTALL_DIR}
     CMAKE_CACHE_ARGS
-      -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
-      -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
+      # Compiler settings
       -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
       -DCMAKE_C_FLAGS:STRING=${ep_common_c_flags}
       -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
-      -DBUILD_TESTING:BOOL=OFF
-      -DCMAKE_INSTALL_PREFIX:PATH=${${proj}_INSTALL_DIR}
+      -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET}
+      -DCMAKE_OSX_ARCHITECTURES:STRING=${CMAKE_OSX_ARCHITECTURES}
+      # Output directories
       -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_BIN_DIR}
       -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
-      -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
-      -DCFITSIO_INSTALL_RUNTIME_DIR:STRING=${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
-      -DCFITSIO_INSTALL_LIBRARY_DIR:STRING=${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
-      -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET}
-      -DCMAKE_OSX_SYSROOT:PATH=${CMAKE_OSX_SYSROOT}
-      -DCMAKE_MACOSX_RPATH:BOOL=0
+      -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR}
+      -DCMAKE_INSTALL_PREFIX:PATH=${EP_INSTALL_DIR}
+      -DCMAKE_INSTALL_LIBDIR:STRING=lib
+      # Options
+      -DBUILD_SHARED_LIBS:BOOL=ON
+      -DUSE_CURL:BOOL=OFF
+      -DUSE_BZIP2:BOOL=OFF
+      -DUSE_PTHREADS:BOOL=${_use_pthreads}
+      -DTESTS:BOOL=OFF
+      -DUTILS:BOOL=OFF
+      # Dependencies: zlib provided by Slicer
+      -DZLIB_ROOT:PATH=${ZLIB_ROOT}
+      -DZLIB_INCLUDE_DIR:PATH=${ZLIB_INCLUDE_DIR}
+      -DZLIB_LIBRARY:FILEPATH=${ZLIB_LIBRARY}
     DEPENDS
-      ${${proj}_DEPENDENCIES}
+      ${${proj}_DEPENDS}
     )
-  set(CFITSIO_INCLUDE_DIR ${${proj}_SOURCE_DIR})
+
+  set(CFITSIO_INCLUDE_DIR ${EP_INSTALL_DIR}/include)
   set(CFITSIO_LIBRARY_DIR ${CMAKE_BINARY_DIR}/${Slicer_THIRDPARTY_LIB_DIR})
 
 else()
   ExternalProject_Add_Empty(${proj} DEPENDS ${${proj}_DEPENDS})
 endif()
 
-set(${proj}_DIR ${${proj}_BINARY_DIR})
+set(${proj}_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
 mark_as_superbuild(VARS ${proj}_DIR:PATH)
-
-ExternalProject_Message(${proj} "${proj}_DIR:${${proj}_DIR}")
 
 mark_as_superbuild(
   VARS
     CFITSIO_INCLUDE_DIR:PATH
     CFITSIO_LIBRARY_DIR:PATH
-  LABELS "FIND_PACKAGE"
   )
 
 ExternalProject_Message(${proj} "CFITSIO_INCLUDE_DIR:${CFITSIO_INCLUDE_DIR}")
 ExternalProject_Message(${proj} "CFITSIO_LIBRARY_DIR:${CFITSIO_LIBRARY_DIR}")
-

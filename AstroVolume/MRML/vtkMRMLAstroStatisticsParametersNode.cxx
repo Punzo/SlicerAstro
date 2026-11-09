@@ -28,7 +28,7 @@
 #include <vtkObjectFactory.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkMRMLTransformNode.h>
 #include <vtkMRMLVolumeNode.h>
@@ -135,20 +135,20 @@ vtkMRMLTableNode *vtkMRMLAstroStatisticsParametersNode::GetTableNode()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroStatisticsParametersNode::SetROINode(vtkMRMLAnnotationROINode* node)
+void vtkMRMLAstroStatisticsParametersNode::SetROINode(vtkMRMLMarkupsROINode* node)
 {
   this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLAnnotationROINode *vtkMRMLAstroStatisticsParametersNode::GetROINode()
+vtkMRMLMarkupsROINode *vtkMRMLAstroStatisticsParametersNode::GetROINode()
 {
   if (!this->Scene)
     {
     return nullptr;
     }
 
-  return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
+  return vtkMRMLMarkupsROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
 }
 
 //----------------------------------------------------------------------------

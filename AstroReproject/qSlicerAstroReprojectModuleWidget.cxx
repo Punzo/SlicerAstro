@@ -53,7 +53,7 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroReprojectParametersNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLAstroVolumeNode.h>

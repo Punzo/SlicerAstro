@@ -19,6 +19,7 @@
 
 // Qt includes
 #include <QFileInfo>
+#include <QRegularExpression>
 
 // CTK includes
 #include <ctkFlowLayout.h>
@@ -144,7 +145,7 @@ void qSlicerAstroVolumeIOOptionsWidget::setFileNames(const QStringList& fileName
   bool hasLabelMapName = false;
 
   vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
-  foreach(const QString& fileName, fileNames)
+  for (const QString& fileName : fileNames)
     {
     QFileInfo fileInfo(fileName);
     QString fileBaseName = fileInfo.baseName();
@@ -157,14 +158,14 @@ void qSlicerAstroVolumeIOOptionsWidget::setFileNames(const QStringList& fileName
       // Single file
       // If the name (or the extension) is just a number, then it must be a 2D
       // slice from a 3D volume, so uncheck Single File.
-      onlyNumberInName = QRegExp("[0-9\\.\\-\\_\\@\\(\\)\\~]+").exactMatch(fileBaseName);
+      onlyNumberInName = QRegularExpression(QRegularExpression::anchoredPattern("[0-9\\.\\-\\_\\@\\(\\)\\~]+")).match(fileBaseName).hasMatch();
       fileInfo.suffix().toInt(&onlyNumberInExtension);
       }
       // Because '_' is considered as a word character (\w), \b
       // doesn't consider '_' as a word boundary.
-    QRegExp labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
-    QRegExp segName("(\\b|_)([Ss]eg)(\\b|_)");
-    QRegExp maskName("(\\b|_)([Mm]ask)(\\b|_)");
+    QRegularExpression labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
+    QRegularExpression segName("(\\b|_)([Ss]eg)(\\b|_)");
+    QRegularExpression maskName("(\\b|_)([Mm]ask)(\\b|_)");
     if (fileInfo.baseName().contains(labelMapName) ||
         fileInfo.baseName().contains(segName) ||
         fileInfo.baseName().contains(maskName))
@@ -204,8 +205,8 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
     else
       {
       QString Name = d->Properties["name"].toString();
-      QRegExp firstMomentMapName("(\\b|_)([Mm]om1(st)?)(\\b|_)");
-      QRegExp secondMomentMapName("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
+      QRegularExpression firstMomentMapName("(\\b|_)([Mm]om1(st)?)(\\b|_)");
+      QRegularExpression secondMomentMapName("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
 
       if (Name.contains(firstMomentMapName))
         {

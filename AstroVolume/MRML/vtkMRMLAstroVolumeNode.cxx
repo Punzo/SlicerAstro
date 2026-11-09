@@ -32,7 +32,7 @@
 #include <vtkSlicerAstroConfigure.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
@@ -597,15 +597,15 @@ double vtkMRMLAstroVolumeNode::GetDisplayThreshold()
 }
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroVolumeNode::SetROINode(vtkMRMLAnnotationROINode* node)
+void vtkMRMLAstroVolumeNode::SetROINode(vtkMRMLMarkupsROINode* node)
 {
   this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLAnnotationROINode *vtkMRMLAstroVolumeNode::GetROINode()
+vtkMRMLMarkupsROINode *vtkMRMLAstroVolumeNode::GetROINode()
 {
-  return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
+  return vtkMRMLMarkupsROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
 }
 
 //----------------------------------------------------------------------------

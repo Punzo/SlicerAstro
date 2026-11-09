@@ -1,32 +1,26 @@
 #-----------------------------------------------------------------------------
-# Git protocol option
-#-----------------------------------------------------------------------------
-option(Slicer_USE_GIT_PROTOCOL "If behind a firewall turn this off to use http instead." ON)
-
-set(git_protocol "git")
-if(NOT Slicer_USE_GIT_PROTOCOL)
-  set(git_protocol "http")
-endif()
-
-#-----------------------------------------------------------------------------
-# Enable and setup External project global properties
+# External project common settings
 #-----------------------------------------------------------------------------
 set(ep_common_c_flags "${CMAKE_C_FLAGS_INIT} ${ADDITIONAL_C_FLAGS}")
 set(ep_common_cxx_flags "${CMAKE_CXX_FLAGS_INIT} ${ADDITIONAL_CXX_FLAGS}")
 
 #-----------------------------------------------------------------------------
-# Project dependencies
+# Top-level "external" project
 #-----------------------------------------------------------------------------
-include(ExternalProject)
 
 foreach(dep ${EXTENSION_DEPENDS})
   mark_as_superbuild(${dep}_DIR)
 endforeach()
 
 set(proj ${SUPERBUILD_TOPLEVEL_PROJECT})
-if(UNIX)
-  set(${proj}_DEPENDS cfitsio wcslib bbarolo python-slicerastro-requirements)
-endif(UNIX)
+
+# Project dependencies
+set(${proj}_DEPENDS
+  cfitsio
+  wcslib
+  fftw3
+  bbarolo
+  )
 
 ExternalProject_Include_Dependencies(${proj}
   PROJECT_VAR proj
@@ -39,28 +33,23 @@ ExternalProject_Add(${proj}
   INSTALL_COMMAND ""
   SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
   BINARY_DIR ${EXTENSION_BUILD_SUBDIRECTORY}
-  BUILD_ALWAYS 1
   CMAKE_CACHE_ARGS
-    -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
-    -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
+    # Compiler settings
     -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}
     -DCMAKE_C_FLAGS:STRING=${ep_common_c_flags}
-    -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=${CMAKE_OSX_DEPLOYMENT_TARGET}
-    -DCMAKE_OSX_SYSROOT:PATH=${CMAKE_OSX_SYSROOT}
-    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    -DCMAKE_CXX_COMPILER:FILEPATH=${CMAKE_CXX_COMPILER}
+    -DCMAKE_CXX_FLAGS:STRING=${ep_common_cxx_flags}
     -DCMAKE_CXX_STANDARD:STRING=${CMAKE_CXX_STANDARD}
     -DCMAKE_CXX_STANDARD_REQUIRED:BOOL=${CMAKE_CXX_STANDARD_REQUIRED}
     -DCMAKE_CXX_EXTENSIONS:BOOL=${CMAKE_CXX_EXTENSIONS}
+    -DCMAKE_BUILD_TYPE:STRING=${CMAKE_BUILD_TYPE}
+    # Output directories
     -DCMAKE_RUNTIME_OUTPUT_DIRECTORY:PATH=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
     -DCMAKE_LIBRARY_OUTPUT_DIRECTORY:PATH=${CMAKE_LIBRARY_OUTPUT_DIRECTORY}
     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY:PATH=${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
-    -DSlicer_DIR:PATH=${Slicer_DIR}
-    -DMIDAS_PACKAGE_EMAIL:STRING=${MIDAS_PACKAGE_EMAIL}
-    -DMIDAS_PACKAGE_API_KEY:STRING=${MIDAS_PACKAGE_API_KEY}
+    # Superbuild
     -D${EXTENSION_NAME}_SUPERBUILD:BOOL=OFF
     -DEXTENSION_SUPERBUILD_BINARY_DIR:PATH=${${EXTENSION_NAME}_BINARY_DIR}
-    -DSubversion_SVN_EXECUTABLE:STRING=${Subversion_SVN_EXECUTABLE}
-    -DGIT_EXECUTABLE:STRING=${GIT_EXECUTABLE}
   DEPENDS
     ${${proj}_DEPENDS}
   )

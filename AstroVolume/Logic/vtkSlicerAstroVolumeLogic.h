@@ -34,7 +34,7 @@
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
-class vtkMRMLAnnotationROINode;
+class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLAstroVolumeNode;
@@ -97,18 +97,18 @@ public:
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.
   /// \param MRML parameter node
   /// \return Success flag
-  virtual bool FitROIToInputVolume(vtkMRMLAnnotationROINode* roiNode,
+  virtual bool FitROIToInputVolume(vtkMRMLMarkupsROINode* roiNode,
                                    vtkMRMLAstroVolumeNode *inputVolume);
 
   /// Snap the ROI to the voxel grid of the input volume
   /// \param MRML parameter node
-  virtual void SnapROIToVoxelGrid(vtkMRMLAnnotationROINode* roiNode,
+  virtual void SnapROIToVoxelGrid(vtkMRMLMarkupsROINode* roiNode,
                                   vtkMRMLAstroVolumeNode *inputVolume);
 
   /// Check if the ROI is aligned with the input volume
   /// \param MRML parameter node
   /// \return Success flag
-  virtual bool IsROIAlignedWithInputVolume(vtkMRMLAnnotationROINode* roiNode,
+  virtual bool IsROIAlignedWithInputVolume(vtkMRMLMarkupsROINode* roiNode,
                                            vtkMRMLAstroVolumeNode *inputVolume);
 
   /// Calculate the Bounds of a ROI within a Volume in IJK coordinates
@@ -116,7 +116,7 @@ public:
   /// \param MRML input volume node
   /// \param extent (i.e., dimensions)
   /// \return Success flag
-  virtual bool CalculateROICropVolumeBounds(vtkMRMLAnnotationROINode* roiNode,
+  virtual bool CalculateROICropVolumeBounds(vtkMRMLMarkupsROINode* roiNode,
                                             vtkMRMLAstroVolumeNode *inputVolume,
                                             double outputExtent[6]);
 
@@ -127,7 +127,7 @@ public:
                                                 double outputExtent[6]);
 
   /// Calculate STD given a ROI node
-  virtual double CalculateDisplayThresholdInROI(vtkMRMLAnnotationROINode* roiNode,
+  virtual double CalculateDisplayThresholdInROI(vtkMRMLMarkupsROINode* roiNode,
                                                   vtkMRMLAstroVolumeNode *inputVolume);
 
   /// Calculate an histogram of a astroVolumeNode

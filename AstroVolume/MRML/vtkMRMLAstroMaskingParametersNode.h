@@ -28,7 +28,7 @@
 // Export includes
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
-class vtkMRMLAnnotationROINode;
+class vtkMRMLMarkupsROINode;
 class vtkMRMLTableNode;
 class vtkMRMLTransformNode;
 
@@ -73,10 +73,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMaskingParametersNode : public vtkMRMLNo
   vtkGetStringMacro(OutputVolumeNodeID);
 
   /// Get MRML ROI node
-  vtkMRMLAnnotationROINode* GetROINode();
+  vtkMRMLMarkupsROINode* GetROINode();
 
   /// Set MRML ROI node
-  void SetROINode(vtkMRMLAnnotationROINode* node);
+  void SetROINode(vtkMRMLMarkupsROINode* node);
 
   /// Set/Get the Mode.
   /// Default is "ROI"

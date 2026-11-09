@@ -23,7 +23,7 @@
 #include "vtkSlicerAstroConfigure.h"
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
@@ -323,7 +323,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     }
   else
     {
-    vtkMRMLAnnotationROINode *roiNode = pnode->GetROINode();
+    vtkMRMLMarkupsROINode *roiNode = pnode->GetROINode();
     if(!roiNode)
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
@@ -545,7 +545,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   if (!segmentationActive)
     {
-    vtkMRMLAnnotationROINode *roiNode = pnode->GetROINode();
+    vtkMRMLMarkupsROINode *roiNode = pnode->GetROINode();
     if(!roiNode)
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
@@ -827,7 +827,7 @@ bool vtkSlicerAstroMaskingLogic::FitROIToInputVolume(vtkMRMLAstroMaskingParamete
     return false;
     }
 
-  vtkMRMLAnnotationROINode* roiNode = parametersNode->GetROINode();
+  vtkMRMLMarkupsROINode* roiNode = parametersNode->GetROINode();
 
   vtkMRMLAstroVolumeNode *volumeNode =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -844,7 +844,7 @@ void vtkSlicerAstroMaskingLogic::SnapROIToVoxelGrid(vtkMRMLAstroMaskingParameter
     return;
     }
 
-  vtkMRMLAnnotationROINode* roiNode = parametersNode->GetROINode();
+  vtkMRMLMarkupsROINode* roiNode = parametersNode->GetROINode();
 
   vtkMRMLAstroVolumeNode *volumeNode =
     vtkMRMLAstroVolumeNode::SafeDownCast
@@ -861,7 +861,7 @@ bool vtkSlicerAstroMaskingLogic::IsROIAlignedWithInputVolume(vtkMRMLAstroMasking
     return false;
     }
 
-  vtkMRMLAnnotationROINode* roiNode = parametersNode->GetROINode();
+  vtkMRMLMarkupsROINode* roiNode = parametersNode->GetROINode();
 
   vtkMRMLAstroVolumeNode *volumeNode =
     vtkMRMLAstroVolumeNode::SafeDownCast

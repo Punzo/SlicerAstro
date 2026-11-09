@@ -28,7 +28,7 @@
 #include <vtkObjectFactory.h>
 
 // MRML includes
-#include <vtkMRMLAnnotationROINode.h>
+#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkMRMLTransformNode.h>
 #include <vtkMRMLVolumeNode.h>
@@ -133,20 +133,20 @@ int StringToInt(const char* str)
 }// end namespace
 
 //----------------------------------------------------------------------------
-void vtkMRMLAstroMaskingParametersNode::SetROINode(vtkMRMLAnnotationROINode* node)
+void vtkMRMLAstroMaskingParametersNode::SetROINode(vtkMRMLMarkupsROINode* node)
 {
   this->SetNodeReferenceID(this->GetROINodeReferenceRole(), (node ? node->GetID() : nullptr));
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLAnnotationROINode *vtkMRMLAstroMaskingParametersNode::GetROINode()
+vtkMRMLMarkupsROINode *vtkMRMLAstroMaskingParametersNode::GetROINode()
 {
   if (!this->Scene)
     {
     return nullptr;
     }
 
-  return vtkMRMLAnnotationROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
+  return vtkMRMLMarkupsROINode::SafeDownCast(this->GetNodeReference(this->GetROINodeReferenceRole()));
 }
 
 //----------------------------------------------------------------------------

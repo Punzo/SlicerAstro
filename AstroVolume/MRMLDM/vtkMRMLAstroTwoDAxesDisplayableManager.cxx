@@ -29,7 +29,6 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
-#include <vtkMRMLLogic.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
