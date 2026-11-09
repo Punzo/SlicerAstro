@@ -24,6 +24,9 @@
 // AstroVolume includes
 #include "qSlicerAstroVolumeIOOptionsWidget.h"
 
+// STD includes
+#include <iostream>
+
 //-----------------------------------------------------------------------------
 int qSlicerAstroVolumeIOOptionsWidgetTest1( int argc, char * argv[] )
 {

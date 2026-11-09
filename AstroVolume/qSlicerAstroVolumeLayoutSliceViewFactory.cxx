@@ -78,8 +78,9 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   sliceWidget->setSliceLogics(this->sliceLogics());
   this->sliceLogics()->AddItem(sliceWidget->sliceLogic());
 
-  // Associate logic with its matching displayable manager group
-  sliceWidget->sliceLogic()->SetDisplayableManagerGroup(sliceWidget->sliceView()->displayableManagerGroup());
+  // TODO: associate the slice logic with the displayable manager group of the
+  // view (as qMRMLLayoutSliceViewFactory does). qMRMLSliceView::displayableManagerGroup()
+  // is only accessible to the core factory: requires making it public in Slicer.
 
   sliceWidget->sliceController()->setControllerButtonGroup(this->SliceControllerButtonGroup);
   sliceWidget->setObjectName(QString("qMRMLSliceWidget%1").arg(viewNode->GetLayoutName()));

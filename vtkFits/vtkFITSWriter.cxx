@@ -321,7 +321,7 @@ void vtkFITSWriter::WriteData()
       switch (vtkType)
         {
         case  VTK_DOUBLE:
-          if(fits_write_imgll(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
+          if(fits_write_img(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
             {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
@@ -329,7 +329,7 @@ void vtkFITSWriter::WriteData()
             }
           break;
         case VTK_FLOAT:
-          if(fits_write_imgll(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
+          if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
             {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
@@ -337,7 +337,7 @@ void vtkFITSWriter::WriteData()
             }
           break;
         case VTK_SHORT:
-          if(fits_write_imgll(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
+          if(fits_write_img(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
             {
             fits_report_error(stderr, WriteStatus);
             vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");

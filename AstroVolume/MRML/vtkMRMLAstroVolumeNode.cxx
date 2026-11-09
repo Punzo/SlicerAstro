@@ -245,12 +245,6 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 
   this->EndModify(wasModifying);
 
-  inSPixel = nullptr;
-  inFPixel = nullptr;
-  inDPixel = nullptr;
-  delete inSPixel;
-  delete inFPixel;
-  delete inDPixel;
 
   return true;
 }

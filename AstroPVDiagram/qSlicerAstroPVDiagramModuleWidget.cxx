@@ -22,6 +22,9 @@
 #include <QMessageBox>
 #include <QStringList>
 
+// CTK includes
+#include <ctkColorPickerButton.h>
+
 // VTK includes
 #include <vtkCollection.h>
 #include <vtkCommand.h>

@@ -84,6 +84,9 @@ class AstroSampleDataLogic(ScriptedLoadableModuleLogic):
 
     def downloadSample(self, sampleName):
         import SampleData
+        # Sources are registered at startupCompleted, which may not have been
+        # emitted yet (e.g. when running tests): registration is idempotent.
+        registerSampleData()
         return SampleData.downloadSample(sampleName)
 
     def downloadWEIN069(self):

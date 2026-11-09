@@ -386,13 +386,17 @@ void qSlicerAstroVolumeModule::setup()
     qobject_cast<qMRMLLayoutSliceViewFactory*>(
     d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));*/
 
-  qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
-    new qSlicerAstroVolumeLayoutSliceViewFactory(d->app->layoutManager());
+  // No layout manager when running without main window (e.g. tests, batch mode)
+  if (d->app->layoutManager())
+    {
+    qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
+      new qSlicerAstroVolumeLayoutSliceViewFactory(d->app->layoutManager());
 
-  //d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
-  // TO DO: this should be disabled, but SlicerAstro with the last Slicer version (16/02/2021)
-  // crash if the default slice view factory is disabled
-  d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
+    //d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
+    // TO DO: this should be disabled, but SlicerAstro with the last Slicer version (16/02/2021)
+    // crash if the default slice view factory is disabled
+    d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
+    }
 
   // Modify orietation in default Layouts
   vtkMRMLLayoutNode* layoutNode =  vtkMRMLLayoutNode::SafeDownCast(

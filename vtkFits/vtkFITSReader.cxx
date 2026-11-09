@@ -1441,7 +1441,9 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.find("SlicerAstro.DATAMODEL") == this->HeaderKeyValue.end())
      {
      // Guess the data model from the file name (name up to the first '.')
-     const std::string fileName = std::filesystem::path(this->CurrentFileName).filename().string();
+     // CurrentFileName is set only once ExecuteInformation has run
+     const char* currentFile = this->CurrentFileName ? this->CurrentFileName : this->GetFileName();
+     const std::string fileName = currentFile ? std::filesystem::path(currentFile).filename().string() : std::string();
      const std::string baseName = fileName.substr(0, fileName.find('.'));
      auto nameContains = [&baseName](const char* keyword)
        {
@@ -2932,7 +2934,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   switch (this->DataType)
     {
     case VTK_DOUBLE:
-      if(fits_read_imgll(this->fptr, TDOUBLE, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+      if(fits_read_img(this->fptr, TDOUBLE, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
         fits_report_error(stderr, this->ReadStatus);
         vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
@@ -2940,7 +2942,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
     case VTK_FLOAT:
-      if(fits_read_imgll(this->fptr, TFLOAT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+      if(fits_read_img(this->fptr, TFLOAT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
         fits_report_error(stderr, this->ReadStatus);
         vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
@@ -2948,7 +2950,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
   case VTK_SHORT:
-    if(fits_read_imgll(this->fptr, TSHORT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+    if(fits_read_img(this->fptr, TSHORT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
       {
       fits_report_error(stderr, this->ReadStatus);
       vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
