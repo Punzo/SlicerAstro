@@ -1,15 +1,13 @@
-# -*- coding: utf-8 -*-
-from __future__ import division
+import logging
 import os
 import unittest
-from __main__ import vtk, qt, ctk, slicer
+from math import fabs, floor
+
+import ctk
+import qt
+import slicer
+import vtk
 from slicer.ScriptedLoadableModule import *
-import logging
-from DataProbe import DataProbeInfoWidget
-from math import floor
-from math import fabs
-import DataProbeLib
-from slicer.util import settingsValue
 from slicer.util import VTKObservationMixin
 
 
@@ -42,10 +40,12 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
 
 
   def override(self):
-    try:
-      parent = slicer.util.findChildren(text='Data Probe')[0]
-    except IndexError:
-      print("No Data Probe frame - cannot create DataProbe")
+    mainWindow = slicer.util.mainWindow()
+    if mainWindow is None:
+      return
+    parent = slicer.util.findChild(mainWindow, "DataProbeCollapsibleWidget")
+    if parent is None:
+      logging.warning("No Data Probe frame - cannot override DataProbe")
       return
     SlicerAstroDataProbeLogic(parent)
 
@@ -55,7 +55,6 @@ class SlicerAstroDataProbe(ScriptedLoadableModule):
     sliceAnnotations.updateSliceViewFromGUI()
     sliceAnnotations.updateEnabledButtons()
     sliceAnnotations.sliceViewAnnotationsCheckBox.checked = 0
-    settingsValue('DataProbe/sliceViewAnnotations.enabled', 0, converter=int)
 
 
 class SlicerAstroDataProbeWidget(ScriptedLoadableModuleWidget):
@@ -305,4 +304,7 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
   if volumeNode is not None:
     displayNode = volumeNode.GetDisplayNode()
     if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
-      return "<b>%s</b>" % displayNode.GetPixelString(ijk) if displayNode else ""
+      return "<b>%s</b>" % displayNode.GetPixelString(ijk)
+    # Not an astronomical volume: use the standard Data Probe pixel description
+    return "<b>%s</b>" % self.getPixelString(volumeNode, ijk)
+  return ""

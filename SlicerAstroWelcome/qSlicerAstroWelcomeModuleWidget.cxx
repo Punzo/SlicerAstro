@@ -228,7 +228,7 @@ bool qSlicerAstroWelcomeModuleWidget::loadNonDicomData()
 bool qSlicerAstroWelcomeModuleWidget::loadRemoteSampleData()
 {
   Q_D(qSlicerAstroWelcomeModuleWidget);
-  return d->selectModule("AstroSampleData");
+  return d->selectModule("SampleData");
 }
 
 //-----------------------------------------------------------------------------

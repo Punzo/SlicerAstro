@@ -160,14 +160,16 @@ class AstroPVSliceSelfTestTest(unittest.TestCase):
     astroPVSliceModule = module = slicer.modules.astropvslice
     astroPVSliceModuleWidget = astroPVSliceModule.widgetRepresentation()
 
-    self.delayDisplay('Modifying Ruler position', 700)
+    self.delayDisplay('Modifying line position', 700)
 
-    RulerNode = slicer.util.getNode("PVSliceRuler")
-    position1 = [0,0,0]
-    RulerNode.GetPosition1(position1)
+    lineNode = slicer.util.getFirstNodeByClassByName("vtkMRMLMarkupsLineNode", "PVSliceLine")
+    if lineNode is None:
+      raise AssertionError("PVSliceLine markups line not found")
+    position1 = [0, 0, 0]
+    lineNode.GetNthControlPointPosition(0, position1)
     position1[0] = 45
     position1[2] = 0
-    RulerNode.SetPosition1(position1)
+    lineNode.SetNthControlPointPosition(0, position1)
 
     self.delayDisplay('Test passed', 700)
 
