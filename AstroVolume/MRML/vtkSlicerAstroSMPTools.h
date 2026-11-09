@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <atomic>
 #include <thread>
+#include <vector>
 #include <limits>
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume
@@ -191,6 +192,29 @@ bool ForCancellable(vtkIdType begin, vtkIdType end, const std::atomic<bool>& can
     functor(first, last);
     });
   return !cancel.load();
+}
+
+//----------------------------------------------------------------------------
+/// Median of the values (the vector is partially reordered). For an even
+/// number of values, the mean of the two central values. NaN if empty.
+template <typename T>
+double Median(std::vector<T>& values)
+{
+  const size_t n = values.size();
+  if (n == 0)
+    {
+    return std::numeric_limits<double>::quiet_NaN();
+    }
+  const size_t half = n / 2;
+  std::nth_element(values.begin(), values.begin() + half, values.end());
+  const double upper = values[half];
+  if (n % 2 == 1)
+    {
+    return upper;
+    }
+  // the largest value of the lower half is the other central value
+  const double lower = *std::max_element(values.begin(), values.begin() + half);
+  return 0.5 * (lower + upper);
 }
 
 //----------------------------------------------------------------------------

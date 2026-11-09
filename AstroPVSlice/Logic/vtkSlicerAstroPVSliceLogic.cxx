@@ -424,11 +424,8 @@ bool vtkSlicerAstroPVSliceLogic::CreateAndSetLine(vtkMRMLAstroPVSliceParametersN
     return false;
     }
 
-  vtkSmartPointer<vtkMRMLMarkupsLineNode> LineNode;
-  vtkMRMLNode *foo = this->GetMRMLScene()->CreateNodeByClass("vtkMRMLMarkupsLineNode");
-  LineNode.TakeReference(vtkMRMLMarkupsLineNode::SafeDownCast(foo));
-
-  // Set name
+  // Compute the control points first, then add the line to the scene
+  vtkNew<vtkMRMLMarkupsLineNode> LineNode;
   std::string name = this->GetMRMLScene()->GetUniqueNameByString("PVSliceLine");
   LineNode->SetName(name.c_str());
 
@@ -555,13 +552,13 @@ bool vtkSlicerAstroPVSliceLogic::InitializeLine(vtkMRMLAstroPVSliceParametersNod
   IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
   double RASposition[3] = {0.};
   IJKtoRASTransform->TransformPoint(position, RASposition);
-  LineNode->SetNthControlPointPositionFromPointer(0, RASposition);
+  LineNode->SetLineStartPosition(RASposition);
 
   position[0] = dimensions[0] - (dimensions[0] * 0.1);
   position[1] = dimensions[1] - (dimensions[1] * 0.1);
   position[2] = IJKOrigin[2];
   IJKtoRASTransform->TransformPoint(position, RASposition);
-  LineNode->SetNthControlPointPositionFromPointer(1, RASposition);
+  LineNode->SetLineEndPosition(RASposition);
 
   return true;
 }
@@ -644,8 +641,8 @@ bool vtkSlicerAstroPVSliceLogic::UpdateLine(vtkMRMLAstroPVSliceParametersNode *p
     }
 
   int wasModifying = LineNode->StartModify();
-  LineNode->SetNthControlPointPositionFromPointer(0, position1);
-  LineNode->SetNthControlPointPositionFromPointer(1, position2);
+  LineNode->SetLineStartPosition(position1);
+  LineNode->SetLineEndPosition(position2);
   LineNode->EndModify(wasModifying);
 
   pnode->DisableModifiedEventOn();
@@ -722,8 +719,8 @@ bool vtkSlicerAstroPVSliceLogic::UpdateLineFromCenter(vtkMRMLAstroPVSliceParamet
   RAStoIJKTransform->TransformPoint(position2,position2);
 
   int wasModifying = LineNode->StartModify();
-  LineNode->SetNthControlPointPositionFromPointer(0, position1);
-  LineNode->SetNthControlPointPositionFromPointer(1, position2);
+  LineNode->SetLineStartPosition(position1);
+  LineNode->SetLineEndPosition(position2);
   LineNode->EndModify(wasModifying);
 
   return true;
@@ -982,19 +979,21 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
     return false;
     }
 
-  vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
-      (this->GetMRMLScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
-  vtkMRMLSliceNode *defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
-  if (!defaultSliceNode)
+  // XZ orientation (SlicerAstro name of the Axial preset), computed without
+  // modifying the scene default slice node
+  vtkNew<vtkMatrix3x3> xzOrientation;
+  vtkMRMLSliceNode::GetAxialSliceToRASMatrix(xzOrientation);
+  vtkNew<vtkMatrix4x4> xzSliceToRAS;
+  for (int row = 0; row < 3; ++row)
     {
-    vtkErrorMacro("vtkSlicerAstroPVSliceLogic::UpdatePV :"
-                  " defaultSliceNode not found.");
-    return false;
+    for (int column = 0; column < 3; ++column)
+      {
+      xzSliceToRAS->SetElement(row, column, xzOrientation->GetElement(row, column));
+      }
     }
-  defaultSliceNode->SetOrientation("XZ");
 
   vtkNew<vtkTransform> yellowTransform;
-  yellowTransform->SetMatrix(defaultSliceNode->GetSliceToRAS());
+  yellowTransform->SetMatrix(xzSliceToRAS);
   yellowTransform->RotateY(PVPhiMajor);
   yellowSliceToRAS->DeepCopy(yellowTransform->GetMatrix());
   yellowSliceToRAS->SetElement(0, 3, RAS[0]);
@@ -1043,7 +1042,7 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
     }
 
   vtkNew<vtkTransform> greenTransform;
-  greenTransform->SetMatrix(defaultSliceNode->GetSliceToRAS());
+  greenTransform->SetMatrix(xzSliceToRAS);
   greenTransform->RotateY(PVPhiMinor);
   greenSliceToRAS->DeepCopy(greenTransform->GetMatrix());
   greenSliceToRAS->SetElement(0, 3, RAS[0]);

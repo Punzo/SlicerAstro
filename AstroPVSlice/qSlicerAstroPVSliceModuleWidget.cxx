@@ -134,6 +134,8 @@ public:
   vtkSmartPointer<vtkMRMLAstroPVSliceParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   bool reportDimensionalityError;
+  /// true while the widget itself moves the line control points
+  bool UpdatingLine;
 };
 
 //-----------------------------------------------------------------------------
@@ -146,6 +148,7 @@ qSlicerAstroPVSliceModuleWidgetPrivate::qSlicerAstroPVSliceModuleWidgetPrivate(q
   this->parametersNode = nullptr;
   this->selectionNode = nullptr;
   this->reportDimensionalityError = false;
+  this->UpdatingLine = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -900,9 +903,16 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceCenterModified()
     }
 
   vtkSlicerAstroPVSliceLogic *logic = d->logic();
-  if (logic)
+  if (logic && !d->UpdatingLine)
     {
-    logic->UpdateLineFromCenter(d->parametersNode);
+    // move the line once, then update the PV slice once
+    d->UpdatingLine = true;
+    bool moved = logic->UpdateLineFromCenter(d->parametersNode);
+    d->UpdatingLine = false;
+    if (moved)
+      {
+      this->onMRMLPVSliceLineNodeModified();
+      }
     }
 }
 
@@ -934,9 +944,16 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLAstroPVSliceParametersNodeModified()
   d->RotateSpinBox->setValue(d->parametersNode->GetLineAngle());
 
   vtkSlicerAstroPVSliceLogic *logic = d->logic();
-  if (logic)
+  if (logic && !d->UpdatingLine)
     {
-    logic->UpdateLine(d->parametersNode);
+    // move the line once, then update the PV slice once
+    d->UpdatingLine = true;
+    bool moved = logic->UpdateLine(d->parametersNode);
+    d->UpdatingLine = false;
+    if (moved)
+      {
+      this->onMRMLPVSliceLineNodeModified();
+      }
     }
 }
 
@@ -991,26 +1008,41 @@ void qSlicerAstroPVSliceModuleWidget::onMRMLPVSliceLineNodeModified()
     return;
     }
 
-  LineNode->DisableModifiedEventOn();
+  // The line control points must be defined (a line still being placed has less than 2 points)
+  if (LineNode->GetNumberOfDefinedControlPoints() < 2)
+    {
+    return;
+    }
+
+  // Keep the line on the moment map plane (RAS y is the moment map plane coordinate).
+  // Moving the points from here fires PointModifiedEvent again (MRML Markups do not
+  // honor DisableModifiedEvent for point events): guard against re-entrance and only
+  // move the points if needed.
   double* RASOrigin = PVMomentMap->GetOrigin();
-  // RAS Origin z is the second axes
   double position1[3] = {0.};
-  LineNode->GetNthControlPointPosition(0, position1);
+  LineNode->GetLineStartPosition(position1);
   double position2[3] = {0.};
-  LineNode->GetNthControlPointPosition(1, position2);
+  LineNode->GetLineEndPosition(position2);
 
-  if (fabs(position1[1] - RASOrigin[1]) > 0.01)
+  if (!d->UpdatingLine)
     {
-    position1[1] = RASOrigin[1];
+    d->UpdatingLine = true;
+    if (fabs(position1[1] - RASOrigin[1]) > 0.01)
+      {
+      position1[1] = RASOrigin[1];
+      LineNode->SetLineStartPosition(position1);
+      }
+    if (fabs(position2[1] - RASOrigin[1]) > 0.01)
+      {
+      position2[1] = RASOrigin[1];
+      LineNode->SetLineEndPosition(position2);
+      }
+    d->UpdatingLine = false;
     }
-  LineNode->SetNthControlPointPosition(0, position1[0], position1[1], position1[2]);
-
-  if (fabs(position2[1] - RASOrigin[1]) > 0.01)
+  else
     {
-    position2[1] = RASOrigin[1];
+    return;
     }
-  LineNode->SetNthControlPointPosition(1, position2[0], position2[1], position2[2]);
-  LineNode->DisableModifiedEventOff();
 
   double LineCenter[3];
   for (int ii = 0; ii < 3; ii++)

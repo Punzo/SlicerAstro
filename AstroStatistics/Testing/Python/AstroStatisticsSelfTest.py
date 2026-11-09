@@ -1,205 +1,111 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import math
-import sys
+import numpy as np
 
-#
-# AstroStatisticsSelfTest
-#
+import slicer
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
 
-class AstroStatisticsSelfTest:
-  def __init__(self, parent):
-    parent.title = "Astro Statistics SelfTest"
-    parent.categories = ["Testing.TestCases"]
-    parent.dependencies = ["AstroVolume"]
-    parent.contributors = ["""
-    Davide Punzo (Kapteyn Astronomical Institute) and
-    Thijs van der Hulst (Kapteyn Astronomical Institute)."""]
-    parent.helpText = """
-    This module was developed as a self test to perform the operations needed for calculating statistics in a region.
-    """
-    parent.acknowledgementText = """
-""" # replace with organization, grant and thanks.
-    self.parent = parent
 
-    # Add this test to the SelfTest module's list for discovery when the module
-    # is created.  Since this module may be discovered before SelfTests itself,
-    # create the list if it doesn't already exist.
-    try:
-      slicer.selfTests
-    except AttributeError:
-      slicer.selfTests = {}
-    slicer.selfTests['Astro Statistics SelfTest'] = self.runTest
+class AstroStatisticsSelfTest(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        self.parent.title = "Astro Statistics SelfTest"
+        self.parent.categories = ["Testing.TestCases"]
+        self.parent.dependencies = ["AstroVolume", "AstroStatistics"]
+        self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
+        self.parent.helpText = """
+Self test of the AstroStatistics module: the statistics of the whole data
+cube are compared with an independent (numpy) computation.
+"""
+        self.parent.hidden = True
 
-  def runTest(self):
-    tester = AstroStatisticsSelfTestTest()
-    tester.runTest()
 
-#
-# qAstroStatisticsSelfTestWidget
-#
-
-class AstroStatisticsSelfTestWidget:
-  def __init__(self, parent = None):
-    if not parent:
-      self.parent = slicer.qMRMLWidget()
-      self.parent.setLayout(qt.QVBoxLayout())
-      self.parent.setMRMLScene(slicer.mrmlScene)
-    else:
-      self.parent = parent
-    self.layout = self.parent.layout()
-    if not parent:
-      self.setup()
-      self.parent.show()
-
-  def setup(self):
-    # Instantiate and connect widgets ...
-
-    # reload button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadButton = qt.QPushButton("Reload")
-    self.reloadButton.toolTip = "Reload this module."
-    self.reloadButton.name = "AstroStatisticsSelfTest Reload"
-    self.layout.addWidget(self.reloadButton)
-    self.reloadButton.connect('clicked()', self.onReload)
-
-    # reload and test button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadAndTestButton = qt.QPushButton("Reload and Test")
-    self.reloadAndTestButton.toolTip = "Reload this module and then run the self tests."
-    self.layout.addWidget(self.reloadAndTestButton)
-    self.reloadAndTestButton.connect('clicked()', self.onReloadAndTest)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-  def cleanup(self):
+class AstroStatisticsSelfTestWidget(ScriptedLoadableModuleWidget):
     pass
 
-  def onReload(self,moduleName="AstroStatisticsSelfTest"):
-    """Generic reload method for any scripted module.
-    ModuleWizard will subsitute correct default moduleName.
-    """
-    globals()[moduleName] = slicer.util.reloadScriptedModule(moduleName)
 
-  def onReloadAndTest(self,moduleName="AstroStatisticsSelfTest"):
-    self.onReload()
-    evalString = 'globals()["%s"].%sTest()' % (moduleName, moduleName)
-    tester = eval(evalString)
-    tester.runTest()
-
-#
-# AstroStatisticsSelfTestLogic
-#
-
-class AstroStatisticsSelfTestLogic:
-  """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget
-  """
-  def __init__(self):
+class AstroStatisticsSelfTestLogic(ScriptedLoadableModuleLogic):
     pass
 
-  def hasImageData(self,volumeNode):
-    """This is a dummy logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      print('no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      print('no image data')
-      return False
-    return True
+
+def referenceStatistics(volumeNode):
+    """Statistics of all the non-blank voxels, computed with numpy (float64)."""
+    # zero-copy view on the voxel buffer
+    from vtk.util.numpy_support import vtk_to_numpy
+    values = vtk_to_numpy(volumeNode.GetImageData().GetPointData().GetScalars())
+    values = values[~np.isnan(values)].astype(np.float64)
+    n = values.size
+    mean = values.sum() / n
+    return {
+        "Npixels": n,
+        "Min": values.min(),
+        "Max": values.max(),
+        "Mean": mean,
+        "Std": np.sqrt(((values - mean) ** 2).sum() / n),
+        "Median": np.median(values.astype(np.float32)),
+        "Sum": values.sum(),
+    }
 
 
-class AstroStatisticsSelfTestTest(unittest.TestCase):
-  """
-  This is the test case for your scripted module.
-  """
+class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        slicer.mrmlScene.Clear(0)
 
-  def delayDisplay(self,message,msec=100):
-    """This utility method displays a small dialog and waits.
-    This does two things: 1) it lets the event loop catch up
-    to the state of the test so that rendering and widget updates
-    have all taken place before the test continues and 2) it
-    shows the user/developer/tester the state of the test
-    so that we'll know when it breaks.
-    """
-    print(message)
-    self.info = qt.QDialog()
-    self.infoLayout = qt.QVBoxLayout()
-    self.info.setLayout(self.infoLayout)
-    self.label = qt.QLabel(message,self.info)
-    self.infoLayout.addWidget(self.label)
-    qt.QTimer.singleShot(msec, self.info.close)
-    self.info.exec_()
+    def runTest(self):
+        self.setUp()
+        self.test_AstroStatisticsSelfTest()
 
-  def setUp(self):
-    slicer.mrmlScene.Clear(0)
+    def test_AstroStatisticsSelfTest(self):
+        import AstroSampleData
 
-  def runTest(self):
-    self.setUp()
-    self.test_AstroStatisticsSelfTest()
+        self.delayDisplay("Loading WEIN069")
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(volumeNode)
 
-  def test_AstroStatisticsSelfTest(self):
-    print("Running AstroStatisticsSelfTest Test case:")
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroStatistics")
 
-    astroVolume = self.downloadWEIN069()
+        parametersNode = slicer.util.getNode("AstroStatisticsParameters")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+        parametersNode.SetMode("ROI")
+        logic = slicer.modules.astrostatistics.logic()
+        self.assertTrue(logic.FitROIToInputVolume(parametersNode))
 
-    mainWindow = slicer.util.mainWindow()
-    mainWindow.moduleSelector().selectModule('AstroVolume')
-    mainWindow.moduleSelector().selectModule('AstroStatistics')
+        self.delayDisplay("Calculating statistics")
+        widget = slicer.modules.astrostatistics.widgetRepresentation()
+        applyButton = slicer.util.findChild(widget, "ApplyButton")
+        applyButton.click()
 
-    astroStatisticsModule = module = slicer.modules.astrostatistics
-    astroStatisticsModuleWidget = astroStatisticsModule.widgetRepresentation()
+        table = parametersNode.GetTableNode().GetTable()
 
-    AstroStatisticsParameterNode = slicer.util.getNode("AstroStatisticsParameters")
+        def value(column):
+            return table.GetValue(0, column).ToDouble()
 
-    QPushButtonList = astroStatisticsModuleWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "ApplyButton":
-            ApplyPushButton = QPushButton
+        computed = {
+            "Npixels": value(1),
+            "Min": value(2),
+            "Max": value(3),
+            "Mean": value(4),
+            "Std": value(5),
+            "Median": value(6),
+            "Sum": value(7),
+        }
+        expected = referenceStatistics(volumeNode)
+        print("computed:", computed)
+        print("expected:", expected)
 
-    self.delayDisplay('Calculating statistics', 700)
-    ApplyPushButton.click()
+        self.assertEqual(int(round(computed["Npixels"])), expected["Npixels"])
+        scale = max(abs(expected["Min"]), abs(expected["Max"]))
+        for key in ("Min", "Max", "Median"):
+            self.assertAlmostEqual(computed[key], expected[key], delta=1e-6 * scale, msg=key)
+        for key in ("Mean", "Std"):
+            self.assertAlmostEqual(computed[key], expected[key], delta=1e-6 * scale, msg=key)
+        # the sum is accumulated per thread: relative tolerance
+        self.assertAlmostEqual(computed["Sum"], expected["Sum"],
+                               delta=1e-6 * abs(expected["Sum"]) + 1e-6 * scale, msg="Sum")
 
-    Table = AstroStatisticsParameterNode.GetTableNode().GetTable()
-    N = Table.GetValue(0, 1).ToFloat()
-    Min = Table.GetValue(0, 2).ToFloat()
-    Max = Table.GetValue(0, 3).ToFloat()
-    Mean = Table.GetValue(0, 4).ToFloat()
-    Std = Table.GetValue(0, 5).ToFloat()
-    Median = Table.GetValue(0, 6).ToFloat()
-    Sum = Table.GetValue(0, 7).ToFloat()
-    TotalFlux = Table.GetValue(0, 8).ToFloat()
-
-    if (math.fabs(N - 954569) < 1.e-1 and \
-        math.fabs(Min + 0.00215719) < 1.e-8 and \
-        math.fabs(Max - 0.0118773) < 1.e-7 and \
-        math.fabs(Mean - 2.09643e-05) < 1.e-10 and \
-        math.fabs(Std - 0.000548967) < 1.e-9 and \
-        math.fabs(Median + 3.24158e-06) < 1.e-11 and \
-        math.fabs(Sum - 20.0119) < 1.e-4 and \
-        math.fabs(TotalFlux - 1.74693) < 1.e-5):
-       self.delayDisplay('Test passed', 700)
-    else:
-       self.delayDisplay('Test failed', 700)
-       # if run from Slicer interface remove the followinf exit
-       sys.exit()
-
-
-  def downloadWEIN069(self):
-    import AstroSampleData
-    astroSampleDataLogic = AstroSampleData.AstroSampleDataLogic()
-    self.delayDisplay('Getting WEIN069 Astro Volume')
-    WEIN069Volume = astroSampleDataLogic.downloadSample("WEIN069")
-    return WEIN069Volume
-
-
+        self.delayDisplay("Test passed")

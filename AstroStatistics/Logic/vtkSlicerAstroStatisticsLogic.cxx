@@ -117,14 +117,12 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
-  vtkSmartPointer<vtkFloatArray> MedianTempArray;
 };
 
 //----------------------------------------------------------------------------
 vtkSlicerAstroStatisticsLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = nullptr;
-  this->MedianTempArray = vtkSmartPointer<vtkFloatArray>::New();
 }
 
 //---------------------------------------------------------------------------
@@ -493,71 +491,32 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     // Calculate Median
     if (pnode->GetMedian())
       {
-      this->Internal->MedianTempArray->Initialize();
-      this->Internal->MedianTempArray->SetNumberOfValues(Npixels);
-
-      float *TempPixel = static_cast<float*> (this->Internal->MedianTempArray->GetPointer(0));
-      int TempCnt = 0;
-      for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+      // Copy of the selected voxels (required by the median), freed at the end
+      std::vector<float> selectedValues;
+      selectedValues.reserve(static_cast<size_t>(Npixels));
+      for (vtkIdType elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-
-        int status = pnode->GetStatus();
-        if (status < 0)
+        if ((elementCnt & 0xFFFFF) == 0 && pnode->GetStatus() < 0)
           {
           cancel = true;
           break;
           }
-
         if (*(maskPixel + elementCnt) < 1)
           {
           continue;
           }
-
-        switch (DataType)
+        const double value = (DataType == VTK_FLOAT) ? static_cast<double>(*(inFPixel + elementCnt))
+                                                     : *(inDPixel + elementCnt);
+        if (vtkSlicerAstroSMPTools::IsNaN(value))
           {
-          case VTK_FLOAT:
-            if (FloatIsNaN(*(inFPixel + elementCnt)))
-              {
-              continue;
-              }
-            *(TempPixel + TempCnt) = *(inFPixel + elementCnt);
-            break;
-          case VTK_DOUBLE:
-            if (DoubleIsNaN(*(inDPixel + elementCnt)))
-              {
-              continue;
-              }
-            *(TempPixel + TempCnt) = *(inDPixel + elementCnt);
-            break;
+          continue;
           }
-
-        TempCnt++;
-
-        if(66. + (elementCnt / (numElements / 16.)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
+        selectedValues.push_back(static_cast<float>(value));
         }
 
-      std::sort(TempPixel, TempPixel + Npixels);
-
+      pnode->SetStatus(90);
+      Median = vtkSlicerAstroSMPTools::Median(selectedValues);
       pnode->SetStatus(95);
-
-      if((Npixels) % 2 == 0)
-        {
-        Median = (*(TempPixel + (int) (Npixels * 0.5)) + *(TempPixel + (int) ((Npixels * 0.5) - 1))) * 0.5;
-        }
-      else
-        {
-        Median = *(TempPixel + (int) ((Npixels - 1) * 0.5));
-        }
-
-      TempPixel = nullptr;
-
-      delete TempPixel;
-
-      this->Internal->MedianTempArray->Initialize();
       }
     }
   else
@@ -760,78 +719,35 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     // Calculate Median
     if (pnode->GetMedian())
       {
-      this->Internal->MedianTempArray->Initialize();
-      this->Internal->MedianTempArray->SetNumberOfValues(Npixels);
-
-      float *TempPixel = static_cast<float*> (this->Internal->MedianTempArray->GetPointer(0));
-      int TempCnt = 0;
-      for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
+      // Copy of the selected voxels (required by the median), freed at the end
+      std::vector<float> selectedValues;
+      selectedValues.reserve(static_cast<size_t>(Npixels));
+      for (vtkIdType elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
         {
-        int status = pnode->GetStatus();
-        if (status < 0)
+        if ((elementCnt & 0xFFFFF) == 0 && pnode->GetStatus() < 0)
           {
           cancel = true;
           break;
           }
-
-        int ref  = (int) floor(elementCnt / dims[0]);
-        ref *= dims[0];
-        int x = elementCnt - ref;
-        ref = (int) floor(elementCnt / numSlice);
-        ref *= numSlice;
-        ref = elementCnt - ref;
-        int y = (int) floor(ref / dims[0]);
+        const vtkIdType x = elementCnt % dims[0];
+        const vtkIdType y = (elementCnt % numSlice) / dims[0];
         if (x < roiBounds[0] || x > roiBounds[1] ||
             y < roiBounds[2] || y > roiBounds[3])
           {
           continue;
           }
-
-        switch (DataType)
+        const double value = (DataType == VTK_FLOAT) ? static_cast<double>(*(inFPixel + elementCnt))
+                                                     : *(inDPixel + elementCnt);
+        if (vtkSlicerAstroSMPTools::IsNaN(value))
           {
-          case VTK_FLOAT:
-            if (FloatIsNaN(*(inFPixel + elementCnt)))
-              {
-              continue;
-              }
-            *(TempPixel + TempCnt) = *(inFPixel + elementCnt);
-            break;
-          case VTK_DOUBLE:
-            if (DoubleIsNaN(*(inDPixel + elementCnt)))
-              {
-              continue;
-              }
-            *(TempPixel + TempCnt) = *(inDPixel + elementCnt);
-            break;
+          continue;
           }
-
-        TempCnt++;
-
-        if(66. + ((elementCnt - firstElement) / (numElements / 16.)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
+        selectedValues.push_back(static_cast<float>(value));
         }
 
-      std::sort(TempPixel, TempPixel + Npixels);
-
+      pnode->SetStatus(90);
+      Median = vtkSlicerAstroSMPTools::Median(selectedValues);
       pnode->SetStatus(95);
-
-      if((Npixels) % 2 == 0)
-        {
-        Median = (*(TempPixel + (int) (Npixels * 0.5)) + *(TempPixel + (int) ((Npixels * 0.5) - 1))) * 0.5;
-        }
-      else
-        {
-        Median = *(TempPixel + (int) ((Npixels - 1) * 0.5));
-        }
-
-      TempPixel = nullptr;
-
-      delete TempPixel;
-
-      this->Internal->MedianTempArray->Initialize();
       }
     }
 
