@@ -194,12 +194,9 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
 
     self.downloadWEIN069Mask()
 
-    QPushButtonList = astroVolumeModuleWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "pushButtonCovertLabelMapToSegmentation":
-            PushButton = QPushButton
-
-    PushButton.click()
+    # The labelmap -> segmentation conversion is no longer a button (FITS
+    # masks are loaded as segmentations): it is still available as a slot.
+    astroVolumeModuleWidget.onPushButtonCovertLabelMapToSegmentationClicked()
     self.delayDisplay('Loading segmentation', 700)
 
     astroScalarWidget = astroVolumeModuleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")

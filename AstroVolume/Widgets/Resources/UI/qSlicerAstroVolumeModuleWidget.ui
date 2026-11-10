@@ -453,10 +453,10 @@
       </size>
      </property>
      <property name="toolTip">
-      <string>This widget allows to convert mask (fits datacube) to a segmentation (see segmentations module for more information) and viceversa.</string>
+      <string>Segments of the segmentation (FITS masks are loaded as segmentations and saved as FITS masks).</string>
      </property>
      <property name="text">
-      <string>Mask/Segmentation Conversion</string>
+      <string>Segments</string>
      </property>
      <property name="icon">
       <iconset resource="../../../../../Slicer/Modules/Loadable/Segmentations/Widgets/Resources/qSlicerSegmentationsModuleWidgets.qrc">
@@ -501,44 +501,6 @@
            <enum>QLayout::SetMinimumSize</enum>
           </property>
           <item>
-           <widget class="QPushButton" name="pushButtonCovertLabelMapToSegmentation">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>130</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Convert a mask (LabelMap node) into a segmentation (which can be manually edited).</string>
-            </property>
-            <property name="text">
-             <string> Generate Segmentation</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
-              <normaloff>:/Icons/Small/SlicerAddModel.png</normaloff>:/Icons/Small/SlicerAddModel.png</iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>24</width>
-              <height>24</height>
-             </size>
-            </property>
-            <property name="checkable">
-             <bool>false</bool>
-            </property>
-           </widget>
-          </item>
-          <item>
            <widget class="QPushButton" name="pushButton_EditSelected">
             <property name="enabled">
              <bool>true</bool>
@@ -570,44 +532,6 @@
               <width>24</width>
               <height>24</height>
              </size>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QPushButton" name="pushButtonConvertSegmentationToLabelMap">
-            <property name="enabled">
-             <bool>true</bool>
-            </property>
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="minimumSize">
-             <size>
-              <width>130</width>
-              <height>30</height>
-             </size>
-            </property>
-            <property name="toolTip">
-             <string>Convert the current segmentation into a mask (A segmentation can not be written into a FITS file).</string>
-            </property>
-            <property name="text">
-             <string> Generate Mask</string>
-            </property>
-            <property name="icon">
-             <iconset resource="../qSlicerAstroVolumeWidgetsModule.qrc">
-              <normaloff>:/Icons/Small/AddLabelmap.png</normaloff>:/Icons/Small/AddLabelmap.png</iconset>
-            </property>
-            <property name="iconSize">
-             <size>
-              <width>24</width>
-              <height>24</height>
-             </size>
-            </property>
-            <property name="checkable">
-             <bool>false</bool>
             </property>
            </widget>
           </item>

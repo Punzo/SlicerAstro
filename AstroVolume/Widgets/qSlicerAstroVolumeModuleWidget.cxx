@@ -391,12 +391,6 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
-  QObject::connect(this->pushButtonCovertLabelMapToSegmentation, SIGNAL(clicked()),
-                   q, SLOT(onPushButtonCovertLabelMapToSegmentationClicked()));
-
-  QObject::connect(this->pushButtonConvertSegmentationToLabelMap, SIGNAL(clicked()),
-                   q, SLOT(onPushButtonConvertSegmentationToLabelMapClicked()));
-
   QObject::connect(this->pushButton_EditSelected, SIGNAL(clicked()),
                    q, SLOT(onEditSelectedSegment()));
 
@@ -1432,7 +1426,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     {
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
     d->HistoCollapsibleButton->setEnabled(false);
     d->HistoCollapsibleButton->setCollapsed(true);
     }
@@ -1468,7 +1461,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
       d->RenderingFrame->setCollapsed(true);
       }
 
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(false);
     d->HistoCollapsibleButton->setEnabled(true);
 
     astroVolumeNode->Modified();
@@ -1479,7 +1471,6 @@ void qSlicerAstroVolumeModuleWidget::onInputVolumeChanged(vtkMRMLNode *node)
     {
     d->RenderingFrame->setEnabled(false);
     d->RenderingFrame->setCollapsed(true);
-    d->pushButtonCovertLabelMapToSegmentation->setEnabled(true);
     d->HistoCollapsibleButton->setEnabled(false);
     d->HistoCollapsibleButton->setCollapsed(true);
     labelMapVolumeNode->Modified();

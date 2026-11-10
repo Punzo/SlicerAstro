@@ -67,6 +67,7 @@
 #include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
 #include <qSlicerAstroVolumeModule.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
+#include <qSlicerAstroSegmentationReader.h>
 #include <qSlicerAstroVolumeReader.h>
 
 // AstroVolume MRMLDM includes
@@ -236,6 +237,13 @@ void qSlicerAstroVolumeModule::setup()
   logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );
   qSlicerCoreIOManager* ioManager = d->app->coreIOManager();
   ioManager->registerIO(new qSlicerAstroVolumeReader(volumesLogic,this));
+  // FITS masks (e.g. SoFiA) are loaded as segmentations and saved as FITS masks.
+  // The Segmentations writer accepts only its own storage node: this writer
+  // saves the segmentations stored as FITS masks (vtkMRMLAstroSegmentationStorageNode).
+  ioManager->registerIO(new qSlicerAstroSegmentationReader(this));
+  ioManager->registerIO(new qSlicerNodeWriter(
+    "FITS mask", QString("SegmentationFile"),
+    QStringList() << "vtkMRMLSegmentationNode", false, this));
   ioManager->registerIO(new qSlicerNodeWriter(
     "AstroVolume", QString("AstroVolumeFile"),
     QStringList() << "vtkMRMLVolumeNode", true, this));

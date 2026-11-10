@@ -39,6 +39,8 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${qSlicerVolumeRenderingModuleWidgets_INCLUDE_DIRS}
   ${vtkSlicerVolumeRenderingModuleMRML_INCLUDE_DIRS}
   ${WCSLIB_INCLUDE_DIR}
+  ${CFITSIO_INCLUDE_DIR}
+  ${vtkFits_INCLUDE_DIRS}
   )
 
 set(MODULE_SRCS
@@ -48,12 +50,15 @@ set(MODULE_SRCS
   qSlicer${MODULE_NAME}Reader.h
   qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
   qSlicer${MODULE_NAME}LayoutSliceViewFactory.cxx
+  qSlicerAstroSegmentationReader.cxx
+  qSlicerAstroSegmentationReader.h
   )
 
 set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}Module.h
   qSlicer${MODULE_NAME}Reader.h
   qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
+  qSlicerAstroSegmentationReader.h
   )
 
 set(MODULE_UI_SRCS

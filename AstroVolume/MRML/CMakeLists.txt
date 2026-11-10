@@ -40,6 +40,8 @@ set(${KIT}_SRCS
     vtkMRMLAstroPVSliceParametersNode.h
     vtkMRMLAstroReprojectParametersNode.cxx
     vtkMRMLAstroReprojectParametersNode.h
+    vtkMRMLAstroSegmentationStorageNode.cxx
+    vtkMRMLAstroSegmentationStorageNode.h
     vtkMRMLAstroSmoothingParametersNode.cxx
     vtkMRMLAstroSmoothingParametersNode.h
     vtkMRMLAstroStatisticsParametersNode.cxx
