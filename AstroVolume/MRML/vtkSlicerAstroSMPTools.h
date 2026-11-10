@@ -176,6 +176,40 @@ double ExtentSum(const T* data, const int dims[3], const int extent[6],
   return sum;
 }
 
+/// Number of finite (not blank) voxels in the extent (inclusive) of a
+/// contiguous x-fastest array of dimensions dims.
+template <typename T>
+vtkIdType ExtentFiniteCount(const T* data, const int dims[3], const int extent[6])
+{
+  const vtkIdType nx = dims[0];
+  const vtkIdType nxy = static_cast<vtkIdType>(dims[0]) * dims[1];
+  vtkSMPThreadLocal<vtkIdType> localCount(0);
+  vtkSMPTools::For(extent[4], extent[5] + 1, [&](vtkIdType zFirst, vtkIdType zLast)
+    {
+    vtkIdType& threadCount = localCount.Local();
+    for (vtkIdType z = zFirst; z < zLast; ++z)
+      {
+      for (vtkIdType y = extent[2]; y <= extent[3]; ++y)
+        {
+        const T* row = data + z * nxy + y * nx;
+        for (vtkIdType x = extent[0]; x <= extent[1]; ++x)
+          {
+          if (!IsNaN(row[x]))
+            {
+            ++threadCount;
+            }
+          }
+        }
+      }
+    });
+  vtkIdType count = 0;
+  for (vtkIdType v : localCount)
+    {
+    count += v;
+    }
+  return count;
+}
+
 //----------------------------------------------------------------------------
 /// Parallel loop over [begin, end) with cooperative cancellation: the
 /// functor is called on sub-ranges; once \a cancel is set, remaining chunks

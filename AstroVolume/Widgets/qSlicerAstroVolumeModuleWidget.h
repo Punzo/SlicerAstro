@@ -38,6 +38,7 @@ class qSlicerAstroVolumeModuleWidgetPrivate;
 class qSlicerAbstractModuleWidget;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLMarkupsROINode;
 class vtkMRMLNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeRenderingDisplayNode;
@@ -182,6 +183,8 @@ protected slots:
   void synchronizeScalarDisplayNode();
   /// Widen too narrow gaps in the default volume rendering transfer functions.
   void ensureVolumeRenderingTransferFunctionGaps();
+  /// ROI of the volume rendering (cropping, RMS); created fitted to the volume if \a create.
+  vtkMRMLMarkupsROINode* volumeRenderingROINode(bool create);
   void updatePresets(vtkMRMLNode* node);
   void updateWidgetsFromIntensityNode();
 

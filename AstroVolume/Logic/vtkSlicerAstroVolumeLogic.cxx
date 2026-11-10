@@ -1052,37 +1052,43 @@ bool vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds(vtkMRMLMarkupsROINo
     {
     vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateROICropVolumeBounds :"
                            " voxel-based cropping of non-linearly transformed input volume is not supported");
-    return -1;
+    return false;
     }
 
-  vtkNew<vtkMatrix4x4> roiToVolumeTransformMatrix;
-  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(roiTransform, inputVolume->GetParentTransformNode(),
-    roiToVolumeTransformMatrix.GetPointer());
+  // ROI corners in the ROI object coordinate system (origin at the ROI center,
+  // axes along the ROI axes); the object-to-world matrix includes the ROI
+  // orientation and its parent transform.
+  vtkNew<vtkMatrix4x4> worldToVolumeTransformMatrix;
+  vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(nullptr, inputVolume->GetParentTransformNode(),
+    worldToVolumeTransformMatrix.GetPointer());
 
   vtkNew<vtkMatrix4x4> rasToIJK;
   inputVolume->GetRASToIJKMatrix(rasToIJK.GetPointer());
 
-  vtkNew<vtkMatrix4x4> roiToVolumeIJKTransformMatrix;
-  vtkMatrix4x4::Multiply4x4(rasToIJK.GetPointer(), roiToVolumeTransformMatrix.GetPointer(),
-    roiToVolumeIJKTransformMatrix.GetPointer());
+  vtkNew<vtkMatrix4x4> roiObjectToWorld;
+  roiObjectToWorld->DeepCopy(roiNode->GetObjectToWorldMatrix());
+  if (!roiTransform && roiNode->GetParentTransformNode())
+    {
+    // non-linear parent transform: ignored
+    roiObjectToWorld->DeepCopy(roiNode->GetObjectToNodeMatrix());
+    }
 
-  double roiXYZ[3] = {0};
-  roiNode->GetXYZ(roiXYZ);
+  vtkNew<vtkMatrix4x4> roiToVolumeIJKTransformMatrix;
+  vtkMatrix4x4::Multiply4x4(worldToVolumeTransformMatrix, roiObjectToWorld, roiToVolumeIJKTransformMatrix);
+  vtkMatrix4x4::Multiply4x4(rasToIJK, roiToVolumeIJKTransformMatrix, roiToVolumeIJKTransformMatrix);
+
   double roiRadius[3] = {0};
   roiNode->GetRadiusXYZ(roiRadius);
 
   const int numberOfCorners = 8;
-  double volumeCorners_ROI[numberOfCorners][4] =
+  double volumeCorners_ROI[numberOfCorners][4];
+  for (int corner = 0; corner < numberOfCorners; ++corner)
     {
-    { roiXYZ[0] - roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
-    { roiXYZ[0] + roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
-    { roiXYZ[0] - roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
-    { roiXYZ[0] + roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] - roiRadius[2], 1. },
-    { roiXYZ[0] - roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
-    { roiXYZ[0] + roiRadius[0], roiXYZ[1] - roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
-    { roiXYZ[0] - roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
-    { roiXYZ[0] + roiRadius[0], roiXYZ[1] + roiRadius[1], roiXYZ[2] + roiRadius[2], 1. },
-    };
+    volumeCorners_ROI[corner][0] = (corner & 1) ? roiRadius[0] : -roiRadius[0];
+    volumeCorners_ROI[corner][1] = (corner & 2) ? roiRadius[1] : -roiRadius[1];
+    volumeCorners_ROI[corner][2] = (corner & 4) ? roiRadius[2] : -roiRadius[2];
+    volumeCorners_ROI[corner][3] = 1.;
+    }
 
   // Get ROI extent in IJK coordinate system
   double outputExtentDouble[6] = {0};
@@ -1143,7 +1149,7 @@ bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmenta
     {
     vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds :"
                            " voxel-based cropping of non-linearly transformed input volume is not supported");
-    return -1;
+    return false;
     }
 
   vtkNew<vtkMatrix4x4> segmentToVolumeTransformMatrix;
@@ -1230,7 +1236,6 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLMarkupsR
                   "imageData with more than one components.");
     return 0.;
     }
-  int numSlice = dims[0] * dims[1];
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   float *inFPixel = nullptr;
   double *inDPixel = nullptr;
@@ -1252,33 +1257,42 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLMarkupsR
 
   this->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
 
-  const double cont = (roiBounds[1] - roiBounds[0]) *
-                      (roiBounds[3] - roiBounds[2]) *
-                      (roiBounds[5] - roiBounds[4]);
-  if (cont <= 0.)
-    {
-    return 0.;
-    }
-
   const int extent[6] = {static_cast<int>(roiBounds[0]), static_cast<int>(roiBounds[1]),
                          static_cast<int>(roiBounds[2]), static_cast<int>(roiBounds[3]),
                          static_cast<int>(roiBounds[4]), static_cast<int>(roiBounds[5])};
+  if (extent[1] < extent[0] || extent[3] < extent[2] || extent[5] < extent[4])
+    {
+    vtkWarningMacro("CalculateDisplayThresholdInROI: the ROI does not intersect the volume "
+                    << (inputVolume->GetName() ? inputVolume->GetName() : "") << ".");
+    return 0.;
+    }
+
+  // mean and standard deviation of the finite (not blank) voxels
+  vtkIdType count = 0;
   switch (DataType)
     {
     case VTK_FLOAT:
-      mean = vtkSlicerAstroSMPTools::ExtentSum(inFPixel, dims, extent) / cont;
-      noise = sqrt(vtkSlicerAstroSMPTools::ExtentSum(inFPixel, dims, extent, mean) / cont);
+      count = vtkSlicerAstroSMPTools::ExtentFiniteCount(inFPixel, dims, extent);
+      if (count > 0)
+        {
+        mean = vtkSlicerAstroSMPTools::ExtentSum(inFPixel, dims, extent) / count;
+        noise = sqrt(vtkSlicerAstroSMPTools::ExtentSum(inFPixel, dims, extent, mean) / count);
+        }
       break;
     case VTK_DOUBLE:
-      mean = vtkSlicerAstroSMPTools::ExtentSum(inDPixel, dims, extent) / cont;
-      noise = sqrt(vtkSlicerAstroSMPTools::ExtentSum(inDPixel, dims, extent, mean) / cont);
+      count = vtkSlicerAstroSMPTools::ExtentFiniteCount(inDPixel, dims, extent);
+      if (count > 0)
+        {
+        mean = vtkSlicerAstroSMPTools::ExtentSum(inDPixel, dims, extent) / count;
+        noise = sqrt(vtkSlicerAstroSMPTools::ExtentSum(inDPixel, dims, extent, mean) / count);
+        }
       break;
     }
-
-  inFPixel = nullptr;
-  inDPixel = nullptr;
-  delete inFPixel;
-  delete inDPixel;
+  if (count == 0)
+    {
+    vtkWarningMacro("CalculateDisplayThresholdInROI: the ROI contains only blank voxels.");
+    return 0.;
+    }
 
   inputVolume->SetDisplayThreshold(noise);
 

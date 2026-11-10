@@ -3962,6 +3962,38 @@ void qSlicerAstroVolumeModuleWidget::resetAndApplyPreset(vtkMRMLNode *volumeProp
 }
 
 //---------------------------------------------------------------------------
+vtkMRMLMarkupsROINode* qSlicerAstroVolumeModuleWidget::volumeRenderingROINode(bool create)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode || !d->volumeRenderingLogic)
+    {
+    return nullptr;
+    }
+  vtkMRMLVolumeRenderingDisplayNode* displayNode =
+    d->astroVolumeNode->GetAstroVolumeRenderingDisplayNode();
+  if (!displayNode)
+    {
+    return nullptr;
+    }
+  vtkMRMLMarkupsROINode* roiNode = displayNode->GetMarkupsROINode();
+  if (!roiNode && create)
+    {
+    // The Volume Rendering module creates the cropping ROI only on request:
+    // create it, fitted to the volume.
+    roiNode = vtkMRMLMarkupsROINode::SafeDownCast(d->volumeRenderingLogic->CreateROINode(displayNode));
+    if (!roiNode)
+      {
+      qCritical() << Q_FUNC_INFO << ": the ROI of the volume rendering could not be created.";
+      return nullptr;
+      }
+    this->qvtkConnect(roiNode, vtkMRMLDisplayableNode::DisplayModifiedEvent,
+                      this, SLOT(onMRMLDisplayROINodeModified(vtkObject*)));
+    }
+  return roiNode;
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::fitROIToVolume()
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
@@ -3980,8 +4012,11 @@ void qSlicerAstroVolumeModuleWidget::fitROIToVolume()
     return;
     }
 
-  // Fit ROI to volume
-  d->volumeRenderingLogic->FitROIToVolume(displayNode);
+  // Fit ROI to volume (a new ROI is already fitted)
+  if (displayNode->GetMarkupsROINode() || this->volumeRenderingROINode(true))
+    {
+    d->volumeRenderingLogic->FitROIToVolume(displayNode);
+    }
 
   if (!d->volumeRenderingWidget)
     {
@@ -4027,13 +4062,18 @@ void qSlicerAstroVolumeModuleWidget::onCalculateRMS()
     return;
     }
 
-  // Use the cropping ROI of the volume rendering display node
-  vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplayNode = this->volumeRenderingDisplay();
-  vtkMRMLMarkupsROINode *roiNode =
-    volumeRenderingDisplayNode ? volumeRenderingDisplayNode->GetMarkupsROINode() : nullptr;
+  // Use the cropping ROI of the volume rendering display node: if there is
+  // none yet, it is created (fitted to the volume) and shown, so that the
+  // user can see and adjust the region used for the noise.
+  vtkMRMLMarkupsROINode *roiNode = this->volumeRenderingROINode(false);
   if (!roiNode)
     {
-    return;
+    roiNode = this->volumeRenderingROINode(true);
+    if (!roiNode)
+      {
+      return;
+      }
+    d->ROICropDisplayCheckBox->setChecked(true);
     }
 
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
@@ -4645,7 +4685,7 @@ void qSlicerAstroVolumeModuleWidget::setDisplayROIEnabled(bool visibility)
     return;
     }
 
-  vtkMRMLMarkupsROINode* ROINode = displayNode->GetMarkupsROINode();
+  vtkMRMLMarkupsROINode* ROINode = this->volumeRenderingROINode(visibility);
   if (!ROINode)
     {
     return;
@@ -4884,6 +4924,10 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
     return;
     }
 
+  if (crop)
+    {
+    this->volumeRenderingROINode(true);
+    }
   displayNode->SetCroppingEnabled(crop);
 }
 
