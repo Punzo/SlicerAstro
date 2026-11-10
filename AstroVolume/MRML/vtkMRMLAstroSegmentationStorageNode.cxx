@@ -248,63 +248,71 @@ std::map<int, std::string> vtkMRMLAstroSegmentationStorageNode::ReadSoFiACatalog
   std::map<int, std::string> names;
 
   // <name>_mask.fits (also _mask-2d, _mask-raw, .fits.gz) -> <name>_cat.txt
+  // (SoFiA 2) or <name>_cat.ascii (SoFiA 1)
   static const std::regex maskSuffix("_mask(-2d|-raw)?\\.fits(\\.gz)?$", std::regex::icase);
   if (!std::regex_search(maskFileName, maskSuffix))
     {
     return names;
     }
-  const std::string catalogFileName = std::regex_replace(maskFileName, maskSuffix, "_cat.txt");
-  std::ifstream catalog(catalogFileName);
+  std::ifstream catalog;
+  for (const char* suffix : { "_cat.txt", "_cat.ascii" })
+    {
+    catalog.open(std::regex_replace(maskFileName, maskSuffix, suffix));
+    if (catalog)
+      {
+      break;
+      }
+    catalog.clear();
+    }
   if (!catalog)
     {
     return names;
     }
 
-  // Header row with the column names: "#   name   id   x   y   z ..."
-  // Data rows: "   \"SoFiA J123456.78+123456.7\"   1   12.3 ..."
-  static const std::regex dataRow("^\\s*\"([^\"]*)\"\\s+(.*)$");
-  int idColumn = -1; // index of the id column after the name column
+  // Values of a row; quoted values may contain spaces (SoFiA 2 names)
+  auto split = [](const std::string& text)
+    {
+    std::vector<std::string> values;
+    static const std::regex value("\"([^\"]*)\"|(\\S+)");
+    for (auto it = std::sregex_iterator(text.begin(), text.end(), value); it != std::sregex_iterator(); ++it)
+      {
+      values.push_back((*it)[1].matched ? (*it)[1].str() : (*it)[2].str());
+      }
+    return values;
+    };
+
+  // Header row with the column names ("# ... name ... id ..."), then data rows
+  int nameColumn = -1, idColumn = -1;
   std::string line;
   while (std::getline(catalog, line))
     {
-    if (!line.empty() && line[0] == '#')
-      {
-      std::istringstream columns(line.substr(1));
-      std::vector<std::string> columnNames;
-      std::string column;
-      while (columns >> column)
-        {
-        columnNames.push_back(column);
-        }
-      if (columnNames.size() > 1 && columnNames[0] == "name")
-        {
-        const auto id = std::find(columnNames.begin(), columnNames.end(), "id");
-        if (id != columnNames.end())
-          {
-          idColumn = static_cast<int>(id - columnNames.begin()) - 1;
-          }
-        }
-      continue;
-      }
-    std::smatch match;
-    if (idColumn < 0 || !std::regex_match(line, match, dataRow))
+    if (line.find_first_not_of(" \t\r") == std::string::npos)
       {
       continue;
       }
-    std::istringstream values(match[2].str());
-    std::string value;
-    for (int column = 0; column <= idColumn && (values >> value); ++column)
+    if (line[line.find_first_not_of(" \t")] == '#')
       {
-      if (column == idColumn)
+      const std::vector<std::string> columns = split(line.substr(line.find('#') + 1));
+      const auto name = std::find(columns.begin(), columns.end(), "name");
+      const auto id = std::find(columns.begin(), columns.end(), "id");
+      if (name != columns.end() && id != columns.end())
         {
-        try
-          {
-          names[std::stoi(value)] = match[1].str();
-          }
-        catch (const std::exception&)
-          {
-          }
+        nameColumn = static_cast<int>(name - columns.begin());
+        idColumn = static_cast<int>(id - columns.begin());
         }
+      continue;
+      }
+    const std::vector<std::string> values = split(line);
+    if (nameColumn < 0 || static_cast<int>(values.size()) <= std::max(nameColumn, idColumn))
+      {
+      continue;
+      }
+    try
+      {
+      names[static_cast<int>(std::stod(values[idColumn]))] = values[nameColumn];
+      }
+    catch (const std::exception&)
+      {
       }
     }
   return names;

@@ -102,6 +102,7 @@ add_subdirectory(AstroPVSlice)
 add_subdirectory(AstroPVDiagram)
 add_subdirectory(AstroModeling)
 add_subdirectory(AstroSampleData)
+add_subdirectory(AstroSoFiACatalog)
 add_subdirectory(SlicerAstroDataProbe)
 add_subdirectory(Doxygen)
 
