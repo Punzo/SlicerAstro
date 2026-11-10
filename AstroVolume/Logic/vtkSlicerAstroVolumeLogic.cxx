@@ -25,6 +25,9 @@
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
 
+// STD includes
+#include <array>
+
 // AstroVolume includes
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroConfigure.h>
@@ -71,6 +74,7 @@
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPiecewiseFunction.h>
+#include <vtkVolumeProperty.h>
 #include <vtkPointData.h>
 #include <vtkSegment.h>
 #include <vtkSmartPointer.h>
@@ -2666,4 +2670,106 @@ bool vtkSlicerAstroVolumeLogic::LoadPresets(vtkMRMLScene *scene)
     }
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+// Positions of the points shifted so that consecutive points are at least
+// minimumGap apart; the points are moved toward the inside of the range
+// (first and last points stay at their place when possible).
+std::vector<double> SpreadPositions(const std::vector<double>& positions, double minimumGap)
+{
+  std::vector<double> spread(positions);
+  const size_t n = spread.size();
+  for (size_t i = 1; i < n; ++i)
+    {
+    spread[i] = std::max(spread[i], spread[i - 1] + minimumGap);
+    }
+  if (n > 1 && spread[n - 1] > positions[n - 1])
+    {
+    // Shift back from the end, keeping the last point at its place
+    spread[n - 1] = std::max(positions[n - 1], spread[0] + minimumGap * (n - 1));
+    for (size_t i = n - 1; i-- > 0;)
+      {
+      spread[i] = std::min(spread[i], spread[i + 1] - minimumGap);
+      }
+    }
+  return spread;
+}
+
+bool HasGapSmallerThan(const std::vector<double>& positions, double minimumGap)
+{
+  for (size_t i = 1; i < positions.size(); ++i)
+    {
+    // tolerance for the rounding of gaps already widened to minimumGap
+    if (positions[i] - positions[i - 1] < minimumGap * (1. - 1e-6))
+      {
+      return true;
+      }
+    }
+  return false;
+}
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(vtkVolumeProperty* volumeProperty,
+                                                                 const double scalarRange[2])
+{
+  if (!volumeProperty || !scalarRange || !(scalarRange[1] > scalarRange[0]))
+    {
+    return false;
+    }
+  // 1/10000 of the range: the lookup table textures stay below 16384 texels
+  const double minimumGap = (scalarRange[1] - scalarRange[0]) * 1e-4;
+  bool modified = false;
+
+  vtkPiecewiseFunction* opacity = volumeProperty->GetScalarOpacity();
+  if (opacity && opacity->GetSize() > 1)
+    {
+    std::vector<std::array<double, 4>> nodes(opacity->GetSize());
+    std::vector<double> positions(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i)
+      {
+      opacity->GetNodeValue(static_cast<int>(i), nodes[i].data());
+      positions[i] = nodes[i][0];
+      }
+    if (HasGapSmallerThan(positions, minimumGap))
+      {
+      std::vector<double> spread = SpreadPositions(positions, minimumGap);
+      vtkNew<vtkPiecewiseFunction> newOpacity;
+      for (size_t i = 0; i < nodes.size(); ++i)
+        {
+        newOpacity->AddPoint(spread[i], nodes[i][1], nodes[i][2], nodes[i][3]);
+        }
+      opacity->DeepCopy(newOpacity);
+      modified = true;
+      }
+    }
+
+  vtkColorTransferFunction* color = volumeProperty->GetRGBTransferFunction();
+  if (color && color->GetSize() > 1)
+    {
+    std::vector<std::array<double, 6>> nodes(color->GetSize());
+    std::vector<double> positions(nodes.size());
+    for (size_t i = 0; i < nodes.size(); ++i)
+      {
+      color->GetNodeValue(static_cast<int>(i), nodes[i].data());
+      positions[i] = nodes[i][0];
+      }
+    if (HasGapSmallerThan(positions, minimumGap))
+      {
+      std::vector<double> spread = SpreadPositions(positions, minimumGap);
+      vtkNew<vtkColorTransferFunction> newColor;
+      newColor->SetColorSpace(color->GetColorSpace());
+      for (size_t i = 0; i < nodes.size(); ++i)
+        {
+        newColor->AddRGBPoint(spread[i], nodes[i][1], nodes[i][2], nodes[i][3], nodes[i][4], nodes[i][5]);
+        }
+      color->DeepCopy(newColor);
+      modified = true;
+      }
+    }
+
+  return modified;
 }

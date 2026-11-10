@@ -46,6 +46,7 @@
 #include <vtkNew.h>
 #include <vtkPiecewiseFunction.h>
 #include <vtkPlotPoints.h>
+#include <vtkDataArray.h>
 #include <vtkPointData.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
@@ -1829,6 +1830,31 @@ void qSlicerAstroVolumeModuleWidget::setRadioVelocity()
         }
       }
   }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::ensureVolumeRenderingTransferFunctionGaps()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  if (!d->astroVolumeNode || !d->astroVolumeNode->GetImageData())
+    {
+    return;
+    }
+  vtkMRMLVolumeRenderingDisplayNode* displayNode =
+    d->astroVolumeNode->GetAstroVolumeRenderingDisplayNode();
+  if (!displayNode || !displayNode->GetVolumePropertyNode())
+    {
+    return;
+    }
+  // The default transfer functions created by the Volume Rendering module
+  // are rendered until the astronomical presets are applied: their points
+  // must not be too close for the lookup table textures (see
+  // vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap).
+  double range[2] = { 0., 0. };
+  d->astroVolumeNode->GetImageData()->GetPointData()->GetScalars()->GetFiniteRange(range);
+  vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(
+    displayNode->GetVolumePropertyNode()->GetVolumeProperty(), range);
 }
 
 //---------------------------------------------------------------------------
@@ -5723,6 +5749,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     if (d->volumeRenderingWidget)
       {
       QMetaObject::invokeMethod(d->volumeRenderingWidget, "setMRMLVolumeNode", Q_ARG(vtkMRMLNode*, d->astroVolumeNode));
+      this->ensureVolumeRenderingTransferFunctionGaps();
       }
 
     d->Lock = false;

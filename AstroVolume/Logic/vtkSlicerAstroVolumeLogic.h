@@ -42,6 +42,7 @@ class vtkMRMLSegmentationNode;
 class vtkMRMLSliceNode;
 class vtkMRMLVolumeNode;
 class vtkSegment;
+class vtkVolumeProperty;
 class vtkIntArray;
 
 /// \class vtkSlicerAstroVolumeLogic
@@ -93,6 +94,15 @@ public:
   vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,
                                                           vtkMRMLAstroVolumeNode *volumeNode,
                                                           const char *name);
+
+  /// Widen the gaps between the points of the scalar opacity and color
+  /// transfer functions of \a volumeProperty to at least 1/10000 of the
+  /// scalar range. The default transfer functions of Slicer keep duplicate
+  /// points apart with a gap of the order of the float precision: with the
+  /// small intensity ranges of astronomical data (e.g. 0.01 Jy/beam) the
+  /// lookup tables of the volume rendering would need textures wider than
+  /// the GPU allows. Returns true if a transfer function was modified.
+  static bool EnsureMinimumTransferFunctionGap(vtkVolumeProperty* volumeProperty, const double scalarRange[2]);
 
   /// Replace the anatomical slice orientation presets of a slice node
   /// (Axial, Sagittal, Coronal) with the astronomical ones (XZ, ZY, XY).

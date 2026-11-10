@@ -180,6 +180,8 @@ protected slots:
   void setRASexagesimalUnit();
   void setRadioVelocity();
   void synchronizeScalarDisplayNode();
+  /// Widen too narrow gaps in the default volume rendering transfer functions.
+  void ensureVolumeRenderingTransferFunctionGaps();
   void updatePresets(vtkMRMLNode* node);
   void updateWidgetsFromIntensityNode();
 
