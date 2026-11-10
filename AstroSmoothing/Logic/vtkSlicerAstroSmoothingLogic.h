@@ -25,6 +25,7 @@
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 // vtk includes
+class vtkAstroImageSmoothBase;
 class vtkRenderWindow;
 // AstroSmoothings includes
 #include "vtkSlicerAstroSmoothingModuleLogicExport.h"
@@ -77,6 +78,11 @@ public:
   int Apply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
 
 protected:
+  /// Run a CPU smoothing filter on the input volume of \a pnode and set its
+  /// output (without copying the voxels) as the image of the output volume.
+  int RunCPUSmoothing(vtkMRMLAstroSmoothingParametersNode* pnode,
+                      vtkAstroImageSmoothBase* filter, const char* filterName);
+
   vtkSlicerAstroSmoothingLogic();
   virtual ~vtkSlicerAstroSmoothingLogic();
 

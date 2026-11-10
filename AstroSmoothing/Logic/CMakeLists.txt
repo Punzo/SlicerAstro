@@ -6,6 +6,7 @@ set(${KIT}_EXPORT_DIRECTIVE "VTK_SLICERASTRO_${MODULE_NAME_UPPER}_MODULE_LOGIC_E
 
 set(${KIT}_INCLUDE_DIRECTORIES
   ${SlicerAstro_BINARY_DIR}
+  ${vtkAstroImageFilters_INCLUDE_DIRS}
   )
 
 if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
@@ -24,6 +25,7 @@ set(${KIT}_SRCS
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
+  vtkAstroImageFilters
   )
 
 if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)

@@ -32,6 +32,10 @@
 #include <vtkAstroOpenGLImageGaussian.h>
 #include <vtkAstroOpenGLImageGradient.h>
 #endif
+#include <vtkAstroImageGradientSmooth.h>
+#include <vtkAstroImageKernelSmooth.h>
+#include <vtkAstroImageSeparableSmooth.h>
+#include <vtkCallbackCommand.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -239,656 +243,124 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
+int vtkSlicerAstroSmoothingLogic::RunCPUSmoothing(vtkMRMLAstroSmoothingParametersNode* pnode,
+                                                  vtkAstroImageSmoothBase* filter,
+                                                  const char* filterName)
 {
-
-  if (!pnode)
+  if (!pnode || !filter || !this->GetMRMLScene())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
-                  "parameterNode not found.");
     return 0;
     }
 
-  if (!this->GetMRMLScene())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter :"
-                  " scene not found.");
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  vtkMRMLAstroVolumeNode *inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
   if (!inputVolume || !inputVolume->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
-                  "inputVolume not found.");
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : inputVolume not found.");
     return 0;
     }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume || !outputVolume->GetImageData())
+  vtkMRMLAstroVolumeNode *outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+  if (!outputVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
-                  "outputVolume not found.");
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : outputVolume not found.");
     return 0;
     }
-
-  const int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
+  if (inputVolume->GetImageData()->GetNumberOfScalarComponents() != 1)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter : "
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : "
                   "imageData with more than one components.");
-    return 0.;
+    return 0;
     }
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int nItemsX = pnode->GetParameterX();
-  if (nItemsX % 2 < 0.001)
+
+  // Progress events are invoked from this thread only: report them to the
+  // parameters node (GUI progress bar) and forward the cancel request.
+  vtkNew<vtkCallbackCommand> progressCallback;
+  progressCallback->SetClientData(pnode);
+  progressCallback->SetCallback([](vtkObject* caller, unsigned long, void* clientData, void* callData)
     {
-    nItemsX++;
-    }
-  const int Xmax = (int) ((nItemsX - 1) / 2.);
-  int nItemsY = pnode->GetParameterY();
-  if (nItemsY % 2 < 0.001)
-    {
-    nItemsY++;
-    }
-  const int Ymax = (int) ((nItemsY - 1) / 2.);
-  int nItemsZ = pnode->GetParameterZ();
-  if (nItemsZ % 2 < 0.001)
-    {
-    nItemsZ++;
-    }
-  const int Zmax = (int) ((nItemsZ - 1) / 2.);
-  const int cont = nItemsX * nItemsY * nItemsZ;
-  float *inFPixel = nullptr;
-  float *outFPixel = nullptr;
-  double *inDPixel = nullptr;
-  double *outDPixel = nullptr;
-  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  switch (DataType)
-    {
-    case VTK_FLOAT:
-      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-      return 0;
-    }
-
-  bool cancel = false;
-  int status = 0;
-
-
-  std::chrono::steady_clock::time_point start, end;
-
-  long mtime = 0;
-
-  start = std::chrono::steady_clock::now();
+    vtkMRMLAstroSmoothingParametersNode* parametersNode =
+      static_cast<vtkMRMLAstroSmoothingParametersNode*>(clientData);
+    vtkAlgorithm* algorithm = vtkAlgorithm::SafeDownCast(caller);
+    if (parametersNode->GetStatus() == -1)
+      {
+      algorithm->SetAbortExecute(1);
+      return;
+      }
+    const double progress = callData ? *static_cast<double*>(callData) : 0.;
+    const int status = 1 + static_cast<int>(progress * 98.);
+    if (status > parametersNode->GetStatus())
+      {
+      parametersNode->SetStatus(status);
+      }
+    });
+  filter->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
   pnode->SetStatus(1);
+  const auto start = std::chrono::steady_clock::now();
+  filter->SetInputData(inputVolume->GetImageData());
+  filter->Update();
+  const auto end = std::chrono::steady_clock::now();
+  vtkDebugMacro(<< filterName << " Time : "
+                << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
 
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int stat = pnode->GetStatus();
-
-    if (stat == -1)
-      {
-      cancel = true;
-      }
-    if (!cancel)
-      {
-      switch (DataType)
-        {
-        case VTK_FLOAT:
-          *(outFPixel + elemCnt) = 0.;
-          break;
-        case VTK_DOUBLE:
-          *(outDPixel + elemCnt) = 0.;
-          break;
-        }
-
-      for (int k = -Zmax; k <= Zmax; k++)
-        {
-        for (int j = -Ymax; j <= Ymax; j++)
-          {
-          for (int i = -Xmax; i <= Xmax; i++)
-            {
-            int posData = elemCnt + i;
-
-            int ref = (int) floor(elemCnt / dims[0]);
-            ref *= dims[0];
-            if(posData < ref)
-              {
-              continue;
-              }
-            if(posData >= ref + dims[0])
-              {
-              break;
-              }
-
-            posData += j * dims[0];
-            ref = (int) floor(elemCnt / numSlice);
-            ref *= numSlice;
-            if(posData < ref)
-              {
-              continue;
-              }
-            if(posData >= ref + numSlice)
-              {
-              break;
-              }
-
-            posData += k * numSlice;
-            if(posData < 0)
-              {
-              continue;
-              }
-            if(posData >= numElements)
-              {
-              break;
-              }
-
-            switch (DataType)
-              {
-              case VTK_FLOAT:
-                if (FloatIsNaN(*(inFPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outFPixel + elemCnt) += *(inFPixel + posData);
-                break;
-              case VTK_DOUBLE:
-                if (DoubleIsNaN(*(inDPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outDPixel + elemCnt) += *(inDPixel + posData);
-                break;
-              }
-            }
-          }
-        }
-
-      switch (DataType)
-        {
-        case VTK_FLOAT:
-          *(outFPixel + elemCnt) /= cont;
-          break;
-        case VTK_DOUBLE:
-          *(outDPixel + elemCnt) /= cont;
-          break;
-        }
-
-      if(elemCnt / (numElements / 100) > status)
-        {
-        status += 10;
-        pnode->SetStatus(status);
-        }
-      }
-    }
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Box Filter (CPU) Kernel Time : "<<mtime<<" ms.");
-
-  inFPixel = nullptr;
-  outFPixel = nullptr;
-  inDPixel = nullptr;
-  outDPixel = nullptr;
-
-  delete inFPixel;
-  delete outFPixel;
-  delete inDPixel;
-  delete outDPixel;
-
-  if (cancel)
+  if (filter->GetAborted() || pnode->GetStatus() == -1)
     {
     pnode->SetStatus(100);
     return 0;
     }
+  if (filter->GetErrorCode() || !filter->GetOutput() || !filter->GetOutput()->GetPointData()->GetScalars())
+    {
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : " << filterName << " failed.");
+    pnode->SetStatus(100);
+    return 0;
+    }
 
-  start = std::chrono::steady_clock::now();
-
+  // The output volume takes the filter output buffer (shallow copy, no voxel copy)
+  vtkNew<vtkImageData> outputImage;
+  outputImage->ShallowCopy(filter->GetOutput());
+  outputImage->SetOrigin(0., 0., 0.);
+  outputImage->SetSpacing(1., 1., 1.);
   int wasModifying = outputVolume->StartModify();
+  outputVolume->SetAndObserveImageData(outputImage);
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
 
   pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
   return 1;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
+{
+  if (!pnode)
+    {
+    return 0;
+    }
+  vtkNew<vtkAstroImageKernelSmooth> filter;
+  filter->SetBoxKernel(static_cast<int>(pnode->GetParameterX()),
+                       static_cast<int>(pnode->GetParameterY()),
+                       static_cast<int>(pnode->GetParameterZ()));
+  return this->RunCPUSmoothing(pnode, filter, "Box Filter (CPU)");
 }
 
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-
   if (!pnode)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
-                  "parameterNode not found.");
     return 0;
     }
-
-  if (!this->GetMRMLScene())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter :"
-                  " scene not found.");
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume || !inputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
-                  "inputVolume not found.");
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume || !outputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
-                  "outputVolume not found.");
-    return 0;
-    }
-
-  this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(inputVolume->GetImageData());
-  this->Internal->tempVolumeData->Modified();
-  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-  const int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter : "
-                  "imageData with more than one components.");
-    return 0.;
-    }
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int nItems = (pnode->GetParameterX());
-  if (nItems % 2 < 0.001)
-    {
-    nItems++;
-    }
-  const int is = (int) ((nItems - 1) / 2.);
-
-  float *outFPixel = nullptr;
-  float *tempFPixel = nullptr;
-  double *outDPixel = nullptr;
-  double *tempDPixel = nullptr;
-  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  switch (DataType)
-    {
-    case VTK_FLOAT:
-      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-      return 0;
-    }
-
-  bool cancel = false;
-
-
-  std::chrono::steady_clock::time_point start, end;
-
-  long mtime = 0;
-
-  start = std::chrono::steady_clock::now();
-
-  pnode->SetStatus(1);
-
-  if (pnode->GetParameterX() > 0.001)
-    {
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-      if (!cancel)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int i = -is; i <= is; i++)
-          {
-          int posData = elemCnt + i;
-          int ref = (int) floor(elemCnt / dims[0]);
-          ref *= dims[0];
-          if(posData < ref)
-            {
-            continue;
-            }
-          if(posData >= ref + dims[0])
-            {
-            break;
-            }
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (FloatIsNaN(*(tempFPixel + posData)))
-                {
-                continue;
-                }
-              *(outFPixel + elemCnt) += *(tempFPixel + posData);
-              break;
-            case VTK_DOUBLE:
-              if (DoubleIsNaN(*(tempDPixel + posData)))
-                {
-                continue;
-                }
-              *(outDPixel + elemCnt) += *(tempDPixel + posData);
-              break;
-            }
-          }
-
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elemCnt) /= nItems;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elemCnt) /= nItems;
-            break;
-          }
-
-         if(elemCnt / (numElements / 33.) > status)
-           {
-           status += 10;
-           pnode->SetStatus(status);
-           }
-        }
-      }
-    }
-
-  if (cancel)
-    {
-    outFPixel = nullptr;
-    tempFPixel = nullptr;
-    outDPixel = nullptr;
-    tempDPixel = nullptr;
-
-    delete outFPixel;
-    delete tempFPixel;
-    delete outDPixel;
-    delete tempDPixel;
-
-    this->Internal->tempVolumeData->Initialize();
-
-    pnode->SetStatus(100);
-
-    return 0;
-    }
-
-  if (pnode->GetParameterY() > 0.001)
-    {
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-      if (!cancel)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(tempFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-            *(tempDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int i = -is; i <= is; i++)
-          {
-          int posData = elemCnt + (i * dims[0]);
-          int ref = (int) floor(elemCnt / numSlice);
-          ref *= numSlice;
-          if(posData < ref)
-            {
-            continue;
-            }
-          if(posData >= ref + numSlice)
-            {
-            break;
-            }
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (FloatIsNaN(*(outFPixel + posData)))
-                {
-                continue;
-                }
-              *(tempFPixel + elemCnt) += *(outFPixel + posData);
-              break;
-            case VTK_DOUBLE:
-              if (DoubleIsNaN(*(outDPixel + posData)))
-                {
-                continue;
-                }
-              *(tempDPixel + elemCnt) += *(outDPixel + posData);
-              break;
-            }
-          }
-
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(tempFPixel + elemCnt) /= nItems;
-            break;
-          case VTK_DOUBLE:
-            *(tempDPixel + elemCnt) /= nItems;
-            break;
-          }
-
-        if(33. + (elemCnt / (numElements / 33.)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      }
-    }
-  else
-    {
-    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
-    this->Internal->tempVolumeData->Modified();
-    this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-    switch (DataType)
-      {
-      case VTK_FLOAT:
-        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-        break;
-      case VTK_DOUBLE:
-        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-        break;
-      default:
-        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-        return 0;
-      }
-    }
-
-  if (cancel)
-    {
-    outFPixel = nullptr;
-    tempFPixel = nullptr;
-    outDPixel = nullptr;
-    tempDPixel = nullptr;
-
-    delete outFPixel;
-    delete tempFPixel;
-    delete outDPixel;
-    delete tempDPixel;
-
-    this->Internal->tempVolumeData->Initialize();
-
-    pnode->SetStatus(100);
-
-    return 0;
-    }
-
-  if (pnode->GetParameterZ() > 0.001)
-    {
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-      if (!cancel)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int i = -is; i <= is; i++)
-          {
-          int posData = elemCnt + (i * numSlice);
-          if(posData < 0)
-            {
-            continue;
-            }
-          if(posData >= numElements)
-            {
-            break;
-            }
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (FloatIsNaN(*(tempFPixel + posData)))
-                {
-                continue;
-                }
-              *(outFPixel + elemCnt) += *(tempFPixel + posData);
-              break;
-            case VTK_DOUBLE:
-              if (DoubleIsNaN(*(tempDPixel + posData)))
-                {
-                continue;
-                }
-              *(outDPixel + elemCnt) += *(tempDPixel + posData);
-              break;
-            }
-          }
-
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elemCnt) /= nItems;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elemCnt) /= nItems;
-            break;
-          }
-
-        if(66. + (elemCnt / (numElements / 33.)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      }
-    }
-  else
-    {
-    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
-    }
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro("Box Filter (CPU) Time : "<<mtime<<" ms.");
-
-  outFPixel = nullptr;
-  tempFPixel = nullptr;
-  outDPixel = nullptr;
-  tempDPixel = nullptr;
-
-  delete outFPixel;
-  delete tempFPixel;
-  delete outDPixel;
-  delete tempDPixel;
-
-  this->Internal->tempVolumeData->Initialize();
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
-  return 1;
+  // Separable box: the kernel size is ParameterX along the axes with a
+  // non-zero parameter.
+  const int size = static_cast<int>(pnode->GetParameterX());
+  vtkNew<vtkAstroImageSeparableSmooth> filter;
+  filter->SetAxisBoxKernel(0, pnode->GetParameterX() > 0.001 ? size : 0);
+  filter->SetAxisBoxKernel(1, pnode->GetParameterY() > 0.001 ? size : 0);
+  filter->SetAxisBoxKernel(2, pnode->GetParameterZ() > 0.001 ? size : 0);
+  return this->RunCPUSmoothing(pnode, filter, "Isotropic Box Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
@@ -1013,609 +485,34 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-
-   if (!pnode)
-     {
-     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
-                   "parameterNode not found.");
-     return 0;
-     }
-
-  if (!this->GetMRMLScene())
+  if (!pnode || !pnode->GetGaussianKernel3D())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter :"
-                  " scene not found.");
     return 0;
     }
-
-   vtkMRMLAstroVolumeNode *inputVolume =
-     vtkMRMLAstroVolumeNode::SafeDownCast
-       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-   if (!inputVolume || !inputVolume->GetImageData())
-     {
-     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
-                   "inputVolume not found.");
-     return 0;
-     }
-
-   vtkMRMLAstroVolumeNode *outputVolume =
-     vtkMRMLAstroVolumeNode::SafeDownCast
-       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-   if (!outputVolume || !outputVolume->GetImageData())
-     {
-     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
-                   "outputVolume not found.");
-     return 0;
-     }
-
-  const int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter : "
-                  "imageData with more than one components.");
-    return 0.;
-    }
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  const int Xmax = (int) (pnode->GetKernelLengthX() - 1) / 2.;
-  const int Ymax = (int) (pnode->GetKernelLengthY() - 1) / 2.;
-  const int Zmax = (int) (pnode->GetKernelLengthZ() - 1) / 2.;
-  const int numKernelSlice = pnode->GetKernelLengthX() * pnode->GetKernelLengthY();
-  float *inFPixel = nullptr;
-  float *outFPixel = nullptr;
-  double *inDPixel = nullptr;
-  double *outDPixel = nullptr;
-  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  switch (DataType)
-    {
-    case VTK_FLOAT:
-      inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-      return 0;
-    }
-
-  double *GaussKernel = static_cast<double*> (pnode->GetGaussianKernel3D()->GetVoidPointer(0));
-
-  bool cancel = false;
-  int status = 0;
-
-
-  std::chrono::steady_clock::time_point start, end;
-
-  long mtime = 0;
-
-  start = std::chrono::steady_clock::now();
-
-  pnode->SetStatus(1);
-
-  for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-    {
-    int stat = pnode->GetStatus();
-
-    if (stat == -1)
-      {
-      cancel = true;
-      }
-
-    if (!cancel)
-      {
-      switch (DataType)
-        {
-        case VTK_FLOAT:
-          *(outFPixel + elemCnt) = 0.;
-          break;
-        case VTK_DOUBLE:
-          *(outDPixel + elemCnt) = 0.;
-          break;
-        }
-
-      for (int k = -Zmax; k <= Zmax; k++)
-        {
-        for (int j = -Ymax; j <= Ymax; j++)
-          {
-          for (int i = -Xmax; i <= Xmax; i++)
-            {
-            int posData = elemCnt + i;
-            int ref = (int) floor(elemCnt / dims[0]);
-            ref *= dims[0];
-            if(posData < ref)
-              {
-              continue;
-              }
-            if(posData >= ref + dims[0])
-              {
-              break;
-              }
-
-            posData += j * dims[0];
-            ref = (int) floor(elemCnt / numSlice);
-            ref *= numSlice;
-            if(posData < ref)
-              {
-              continue;
-              }
-            if(posData >= ref + numSlice)
-              {
-              break;
-              }
-
-            posData += k * numSlice;
-            if(posData < 0)
-              {
-              continue;
-              }
-            if(posData >= numElements)
-              {
-              break;
-              }
-
-            int posKernel = (k + Zmax) * numKernelSlice
-                          + (j + Ymax) * pnode->GetKernelLengthX() + (i + Xmax);
-
-            switch (DataType)
-              {
-              case VTK_FLOAT:
-                if (FloatIsNaN(*(inFPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outFPixel + elemCnt) += *(inFPixel + posData) * *(GaussKernel + posKernel);
-                break;
-              case VTK_DOUBLE:
-                if (DoubleIsNaN(*(inDPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outDPixel + elemCnt) += *(inDPixel + posData) * *(GaussKernel + posKernel);
-                break;
-              }
-            }
-          }
-        }
-
-      if(elemCnt / (numElements / 100) > status)
-        {
-        status += 10;
-        pnode->SetStatus(status);
-        }
-      }
-    }
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
-
-  inFPixel = nullptr;
-  outFPixel = nullptr;
-  inDPixel = nullptr;
-  outDPixel = nullptr;
-
-  delete inFPixel;
-  delete outFPixel;
-  delete inDPixel;
-  delete outDPixel;
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
-  return 1;
+  // 3D (possibly rotated) Gaussian kernel computed by the parameters node
+  vtkNew<vtkAstroImageKernelSmooth> filter;
+  filter->SetKernel(pnode->GetGaussianKernel3D(),
+                    static_cast<int>(pnode->GetKernelLengthX()),
+                    static_cast<int>(pnode->GetKernelLengthY()),
+                    static_cast<int>(pnode->GetKernelLengthZ()));
+  return this->RunCPUSmoothing(pnode, filter, "Gaussian Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-
-  if (!pnode)
+  if (!pnode || !pnode->GetGaussianKernel1D())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
-                  "parameterNode not found.");
     return 0;
     }
-
-  if (!this->GetMRMLScene())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter :"
-                  " scene not found.");
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume || !inputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
-                  "inputVolume not found.");
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume || !outputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
-                  "outputVolume not found.");
-    return 0;
-    }
-
-  this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(inputVolume->GetImageData());
-  this->Internal->tempVolumeData->Modified();
-  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-  const int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter : "
-                  "imageData with more than one components.");
-    return 0.;
-    }
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  int is = (int) (pnode->GetKernelLengthX());
-  if (is % 2 < 0.001)
-    {
-    is++;
-    }
-  const int is2 = (int) - ((is - 1)/ 2);
-  float *outFPixel = nullptr;
-  float *tempFPixel = nullptr;
-  double *outDPixel = nullptr;
-  double *tempDPixel = nullptr;
-  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  switch (DataType)
-    {
-    case VTK_FLOAT:
-      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-      return 0;
-    }
-
-  double *GaussKernel1D = static_cast<double*> (pnode->GetGaussianKernel1D()->GetVoidPointer(0));
-  bool cancel = false;
-
-
-  std::chrono::steady_clock::time_point start, end;
-
-  long mtime = 0;
-
-  start = std::chrono::steady_clock::now();
-
-  pnode->SetStatus(1);
-
-  if (pnode->GetParameterX() > 0.001)
-    {
-    pnode->SetStatus(10);
-
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-
-      if (!cancel)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int i = 0; i <= is; i++)
-          {
-          int posData = elemCnt + i + is2;
-          int ref = (int) floor(elemCnt / dims[0]);
-          ref *= dims[0];
-          if(posData < ref)
-            {
-            continue;
-            }
-          if(posData >= ref + dims[0])
-            {
-            break;
-            }
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (FloatIsNaN(*(tempFPixel + posData)))
-                {
-                continue;
-                }
-              *(outFPixel + elemCnt) += *(tempFPixel + posData) * *(GaussKernel1D + i);
-              break;
-            case VTK_DOUBLE:
-              if (DoubleIsNaN(*(tempDPixel + posData)))
-                {
-                continue;
-                }
-              *(outDPixel + elemCnt) += *(tempDPixel + posData) * *(GaussKernel1D + i);
-              break;
-            }
-          }
-
-        if(elemCnt / (numElements / 33.) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      }
-    }
-
-  if (cancel)
-    {  
-    outFPixel = nullptr;
-    tempFPixel = nullptr;
-    outDPixel = nullptr;
-    tempDPixel = nullptr;
-
-    delete outFPixel;
-    delete tempFPixel;
-    delete outDPixel;
-    delete tempDPixel;
-
-    this->Internal->tempVolumeData->Initialize();
-
-    pnode->SetStatus(100);
-
-    return 0;
-    }
-
-  if (pnode->GetParameterY() > 0.001)
-    {
-    pnode->SetStatus(40);
-
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-
-      if (!cancel)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(tempFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-            *(tempDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int i = 0; i <= is; i++)
-          {
-          int posData = elemCnt + ((i + is2) * dims[0]);
-          int ref = (int) floor(elemCnt / numSlice);
-          ref *= numSlice;
-          if(posData < ref)
-            {
-            continue;
-            }
-          if(posData >= ref + numSlice)
-            {
-            break;
-            }
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (FloatIsNaN(*(outFPixel + posData)))
-                {
-                continue;
-                }
-              *(tempFPixel + elemCnt) += *(outFPixel + posData) * *(GaussKernel1D + i);
-              break;
-            case VTK_DOUBLE:
-              if (DoubleIsNaN(*(outDPixel + posData)))
-                {
-                continue;
-                }
-              *(tempDPixel + elemCnt) += *(outDPixel + posData) * *(GaussKernel1D + i);
-              break;
-            }
-          }
-
-        if(33. + (elemCnt / (numElements / 33.)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      }
-    }
-  else
-    {
-    this->Internal->tempVolumeData->DeepCopy(outputVolume->GetImageData());
-    this->Internal->tempVolumeData->Modified();
-    this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
-
-    switch (DataType)
-      {
-      case VTK_FLOAT:
-        tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-        break;
-      case VTK_DOUBLE:
-        tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-        break;
-      default:
-        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-        return 0;
-      }
-    }
-
-  if (cancel)
-    {  
-    outFPixel = nullptr;
-    tempFPixel = nullptr;
-    outDPixel = nullptr;
-    tempDPixel = nullptr;
-
-    delete outFPixel;
-    delete tempFPixel;
-    delete outDPixel;
-    delete tempDPixel;
-
-    this->Internal->tempVolumeData->Initialize();
-
-    pnode->SetStatus(100);
-
-    return 0;
-    }
-
-  if (pnode->GetParameterZ() > 0.001)
-    {
-    pnode->SetStatus(70);
-
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-      if (!cancel)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int i = 0; i <= is; i++)
-          {
-          int posData = elemCnt + ((i + is2) * numSlice);
-          if(posData < 0)
-            {
-            continue;
-            }
-          if(posData >= numElements)
-            {
-            break;
-            }
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (FloatIsNaN(*(tempFPixel + posData)))
-                {
-                continue;
-                }
-              *(outFPixel + elemCnt) += *(tempFPixel + posData) * *(GaussKernel1D + i);
-              break;
-            case VTK_DOUBLE:
-              if (DoubleIsNaN(*(tempDPixel + posData)))
-                {
-                continue;
-                }
-              *(outDPixel + elemCnt) += *(tempDPixel + posData) * *(GaussKernel1D + i);
-              break;
-            }
-          }
-
-        if(66. + (elemCnt / (numElements / 33.)) > status)
-          {
-          status += 10;
-          pnode->SetStatus(status);
-          }
-        }
-      }
-    }
-  else
-    {
-    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
-    }
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro("Gaussian Filter (CPU) Time : "<<mtime<<" ms.");
-
-  outFPixel = nullptr;
-  tempFPixel = nullptr;
-  outDPixel = nullptr;
-  tempDPixel = nullptr;
-
-  delete outFPixel;
-  delete tempFPixel;
-  delete outDPixel;
-  delete tempDPixel;
-
-  this->Internal->tempVolumeData->Initialize();
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
-  return 1;
+  // Separable Gaussian: 1D kernel computed by the parameters node, applied
+  // along the axes with a non-zero parameter.
+  vtkDoubleArray* kernel1D = pnode->GetGaussianKernel1D();
+  vtkNew<vtkAstroImageSeparableSmooth> filter;
+  filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
+  filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);
+  filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D : nullptr);
+  return this->RunCPUSmoothing(pnode, filter, "Isotropic Gaussian Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
@@ -1743,269 +640,23 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-
-   if (!pnode)
-     {
-     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
-                   "parameterNode not found.");
-     return 0;
-     }
-
-  if (!this->GetMRMLScene())
+  if (!pnode || !this->GetMRMLScene())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter :"
-                  " scene not found.");
     return 0;
     }
-
-   vtkMRMLAstroVolumeNode *inputVolume =
-     vtkMRMLAstroVolumeNode::SafeDownCast
-       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-   if (!inputVolume || !inputVolume->GetImageData())
-     {
-     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
-                   "inputVolume not found.");
-     return 0;
-     }
-
-   vtkMRMLAstroVolumeNode *outputVolume =
-     vtkMRMLAstroVolumeNode::SafeDownCast
-       (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-   if (!outputVolume || !outputVolume->GetImageData())
-     {
-     vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
-                   "outputVolume not found.");
-     return 0;
-     }
-
-  this->Internal->tempVolumeData->Initialize();
-  this->Internal->tempVolumeData->DeepCopy(inputVolume->GetImageData());
-  this->Internal->tempVolumeData->Modified();
-  this->Internal->tempVolumeData->GetPointData()->GetScalars()->Modified();
-  outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
-
-  int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
+  vtkMRMLAstroVolumeNode *inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if (!inputVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientCPUFilter : "
-                  "imageData with more than one components.");
-    return 0.;
+    return 0;
     }
-  const int numElements = dims[0] * dims[1] * dims[2];
-  const int numSlice = dims[0] * dims[1];
-  const double noise = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
-  const double noise2 = noise * noise * pnode->GetK() * pnode->GetK();
-  float *outFPixel = nullptr;
-  float *tempFPixel = nullptr;
-  double *outDPixel = nullptr;
-  double *tempDPixel = nullptr;
-  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
-  switch (DataType)
-    {
-    case VTK_FLOAT:
-      outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempFPixel = static_cast<float*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-      break;
-    case VTK_DOUBLE:
-      outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-      tempDPixel = static_cast<double*> (this->Internal->tempVolumeData->GetScalarPointer(0,0,0));
-      break;
-    default:
-      vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-      return 0;
-    }
-  bool cancel = false;
-
-
-  std::chrono::steady_clock::time_point start, end;
-
-  long mtime = 0;
-
-  start = std::chrono::steady_clock::now();
-
-  pnode->SetStatus(1);
-
-  for (int i = 1; i <= pnode->GetAccuracy(); i++)
-    {
-
-    for (int elemCnt = 0; elemCnt < numElements; elemCnt++)
-      {
-      int status = pnode->GetStatus();
-
-      if (status == -1)
-        {
-        cancel = true;
-        }
-
-      if (!cancel)
-        {
-        int x1 = elemCnt - 1;
-        int ref = (int) floor(elemCnt / dims[0]);
-        ref *= dims[0];
-        if(x1 < ref)
-          {
-          x1++;
-          }
-        int x2 = elemCnt + 1;
-        if(x2 >= ref + dims[0])
-          {
-          x2--;
-          }
-
-        int y1 = elemCnt - dims[0];
-        ref = (int) floor(elemCnt / numSlice);
-        ref *= numSlice;
-        if(y1 < ref)
-          {
-          y1 += dims[0];
-          }
-        int y2 = elemCnt + dims[0];
-        if(y2 >= ref + numSlice)
-          {
-          y2 -= dims[0];
-          }
-
-        int z1 = elemCnt - numSlice;
-        if(z1 < 0)
-          {
-          z1 += numSlice;
-          }
-        int z2 = elemCnt + numSlice;
-        if(z2 >= numElements)
-          {
-          z2 -= numSlice;
-          }
-
-        double Pixel2, norm;
-        double cX, cY, cZ;
-
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            if (FloatIsNaN(*(outFPixel + elemCnt)) ||
-                FloatIsNaN(*(outFPixel + x1)) ||
-                FloatIsNaN(*(outFPixel + x2)) ||
-                FloatIsNaN(*(outFPixel + y1)) ||
-                FloatIsNaN(*(outFPixel + y2)) ||
-                FloatIsNaN(*(outFPixel + z1)) ||
-                FloatIsNaN(*(outFPixel + z2)))
-              {
-              continue;
-              }
-
-            Pixel2 = *(outFPixel + elemCnt) * *(outFPixel + elemCnt);
-            norm = 1. + (Pixel2 / noise2);
-            cX = ((*(outFPixel + x1) - *(outFPixel + elemCnt)) +
-                  (*(outFPixel + x2) - *(outFPixel + elemCnt))) * pnode->GetParameterX();
-            cY = ((*(outFPixel + y1) - *(outFPixel + elemCnt)) +
-                  (*(outFPixel + y2) - *(outFPixel + elemCnt))) * pnode->GetParameterY();
-            cZ = ((*(outFPixel + z1) - *(outFPixel + elemCnt)) +
-                  (*(outFPixel + z2) - *(outFPixel + elemCnt))) * pnode->GetParameterZ();
-
-            *(tempFPixel + elemCnt) = *(outFPixel + elemCnt) +
-                                      pnode->GetTimeStep() * (cX + cY + cZ) / norm;
-            break;
-          case VTK_DOUBLE:
-            if (DoubleIsNaN(*(outDPixel + elemCnt)) ||
-                DoubleIsNaN(*(outDPixel + x1)) ||
-                DoubleIsNaN(*(outDPixel + x2)) ||
-                DoubleIsNaN(*(outDPixel + y1)) ||
-                DoubleIsNaN(*(outDPixel + y2)) ||
-                DoubleIsNaN(*(outDPixel + z1)) ||
-                DoubleIsNaN(*(outDPixel + z2)))
-              {
-              continue;
-              }
-
-            Pixel2 = *(outDPixel + elemCnt) * *(outDPixel + elemCnt);
-            norm = 1. + (Pixel2 / noise2);
-            cX = ((*(outDPixel + x1) - *(outDPixel + elemCnt)) +
-                  (*(outDPixel + x2) - *(outDPixel + elemCnt))) * pnode->GetParameterX();
-            cY = ((*(outDPixel + y1) - *(outDPixel + elemCnt)) +
-                  (*(outDPixel + y2) - *(outDPixel + elemCnt))) * pnode->GetParameterY();
-            cZ = ((*(outDPixel + z1) - *(outDPixel + elemCnt)) +
-                  (*(outDPixel + z2) - *(outDPixel + elemCnt))) * pnode->GetParameterZ();
-
-            *(tempDPixel + elemCnt) = *(outDPixel + elemCnt) +
-                                      pnode->GetTimeStep() * (cX + cY + cZ) / norm;
-            break;
-          }
-        }
-      }
-
-    if (cancel)
-      {  
-      outFPixel = nullptr;
-      tempFPixel = nullptr;
-      outDPixel = nullptr;
-      tempDPixel = nullptr;
-
-      delete outFPixel;
-      delete tempFPixel;
-      delete outDPixel;
-      delete tempDPixel;
-
-      this->Internal->tempVolumeData->Initialize();
-
-      pnode->SetStatus(100);
-
-      return 0;
-      }
-
-    outputVolume->GetImageData()->DeepCopy(this->Internal->tempVolumeData);
-
-    switch (DataType)
-      {
-      case VTK_FLOAT:
-        outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        break;
-      case VTK_DOUBLE:
-        outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        break;
-      default:
-        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-        return 0;
-      }
-
-    pnode->SetStatus((int) i * 100 / pnode->GetAccuracy());
-    }
-
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Intensity driven Gradient Filter (CPU) Time : "<<mtime<<" ms.");
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
-  outFPixel = nullptr;
-  tempFPixel = nullptr;
-  outDPixel = nullptr;
-  tempDPixel = nullptr;
-
-  delete outFPixel;
-  delete tempFPixel;
-  delete outDPixel;
-  delete tempDPixel;
-
-  this->Internal->tempVolumeData->Initialize();
-
-  return 1;
+  vtkNew<vtkAstroImageGradientSmooth> filter;
+  filter->SetConductance(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
+  filter->SetTimeStep(pnode->GetTimeStep());
+  filter->SetK(pnode->GetK());
+  filter->SetNoise(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")));
+  filter->SetNumberOfIterations(pnode->GetAccuracy());
+  return this->RunCPUSmoothing(pnode, filter, "Intensity driven Gradient Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------

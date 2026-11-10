@@ -1,191 +1,201 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import math
-import sys
+import numpy as np
 
-#
-# AstroSmoothingSelfTest
-#
+import slicer
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
 
-class AstroSmoothingSelfTest:
-  def __init__(self, parent):
-    parent.title = "Astro Smoothing SelfTest"
-    parent.categories = ["Testing.TestCases"]
-    parent.dependencies = ["AstroVolume"]
-    parent.contributors = ["""
-    Davide Punzo (Kapteyn Astronomical Institute) and
-    Thijs van der Hulst (Kapteyn Astronomical Institute)."""]
-    parent.helpText = """
-    This module was developed as a self test to perform the operations needed for smoothing astroVolumes.
-    """
-    parent.acknowledgementText = """
-""" # replace with organization, grant and thanks.
-    self.parent = parent
+BOX, GAUSSIAN, GRADIENT = 0, 1, 2
 
-    # Add this test to the SelfTest module's list for discovery when the module
-    # is created.  Since this module may be discovered before SelfTests itself,
-    # create the list if it doesn't already exist.
-    try:
-      slicer.selfTests
-    except AttributeError:
-      slicer.selfTests = {}
-    slicer.selfTests['Astro Smoothing SelfTest'] = self.runTest
 
-  def runTest(self):
-    tester = AstroSmoothingSelfTestTest()
-    tester.runTest()
+class AstroSmoothingSelfTest(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        self.parent.title = "Astro Smoothing SelfTest"
+        self.parent.categories = ["Testing.TestCases"]
+        self.parent.dependencies = ["AstroVolume", "AstroSmoothing"]
+        self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
+        self.parent.helpText = """
+Self test of the AstroSmoothing module (CPU): box, Gaussian and gradient
+smoothing of a data cube are compared with independent numpy/scipy
+computations.
+"""
+        self.parent.hidden = True
 
-#
-# qAstroSmoothingSelfTestWidget
-#
 
-class AstroSmoothingSelfTestWidget:
-  def __init__(self, parent = None):
-    if not parent:
-      self.parent = slicer.qMRMLWidget()
-      self.parent.setLayout(qt.QVBoxLayout())
-      self.parent.setMRMLScene(slicer.mrmlScene)
-    else:
-      self.parent = parent
-    self.layout = self.parent.layout()
-    if not parent:
-      self.setup()
-      self.parent.show()
-
-  def setup(self):
-    # Instantiate and connect widgets ...
-
-    # reload button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadButton = qt.QPushButton("Reload")
-    self.reloadButton.toolTip = "Reload this module."
-    self.reloadButton.name = "AstroSmoothingSelfTest Reload"
-    self.layout.addWidget(self.reloadButton)
-    self.reloadButton.connect('clicked()', self.onReload)
-
-    # reload and test button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadAndTestButton = qt.QPushButton("Reload and Test")
-    self.reloadAndTestButton.toolTip = "Reload this module and then run the self tests."
-    self.layout.addWidget(self.reloadAndTestButton)
-    self.reloadAndTestButton.connect('clicked()', self.onReloadAndTest)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-  def cleanup(self):
+class AstroSmoothingSelfTestWidget(ScriptedLoadableModuleWidget):
     pass
 
-  def onReload(self,moduleName="AstroSmoothingSelfTest"):
-    """Generic reload method for any scripted module.
-    ModuleWizard will subsitute correct default moduleName.
-    """
-    globals()[moduleName] = slicer.util.reloadScriptedModule(moduleName)
 
-  def onReloadAndTest(self,moduleName="AstroSmoothingSelfTest"):
-    self.onReload()
-    evalString = 'globals()["%s"].%sTest()' % (moduleName, moduleName)
-    tester = eval(evalString)
-    tester.runTest()
-
-#
-# AstroSmoothingSelfTestLogic
-#
-
-class AstroSmoothingSelfTestLogic:
-  """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget
-  """
-  def __init__(self):
+class AstroSmoothingSelfTestLogic(ScriptedLoadableModuleLogic):
     pass
 
-  def hasImageData(self,volumeNode):
-    """This is a dummy logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      print('no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      print('no image data')
-      return False
-    return True
+
+def voxelArray(volumeNode):
+    """Zero-copy (z, y, x) view on the voxels of an (astro) volume node."""
+    from vtk.util.numpy_support import vtk_to_numpy
+    imageData = volumeNode.GetImageData()
+    dims = imageData.GetDimensions()
+    return vtk_to_numpy(imageData.GetPointData().GetScalars()).reshape(dims[2], dims[1], dims[0])
 
 
-class AstroSmoothingSelfTestTest(unittest.TestCase):
-  """
-  This is the test case for your scripted module.
-  """
-
-  def delayDisplay(self,message,msec=100):
-    """This utility method displays a small dialog and waits.
-    This does two things: 1) it lets the event loop catch up
-    to the state of the test so that rendering and widget updates
-    have all taken place before the test continues and 2) it
-    shows the user/developer/tester the state of the test
-    so that we'll know when it breaks.
-    """
-    print(message)
-    self.info = qt.QDialog()
-    self.infoLayout = qt.QVBoxLayout()
-    self.info.setLayout(self.infoLayout)
-    self.label = qt.QLabel(message,self.info)
-    self.infoLayout.addWidget(self.label)
-    qt.QTimer.singleShot(msec, self.info.close)
-    self.info.exec_()
-
-  def setUp(self):
-    slicer.mrmlScene.Clear(0)
-
-  def runTest(self):
-    self.setUp()
-    self.test_AstroSmoothingSelfTest()
-
-  def test_AstroSmoothingSelfTest(self):
-    print("Running AstroSmoothingSelfTest Test case:")
-
-    astroVolume = self.downloadWEIN069()
-
-    mainWindow = slicer.util.mainWindow()
-    mainWindow.moduleSelector().selectModule('AstroVolume')
-    mainWindow.moduleSelector().selectModule('AstroSmoothing')
-
-    astroSmoothingModule = module = slicer.modules.astrosmoothing
-    astroSmoothingModuleWidget = astroSmoothingModule.widgetRepresentation()
-
-    AstroSmoothingParameterNode = slicer.util.getNode("AstroSmoothingParameters")
-
-    QPushButtonList = astroSmoothingModuleWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "ApplyButton":
-            ApplyPushButton = QPushButton
-
-    self.delayDisplay('Generating smoothed datacube', 700)
-    ApplyPushButton.click()
-
-    outputVolume = slicer.mrmlScene.GetNodeByID(AstroSmoothingParameterNode.GetOutputVolumeNodeID())
-    pixelValue = outputVolume.GetImageData().GetScalarComponentAsFloat(83, 53, 24, 0)
-
-    if (math.fabs(pixelValue - 0.000662423) < 1.e-9):
-       self.delayDisplay('Test passed', 700)
-    else:
-       self.delayDisplay('Test failed', 700)
-       # if run from Slicer interface remove the followinf exit
-       sys.exit()
+def oddSize(size):
+    size = max(int(size), 1)
+    return size + 1 if size % 2 == 0 else size
 
 
-  def downloadWEIN069(self):
-    import AstroSampleData
-    astroSampleDataLogic = AstroSampleData.AstroSampleDataLogic()
-    self.delayDisplay('Getting WEIN069 Astro Volume')
-    WEIN069Volume = astroSampleDataLogic.downloadSample("WEIN069")
-    return WEIN069Volume
+def referenceKernel(cube, kernelZYX):
+    """Correlation with zero padding; blank voxels contribute zero."""
+    from scipy import ndimage
+    return ndimage.correlate(np.nan_to_num(cube.astype(np.float64)), kernelZYX, mode="constant", cval=0.0)
 
 
+def referenceSeparable(cube, kernel1D, axesXYZ):
+    """1D correlations along x, y, z (only the enabled axes)."""
+    from scipy import ndimage
+    result = np.nan_to_num(cube.astype(np.float64))
+    for axisXYZ in (0, 1, 2):
+        if axesXYZ[axisXYZ]:
+            result = ndimage.correlate1d(result, kernel1D, axis=2 - axisXYZ, mode="constant", cval=0.0)
+    return result
+
+
+def referenceGradient(cube, conductance, timeStep, k, noise, iterations):
+    """Intensity driven diffusion with reflecting borders; voxels with a blank
+    neighbour are left unchanged."""
+    current = cube.astype(np.float64)
+    noise2 = (noise * k) ** 2
+    for _ in range(iterations):
+        padded = np.pad(current, 1, mode="edge")
+        center = padded[1:-1, 1:-1, 1:-1]
+        neighbours = [
+            (padded[1:-1, 1:-1, :-2], padded[1:-1, 1:-1, 2:], conductance[0]),  # x
+            (padded[1:-1, :-2, 1:-1], padded[1:-1, 2:, 1:-1], conductance[1]),  # y
+            (padded[:-2, 1:-1, 1:-1], padded[2:, 1:-1, 1:-1], conductance[2]),  # z
+        ]
+        flux = np.zeros_like(center)
+        blank = np.isnan(center)
+        for minus, plus, c in neighbours:
+            flux += c * ((minus - center) + (plus - center))
+            blank |= np.isnan(minus) | np.isnan(plus)
+        updated = center + timeStep * flux / (1.0 + center * center / noise2)
+        current = np.where(blank, center, updated)
+    return current
+
+
+class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        slicer.mrmlScene.Clear(0)
+
+    def runTest(self):
+        self.setUp()
+        self.test_AstroSmoothingSelfTest()
+
+    def smooth(self, parametersNode, configure):
+        """Configure the parameters node, run the module (CPU) and return the output voxels."""
+        parametersNode.SetHardware(0)
+        configure(parametersNode)
+        parametersNode.SetGaussianKernels()
+        widget = slicer.modules.astrosmoothing.widgetRepresentation()
+        slicer.util.findChild(widget, "ApplyButton").click()
+        outputVolume = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertIsNotNone(outputVolume)
+        return voxelArray(outputVolume).astype(np.float64)
+
+    def assertClose(self, computed, expected, scale, name, relativeTolerance=1e-5):
+        self.assertEqual(computed.shape, expected.shape, name)
+        self.assertFalse(np.any(np.isnan(computed) != np.isnan(expected)), name + ": blank voxels differ")
+        maxDiff = np.nanmax(np.abs(computed - expected))
+        print(f"{name}: max difference {maxDiff:.3g} (scale {scale:.3g})")
+        self.assertLess(maxDiff, relativeTolerance * scale, name)
+
+    def test_AstroSmoothingSelfTest(self):
+        import AstroSampleData
+        from vtk.util.numpy_support import vtk_to_numpy
+
+        self.delayDisplay("Loading WEIN069")
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(volumeNode)
+
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroSmoothing")
+        parametersNode = slicer.util.getNode("AstroSmoothingParameters")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+
+        cube = voxelArray(volumeNode).astype(np.float64)
+        scale = np.nanmax(np.abs(cube))
+
+        # Anisotropic box (3D kernel)
+        self.delayDisplay("Anisotropic box")
+        def anisotropicBox(p):
+            p.SetFilter(BOX)
+            p.SetParameterX(3)
+            p.SetParameterY(5)
+            p.SetParameterZ(7)
+        computed = self.smooth(parametersNode, anisotropicBox)
+        sizes = (oddSize(7), oddSize(5), oddSize(3))  # z, y, x
+        expected = referenceKernel(cube, np.full(sizes, 1.0 / np.prod(sizes)))
+        self.assertClose(computed, expected, scale, "anisotropic box")
+
+        # Isotropic box (separable)
+        self.delayDisplay("Isotropic box")
+        def isotropicBox(p):
+            p.SetFilter(BOX)
+            p.SetParameterX(5)
+            p.SetParameterY(5)
+            p.SetParameterZ(5)
+        computed = self.smooth(parametersNode, isotropicBox)
+        expected = referenceSeparable(cube, np.full(5, 1.0 / 5), (True, True, True))
+        self.assertClose(computed, expected, scale, "isotropic box")
+
+        # Isotropic Gaussian (separable, kernel from the parameters node)
+        self.delayDisplay("Isotropic Gaussian")
+        def isotropicGaussian(p):
+            p.SetFilter(GAUSSIAN)
+            p.SetParameterX(3)
+            p.SetParameterY(3)
+            p.SetParameterZ(3)
+            p.SetRx(0)
+            p.SetRy(0)
+            p.SetRz(0)
+        computed = self.smooth(parametersNode, isotropicGaussian)
+        kernel1D = vtk_to_numpy(parametersNode.GetGaussianKernel1D()).astype(np.float64)
+        expected = referenceSeparable(cube, kernel1D, (True, True, True))
+        self.assertClose(computed, expected, scale, "isotropic Gaussian")
+
+        # Anisotropic rotated Gaussian (3D kernel from the parameters node)
+        self.delayDisplay("Anisotropic Gaussian")
+        def anisotropicGaussian(p):
+            p.SetFilter(GAUSSIAN)
+            p.SetParameterX(3)
+            p.SetParameterY(2)
+            p.SetParameterZ(4)
+            p.SetRx(10)
+            p.SetRy(20)
+            p.SetRz(30)
+        computed = self.smooth(parametersNode, anisotropicGaussian)
+        kernel3D = vtk_to_numpy(parametersNode.GetGaussianKernel3D()).astype(np.float64).reshape(
+            int(parametersNode.GetKernelLengthZ()), int(parametersNode.GetKernelLengthY()),
+            int(parametersNode.GetKernelLengthX()))
+        expected = referenceKernel(cube, kernel3D)
+        self.assertClose(computed, expected, scale, "anisotropic Gaussian")
+
+        # Intensity driven gradient smoothing
+        self.delayDisplay("Gradient")
+        def gradient(p):
+            p.SetFilter(GRADIENT)
+            p.SetParameterX(0.5)
+            p.SetParameterY(0.5)
+            p.SetParameterZ(0.3)
+            p.SetAccuracy(10)
+        computed = self.smooth(parametersNode, gradient)
+        expected = referenceGradient(cube, (0.5, 0.5, 0.3), parametersNode.GetTimeStep(), parametersNode.GetK(),
+                                     float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold")),
+                                     parametersNode.GetAccuracy())
+        self.assertClose(computed, expected, scale, "gradient", relativeTolerance=1e-4)
+
+        self.delayDisplay("Test passed")

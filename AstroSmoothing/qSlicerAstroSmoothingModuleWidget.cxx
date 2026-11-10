@@ -2031,7 +2031,8 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
 
   // Create Astro Volume for the output volume
   outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str()));
+     (logic->GetAstroVolumeLogic()->CloneVolume(scene, inputVolume, outSS.str().c_str(),
+                                                /* cloneImageData = */ false));
 
   d->parametersNode->SetOutputVolumeNodeID(outputVolume->GetID());
 

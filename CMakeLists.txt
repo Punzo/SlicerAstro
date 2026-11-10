@@ -70,6 +70,7 @@ slicerastro_find_thirdparty_library(BBAROLO bbarolo)
 # Extension modules
 add_subdirectory(SlicerAstroWelcome)
 add_subdirectory(vtkFits)
+add_subdirectory(vtkAstroImageFilters)
 add_subdirectory(AstroVolume)
 add_subdirectory(AstroReproject)
 add_subdirectory(AstroStatistics)
