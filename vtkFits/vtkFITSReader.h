@@ -147,6 +147,19 @@ public:
   bool AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
 
   ///
+  /// Scalar type of the voxels of masks (DATAMODEL = MASK): VTK_SHORT
+  /// (default, label map volumes) or VTK_INT (e.g. source IDs of SoFiA
+  /// masks larger than 32767, segmentations).
+  vtkSetMacro(MaskScalarType, int);
+  vtkGetMacro(MaskScalarType, int);
+
+  ///
+  /// Return true if the file is a FITS mask: DATAMODEL = 'MASK', a mask
+  /// created by SoFiA (integer data with SoFiA history) or a file name
+  /// containing mask, seg or label. Only the header is read.
+  static bool IsMaskFile(const char* fileName);
+
+  ///
   /// Messages about the FITS header of the current file: missing keywords,
   /// assumed values and the fixes applied by WCSLIB. They are collected
   /// while the header is parsed and written once to the log (as
@@ -208,6 +221,7 @@ protected:
   void ReportHeaderMessages();
   std::vector<std::pair<int, std::string>> HeaderMessages;
   size_t NumberOfReportedHeaderMessages = 0;
+  int MaskScalarType = VTK_SHORT;
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

@@ -38,6 +38,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkIntArray.h>
 #include <vtkMath.h>
 #include <vtkInformation.h>
 #include <vtkMatrix4x4.h>
@@ -357,8 +358,9 @@ bool vtkFITSReader::AstroExecuteInformation()
 
   if (!dataModel.compare("MASK"))
     {
-    this->SetDataType( VTK_SHORT );
-    this->SetDataScalarType( VTK_SHORT );
+    const int maskType = this->MaskScalarType == VTK_INT ? VTK_INT : VTK_SHORT;
+    this->SetDataType( maskType );
+    this->SetDataScalarType( maskType );
     }
   else if (!dataModel.compare("DATA") ||
            !dataModel.compare("MODEL") ||
@@ -480,8 +482,9 @@ void vtkFITSReader::ExecuteInformation()
 
   if (!dataModel.compare("MASK"))
     {
-    this->SetDataType( VTK_SHORT );
-    this->SetDataScalarType( VTK_SHORT );
+    const int maskType = this->MaskScalarType == VTK_INT ? VTK_INT : VTK_SHORT;
+    this->SetDataType( maskType );
+    this->SetDataScalarType( maskType );
     }
   else if (!dataModel.compare("DATA") ||
            !dataModel.compare("MODEL") ||
@@ -1436,7 +1439,25 @@ bool vtkFITSReader::AllocateHeader()
        return std::regex_search(baseName, pattern);
        };
 
-     if (nameContains("[Ll]abel(s)?") ||
+     // Masks created by SoFiA (https://gitlab.com/SoFiA-Admin/SoFiA-2): integer
+     // source IDs, SoFiA control parameters in the history (the moment maps
+     // of SoFiA have the same history but floating point data)
+     bool sofiaMask = false;
+     if (StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")) > 0)
+       {
+       for (const auto& keyValue : this->HeaderKeyValue)
+         {
+         if (keyValue.first.compare(0, 20, "SlicerAstro._HISTORY") == 0 &&
+             keyValue.second.find("SoFiA") != std::string::npos)
+           {
+           sofiaMask = true;
+           break;
+           }
+         }
+       }
+
+     if (sofiaMask ||
+         nameContains("[Ll]abel(s)?") ||
          nameContains("[Ss]eg") ||
          nameContains("[Mm]ask"))
        {
@@ -2829,6 +2850,9 @@ bool vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
     case VTK_SHORT:
       pd = vtkShortArray::New();
       break;
+    case VTK_INT:
+      pd = vtkIntArray::New();
+      break;
     default:
       vtkErrorMacro("vtkFITSReader::AllocatePointData: Could not allocate data type.");
       return false;
@@ -2897,7 +2921,11 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   data->GetDimensions(dims);
   const LONGLONG numberOfElements =
     static_cast<LONGLONG>(dims[0]) * dims[1] * dims[2] * data->GetNumberOfScalarComponents();
+  // value of the undefined (BLANK) voxels: NaN for floating point data,
+  // 0 (background) for masks
   float nullptrval = NAN;
+  short nullShort = 0;
+  int nullInt = 0;
   int anynullptr = 0;
   // load the data
   switch (this->DataType)
@@ -2921,11 +2949,19 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
         }
       break;
   case VTK_SHORT:
-    if(fits_read_img(this->fptr, TSHORT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+    if(fits_read_img(this->fptr, TSHORT, 1, numberOfElements, &nullShort, ptr, &anynullptr, &this->ReadStatus))
       {
       vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
                     << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
       vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
+      return;
+      }
+    break;
+  case VTK_INT:
+    if(fits_read_img(this->fptr, TINT, 1, numberOfElements, &nullInt, ptr, &anynullptr, &this->ReadStatus))
+      {
+      vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
+                    << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
       return;
       }
     break;
@@ -3014,4 +3050,70 @@ std::string vtkFITSReader::GetNthHeaderMessage(int n)
     return std::string();
     }
   return this->HeaderMessages[n].second;
+}
+
+//----------------------------------------------------------------------------
+bool vtkFITSReader::IsMaskFile(const char* fileName)
+{
+  if (!fileName || !*fileName)
+    {
+    return false;
+    }
+  fitsfile* file = nullptr;
+  int status = 0;
+  if (fits_open_data(&file, fileName, READONLY, &status))
+    {
+    fits_clear_errmsg();
+    return false;
+    }
+
+  bool isMask = false;
+  bool decided = false;
+  char value[FLEN_VALUE] = {0};
+  int keyStatus = 0;
+  if (!fits_read_keyword(file, "DATAMODEL", value, nullptr, &keyStatus))
+    {
+    std::string dataModel(value);
+    dataModel.erase(std::remove_if(dataModel.begin(), dataModel.end(),
+                                   [](char c) { return c == '\'' || c == ' '; }), dataModel.end());
+    isMask = dataModel == "MASK";
+    decided = true;
+    }
+
+  int bitpix = 0;
+  keyStatus = 0;
+  fits_get_img_type(file, &bitpix, &keyStatus);
+  if (!decided && bitpix > 0)
+    {
+    // SoFiA masks: integer data with the SoFiA control parameters in the history
+    int numberOfKeys = 0;
+    keyStatus = 0;
+    fits_get_hdrspace(file, &numberOfKeys, nullptr, &keyStatus);
+    char card[FLEN_CARD] = {0};
+    for (int key = 1; key <= numberOfKeys && !isMask; ++key)
+      {
+      keyStatus = 0;
+      if (fits_read_record(file, key, card, &keyStatus))
+        {
+        break;
+        }
+      if (!strncmp(card, "HISTORY", 7) && strstr(card, "SoFiA"))
+        {
+        isMask = true;
+        }
+      }
+    }
+  status = 0;
+  fits_close_file(file, &status);
+  fits_clear_errmsg();
+  if (decided || isMask)
+    {
+    return isMask;
+    }
+
+  // Name of the file (up to the first '.')
+  const std::string name = std::filesystem::path(fileName).filename().string();
+  const std::string baseName = name.substr(0, name.find('.'));
+  const std::regex pattern("(\\b|_)([Ll]abel(s)?|[Ss]eg|[Mm]ask)(\\b|_)");
+  return bitpix > 0 && std::regex_search(baseName, pattern);
 }

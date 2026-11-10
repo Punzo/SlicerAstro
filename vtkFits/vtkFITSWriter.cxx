@@ -211,8 +211,13 @@ void vtkFITSWriter::WriteData()
     case  VTK_SHORT:
       fits_create_imgll(fptr, SHORT_IMG, naxes, naxe.data(), &WriteStatus);
       break;
+    case  VTK_INT:
+      fits_create_imgll(fptr, LONG_IMG, naxes, naxe.data(), &WriteStatus);
+      break;
     default:
-      vtkErrorMacro("Could not write data type");
+      vtkErrorMacro("Write: data type " << vtkImageScalarTypeNameMacro(vtkType) << " is not supported.");
+      fits_close_file(fptr, &WriteStatus);
+      this->WriteErrorOn();
       return;
   }
 
@@ -229,12 +234,28 @@ void vtkFITSWriter::WriteData()
       continue;
       }
     std::string tmp = ait->first.substr(pos+12);
+    // BITPIX, BSCALE, BZERO and BLANK describe the stored values of the
+    // original file: the data are written as they are in memory (physical
+    // values; NaN blanks for floating point data, 0 for the background of
+    // masks), so these keywords must not be copied.
     if ((!tmp.compare(0,6,"SIMPLE")) ||
         (!tmp.compare(0,18,"DisplayThreshold")) ||
         (!tmp.compare(0,11,"HistoMinSel")) ||
         (!tmp.compare(0,11,"HistoMaxSel")) ||
-        (!tmp.compare(0,9,"DATAMODEL")))
+        (!tmp.compare("BITPIX")) ||
+        (!tmp.compare("BSCALE")) ||
+        (!tmp.compare("BZERO")) ||
+        (!tmp.compare("BLANK")))
       {
+      continue;
+      }
+    if (!tmp.compare(0,9,"DATAMODEL"))
+      {
+      // SlicerAstro keyword: kept for masks, so that they are read back as masks
+      if (!ait->second.compare("MASK"))
+        {
+        fits_update_key(fptr, TSTRING, "DATAMODEL", (char*) "MASK", "SlicerAstro data model", &WriteStatus);
+        }
       continue;
       }
 
@@ -254,8 +275,7 @@ void vtkFITSWriter::WriteData()
       }
 
     std::string ts = ((ait->second).substr(0,1));
-    if ((!tmp.compare(0,6,"BITPIX")) || (!tmp.compare(0,5,"NAXIS"))
-        || (!tmp.compare(0,5,"BLANK")))
+    if (!tmp.compare(0,5,"NAXIS"))
       {
       int ti = StringToInt((ait->second).c_str());;
       fits_update_key(fptr, TINT, tmp.c_str(), &ti, "", &WriteStatus);
@@ -342,6 +362,13 @@ void vtkFITSWriter::WriteData()
             {
             vtkErrorMacro(<< vtkAstroFITSErrorMessage(WriteStatus));
             vtkErrorMacro("Write: Error writing "<< this->GetFileName());
+            this->WriteErrorOn();
+            }
+          break;
+        case VTK_INT:
+          if(fits_write_img(fptr, TINT, 1, dim, buffer, &WriteStatus))
+            {
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << ": " << vtkAstroFITSErrorMessage(WriteStatus));
             this->WriteErrorOn();
             }
           break;
