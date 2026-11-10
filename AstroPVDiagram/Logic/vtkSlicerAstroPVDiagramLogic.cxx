@@ -24,6 +24,9 @@
 #include "vtkSlicerAstroConfigure.h"
 #include <vtkSMPTools.h>
 
+// STD includes
+#include <algorithm>
+
 // MRML includes
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
@@ -867,15 +870,18 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     double posIJK[3];
     points->GetPoint(PointIndex, posIJK);
 
-    int iiLeft = floor(posIJK[0]);
-    int iiRight = ceil(posIJK[0]);
-    double iiInterpolatedRight = iiRight - posIJK[0];
-    double iiInterpolatedLeft = posIJK[0] - iiLeft;
+    // Bilinear interpolation weights. Neighbours are left/left+1 and
+    // bottom/bottom+1 (clamped to the image), so that positions on integer
+    // coordinates get weight 1 (floor/ceil gave zero weights there).
+    const int iiLeft = std::clamp(static_cast<int>(floor(posIJK[0])), 0, dims[0] - 1);
+    const int iiRight = std::min(iiLeft + 1, dims[0] - 1);
+    const double iiInterpolatedLeft = (iiRight == iiLeft) ? 0. : posIJK[0] - iiLeft; // weight of the right pixels
+    const double iiInterpolatedRight = 1. - iiInterpolatedLeft;                        // weight of the left pixels
 
-    int jjBottom = floor(posIJK[1]);
-    int jjTop = ceil(posIJK[1]);
-    double jjInterpolatedTop = jjTop - posIJK[1];
-    double jjInterpolatedBottom = posIJK[1] - jjBottom;
+    const int jjBottom = std::clamp(static_cast<int>(floor(posIJK[1])), 0, dims[1] - 1);
+    const int jjTop = std::min(jjBottom + 1, dims[1] - 1);
+    const double jjInterpolatedBottom = (jjTop == jjBottom) ? 0. : posIJK[1] - jjBottom; // weight of the top pixels
+    const double jjInterpolatedTop = 1. - jjInterpolatedBottom;                            // weight of the bottom pixels
 
     int IndexLB = iiLeft + jjBottom * dims[0];
     int IndexLT = iiLeft + jjTop * dims[0];
