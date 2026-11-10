@@ -1836,7 +1836,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
   else
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " galfit not found! \n");
+                  " galfit not found!");
     return 0;
     }
 

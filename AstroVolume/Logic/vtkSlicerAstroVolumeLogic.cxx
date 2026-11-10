@@ -77,6 +77,7 @@
 
 // WCS includes
 #include "wcslib.h"
+#include <vtkAstroWCSErrors.h>
 
 // OpenMP includes
 
@@ -791,10 +792,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
   if (labelDisplayNode->GetWCSStatus())
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
-                  "wcscopy ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
-                  "Message from "<<labelWCS->err->function<<
-                  "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
-                  ": \n"<<labelWCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcscopy", labelDisplayNode->GetWCSStatus(), labelWCS));
     return nullptr;
     }
 
@@ -802,10 +800,7 @@ vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolu
   if (labelDisplayNode->GetWCSStatus())
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume :"
-                  "wcsset ERROR "<<labelDisplayNode->GetWCSStatus()<<":\n"<<
-                  "Message from "<<labelWCS->err->function<<
-                  "at line "<<labelWCS->err->line_no<<" of file "<<labelWCS->err->file<<
-                  ": \n"<<labelWCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcsset", labelDisplayNode->GetWCSStatus(), labelWCS));
     return nullptr;
     }
 
@@ -1479,8 +1474,8 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
       !strcmp(inputVolume->GetAttribute("SlicerAstro.NAXIS2"), referenceVolume->GetAttribute("SlicerAstro.NAXIS2")))
   {
   vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "the input and reference volume keywords relative to the WCS coordinates match. \n"
-                  "No reprojection is needed. ");
+                  "the input and reference volume keywords relative to the WCS coordinates match. "
+                  "No reprojection is needed.");
   return false;
   }
 
@@ -1489,8 +1484,8 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
       StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")) < 1.E-6)
   {
   vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "the input volume is already aligned to the north pole. \n"
-                  "No reprojection is needed. ");
+                  "the input volume is already aligned to the north pole. "
+                  "No reprojection is needed.");
   return false;
   }
 
@@ -1535,8 +1530,8 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     if (needToPreReprojectCelestialSystem)
       {
       vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                    "the two datasets have different equinox/radesys. \n"
-                    "Please check that they are consistent (e.g., both B1950 or J2000). \n"
+                    "the two datasets have different equinox/radesys. "
+                    "Please check that they are consistent (e.g., both B1950 or J2000). "
                     "SlicerAstro does not provide tools to convert system of reference.");
       }
 

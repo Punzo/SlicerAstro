@@ -18,6 +18,7 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${qSlicerAstroVolumeModuleWidgets_INCLUDE_DIRS}
   ${vtkSlicerAstroVolumeModuleLogic_INCLUDE_DIRS}
   ${WCSLIB_INCLUDE_DIR}
+  ${vtkFits_INCLUDE_DIRS}
   )
 
 set(MODULE_SRCS

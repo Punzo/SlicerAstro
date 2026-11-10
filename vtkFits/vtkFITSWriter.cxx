@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 #include <array>
+#include <vtkAstroFITSErrors.h>
 #include <map>
 #include <cstdlib>
 #include <zlib.h>
@@ -323,24 +324,24 @@ void vtkFITSWriter::WriteData()
         case  VTK_DOUBLE:
           if(fits_write_img(fptr, TDOUBLE, 1, dim, buffer, &WriteStatus))
             {
-            fits_report_error(stderr, WriteStatus);
-            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            vtkErrorMacro(<< vtkAstroFITSErrorMessage(WriteStatus));
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName());
             this->WriteErrorOn();
             }
           break;
         case VTK_FLOAT:
           if(fits_write_img(fptr, TFLOAT, 1, dim, buffer, &WriteStatus))
             {
-            fits_report_error(stderr, WriteStatus);
-            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            vtkErrorMacro(<< vtkAstroFITSErrorMessage(WriteStatus));
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName());
             this->WriteErrorOn();
             }
           break;
         case VTK_SHORT:
           if(fits_write_img(fptr, TSHORT, 1, dim, buffer, &WriteStatus))
             {
-            fits_report_error(stderr, WriteStatus);
-            vtkErrorMacro("Write: Error writing "<< this->GetFileName() << "\n");
+            vtkErrorMacro(<< vtkAstroFITSErrorMessage(WriteStatus));
+            vtkErrorMacro("Write: Error writing "<< this->GetFileName());
             this->WriteErrorOn();
             }
           break;
@@ -352,8 +353,11 @@ void vtkFITSWriter::WriteData()
   }
 
   // Free the FITS struct
-  fits_close_file(fptr, &WriteStatus);
-  fits_report_error(stderr, WriteStatus);
+  if (fits_close_file(fptr, &WriteStatus))
+    {
+    vtkErrorMacro("Write: Error closing " << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(WriteStatus));
+    this->WriteErrorOn();
+    }
 
   if (!this->GetUseCompression())
     {
@@ -371,7 +375,7 @@ void vtkFITSWriter::WriteData()
 
   if (remove(this->GetFileName()) != 0)
     {
-    vtkErrorMacro("vtkFITSWriter::WriteData Error: Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
+    vtkErrorMacro("vtkFITSWriter::WriteData Error: Error deleting the decompressed file: "<< this->GetFileName() << ":");
     }
 
   return;

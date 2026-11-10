@@ -19,6 +19,7 @@
 
 // Qt includes
 #include <QDebug>
+#include <vtkAstroWCSErrors.h>
 #include <QMessageBox>
 
 // CTK includes
@@ -841,11 +842,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     if (outputVolumeDisplay->GetWCSStatus())
       {
       qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply :"
-                    "wcsset ERROR "<<outputVolumeDisplay->GetWCSStatus()<<":\n"<<
-                    "Message from "<<outputVolumeDisplay->GetWCSStruct()->err->function<<
-                    "at line "<<outputVolumeDisplay->GetWCSStruct()->err->line_no<<
-                    " of file "<<outputVolumeDisplay->GetWCSStruct()->err->file<<
-                    ": \n"<<outputVolumeDisplay->GetWCSStruct()->err->msg<<"\n";
+                    << vtkAstroWCSErrorMessage("wcsset", outputVolumeDisplay->GetWCSStatus(), outputVolumeDisplay->GetWCSStruct()).c_str();
       }
 
     d->parametersNode->SetReferenceVolumeNodeID(outputVolume->GetID());

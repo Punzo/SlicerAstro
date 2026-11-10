@@ -27,6 +27,7 @@
 #include <vtkMRMLVolumeNode.h>
 
 //vtkFits includes
+#include <vtkAstroLogMessages.h>
 #include <vtkFITSReader.h>
 #include <vtkFITSWriter.h>
 
@@ -285,8 +286,10 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     if (!strcmp(reader->GetHeaderValue("SlicerAstro.BUNIT"), "W.U."))
       {
       volNode->SetAttribute("SlicerAstro.BUNIT", "JY/BEAM");
-      vtkWarningMacro("vtkMRMLAstroVolumeStorageNode::ReadDataInternal : the flux unit of Volume "<<volNode->GetName()<<
-                      " is in Westerbork Unit. It will be automatically converted in JY/BEAM"<<endl);
+      // Not vtkWarningMacro: Slicer drops the warnings of storage nodes when the reading succeeds
+      vtkAstroLogMessage(this, vtkAstroLogLevel::Warning,
+                         std::string("the flux unit of ") + (volNode->GetName() ? volNode->GetName() : "")
+                         + " is the Westerbork Unit (W.U.): it is converted to JY/BEAM.");
       }
 
     // rescaling flux

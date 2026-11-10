@@ -19,6 +19,7 @@
 
 // Logic includes
 #include "vtkSlicerAstroVolumeLogic.h"
+#include <vtkAstroWCSErrors.h>
 #include "vtkSlicerAstroMaskingLogic.h"
 #include "vtkSlicerAstroConfigure.h"
 
@@ -756,11 +757,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   if ((wcsStatus = wcsset(wcs)))
     {
     vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
-                  "wcsset ERROR "<<wcsStatus<<":\n"<<
-                  "Message from "<<wcs->err->function<<
-                  "at line "<<wcs->err->line_no<<
-                  " of file "<<wcs->err->file<<
-                  ": \n"<<wcs->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcsset", wcsStatus, wcs));
     }
 
   pnode->SetStatus(100);

@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 #include <math.h>
+#include <vtkAstroWCSErrors.h>
 #include <string>
 #include <iostream>
 #include <sstream>
@@ -68,10 +69,7 @@ vtkMRMLAstroVolumeDisplayNode::vtkMRMLAstroVolumeDisplayNode()
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1, 0, this->WCS)))
     {
-    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                    ": \n"<<this->WCS->err->msg<<"\n");
+    vtkErrorMacro(<< vtkAstroWCSErrorMessage("wcsini", this->WCSStatus, this->WCS));
     }
   this->ContoursColor = vtkDoubleArray::New();
   this->ContoursColor->SetNumberOfValues(3);
@@ -108,11 +106,7 @@ vtkMRMLAstroVolumeDisplayNode::~vtkMRMLAstroVolumeDisplayNode()
     {
     if((this->WCSStatus = wcsfree(this->WCS)))
       {
-      vtkErrorMacro("wcsfree ERROR "<<this->WCSStatus<<":\n"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": \n"<<this->WCS->err->msg<<"\n");
+      vtkErrorMacro(<< vtkAstroWCSErrorMessage("wcsfree", this->WCSStatus, this->WCS));
       }
     free(this->WCS);
     this->WCS = nullptr;
@@ -237,21 +231,13 @@ void vtkMRMLAstroVolumeDisplayNode::SetWCSStruct(struct wcsprm* wcstemp)
   if ((this->WCSStatus = wcscopy(1, wcstemp, this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct: "
-                  "wcscopy ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<
-                  " of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcscopy", this->WCSStatus, this->WCS));
     }
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetWCSStruct :"
-                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<
-                  " of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     }
 
   this->Modified();
@@ -287,22 +273,14 @@ bool vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition(bool update /*= t
     if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
       {
       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition :"
-                    " wcssptr ERROR "<<this->WCSStatus<<":"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": "<<this->WCS->err->msg);
+                    << vtkAstroWCSErrorMessage("wcssptr", this->WCSStatus, this->WCS));
       return false;
       }
 
     if ((this->WCSStatus = wcsset(this->WCS)))
       {
       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetRadioVelocityDefinition :"
-                    " wcsset ERROR "<<this->WCSStatus<<":"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": "<<this->WCS->err->msg);
+                    << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
       return false;
       }
     }
@@ -339,22 +317,14 @@ bool vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition(bool update /*=
     if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
       {
       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition"
-                    " : wcssptr ERROR "<<this->WCSStatus<<":"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": "<<this->WCS->err->msg);
+                    " : " << vtkAstroWCSErrorMessage("wcssptr", this->WCSStatus, this->WCS));
       return false;
       }
 
     if ((this->WCSStatus = wcsset(this->WCS)))
       {
       vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::SetOpticalVelocityDefinition"
-                    " : wcsset ERROR "<<this->WCSStatus<<":"<<
-                    "Message from "<<this->WCS->err->function<<
-                    "at line "<<this->WCS->err->line_no<<
-                    " of file "<<this->WCS->err->file<<
-                    ": "<<this->WCS->err->msg);
+                    " : " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
       return false;
       }
     }
@@ -410,11 +380,12 @@ bool vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
 
     if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
       {
-      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace : "
-                    "wcsp2s ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+      // coordinates outside the domain of the projection: not an error
+      if (!vtkAstroWCSIsInvalidCoordinate(this->WCSStatus))
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace : "
+                      << vtkAstroWCSErrorMessage("wcsp2s", WCSStatus, WCS));
+        }
       return false;
       }
 
@@ -453,11 +424,12 @@ bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
 
     if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
       {
-      vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace : "
-                    "wcss2p ERROR "<<WCSStatus<<":\n"<<
-                    "Message from "<<WCS->err->function<<
-                    "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                    ": \n"<<WCS->err->msg<<"\n");
+      // coordinates outside the domain of the projection: not an error
+      if (!vtkAstroWCSIsInvalidCoordinate(this->WCSStatus))
+        {
+        vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::GetIJKSpace : "
+                      << vtkAstroWCSErrorMessage("wcss2p", WCSStatus, WCS));
+        }
       return false;
       }
     std::copy(ijkm, ijkm + 3, ijk);
@@ -497,10 +469,11 @@ bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordin
 
     if ((this->WCSStatus = wcss2p(this->WCS, 1, 4, SpaceCoordinatesM, phi, theta, imgcrd, ijkm, stati)))
       {
-      vtkErrorMacro("wcss2p ERROR "<<WCSStatus<<":\n"<<
-                      "Message from "<<WCS->err->function<<
-                      "at line "<<WCS->err->line_no<<" of file "<<WCS->err->file<<
-                      ": \n"<<WCS->err->msg<<"\n");
+      // coordinates outside the domain of the projection: not an error
+      if (!vtkAstroWCSIsInvalidCoordinate(this->WCSStatus))
+        {
+        vtkErrorMacro(<< vtkAstroWCSErrorMessage("wcss2p", WCSStatus, WCS));
+        }
       return false;
       }
     std::copy(ijkm, ijkm + 3, ijk);
@@ -982,11 +955,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
   if ((this->WCSStatus = wcssub(1, WCSNew, &nsub, axes, this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS: "
-                  "wcssub ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<
-                  " of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcssub", this->WCSStatus, this->WCS));
 
     this->SetSpace("IJK");
     return;
@@ -995,11 +964,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::CopyWCS : "
-                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<
-                  " of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     this->SetSpace("IJK");
     return;
     }
@@ -1100,11 +1065,7 @@ void vtkMRMLAstroVolumeDisplayNode::CopySpatialWCS(vtkMRMLNode *node)
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("vtkMRMLAstroVolumeDisplayNode::WCSCopy : "
-                  "wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<
-                  " of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     this->SetSpace("IJK");
     return;
     }

@@ -146,6 +146,20 @@ public:
 
   bool AllocatePointData(vtkImageData *out, vtkInformation* outInfo);
 
+  ///
+  /// Messages about the FITS header of the current file: missing keywords,
+  /// assumed values and the fixes applied by WCSLIB. They are collected
+  /// while the header is parsed and written once to the log (as
+  /// information or as warnings) when the data is read.
+  enum HeaderMessageLevel
+    {
+    HeaderInformation = 0,
+    HeaderWarning = 1
+    };
+  int GetNumberOfHeaderMessages();
+  int GetNthHeaderMessageLevel(int n);
+  std::string GetNthHeaderMessage(int n);
+
 protected:
   vtkFITSReader();
   ~vtkFITSReader();
@@ -186,6 +200,14 @@ protected:
   bool FixGipsyHeaderOn;
 
   static bool decompress_one_file(const char *infilename, const char *outfilename);
+
+  /// Add a header message (duplicates are ignored: the header can be parsed
+  /// more than once).
+  void AddHeaderMessage(int level, const std::string& message);
+  /// Write the header messages not yet reported to the log.
+  void ReportHeaderMessages();
+  std::vector<std::pair<int, std::string>> HeaderMessages;
+  size_t NumberOfReportedHeaderMessages = 0;
 
 private:
   vtkFITSReader(const vtkFITSReader&);  /// Not implemented.

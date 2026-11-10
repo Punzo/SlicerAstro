@@ -18,6 +18,8 @@
 ==============================================================================*/
 
 #include <algorithm>
+#include <vtkAstroWCSErrors.h>
+#include <vtkAstroFITSErrors.h>
 #include <cstdlib>
 #include <cstring>
 #include <stdio.h>
@@ -51,6 +53,17 @@
 // STD includes
 #include <sstream>
 
+// SlicerAstro includes
+#include <vtkAstroLogMessages.h>
+
+// Collect a message about the FITS header (see vtkFITSReader::AddHeaderMessage)
+#define vtkFITSHeaderMessageMacro(level, x)                  \
+  {                                                          \
+  std::ostringstream vtkFITSHeaderMessageStream;             \
+  vtkFITSHeaderMessageStream << x;                           \
+  this->AddHeaderMessage(level, vtkFITSHeaderMessageStream.str()); \
+  }
+
 vtkStandardNewMacro(vtkFITSReader);
 
 //----------------------------------------------------------------------------
@@ -69,10 +82,7 @@ vtkFITSReader::vtkFITSReader()
   wcserr_enable(1);
   if((this->WCSStatus = wcsini(1, 0, this->WCS)))
     {
-    vtkErrorMacro("wcsini ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+    vtkErrorMacro(<< vtkAstroWCSErrorMessage("wcsini", this->WCSStatus, this->WCS));
     }
   // ReadWCS (array of NWCS structs) is allocated by wcspih in AllocateWCS()
   this->ReadWCS = nullptr;
@@ -115,7 +125,7 @@ vtkFITSReader::~vtkFITSReader()
     {
     if ((this->WCSStatus = wcsvfree(&this->NWCS, &this->ReadWCS)))
       {
-      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: wcsvfree ERROR " << this->WCSStatus);
+      vtkErrorMacro("vtkFITSReader::~vtkFITSReader: WCSLIB wcsvfree() failed (status " << this->WCSStatus << ").");
       }
     this->ReadWCS = nullptr;
     }
@@ -329,9 +339,8 @@ bool vtkFITSReader::AstroExecuteInformation()
 {
   if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &ReadStatus))
     {
-    vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: ERROR IN CFITSIO! Error reading"
-                  " "<< this->GetFileName() << ": \n");
-    fits_report_error(stderr, this->ReadStatus);
+    vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: could not open "
+                  << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     return false;
     }
 
@@ -398,7 +407,7 @@ bool vtkFITSReader::AstroExecuteInformation()
 
   if (fits_close_file(this->fptr, &this->ReadStatus))
     {
-    fits_report_error(stderr, this->ReadStatus);
+    vtkErrorMacro("could not close " << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     }
 
   return true;
@@ -414,6 +423,10 @@ void vtkFITSReader::ExecuteInformation()
     return;
     }
 
+  // New file: new header messages
+  this->HeaderMessages.clear();
+  this->NumberOfReportedHeaderMessages = 0;
+
   if (this->CurrentFileName != nullptr)
     {
     delete [] this->CurrentFileName;
@@ -424,9 +437,8 @@ void vtkFITSReader::ExecuteInformation()
 
   if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &ReadStatus))
     {
-    vtkErrorMacro("vtkFITSReader::ExecuteInformation: ERROR IN CFITSIO! Error reading"
-                  " "<< this->GetFileName() << ": \n");
-    fits_report_error(stderr, this->ReadStatus);
+    vtkErrorMacro("vtkFITSReader::ExecuteInformation: could not open "
+                  << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     return;
     }
 
@@ -600,7 +612,7 @@ void vtkFITSReader::ExecuteInformation()
 
   if (fits_close_file(this->fptr, &this->ReadStatus))
     {
-    fits_report_error(stderr, this->ReadStatus);
+    vtkErrorMacro("could not close " << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     }
 }
 
@@ -818,15 +830,14 @@ bool vtkFITSReader::AllocateHeader()
        {
        this->HeaderKeyValue["SlicerAstro.NAXIS"] = "3";
        this->HeaderKeyValue.erase("SlicerAstro.NAXIS4");
-       vtkWarningMacro("vtkFITSReader::AllocateHeader :"
-                       " the 4th dimension keywords have been removed.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "the 4th dimension keywords have been removed.");
        n = 3;
        }
      else
        {
-       vtkErrorMacro("vtkFITSReader::AllocateHeader : \n"
-                     "Datacube with polarization (NAXIS=4 and NAXIS4>1) are not supported. \n"<<
-                     "If you want to visualize 4 dimensional data, contact: \n"<<
+       vtkErrorMacro("vtkFITSReader::AllocateHeader : "
+                     "Datacube with polarization (NAXIS=4 and NAXIS4>1) are not supported. "<<
+                     "If you want to visualize 4 dimensional data, contact: "<<
                      "Davide Punzo, punzodavide@hotmail.it");
        return false;
        }
@@ -947,7 +958,7 @@ bool vtkFITSReader::AllocateHeader()
 
    if (n < 1 || n > 4)
      {
-       vtkErrorMacro("vtkFITSReader::AllocateHeader : \n"
+       vtkErrorMacro("vtkFITSReader::AllocateHeader : "
                      "the data has wrong dimensionality. Please, check the fits header.");
      return false;
      }
@@ -978,78 +989,67 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.CRPIX1") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CRPIX1 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CRPIX1 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRPIX1"] = "0.0";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CRPIX2") == this->HeaderKeyValue.end() && n > 1)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CRPIX2 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CRPIX2 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRPIX2"] = "0.0";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CRPIX3") == this->HeaderKeyValue.end() && n > 2)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CRPIX3 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CRPIX3 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRPIX3"] = "0.0";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CRVAL1") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CRVAL1 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CRVAL1 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRVAL1"] = "UNDEFINED";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CRVAL2") == this->HeaderKeyValue.end() && n > 1)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CRVAL2 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CRVAL2 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRVAL2"] = "UNDEFINED";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CRVAL3") == this->HeaderKeyValue.end() && n > 2)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CRVAL3 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CRVAL3 keyword.");
      this->HeaderKeyValue["SlicerAstro.CRVAL3"] = "UNDEFINED";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CTYPE1") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CTYPE1 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CTYPE1 keyword.");
      this->HeaderKeyValue["SlicerAstro.CTYPE1"] = "NONE";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CTYPE2") == this->HeaderKeyValue.end() && n > 1)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CTYPE2 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CTYPE2 keyword.");
      this->HeaderKeyValue["SlicerAstro.CTYPE2"] = "NONE";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CTYPE3") == this->HeaderKeyValue.end() && n > 2)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CTYPE3 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the CTYPE3 keyword.");
      this->HeaderKeyValue["SlicerAstro.CTYPE3"] = "NONE";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CUNIT1") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CUNIT1 keyword. Assuming degree.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT1 keyword. Assuming degree.");
      this->HeaderKeyValue["SlicerAstro.CUNIT1"] = "DEGREE";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.CUNIT2") == this->HeaderKeyValue.end() && n > 1)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the CUNIT2 keyword. Assuming degree.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT2 keyword. Assuming degree.");
      this->HeaderKeyValue["SlicerAstro.CUNIT2"] = "DEGREE";
      }
 
@@ -1058,14 +1058,12 @@ bool vtkFITSReader::AllocateHeader()
      std::string ctype3 = this->HeaderKeyValue.at("SlicerAstro.CTYPE3");
      if(!(ctype3.compare(0,4,"FREQ")))
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       "The fits header is missing the CUNIT3 keyword. Assuming Hz.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT3 keyword. Assuming Hz.");
        this->HeaderKeyValue["SlicerAstro.CUNIT3"] = "Hz";
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       " The fits header is missing the CUNIT3 keyword. Assuming km/s.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT3 keyword. Assuming km/s.");
        this->HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
        }
      }
@@ -1078,11 +1076,10 @@ bool vtkFITSReader::AllocateHeader()
    if (!strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1") &&
        !strcmp(this->HeaderKeyValue["SlicerAstro.CDELT1"].c_str(), "1.0"))
      {
-     vtkWarningMacro("vtkFITSReader::AllocateWCS: "
-                     "PPO, AMDX and AMDY matrices are not WCS fits standard. \n"
-                     "Some opeartions (such as reprojection) will not be available. \n"
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "PPO, AMDX and AMDY matrices are not WCS fits standard. "
+                     "Some opeartions (such as reprojection) will not be available. "
                      "Please provide data with PC matrix formalism "
-                     "for full WCS support in SlicerAstro. \n"
+                     "for full WCS support in SlicerAstro. "
                      "Proper dss images can be found at http://archive.eso.org/dss/dss");
      }
 
@@ -1113,8 +1110,7 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.BITPIX") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BITPIX keyword. Using in default 32 (float).");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the BITPIX keyword. Using in default 32 (float).");
      this->HeaderKeyValue["SlicerAstro.BITPIX"] = "32";
      }
 
@@ -1125,15 +1121,13 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.BUNIT") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BUNIT keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BUNIT keyword.");
      this->HeaderKeyValue["SlicerAstro.BUNIT"] = "UNDEFINED";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.BMAJ") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BMAJ keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BMAJ keyword.");
      this->HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
      }
    else if (StringToDouble(this->HeaderKeyValue["SlicerAstro.BMAJ"].c_str()) <= 0.)
@@ -1148,10 +1142,9 @@ bool vtkFITSReader::AllocateHeader()
      if (this->HeaderKeyValue.find("SlicerAstro.BBMAJ") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.BMAJ"] = this->HeaderKeyValue["SlicerAstro.BBMAJ"];
-       vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                        "Beam information recovered from alternative keywords (3DBAROLO) \n"
-                        << " BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
-                        << " It is recommended to check the value.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (3DBAROLO) "
+                        << "BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. "
+                        << "It is recommended to check the value.");
        }
      // GIPSY
      else if (this->HeaderKeyValue.find("SlicerAstro.BMMAJ") != this->HeaderKeyValue.end())
@@ -1159,10 +1152,9 @@ bool vtkFITSReader::AllocateHeader()
        double BMMAJ = StringToDouble(this->HeaderKeyValue["SlicerAstro.BMMAJ"].c_str());
        BMMAJ /= 3600.;
        this->HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMMAJ);
-       vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                        "Beam information recovered from alternative keywords (GIPSY) \n"
-                        << " BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
-                        << " It is recommended to check the value.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (GIPSY) "
+                        << "BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. "
+                        << "It is recommended to check the value.");
        }
      else
        {
@@ -1181,10 +1173,9 @@ bool vtkFITSReader::AllocateHeader()
              BMAJ /= 3600.;
              }
            this->HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMAJ);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (CASA) \n"
-                            << " BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (CASA) "
+                            << "BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
 
@@ -1201,10 +1192,9 @@ bool vtkFITSReader::AllocateHeader()
              BMAJ /= 3600.;
              }
            this->HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMAJ);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (MIRIAD) \n"
-                            << " BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (MIRIAD) "
+                            << "BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
 
@@ -1220,10 +1210,9 @@ bool vtkFITSReader::AllocateHeader()
              BMAJ /= 3600.;
              }
            this->HeaderKeyValue["SlicerAstro.BMAJ"] = DoubleToString(BMAJ);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (AIPS) \n"
-                            << " BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (AIPS) "
+                            << "BMAJ = " << this->HeaderKeyValue["SlicerAstro.BMAJ"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
          }
@@ -1232,8 +1221,7 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.BMIN") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BMIN keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BMIN keyword.");
      this->HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
      }
    else if (StringToDouble(this->HeaderKeyValue["SlicerAstro.BMIN"].c_str()) <= 0.)
@@ -1248,10 +1236,9 @@ bool vtkFITSReader::AllocateHeader()
      if (this->HeaderKeyValue.find("SlicerAstro.BBMIN") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.BMIN"] = this->HeaderKeyValue["SlicerAstro.BBMIN"];
-       vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                        "Beam information recovered from alternative keywords (3DBAROLO) \n"
-                        << " BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
-                        << " It is recommended to check the value.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (3DBAROLO) "
+                        << "BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. "
+                        << "It is recommended to check the value.");
        }
      // GIPSY
      else if (this->HeaderKeyValue.find("SlicerAstro.BMMIN") != this->HeaderKeyValue.end())
@@ -1259,10 +1246,9 @@ bool vtkFITSReader::AllocateHeader()
        double BMMIN = StringToDouble(this->HeaderKeyValue["SlicerAstro.BMMIN"].c_str());
        BMMIN /= 3600.;
        this->HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMMIN);
-       vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                        "Beam information recovered from alternative keywords (GIPSY) \n"
-                        << " BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
-                        << " It is recommended to check the value.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (GIPSY) "
+                        << "BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. "
+                        << "It is recommended to check the value.");
        }
      else
        {
@@ -1282,10 +1268,9 @@ bool vtkFITSReader::AllocateHeader()
              BMIN /= 3600.;
              }
            this->HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMIN);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (CASA) \n"
-                            << " BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (CASA) "
+                            << "BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
 
@@ -1302,10 +1287,9 @@ bool vtkFITSReader::AllocateHeader()
              BMIN /= 3600.;
              }
            this->HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMIN);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (MIRIAD) \n"
-                            << " BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (MIRIAD) "
+                            << "BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
 
@@ -1321,10 +1305,9 @@ bool vtkFITSReader::AllocateHeader()
              BMIN /= 3600.;
              }
            this->HeaderKeyValue["SlicerAstro.BMIN"] = DoubleToString(BMIN);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (AIPS) \n"
-                            << " BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (AIPS) "
+                            << "BMIN = " << this->HeaderKeyValue["SlicerAstro.BMIN"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
          }
@@ -1333,8 +1316,7 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.BPA") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BPA keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BPA keyword.");
      this->HeaderKeyValue["SlicerAstro.BPA"] = "UNDEFINED";
      }
 
@@ -1345,10 +1327,9 @@ bool vtkFITSReader::AllocateHeader()
      if (this->HeaderKeyValue.find("SlicerAstro.BBPA") != this->HeaderKeyValue.end())
        {
        this->HeaderKeyValue["SlicerAstro.BPA"] = this->HeaderKeyValue["SlicerAstro.BBPA"];
-       vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                        "Beam information recovered from alternative keywords (3DBAROLO) \n"
-                        << " BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
-                        << " It is recommended to check the value.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (3DBAROLO) "
+                        << "BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. "
+                        << "It is recommended to check the value.");
        }
      // GIPSY
      else if (this->HeaderKeyValue.find("SlicerAstro.BMPA") != this->HeaderKeyValue.end())
@@ -1356,10 +1337,9 @@ bool vtkFITSReader::AllocateHeader()
        double BMPA = StringToDouble(this->HeaderKeyValue["SlicerAstro.BMPA"].c_str());
        BMPA /= 3600.;
        this->HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BMPA);
-       vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                        "Beam information recovered from alternative keywords (GIPSY) \n"
-                        << " BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
-                        << " It is recommended to check the value.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (GIPSY) "
+                        << "BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. "
+                        << "It is recommended to check the value.");
        }
      else
        {
@@ -1379,10 +1359,9 @@ bool vtkFITSReader::AllocateHeader()
              BPA *= RadToDeg;
              }
            this->HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BPA);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (CASA) \n"
-                            << " BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (CASA) "
+                            << "BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
 
@@ -1398,10 +1377,9 @@ bool vtkFITSReader::AllocateHeader()
              BPA *= RadToDeg;
              }
            this->HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BPA);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (MIRIAD) \n"
-                            << " BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (MIRIAD) "
+                            << "BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
 
@@ -1417,10 +1395,9 @@ bool vtkFITSReader::AllocateHeader()
              BPA *= RadToDeg;
              }
            this->HeaderKeyValue["SlicerAstro.BPA"] = DoubleToString(BPA);
-           vtkWarningMacro( "vtkFITSReader::AllocateHeader : "
-                            "Beam information recovered from alternative keywords (AIPS) \n"
-                            << " BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. \n"
-                            << " It is recommended to check the value.");
+           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Beam information recovered from alternative keywords (AIPS) "
+                            << "BPA = " << this->HeaderKeyValue["SlicerAstro.BPA"] << " DEGREE. "
+                            << "It is recommended to check the value.");
            break;
            }
          }
@@ -1429,22 +1406,19 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.BZERO") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BZERO keyword. Assuming a value equal to zero.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BZERO keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.BZERO"] = "0.";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.BSCALE") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BSCALE keyword. Assuming a value equal to 1.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BSCALE keyword. Assuming a value equal to 1.");
      this->HeaderKeyValue["SlicerAstro.BSCALE"] = "1.";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.BLANK") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the BLANK keyword. Assuming a value equal to zero.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BLANK keyword. Assuming a value equal to zero.");
      this->HeaderKeyValue["SlicerAstro.BLANK"] = "0.";
      }
 
@@ -1519,15 +1493,13 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.DUNIT3") == this->HeaderKeyValue.end() && n > 2)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the DUNIT3 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the DUNIT3 keyword.");
      this->HeaderKeyValue["SlicerAstro.DUNIT3"] = "NONE";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.DRVAL3") == this->HeaderKeyValue.end() && n > 2)
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the DRVAL3 keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the DRVAL3 keyword.");
      this->HeaderKeyValue["SlicerAstro.DRVAL3"] = "0.";
      }
 
@@ -1546,8 +1518,7 @@ bool vtkFITSReader::AllocateHeader()
        if (!dunit3.compare("NONE") || fabs(drval3) < 1.E-06 ||
            !cunit3.compare("NONE") || fabs(crval3) < 1.E-06)
          {
-         vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                         "The fits header is missing the RESTFREQ keyword. "
+         vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the RESTFREQ keyword. "
                          "Assuming HI data, i.e. RESTFREQ = 1.420405752E+09.");
          this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
          }
@@ -1581,8 +1552,7 @@ bool vtkFITSReader::AllocateHeader()
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       "The fits header is missing the RESTFREQ keyword. "
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the RESTFREQ keyword. "
                        "Assuming HI data, i.e. RESTFREQ = 1.420405752E+09.");
        this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
        }
@@ -1590,33 +1560,28 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.DATE-OBS") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the DATE-OBS keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the DATE-OBS keyword.");
      this->HeaderKeyValue["SlicerAstro.DATE-OBS"] = "";
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.EQUINOX") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the EQUINOX keyword.");
      if (this->HeaderKeyValue.find("SlicerAstro.EPOCH") != this->HeaderKeyValue.end())
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       "Found the EPOCH keyword. The value will be copied in the EQUINOX keyword");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the EQUINOX keyword. "
+                                 "Using the value of the EPOCH keyword (" << this->HeaderKeyValue.at("SlicerAstro.EPOCH") << ").");
        this->HeaderKeyValue["SlicerAstro.EQUINOX"] = this->HeaderKeyValue.at("SlicerAstro.EPOCH");
        }
      else
        {
-       vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                       "Assuming J2000 for the EQUINOX keyword.");
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the EQUINOX and EPOCH keywords. Assuming J2000.");
        this->HeaderKeyValue["SlicerAstro.EQUINOX"] = "2000.";
        }
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.RADESYS") == this->HeaderKeyValue.end())
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "The fits header is missing the RADESYS keyword.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the RADESYS keyword.");
      this->HeaderKeyValue["SlicerAstro.RADESYS"] = "";
      }
 
@@ -1626,8 +1591,7 @@ bool vtkFITSReader::AllocateHeader()
      }
    else
      {
-     vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                     "Found CELLSCAL keyword in fits header. SlicerAstro does not support it.");
+     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Found CELLSCAL keyword in fits header. SlicerAstro does not support it.");
      }
 
    if (this->HeaderKeyValue.find("SlicerAstro.TELESCOP") == this->HeaderKeyValue.end())
@@ -1845,7 +1809,11 @@ bool vtkFITSReader::AllocateHeader()
        }
      }
 
-   if (this->ReadStatus) fits_report_error(stderr, this->ReadStatus); /* print any error message */
+   if (this->ReadStatus)
+     {
+     vtkErrorMacro("vtkFITSReader::AllocateHeader: error while reading the header of " << this->GetFileName()
+                   << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
+     }
 
    return true;
 }
@@ -1992,7 +1960,7 @@ int vtkFITSReader::FixGipsyHeader()
     this->HeaderKeyValue["SlicerAstro.CRVAL3"] = DoubleToString(freqB);
     this->HeaderKeyValue["SlicerAstro.CDELT3"] = DoubleToString(dfreqB);
 
-    vtkWarningMacro("vtkFITSReader::FixGipsyHeader: found Gipsy header keywords."
+    vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "found Gipsy header keywords."
                     " CTYPE3, CUNIT3, CRVAL3 and CDELT3 has been automatically converted.");
     this->FixGipsyHeaderOn = true;
     }
@@ -2010,7 +1978,8 @@ bool vtkFITSReader::AllocateWCS()
   int hdrStatus = 0;
   if (fits_hdr2str(this->fptr, 1, nullptr, 0, &header, &nkeyrec, &hdrStatus) || !header)
     {
-    fits_report_error(stderr, hdrStatus);
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: could not read the header of " << this->GetFileName()
+                  << ": " << vtkAstroFITSErrorMessage(hdrStatus));
     this->WCSStatus = hdrStatus;
     return false;
     }
@@ -2141,12 +2110,13 @@ bool vtkFITSReader::AllocateWCS()
   if ((this->WCSStatus = wcspih(headerBuffer.data(), nkeyrec, WCSHDR_all, 2, &nreject, &this->NWCS, &this->ReadWCS)))
     {
     // ReadWCS may not be allocated when wcspih fails
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcspih ERROR " << this->WCSStatus << ".");
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: WCSLIB wcspih() could not parse the WCS keywords of the FITS header (status "
+                  << this->WCSStatus << (this->WCSStatus == 2 ? ": memory allocation failed" : this->WCSStatus == 4 ? ": fatal error in the parser" : "") << ").");
     return false;
     }
   if (this->NWCS < 1 || !this->ReadWCS)
     {
-    vtkWarningMacro("vtkFITSReader::AllocateWCS: no WCS found in the FITS header.");
+    vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "no WCS found in the FITS header.");
     this->WCSStatus = 1;
     return false;
     }
@@ -2162,7 +2132,7 @@ bool vtkFITSReader::AllocateWCS()
   struct wcserr info[NWCSFIX] = {};
   if ((this->WCSStatus = wcsfixi(7, 0, this->ReadWCS, stat, info)))
     {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsfix error: "<<this->WCSStatus<<"\n");
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsfix error: "<<this->WCSStatus);
     }
 
   std::string print = "vtkFITSReader::AllocateWCS: wcsfix status returns: (";
@@ -2178,9 +2148,13 @@ bool vtkFITSReader::AllocateWCS()
     {
     if (info[i].status < -1 || 0 < info[i].status)
       {
-      vtkWarningMacro("wcsfix INFORMATIVE message from "<<(info[i].function ? info[i].function : "")<<
-                      " at line "<<info[i].line_no<<" of file "<<(info[i].file ? info[i].file : "")<<
-                      ": \n"<<(info[i].msg ? info[i].msg : "")<<"\n");
+      // Fixes applied by WCSLIB to non-standard keywords (e.g. units and dates)
+      vtkDebugMacro("wcsfix message from " << (info[i].function ? info[i].function : "")
+                    << " at line " << info[i].line_no << " of " << (info[i].file ? info[i].file : ""));
+      std::string fixMessage = info[i].msg ? info[i].msg : "";
+      fixMessage = std::regex_replace(fixMessage, std::regex("\\s+"), " ");
+      vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "WCSLIB "
+                                << (info[i].function ? info[i].function : "wcsfix") << ": " << fixMessage);
       }
     free(info[i].msg);
     info[i].msg = nullptr;
@@ -2226,21 +2200,14 @@ bool vtkFITSReader::AllocateWCS()
   if ((this->WCSStatus = wcssub(1, this->ReadWCS, &nsub, axes, this->WCS)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: "
-                  "wcssub ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<
-                  " of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+                  << vtkAstroWCSErrorMessage("wcssub", this->WCSStatus, this->WCS));
     return false;
     }
 
   // set internally the wcs
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     }
 
   if (n != this->WCS->naxis)
@@ -2549,8 +2516,7 @@ bool vtkFITSReader::AllocateWCS()
         double det = cd11 * cd22 - cd12 * cd21;
         if (fabs(det) < 1.E-6)
           {
-          vtkWarningMacro("vtkFITSReader::AllocateHeader : "
-                          "Determinant of CD matrix == 0. This means that the CD keyword may be wrong. "
+          vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Determinant of CD matrix == 0. This means that the CD keyword may be wrong. "
                           "Please check that the CD matrix is not actually the PC matrix.");
           }
         double sign = 1.0;
@@ -2618,10 +2584,7 @@ bool vtkFITSReader::AllocateWCS()
   // set internally the wcs
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                  "Message from "<<this->WCS->err->function<<
-                  "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                  ": \n"<<this->WCS->err->msg<<"\n");
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     }
 
   // project third axes always as a velocity
@@ -2636,31 +2599,25 @@ bool vtkFITSReader::AllocateWCS()
 
       if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
         {
-        vtkErrorMacro("vtkFITSReader::AllocateWCS: wcssptr ERROR "<<this->WCSStatus<<":\n"<<
-                      "Message from "<<this->WCS->err->function<<
-                      "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                      ": \n"<<this->WCS->err->msg<<"\n");
+        vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcssptr", this->WCSStatus, this->WCS));
         }
       else
         {
-        vtkWarningMacro("vtkFITSReader::AllocateWCS: 3rd WCS axes has been converted "
+        vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "3rd WCS axes has been converted "
                         "from "<<ctype2<< " to "<<this->WCS->ctype[2]<<".");
         }
 
       if ((this->WCSStatus = wcsset(this->WCS)))
         {
-        vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsset ERROR "<<this->WCSStatus<<":\n"<<
-                      "Message from "<<this->WCS->err->function<<
-                      "at line "<<this->WCS->err->line_no<<" of file "<<this->WCS->err->file<<
-                      ": \n"<<this->WCS->err->msg<<"\n");
+        vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
         }
       }
     }
 
   if (this->WCSStatus != 0)
     {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: WCSlib failed to create WCSstruct."<< "\n"<<
-                  "World coordinates will not be displayed. "<< "\n");
+    vtkErrorMacro("vtkFITSReader::AllocateWCS: WCSlib failed to create WCSstruct. "<<
+                  "World coordinates will not be displayed.");
     return false;
     }
 
@@ -2926,8 +2883,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &this->ReadStatus))
     {
     vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
-                  "ERROR IN CFITSIO! Error reading "<< this->GetFileName() << ":\n");
-    fits_report_error(stderr, this->ReadStatus);
+                  "could not open "<< this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     return;
     }
 
@@ -2949,7 +2905,8 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     case VTK_DOUBLE:
       if(fits_read_img(this->fptr, TDOUBLE, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
-        fits_report_error(stderr, this->ReadStatus);
+        vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
+                      << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
         vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
         return;
         }
@@ -2957,7 +2914,8 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     case VTK_FLOAT:
       if(fits_read_img(this->fptr, TFLOAT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
         {
-        fits_report_error(stderr, this->ReadStatus);
+        vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
+                      << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
         vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
         return;
         }
@@ -2965,7 +2923,8 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   case VTK_SHORT:
     if(fits_read_img(this->fptr, TSHORT, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
       {
-      fits_report_error(stderr, this->ReadStatus);
+      vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
+                    << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
       vtkErrorMacro(<< "vtkFITSReader::ExecuteDataWithInformation: data is nullptr.");
       return;
       }
@@ -2975,11 +2934,13 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
       return;
     }
 
+  // The data has been read: report what was found in the header
+  this->ReportHeaderMessages();
+
   if (fits_close_file(this->fptr, &this->ReadStatus))
     {
-    vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: ERROR IN CFITSIO! Error closing "
-                  << this->GetFileName() << ":\n");
-    fits_report_error(stderr, this->ReadStatus);
+    vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not close "
+                  << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     }
 
   if (this->GetCompression())
@@ -2987,7 +2948,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     if (remove(this->GetFileName()) != 0)
       {
       vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
-                    "Error deleting the decompressed file: "<< this->GetFileName() << ":\n");
+                    "Error deleting the decompressed file: "<< this->GetFileName());
       }
     }
 }
@@ -2996,4 +2957,61 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
 void vtkFITSReader::PrintSelf(ostream& os, vtkIndent indent)
 {
   this->Superclass::PrintSelf(os,indent);
+}
+
+//----------------------------------------------------------------------------
+void vtkFITSReader::AddHeaderMessage(int level, const std::string& message)
+{
+  for (const auto& headerMessage : this->HeaderMessages)
+    {
+    if (headerMessage.second == message)
+      {
+      return;
+      }
+    }
+  vtkDebugMacro("Header message: " << message);
+  this->HeaderMessages.emplace_back(level, message);
+}
+
+//----------------------------------------------------------------------------
+void vtkFITSReader::ReportHeaderMessages()
+{
+  const char* fileName = this->CurrentFileName ? this->CurrentFileName : this->GetFileName();
+  const std::string name = fileName ? vtksys::SystemTools::GetFilenameName(fileName) : std::string();
+  for (; this->NumberOfReportedHeaderMessages < this->HeaderMessages.size(); ++this->NumberOfReportedHeaderMessages)
+    {
+    const auto& headerMessage = this->HeaderMessages[this->NumberOfReportedHeaderMessages];
+    vtkAstroLogMessage(this,
+                       headerMessage.first == vtkFITSReader::HeaderWarning ? vtkAstroLogLevel::Warning
+                                                                           : vtkAstroLogLevel::Information,
+                       name + ": " + headerMessage.second);
+    }
+}
+
+//----------------------------------------------------------------------------
+int vtkFITSReader::GetNumberOfHeaderMessages()
+{
+  return static_cast<int>(this->HeaderMessages.size());
+}
+
+//----------------------------------------------------------------------------
+int vtkFITSReader::GetNthHeaderMessageLevel(int n)
+{
+  if (n < 0 || n >= this->GetNumberOfHeaderMessages())
+    {
+    vtkErrorMacro("GetNthHeaderMessageLevel: invalid index " << n);
+    return HeaderInformation;
+    }
+  return this->HeaderMessages[n].first;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkFITSReader::GetNthHeaderMessage(int n)
+{
+  if (n < 0 || n >= this->GetNumberOfHeaderMessages())
+    {
+    vtkErrorMacro("GetNthHeaderMessage: invalid index " << n);
+    return std::string();
+    }
+  return this->HeaderMessages[n].second;
 }
