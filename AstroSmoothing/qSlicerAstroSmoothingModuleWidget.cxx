@@ -242,6 +242,20 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::init()
   QObject::connect(this->CancelButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
+  // GPU backend: WebGPU or OpenGL (see vtkSlicerAstroSmoothingLogic)
+  const QString gpuBackend = QString::fromStdString(vtkSlicerAstroSmoothingLogic::GetGPUBackend());
+  if (gpuBackend.isEmpty())
+    {
+    this->HardwareComboBox->setItemText(1, qSlicerAstroSmoothingModuleWidget::tr("GPU (not available)"));
+    this->HardwareComboBox->setItemData(1, 0, Qt::UserRole - 1); // disable the item
+    }
+  else
+    {
+    this->HardwareComboBox->setItemText(1, qSlicerAstroSmoothingModuleWidget::tr("GPU (%1)").arg(gpuBackend));
+    this->HardwareComboBox->setItemData(1, QString::fromStdString(
+      vtkSlicerAstroSmoothingLogic::GetGPUBackendDescription()), Qt::ToolTipRole);
+    }
+
   QObject::connect(this->HardwareComboBox, SIGNAL(currentIndexChanged(int)),
                    q, SLOT(onHardwareChanged(int)));
 
@@ -2111,7 +2125,6 @@ void qSlicerAstroSmoothingModuleWidget::onHardwareChanged(int index)
  int wasModifying = d->parametersNode->StartModify();
 
  d->parametersNode->SetHardware(index);
- int filter = d->parametersNode->GetFilter();
 
   d->parametersNode->EndModify(wasModifying);
 }

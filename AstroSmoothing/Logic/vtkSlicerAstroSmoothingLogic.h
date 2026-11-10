@@ -29,6 +29,9 @@ class vtkImageAlgorithm;
 class vtkRenderWindow;
 // AstroSmoothings includes
 #include "vtkSlicerAstroSmoothingModuleLogicExport.h"
+
+// STD includes
+#include <string>
 class vtkMRMLAstroSmoothingParametersNode;
 
 /// \class vtkSlicerAstroSmoothingLogic
@@ -76,6 +79,15 @@ public:
   /// \param vtkRenderWindow to init the GPU algorithm
   /// \return Success flag
   int Apply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
+
+  /// GPU backend used when the parameters node selects the GPU hardware:
+  /// "WebGPU" (SlicerAstro built against a VTK with WebGPU and a WebGPU
+  /// adapter available), otherwise "OpenGL", or an empty string if SlicerAstro
+  /// has been built without GPU support.
+  static std::string GetGPUBackend();
+
+  /// Description of the GPU backend in use (e.g. "WebGPU: Vulkan - NVIDIA ...").
+  static std::string GetGPUBackendDescription();
 
 protected:
   /// Run a smoothing filter (CPU or GPU) on the input volume of \a pnode and
@@ -135,6 +147,17 @@ private:
 
   class vtkInternal;
   vtkInternal* Internal;
+
+  /// True while Apply runs the (CPU code paths of the) filters with their
+  /// WebGPU implementations.
+  bool UseWebGPU{false};
+
+  /// Name of a filter including the hardware used, e.g. "Box Filter (CPU)".
+  std::string FilterName(const char* name) const;
+
+  /// WebGPU device (vtkAstroWebGPUDevice) shared by the runs if UseWebGPU,
+  /// otherwise nullptr.
+  vtkObject* WebGPUDevice();
 };
 
 #endif

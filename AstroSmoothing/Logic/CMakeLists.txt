@@ -17,6 +17,10 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
      )
 endif()
 
+if(SLICERASTRO_HAS_WEBGPU)
+  list(APPEND ${KIT}_INCLUDE_DIRECTORIES ${vtkAstroWebGPUFilters_INCLUDE_DIRS})
+endif()
+
 set(${KIT}_SRCS
   vtkSlicer${MODULE_NAME}Logic.cxx
   vtkSlicer${MODULE_NAME}Logic.h
@@ -34,6 +38,10 @@ if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
      vtkOpenGLFilters
      ${OPENGL_LIBRARIES}
      )
+endif()
+
+if(SLICERASTRO_HAS_WEBGPU)
+  list(APPEND ${KIT}_TARGET_LIBRARIES vtkAstroWebGPUFilters)
 endif()
 
 #-----------------------------------------------------------------------------

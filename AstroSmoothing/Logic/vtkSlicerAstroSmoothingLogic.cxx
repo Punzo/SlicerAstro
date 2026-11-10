@@ -35,6 +35,12 @@
 #include <vtkAstroImageGradientSmooth.h>
 #include <vtkAstroImageKernelSmooth.h>
 #include <vtkAstroImageSeparableSmooth.h>
+#ifdef SLICERASTRO_HAS_WEBGPU
+#include <vtkAstroWebGPUDevice.h>
+#include <vtkAstroWebGPUImageGradientSmooth.h>
+#include <vtkAstroWebGPUImageKernelSmooth.h>
+#include <vtkAstroWebGPUImageSeparableSmooth.h>
+#endif
 #include <vtkCallbackCommand.h>
 #include <vtkImageAlgorithm.h>
 #include <vtkImageData.h>
@@ -52,6 +58,51 @@
 
 #define UNUSED(expr) (void)(expr)
 
+namespace
+{
+//----------------------------------------------------------------------------
+// WebGPU implementation of each CPU smoothing filter (same parameters).
+template <class CPUFilter>
+struct WebGPUFilter
+{
+  using Type = CPUFilter;
+};
+#ifdef SLICERASTRO_HAS_WEBGPU
+template <>
+struct WebGPUFilter<vtkAstroImageKernelSmooth>
+{
+  using Type = vtkAstroWebGPUImageKernelSmooth;
+};
+template <>
+struct WebGPUFilter<vtkAstroImageSeparableSmooth>
+{
+  using Type = vtkAstroWebGPUImageSeparableSmooth;
+};
+template <>
+struct WebGPUFilter<vtkAstroImageGradientSmooth>
+{
+  using Type = vtkAstroWebGPUImageGradientSmooth;
+};
+#endif
+
+//----------------------------------------------------------------------------
+template <class CPUFilter>
+vtkSmartPointer<CPUFilter> NewSmoothFilter(vtkObject* webGPUDevice)
+{
+#ifdef SLICERASTRO_HAS_WEBGPU
+  if (webGPUDevice)
+    {
+    auto filter = vtkSmartPointer<typename WebGPUFilter<CPUFilter>::Type>::New();
+    filter->SetDevice(vtkAstroWebGPUDevice::SafeDownCast(webGPUDevice));
+    return filter;
+    }
+#else
+  (void)webGPUDevice;
+#endif
+  return vtkSmartPointer<CPUFilter>::New();
+}
+} // namespace
+
 //----------------------------------------------------------------------------
 class vtkSlicerAstroSmoothingLogic::vtkInternal
 {
@@ -60,6 +111,10 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
+#ifdef SLICERASTRO_HAS_WEBGPU
+  // WebGPU device reused by all the smoothing runs
+  vtkSmartPointer<vtkAstroWebGPUDevice> WebGPUDevice;
+#endif
 };
 
 //----------------------------------------------------------------------------
@@ -117,24 +172,6 @@ double StringToDouble(const char* str)
   return StringToNumber<double>(str);
 }
 
-//----------------------------------------------------------------------------
-template <typename T> bool isNaN(T value)
-{
-  return value != value;
-}
-
-//----------------------------------------------------------------------------
-bool DoubleIsNaN(double Value)
-{
-  return isNaN<double>(Value);
-}
-
-//----------------------------------------------------------------------------
-bool FloatIsNaN(float Value)
-{
-  return isNaN<float>(Value);
-}
-
 }// end namespace
 
 //----------------------------------------------------------------------------
@@ -168,19 +205,25 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
     return 0;
     }
 
-  if (!renderWindow)
+  // GPU backends: WebGPU (if available) runs the same code paths as the CPU
+  // with the WebGPU implementations of the filters; otherwise OpenGL (the
+  // render window, if any, provides the OpenGL context).
+  bool openGL = pnode->GetHardware() != 0;
+  this->UseWebGPU = false;
+#ifdef SLICERASTRO_HAS_WEBGPU
+  if (openGL && vtkAstroWebGPUDevice::IsAvailable())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::Apply : "
-                  "renderWindow not found.");
-    return 0;
+    this->UseWebGPU = true;
+    openGL = false;
     }
+#endif
 
   int success = 0;
   switch (pnode->GetFilter())
     {
     case 0:
       {
-      if (!(pnode->GetHardware()))
+      if (!openGL)
         {
         if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
             fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
@@ -200,7 +243,7 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
       }
     case 1:
       {
-        if (!(pnode->GetHardware()))
+        if (!openGL)
           {
           if (fabs(pnode->GetParameterX() - pnode->GetParameterY()) < 0.001 &&
               fabs(pnode->GetParameterY() - pnode->GetParameterZ()) < 0.001)
@@ -220,7 +263,7 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
       }
     case 2:
       {
-      if (!(pnode->GetHardware()))
+      if (!openGL)
         {
         success = this->GradientCPUFilter(pnode);
         }
@@ -324,17 +367,68 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
 }
 
 //----------------------------------------------------------------------------
+vtkObject* vtkSlicerAstroSmoothingLogic::WebGPUDevice()
+{
+#ifdef SLICERASTRO_HAS_WEBGPU
+  if (this->UseWebGPU)
+    {
+    if (!this->Internal->WebGPUDevice)
+      {
+      this->Internal->WebGPUDevice = vtkSmartPointer<vtkAstroWebGPUDevice>::New();
+      }
+    return this->Internal->WebGPUDevice;
+    }
+#endif
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroSmoothingLogic::FilterName(const char* name) const
+{
+  return std::string(name) + (this->UseWebGPU ? " (GPU, WebGPU)" : " (CPU)");
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroSmoothingLogic::GetGPUBackend()
+{
+#ifdef SLICERASTRO_HAS_WEBGPU
+  if (vtkAstroWebGPUDevice::IsAvailable())
+    {
+    return "WebGPU";
+    }
+#endif
+#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  return "OpenGL";
+#else
+  return "";
+#endif
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroSmoothingLogic::GetGPUBackendDescription()
+{
+  const std::string backend = vtkSlicerAstroSmoothingLogic::GetGPUBackend();
+#ifdef SLICERASTRO_HAS_WEBGPU
+  if (backend == "WebGPU")
+    {
+    return backend + ": " + vtkAstroWebGPUDevice::GetDescription();
+    }
+#endif
+  return backend;
+}
+
+//----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
   if (!pnode)
     {
     return 0;
     }
-  vtkNew<vtkAstroImageKernelSmooth> filter;
+  auto filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
   filter->SetBoxKernel(static_cast<int>(pnode->GetParameterX()),
                        static_cast<int>(pnode->GetParameterY()),
                        static_cast<int>(pnode->GetParameterZ()));
-  return this->RunSmoothingFilter(pnode, filter, "Box Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, this->FilterName("Box Filter").c_str());
 }
 
 
@@ -348,11 +442,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   // Separable box: the kernel size is ParameterX along the axes with a
   // non-zero parameter.
   const int size = static_cast<int>(pnode->GetParameterX());
-  vtkNew<vtkAstroImageSeparableSmooth> filter;
+  auto filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
   filter->SetAxisBoxKernel(0, pnode->GetParameterX() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(1, pnode->GetParameterY() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(2, pnode->GetParameterZ() > 0.001 ? size : 0);
-  return this->RunSmoothingFilter(pnode, filter, "Isotropic Box Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, this->FilterName("Isotropic Box Filter").c_str());
 }
 
 //----------------------------------------------------------------------------
@@ -383,12 +477,12 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
     return 0;
     }
   // 3D (possibly rotated) Gaussian kernel computed by the parameters node
-  vtkNew<vtkAstroImageKernelSmooth> filter;
+  auto filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
   filter->SetKernel(pnode->GetGaussianKernel3D(),
                     static_cast<int>(pnode->GetKernelLengthX()),
                     static_cast<int>(pnode->GetKernelLengthY()),
                     static_cast<int>(pnode->GetKernelLengthZ()));
-  return this->RunSmoothingFilter(pnode, filter, "Gaussian Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, this->FilterName("Gaussian Filter").c_str());
 }
 
 //----------------------------------------------------------------------------
@@ -401,11 +495,11 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   // Separable Gaussian: 1D kernel computed by the parameters node, applied
   // along the axes with a non-zero parameter.
   vtkDoubleArray* kernel1D = pnode->GetGaussianKernel1D();
-  vtkNew<vtkAstroImageSeparableSmooth> filter;
+  auto filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
   filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D : nullptr);
-  return this->RunSmoothingFilter(pnode, filter, "Isotropic Gaussian Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, this->FilterName("Isotropic Gaussian Filter").c_str());
 }
 
 //----------------------------------------------------------------------------
@@ -442,13 +536,13 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     {
     return 0;
     }
-  vtkNew<vtkAstroImageGradientSmooth> filter;
+  auto filter = NewSmoothFilter<vtkAstroImageGradientSmooth>(this->WebGPUDevice());
   filter->SetConductance(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
   filter->SetTimeStep(pnode->GetTimeStep());
   filter->SetK(pnode->GetK());
   filter->SetNoise(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")));
   filter->SetNumberOfIterations(pnode->GetAccuracy());
-  return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, this->FilterName("Intensity driven Gradient Filter").c_str());
 }
 
 //----------------------------------------------------------------------------
