@@ -43,10 +43,19 @@ def voxelArray(volumeNode):
 
 def referenceProfile(volumeNode, intensityMin, intensityMax):
     """Flux per channel of the voxels within (intensityMin, intensityMax),
-    converted from Jy/beam to Jy; blank (NaN) for empty channels."""
+    converted from Jy/beam to Jy when the beam is defined; blank (NaN) for
+    empty channels."""
     cube = voxelArray(volumeNode).astype(np.float64)
-    attribute = lambda key: float(volumeNode.GetAttribute("SlicerAstro." + key))
-    unitBeamConv = abs(attribute("CDELT1") * attribute("CDELT2") / (1.13 * attribute("BMAJ") * attribute("BMIN")))
+    def attribute(key):
+        try:
+            return float(volumeNode.GetAttribute("SlicerAstro." + key))
+        except (TypeError, ValueError):  # e.g. "UNDEFINED"
+            return None
+    bmaj, bmin = attribute("BMAJ"), attribute("BMIN")
+    if bmaj and bmin and bmaj > 0 and bmin > 0:
+        unitBeamConv = abs(attribute("CDELT1") * attribute("CDELT2") / (1.13 * bmaj * bmin))
+    else:
+        unitBeamConv = 1.0  # beam not defined: the profile stays in Jy/beam
     with np.errstate(invalid="ignore"):
         inside = (cube > intensityMin) & (cube < intensityMax)
     profile = np.where(inside, cube, 0.0).sum(axis=(1, 2)) * unitBeamConv
