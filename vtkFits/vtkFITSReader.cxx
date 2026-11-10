@@ -3117,3 +3117,44 @@ bool vtkFITSReader::IsMaskFile(const char* fileName)
   const std::regex pattern("(\\b|_)([Ll]abel(s)?|[Ss]eg|[Mm]ask)(\\b|_)");
   return bitpix > 0 && std::regex_search(baseName, pattern);
 }
+
+//----------------------------------------------------------------------------
+std::vector<std::string> vtkFITSReader::GetSpectralAxisKeywords()
+{
+  return { "CTYPE3", "CRVAL3", "CDELT3", "CUNIT3", "CRPIX3", "CROTA3", "CD3_3", "PC3_3",
+           "RESTFREQ", "RESTFRQ", "DRVAL3", "DUNIT3" };
+}
+
+//----------------------------------------------------------------------------
+std::map<std::string, std::string> vtkFITSReader::ReadHeaderKeywords(const char* fileName,
+                                                                     const std::vector<std::string>& keys)
+{
+  std::map<std::string, std::string> keywords;
+  fitsfile* file = nullptr;
+  int status = 0;
+  if (!fileName || fits_open_data(&file, fileName, READONLY, &status))
+    {
+    fits_clear_errmsg();
+    return keywords;
+    }
+  for (const std::string& key : keys)
+    {
+    char value[FLEN_VALUE] = { 0 };
+    int keyStatus = 0;
+    if (fits_read_keyword(file, key.c_str(), value, nullptr, &keyStatus))
+      {
+      continue;
+      }
+    std::string text(value);
+    if (!text.empty() && text.front() == '\'')
+      {
+      text = text.substr(1, text.find_last_of('\'') - 1);
+      text.erase(text.find_last_not_of(' ') + 1);
+      }
+    keywords[key] = text;
+    }
+  status = 0;
+  fits_close_file(file, &status);
+  fits_clear_errmsg();
+  return keywords;
+}

@@ -24,6 +24,11 @@
 
 #include <vtkSlicerAstroVolumeModuleMRMLExport.h>
 
+// STD includes
+#include <string>
+
+class vtkFITSWriter;
+
 /// \brief MRML node for representing a volume storage.
 ///
 /// vtkMRMLAstroVolumeStorageNode nodes describe the archetybe based volume storage
@@ -55,6 +60,15 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeStorageNode : public vtkMRMLStorag
   /// \sa CenterImage(), CenterImage()
   vtkGetMacro(CenterImage, int);
   vtkSetMacro(CenterImage, int);
+
+  /// Spectral axis keywords of the file: the reader converts the spectral
+  /// axis (e.g. FREQ -> VOPT-F2W) and adds missing keywords (e.g. RESTFREQ).
+  /// StoreSpectralAxisKeywords keeps the keywords of the file and the
+  /// converted ones in attributes of the node (FITSOriginal.*, FITSConverted.*);
+  /// RestoreSpectralAxisKeywords sets the keywords of the file in the writer if
+  /// the spectral axis of the node is unchanged (not modified by a module).
+  static void StoreSpectralAxisKeywords(vtkMRMLNode* node, const std::string& fileName);
+  static void RestoreSpectralAxisKeywords(vtkMRMLNode* node, vtkFITSWriter* writer);
 
   /// Return true if the node can be read in.
   virtual bool CanReadInReferenceNode(vtkMRMLNode *refNode) override;

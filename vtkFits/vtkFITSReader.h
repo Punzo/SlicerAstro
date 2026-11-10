@@ -160,6 +160,19 @@ public:
   static bool IsMaskFile(const char* fileName);
 
   ///
+  /// Values of header keywords as they are in the file (string values
+  /// without quotes); keywords not in the header are not in the map.
+  /// The reader converts some keywords (e.g. the spectral axis FREQ ->
+  /// VOPT-F2W): this gives the original ones, to write the file back.
+  static std::map<std::string, std::string> ReadHeaderKeywords(const char* fileName,
+                                                               const std::vector<std::string>& keys);
+
+  ///
+  /// Keywords of the spectral axis that the reader converts or adds
+  /// (CTYPE3, CRVAL3, CDELT3, CUNIT3, CRPIX3, ..., RESTFREQ, DRVAL3, DUNIT3).
+  static std::vector<std::string> GetSpectralAxisKeywords();
+
+  ///
   /// Messages about the FITS header of the current file: missing keywords,
   /// assumed values and the fixes applied by WCSLIB. They are collected
   /// while the header is parsed and written once to the log (as

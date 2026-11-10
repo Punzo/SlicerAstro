@@ -282,7 +282,8 @@ void vtkFITSWriter::WriteData()
       }
     else if (!(std::string::npos != ts.find_first_of("-1234567890"))
                || (!tmp.compare(0,4,"DATE")) || (!tmp.compare(0,8, "CELLSCAL"))
-               || (!tmp.compare(0,8,"DATATYPE")))
+               || (!tmp.compare(0,8,"DATATYPE"))
+               || (!tmp.compare(0,6,"SEGNAM")) || (!tmp.compare(0,6,"SEGCOL")))
       {
       fits_update_key(fptr, TSTRING, tmp.c_str(), (char *) (ait->second).c_str(), "", &WriteStatus);
       }

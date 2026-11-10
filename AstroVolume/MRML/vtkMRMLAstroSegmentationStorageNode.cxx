@@ -19,6 +19,7 @@
 
 // MRML includes
 #include <vtkMRMLAstroSegmentationStorageNode.h>
+#include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLMessageCollection.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSegmentationNode.h>
@@ -32,7 +33,6 @@
 #include <vtkSegmentationConverter.h>
 
 // vtkFits includes
-#include <fitsio.h>
 #include <vtkFITSReader.h>
 #include <vtkFITSWriter.h>
 
@@ -50,6 +50,8 @@
 // STD includes
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
+#include <iterator>
 #include <fstream>
 #include <regex>
 #include <set>
@@ -104,41 +106,6 @@ std::vector<int> LabelValues(const int* values, vtkIdType numberOfValues)
     labels.insert(threadLabels.begin(), threadLabels.end());
     }
   return std::vector<int>(labels.begin(), labels.end());
-}
-
-//----------------------------------------------------------------------------
-/// Values of the spectral axis keywords as they are in the file: vtkFITSReader
-/// converts the spectral axis (e.g. FREQ -> VOPT-F2W) and a mask must be
-/// written back with the header it was read with.
-std::map<std::string, std::string> OriginalSpectralKeywords(const std::string& fileName)
-{
-  std::map<std::string, std::string> keywords;
-  fitsfile* file = nullptr;
-  int status = 0;
-  if (fits_open_data(&file, fileName.c_str(), READONLY, &status))
-    {
-    fits_clear_errmsg();
-    return keywords;
-    }
-  for (const char* key : { "CTYPE3", "CRVAL3", "CDELT3", "CUNIT3", "CRPIX3", "CROTA3", "CD3_3", "PC3_3" })
-    {
-    char value[FLEN_VALUE] = { 0 };
-    int keyStatus = 0;
-    if (fits_read_keyword(file, key, value, nullptr, &keyStatus))
-      {
-      continue;
-      }
-    std::string text(value);
-    if (!text.empty() && text.front() == '\'')
-      {
-      text = text.substr(1, text.find_last_of('\'') - 1);
-      text.erase(text.find_last_not_of(' ') + 1);
-      }
-    keywords[key] = text;
-    }
-  fits_close_file(file, &status);
-  fits_clear_errmsg();
-  return keywords;
 }
 
 //----------------------------------------------------------------------------
@@ -395,12 +362,24 @@ int vtkMRMLAstroSegmentationStorageNode::ReadDataInternal(vtkMRMLNode* refNode)
   for (int label : labels)
     {
     vtkNew<vtkSegment> segment;
+    // name: saved by SlicerAstro in the header, else from the SoFiA catalogue
+    const char* headerName = reader->GetHeaderValue(("SlicerAstro.SEGNAM" + std::to_string(label)).c_str());
     const auto catalogName = catalogNames.find(label);
-    const std::string name = catalogName != catalogNames.end() ? catalogName->second
-                                                               : "Source " + std::to_string(label);
+    const std::string name = headerName && *headerName ? std::string(headerName)
+                             : catalogName != catalogNames.end() ? catalogName->second
+                                                                 : "Source " + std::to_string(label);
     segment->SetName(name.c_str());
     double color[3] = { 0., 0., 0. };
     SegmentColor(index++, color);
+    const char* headerColor = reader->GetHeaderValue(("SlicerAstro.SEGCOL" + std::to_string(label)).c_str());
+    unsigned int rgb[3] = { 0, 0, 0 };
+    if (headerColor && sscanf(headerColor, "#%02x%02x%02x", &rgb[0], &rgb[1], &rgb[2]) == 3)
+      {
+      for (int c = 0; c < 3; ++c)
+        {
+        color[c] = rgb[c] / 255.;
+        }
+      }
     segment->SetColor(color);
     segment->SetLabelValue(label);
     segment->SetTag(vtkMRMLAstroSegmentationStorageNode::GetSourceIDTagName(), std::to_string(label));
@@ -431,9 +410,22 @@ int vtkMRMLAstroSegmentationStorageNode::ReadDataInternal(vtkMRMLNode* refNode)
     {
     segmentationNode->SetAttribute(key.c_str(), reader->GetHeaderValue(key.c_str()));
     }
-  for (const auto& keyword : OriginalSpectralKeywords(fullName))
+  // Spectral axis as in the file (the reader converts it, e.g. FREQ -> VOPT-F2W,
+  // and adds missing keywords): the mask is written back with its header
+  const std::vector<std::string> spectralKeys = vtkFITSReader::GetSpectralAxisKeywords();
+  const std::map<std::string, std::string> originalKeys = vtkFITSReader::ReadHeaderKeywords(fullName.c_str(), spectralKeys);
+  for (const std::string& key : spectralKeys)
     {
-    segmentationNode->SetAttribute((std::string(AttributePrefix) + keyword.first).c_str(), keyword.second.c_str());
+    const std::string attribute = std::string(AttributePrefix) + key;
+    const auto original = originalKeys.find(key);
+    if (original != originalKeys.end())
+      {
+      segmentationNode->SetAttribute(attribute.c_str(), original->second.c_str());
+      }
+    else
+      {
+      segmentationNode->RemoveAttribute(attribute.c_str());
+      }
     }
 
   return 1;
@@ -469,9 +461,10 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
       }
     }
   bool headerFromVolume = false;
+  vtkMRMLVolumeNode* referenceVolume = nullptr;
   if (header.empty())
     {
-    vtkMRMLVolumeNode* referenceVolume = vtkMRMLVolumeNode::SafeDownCast(
+    referenceVolume = vtkMRMLVolumeNode::SafeDownCast(
       segmentationNode->GetNodeReference(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
     if (referenceVolume)
       {
@@ -550,6 +543,34 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
       }
     }
 
+  // Segment names and colors in the header (read back with the mask)
+  for (auto it = header.begin(); it != header.end();)
+    {
+    const bool segmentKeyword = it->first.compare(0, 18, "SlicerAstro.SEGNAM") == 0 ||
+                                it->first.compare(0, 18, "SlicerAstro.SEGCOL") == 0;
+    it = segmentKeyword ? header.erase(it) : std::next(it);
+    }
+  for (size_t i = 0; i < segmentIDs.size(); ++i)
+    {
+    vtkSegment* segment = segmentation->GetSegment(segmentIDs[i]);
+    if (!segment)
+      {
+      continue;
+      }
+    std::string name = segment->GetName() ? segment->GetName() : "";
+    // FITS string values: at most 68 characters, no quotes
+    std::replace(name.begin(), name.end(), '\'', ' ');
+    header["SlicerAstro.SEGNAM" + std::to_string(sourceIDs[i])] = name.substr(0, 60);
+    double color[3] = { 0., 0., 0. };
+    segment->GetColor(color);
+    char hexColor[8];
+    snprintf(hexColor, sizeof(hexColor), "#%02x%02x%02x",
+             static_cast<unsigned int>(std::lround(std::clamp(color[0], 0., 1.) * 255.)),
+             static_cast<unsigned int>(std::lround(std::clamp(color[1], 0., 1.) * 255.)),
+             static_cast<unsigned int>(std::lround(std::clamp(color[2], 0., 1.) * 255.)));
+    header["SlicerAstro.SEGCOL" + std::to_string(sourceIDs[i])] = hexColor;
+    }
+
   // Merge the segments: one pass per binary labelmap (segments created by
   // reading a mask share a single labelmap)
   vtkNew<vtkImageData> mask;
@@ -625,6 +646,8 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
   if (headerFromVolume)
     {
     writer->SetAttribute("SlicerAstro.BUNIT", " ");
+    // spectral axis as in the file of the volume
+    vtkMRMLAstroVolumeStorageNode::RestoreSpectralAxisKeywords(referenceVolume, writer);
     }
   const int* values = static_cast<int*>(mask->GetScalarPointer());
   const auto range = std::minmax_element(values, values + mask->GetNumberOfPoints());

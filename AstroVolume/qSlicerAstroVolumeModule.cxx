@@ -244,9 +244,10 @@ void qSlicerAstroVolumeModule::setup()
   ioManager->registerIO(new qSlicerNodeWriter(
     "FITS mask", QString("SegmentationFile"),
     QStringList() << "vtkMRMLSegmentationNode", false, this));
+  // No compression option: .fits.gz files are compressed (by CFITSIO)
   ioManager->registerIO(new qSlicerNodeWriter(
     "AstroVolume", QString("AstroVolumeFile"),
-    QStringList() << "vtkMRMLVolumeNode", true, this));
+    QStringList() << "vtkMRMLVolumeNode", false, this));
 
   // Set Module GUI (dockWidgetContents) size policy
   if (d->app->mainWindow())

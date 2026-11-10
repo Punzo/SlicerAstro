@@ -38,6 +38,12 @@
 #include <vtkObjectFactory.h>
 #include <vtkType.h>
 
+// STD includes
+#include <cstring>
+#include <map>
+#include <string>
+#include <vector>
+
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeStorageNode);
@@ -57,6 +63,57 @@ vtkMRMLAstroVolumeStorageNode::~vtkMRMLAstroVolumeStorageNode()
 
 namespace
 {
+//----------------------------------------------------------------------------
+// The reader converts the spectral axis (e.g. FREQ -> VOPT-F2W) and adds
+// missing keywords (e.g. RESTFREQ of HI). The keywords of the file and the
+// converted ones are kept in node attributes (not starting with SlicerAstro.,
+// so that they are not written as FITS keywords): if the spectral axis of the
+// volume is unchanged when it is written, the keywords of the file are
+// written back.
+const char* OriginalKeywordPrefix = "FITSOriginal.";
+const char* ConvertedKeywordPrefix = "FITSConverted.";
+
+void StoreSpectralAxisKeywordsImpl(vtkMRMLNode* node, const std::string& fileName)
+{
+  const std::vector<std::string> keys = vtkFITSReader::GetSpectralAxisKeywords();
+  const std::map<std::string, std::string> original = vtkFITSReader::ReadHeaderKeywords(fileName.c_str(), keys);
+  for (const std::string& key : keys)
+    {
+    const auto originalValue = original.find(key);
+    node->SetAttribute((OriginalKeywordPrefix + key).c_str(),
+                       originalValue != original.end() ? originalValue->second.c_str() : nullptr);
+    node->SetAttribute((ConvertedKeywordPrefix + key).c_str(),
+                       node->GetAttribute(("SlicerAstro." + key).c_str()));
+    }
+}
+
+void RestoreSpectralAxisKeywordsImpl(vtkMRMLNode* node, vtkFITSWriter* writer)
+{
+  const std::vector<std::string> keys = vtkFITSReader::GetSpectralAxisKeywords();
+  bool stored = false;
+  for (const std::string& key : keys)
+    {
+    const char* converted = node->GetAttribute((ConvertedKeywordPrefix + key).c_str());
+    const char* current = node->GetAttribute(("SlicerAstro." + key).c_str());
+    stored = stored || converted || node->GetAttribute((OriginalKeywordPrefix + key).c_str());
+    if ((converted == nullptr) != (current == nullptr) || (converted && strcmp(converted, current) != 0))
+      {
+      // the spectral axis was modified (e.g. by a module): written as it is
+      return;
+      }
+    }
+  if (!stored)
+    {
+    return;
+    }
+  for (const std::string& key : keys)
+    {
+    const char* original = node->GetAttribute((OriginalKeywordPrefix + key).c_str());
+    // the writer skips the UNDEFINED keywords (not in the file)
+    writer->SetAttribute("SlicerAstro." + key, original ? original : "UNDEFINED");
+    }
+}
+
 //----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
@@ -265,6 +322,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       volNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
+    vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(volNode, fullName);
     disNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
     // parse WCS Status
@@ -351,6 +409,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
       {
       labvolNode->SetAttribute((*kit).c_str(), reader->GetHeaderValue((*kit).c_str()));
       }
+    vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(labvolNode, fullName);
     labdisNode->SetAttribute("SlicerAstro.NAXIS", reader->GetHeaderValue("SlicerAstro.NAXIS"));
 
     // parse WCS Status
@@ -486,7 +545,11 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
   vtkNew<vtkFITSWriter> writer;
   writer->SetFileName(fullName.c_str());
   writer->SetInputConnection(volNode->GetImageDataConnection());
-  writer->SetUseCompression(this->GetUseCompression());
+  // Compression is chosen with the file name: CFITSIO compresses the files
+  // named .fits.gz. The compression of the writer (gzip of the written file,
+  // then removal of the file) would leave the storage node pointing to a
+  // file that no longer exists.
+  writer->SetUseCompression(0);
 
   // pass down all MRML attributes
   std::vector<std::string> attributeNames = volNode->GetAttributeNames();
@@ -495,6 +558,7 @@ int vtkMRMLAstroVolumeStorageNode::WriteDataInternal(vtkMRMLNode *refNode)
     {
     writer->SetAttribute((*ait), volNode->GetAttribute((*ait).c_str()));
     }
+  vtkMRMLAstroVolumeStorageNode::RestoreSpectralAxisKeywords(volNode, writer);
 
   writer->Write();
   int writeFlag = 1;
@@ -529,4 +593,22 @@ void vtkMRMLAstroVolumeStorageNode::InitializeSupportedWriteFileTypes()
 void vtkMRMLAstroVolumeStorageNode::ConfigureForDataExchange()
 {
   this->UseCompressionOff();
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeStorageNode::StoreSpectralAxisKeywords(vtkMRMLNode* node, const std::string& fileName)
+{
+  if (node)
+    {
+    StoreSpectralAxisKeywordsImpl(node, fileName);
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroVolumeStorageNode::RestoreSpectralAxisKeywords(vtkMRMLNode* node, vtkFITSWriter* writer)
+{
+  if (node && writer)
+    {
+    RestoreSpectralAxisKeywordsImpl(node, writer);
+    }
 }
