@@ -138,6 +138,15 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroSmoothingParametersNode : public vtkMRML
 
   /// Set/Get the Rx (Eulerian angle in degree).
   /// Default is 0
+  ///
+  /// Rotation convention of the 3D Gaussian kernel (Punzo et al. 2016,
+  /// arXiv:1609.03782, Eq. 3: K = Rz Ry Rx G): the kernel value at the voxel
+  /// offset r is G(Rx(rx) Ry(ry) Rz(rz) r), with counter-clockwise rotation
+  /// matrices. Equivalently, the axis-aligned Gaussian is rotated about X,
+  /// then about Y, then about Z (the order of the paper), each time
+  /// clockwise by the given angle when looking along the axis towards the
+  /// origin. The kernel preview of the AstroSmoothing module and the CPU and
+  /// GPU filters all use this convention.
   /// \sa SetRx(), GetRx()
   vtkSetMacro(Rx,double);
   vtkGetMacro(Rx,double);

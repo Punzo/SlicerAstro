@@ -199,19 +199,19 @@ void vtkMRMLAstroSmoothingParametersNode::ReadXMLAttributes(const char** atts)
 
     if (!strcmp(attName, "Rx"))
       {
-      this->Rx = StringToInt(attValue);
+      this->Rx = StringToDouble(attValue);
       continue;
       }
 
     if (!strcmp(attName, "Ry"))
       {
-      this->Ry = StringToInt(attValue);
+      this->Ry = StringToDouble(attValue);
       continue;
       }
 
     if (!strcmp(attName, "Rz"))
       {
-      this->Rz = StringToInt(attValue);
+      this->Rz = StringToDouble(attValue);
       continue;
       }
 

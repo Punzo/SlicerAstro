@@ -19,6 +19,9 @@
 
 // vtkOpenGLFilters includes
 #include "vtkAstroOpenGLImageGaussian.h"
+
+// STD includes
+#include <cmath>
 #include "vtkAstroOpenGLImageAlgorithmHelper.h"
 
 // VTK includes
@@ -266,9 +269,9 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
     }
   else
     {
-    if (this->RotationAngles[0] < 0.001 &&
-       this->RotationAngles[1] < 0.001 &&
-       this->RotationAngles[2] < 0.001)
+    if (fabs(this->RotationAngles[0]) < 0.001 &&
+        fabs(this->RotationAngles[1]) < 0.001 &&
+        fabs(this->RotationAngles[2]) < 0.001)
       {
       fragShader =
       "//VTK::System::Dec\n"
