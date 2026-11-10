@@ -98,22 +98,6 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.catalogSelector.toolTip = "Loaded SoFiA catalogues."
         selectorLayout.addRow("Catalogue:", self.catalogSelector)
 
-        displayLayout = qt.QHBoxLayout()
-        self.showPointsCheckBox = qt.QCheckBox("Show points")
-        self.showPointsCheckBox.checked = True
-        self.showNamesCheckBox = qt.QCheckBox("Show names")
-        self.showNamesCheckBox.checked = True
-        displayLayout.addWidget(self.showPointsCheckBox)
-        displayLayout.addWidget(self.showNamesCheckBox)
-        displayLayout.addWidget(qt.QLabel("Size:"))
-        self.sizeSlider = ctk.ctkSliderWidget()
-        self.sizeSlider.minimum = 0.5
-        self.sizeSlider.maximum = 10.0
-        self.sizeSlider.singleStep = 0.5
-        self.sizeSlider.value = 3.0
-        displayLayout.addWidget(self.sizeSlider, 1)
-        sourcesLayout.addLayout(displayLayout)
-
         self.tableView = slicer.qMRMLTableView()
         self.tableView.setMRMLScene(slicer.mrmlScene)
         self.tableView.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
@@ -122,6 +106,33 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.tableView.toolTip = "Select a source to center the views on it."
         sourcesLayout.addWidget(self.tableView)
 
+        # Source points (markups point list of the catalogue)
+        pointsSection = ctk.ctkCollapsibleButton()
+        pointsSection.text = "Source points"
+        self.layout.addWidget(pointsSection)
+        pointsLayout = qt.QVBoxLayout(pointsSection)
+
+        togglesLayout = qt.QHBoxLayout()
+        self.showPointsCheckBox = qt.QCheckBox("Show points")
+        self.showPointsCheckBox.checked = True
+        self.showNamesCheckBox = qt.QCheckBox("Show names")
+        self.showNamesCheckBox.checked = True
+        self.lockedCheckBox = qt.QCheckBox("Lock positions")
+        self.lockedCheckBox.checked = True
+        self.lockedCheckBox.toolTip = "Unlock to move the source points with the mouse."
+        self.markupsModuleButton = qt.QPushButton("Edit in Markups")
+        self.markupsModuleButton.toolTip = "Open the source points in the Markups module."
+        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.lockedCheckBox):
+            togglesLayout.addWidget(widget)
+        togglesLayout.addStretch(1)
+        togglesLayout.addWidget(self.markupsModuleButton)
+        pointsLayout.addLayout(togglesLayout)
+
+        # glyph type and size, colors, opacity, text, 2D projection
+        self.markupsDisplayWidget = slicer.qMRMLMarkupsDisplayNodeWidget()
+        self.markupsDisplayWidget.setMRMLScene(slicer.mrmlScene)
+        pointsLayout.addWidget(self.markupsDisplayWidget)
+
         self.layout.addStretch(1)
 
         self.catalogPathEdit.connect("currentPathChanged(QString)", self.updateLoadButton)
@@ -129,7 +140,8 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.catalogSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCatalogChanged)
         self.showPointsCheckBox.connect("toggled(bool)", self.updatePointDisplay)
         self.showNamesCheckBox.connect("toggled(bool)", self.updatePointDisplay)
-        self.sizeSlider.connect("valueChanged(double)", self.updatePointDisplay)
+        self.lockedCheckBox.connect("toggled(bool)", self.updatePointDisplay)
+        self.markupsModuleButton.connect("clicked()", self.onEditInMarkups)
         self.tableView.selectionModel().connect(
             "currentRowChanged(QModelIndex,QModelIndex)", self.onSourceSelected)
         self.updateLoadButton()
@@ -157,18 +169,21 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
     def onCatalogChanged(self, tableNode):
         self.tableView.setMRMLTableNode(tableNode)
         pointListNode = self.pointListNode()
-        enabled = pointListNode is not None
-        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.sizeSlider):
+        self.markupsDisplayWidget.setMRMLMarkupsNode(pointListNode)
+        toggles = (self.showPointsCheckBox, self.showNamesCheckBox, self.lockedCheckBox)
+        enabled = pointListNode is not None and pointListNode.GetDisplayNode() is not None
+        for widget in toggles + (self.markupsModuleButton, self.markupsDisplayWidget):
             widget.enabled = enabled
-        if not enabled or not pointListNode.GetDisplayNode():
+        if not enabled:
             return
         displayNode = pointListNode.GetDisplayNode()
-        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.sizeSlider):
+        for widget in toggles:
             widget.blockSignals(True)
         self.showPointsCheckBox.checked = displayNode.GetVisibility()
         self.showNamesCheckBox.checked = displayNode.GetPointLabelsVisibility()
-        self.sizeSlider.value = displayNode.GetGlyphScale()
-        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.sizeSlider):
+        self.lockedCheckBox.checked = pointListNode.GetLocked() or all(
+            pointListNode.GetNthControlPointLocked(index) for index in range(pointListNode.GetNumberOfControlPoints()))
+        for widget in toggles:
             widget.blockSignals(False)
 
     def updatePointDisplay(self, value=None):
@@ -179,9 +194,21 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         wasModifying = displayNode.StartModify()
         displayNode.SetVisibility(self.showPointsCheckBox.checked)
         displayNode.SetPointLabelsVisibility(self.showNamesCheckBox.checked)
-        displayNode.SetGlyphScale(self.sizeSlider.value)
-        displayNode.SetTextScale(self.sizeSlider.value)
         displayNode.EndModify(wasModifying)
+        # the points are locked one by one by the catalogue reader
+        locked = self.lockedCheckBox.checked
+        wasModifying = pointListNode.StartModify()
+        pointListNode.SetLocked(locked)
+        for index in range(pointListNode.GetNumberOfControlPoints()):
+            pointListNode.SetNthControlPointLocked(index, locked)
+        pointListNode.EndModify(wasModifying)
+
+    def onEditInMarkups(self):
+        pointListNode = self.pointListNode()
+        if not pointListNode:
+            return
+        slicer.modules.markups.logic().SetActiveList(pointListNode)
+        slicer.util.selectModule("Markups")
 
     def onSourceSelected(self, current, previous=None):
         pointListNode = self.pointListNode()
@@ -426,6 +453,7 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
             if "id" in row:
                 pointListNode.SetNthControlPointDescription(index, "id %d" % int(row["id"]))
             pointListNode.SetNthControlPointLocked(index, True)
+        pointListNode.SetLocked(True)
         pointListNode.EndModify(wasModifying)
         return pointListNode
 
@@ -614,12 +642,16 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         pointListNode = widget.pointListNode()
         self.checkSources(pointListNode, maskNode)
         self.assertTrue(widget.showNamesCheckBox.checked)
+        self.assertTrue(widget.lockedCheckBox.checked)
 
         # display controls
         widget.showNamesCheckBox.checked = False
         self.assertFalse(pointListNode.GetDisplayNode().GetPointLabelsVisibility())
-        widget.sizeSlider.value = 5.0
-        self.assertEqual(pointListNode.GetDisplayNode().GetGlyphScale(), 5.0)
+        self.assertTrue(widget.markupsDisplayWidget.enabled)
+        widget.lockedCheckBox.checked = False
+        self.assertFalse(pointListNode.GetNthControlPointLocked(0))
+        widget.lockedCheckBox.checked = True
+        self.assertTrue(pointListNode.GetNthControlPointLocked(1))
 
         # selecting a source centers the slice views on it
         widget.tableView.selectRow(1)
