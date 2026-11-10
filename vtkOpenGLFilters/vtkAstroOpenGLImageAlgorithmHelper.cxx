@@ -548,7 +548,10 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
       }
     }
 
-  vtkPixelBufferObject *outPBO = inputTex->Download();
+  // Ping-pong: even iterations write outputTex, odd ones inputTex. Download
+  // the texture written last (n == 0: the input).
+  vtkTextureObject* resultTex = (n % 2 == 1) ? outputTex.GetPointer() : inputTex.GetPointer();
+  vtkPixelBufferObject *outPBO = resultTex->Download();
 
   unsigned int newDims[3];
   newDims[0] = dims[0];

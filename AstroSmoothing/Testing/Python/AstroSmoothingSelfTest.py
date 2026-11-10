@@ -200,9 +200,13 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
 
         # GPU (OpenGL) implementations, compared with the CPU results
         self.delayDisplay("GPU (OpenGL)")
-        for name, configure, tolerance in (("box", anisotropicBox, 1e-4),
-                                           ("Gaussian", anisotropicGaussian, 1e-4),
-                                           ("gradient", gradient, 1e-3)):
+        def gradientOddIterations(p):
+            gradient(p)
+            p.SetAccuracy(7)  # odd number of GPU ping-pong passes
+        for name, configure, tolerance in (("box", anisotropicBox, 1e-5),
+                                           ("Gaussian", anisotropicGaussian, 1e-5),
+                                           ("gradient", gradient, 1e-5),
+                                           ("gradient (odd iterations)", gradientOddIterations, 1e-5)):
             cpu = self.smooth(parametersNode, configure, hardware=0)
             gpu = self.smooth(parametersNode, configure, hardware=1)
             self.assertClose(gpu, cpu, scale, "GPU " + name, relativeTolerance=tolerance)

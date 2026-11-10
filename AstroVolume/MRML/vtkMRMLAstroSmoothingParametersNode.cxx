@@ -56,7 +56,7 @@ vtkMRMLAstroSmoothingParametersNode::vtkMRMLAstroSmoothingParametersNode()
   this->AutoRun = false;
   this->Accuracy = 20;
   this->TimeStep = 0.0325;
-  this->K = 2.;
+  this->K = 1.5;
   this->ParameterX = 5.;
   this->ParameterY = 5.;
   this->ParameterZ = 5.;

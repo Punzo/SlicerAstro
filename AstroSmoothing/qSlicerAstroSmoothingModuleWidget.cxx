@@ -1614,14 +1614,9 @@ void qSlicerAstroSmoothingModuleWidget::onCurrentFilterChanged(int index)
 
   if (index == 2)
     {
-    if (d->parametersNode->GetHardware())
-      {
-      d->parametersNode->SetAccuracy(19);
-      }
-    else
-      {
-      d->parametersNode->SetAccuracy(20);
-      }
+    // Default parameters of the intensity-driven gradient filter
+    // (Punzo et al. 2016): K = 1.5, tau = 0.0325, n = 20, Cx = Cy = Cz = 5
+    d->parametersNode->SetAccuracy(20);
     d->parametersNode->SetTimeStep(0.0325);
     d->parametersNode->SetK(1.5);
     }
@@ -2118,18 +2113,7 @@ void qSlicerAstroSmoothingModuleWidget::onHardwareChanged(int index)
  d->parametersNode->SetHardware(index);
  int filter = d->parametersNode->GetFilter();
 
- if (filter == 2)
-   {
-   if (index)
-     {
-     d->parametersNode->SetAccuracy(19);
-     }
-   else
-     {
-     d->parametersNode->SetAccuracy(20);
-     }
-   }
- d->parametersNode->EndModify(wasModifying);
+  d->parametersNode->EndModify(wasModifying);
 }
 
 //-----------------------------------------------------------------------------
