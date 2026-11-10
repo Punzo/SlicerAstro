@@ -138,6 +138,8 @@ public:
   bool ActorsAddedToRenderer;
 
   vtkSmartPointer<vtkDoubleArray> Color;
+  int RulerColor{-1};     // ruler colour of the view node used for Color
+  bool CustomColor{false}; // Color set with SetAnnotationsColor
   static const double COLOR_INVALID[3];
 
   vtkMRMLAstroBeamDisplayableManager* External;
@@ -282,6 +284,37 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     return;
     }
 
+  // The colour follows the ruler colour of the view (menu of the slice view
+  // controller); a custom colour (SetAnnotationsColor) is used until the
+  // ruler colour is changed again.
+  const int rulerColor = viewNode->GetRulerColor();
+  if (rulerColor != this->RulerColor)
+    {
+    if (this->RulerColor != -1 || !this->CustomColor)
+      {
+      switch (rulerColor)
+        {
+        case vtkMRMLAbstractViewNode::RulerColorWhite:
+          this->Color->SetValue(0, 1.);
+          this->Color->SetValue(1, 1.);
+          this->Color->SetValue(2, 1.);
+          break;
+        case vtkMRMLAbstractViewNode::RulerColorBlack:
+          this->Color->SetValue(0, 0.);
+          this->Color->SetValue(1, 0.);
+          this->Color->SetValue(2, 0.);
+          break;
+        default: // yellow: the SlicerAstro annotations colour
+          this->Color->SetValue(0, COLOR_INVALID[0]);
+          this->Color->SetValue(1, COLOR_INVALID[1]);
+          this->Color->SetValue(2, COLOR_INVALID[2]);
+          break;
+        }
+      this->CustomColor = false;
+      }
+    this->RulerColor = rulerColor;
+    }
+
   if (!sliceNode->GetAttribute("SlicerAstro.Beam"))
     {
     return;
@@ -338,6 +371,13 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     if (!strcmp(volumeNode->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
         !strcmp(volumeNode->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
         !strcmp(volumeNode->GetAttribute("SlicerAstro.BPA"), "UNDEFINED"))
+      {
+      continue;
+      }
+
+    // e.g. BMAJ = -1: the beam is not defined
+    if (StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMAJ")) <= 0. ||
+        StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMIN")) <= 0.)
       {
       continue;
       }
@@ -463,6 +503,7 @@ vtkRenderer *vtkMRMLAstroBeamDisplayableManager::vtkMarkerRenderer()
 //---------------------------------------------------------------------------
 void vtkMRMLAstroBeamDisplayableManager::SetAnnotationsColor(double red, double green, double blue)
 {
+  this->Internal->CustomColor = true;
   this->Internal->Color->SetValue(0, red);
   this->Internal->Color->SetValue(1, green);
   this->Internal->Color->SetValue(2, blue);

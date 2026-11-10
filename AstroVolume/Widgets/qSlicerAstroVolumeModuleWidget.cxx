@@ -1107,7 +1107,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode")));
       d->TableMinNode->SetName("MinTable");
       d->TableMinNode->RemoveAllColumns();
-      d->TableMinNode->SetUseColumnNameAsColumnHeader(true);
+      d->TableMinNode->SetUseColumnTitleAsColumnHeader(true);
       d->TableMinNode->SetDefaultColumnType("double");
 
       vtkDoubleArray* xAxis = vtkDoubleArray::SafeDownCast(d->TableMinNode->AddColumn());
@@ -1190,7 +1190,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode")));
       d->TableMaxNode->SetName("MaxTable");
       d->TableMaxNode->RemoveAllColumns();
-      d->TableMaxNode->SetUseColumnNameAsColumnHeader(true);
+      d->TableMaxNode->SetUseColumnTitleAsColumnHeader(true);
       d->TableMaxNode->SetDefaultColumnType("double");
 
       vtkDoubleArray* xAxis = vtkDoubleArray::SafeDownCast(d->TableMaxNode->AddColumn());
@@ -1273,7 +1273,7 @@ void qSlicerAstroVolumeModuleWidget::initializePlotNodes(bool forceNew  /*= fals
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode")));
       d->TableThresholdNode->SetName("ThresholdTable");
       d->TableThresholdNode->RemoveAllColumns();
-      d->TableThresholdNode->SetUseColumnNameAsColumnHeader(true);
+      d->TableThresholdNode->SetUseColumnTitleAsColumnHeader(true);
       d->TableThresholdNode->SetDefaultColumnType("double");
 
       vtkDoubleArray* xAxis = vtkDoubleArray::SafeDownCast(d->TableThresholdNode->AddColumn());
@@ -4056,7 +4056,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
   int wasModifying = tableNode->StartModify();
   tableNode->SetAndObserveTable(table.GetPointer());
   tableNode->RemoveAllColumns();
-  tableNode->SetUseColumnNameAsColumnHeader(true);
+  tableNode->SetUseColumnTitleAsColumnHeader(true);
   tableNode->SetDefaultColumnType("double");
 
   vtkDoubleArray* Intensity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());

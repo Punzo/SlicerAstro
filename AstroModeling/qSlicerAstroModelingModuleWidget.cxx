@@ -1128,7 +1128,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
   d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
   int wasModifying = d->astroTableNode->StartModify();
   d->astroTableNode->RemoveAllColumns();
-  d->astroTableNode->SetUseColumnNameAsColumnHeader(true);
+  d->astroTableNode->SetUseColumnTitleAsColumnHeader(true);
   d->astroTableNode->SetDefaultColumnType("double");
 
   vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());

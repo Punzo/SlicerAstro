@@ -35,6 +35,8 @@
 #include <vtkMRMLViewNode.h>
 
 // VTK includes
+#include <vtkRendererCollection.h>
+#include <vtkPropCollection.h>
 #include <vtkActor2D.h>
 #include <vtkActor2DCollection.h>
 #include <vtkAxisActor2D.h>
@@ -133,6 +135,7 @@ public:
 
   void SetupAxes();
   void UpdateAxes();
+  void HideSlicerRuler();
   void ShowActors(bool show);
 
   vtkSmartPointer<vtkRenderer> MarkerRenderer;
@@ -150,6 +153,8 @@ public:
   bool ActorsAddedToRenderer;
 
   vtkSmartPointer<vtkDoubleArray> Color;
+  int RulerColor{-1};     // ruler colour of the view node used for Color
+  bool CustomColor{false}; // Color set with SetAnnotationsColor
   static const double COLOR_INVALID[3];
 
   int fontSize;
@@ -268,8 +273,48 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::SetupAxes()
 }
 
 //---------------------------------------------------------------------------
+void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::HideSlicerRuler()
+{
+  // The WCS axes replace the ruler of Slicer in the slice views (they are
+  // controlled by the same ruler settings of the view node). SlicerAstro
+  // unregisters vtkMRMLRulerDisplayableManager, but every new slice view
+  // registers it again and its instances leave their marker renderer (with
+  // the ruler actors) in the render window: do not draw these renderers.
+  // vtkMRMLRulerDisplayableManager is the only one using a vtkAxisActor2D.
+  vtkRenderer* renderer = this->External->GetRenderer();
+  vtkRenderWindow* renderWindow = renderer ? renderer->GetRenderWindow() : nullptr;
+  if (!renderWindow)
+    {
+    return;
+    }
+  vtkRendererCollection* renderers = renderWindow->GetRenderers();
+  vtkCollectionSimpleIterator rendererIt;
+  renderers->InitTraversal(rendererIt);
+  while (vtkRenderer* otherRenderer = renderers->GetNextRenderer(rendererIt))
+    {
+    if (otherRenderer == this->MarkerRenderer || !otherRenderer->GetDraw())
+      {
+      continue;
+      }
+    vtkPropCollection* props = otherRenderer->GetViewProps();
+    vtkCollectionSimpleIterator propIt;
+    props->InitTraversal(propIt);
+    while (vtkProp* prop = props->GetNextProp(propIt))
+      {
+      if (prop->IsA("vtkAxisActor2D"))
+        {
+        otherRenderer->DrawOff();
+        break;
+        }
+      }
+    }
+}
+
+//---------------------------------------------------------------------------
 void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 {
+  this->HideSlicerRuler();
+
   // clean the attributes before updating
   this->twoDAxesPoints->Initialize();
   this->twoDAxesPoints->Squeeze();
@@ -310,6 +355,37 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
                             " failed: displayable node is invalid.");
     this->ShowActors(false);
     return;
+    }
+
+  // The colour follows the ruler colour of the view (menu of the slice view
+  // controller); a custom colour (SetAnnotationsColor) is used until the
+  // ruler colour is changed again.
+  const int rulerColor = viewNode->GetRulerColor();
+  if (rulerColor != this->RulerColor)
+    {
+    if (this->RulerColor != -1 || !this->CustomColor)
+      {
+      switch (rulerColor)
+        {
+        case vtkMRMLAbstractViewNode::RulerColorWhite:
+          this->Color->SetValue(0, 1.);
+          this->Color->SetValue(1, 1.);
+          this->Color->SetValue(2, 1.);
+          break;
+        case vtkMRMLAbstractViewNode::RulerColorBlack:
+          this->Color->SetValue(0, 0.);
+          this->Color->SetValue(1, 0.);
+          this->Color->SetValue(2, 0.);
+          break;
+        default: // yellow: the SlicerAstro annotations colour
+          this->Color->SetValue(0, COLOR_INVALID[0]);
+          this->Color->SetValue(1, COLOR_INVALID[1]);
+          this->Color->SetValue(2, COLOR_INVALID[2]);
+          break;
+        }
+      this->CustomColor = false;
+      }
+    this->RulerColor = rulerColor;
     }
 
   if (sliceNode->GetOrientation().compare("XY") &&
@@ -1656,6 +1732,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::SetAnnotationsColor(double red,
                                                                  double green,
                                                                  double blue)
 {
+  this->Internal->CustomColor = true;
   this->Internal->Color->SetValue(0, red);
   this->Internal->Color->SetValue(1, green);
   this->Internal->Color->SetValue(2, blue);

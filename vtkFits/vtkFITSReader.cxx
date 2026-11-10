@@ -1136,6 +1136,11 @@ bool vtkFITSReader::AllocateHeader()
                      "The fits header is missing the BMAJ keyword.");
      this->HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
      }
+   else if (StringToDouble(this->HeaderKeyValue["SlicerAstro.BMAJ"].c_str()) <= 0.)
+     {
+     // e.g. BMAJ = -1: the beam is not defined
+     this->HeaderKeyValue["SlicerAstro.BMAJ"] = "UNDEFINED";
+     }
 
    if (!strcmp(this->HeaderKeyValue["SlicerAstro.BMAJ"].c_str(), "UNDEFINED"))
      {
@@ -1229,6 +1234,11 @@ bool vtkFITSReader::AllocateHeader()
      {
      vtkWarningMacro("vtkFITSReader::AllocateHeader : "
                      "The fits header is missing the BMIN keyword.");
+     this->HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
+     }
+   else if (StringToDouble(this->HeaderKeyValue["SlicerAstro.BMIN"].c_str()) <= 0.)
+     {
+     // e.g. BMIN = -1: the beam is not defined
      this->HeaderKeyValue["SlicerAstro.BMIN"] = "UNDEFINED";
      }
 

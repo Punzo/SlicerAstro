@@ -606,7 +606,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
   d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
   int wasModifying = d->astroTableNode->StartModify();
   d->astroTableNode->RemoveAllColumns();
-  d->astroTableNode->SetUseColumnNameAsColumnHeader(true);
+  d->astroTableNode->SetUseColumnTitleAsColumnHeader(true);
 
   vtkStringArray* Selection = vtkStringArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Selection)

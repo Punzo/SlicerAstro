@@ -1207,7 +1207,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   tableNode->SetName(nameTable.c_str());
   tableNode->SetAndObserveTable(table.GetPointer());
   tableNode->RemoveAllColumns();
-  tableNode->SetUseColumnNameAsColumnHeader(true);
+  tableNode->SetUseColumnTitleAsColumnHeader(true);
   tableNode->SetDefaultColumnType("double");
 
   vtkDoubleArray* Velocity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());

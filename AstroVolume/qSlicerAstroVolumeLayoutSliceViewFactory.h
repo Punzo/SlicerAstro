@@ -29,6 +29,7 @@
 
 #include "qSlicerAstroVolumeModuleExport.h"
 
+class qMRMLSliceView;
 class qSlicerAstroVolumeLayoutSliceViewFactoryPrivate;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume
@@ -43,6 +44,16 @@ public:
 
   /// Return the class name
   virtual QString viewClassName()const;
+
+  /// The WCS axes of SlicerAstro (vtkMRMLAstroTwoDAxesDisplayableManager)
+  /// replace the ruler of Slicer in the slice views and are controlled by the
+  /// same ruler settings of the view. Unregister the Slicer ruler displayable
+  /// manager (every new slice view registers it again) and remove the marker
+  /// renderers that its instances leave in the slice views of \a layoutManager.
+  static void removeSlicerRulers(qMRMLLayoutManager* layoutManager);
+
+  /// Remove the marker renderers left by the Slicer ruler displayable manager.
+  static void removeSlicerRulerRenderers(qMRMLSliceView* sliceView);
 
 protected:
 

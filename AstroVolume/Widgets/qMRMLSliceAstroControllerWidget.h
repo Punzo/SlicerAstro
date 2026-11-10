@@ -47,6 +47,10 @@ public slots:
   /// Set the display of the WCS coordinate on the slice.
   void setWCSDisplay();
 
+  /// Update the widget (including the astro controls: WCS readout, beam
+  /// button) when the slice node is modified.
+  void updateWidgetFromMRMLView() override;
+
 protected:
   qMRMLSliceAstroControllerWidget(qMRMLSliceAstroControllerWidgetPrivate* pimpl, QWidget* parent = 0);
 

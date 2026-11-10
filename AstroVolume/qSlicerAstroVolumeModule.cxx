@@ -349,53 +349,68 @@ void qSlicerAstroVolumeModule::setup()
   unitNodeFrequency->SetAttribute("DisplayHint","");
   selectionNode->SetUnitNodeID("frequency", unitNodeFrequency->GetID());
 
-  // Set Slice Default Node
-  vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
-      (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
-  if (!defaultNode)
+  // Astronomical slice orientations (XY, XZ, ZY) instead of the anatomical ones
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (astroVolumeLogic)
     {
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSliceNode");
-    defaultNode.TakeReference(foo);
-    this->mrmlScene()->AddDefaultNode(defaultNode);
-    }
-  vtkMRMLSliceNode *defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
-  defaultSliceNode->RenameSliceOrientationPreset("Axial", "XZ");
-  defaultSliceNode->RenameSliceOrientationPreset("Sagittal", "ZY");
-  defaultSliceNode->RenameSliceOrientationPreset("Coronal", "XY");
-
-  // Modify SliceNodes already allocated
-  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode"));
-
-  for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
-    {
-    vtkMRMLSliceNode* sliceNode =
-        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
-    if (sliceNode)
+    // WCS axes (drawn by vtkMRMLAstroTwoDAxesDisplayableManager when the ruler
+    // of the slice view is enabled) are visible by default, in yellow.
+    // The Slicer core modules may add the anatomical presets again and read
+    // the ruler settings during startup: apply again when startup is completed.
+    vtkMRMLScene* scene = this->mrmlScene();
+    auto applySliceViewDefaults = [astroVolumeLogic, scene]()
       {
-      sliceNode->DisableModifiedEventOn();
-      sliceNode->RenameSliceOrientationPreset("Axial", "XZ");
-      sliceNode->RenameSliceOrientationPreset("Sagittal", "ZY");
-      sliceNode->RenameSliceOrientationPreset("Coronal", "XY");
-      sliceNode->DisableModifiedEventOff();
-      }
+      astroVolumeLogic->UpdateSliceOrientationPresets();
+      vtkMRMLSliceNode* defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(
+        scene->GetDefaultNodeByClass("vtkMRMLSliceNode"));
+      if (defaultSliceNode)
+        {
+        defaultSliceNode->SetRulerType(vtkMRMLAbstractViewNode::RulerTypeThin);
+        defaultSliceNode->SetRulerColor(vtkMRMLAbstractViewNode::RulerColorYellow);
+        }
+      vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take(
+        scene->GetNodesByClass("vtkMRMLSliceNode"));
+      for (int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+        {
+        vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
+        sliceNode->SetRulerType(vtkMRMLAbstractViewNode::RulerTypeThin);
+        sliceNode->SetRulerColor(vtkMRMLAbstractViewNode::RulerColorYellow);
+        }
+      };
+    applySliceViewDefaults();
+    QObject::connect(d->app, &qSlicerApplication::startupCompleted, this, applySliceViewDefaults);
     }
 
   // Set the Slice Factory
-  /*qMRMLLayoutSliceViewFactory* mrmlSliceViewFactory =
-    qobject_cast<qMRMLLayoutSliceViewFactory*>(
-    d->app->layoutManager()->mrmlViewFactory("vtkMRMLSliceNode"));*/
-
   // No layout manager when running without main window (e.g. tests, batch mode)
   if (d->app->layoutManager())
     {
-    qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
-      new qSlicerAstroVolumeLayoutSliceViewFactory(d->app->layoutManager());
+    qMRMLLayoutManager* layoutManager = d->app->layoutManager();
 
-    //d->app->layoutManager()->unregisterViewFactory(mrmlSliceViewFactory);
-    // TO DO: this should be disabled, but SlicerAstro with the last Slicer version (16/02/2021)
-    // crash if the default slice view factory is disabled
-    d->app->layoutManager()->registerViewFactory(astroSliceViewFactory);
+    // The slice views are created only by the SlicerAstro factory: the core
+    // factory stays registered, but it is detached from the scene (its views
+    // are deleted and it does not create views anymore). Otherwise each slice
+    // node has two slice widgets and two slice logics.
+    foreach (qMRMLLayoutViewFactory* viewFactory, layoutManager->mrmlViewFactories())
+      {
+      if (viewFactory->viewClassName() == "vtkMRMLSliceNode")
+        {
+        viewFactory->setMRMLScene(nullptr);
+        }
+      }
+
+    qSlicerAstroVolumeLayoutSliceViewFactory* astroSliceViewFactory =
+      new qSlicerAstroVolumeLayoutSliceViewFactory(layoutManager);
+
+    // The application logic uses the slice logics of the slice view factory.
+    // The collection must be set before the factory creates the views:
+    // the displayable managers (e.g. the slice intersection widget, which
+    // handles the mouse interactions in the slice views) look up their slice
+    // logic in this collection and observe it.
+    d->app->applicationLogic()->SetSliceLogics(astroSliceViewFactory->sliceLogics());
+
+    layoutManager->registerViewFactory(astroSliceViewFactory);
+    layoutManager->refresh();
     }
 
   // Modify orietation in default Layouts
@@ -408,9 +423,11 @@ void qSlicerAstroVolumeModule::setup()
     }
 
   std::vector<std::string> oldOrietation;
-  oldOrietation.push_back("Coronal");
+  // red (axial) views: sky plane; yellow (sagittal) views: RA-velocity;
+  // green (coronal) views: velocity-Dec
   oldOrietation.push_back("Axial");
   oldOrietation.push_back("Sagittal");
+  oldOrietation.push_back("Coronal");
   std::vector<std::string> newOrietation;
   newOrietation.push_back("XY");
   newOrietation.push_back("XZ");
@@ -438,8 +455,8 @@ void qSlicerAstroVolumeModule::setup()
   // Unregister RulerDisplayableManager
   vtkMRMLThreeDViewDisplayableManagerFactory::GetInstance()->
     UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
-  vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
-    UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+  // in the slice views the ruler is replaced by the WCS axes
+  qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulers(d->app->layoutManager());
 
   // Register AstroTwoDAxesDisplayableManager
   vtkMRMLSliceViewDisplayableManagerFactory::GetInstance()->
@@ -453,8 +470,8 @@ void qSlicerAstroVolumeModule::setup()
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
 
   // Set Default ColorNodeTable
-  defaultNode = vtkMRMLColorTableNode::SafeDownCast
-      (this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLPlotChartNode"));
+  vtkSmartPointer<vtkMRMLNode> defaultNode =
+    this->mrmlScene()->GetDefaultNodeByClass("vtkMRMLColorTableNode");
   if (!defaultNode)
     {
     vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLColorTableNode");

@@ -66,6 +66,7 @@
 #include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
 #include <vtkIntArray.h>
+#include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -159,43 +160,106 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   events->InsertNextValue(vtkMRMLScene::NodeAddedEvent);
   events->InsertNextValue(vtkMRMLScene::NodeRemovedEvent);
   events->InsertNextValue(vtkMRMLScene::EndImportEvent);
+  events->InsertNextValue(vtkMRMLScene::EndCloseEvent);
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode* sliceNode)
+{
+  if (!sliceNode)
+    {
+    return;
+    }
+  // anatomical preset -> astronomical preset (same slice to RAS matrices)
+  static const char* const names[3][2] = {{"Axial", "XZ"}, {"Sagittal", "ZY"}, {"Coronal", "XY"}};
+  // orientation of the views: the views that are axial, sagittal and coronal
+  // in Slicer (red, yellow and green) show the sky plane (XY), the
+  // RA-velocity plane (XZ) and the velocity-Dec plane (ZY), as in the layouts
+  // (see qSlicerAstroVolumeModule::setup).
+  static const char* const views[3][2] = {{"Axial", "XY"}, {"Sagittal", "XZ"}, {"Coronal", "ZY"}};
+  vtkNew<vtkMatrix3x3> matrices[3];
+  vtkMRMLSliceNode::GetAxialSliceToRASMatrix(matrices[0]);
+  vtkMRMLSliceNode::GetSagittalSliceToRASMatrix(matrices[1]);
+  vtkMRMLSliceNode::GetCoronalSliceToRASMatrix(matrices[2]);
+
+  std::string orientation = sliceNode->GetOrientation();
+  std::string defaultOrientation =
+    sliceNode->GetDefaultOrientation() ? sliceNode->GetDefaultOrientation() : "";
+
+  const int wasModifying = sliceNode->StartModify();
+  for (int i = 0; i < 3; ++i)
+    {
+    const std::string anatomical = names[i][0];
+    const std::string astronomical = names[i][1];
+    if (!sliceNode->HasSliceOrientationPreset(astronomical))
+      {
+      sliceNode->AddSliceOrientationPreset(astronomical, matrices[i]);
+      }
+    if (sliceNode->HasSliceOrientationPreset(anatomical))
+      {
+      sliceNode->RemoveSliceOrientationPreset(anatomical);
+      }
+    }
+  for (int i = 0; i < 3; ++i)
+    {
+    if (orientation == views[i][0])
+      {
+      orientation = views[i][1];
+      }
+    if (defaultOrientation == views[i][0])
+      {
+      defaultOrientation = views[i][1];
+      sliceNode->SetDefaultOrientation(views[i][1]);
+      }
+    }
+  if (sliceNode->GetScene() &&
+      orientation != vtkMRMLSliceNode::GetReformatOrientationName() &&
+      sliceNode->GetOrientation() != orientation)
+    {
+    sliceNode->SetOrientation(orientation.c_str());
+    }
+  sliceNode->EndModify(wasModifying);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::UpdateSliceOrientationPresets()
+{
+  if (!this->GetMRMLScene())
+    {
+    return;
+    }
+  // Default slice node: new slice nodes are created from it (note that the
+  // Slicer core adds the anatomical presets to it, e.g. when the default
+  // slice view settings are read)
+  vtkSmartPointer<vtkMRMLNode> defaultNode = this->GetMRMLScene()->GetDefaultNodeByClass("vtkMRMLSliceNode");
+  if (!defaultNode)
+    {
+    defaultNode.TakeReference(this->GetMRMLScene()->CreateNodeByClass("vtkMRMLSliceNode"));
+    this->GetMRMLScene()->AddDefaultNode(defaultNode);
+    }
+  vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode::SafeDownCast(defaultNode));
+
+  // Slice nodes already in the scene
+  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
+  for (int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
+    {
+    vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(
+      vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i)));
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
+{
+  this->UpdateSliceOrientationPresets();
 }
 
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
 {
-  // set Slice Default Node
-  vtkSmartPointer<vtkMRMLNode> defaultNode = vtkMRMLSliceNode::SafeDownCast
-      (this->GetMRMLScene()->GetDefaultNodeByClass("vtkMRMLSliceNode"));
-  if (!defaultNode)
-    {
-    vtkMRMLNode * foo = this->GetMRMLScene()->CreateNodeByClass("vtkMRMLSliceNode");
-    defaultNode.TakeReference(foo);
-    this->GetMRMLScene()->AddDefaultNode(defaultNode);
-    }
-  vtkMRMLSliceNode * defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(defaultNode);
-  defaultSliceNode->RemoveSliceOrientationPreset("Axial");
-  defaultSliceNode->RemoveSliceOrientationPreset("Sagittal");
-  defaultSliceNode->RemoveSliceOrientationPreset("Coronal");
-
-  // modify SliceNodes already allocated
-  vtkSmartPointer<vtkCollection> sliceNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->GetMRMLScene()->GetNodesByClass("vtkMRMLSliceNode"));
-
-  for(int i = 0; i < sliceNodes->GetNumberOfItems(); i++)
-    {
-    vtkMRMLSliceNode* sliceNode =
-        vtkMRMLSliceNode::SafeDownCast(sliceNodes->GetItemAsObject(i));
-    if (sliceNode)
-      {
-      sliceNode->DisableModifiedEventOn();
-      sliceNode->RemoveSliceOrientationPreset("Axial");
-      sliceNode->RemoveSliceOrientationPreset("Sagittal");
-      sliceNode->RemoveSliceOrientationPreset("Coronal");
-      sliceNode->DisableModifiedEventOff();
-      }
-    }
+  this->UpdateSliceOrientationPresets();
 
   // modify CameraNodes already allocated
   vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
@@ -218,6 +282,12 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   if (!node || !this->GetMRMLScene())
     {
     return;
+    }
+
+  // astronomical slice orientations
+  if (node->IsA("vtkMRMLSliceNode"))
+    {
+    vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode::SafeDownCast(node));
     }
 
   //change axes label names

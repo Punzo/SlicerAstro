@@ -39,6 +39,7 @@ class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLSegmentationNode;
+class vtkMRMLSliceNode;
 class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkIntArray;
@@ -92,6 +93,15 @@ public:
   vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,
                                                           vtkMRMLAstroVolumeNode *volumeNode,
                                                           const char *name);
+
+  /// Replace the anatomical slice orientation presets of a slice node
+  /// (Axial, Sagittal, Coronal) with the astronomical ones (XZ, ZY, XY).
+  /// The orientation and the default orientation of the node are converted.
+  static void SetAstroSliceOrientationPresets(vtkMRMLSliceNode* sliceNode);
+
+  /// Apply SetAstroSliceOrientationPresets to the default slice node and to
+  /// all the slice nodes of the scene.
+  void UpdateSliceOrientationPresets();
 
   /// Sets ROI to fit to input volume.
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.
@@ -157,6 +167,7 @@ protected:
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;
+  virtual void OnMRMLSceneEndClose() override;
 
   /// Load presets for the 3D color function from xml file
   bool LoadPresets(vtkMRMLScene* scene);

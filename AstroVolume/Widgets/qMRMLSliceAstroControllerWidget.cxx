@@ -43,6 +43,7 @@
 #include <vtkMRMLSliceLayerLogic.h>
 
 // MRML includes
+#include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLScalarVolumeDisplayNode.h>
 #include <vtkMRMLScene.h>
@@ -151,30 +152,6 @@ void qMRMLSliceAstroControllerWidgetPrivate::init()
 }
 
 //---------------------------------------------------------------------------
-void qMRMLSliceAstroControllerWidgetPrivate::setMRMLSliceNodeInternal(vtkMRMLSliceNode* newSliceNode)
-{
-  Q_Q(qMRMLSliceAstroControllerWidget);
-
-  if (newSliceNode == q->mrmlSliceNode())
-    {
-    return;
-    }
-
-  this->qvtkReconnect(q->mrmlSliceNode(), newSliceNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(updateWidgetFromMRMLSliceNode()));
-  this->qvtkReconnect(q->mrmlSliceNode(), newSliceNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(updateAstroWidgetFromMRMLSliceNode()));
-
-  q->setMRMLSliceNode(newSliceNode);
-
-  // Update widget state given the new slice node
-  this->updateWidgetFromMRMLSliceNode();
-  this->updateAstroWidgetFromMRMLSliceNode();
-  // Enable/disable widget
-  q->setDisabled(newSliceNode == 0);
-}
-
-//---------------------------------------------------------------------------
 void qMRMLSliceAstroControllerWidgetPrivate::updateAstroWidgetFromMRMLSliceNode()
 {
   Q_Q(qMRMLSliceAstroControllerWidget);
@@ -185,6 +162,7 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateAstroWidgetFromMRMLSliceNode(
     }
 
   q->setWCSDisplay();
+  this->updateBeamButton();
 
   if (!q->mrmlSliceNode()->GetAttribute("SlicerAstro.Beam"))
     {
@@ -199,6 +177,60 @@ void qMRMLSliceAstroControllerWidgetPrivate::updateAstroWidgetFromMRMLSliceNode(
     {
     this->BeamButton->setChecked(false);
     }
+}
+
+//---------------------------------------------------------------------------
+void qMRMLSliceAstroControllerWidgetPrivate::updateBeamButton()
+{
+  Q_Q(qMRMLSliceAstroControllerWidget);
+
+  // the volumes shown in the view change with the slice logic (layers)
+  if (this->BeamObservedSliceLogic != q->sliceLogic())
+    {
+    this->qvtkReconnect(this->BeamObservedSliceLogic, q->sliceLogic(), vtkCommand::ModifiedEvent,
+                        this, SLOT(updateBeamButton()));
+    this->BeamObservedSliceLogic = q->sliceLogic();
+    }
+
+  QString reason;
+  if (!q->mrmlSliceNode() || !q->sliceLogic())
+    {
+    reason = qMRMLSliceAstroControllerWidget::tr("No data in this view.");
+    }
+  else if (q->mrmlSliceNode()->GetOrientation() != "XY")
+    {
+    reason = qMRMLSliceAstroControllerWidget::tr("The beam is shown only in the views of the sky plane (XY orientation).");
+    }
+  else
+    {
+    bool beamDefined = false;
+    vtkMRMLSliceLayerLogic* layers[2] = {q->sliceLogic()->GetBackgroundLayer(), q->sliceLogic()->GetForegroundLayer()};
+    for (vtkMRMLSliceLayerLogic* layer : layers)
+      {
+      vtkMRMLAstroVolumeNode* volumeNode =
+        vtkMRMLAstroVolumeNode::SafeDownCast(layer ? layer->GetVolumeNode() : nullptr);
+      if (!volumeNode)
+        {
+        continue;
+        }
+      const char* bmaj = volumeNode->GetAttribute("SlicerAstro.BMAJ");
+      const char* bmin = volumeNode->GetAttribute("SlicerAstro.BMIN");
+      if (bmaj && bmin && QString(bmaj).toDouble() > 0. && QString(bmin).toDouble() > 0.)
+        {
+        beamDefined = true;
+        break;
+        }
+      }
+    if (!beamDefined)
+      {
+      reason = qMRMLSliceAstroControllerWidget::tr("The beam is not defined in the FITS header of the data shown in this view "
+                                                   "(BMAJ, BMIN and BPA keywords).");
+      }
+    }
+
+  this->BeamButton->setEnabled(reason.isEmpty());
+  this->BeamButton->setToolTip(reason.isEmpty() ?
+    qMRMLSliceAstroControllerWidget::tr("Show/hide the beam in the 2D XY view.") : reason);
 }
 
 //---------------------------------------------------------------------------
@@ -249,6 +281,14 @@ qMRMLSliceAstroControllerWidget::qMRMLSliceAstroControllerWidget(qMRMLSliceAstro
 //---------------------------------------------------------------------------
 qMRMLSliceAstroControllerWidget::~qMRMLSliceAstroControllerWidget()
 {
+}
+
+//---------------------------------------------------------------------------
+void qMRMLSliceAstroControllerWidget::updateWidgetFromMRMLView()
+{
+  Q_D(qMRMLSliceAstroControllerWidget);
+  this->Superclass::updateWidgetFromMRMLView();
+  d->updateAstroWidgetFromMRMLSliceNode();
 }
 
 //---------------------------------------------------------------------------

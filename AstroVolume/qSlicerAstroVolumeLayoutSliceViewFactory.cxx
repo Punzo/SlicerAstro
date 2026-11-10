@@ -20,6 +20,9 @@
 // SlicerQt includes
 #include "qSlicerAstroVolumeLayoutSliceViewFactory.h"
 
+// STD includes
+#include <vector>
+
 // Qt includes
 #include <QApplication>
 #include <QWidget>
@@ -27,7 +30,12 @@
 // VTK includes
 #include <vtkCollection.h>
 #include <vtkNew.h>
+#include <vtkSmartPointer.h>
 #include <vtkObjectFactory.h>
+#include <vtkPropCollection.h>
+#include <vtkRenderWindow.h>
+#include <vtkRenderer.h>
+#include <vtkRendererCollection.h>
 
 // Slicer includes
 #include <qMRMLLayoutManager.h>
@@ -38,6 +46,7 @@
 
 // MRML includes
 #include <vtkMRMLApplicationLogic.h>
+#include <vtkMRMLDisplayableManagerGroup.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLScene.h>
@@ -46,6 +55,17 @@
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
 
 
+
+namespace
+{
+//-----------------------------------------------------------------------------
+// qMRMLSliceView::displayableManagerGroup() is protected (only the core slice
+// view factory is a friend class): expose it through a pointer to member.
+struct SliceViewAccessor : public qMRMLSliceView
+{
+  using qMRMLSliceView::displayableManagerGroup;
+};
+} // namespace
 
 //-----------------------------------------------------------------------------
 qSlicerAstroVolumeLayoutSliceViewFactory::qSlicerAstroVolumeLayoutSliceViewFactory(QObject* _parent)
@@ -72,15 +92,23 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
 
   qMRMLSliceAstroWidget * sliceWidget = new qMRMLSliceAstroWidget(this->layoutManager()->viewport());
 
+  // The new slice view has registered the Slicer ruler displayable manager again
+  qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulers(this->layoutManager());
+  qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulerRenderers(sliceWidget->sliceView());
+
   // Same initialization sequence as qMRMLLayoutSliceViewFactory:
   // set the slice logic before the slice node, so that displayable managers
   // can use the slice logic during initialization.
   sliceWidget->setSliceLogics(this->sliceLogics());
   this->sliceLogics()->AddItem(sliceWidget->sliceLogic());
 
-  // TODO: associate the slice logic with the displayable manager group of the
-  // view (as qMRMLLayoutSliceViewFactory does). qMRMLSliceView::displayableManagerGroup()
-  // is only accessible to the core factory: requires making it public in Slicer.
+  // Associate the slice logic with the displayable manager group of the view
+  // (as qMRMLLayoutSliceViewFactory does): it is used by
+  // vtkSlicerApplicationLogic::GetViewDisplayableManagerByClassName.
+  vtkMRMLDisplayableManagerGroup* (qMRMLSliceView::*displayableManagerGroup)() const =
+    &SliceViewAccessor::displayableManagerGroup;
+  sliceWidget->sliceLogic()->SetDisplayableManagerGroup(
+    (sliceWidget->sliceView()->*displayableManagerGroup)());
 
   sliceWidget->sliceController()->setControllerButtonGroup(this->SliceControllerButtonGroup);
   sliceWidget->setObjectName(QString("qMRMLSliceWidget%1").arg(viewNode->GetLayoutName()));
@@ -95,6 +123,64 @@ QWidget* qSlicerAstroVolumeLayoutSliceViewFactory::createViewFromNode(vtkMRMLAbs
   return sliceWidget;
 }
 
+void qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulers(qMRMLLayoutManager* layoutManager)
+{
+  vtkMRMLSliceViewDisplayableManagerFactory* factory = vtkMRMLSliceViewDisplayableManagerFactory::GetInstance();
+  if (factory->IsDisplayableManagerRegistered("vtkMRMLRulerDisplayableManager"))
+    {
+    // the displayable manager groups of the slice views delete their instances
+    factory->UnRegisterDisplayableManager("vtkMRMLRulerDisplayableManager");
+    }
+  if (!layoutManager)
+    {
+    return;
+    }
+  foreach (const QString& sliceViewName, layoutManager->sliceViewNames())
+    {
+    qMRMLSliceWidget* sliceWidget = layoutManager->sliceWidget(sliceViewName);
+    if (sliceWidget)
+      {
+      qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulerRenderers(sliceWidget->sliceView());
+      }
+    }
+}
+
+//------------------------------------------------------------------------------
+void qSlicerAstroVolumeLayoutSliceViewFactory::removeSlicerRulerRenderers(qMRMLSliceView* sliceView)
+{
+  if (!sliceView || !sliceView->renderWindow())
+    {
+    return;
+    }
+  // vtkMRMLRulerDisplayableManager does not remove its marker renderer (with
+  // the ruler actors, possibly visible) from the render window when it is
+  // deleted. It is the only displayable manager using a vtkAxisActor2D.
+  vtkRenderWindow* renderWindow = sliceView->renderWindow();
+  vtkRendererCollection* renderers = renderWindow->GetRenderers();
+  std::vector<vtkSmartPointer<vtkRenderer>> rulerRenderers;
+  vtkCollectionSimpleIterator rendererIt;
+  renderers->InitTraversal(rendererIt);
+  while (vtkRenderer* renderer = renderers->GetNextRenderer(rendererIt))
+    {
+    vtkPropCollection* props = renderer->GetViewProps();
+    vtkCollectionSimpleIterator propIt;
+    props->InitTraversal(propIt);
+    while (vtkProp* prop = props->GetNextProp(propIt))
+      {
+      if (prop->IsA("vtkAxisActor2D"))
+        {
+        rulerRenderers.push_back(renderer);
+        break;
+        }
+      }
+    }
+  for (vtkRenderer* renderer : rulerRenderers)
+    {
+    renderWindow->RemoveRenderer(renderer);
+    }
+}
+
+//------------------------------------------------------------------------------
 void qSlicerAstroVolumeLayoutSliceViewFactory::deleteView(vtkMRMLAbstractViewNode *viewNode)
 {
   qMRMLSliceAstroWidget* sliceWidget =

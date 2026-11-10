@@ -47,6 +47,8 @@
 #include <vtkCollection.h>
 #include <vtkSmartPointer.h>
 
+#include <vtkWeakPointer.h>
+
 class qSlicerApplication;
 
 //-----------------------------------------------------------------------------
@@ -61,12 +63,15 @@ public slots:
   /// Update widget state using the associated MRML slice node
   void updateAstroWidgetFromMRMLSliceNode();
 
+  /// Enable the beam button only if the view shows the sky plane (XY) and
+  /// an astro volume in the view has the beam information (BMAJ, BMIN > 0).
+  void updateBeamButton();
+
 protected slots:
   void onBeamToggled(bool toggled);
 
 protected:
   void onMRMLSelectionNodeModified(vtkObject* sender);
-  void setMRMLSliceNodeInternal(vtkMRMLSliceNode* sliceNode);
 
 public:
   typedef qMRMLSliceControllerWidgetPrivate Superclass;
@@ -77,6 +82,7 @@ public:
 
   QLabel*      WCSDisplay;
   QToolButton* BeamButton;
+  vtkWeakPointer<vtkMRMLSliceLogic> BeamObservedSliceLogic;
 
   qSlicerApplication* app;
   vtkSmartPointer<vtkCollection> col;
