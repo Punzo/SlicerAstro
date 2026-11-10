@@ -1,200 +1,158 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import math
-import sys
+import numpy as np
 
-#
-# AstroMomentMapsSelfTest
-#
+import slicer
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
 
-class AstroMomentMapsSelfTest:
-  def __init__(self, parent):
-    parent.title = "Astro MomentMaps SelfTest"
-    parent.categories = ["Testing.TestCases"]
-    parent.dependencies = ["AstroVolume"]
-    parent.contributors = ["""
-    Davide Punzo (Kapteyn Astronomical Institute) and
-    Thijs van der Hulst (Kapteyn Astronomical Institute)."""]
-    parent.helpText = """
-    This module was developed as a self test to perform the operations needed for generating moment maps.
-    """
-    parent.acknowledgementText = """
-""" # replace with organization, grant and thanks.
-    self.parent = parent
+DOUBLEPRECISION = 1.e-16
 
-    # Add this test to the SelfTest module's list for discovery when the module
-    # is created.  Since this module may be discovered before SelfTests itself,
-    # create the list if it doesn't already exist.
-    try:
-      slicer.selfTests
-    except AttributeError:
-      slicer.selfTests = {}
-    slicer.selfTests['Astro MomentMaps SelfTest'] = self.runTest
 
-  def runTest(self):
-    tester = AstroMomentMapsSelfTestTest()
-    tester.runTest()
+class AstroMomentMapsSelfTest(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        self.parent.title = "Astro MomentMaps SelfTest"
+        self.parent.categories = ["Testing.TestCases"]
+        self.parent.dependencies = ["AstroVolume", "AstroMomentMaps"]
+        self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
+        self.parent.helpText = """
+Self test of the AstroMomentMaps module: the moment maps are compared with an
+independent (numpy) computation.
+"""
+        self.parent.hidden = True
 
-#
-# qAstroMomentMapsSelfTestWidget
-#
 
-class AstroMomentMapsSelfTestWidget:
-  def __init__(self, parent = None):
-    if not parent:
-      self.parent = slicer.qMRMLWidget()
-      self.parent.setLayout(qt.QVBoxLayout())
-      self.parent.setMRMLScene(slicer.mrmlScene)
-    else:
-      self.parent = parent
-    self.layout = self.parent.layout()
-    if not parent:
-      self.setup()
-      self.parent.show()
-
-  def setup(self):
-    # Instantiate and connect widgets ...
-
-    # reload button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadButton = qt.QPushButton("Reload")
-    self.reloadButton.toolTip = "Reload this module."
-    self.reloadButton.name = "AstroMomentMapsSelfTest Reload"
-    self.layout.addWidget(self.reloadButton)
-    self.reloadButton.connect('clicked()', self.onReload)
-
-    # reload and test button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadAndTestButton = qt.QPushButton("Reload and Test")
-    self.reloadAndTestButton.toolTip = "Reload this module and then run the self tests."
-    self.layout.addWidget(self.reloadAndTestButton)
-    self.reloadAndTestButton.connect('clicked()', self.onReloadAndTest)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-  def cleanup(self):
+class AstroMomentMapsSelfTestWidget(ScriptedLoadableModuleWidget):
     pass
 
-  def onReload(self,moduleName="AstroMomentMapsSelfTest"):
-    """Generic reload method for any scripted module.
-    ModuleWizard will subsitute correct default moduleName.
-    """
-    globals()[moduleName] = slicer.util.reloadScriptedModule(moduleName)
 
-  def onReloadAndTest(self,moduleName="AstroMomentMapsSelfTest"):
-    self.onReload()
-    evalString = 'globals()["%s"].%sTest()' % (moduleName, moduleName)
-    tester = eval(evalString)
-    tester.runTest()
-
-#
-# AstroMomentMapsSelfTestLogic
-#
-
-class AstroMomentMapsSelfTestLogic:
-  """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget
-  """
-  def __init__(self):
+class AstroMomentMapsSelfTestLogic(ScriptedLoadableModuleLogic):
     pass
 
-  def hasImageData(self,volumeNode):
-    """This is a dummy logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      print('no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      print('no image data')
-      return False
-    return True
+
+def voxelArray(volumeNode):
+    """Zero-copy (z, y, x) view on the voxels of an (astro) volume node."""
+    from vtk.util.numpy_support import vtk_to_numpy
+    imageData = volumeNode.GetImageData()
+    dims = imageData.GetDimensions()
+    return vtk_to_numpy(imageData.GetPointData().GetScalars()).reshape(dims[2], dims[1], dims[0])
 
 
-class AstroMomentMapsSelfTestTest(unittest.TestCase):
-  """
-  This is the test case for your scripted module.
-  """
+def channelRange(volumeNode, parametersNode):
+    """Velocities of the channels (km/s) and the channel range [zmin, zmax]
+    selected by the velocity limits of the parameters node."""
+    display = volumeNode.GetAstroVolumeDisplayNode()
+    dims = volumeNode.GetImageData().GetDimensions()
+    center = [dims[0] * 0.5, dims[1] * 0.5]
+    world = [0.0, 0.0, 0.0]
+    velocities = []
+    for k in range(dims[2]):
+        display.GetReferenceSpace([center[0], center[1], float(k)], world)
+        velocities.append(world[2])
+    velocities = np.array(velocities)
+    # The spectral world coordinate is in m/s (WCS unit) or km/s; the velocity
+    # limits of the parameters node are in km/s. Galaxy velocities are well
+    # below 1e4 km/s, so larger values are in m/s.
+    velMin, velMax = parametersNode.GetVelocityMin(), parametersNode.GetVelocityMax()
+    velFactor = 0.001 if np.nanmax(np.abs(velocities)) > 1.e4 else 1.0
 
-  def delayDisplay(self,message,msec=100):
-    """This utility method displays a small dialog and waits.
-    This does two things: 1) it lets the event loop catch up
-    to the state of the test so that rendering and widget updates
-    have all taken place before the test continues and 2) it
-    shows the user/developer/tester the state of the test
-    so that we'll know when it breaks.
-    """
-    print(message)
-    self.info = qt.QDialog()
-    self.infoLayout = qt.QVBoxLayout()
-    self.info.setLayout(self.infoLayout)
-    self.label = qt.QLabel(message,self.info)
-    self.infoLayout.addWidget(self.label)
-    qt.QTimer.singleShot(msec, self.info.close)
-    self.info.exec_()
+    def channel(velocity):
+        world = [0.0, 0.0, 0.0]
+        display.GetReferenceSpace([center[0], center[1], 0.0], world)
+        world[2] = velocity / velFactor
+        ijk = [0.0, 0.0, 0.0]
+        display.GetIJKSpace(world, ijk)
+        return int(min(max(ijk[2], 0), dims[2] - 1))
 
-  def setUp(self):
-    slicer.mrmlScene.Clear(0)
-
-  def runTest(self):
-    self.setUp()
-    self.test_AstroMomentMapsSelfTest()
-
-  def test_AstroMomentMapsSelfTest(self):
-    print("Running AstroMomentMapsSelfTest Test case:")
-
-    self.downloadWEIN069()
-    astroVolume = slicer.util.getNode("WEIN069")
-    rms = astroVolume.GetDisplayThreshold()
-
-    mainWindow = slicer.util.mainWindow()
-    mainWindow.moduleSelector().selectModule('AstroVolume')
-    mainWindow.moduleSelector().selectModule('AstroMomentMaps')
-
-    astroMomentMapsModule = module = slicer.modules.astromomentmaps
-    astroMomentMapsModuleWidget = astroMomentMapsModule.widgetRepresentation()
-
-    AstroMomentMapsParameterNode = slicer.util.getNode("AstroMomentMapsParameters")
-    AstroMomentMapsParameterNode.SetIntensityMin(rms * 3)
-
-    QPushButtonList = astroMomentMapsModuleWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "ApplyButton":
-            ApplyPushButton = QPushButton
-
-    self.delayDisplay('Calculating moment maps', 700)
-    ApplyPushButton.click()
-
-    ZeroMomentMapVolume = slicer.mrmlScene.GetNodeByID(AstroMomentMapsParameterNode.GetZeroMomentVolumeNodeID())
-    pixelValue0 = ZeroMomentMapVolume.GetImageData().GetScalarComponentAsFloat(56, 68, 0, 0)
-    FirstMomentMapVolume = slicer.mrmlScene.GetNodeByID(AstroMomentMapsParameterNode.GetFirstMomentVolumeNodeID())
-    pixelValue1 = FirstMomentMapVolume.GetImageData().GetScalarComponentAsFloat(56, 68, 0, 0)
-    SecondMomentMapVolume = slicer.mrmlScene.GetNodeByID(AstroMomentMapsParameterNode.GetSecondMomentVolumeNodeID())
-    pixelValue2 = SecondMomentMapVolume.GetImageData().GetScalarComponentAsFloat(56, 68, 0, 0)
-
-    if (math.fabs(pixelValue0 - 0.511788547039) < 1.e-6 and \
-        math.fabs(pixelValue1 - 5231.70947266) < 1.e-6 and \
-        math.fabs(pixelValue2 - 28.8058509827) < 1.e-6):
-       self.delayDisplay('Test passed', 700)
-    else:
-       self.delayDisplay('Test failed', 700)
-       # if run from Slicer interface remove the followinf exit
-       sys.exit()
+    zmin, zmax = channel(velMin), channel(velMax)
+    if zmin > zmax:
+        zmin, zmax = zmax, zmin
+    return velocities * velFactor, zmin, zmax
 
 
-  def downloadWEIN069(self):
-    import AstroSampleData
-    astroSampleDataLogic = AstroSampleData.AstroSampleDataLogic()
-    self.delayDisplay('Getting WEIN069 Astro Volume')
-    WEIN069Volume = astroSampleDataLogic.downloadSample("WEIN069")
-    return WEIN069Volume
+def referenceMoments(cube, velocities, zmin, zmax, intensityMin, intensityMax, velMin, velMax):
+    """Moment maps (0, 1, 2) with the definitions used by AstroMomentMaps."""
+    selected = cube[zmin:zmax + 1].astype(np.float64)
+    vel = velocities[zmin:zmax + 1][:, None, None]
+    with np.errstate(invalid="ignore", divide="ignore"):
+        inside = (selected > intensityMin) & (selected < intensityMax)
+        weights = np.where(inside, selected, 0.0)
+        m0raw = weights.sum(axis=0)
+        m1raw = (weights * vel).sum(axis=0)
+        empty0 = np.abs(m0raw) < DOUBLEPRECISION
+        m1 = np.where(empty0 | (np.abs(m1raw) < DOUBLEPRECISION), np.nan, m1raw / m0raw)
+        m2raw = (weights * (vel - m1) ** 2).sum(axis=0)
+        m2 = np.where(empty0 | ~(np.abs(m2raw) >= DOUBLEPRECISION), np.nan, np.sqrt(m2raw / m0raw))
+        dV = abs((velMax - velMin) / (zmax - zmin))
+        m0 = np.where(empty0, np.nan, m0raw * dV)
+    return m0, m1, m2
 
 
+class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        slicer.mrmlScene.Clear(0)
+
+    def runTest(self):
+        self.setUp()
+        self.test_AstroMomentMapsSelfTest()
+
+    def assertMapsClose(self, computed, expected, name, zeroTolerance=0.0):
+        # moments are accumulated in the output type (float32): relative tolerance
+        valid = ~np.isnan(expected) & ~np.isnan(computed)
+        mismatch = np.isnan(expected) != np.isnan(computed)
+        # Single-channel pixels: the dispersion is zero (blank by definition),
+        # but the module computes it from the float32 first moment, leaving a
+        # tiny residual. Accept those.
+        mismatch &= ~(np.isnan(expected) & (np.abs(np.nan_to_num(computed)) <= zeroTolerance))
+        nanMismatch = np.count_nonzero(mismatch)
+        self.assertLessEqual(nanMismatch, 2, f"{name}: blank pixels differ ({nanMismatch})")
+        scale = np.nanmax(np.abs(expected[valid])) if np.any(valid) else 1.0
+        maxDiff = np.max(np.abs(computed[valid] - expected[valid])) if np.any(valid) else 0.0
+        self.assertLess(maxDiff, 1e-4 * scale, f"{name}: max difference {maxDiff} (scale {scale})")
+
+    def test_AstroMomentMapsSelfTest(self):
+        import AstroSampleData
+
+        self.delayDisplay("Loading WEIN069")
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(volumeNode)
+        rms = volumeNode.GetDisplayThreshold()
+
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroMomentMaps")
+
+        parametersNode = slicer.util.getNode("AstroMomentMapsParameters")
+        parametersNode.SetMaskActive(False)
+        parametersNode.SetGenerateZero(True)
+        parametersNode.SetGenerateFirst(True)
+        parametersNode.SetGenerateSecond(True)
+        parametersNode.SetIntensityMin(rms * 3)
+
+        self.delayDisplay("Calculating moment maps")
+        widget = slicer.modules.astromomentmaps.widgetRepresentation()
+        slicer.util.findChild(widget, "ApplyButton").click()
+
+        maps = []
+        for nodeID in (parametersNode.GetZeroMomentVolumeNodeID(),
+                       parametersNode.GetFirstMomentVolumeNodeID(),
+                       parametersNode.GetSecondMomentVolumeNodeID()):
+            node = slicer.mrmlScene.GetNodeByID(nodeID)
+            self.assertIsNotNone(node)
+            maps.append(voxelArray(node)[0].astype(np.float64))
+
+        velocities, zmin, zmax = channelRange(volumeNode, parametersNode)
+        expected = referenceMoments(voxelArray(volumeNode), velocities, zmin, zmax,
+                                    parametersNode.GetIntensityMin(), parametersNode.GetIntensityMax(),
+                                    parametersNode.GetVelocityMin(), parametersNode.GetVelocityMax())
+
+        channelWidth = abs(velocities[1] - velocities[0])
+        for name, computed, reference, zeroTolerance in zip(
+                ("moment 0", "moment 1", "moment 2"), maps, expected, (0.0, 0.0, 1e-3 * channelWidth)):
+            self.assertEqual(computed.shape, reference.shape)
+            self.assertMapsClose(computed, reference, name, zeroTolerance)
+
+        self.delayDisplay("Test passed")
