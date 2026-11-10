@@ -1068,7 +1068,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     masterVolume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());

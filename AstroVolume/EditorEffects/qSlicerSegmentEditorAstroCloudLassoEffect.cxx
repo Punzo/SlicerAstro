@@ -453,7 +453,7 @@ vtkIdType qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintAddPoint(double
     }
   else
     {
-    this->PaintLines_World->ReplaceCell(1, 1, &idPoint);
+    this->PaintLines_World->ReplaceCellAtId(1, 1, &idPoint);
     }
   return idPoint;
 }
@@ -905,7 +905,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
   threshold->Update();
 
   vtkNew<vtkOrientedImageData> thresholdMask;
-  thresholdMask->DeepCopy(threshold->GetOutput());
+  thresholdMask->ShallowCopy(threshold->GetOutput());
   vtkNew<vtkMatrix4x4> modifierLabelmapToWorldMatrix;
   this->LastMask->GetImageToWorldMatrix(modifierLabelmapToWorldMatrix.GetPointer());
   thresholdMask->SetGeometryFromImageToWorldMatrix(modifierLabelmapToWorldMatrix.GetPointer());

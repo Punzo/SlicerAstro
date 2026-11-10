@@ -31,6 +31,7 @@
 #include <Utilities/fatal.hh>
 
 // STD includes
+#include <memory>
 #include <atomic>
 
 // MRML includes
@@ -1006,8 +1007,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         pnode->SetStatus(80);
 
-        float *ringreg = RingRegion(this->Internal->fitF->Outrings(),
-                                    this->Internal->cubeF->Head());
+        std::unique_ptr<float[]> ringreg(RingRegion(this->Internal->fitF->Outrings(),
+                                    this->Internal->cubeF->Head()));
         if (!ringreg)
           {
           this->cleanPointers();
@@ -1021,7 +1022,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         float totflux_model = 0.;
         this->Internal->totflux_data = 0.;
-        MomentMap<float> *totalmap = new MomentMap<float>;
+        auto totalmap = std::make_unique<MomentMap<float>>();
         totalmap->input(this->Internal->cubeF);
         totalmap->SumMap(true);
 
@@ -1034,9 +1035,6 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
-        float mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-          * fabs(DeltaVel(*this->Internal->head))
-          * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
         // Calculate radial profile along the output rings
         float meanPA = findMean<float>(&this->Internal->fitF->Outrings()->phi[0],
@@ -1060,7 +1058,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           std::swap(segments[2], segments[3]);
           }
 
-        Tasks::Ellprof<float> ell(totalmap, this->Internal->fitF->Outrings(), nseg, segments);
+        Tasks::Ellprof<float> ell(totalmap.get(), this->Internal->fitF->Outrings(), nseg, segments);
         ell.RadialProfile();
 
         if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -1215,10 +1213,6 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
-        delete totalmap;
-        totalmap = nullptr;
-        delete ringreg;
-        ringreg = nullptr;
         outarray = nullptr;
         if (this->Internal->modF != nullptr)
           {
@@ -1364,8 +1358,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         pnode->SetStatus(80);
 
         // Calculate the total flux inside last ring in data
-        double *ringreg = RingRegion(this->Internal->fitD->Outrings(),
-                                     this->Internal->cubeD->Head());
+        std::unique_ptr<double[]> ringreg(RingRegion(this->Internal->fitD->Outrings(),
+                                     this->Internal->cubeD->Head()));
         if (!ringreg)
           {
           this->cleanPointers();
@@ -1378,7 +1372,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           }
         double totflux_model = 0.;
         this->Internal->totflux_data = 0.;
-        MomentMap<double> *totalmap = new MomentMap<double>;
+        auto totalmap = std::make_unique<MomentMap<double>>();
         totalmap->input(this->Internal->cubeD);
         totalmap->SumMap(true);
 
@@ -1391,9 +1385,6 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
-        double mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-          * fabs(DeltaVel(*this->Internal->head))
-          * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
         // Calculate radial profile along the output rings
         double meanPA = findMean<double>(&this->Internal->fitD->Outrings()->phi[0],
@@ -1417,7 +1408,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           std::swap(segments[2], segments[3]);
           }
 
-        Tasks::Ellprof<double> ell(totalmap, this->Internal->fitD->Outrings(), nseg, segments);
+        Tasks::Ellprof<double> ell(totalmap.get(), this->Internal->fitD->Outrings(), nseg, segments);
         ell.RadialProfile();
 
         if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -1571,10 +1562,6 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
-        delete totalmap;
-        totalmap = nullptr;
-        delete ringreg;
-        ringreg = nullptr;
         outarray = nullptr;
         if (this->Internal->modD != nullptr)
           {
@@ -2285,10 +2272,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
         this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
         // Calculate the total flux inside last ring in data
-        float *ringreg = RingRegion(this->Internal->fitF->Outrings(),
-                                    this->Internal->cubeF->Head());
+        std::unique_ptr<float[]> ringreg(RingRegion(this->Internal->fitF->Outrings(),
+                                    this->Internal->cubeF->Head()));
         this->Internal->totflux_data = 0.;
-        MomentMap<float> *totalmap = new MomentMap<float>;
+        auto totalmap = std::make_unique<MomentMap<float>>();
         totalmap->input(this->Internal->cubeF);
         totalmap->SumMap(true);
 
@@ -2299,10 +2286,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
             this->Internal->totflux_data += totalmap->Array(ii);
             }
           }
-        delete totalmap;
-        totalmap = nullptr;
-        delete ringreg;
-        ringreg = nullptr;
         break;
         }
       case VTK_DOUBLE:
@@ -2319,10 +2302,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
         this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
         // Calculate the total flux inside last ring in data
-        double *ringreg = RingRegion(this->Internal->fitD->Outrings(),
-                                     this->Internal->cubeD->Head());
+        std::unique_ptr<double[]> ringreg(RingRegion(this->Internal->fitD->Outrings(),
+                                     this->Internal->cubeD->Head()));
         this->Internal->totflux_data = 0.;
-        MomentMap<double> *totalmap = new MomentMap<double>;
+        auto totalmap = std::make_unique<MomentMap<double>>();
         totalmap->input(this->Internal->cubeD);
         totalmap->SumMap(true);
 
@@ -2333,10 +2316,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
             this->Internal->totflux_data += totalmap->Array(ii);
             }
           }
-        delete totalmap;
-        totalmap = nullptr;
-        delete ringreg;
-        ringreg = nullptr;
         break;
         }
       }
@@ -2440,8 +2419,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         }
 
       this->Internal->fitF->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
-      float *ringreg = RingRegion(this->Internal->fitF->Outrings(),
-                                  this->Internal->cubeF->Head());
+      std::unique_ptr<float[]> ringreg(RingRegion(this->Internal->fitF->Outrings(),
+                                  this->Internal->cubeF->Head()));
       if (!ringreg)
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -2451,7 +2430,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
       float totflux_model = 0.;
       this->Internal->totflux_data = 0.;
-      MomentMap<float> *totalmap = new MomentMap<float>;
+      auto totalmap = std::make_unique<MomentMap<float>>();
       totalmap->input(this->Internal->cubeF);
       totalmap->SumMap(true);
 
@@ -2464,9 +2443,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
           }
         }
 
-      float mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-        * fabs(DeltaVel(*this->Internal->head))
-        * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
       // Calculate radial profile along the output rings
       float meanPA = findMean<float>(&this->Internal->fitF->Outrings()->phi[0],
@@ -2490,7 +2466,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         std::swap(segments[2], segments[3]);
         }
 
-      Tasks::Ellprof<float> ell(totalmap, this->Internal->fitF->Outrings(), nseg, segments);
+      Tasks::Ellprof<float> ell(totalmap.get(), this->Internal->fitF->Outrings(), nseg, segments);
       ell.RadialProfile();
 
       if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -2632,10 +2608,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         residualFPixel = nullptr;
         }
 
-      delete totalmap;
-      totalmap = nullptr;
-      delete ringreg;
-      ringreg = nullptr;
       outarray = nullptr;
       if (this->Internal->modF != nullptr)
         {
@@ -2734,8 +2706,8 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         }
 
       this->Internal->fitD->In()->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
-      double *ringreg = RingRegion(this->Internal->fitD->Outrings(),
-                                   this->Internal->cubeD->Head());
+      std::unique_ptr<double[]> ringreg(RingRegion(this->Internal->fitD->Outrings(),
+                                   this->Internal->cubeD->Head()));
       if (!ringreg)
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -2745,7 +2717,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
       double totflux_model = 0.;
       this->Internal->totflux_data = 0.;
-      MomentMap<double> *totalmap = new MomentMap<double>;
+      auto totalmap = std::make_unique<MomentMap<double>>();
       totalmap->input(this->Internal->cubeD);
       totalmap->SumMap(true);
 
@@ -2758,9 +2730,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
           }
         }
 
-      double mass = 2.365E5 * FluxtoJy(this->Internal->totflux_data, *this->Internal->head)
-        * fabs(DeltaVel(*this->Internal->head))
-        * this->Internal->par->getDistance() * this->Internal->par->getDistance();
 
       // Calculate radial profile along the output rings
       double meanPA = findMean<double>(&this->Internal->fitD->Outrings()->phi[0],
@@ -2784,7 +2753,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         std::swap(segments[2], segments[3]);
         }
 
-      Tasks::Ellprof<double> ell(totalmap, this->Internal->fitD->Outrings(), nseg, segments);
+      Tasks::Ellprof<double> ell(totalmap.get(), this->Internal->fitD->Outrings(), nseg, segments);
       ell.RadialProfile();
 
       if (!strcmp(pnode->GetNormalize(), "AZIM"))
@@ -2926,10 +2895,6 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         residualDPixel = nullptr;
         }
 
-      delete totalmap;
-      totalmap = nullptr;
-      delete ringreg;
-      ringreg = nullptr;
       outarray = nullptr;
       if (this->Internal->modD != nullptr)
         {

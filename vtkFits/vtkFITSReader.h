@@ -168,7 +168,6 @@ protected:
   struct wcsprm *ReadWCS;
   int WCSStatus;
   int NWCS;
-  struct wcserr info[NWCSFIX];
 
   std::map <std::string, std::string> HeaderKeyValue;
 

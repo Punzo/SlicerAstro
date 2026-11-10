@@ -2712,7 +2712,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
@@ -2748,7 +2748,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
@@ -3267,7 +3267,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
@@ -3303,7 +3303,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
@@ -3338,7 +3338,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
@@ -3646,7 +3646,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
@@ -3682,7 +3682,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     imageThreshold->SetOutputScalarType(VTK_SHORT);
     imageThreshold->Update();
     vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->DeepCopy(imageThreshold->GetOutput());
+    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());

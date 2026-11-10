@@ -105,7 +105,6 @@ public:
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
   vtkSmartPointer<vtkFloatArray> MedianTempArray;
-  vtkSmartPointer<vtkImageData> blankImageDataTemp;
 };
 
 //----------------------------------------------------------------------------
@@ -113,7 +112,6 @@ vtkSlicerAstroMaskingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = nullptr;
   this->MedianTempArray = vtkSmartPointer<vtkFloatArray>::New();
-  this->blankImageDataTemp = vtkSmartPointer<vtkImageData>::New();
 }
 
 //---------------------------------------------------------------------------
@@ -536,6 +534,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
 
   vtkNew<vtkImageData> imageDataTemp;
+  vtkSmartPointer<vtkImageData> blankedImageData;
 
   if (!segmentationActive)
     {
@@ -589,7 +588,9 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     pnode->SetBlankValue("NaN");
     pnode->SetBlankRegion("Outside");
     this->ApplyBlank(pnode);
-    this->Internal->blankImageDataTemp->DeepCopy(outputVolume->GetImageData());
+    // keep a reference to the blanked (full size) cube: it is read while the
+    // cropped output is filled (no copy)
+    blankedImageData = outputVolume->GetImageData();
 
     this->GetAstroVolumeLogic()->CalculateSegmentCropVolumeBounds(segmentationNode,
                                                                   segment,
@@ -619,11 +620,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     switch (DataType)
       {
       case VTK_FLOAT:
-        inFPixel = static_cast<float*> (this->Internal->blankImageDataTemp->GetScalarPointer(0,0,0));
+        inFPixel = static_cast<float*> (blankedImageData->GetScalarPointer(0,0,0));
         outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
         break;
       case VTK_DOUBLE:
-        inDPixel = static_cast<double*> (this->Internal->blankImageDataTemp->GetScalarPointer(0,0,0));
+        inDPixel = static_cast<double*> (blankedImageData->GetScalarPointer(0,0,0));
         outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
         break;
       default:
@@ -693,11 +694,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   inFPixel = nullptr;
   inDPixel = nullptr;
-
-  delete inFPixel;
-  delete inDPixel;
-
-  this->Internal->blankImageDataTemp->Initialize();
+  blankedImageData = nullptr;
 
   if (cancel)
     {

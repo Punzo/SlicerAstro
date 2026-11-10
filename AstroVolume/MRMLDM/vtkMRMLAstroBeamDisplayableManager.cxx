@@ -421,7 +421,7 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     this->beamActor->GetProperty()->SetColor(this->Color->GetValue(0),
                                              this->Color->GetValue(1),
                                              this->Color->GetValue(2));
-    this->MarkerRenderer->AddActor2D(this->beamActor);
+    this->MarkerRenderer->AddViewProp(this->beamActor);
 
     this->ShowActors(true);
     break;

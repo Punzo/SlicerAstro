@@ -2148,8 +2148,9 @@ bool vtkFITSReader::AllocateWCS()
     return false;
     }
 
-  // run automatic wcs fix
-  if ((this->WCSStatus = wcsfixi(7, 0, this->ReadWCS, stat, this->info)))
+  // run automatic wcs fix (the messages in info are allocated by wcslib)
+  struct wcserr info[NWCSFIX] = {};
+  if ((this->WCSStatus = wcsfixi(7, 0, this->ReadWCS, stat, info)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsfix error: "<<this->WCSStatus<<"\n");
     }
@@ -2165,12 +2166,14 @@ bool vtkFITSReader::AllocateWCS()
 
   for (i = 0; i < NWCSFIX; i++)
     {
-    if (this->info[i].status < -1 || 0 < this->info[i].status)
+    if (info[i].status < -1 || 0 < info[i].status)
       {
-      vtkWarningMacro("wcsfix INFORMATIVE message from "<<this->info[i].function<<
-                      "at line "<<this->info[i].line_no<<" of file "<<this->info[i].file<<
-                      ": \n"<< this->info[i].msg<<"\n");
+      vtkWarningMacro("wcsfix INFORMATIVE message from "<<(info[i].function ? info[i].function : "")<<
+                      " at line "<<info[i].line_no<<" of file "<<(info[i].file ? info[i].file : "")<<
+                      ": \n"<<(info[i].msg ? info[i].msg : "")<<"\n");
       }
+    free(info[i].msg);
+    info[i].msg = nullptr;
     }
 
   // Reduce wcs dimensionality to the real one
