@@ -23,7 +23,7 @@ class AstroSoFiACatalog(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)
         self.parent.title = "Astro SoFiA Catalog"
-        self.parent.categories = ["Astronomy.Utilities"]
+        self.parent.categories = ["Astronomy"]
         self.parent.dependencies = ["AstroVolume"]
         self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
         self.parent.helpText = """
@@ -32,17 +32,167 @@ plain text (<i>name</i>_cat.txt, SoFiA 1 <i>name</i>_cat.ascii) and VOTable (<i>
 Each catalogue is loaded as a table (all the columns) and as a point list with
 a labelled point at the centroid of each source. The pixel positions of the
 catalogue are placed on the data cube or on the mask of the catalogue (load
-the cube or the mask first).
+the cube or the mask first). Selecting a source in the table centers the
+views on it.
 """
         self.parent.acknowledgementText = """
 This module was developed by Davide Punzo. <br>
 This work was supported by ERC grant nr. 291531 and the Slicer Community.
 """
-        self.parent.hidden = True
 
 
 class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
-    pass
+    def setup(self):
+        ScriptedLoadableModuleWidget.setup(self)
+        import ctk
+        import qt
+
+        self.logic = AstroSoFiACatalogLogic()
+
+        # Load
+        loadSection = ctk.ctkCollapsibleButton()
+        loadSection.text = "Load catalogue"
+        self.layout.addWidget(loadSection)
+        loadLayout = qt.QFormLayout(loadSection)
+
+        self.catalogPathEdit = ctk.ctkPathLineEdit()
+        self.catalogPathEdit.filters = ctk.ctkPathLineEdit.Files
+        self.catalogPathEdit.nameFilters = [
+            "SoFiA catalogue (*_cat.txt *_cat.xml *_cat.ascii)", "All files (*)"]
+        self.catalogPathEdit.settingKey = "AstroSoFiACatalog/CatalogPath"
+        self.catalogPathEdit.toolTip = "Plain text (_cat.txt, _cat.ascii) or VOTable (_cat.xml) catalogue of SoFiA."
+        loadLayout.addRow("Catalogue:", self.catalogPathEdit)
+
+        self.referenceSelector = slicer.qMRMLNodeComboBox()
+        self.referenceSelector.nodeTypes = ["vtkMRMLAstroVolumeNode", "vtkMRMLSegmentationNode"]
+        self.referenceSelector.noneEnabled = True
+        self.referenceSelector.noneDisplay = "Automatic (mask of the catalogue, or active cube)"
+        self.referenceSelector.addEnabled = False
+        self.referenceSelector.removeEnabled = False
+        self.referenceSelector.showChildNodeTypes = False
+        self.referenceSelector.setMRMLScene(slicer.mrmlScene)
+        self.referenceSelector.toolTip = ("Data cube or mask on which the pixel positions of the catalogue are "
+                                          "placed: the catalogue must have been created from it.")
+        loadLayout.addRow("Positions on:", self.referenceSelector)
+
+        self.loadButton = qt.QPushButton("Load")
+        self.loadButton.toolTip = "Load the catalogue as a table and as labelled source points."
+        loadLayout.addRow(self.loadButton)
+
+        # Sources
+        sourcesSection = ctk.ctkCollapsibleButton()
+        sourcesSection.text = "Sources"
+        self.layout.addWidget(sourcesSection)
+        sourcesLayout = qt.QVBoxLayout(sourcesSection)
+
+        selectorLayout = qt.QFormLayout()
+        sourcesLayout.addLayout(selectorLayout)
+        self.catalogSelector = slicer.qMRMLNodeComboBox()
+        self.catalogSelector.nodeTypes = ["vtkMRMLTableNode"]
+        self.catalogSelector.addAttribute("vtkMRMLTableNode", "SlicerAstro.SoFiASources")
+        self.catalogSelector.noneEnabled = True
+        self.catalogSelector.addEnabled = False
+        self.catalogSelector.removeEnabled = True
+        self.catalogSelector.renameEnabled = True
+        self.catalogSelector.setMRMLScene(slicer.mrmlScene)
+        self.catalogSelector.toolTip = "Loaded SoFiA catalogues."
+        selectorLayout.addRow("Catalogue:", self.catalogSelector)
+
+        displayLayout = qt.QHBoxLayout()
+        self.showPointsCheckBox = qt.QCheckBox("Show points")
+        self.showPointsCheckBox.checked = True
+        self.showNamesCheckBox = qt.QCheckBox("Show names")
+        self.showNamesCheckBox.checked = True
+        displayLayout.addWidget(self.showPointsCheckBox)
+        displayLayout.addWidget(self.showNamesCheckBox)
+        displayLayout.addWidget(qt.QLabel("Size:"))
+        self.sizeSlider = ctk.ctkSliderWidget()
+        self.sizeSlider.minimum = 0.5
+        self.sizeSlider.maximum = 10.0
+        self.sizeSlider.singleStep = 0.5
+        self.sizeSlider.value = 3.0
+        displayLayout.addWidget(self.sizeSlider, 1)
+        sourcesLayout.addLayout(displayLayout)
+
+        self.tableView = slicer.qMRMLTableView()
+        self.tableView.setMRMLScene(slicer.mrmlScene)
+        self.tableView.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
+        self.tableView.setSelectionMode(qt.QAbstractItemView.SingleSelection)
+        self.tableView.minimumHeight = 250
+        self.tableView.toolTip = "Select a source to center the views on it."
+        sourcesLayout.addWidget(self.tableView)
+
+        self.layout.addStretch(1)
+
+        self.catalogPathEdit.connect("currentPathChanged(QString)", self.updateLoadButton)
+        self.loadButton.connect("clicked()", self.onLoad)
+        self.catalogSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCatalogChanged)
+        self.showPointsCheckBox.connect("toggled(bool)", self.updatePointDisplay)
+        self.showNamesCheckBox.connect("toggled(bool)", self.updatePointDisplay)
+        self.sizeSlider.connect("valueChanged(double)", self.updatePointDisplay)
+        self.tableView.selectionModel().connect(
+            "currentRowChanged(QModelIndex,QModelIndex)", self.onSourceSelected)
+        self.updateLoadButton()
+        self.onCatalogChanged(self.catalogSelector.currentNode())
+
+    def updateLoadButton(self, path=None):
+        path = self.catalogPathEdit.currentPath
+        self.loadButton.enabled = bool(path) and os.path.isfile(path)
+
+    def onLoad(self):
+        path = self.catalogPathEdit.currentPath
+        try:
+            tableNode, _ = self.logic.loadCatalog(path, self.referenceSelector.currentNode())
+        except Exception as e:
+            slicer.util.errorDisplay(f"Failed to load the SoFiA catalogue {os.path.basename(path)}: {e}")
+            return
+        self.catalogPathEdit.addCurrentPathToHistory()
+        self.catalogSelector.setCurrentNode(tableNode)
+
+    def pointListNode(self):
+        tableNode = self.catalogSelector.currentNode()
+        pointListID = tableNode.GetAttribute("SlicerAstro.SoFiASources") if tableNode else None
+        return slicer.mrmlScene.GetNodeByID(pointListID) if pointListID else None
+
+    def onCatalogChanged(self, tableNode):
+        self.tableView.setMRMLTableNode(tableNode)
+        pointListNode = self.pointListNode()
+        enabled = pointListNode is not None
+        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.sizeSlider):
+            widget.enabled = enabled
+        if not enabled or not pointListNode.GetDisplayNode():
+            return
+        displayNode = pointListNode.GetDisplayNode()
+        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.sizeSlider):
+            widget.blockSignals(True)
+        self.showPointsCheckBox.checked = displayNode.GetVisibility()
+        self.showNamesCheckBox.checked = displayNode.GetPointLabelsVisibility()
+        self.sizeSlider.value = displayNode.GetGlyphScale()
+        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.sizeSlider):
+            widget.blockSignals(False)
+
+    def updatePointDisplay(self, value=None):
+        pointListNode = self.pointListNode()
+        displayNode = pointListNode.GetDisplayNode() if pointListNode else None
+        if not displayNode:
+            return
+        wasModifying = displayNode.StartModify()
+        displayNode.SetVisibility(self.showPointsCheckBox.checked)
+        displayNode.SetPointLabelsVisibility(self.showNamesCheckBox.checked)
+        displayNode.SetGlyphScale(self.sizeSlider.value)
+        displayNode.SetTextScale(self.sizeSlider.value)
+        displayNode.EndModify(wasModifying)
+
+    def onSourceSelected(self, current, previous=None):
+        pointListNode = self.pointListNode()
+        if not pointListNode or not current.isValid():
+            return
+        row = current.row()
+        if row < 0 or row >= pointListNode.GetNumberOfControlPoints():
+            return
+        position = [0.0, 0.0, 0.0]
+        pointListNode.GetNthControlPointPositionWorld(row, position)
+        slicer.modules.markups.logic().JumpSlicesToLocation(position[0], position[1], position[2], True)
 
 
 #
@@ -244,6 +394,8 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
             unit = catalog.units.get(column, "")
             if unit and unit != "-":
                 tableNode.SetColumnUnitLabel(column, unit)
+        tableNode.SetUseColumnTitleAsColumnHeader(True)
+        tableNode.SetLocked(True)
         tableNode.Modified()
         return tableNode
 
@@ -350,6 +502,8 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
     def runTest(self):
         self.setUp()
         self.test_LoadCatalogues()
+        self.setUp()
+        self.test_ModuleWidget()
 
     def writeMask(self, path):
         import numpy as np
@@ -440,4 +594,39 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         tableNode, pointListNode = AstroSoFiACatalogLogic().loadCatalog(xmlPath)
         self.assertEqual(tableNode.GetNumberOfColumns(), 5)
         self.checkSources(pointListNode, maskNode)
+        self.delayDisplay("Test passed")
+
+    def test_ModuleWidget(self):
+        maskPath = os.path.join(self.directory, "test_mask.fits")
+        textPath = os.path.join(self.directory, "test_cat.txt")
+        self.writeMask(maskPath)
+        self.writeTextCatalog(textPath)
+        maskNode = slicer.util.loadSegmentation(maskPath)
+
+        slicer.util.selectModule("AstroSoFiACatalog")
+        widget = slicer.modules.astrosofiacatalog.widgetRepresentation().self()
+        widget.catalogPathEdit.currentPath = textPath
+        self.assertTrue(widget.loadButton.enabled)
+        widget.loadButton.click()
+        tableNode = widget.catalogSelector.currentNode()
+        self.assertIsNotNone(tableNode)
+        self.assertEqual(tableNode.GetName(), "test_catalogue")
+        pointListNode = widget.pointListNode()
+        self.checkSources(pointListNode, maskNode)
+        self.assertTrue(widget.showNamesCheckBox.checked)
+
+        # display controls
+        widget.showNamesCheckBox.checked = False
+        self.assertFalse(pointListNode.GetDisplayNode().GetPointLabelsVisibility())
+        widget.sizeSlider.value = 5.0
+        self.assertEqual(pointListNode.GetDisplayNode().GetGlyphScale(), 5.0)
+
+        # selecting a source centers the slice views on it
+        widget.tableView.selectRow(1)
+        position = [0.0, 0.0, 0.0]
+        pointListNode.GetNthControlPointPositionWorld(1, position)
+        redSliceNode = slicer.app.layoutManager().sliceWidget("Red").mrmlSliceNode()
+        rasToXY = vtk.vtkMatrix4x4()
+        vtk.vtkMatrix4x4.Invert(redSliceNode.GetXYToRAS(), rasToXY)
+        self.assertAlmostEqual(rasToXY.MultiplyPoint(position + [1.0])[2], 0.0, places=3)
         self.delayDisplay("Test passed")
