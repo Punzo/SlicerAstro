@@ -180,10 +180,6 @@ void vtkSlicerAstroStatisticsLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode)
 {
-  vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroStatistics algorithm may show poor performance.");
 
   if (!pnode)
     {

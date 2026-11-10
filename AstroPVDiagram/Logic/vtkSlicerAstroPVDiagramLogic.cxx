@@ -656,10 +656,6 @@ bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramPar
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode)
 {
-  vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroPVDiagram algorithm may show poor performance.");
 
   if (!this->GetMRMLScene() || !pnode)
     {

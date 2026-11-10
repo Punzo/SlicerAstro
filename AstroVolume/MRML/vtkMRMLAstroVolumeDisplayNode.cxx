@@ -959,10 +959,12 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
     }
   else if (thisAxis == 1 && nodeAxis >= 1)
     {
+    // 1D volumes are spectra (e.g. profiles): keep the spectral axis.
+    // (A lone celestial axis is rejected by wcsset in WCSLIB >= 8.)
     nsub = 1;
-    axes[0] = WCSSUB_LONGITUDE;
-    axes[1] = -WCSSUB_LATITUDE;
-    axes[2] = -WCSSUB_SPECTRAL;
+    axes[0] = WCSSUB_SPECTRAL;
+    axes[1] = -WCSSUB_LONGITUDE;
+    axes[2] = -WCSSUB_LATITUDE;
     }
   else
     {

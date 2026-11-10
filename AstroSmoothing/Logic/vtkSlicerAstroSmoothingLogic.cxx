@@ -481,10 +481,6 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingParametersNode* pnode)
 {
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter "
-                  "this release of SlicerAstro has been built "
-                  "without OpenMP support. It may results that "
-                  "the AstroSmoothing algorithm may show poor performance.");
 
   if (!pnode)
     {
