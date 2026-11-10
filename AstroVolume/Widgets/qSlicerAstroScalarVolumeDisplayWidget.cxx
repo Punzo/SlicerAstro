@@ -71,7 +71,6 @@
 #include <vtkStringArray.h>
 
 // CTK includes
-#include <ctkPopupWidget.h>
 
 // logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -169,8 +168,6 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                    q, SLOT(setInverse(bool)));
   QObject::connect(this->LogPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setLog(bool)));
-  QObject::connect(this->WindowLevelPopupButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onWindowLevelPopupShow(bool)));
   QObject::connect(this->InterpolatePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setInterpolate(bool)));
   QObject::connect(this->FitSlicesToViewsPushButton, SIGNAL(toggled(bool)),
@@ -200,17 +197,6 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
                      q, SLOT(ExtendAllSlices()));
     }
 
-  QComboBox* AutoManualComboBoxWidget = this->MRMLWindowLevelWidget->findChild<QComboBox*>
-      (QString("AutoManualComboBox"));
-  if (AutoManualComboBoxWidget)
-    {
-    QObject::connect(AutoManualComboBoxWidget,
-                     SIGNAL(currentIndexChanged(int)),
-                     q, SLOT(onWindowLevelPopupShow(int)));
-    }
-
-  this->WindowLevelPopupButton->setChecked(false);
-  q->onWindowLevelPopupShow(false);
   this->ThresholdPushButton->setChecked(false);
   q->setThreshold(false);
 
@@ -1188,58 +1174,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::setReverse(bool toggled)
 }
 
 // --------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::onWindowLevelPopupShow(bool show)
-{
-  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-
-  ctkPopupWidget* PopupWidget = d->MRMLWindowLevelWidget->findChild<ctkPopupWidget*>
-      (QString("RangeWidgetPopup"));
-
-  if (!PopupWidget)
-    {
-    return;
-    }
-
-  if (show)
-    {
-    d->WindowLevelPopupButton->setIcon(QIcon(":Icons/PushPinIn.png"));
-    PopupWidget->setAutoShow(true);
-    PopupWidget->showPopup();
-    }
-  else
-    {
-    d->WindowLevelPopupButton->setIcon(QIcon(":Icons/PushPinOut.png"));
-    PopupWidget->setAutoShow(false);
-    PopupWidget->hidePopup();
-  }
-}
-
-// --------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::onWindowLevelPopupShow(int)
-{
-  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-
-  ctkPopupWidget* PopupWidget = d->MRMLWindowLevelWidget->findChild<ctkPopupWidget*>
-      (QString("RangeWidgetPopup"));
-
-  if (!PopupWidget)
-    {
-    return;
-    }
-
-  if (d->WindowLevelPopupButton->isChecked())
-    {
-    PopupWidget->setAutoShow(true);
-    PopupWidget->showPopup();
-    }
-  else
-    {
-    PopupWidget->setAutoShow(false);
-    PopupWidget->hidePopup();
-    }
-}
-
-// --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::ReverseColorFunction(vtkMRMLColorNode *colorNode)
 {
   if (!colorNode)
@@ -1282,8 +1216,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
   d->MRMLWindowLevelWidget->setMRMLVolumeNode(volumeNode);
   d->MRMLVolumeThresholdWidget->setMRMLVolumeNode(volumeNode);
 
-  d->WindowLevelPopupButton->setChecked(false);
-  this->onWindowLevelPopupShow(false);
   d->ThresholdPushButton->setChecked(false);
   this->setThreshold(false);
 

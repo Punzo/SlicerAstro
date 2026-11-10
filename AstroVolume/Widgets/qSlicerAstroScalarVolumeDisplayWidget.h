@@ -99,9 +99,6 @@ public slots:
   void setLog(bool toggled);
   void setReverse(bool toggled);
 
-  /// customize popup behaviour of double slider for 2D color function
-  void onWindowLevelPopupShow(bool show);
-  void onWindowLevelPopupShow(int);
   void setThreshold(bool threshold);
 
 protected slots:
