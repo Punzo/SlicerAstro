@@ -274,6 +274,12 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   outputTex->SetContext(this->RenderWindow);
   outputTex->Create3D(outDims[0], outDims[1], outDims[2], 1, VTK_FLOAT, false);
   this->ConfigureBorder(outputTex);
+  // Intermediate texture for the Y pass (the input texture is not reused as
+  // render target: X: input -> output, Y: output -> temp, Z: temp -> output)
+  vtkNew<vtkTextureObject> tempTex;
+  tempTex->SetContext(this->RenderWindow);
+  tempTex->Create3D(outDims[0], outDims[1], outDims[2], 1, VTK_FLOAT, false);
+  this->ConfigureBorder(tempTex);
 
   // Create the Framebuffer for the output
   vtkNew<vtkOpenGLFramebufferObject> fbo;
@@ -300,6 +306,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
 
   inputTex->Activate();
   outputTex->Activate();
+  tempTex->Activate();
 
   int inputTexId = inputTex->GetTextureUnit();
   this->Quad.Program->SetUniformi("inputTex1", inputTexId);
@@ -325,7 +332,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
       this->Quad.Program, this->Quad.VAO);
     }
 
-  // Run Filter along Y
+  // Run Filter along Y (reads the X result in outputTex, writes tempTex)
   prog = this->RenderWindow->GetShaderCache()->ReadyShaderProgram(
       vertexCode, fragmentCodeY, geometryCode);
   if (prog != this->Quad.Program)
@@ -343,7 +350,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     {
     int slice = i - outExt[4];
     fbo->RemoveColorAttachment(0);
-    fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
+    fbo->AddColorAttachment(0, tempTex.GetPointer(), slice);
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -355,7 +362,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
       this->Quad.Program, this->Quad.VAO);
     }
 
-  // Run Filter along Z
+  // Run Filter along Z (reads the Y result in tempTex, writes outputTex)
   prog = this->RenderWindow->GetShaderCache()->ReadyShaderProgram(
       vertexCode, fragmentCodeZ, geometryCode);
   if (prog != this->Quad.Program)
@@ -365,7 +372,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     }
   cb->InitializeShaderUniforms(prog);
 
-  inputTexId = inputTex->GetTextureUnit();
+  inputTexId = tempTex->GetTextureUnit();
   this->Quad.Program->SetUniformi("inputTex1", inputTexId);
 
   // for each zslice in the output
@@ -402,6 +409,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   fbo->RemoveColorAttachment(0);
   inputTex->Deactivate();
   outputTex->Deactivate();
+  tempTex->Deactivate();
 
   ostate->PopFramebufferBindings();
 }

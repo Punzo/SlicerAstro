@@ -116,9 +116,9 @@ endif()
 # --------------------------------------------------------------------------
 # Testing (requires some of the examples)
 # --------------------------------------------------------------------------
-#if(BUILD_TESTING)
-#  add_subdirectory(Testing)
-#endif()
+if(BUILD_TESTING)
+  add_subdirectory(Testing)
+endif()
 
 # --------------------------------------------------------------------------
 # Set INCLUDE_DIRS variable
