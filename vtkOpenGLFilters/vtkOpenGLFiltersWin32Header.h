@@ -10,7 +10,7 @@
 #include <vtkOpenGLFiltersConfigure.h>
 
 #if defined(WIN32) && !defined(vtkOpenGLFilters_STATIC)
-#if defined(FITS_EXPORTS)
+#if defined(vtkOpenGLFilters_EXPORTS)
 #define VTK_OPENGLFILTERS_EXPORT __declspec( dllexport )
 #else
 #define VTK_OPENGLFILTERS_EXPORT __declspec( dllimport )

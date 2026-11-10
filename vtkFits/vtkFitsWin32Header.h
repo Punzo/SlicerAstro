@@ -9,8 +9,8 @@
 
 #include <vtkFitsConfigure.h>
 
-#if defined(WIN32) && !defined(VTKFits_STATIC)
-#if defined(FITS_EXPORTS)
+#if defined(WIN32) && !defined(vtkFits_STATIC)
+#if defined(vtkFits_EXPORTS)
 #define VTK_FITS_EXPORT __declspec( dllexport )
 #else
 #define VTK_FITS_EXPORT __declspec( dllimport )

@@ -36,6 +36,7 @@
 #include <vtkAstroImageKernelSmooth.h>
 #include <vtkAstroImageSeparableSmooth.h>
 #include <vtkCallbackCommand.h>
+#include <vtkImageAlgorithm.h>
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -49,13 +50,6 @@
 #include <iostream>
 #include <chrono>
 
-// OpenMP includes
-
-#ifdef VTK_SLICER_ASTRO_SUPPORT_OPENGL
-// vtkOpenGL includes
-#include "vtk_glew.h"
-#endif
-
 #define UNUSED(expr) (void)(expr)
 
 //----------------------------------------------------------------------------
@@ -66,14 +60,12 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
-  vtkSmartPointer<vtkImageData> tempVolumeData;
 };
 
 //----------------------------------------------------------------------------
 vtkSlicerAstroSmoothingLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = nullptr;
-  this->tempVolumeData = vtkSmartPointer<vtkImageData>::New();
 }
 
 //---------------------------------------------------------------------------
@@ -243,8 +235,8 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroSmoothingLogic::RunCPUSmoothing(vtkMRMLAstroSmoothingParametersNode* pnode,
-                                                  vtkAstroImageSmoothBase* filter,
+int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParametersNode* pnode,
+                                                     vtkImageAlgorithm* filter,
                                                   const char* filterName)
 {
   if (!pnode || !filter || !this->GetMRMLScene())
@@ -256,19 +248,19 @@ int vtkSlicerAstroSmoothingLogic::RunCPUSmoothing(vtkMRMLAstroSmoothingParameter
     (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
   if (!inputVolume || !inputVolume->GetImageData())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : inputVolume not found.");
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunSmoothingFilter : inputVolume not found.");
     return 0;
     }
   vtkMRMLAstroVolumeNode *outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
     (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
   if (!outputVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : outputVolume not found.");
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunSmoothingFilter : outputVolume not found.");
     return 0;
     }
   if (inputVolume->GetImageData()->GetNumberOfScalarComponents() != 1)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : "
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunSmoothingFilter : "
                   "imageData with more than one components.");
     return 0;
     }
@@ -304,14 +296,14 @@ int vtkSlicerAstroSmoothingLogic::RunCPUSmoothing(vtkMRMLAstroSmoothingParameter
   vtkDebugMacro(<< filterName << " Time : "
                 << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
 
-  if (filter->GetAborted() || pnode->GetStatus() == -1)
+  if (filter->GetAbortExecute() || pnode->GetStatus() == -1)
     {
     pnode->SetStatus(100);
     return 0;
     }
   if (filter->GetErrorCode() || !filter->GetOutput() || !filter->GetOutput()->GetPointData()->GetScalars())
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunCPUSmoothing : " << filterName << " failed.");
+    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunSmoothingFilter : " << filterName << " failed.");
     pnode->SetStatus(100);
     return 0;
     }
@@ -342,7 +334,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
   filter->SetBoxKernel(static_cast<int>(pnode->GetParameterX()),
                        static_cast<int>(pnode->GetParameterY()),
                        static_cast<int>(pnode->GetParameterZ()));
-  return this->RunCPUSmoothing(pnode, filter, "Box Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, "Box Filter (CPU)");
 }
 
 
@@ -360,126 +352,27 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   filter->SetAxisBoxKernel(0, pnode->GetParameterX() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(1, pnode->GetParameterY() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(2, pnode->GetParameterZ() > 0.001 ? size : 0);
-  return this->RunCPUSmoothing(pnode, filter, "Isotropic Box Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, "Isotropic Box Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
                                                vtkRenderWindow* renderWindow)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
-  UNUSED(renderWindow);
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter "
-                  "this release of SlicerAstro has been built "
-                  "without OpenGL filtering support.");
+  if (!pnode || !this->GetMRMLScene())
+    {
+    return 0;
+    }
+#ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic: SlicerAstro has been built without OpenGL smoothing support.");
   return 0;
-  #else
-
-  if (!pnode)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
-                  "parameterNode not found.");
-    return 0;
-    }
-
-  if (!this->GetMRMLScene())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter :"
-                  " scene not found.");
-    return 0;
-    }
-
-  pnode->SetStatus(1);
-
-  bool cancel = false;
-
-  std::chrono::steady_clock::time_point start, end;
-  long mtime = 0;
-  start = std::chrono::steady_clock::now();
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume || !inputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
-                  "inputVolume not found.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume || !outputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
-                  "outputVolume not found.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::BoxGPUFilter : "
-                  "imageData with more than one components.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
+#else
   vtkNew<vtkAstroOpenGLImageBox> filter;
-  outputVolume->GetImageData()->DeepCopy(inputVolume->GetImageData());
-  filter->SetInputData(outputVolume->GetImageData());
-  filter->SetKernelLength(pnode->GetParameterX(),
-                          pnode->GetParameterY(),
-                          pnode->GetParameterZ());
+  filter->SetKernelLength(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
+  // a null render window lets the filter create its own offscreen context
   filter->SetRenderWindow(renderWindow);
-
-  pnode->SetStatus(20);
-
-  if (pnode->GetStatus() == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-    filter->Update();
-    }
-
-  pnode->SetStatus(70);
-
-  outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro(" Box Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
-
-  if(cancel)
-    {
-    return 0;
-    }
-
-  return 1;
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  return this->RunSmoothingFilter(pnode, filter, "Box Filter (GPU, OpenGL)");
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -495,7 +388,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
                     static_cast<int>(pnode->GetKernelLengthX()),
                     static_cast<int>(pnode->GetKernelLengthY()),
                     static_cast<int>(pnode->GetKernelLengthZ()));
-  return this->RunCPUSmoothing(pnode, filter, "Gaussian Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, "Gaussian Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
@@ -512,129 +405,28 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D : nullptr);
-  return this->RunCPUSmoothing(pnode, filter, "Isotropic Gaussian Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, "Isotropic Gaussian Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
-                                                    vtkRenderWindow *renderWindow)
+                                                    vtkRenderWindow* renderWindow)
 {
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
-  UNUSED(renderWindow);
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter "
-                  "this release of SlicerAstro has been built "
-                  "without OpenGL filtering support.");
+  if (!pnode || !this->GetMRMLScene())
+    {
+    return 0;
+    }
+#ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic: SlicerAstro has been built without OpenGL smoothing support.");
   return 0;
-  #else
-
-  if (!pnode)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
-                  "parameterNode not found.");
-    return 0;
-    }
-
-  if (!this->GetMRMLScene())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter :"
-                  " scene not found.");
-    return 0;
-    }
-
-  pnode->SetStatus(1);
-
-  bool cancel = false;
-
-  std::chrono::steady_clock::time_point start, end;
-  long mtime = 0;
-  start = std::chrono::steady_clock::now();
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume || !inputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
-                  "inputVolume not found.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume || !outputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
-                  "outputVolume not found.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GaussianGPUFilter : "
-                  "imageData with more than one components.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
+#else
   vtkNew<vtkAstroOpenGLImageGaussian> filter;
-  outputVolume->GetImageData()->DeepCopy(inputVolume->GetImageData());
-  filter->SetInputData(outputVolume->GetImageData());
-  filter->SetKernelLength(pnode->GetKernelLengthX(),
-                          pnode->GetKernelLengthY(),
-                          pnode->GetKernelLengthZ());
-  filter->SetFWHM(pnode->GetParameterX(),
-                  pnode->GetParameterY(),
-                  pnode->GetParameterZ());
-  filter->SetRotationAngles(pnode->GetRx(),
-                            pnode->GetRy(),
-                            pnode->GetRz());
+  filter->SetKernelLength(pnode->GetKernelLengthX(), pnode->GetKernelLengthY(), pnode->GetKernelLengthZ());
+  filter->SetFWHM(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
+  filter->SetRotationAngles(pnode->GetRx(), pnode->GetRy(), pnode->GetRz());
   filter->SetRenderWindow(renderWindow);
-
-  pnode->SetStatus(20);
-
-  if (pnode->GetStatus() == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-    filter->Update();
-    }
-
-  pnode->SetStatus(70);
-
-  outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro("Gaussian Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro("Update : "<<mtime<<" ms.");
-
-  if (cancel)
-    {
-    return 0;
-    }
-
-  return 1;
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  return this->RunSmoothingFilter(pnode, filter, "Gaussian Filter (GPU, OpenGL)");
+#endif
 }
 
 //----------------------------------------------------------------------------
@@ -656,128 +448,34 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetK(pnode->GetK());
   filter->SetNoise(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")));
   filter->SetNumberOfIterations(pnode->GetAccuracy());
-  return this->RunCPUSmoothing(pnode, filter, "Intensity driven Gradient Filter (CPU)");
+  return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (CPU)");
 }
 
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParametersNode *pnode,
                                                     vtkRenderWindow* renderWindow)
-{  
-  #ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
-  UNUSED(renderWindow);
-  vtkWarningMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter "
-                  "this release of SlicerAstro has been built "
-                  "without OpenGL filtering support.");
+{
+  if (!pnode || !this->GetMRMLScene())
+    {
+    return 0;
+    }
+#ifndef VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  vtkWarningMacro("vtkSlicerAstroSmoothingLogic: SlicerAstro has been built without OpenGL smoothing support.");
   return 0;
-  #else
-
-  if (!pnode)
+#else
+  vtkMRMLAstroVolumeNode *inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if (!inputVolume)
     {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
-                  "parameterNode not found.");
     return 0;
     }
-
-  if (!this->GetMRMLScene())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter :"
-                  " scene not found.");
-    return 0;
-    }
-
-  pnode->SetStatus(1);
-
-  bool cancel = false;
-
-  std::chrono::steady_clock::time_point start, end;
-  long mtime = 0;
-  start = std::chrono::steady_clock::now();
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume || !inputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
-                  "inputVolume not found.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  vtkMRMLAstroVolumeNode *outputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
-  if (!outputVolume || !outputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
-                  "outputVolume not found.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  if (numComponents > 1)
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::GradientGPUFilter : "
-                  "imageData with more than one components.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
   vtkNew<vtkAstroOpenGLImageGradient> filter;
-  outputVolume->GetImageData()->DeepCopy(inputVolume->GetImageData());
-  filter->SetInputData(outputVolume->GetImageData());
-  filter->SetCl(pnode->GetParameterX(),
-                pnode->GetParameterY(),
-                pnode->GetParameterZ());
+  filter->SetCl(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
   filter->SetK(pnode->GetK());
   filter->SetAccuracy(pnode->GetAccuracy());
   filter->SetTimeStep(pnode->GetTimeStep());
   filter->SetRMS(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")));
-
   filter->SetRenderWindow(renderWindow);
-
-  pnode->SetStatus(20);
-
-  if (pnode->GetStatus() == -1)
-    {
-    cancel = true;
-    }
-
-  if(!cancel)
-    {
-    filter->Update();
-    }
-
-  pnode->SetStatus(70);
-
-  outputVolume->GetImageData()->DeepCopy(filter->GetOutput());
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-  vtkDebugMacro(" Intensity-Driven Gradient Filter (GPU, OpenGL) Time : "<<mtime<<" ms.");
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
-  if(cancel)
-    {
-    return 0;
-    }
-
-  return 1;
-  #endif // VTK_SLICER_ASTRO_SUPPORT_OPENGL
+  return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (GPU, OpenGL)");
+#endif
 }

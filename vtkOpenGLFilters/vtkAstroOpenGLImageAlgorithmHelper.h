@@ -28,11 +28,26 @@
 #include "vtkOpenGLImageAlgorithmHelper.h"
 #include "vtkOpenGLFiltersWin32Header.h"
 
+class vtkTextureObject;
+
+#include <algorithm>
+
+/// Restores N values on scope exit (the GPU filters derive shader
+/// parameters in place: this keeps the filter parameters unchanged).
+template <typename T, int N>
+struct vtkAstroRestoreOnExit
+{
+  explicit vtkAstroRestoreOnExit(T* values) : Values(values) { std::copy(values, values + N, this->Saved); }
+  ~vtkAstroRestoreOnExit() { std::copy(this->Saved, this->Saved + N, this->Values); }
+  T* Values;
+  T Saved[N];
+};
+
 class VTK_OPENGLFILTERS_EXPORT vtkAstroOpenGLImageAlgorithmHelper : public vtkOpenGLImageAlgorithmHelper
 {
 public:
   static vtkAstroOpenGLImageAlgorithmHelper *New();
-  vtkTypeMacro(vtkAstroOpenGLImageAlgorithmHelper,vtkObject);
+  vtkTypeMacro(vtkAstroOpenGLImageAlgorithmHelper, vtkOpenGLImageAlgorithmHelper);
 
   // Description:
   // Execute one-pass filter
@@ -70,7 +85,14 @@ public:
     const int n
     );
 
+ /// Values outside the image: zero (true, default: zero padding as the CPU
+  /// filters) or the nearest edge voxel (false, e.g. for the gradient filter).
+  vtkSetMacro(ZeroBorder, bool);
+  vtkGetMacro(ZeroBorder, bool);
+
  protected:
+  bool ZeroBorder{true};
+  void ConfigureBorder(vtkTextureObject* texture);
   vtkAstroOpenGLImageAlgorithmHelper();
   ~vtkAstroOpenGLImageAlgorithmHelper();
 

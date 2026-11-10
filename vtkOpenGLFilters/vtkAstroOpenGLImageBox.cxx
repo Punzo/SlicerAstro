@@ -28,6 +28,8 @@
 #include "vtkInformation.h"
 #include "vtkInformationVector.h"
 #include "vtkObjectFactory.h"
+
+#include <type_traits>
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkShaderProgram.h"
@@ -119,10 +121,10 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
   outData[0]->GetPointData()->GetScalars()->SetName(inArray->GetName());
 
   // The ouptut scalar type must be double to store proper gradients.
-  if(outData[0]->GetScalarType() != VTK_DOUBLE)
+  if(outData[0]->GetScalarType() != VTK_FLOAT)
     {
     vtkErrorMacro("Execute: output ScalarType is "
-                  << outData[0]->GetScalarType() << "but must be double.");
+                  << outData[0]->GetScalarType() << "but must be float.");
     return;
     }
 
@@ -139,11 +141,16 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
     }
 
   vtkOpenGLBoxCB cb;
-  cb.Spacing = inData[0][0]->GetSpacing();
+  // Texture coordinate step of one voxel along each axis. Local copy: the
+  // input image (the user's volume) must not be modified.
+  double textureSpacing[3];
+  inData[0][0]->GetSpacing(textureSpacing);
+  cb.Spacing = textureSpacing;
+  vtkAstroRestoreOnExit<std::remove_reference_t<decltype(this->KernelLength[0])>, 3> restoreKernelLength(this->KernelLength);
   int * extent = inData[0][0]->GetExtent();
-  cb.Spacing[0] /= extent[1] - extent[0];
-  cb.Spacing[1] /= extent[3] - extent[2];
-  cb.Spacing[2] /= extent[5] - extent[4];
+  cb.Spacing[0] /= extent[1] - extent[0] + 1;
+  cb.Spacing[1] /= extent[3] - extent[2] + 1;
+  cb.Spacing[2] /= extent[5] - extent[4] + 1;
 
   cb.cont = 1;
   if (this->KernelLength[0] < 0.999)
@@ -209,19 +216,19 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
     std::string fragShaderX =
     "  for (int offsetX = -kernelLengthX; offsetX <= kernelLengthX; offsetX++){ \n"
     "        vec3 offset = vec3(offsetX, 0., 0.) * spacing; \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value; } \n"
     "  } \n";
 
     std::string fragShaderY =
     "  for (int offsetY = -kernelLengthY; offsetY <= kernelLengthY; offsetY++){ \n"
     "        vec3 offset = vec3(0., offsetY, 0.) * spacing; \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value; } \n"
     "  } \n";
 
     std::string fragShaderZ =
     "  for (int offsetZ = -kernelLengthZ; offsetZ <= kernelLengthZ; offsetZ++){ \n"
     "        vec3 offset = vec3(0., 0., offsetZ) * spacing; \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value; } \n"
     "  } \n";
 
     fragShaderX = fragShaderBegin + fragShaderX + fragShaderEnd;
@@ -267,7 +274,7 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
     "    for (int offsetY = -kernelLengthY; offsetY <= kernelLengthY; offsetY++){ \n"
     "      for (int offsetZ = -kernelLengthZ; offsetZ <= kernelLengthZ; offsetZ++){ \n"
     "        vec3 offset = vec3(offsetX, offsetY, offsetZ) * spacing; \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value; } \n"
     "      } \n"
     "    } \n"
     "  } \n"
@@ -292,4 +299,14 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
 
       "");
     }
+}
+
+//-----------------------------------------------------------------------------
+int vtkAstroOpenGLImageBox::RequestInformation(vtkInformation* request,
+                                                  vtkInformationVector** inputVector,
+                                                  vtkInformationVector* outputVector)
+{
+  this->Superclass::RequestInformation(request, inputVector, outputVector);
+  vtkDataObject::SetPointDataActiveScalarInfo(outputVector->GetInformationObject(0), VTK_FLOAT, 1);
+  return 1;
 }

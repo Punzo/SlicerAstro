@@ -64,6 +64,10 @@ public:
   vtkGetMacro(Iterative, bool);
 
 protected:
+  /// The GPU computes in float: the output is a single float component.
+  int RequestInformation(vtkInformation* request, vtkInformationVector** inputVector,
+                         vtkInformationVector* outputVector) override;
+
   vtkAstroOpenGLImageGaussian();
   ~vtkAstroOpenGLImageGaussian();
 

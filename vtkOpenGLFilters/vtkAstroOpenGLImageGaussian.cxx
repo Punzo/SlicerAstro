@@ -29,6 +29,8 @@
 #include "vtkInformationVector.h"
 #include "vtkMath.h"
 #include "vtkObjectFactory.h"
+
+#include <type_traits>
 #include "vtkPointData.h"
 #include "vtkStreamingDemandDrivenPipeline.h"
 #include "vtkShaderProgram.h"
@@ -138,10 +140,10 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
   outData[0]->GetPointData()->GetScalars()->SetName(inArray->GetName());
 
   // The ouptut scalar type must be double to store proper gradients.
-  if(outData[0]->GetScalarType() != VTK_DOUBLE)
+  if(outData[0]->GetScalarType() != VTK_FLOAT)
     {
     vtkErrorMacro("Execute: output ScalarType is "
-                  << outData[0]->GetScalarType() << "but must be double.");
+                  << outData[0]->GetScalarType() << "but must be float.");
     return;
     }
 
@@ -158,11 +160,17 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
     }
 
   vtkOpenGLGaussianCB cb;
-  cb.Spacing = inData[0][0]->GetSpacing();
+  // Texture coordinate step of one voxel along each axis. Local copy: the
+  // input image (the user's volume) must not be modified.
+  double textureSpacing[3];
+  inData[0][0]->GetSpacing(textureSpacing);
+  cb.Spacing = textureSpacing;
+  vtkAstroRestoreOnExit<std::remove_reference_t<decltype(this->KernelLength[0])>, 3> restoreKernelLength(this->KernelLength);
+  vtkAstroRestoreOnExit<std::remove_reference_t<decltype(this->FWHM[0])>, 3> restoreFWHM(this->FWHM);
   int * extent = inData[0][0]->GetExtent();
-  cb.Spacing[0] /= extent[1] - extent[0];
-  cb.Spacing[1] /= extent[3] - extent[2];
-  cb.Spacing[2] /= extent[5] - extent[4];
+  cb.Spacing[0] /= extent[1] - extent[0] + 1;
+  cb.Spacing[1] /= extent[3] - extent[2] + 1;
+  cb.Spacing[2] /= extent[5] - extent[4] + 1;
 
   this->KernelLength[0] = (int) (this->KernelLength[0] - 1.) / 2.;
   this->KernelLength[1] = (int) (this->KernelLength[1] - 1.) / 2.;
@@ -208,7 +216,7 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
     "        vec3 offset = vec3(offsetX, 0., 0.) * spacing; \n"
     "        float expA = offsetX * offsetX / StandardDev.x; \n"
     "        float kernel = exp(-(expA)); \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r * kernel; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value * kernel; } \n"
     "        sum = sum + kernel; \n"
     "  } \n";
 
@@ -217,7 +225,7 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
     "        vec3 offset = vec3(0., offsetY, 0.) * spacing; \n"
     "        float expA = offsetY * offsetY / StandardDev.y; \n"
     "        float kernel = exp(-(expA)); \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r * kernel; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value * kernel; } \n"
     "        sum = sum + kernel; \n"
     "  } \n";
 
@@ -227,7 +235,7 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
     "        vec3 offset = vec3(0., 0., offsetZ) * spacing; \n"
     "        float expA = offsetZ * offsetZ / StandardDev.z; \n"
     "        float kernel = exp(-(expA)); \n"
-    "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r * kernel; \n"
+    "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value * kernel; } \n"
     "        sum = sum + kernel; \n"
     "  } \n";
 
@@ -284,7 +292,7 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
       "        float expB = offsetY * offsetY / StandardDev.y; \n"
       "        float expC = offsetZ * offsetZ / StandardDev.z; \n"
       "        float kernel = exp(-(expA + expB + expC)); \n"
-      "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r * kernel; \n"
+      "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value * kernel; } \n"
       "        sum = sum + kernel; \n"
       "      } \n"
       "    } \n"
@@ -336,7 +344,7 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
       "        float expB = y * y / StandardDev.y; \n"
       "        float expC = z * z / StandardDev.z; \n"
       "        float kernel = exp(-(expA + expB + expC)); \n"
-      "        data = data + texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r * kernel; \n"
+      "        float value = texture3D(inputTex1, vec3(tcoordVSOutput, zPos) + offset).r; if (!isnan(value)) { data = data + value * kernel; } \n"
       "        sum = sum + kernel; \n"
       "      } \n"
       "    } \n"
@@ -363,4 +371,14 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
 
       "");
     }
+}
+
+//-----------------------------------------------------------------------------
+int vtkAstroOpenGLImageGaussian::RequestInformation(vtkInformation* request,
+                                                  vtkInformationVector** inputVector,
+                                                  vtkInformationVector* outputVector)
+{
+  this->Superclass::RequestInformation(request, inputVector, outputVector);
+  vtkDataObject::SetPointDataActiveScalarInfo(outputVector->GetInformationObject(0), VTK_FLOAT, 1);
+  return 1;
 }

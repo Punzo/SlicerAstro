@@ -94,9 +94,9 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_AstroSmoothingSelfTest()
 
-    def smooth(self, parametersNode, configure):
-        """Configure the parameters node, run the module (CPU) and return the output voxels."""
-        parametersNode.SetHardware(0)
+    def smooth(self, parametersNode, configure, hardware=0):
+        """Configure the parameters node, run the module (0: CPU, 1: GPU) and return the output voxels."""
+        parametersNode.SetHardware(hardware)
         configure(parametersNode)
         parametersNode.SetGaussianKernels()
         widget = slicer.modules.astrosmoothing.widgetRepresentation()
@@ -197,5 +197,18 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
                                      float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold")),
                                      parametersNode.GetAccuracy())
         self.assertClose(computed, expected, scale, "gradient", relativeTolerance=1e-4)
+
+        # GPU (OpenGL) implementations, compared with the CPU results
+        self.delayDisplay("GPU (OpenGL)")
+        for name, configure, tolerance in (("box", anisotropicBox, 1e-4),
+                                           ("Gaussian", anisotropicGaussian, 1e-4),
+                                           ("gradient", gradient, 1e-3)):
+            cpu = self.smooth(parametersNode, configure, hardware=0)
+            gpu = self.smooth(parametersNode, configure, hardware=1)
+            self.assertClose(gpu, cpu, scale, "GPU " + name, relativeTolerance=tolerance)
+
+        # the filters must not modify the input volume
+        self.assertEqual(tuple(volumeNode.GetImageData().GetSpacing()), (1.0, 1.0, 1.0))
+        self.assertTrue(np.array_equal(voxelArray(volumeNode), cube, equal_nan=True))
 
         self.delayDisplay("Test passed")

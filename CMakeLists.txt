@@ -43,6 +43,20 @@ endif()
 #-----------------------------------------------------------------------------
 # Configuration header
 # Multi-threading uses vtkSMPTools (TBB backend in Slicer): no OpenMP.
+#
+# GPU smoothing backends:
+#  - OpenGL (vtkOpenGLFilters): available with the standard Slicer builds.
+#  - WebGPU (vtkAstroWebGPUFilters, planned): only when Slicer's VTK is built
+#    with VTK_ENABLE_WEBGPU (e.g. SlicerAstroApp).
+set(VTK_SLICER_ASTRO_SUPPORT_OPENGL OFF)
+if(TARGET VTK::RenderingOpenGL2)
+  set(VTK_SLICER_ASTRO_SUPPORT_OPENGL ON)
+endif()
+set(SLICERASTRO_HAS_WEBGPU OFF)
+if(TARGET VTK::RenderingWebGPU)
+  set(SLICERASTRO_HAS_WEBGPU ON)
+endif()
+message(STATUS "SlicerAstro GPU smoothing: OpenGL=${VTK_SLICER_ASTRO_SUPPORT_OPENGL} WebGPU=${SLICERASTRO_HAS_WEBGPU}")
 configure_file(
   ${SlicerAstro_SOURCE_DIR}/CMake/vtkSlicerAstroConfigure.h.in
   ${SlicerAstro_BINARY_DIR}/vtkSlicerAstroConfigure.h
@@ -71,6 +85,9 @@ slicerastro_find_thirdparty_library(BBAROLO bbarolo)
 add_subdirectory(SlicerAstroWelcome)
 add_subdirectory(vtkFits)
 add_subdirectory(vtkAstroImageFilters)
+if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
+  add_subdirectory(vtkOpenGLFilters)
+endif()
 add_subdirectory(AstroVolume)
 add_subdirectory(AstroReproject)
 add_subdirectory(AstroStatistics)

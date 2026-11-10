@@ -8,5 +8,7 @@
 
 #cmakedefine VTK_SLICER_ASTRO_SUPPORT_OPENGL
 
+#cmakedefine SLICERASTRO_HAS_WEBGPU
+
 #endif // __vtkSlicerAstroConfigure_h
 

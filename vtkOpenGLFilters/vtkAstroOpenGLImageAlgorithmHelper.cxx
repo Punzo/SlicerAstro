@@ -23,7 +23,7 @@
 // VTK includes
 #include "vtkDataArray.h"
 #include "vtkImageData.h"
-#include "vtkImageCast.h"
+#include "vtkFloatArray.h"
 #include "vtkNew.h"
 #include "vtkObjectFactory.h"
 #include "vtkOpenGLFramebufferObject.h"
@@ -35,10 +35,21 @@
 #include "vtkPointData.h"
 #include "vtkShaderProgram.h"
 #include "vtkTextureObject.h"
-#include "vtk_glew.h"
+#include "vtkOpenGLState.h"
+#include "vtk_glad.h"
 #include "vtkVersionMacros.h"
 
 vtkStandardNewMacro(vtkAstroOpenGLImageAlgorithmHelper);
+
+//----------------------------------------------------------------------------
+void vtkAstroOpenGLImageAlgorithmHelper::ConfigureBorder(vtkTextureObject* texture)
+{
+  // ClampToBorder samples the (default, zero) border color outside the image
+  const int mode = this->ZeroBorder ? vtkTextureObject::ClampToBorder : vtkTextureObject::ClampToEdge;
+  texture->SetWrapS(mode);
+  texture->SetWrapT(mode);
+  texture->SetWrapR(mode);
+}
 
 // ----------------------------------------------------------------------------
 vtkAstroOpenGLImageAlgorithmHelper::vtkAstroOpenGLImageAlgorithmHelper()
@@ -94,15 +105,14 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   inImage->GetExtent(inputExt);
   void *inPtr = inArray->GetVoidPointer(0);
 
-  if (inArray->GetArrayType() != VTK_FLOAT)
-      {
-      vtkNew<vtkImageCast> castFilter;
-      castFilter->SetInputData(inImage);
-      castFilter->SetOutputScalarTypeToFloat();
-      castFilter->Update();
-      inImage->DeepCopy(castFilter->GetOutput());
-      inPtr = inImage->GetScalarPointer();
-      }
+  // The GPU filters work in float: a non-float input is converted into a
+  // temporary buffer (the input image is never modified)
+  vtkNew<vtkFloatArray> floatInput;
+  if (inArray->GetDataType() != VTK_FLOAT)
+    {
+    floatInput->DeepCopy(inArray);
+    inPtr = floatInput->GetVoidPointer(0);
+    }
 
   vtkNew<vtkTextureObject> inputTex;
   inputTex->SetContext(this->RenderWindow);
@@ -110,6 +120,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     dims[0], dims[1], dims[2],
     inArray->GetNumberOfComponents(),
     VTK_FLOAT, inPtr);
+  this->ConfigureBorder(inputTex);
 
   // now create the framebuffer for the output
   int outDims[3];
@@ -122,14 +133,13 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
 
   vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
+  vtkOpenGLState* ostate = this->RenderWindow->GetState();
+  ostate->PushFramebufferBindings();
+  fbo->Bind();
 
   outputTex->Create2D(outDims[0], outDims[1], 1, VTK_FLOAT, false);
 
-  #if VTK_MAJOR_VERSION >= 9
   fbo->AddColorAttachment(0, outputTex.GetPointer());
-  #else
-  fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer());
-  #endif
 
   // because the same FBO can be used in another pass but with several color
   // buffers, force this pass to use 1, to avoid side effects from the
@@ -137,9 +147,10 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   fbo->ActivateDrawBuffer(0);
 
   fbo->StartNonOrtho(outDims[0], outDims[1]);
-  glViewport(0, 0, outDims[0], outDims[1]);
-  glScissor(0, 0, outDims[0], outDims[1]);
-  glDisable(GL_DEPTH_TEST);
+  ostate->vtkglViewport(0, 0, outDims[0], outDims[1]);
+  ostate->vtkglScissor(0, 0, outDims[0], outDims[1]);
+  ostate->vtkglDisable(GL_DEPTH_TEST);
+  ostate->vtkglDepthMask(false);
 
   vtkShaderProgram *prog =
     this->RenderWindow->GetShaderCache()->ReadyShaderProgram(
@@ -170,7 +181,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
 
     vtkPixelBufferObject *outPBO = outputTex->Download();
 
-    vtkPixelTransfer::Blit<float, double>(
+    vtkPixelTransfer::Blit<float, float>(
       outputPixelExt,
       outputPixelExt,
       outputPixelExt,
@@ -178,25 +189,17 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
       1,
       (float*)outPBO->MapPackedBuffer(),
       1,
-      static_cast<double *>(outImage->GetScalarPointer(outExt[0], outExt[2], i)));
+      static_cast<float *>(outImage->GetScalarPointer(outExt[0], outExt[2], i)));
 
     outPBO->UnmapPackedBuffer();
     outPBO->Delete();
     }
 
-  #if VTK_MAJOR_VERSION >= 9
   fbo->RemoveColorAttachment(0);
-  #else
-  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-  #endif
 
   inputTex->Deactivate();
 
-  vtkNew<vtkImageCast> castFilter;
-  castFilter->SetInputData(outImage);
-  castFilter->SetOutputScalarTypeToFloat();
-  castFilter->Update();
-  outImage->DeepCopy(castFilter->GetOutput());
+  ostate->PopFramebufferBindings();
 }
 
 // ----------------------------------------------------------------------------
@@ -244,15 +247,14 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   inImage->GetExtent(inputExt);
   void *inPtr = inArray->GetVoidPointer(0);
 
-  if (inArray->GetArrayType() != VTK_FLOAT)
-      {
-      vtkNew<vtkImageCast> castFilter;
-      castFilter->SetInputData(inImage);
-      castFilter->SetOutputScalarTypeToFloat();
-      castFilter->Update();
-      inImage->DeepCopy(castFilter->GetOutput());
-      inPtr = inImage->GetScalarPointer();
-      }
+  // The GPU filters work in float: a non-float input is converted into a
+  // temporary buffer (the input image is never modified)
+  vtkNew<vtkFloatArray> floatInput;
+  if (inArray->GetDataType() != VTK_FLOAT)
+    {
+    floatInput->DeepCopy(inArray);
+    inPtr = floatInput->GetVoidPointer(0);
+    }
 
   vtkNew<vtkTextureObject> inputTex;
   inputTex->SetContext(this->RenderWindow);
@@ -260,6 +262,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     dims[0], dims[1], dims[2],
     inArray->GetNumberOfComponents(),
     VTK_FLOAT, inPtr);
+  this->ConfigureBorder(inputTex);
 
   // Create the TextureObject for the output
   int outDims[3];
@@ -270,14 +273,19 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   vtkNew<vtkTextureObject> outputTex;
   outputTex->SetContext(this->RenderWindow);
   outputTex->Create3D(outDims[0], outDims[1], outDims[2], 1, VTK_FLOAT, false);
+  this->ConfigureBorder(outputTex);
 
   // Create the Framebuffer for the output
   vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
+  vtkOpenGLState* ostate = this->RenderWindow->GetState();
+  ostate->PushFramebufferBindings();
+  fbo->Bind();
 
-  glViewport(0, 0, outDims[0], outDims[1]);
-  glScissor(0, 0, outDims[0], outDims[1]);
-  glDisable(GL_DEPTH_TEST);
+  ostate->vtkglViewport(0, 0, outDims[0], outDims[1]);
+  ostate->vtkglScissor(0, 0, outDims[0], outDims[1]);
+  ostate->vtkglDisable(GL_DEPTH_TEST);
+  ostate->vtkglDepthMask(false);
 
   // Run Filter along X
   vtkShaderProgram *prog =
@@ -303,13 +311,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     {
     int slice = i - outExt[4];
 
-    #if VTK_MAJOR_VERSION >= 9
     fbo->RemoveColorAttachment(0);
     fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
-    #else
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
-    #endif
 
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
@@ -339,13 +342,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    #if VTK_MAJOR_VERSION >= 9
     fbo->RemoveColorAttachment(0);
     fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
-    #else
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
-    #endif
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -374,13 +372,8 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   for (int i = outExt[4]; i <= outExt[5]; i++)
     {
     int slice = i - outExt[4];
-    #if VTK_MAJOR_VERSION >= 9
     fbo->RemoveColorAttachment(0);
     fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
-    #else
-    fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-    fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
-    #endif
     fbo->ActivateDrawBuffer(0);
     fbo->StartNonOrtho(outDims[0], outDims[1]);
 
@@ -402,23 +395,15 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   increments[0] = 0;
   increments[1] = 0;
   increments[2] = 0;
-  outPBO->Download3D(VTK_DOUBLE, outImage->GetScalarPointer(),
+  outPBO->Download3D(VTK_FLOAT, outImage->GetScalarPointer(),
                      newDims, 1, increments);
   outPBO->Delete();
 
-  #if VTK_MAJOR_VERSION >= 9
   fbo->RemoveColorAttachment(0);
-  #else
-  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-  #endif
   inputTex->Deactivate();
   outputTex->Deactivate();
 
-  vtkNew<vtkImageCast> castFilter;
-  castFilter->SetInputData(outImage);
-  castFilter->SetOutputScalarTypeToFloat();
-  castFilter->Update();
-  outImage->DeepCopy(castFilter->GetOutput());
+  ostate->PopFramebufferBindings();
 }
 
 // ----------------------------------------------------------------------------
@@ -465,15 +450,14 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   inImage->GetExtent(inputExt);
   void *inPtr = inArray->GetVoidPointer(0);
 
-  if (inArray->GetArrayType() != VTK_FLOAT)
-      {
-      vtkNew<vtkImageCast> castFilter;
-      castFilter->SetInputData(inImage);
-      castFilter->SetOutputScalarTypeToFloat();
-      castFilter->Update();
-      inImage->DeepCopy(castFilter->GetOutput());
-      inPtr = inImage->GetScalarPointer();
-      }
+  // The GPU filters work in float: a non-float input is converted into a
+  // temporary buffer (the input image is never modified)
+  vtkNew<vtkFloatArray> floatInput;
+  if (inArray->GetDataType() != VTK_FLOAT)
+    {
+    floatInput->DeepCopy(inArray);
+    inPtr = floatInput->GetVoidPointer(0);
+    }
 
   vtkNew<vtkTextureObject> inputTex;
   inputTex->SetContext(this->RenderWindow);
@@ -482,6 +466,7 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     dims[0], dims[1], dims[2],
     inArray->GetNumberOfComponents(),
     VTK_FLOAT, inPtr);
+  this->ConfigureBorder(inputTex);
 
   // now create the framebuffer for the output
   int outDims[3];
@@ -492,13 +477,18 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   vtkNew<vtkTextureObject> outputTex;
   outputTex->SetContext(this->RenderWindow);
   outputTex->Create3D(outDims[0], outDims[1], outDims[2], 1, VTK_FLOAT, false);
+  this->ConfigureBorder(outputTex);
 
   vtkNew<vtkOpenGLFramebufferObject> fbo;
   fbo->SetContext(this->RenderWindow);
+  vtkOpenGLState* ostate = this->RenderWindow->GetState();
+  ostate->PushFramebufferBindings();
+  fbo->Bind();
 
-  glViewport(0, 0, outDims[0], outDims[1]);
-  glScissor(0, 0, outDims[0], outDims[1]);
-  glDisable(GL_DEPTH_TEST);
+  ostate->vtkglViewport(0, 0, outDims[0], outDims[1]);
+  ostate->vtkglScissor(0, 0, outDims[0], outDims[1]);
+  ostate->vtkglDisable(GL_DEPTH_TEST);
+  ostate->vtkglDepthMask(false);
 
   vtkShaderProgram *prog =
     this->RenderWindow->GetShaderCache()->ReadyShaderProgram(
@@ -535,27 +525,15 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     for (int i = outExt[4]; i <= outExt[5]; i++)
       {
       int slice = i - outExt[4];
-      #if VTK_MAJOR_VERSION >= 9
       fbo->RemoveColorAttachment(0);
-      #else
-      fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-      #endif
 
       if ((ii % 2) < 0.001)
         {
-        #if VTK_MAJOR_VERSION >= 9
         fbo->AddColorAttachment(0, outputTex.GetPointer(), slice);
-        #else
-        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, outputTex.GetPointer(), slice);
-        #endif
         }
       else
         {
-        #if VTK_MAJOR_VERSION >= 9
         fbo->AddColorAttachment(0, inputTex.GetPointer(), slice);
-        #else
-        fbo->AddColorAttachment(fbo->GetDrawMode(), 0, inputTex.GetPointer(), slice);
-        #endif
         }
 
       fbo->ActivateDrawBuffer(0);
@@ -580,21 +558,13 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
   increments[0] = 0;
   increments[1] = 0;
   increments[2] = 0;
-  outPBO->Download3D(VTK_DOUBLE, outImage->GetScalarPointer(),
+  outPBO->Download3D(VTK_FLOAT, outImage->GetScalarPointer(),
                      newDims, 1, increments);
   outPBO->Delete();
 
-  #if VTK_MAJOR_VERSION >= 9
   fbo->RemoveColorAttachment(0);
-  #else
-  fbo->RemoveColorAttachment(fbo->GetDrawMode(), 0);
-  #endif
   inputTex->Deactivate();
   outputTex->Deactivate();
 
-  vtkNew<vtkImageCast> castFilter;
-  castFilter->SetInputData(outImage);
-  castFilter->SetOutputScalarTypeToFloat();
-  castFilter->Update();
-  outImage->DeepCopy(castFilter->GetOutput());
+  ostate->PopFramebufferBindings();
 }
