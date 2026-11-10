@@ -22,6 +22,10 @@
 #include <QAbstractItemView>
 #include <QtDebug>
 #include <QMessageBox>
+#include <QMainWindow>
+#include <QStatusBar>
+#include <QDir>
+#include <QFileDialog>
 #include <QSettings>
 #include <QDoubleSpinBox>
 #include <QString>
@@ -79,6 +83,8 @@
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
+#include <vtkMRMLMessageCollection.h>
+#include <vtkMRMLStorageNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
@@ -391,6 +397,13 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
 
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->SegmentationNodeComboBox, SLOT(setMRMLScene(vtkMRMLScene*)));
+  QObject::connect(this->SegmentationNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onSegmentationNodeChanged(vtkMRMLNode*)));
+  QObject::connect(this->SaveFITSMaskPushButton, SIGNAL(clicked()),
+                   q, SLOT(onSaveFITSMask()));
+
   QObject::connect(this->pushButton_EditSelected, SIGNAL(clicked()),
                    q, SLOT(onEditSelectedSegment()));
 
@@ -407,25 +420,13 @@ void qSlicerAstroVolumeModuleWidgetPrivate::cleanPointers()
     return;
     }
 
-  if (this->segmentEditorNode)
-    {
-    if (this->segmentEditorNode->GetSegmentationNode())
-      {
-      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
-      }
-    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
-    }
-
-  this->segmentEditorNode = 0;
+  // The segmentation (e.g. a FITS mask of the user) and the Segment Editor
+  // node stay in the scene: only the references of the widget are released.
+  this->segmentEditorNode = nullptr;
 
   if (this->SegmentsTableView)
     {
-    if (this->SegmentsTableView->segmentationNode())
-      {
-      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(nullptr);
-      }
+    this->SegmentsTableView->setSegmentationNode(nullptr);
     }
 
   if (this->plotChartNodeHistogram)
@@ -1976,6 +1977,11 @@ void qSlicerAstroVolumeModuleWidget::onSegmentEditorNodeModified(vtkObject *send
   if (!segmentationNode)
     {
     return;
+    }
+
+  if (d->SegmentationNodeComboBox->currentNode() != segmentationNode)
+    {
+    d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
     }
 
   vtkMRMLSegmentationNode* segmentationNodeTable = vtkMRMLSegmentationNode::SafeDownCast(
@@ -4920,6 +4926,110 @@ void qSlicerAstroVolumeModuleWidget::onCropToggled(bool crop)
     this->volumeRenderingROINode(true);
     }
   displayNode->SetCroppingEnabled(crop);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onSegmentationNodeChanged(vtkMRMLNode* node)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+  d->SegmentsTableView->setSegmentationNode(segmentationNode);
+  d->SaveFITSMaskPushButton->setEnabled(segmentationNode != nullptr);
+  if (segmentationNode && d->segmentEditorNode &&
+      d->segmentEditorNode->GetSegmentationNode() != segmentationNode)
+    {
+    d->segmentEditorNode->SetAndObserveSegmentationNode(segmentationNode);
+    }
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (segmentationNode && astroVolumeLogic)
+    {
+    astroVolumeLogic->EnsureFITSMaskStorageNode(segmentationNode);
+    }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onSaveFITSMask()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLScene* scene = this->mrmlScene();
+  vtkMRMLSegmentationNode* segmentationNode =
+    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (!scene || !segmentationNode || !astroVolumeLogic)
+    {
+    return;
+    }
+  const QString title = tr("Save as FITS mask");
+
+  // The FITS header and the geometry of the mask: the ones of the mask read
+  // from file, or of the astronomical volume used as reference geometry
+  if (!vtkSlicerAstroVolumeLogic::IsAstroSegmentation(segmentationNode))
+    {
+    if (!d->astroVolumeNode)
+      {
+      QMessageBox::warning(this, title,
+        tr("The segmentation %1 has no FITS header: select an astronomical data cube in the module "
+           "(or as source volume in the Segment Editor) before saving it as a FITS mask.")
+          .arg(QString::fromUtf8(segmentationNode->GetName())));
+      return;
+      }
+    if (QMessageBox::question(this, title,
+          tr("The segmentation %1 has no FITS header. Use the header and the geometry of %2?")
+            .arg(QString::fromUtf8(segmentationNode->GetName()))
+            .arg(QString::fromUtf8(d->astroVolumeNode->GetName()))) != QMessageBox::Yes)
+      {
+      return;
+      }
+    segmentationNode->SetReferenceImageGeometryParameterFromVolumeNode(d->astroVolumeNode);
+    }
+
+  // FITS mask storage (replaces e.g. a .seg.nrrd storage node)
+  vtkMRMLStorageNode* storageNode = segmentationNode->GetStorageNode();
+  if (storageNode && !storageNode->IsA("vtkMRMLAstroSegmentationStorageNode"))
+    {
+    segmentationNode->SetAndObserveStorageNodeID(nullptr);
+    scene->RemoveNode(storageNode);
+    }
+  astroVolumeLogic->EnsureFITSMaskStorageNode(segmentationNode);
+  storageNode = segmentationNode->GetStorageNode();
+  if (!storageNode)
+    {
+    QMessageBox::critical(this, title, tr("The FITS mask storage could not be created."));
+    return;
+    }
+
+  QString defaultFileName = storageNode->GetFileName() ? QString::fromUtf8(storageNode->GetFileName()) : QString();
+  if (defaultFileName.isEmpty())
+    {
+    const QString directory = scene->GetRootDirectory() ? QString::fromUtf8(scene->GetRootDirectory()) : QDir::homePath();
+    defaultFileName = QDir(directory).filePath(QString::fromUtf8(segmentationNode->GetName()) + ".fits");
+    }
+  QString fileName = QFileDialog::getSaveFileName(this, title, defaultFileName, tr("FITS mask (*.fits)"));
+  if (fileName.isEmpty())
+    {
+    return;
+    }
+  if (!fileName.endsWith(".fits", Qt::CaseInsensitive) && !fileName.endsWith(".fits.gz", Qt::CaseInsensitive))
+    {
+    fileName += ".fits";
+    }
+
+  storageNode->SetFileName(fileName.toUtf8().constData());
+  storageNode->GetUserMessages()->ClearMessages();
+  if (!storageNode->WriteData(segmentationNode))
+    {
+    QMessageBox::critical(this, title,
+      tr("The segmentation could not be saved as FITS mask:\n%1")
+        .arg(QString::fromStdString(storageNode->GetUserMessages()->GetAllMessagesAsString())));
+    return;
+    }
+  qSlicerApplication* app = qSlicerApplication::application();
+  if (app && app->mainWindow() && app->mainWindow()->statusBar())
+    {
+    app->mainWindow()->statusBar()->showMessage(tr("Saved %1").arg(fileName), 5000);
+    }
 }
 
 //---------------------------------------------------------------------------

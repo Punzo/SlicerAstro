@@ -192,21 +192,20 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     presetComboBox = astroVolumeModuleWidget.findChild("qSlicerPresetComboBox")
     presetComboBox.setCurrentNodeIndex(6)
 
+    # The SoFiA mask of WEIN069 is loaded directly as a segmentation
     self.downloadWEIN069Mask()
-
-    # The labelmap -> segmentation conversion is no longer a button (FITS
-    # masks are loaded as segmentations): it is still available as a slot.
-    astroVolumeModuleWidget.onPushButtonCovertLabelMapToSegmentationClicked()
+    maskNode = slicer.util.getFirstNodeByClassByName("vtkMRMLSegmentationNode", "WEIN069_mask")
+    self.assertIsNotNone(maskNode)
+    self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), 3)
     self.delayDisplay('Loading segmentation', 700)
 
     astroScalarWidget = astroVolumeModuleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")
     astroScalarWidget.onCreateContours()
-    QPushButtonList = astroScalarWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "ConvertToClosedContoursPushButton":
-            CovertPushButton = QPushButton
-
-    CovertPushButton.click()
+    # The contours are segments of their own segmentation (not of the mask)
+    contoursNode = slicer.util.getFirstNodeByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg")
+    self.assertIsNotNone(contoursNode)
+    self.assertGreater(contoursNode.GetSegmentation().GetNumberOfSegments(), 0)
+    self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), 3)
 
     self.delayDisplay('Test passed', 700)
 

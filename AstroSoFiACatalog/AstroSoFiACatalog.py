@@ -208,10 +208,16 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         """Mask of the catalogue (loaded as segmentation), else the active astronomical volume."""
         base = self.CATALOG_SUFFIX.sub("", os.path.basename(catalogPath))
         candidates = []
+        nodeNameSuffix = re.compile(r"_mask(-2d|-raw)?$", re.IGNORECASE)
         for segmentationNode in slicer.util.getNodesByClass("vtkMRMLSegmentationNode"):
+            # file of the mask, or name of the node (the storage node may have
+            # been removed, e.g. by Sample Data)
             storageNode = segmentationNode.GetStorageNode()
             fileName = storageNode.GetFileName() if storageNode else None
             if fileName and self.MASK_SUFFIX.sub("", os.path.basename(fileName)) == base:
+                candidates.append(segmentationNode)
+            elif nodeNameSuffix.search(segmentationNode.GetName() or "") and \
+                    nodeNameSuffix.sub("", segmentationNode.GetName()) == base:
                 candidates.append(segmentationNode)
         if candidates:
             return candidates[-1]
@@ -288,7 +294,27 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
                              "of the catalogue are pixel coordinates")
         pointListNode = self.createPointList(catalog, base + "_sources", referenceNode)
         tableNode.SetAttribute("SlicerAstro.SoFiASources", pointListNode.GetID())
+        if referenceNode.IsA("vtkMRMLSegmentationNode"):
+            self.nameSegments(catalog, referenceNode)
         return tableNode, pointListNode
+
+    @staticmethod
+    def nameSegments(catalog, segmentationNode):
+        """Name the segments of a SoFiA mask after the sources of the catalogue.
+
+        Only the segments with the default name ("Source <id>") are renamed: the
+        mask may have been loaded before its catalogue was available.
+        """
+        names = {int(row["id"]): str(row["name"]) for row in catalog.rows if "id" in row and "name" in row}
+        segmentation = segmentationNode.GetSegmentation()
+        for segmentID in segmentation.GetSegmentIDs():
+            segment = segmentation.GetSegment(segmentID)
+            sourceID = vtk.reference("")
+            if not segment.GetTag("SlicerAstro.SourceID", sourceID):
+                continue
+            sourceID = int(str(sourceID))
+            if sourceID in names and segment.GetName() == f"Source {sourceID}":
+                segment.SetName(names[sourceID])
 
 
 #

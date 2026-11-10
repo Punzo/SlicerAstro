@@ -496,6 +496,47 @@
          <enum>QLayout::SetMinimumSize</enum>
         </property>
         <item>
+         <layout class="QHBoxLayout" name="SegmentationSelectorLayout">
+          <item>
+           <widget class="QLabel" name="SegmentationLabel">
+            <property name="text">
+             <string>Segmentation:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="qMRMLNodeComboBox" name="SegmentationNodeComboBox">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+              <horstretch>1</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Segmentation shown in the table and edited by the Segment Editor. FITS masks are loaded as segmentations.</string>
+            </property>
+            <property name="nodeTypes">
+             <stringlist>
+              <string>vtkMRMLSegmentationNode</string>
+             </stringlist>
+            </property>
+            <property name="noneEnabled">
+             <bool>true</bool>
+            </property>
+            <property name="addEnabled">
+             <bool>true</bool>
+            </property>
+            <property name="removeEnabled">
+             <bool>true</bool>
+            </property>
+            <property name="renameEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <property name="sizeConstraint">
            <enum>QLayout::SetMinimumSize</enum>
@@ -526,6 +567,34 @@
             <property name="icon">
              <iconset resource="../../../../../Slicer/Modules/Loadable/Segmentations/Widgets/Resources/qSlicerSegmentationsModuleWidgets.qrc">
               <normaloff>:/Icons/Edit.png</normaloff>:/Icons/Edit.png</iconset>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>24</width>
+              <height>24</height>
+             </size>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="SaveFITSMaskPushButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>70</width>
+              <height>30</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Save the segmentation as a FITS mask (one label value per segment, with the FITS header of the mask or of the reference data cube).</string>
+            </property>
+            <property name="text">
+             <string> Save as FITS mask... </string>
             </property>
             <property name="iconSize">
              <size>

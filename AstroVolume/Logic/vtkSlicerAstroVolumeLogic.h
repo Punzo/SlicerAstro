@@ -109,6 +109,17 @@ public:
   /// The orientation and the default orientation of the node are converted.
   static void SetAstroSliceOrientationPresets(vtkMRMLSliceNode* sliceNode);
 
+  /// Return true if the segmentation is astronomical: read from a FITS mask
+  /// (it has the FITS header) or with an astronomical volume as reference
+  /// geometry.
+  static bool IsAstroSegmentation(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Give an astronomical segmentation without storage node the FITS mask
+  /// storage node (vtkMRMLAstroSegmentationStorageNode), so that it is saved
+  /// as a FITS mask by default. Returns true if the segmentation is stored
+  /// as a FITS mask.
+  bool EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode* segmentationNode);
+
   /// Apply SetAstroSliceOrientationPresets to the default slice node and to
   /// all the slice nodes of the scene.
   void UpdateSliceOrientationPresets();
@@ -174,6 +185,9 @@ protected:
 
   /// Handle MRML node removed events
   virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) override;
+
+  /// Segmentations: FITS mask storage (see EnsureFITSMaskStorageNode)
+  void ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData) override;
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;

@@ -155,6 +155,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.test_SoFiAMaskRoundTrip()
         self.setUp()
         self.test_SegmentationOnAstroVolume()
+        self.setUp()
+        self.test_VolumeSaveKeepsHeader()
 
     def sourceArray(self, segmentationNode, segmentID):
         """Voxels of a segment in the geometry of the mask (z, y, x)."""
@@ -251,26 +253,91 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
         self.assertIsNotNone(volumeNode)
         dims = volumeNode.GetImageData().GetDimensions()
+        volumeFile = os.path.join(self.directory, "WEIN069_original.fits")
+        slicer.util.saveNode(volumeNode, volumeFile)  # file of the sample (cache): written with its header
+        originalHeader, _ = readFITS(volumeFile)
 
-        # A segmentation drawn in Slicer on the cube
+        # A segmentation drawn in Slicer on the cube: FITS mask storage by default
         segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
         segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)
-        segmentID = segmentationNode.GetSegmentation().AddEmptySegment("Galaxy")
+        self.assertEqual(segmentationNode.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+        segmentID = segmentationNode.GetSegmentation().AddEmptySegment("", "Galaxy")
+        segmentationNode.GetSegmentation().GetSegment(segmentID).SetColor(1.0, 0.5, 0.0)
         voxels = np.zeros((dims[2], dims[1], dims[0]), dtype=np.uint8)
         voxels[10:20, 30:40, 20:35] = 1
         slicer.util.updateSegmentBinaryLabelmapFromArray(voxels, segmentationNode, segmentID, volumeNode)
 
-        # Saved as a FITS mask with the header of the cube
-        storageNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLAstroSegmentationStorageNode")
-        segmentationNode.SetAndObserveStorageNodeID(storageNode.GetID())
+        # Saved (as from the Save dialog) as a FITS mask with the header of the cube
         path = os.path.join(self.directory, "WEIN069_galaxy.fits")
-        storageNode.SetFileName(path)
-        self.assertTrue(storageNode.WriteData(segmentationNode))
+        self.assertTrue(slicer.util.saveNode(segmentationNode, path))
         header, data = readFITS(path)
         self.assertEqual(data.shape, (dims[2], dims[1], dims[0]))
         np.testing.assert_array_equal(data != 0, voxels != 0)
         self.assertEqual(set(np.unique(data)), {0, 1})
         self.assertEqual(header["DATAMODEL"], "MASK")
-        self.assertEqual(header["CTYPE1"], volumeNode.GetAttribute("SlicerAstro.CTYPE1"))
-        self.assertAlmostEqual(float(header["CRVAL3"]), float(volumeNode.GetAttribute("SlicerAstro.CRVAL3")), places=3)
+        self.assertEqual(header["CTYPE1"], originalHeader["CTYPE1"])
+        # spectral axis of the file of the cube (not the converted one)
+        self.assertEqual(header["CTYPE3"], originalHeader["CTYPE3"])
+        self.assertAlmostEqual(float(header["CRVAL3"]), float(originalHeader["CRVAL3"]))
+        self.assertEqual(header["SEGNAM1"], "Galaxy")
+        self.assertEqual(header["SEGCOL1"], "#ff8000")
+
+        # Names and colors are read back
+        reloaded = slicer.util.loadSegmentation(path)
+        segment = reloaded.GetSegmentation().GetSegment("Source_1")
+        self.assertEqual(segment.GetName(), "Galaxy")
+        np.testing.assert_allclose(segment.GetColor(), (1.0, 128 / 255.0, 0.0), atol=1e-6)
+
+        # The storage node removed (e.g. by Sample Data): FITS mask storage again
+        storageNode = reloaded.GetStorageNode()
+        reloaded.SetAndObserveStorageNodeID(None)
+        slicer.mrmlScene.RemoveNode(storageNode)
+        self.assertEqual(reloaded.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+        self.delayDisplay("Test passed")
+
+    def test_VolumeSaveKeepsHeader(self):
+        """Saved cubes keep the spectral axis of the file, .fits is not compressed, .fits.gz is."""
+        import gzip
+
+        sourceFile = os.path.join(self.directory, "cube_source.fits")
+        data = (np.arange(12 * 16 * 20, dtype=np.float32).reshape(12, 16, 20) % 97) * 1e-4
+        cards = [("BUNIT", "JY/BEAM"), ("BMAJ", 0.01), ("BMIN", 0.008), ("BPA", 30.0)] + \
+            [card for card in WCS_CARDS if card[0] not in ("BUNIT", "HISTORY", "RESTFRQ")]
+        nz, ny, nx = data.shape
+        text = "".join([fitsCard("SIMPLE", True), fitsCard("BITPIX", -32), fitsCard("NAXIS", 3),
+                        fitsCard("NAXIS1", nx), fitsCard("NAXIS2", ny), fitsCard("NAXIS3", nz)] +
+                       [fitsCard(k, v) for k, v in cards] + ["END".ljust(80)])
+        text += " " * (-len(text) % 2880)
+        payload = data.astype(">f4").tobytes()
+        payload += b"\0" * (-len(payload) % 2880)
+        with open(sourceFile, "wb") as f:
+            f.write(text.encode("ascii") + payload)
+
+        volumeNode = slicer.util.loadVolume(sourceFile, {"center": True})
+        self.assertTrue(volumeNode.IsA("vtkMRMLAstroVolumeNode"))
+        # converted in memory
+        self.assertNotEqual(volumeNode.GetAttribute("SlicerAstro.CTYPE3"), "FREQ")
+
+        savedFile = os.path.join(self.directory, "cube_saved.fits")
+        self.assertTrue(slicer.util.saveNode(volumeNode, savedFile))
+        self.assertTrue(os.path.exists(savedFile))
+        self.assertFalse(os.path.exists(savedFile + ".gz"))
+        header, saved = readFITS(savedFile)
+        np.testing.assert_allclose(saved, data, rtol=1e-6)
+        self.assertEqual(header["CTYPE3"], "FREQ")
+        self.assertEqual(header["CUNIT3"], "Hz")
+        self.assertAlmostEqual(float(header["CRVAL3"]), 1.42e9)
+        self.assertAlmostEqual(float(header["CDELT3"]), -1.0e5)
+        # keywords only assumed by the reader are not added
+        for key in ("RESTFREQ", "RESTFRQ", "DRVAL3", "DUNIT3", "BLANK", "BSCALE", "BZERO"):
+            self.assertNotIn(key, header)
+
+        compressedFile = os.path.join(self.directory, "cube_saved_gz.fits.gz")
+        self.assertTrue(slicer.util.saveNode(volumeNode, compressedFile))
+        with open(compressedFile, "rb") as f:
+            self.assertEqual(f.read(2), b"\x1f\x8b")
+        with gzip.open(compressedFile) as f:
+            self.assertTrue(f.read(6) == b"SIMPLE")
+        reloaded = slicer.util.loadVolume(compressedFile, {"center": True})
+        self.assertEqual(reloaded.GetImageData().GetDimensions(), (20, 16, 12))
         self.delayDisplay("Test passed")

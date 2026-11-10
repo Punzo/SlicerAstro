@@ -267,6 +267,13 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
 {
   this->UpdateSliceOrientationPresets();
 
+  std::vector<vtkMRMLNode*> segmentationNodes;
+  this->GetMRMLScene()->GetNodesByClass("vtkMRMLSegmentationNode", segmentationNodes);
+  for (vtkMRMLNode* node : segmentationNodes)
+    {
+    this->EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode::SafeDownCast(node));
+    }
+
   // modify CameraNodes already allocated
   vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
       (this->GetMRMLScene()->GetNodesByClass("vtkMRMLCameraNode"));
@@ -294,6 +301,20 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   if (node->IsA("vtkMRMLSliceNode"))
     {
     vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode::SafeDownCast(node));
+    }
+
+  // astronomical segmentations are saved as FITS masks by default
+  if (vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node))
+    {
+    vtkNew<vtkIntArray> events;
+    events->InsertNextValue(vtkMRMLNode::ReferenceAddedEvent);
+    events->InsertNextValue(vtkMRMLNode::ReferenceModifiedEvent);
+    events->InsertNextValue(vtkMRMLNode::ReferenceRemovedEvent);
+    vtkObserveMRMLNodeEventsMacro(segmentationNode, events.GetPointer());
+    if (!this->GetMRMLScene()->IsImporting())
+      {
+      this->EnsureFITSMaskStorageNode(segmentationNode);
+      }
     }
 
   //change axes label names
@@ -507,6 +528,11 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeRemoved(vtkMRMLNode *node)
   if (!node)
     {
     return;
+    }
+
+  if (node->IsA("vtkMRMLSegmentationNode"))
+    {
+    vtkUnObserveMRMLNodeMacro(node);
     }
 
   if (node->IsA("vtkMRMLSegmentEditorNode"))
@@ -2788,4 +2814,65 @@ bool vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(vtkVolumeProper
     }
 
   return modified;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsAstroSegmentation(vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!segmentationNode)
+    {
+    return false;
+    }
+  if (segmentationNode->GetAttribute("SlicerAstro.NAXIS1"))
+    {
+    return true;
+    }
+  vtkMRMLNode* referenceNode = segmentationNode->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str());
+  return referenceNode && referenceNode->IsA("vtkMRMLAstroVolumeNode");
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode* segmentationNode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!segmentationNode || !scene || segmentationNode->GetScene() != scene || scene->IsClosing())
+    {
+    return false;
+    }
+  vtkMRMLStorageNode* storageNode = segmentationNode->GetStorageNode();
+  if (storageNode)
+    {
+    // an existing storage node (e.g. .seg.nrrd chosen by the user) is kept
+    return storageNode->IsA("vtkMRMLAstroSegmentationStorageNode");
+    }
+  if (!vtkSlicerAstroVolumeLogic::IsAstroSegmentation(segmentationNode))
+    {
+    return false;
+    }
+  vtkMRMLNode* newStorageNode = scene->AddNewNodeByClass("vtkMRMLAstroSegmentationStorageNode");
+  if (!newStorageNode)
+    {
+    return false;
+    }
+  segmentationNode->SetAndObserveStorageNodeID(newStorageNode->GetID());
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData)
+{
+  vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(caller);
+  if (segmentationNode && (event == vtkMRMLNode::ReferenceAddedEvent ||
+                           event == vtkMRMLNode::ReferenceModifiedEvent ||
+                           event == vtkMRMLNode::ReferenceRemovedEvent))
+    {
+    // reference geometry set to an astronomical volume, or storage node removed
+    if (this->GetMRMLScene() && !this->GetMRMLScene()->IsImporting())
+      {
+      this->EnsureFITSMaskStorageNode(segmentationNode);
+      }
+    return;
+    }
+  this->Superclass::ProcessMRMLNodesEvents(caller, event, callData);
 }
