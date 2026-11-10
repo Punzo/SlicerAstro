@@ -578,13 +578,40 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
   mask->AllocateScalars(VTK_INT, 1);
   std::fill_n(static_cast<int*>(mask->GetScalarPointer()), mask->GetNumberOfPoints(), 0);
 
+  // Segments without binary labelmap (e.g. only closed surfaces): converted
+  // on a copy (the segmentation is not modified by writing it)
+  const std::string labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const std::string surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  vtkNew<vtkSegmentation> converted;
+  converted->CopyConversionParameters(segmentation);
+  converted->SetSourceRepresentationName(surfaceName);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkSegment* segment = segmentation->GetSegment(segmentID);
+    if (segment && !segment->GetRepresentation(labelmapName) && segment->GetRepresentation(surfaceName))
+      {
+      vtkNew<vtkSegment> copy;
+      copy->DeepCopy(segment);
+      converted->AddSegment(copy, segmentID);
+      }
+    }
+  if (converted->GetNumberOfSegments() > 0)
+    {
+    converted->SetConversionParameter(vtkSegmentationConverter::GetReferenceImageGeometryParameterName(), geometryString);
+    converted->CreateRepresentation(labelmapName);
+    }
+
   std::vector<vtkOrientedImageData*> labelmaps;
   std::map<vtkOrientedImageData*, std::unordered_map<int, int>> sourceIDsByLabelmap;
   for (size_t i = 0; i < segmentIDs.size(); ++i)
     {
     vtkSegment* segment = segmentation->GetSegment(segmentIDs[i]);
+    if (segment && !segment->GetRepresentation(labelmapName) && converted->GetSegment(segmentIDs[i]))
+      {
+      segment = converted->GetSegment(segmentIDs[i]);
+      }
     vtkOrientedImageData* labelmap = segment ? vtkOrientedImageData::SafeDownCast(segment->GetRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName())) : nullptr;
+      labelmapName)) : nullptr;
     if (!labelmap || !labelmap->GetPointData()->GetScalars())
       {
       vtkWarningToMessageCollectionMacro(this->GetUserMessages(), "vtkMRMLAstroSegmentationStorageNode::WriteDataInternal",

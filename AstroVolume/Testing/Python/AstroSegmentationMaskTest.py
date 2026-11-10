@@ -288,6 +288,32 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(segment.GetName(), "Galaxy")
         np.testing.assert_allclose(segment.GetColor(), (1.0, 128 / 255.0, 0.0), atol=1e-6)
 
+        # Segments with only closed surfaces (e.g. contours saved by older versions)
+        # are converted to labelmaps when written, without warnings
+        surfaceNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        surfaceNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)
+        surfaceID = surfaceNode.GetSegmentation().AddEmptySegment("", "Contour")
+        slicer.util.updateSegmentBinaryLabelmapFromArray(voxels, surfaceNode, surfaceID, volumeNode)
+        surfaceNode.GetSegmentation().CreateRepresentation(
+            slicer.vtkSegmentationConverter.GetClosedSurfaceRepresentationName())
+        surfaceNode.GetSegmentation().SetSourceRepresentationName(
+            slicer.vtkSegmentationConverter.GetClosedSurfaceRepresentationName())
+        surfaceNode.GetSegmentation().RemoveRepresentation(
+            slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName())
+        surfacePath = os.path.join(self.directory, "WEIN069_contour.fits")
+        storageNode = surfaceNode.GetStorageNode()
+        storageNode.SetFileName(surfacePath)
+        storageNode.GetUserMessages().ClearMessages()
+        self.assertTrue(storageNode.WriteData(surfaceNode))
+        self.assertEqual(storageNode.GetUserMessages().GetNumberOfMessages(), 0,
+                         storageNode.GetUserMessages().GetAllMessagesAsString())
+        _, surfaceData = readFITS(surfacePath)
+        overlap = np.count_nonzero((surfaceData != 0) & (voxels != 0)) / np.count_nonzero(voxels)
+        self.assertGreater(overlap, 0.5)
+        # the segmentation is not modified by writing it
+        self.assertFalse(surfaceNode.GetSegmentation().ContainsRepresentation(
+            slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()))
+
         # The storage node removed (e.g. by Sample Data): FITS mask storage again
         storageNode = reloaded.GetStorageNode()
         reloaded.SetAndObserveStorageNodeID(None)

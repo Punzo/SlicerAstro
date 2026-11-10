@@ -1112,8 +1112,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
 
-  this->contoursSegNode->GetSegmentation()->RemoveRepresentation(
-    vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+  // The binary labelmap stays the source representation (the closed surface is
+  // only displayed): the contours can be edited and saved (e.g. as FITS mask).
 
   if (masterVolume != this->volumeNode())
     {

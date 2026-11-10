@@ -205,6 +205,9 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     contoursNode = slicer.util.getFirstNodeByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg")
     self.assertIsNotNone(contoursNode)
     self.assertGreater(contoursNode.GetSegmentation().GetNumberOfSegments(), 0)
+    # binary labelmap kept as source (closed surfaces only displayed): savable as FITS mask
+    self.assertTrue(contoursNode.GetSegmentation().ContainsRepresentation(
+      slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()))
     self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), 3)
 
     self.delayDisplay('Test passed', 700)

@@ -1939,8 +1939,8 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(vtkMRMLSegment
     vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
   displayNode->SetPreferredDisplayRepresentationName2D(
     vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-  segmentationNode->GetSegmentation()->RemoveRepresentation(
-    vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
+  // The binary labelmap stays the source representation (the closed surface is
+  // only displayed): the segments can be edited and saved (e.g. as FITS mask).
 
 }
 
