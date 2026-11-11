@@ -94,6 +94,18 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         effect = editorWidget.activeEffect()
         self.assertIsNotNone(effect)
         self.assertEqual(effect.parameter("Operation"), "FillInside")
+        # no slice cut options
+        import qt
+
+        texts = {"Slice cut:", "Unlimited", "Positive", "Negative", "Symmetric"}
+        frame = effect.optionsFrame()
+        for widget in frame.findChildren(qt.QRadioButton) + frame.findChildren(qt.QLabel):
+            if widget.text in texts:
+                self.assertFalse(widget.visible, widget.text)
+        for spinBox in frame.findChildren("qMRMLSpinBox"):
+            if spinBox.quantity == "length":
+                self.assertFalse(spinBox.visible, "slice cut depth")
+        self.assertEqual(effect.parameter("SliceCutMode"), "Symmetric")
 
         # threshold range: from 3 times the noise to the maximum
         noise3 = 3.0 * float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold"))
@@ -108,6 +120,8 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         self.assertGreater(np.count_nonzero(selected), 0)
         self.assertGreaterEqual(float(np.nanmin(data[selected])), noise3 - 1e-6)
         countSlice = np.count_nonzero(selected)
+        # in a slice view: only the current slice (red: XY plane, one channel)
+        self.assertEqual(len(np.unique(np.nonzero(selected)[0])), 1)
 
         # Automatic threshold updating: the last lasso with a higher minimum
         effect.setParameter("AutomaticThresholdUpdating", "1")

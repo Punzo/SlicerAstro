@@ -41,6 +41,8 @@
 #include <QCheckBox>
 #include <QDebug>
 #include <QLabel>
+#include <QRadioButton>
+#include <QStringList>
 
 // CTK includes
 #include <ctkRangeWidget.h>
@@ -145,8 +147,9 @@ QIcon qSlicerSegmentEditorAstroCloudLassoEffect::icon()
 const QString qSlicerSegmentEditorAstroCloudLassoEffect::helpText() const
 {
   return QString("<html>Select the emission inside a lasso.<p>"
-                 "Left-click and drag in a slice view or in the 3D view to draw the lasso "
-                 "(as with Scissors: shape and slice cut options below). "
+                 "Left-click and drag in a slice view or in the 3D view to draw the lasso: "
+                 "in a slice view it selects the voxels of the current slice, in the 3D view "
+                 "the voxels through the whole cube. "
                  "<b>Fill</b> selects only the voxels in the threshold range (by default from 3 times the "
                  "noise, the DisplayThreshold of the AstroVolume module, to the maximum of the data); "
                  "<b>Erase</b> removes all the voxels inside the lasso.<p>"
@@ -167,6 +170,9 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::activate();
   d->clearLastLasso();
+  // in a slice view: only the current slice (the slice cut options are hidden)
+  this->setParameter("SliceCutMode", "Symmetric");
+  this->setParameter("SliceCutDepthMm", 0.);
   this->sourceVolumeNodeChanged();
 }
 
@@ -188,8 +194,37 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setupOptionsFrame()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
-  // operation, shape and slice cut options of the Scissors effect
+  // operation and shape options of the Scissors effect
   Superclass::setupOptionsFrame();
+
+  // No slice cut options: in a slice view the lasso selects the voxels of the
+  // current slice, in the 3D view through the whole cube (the widgets of the
+  // Scissors effect have no object names: they are found by their text).
+  const QStringList sliceCutTexts = { Superclass::tr("Slice cut:"), Superclass::tr("Unlimited"),
+                                      Superclass::tr("Positive"), Superclass::tr("Negative"),
+                                      Superclass::tr("Symmetric") };
+  for (QRadioButton* button : this->optionsFrame()->findChildren<QRadioButton*>())
+    {
+    if (sliceCutTexts.contains(button->text()))
+      {
+      button->hide();
+      }
+    }
+  for (QLabel* label : this->optionsFrame()->findChildren<QLabel*>())
+    {
+    if (sliceCutTexts.contains(label->text()))
+      {
+      label->hide();
+      }
+    }
+  for (QWidget* widget : this->optionsFrame()->findChildren<QWidget*>())
+    {
+    // depth of the slice cut: the only length spin box of the Scissors options
+    if (widget->inherits("qMRMLSpinBox") && widget->property("quantity").toString() == "length")
+      {
+      widget->hide();
+      }
+    }
 
   d->ThresholdRangeLabel = new QLabel("Threshold range:");
   this->addOptionsWidget(d->ThresholdRangeLabel);
@@ -214,8 +249,11 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setupOptionsFrame()
 //-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffect::setMRMLDefaults()
 {
-  // before the defaults of Scissors (erase inside): the lasso fills
+  // before the defaults of Scissors (erase inside, unlimited slice cut):
+  // the lasso fills, in a slice view only the current slice
   this->setParameterDefault("Operation", "FillInside");
+  this->setParameterDefault("SliceCutMode", "Symmetric");
+  this->setParameterDefault("SliceCutDepthMm", 0.);
   Superclass::setMRMLDefaults();
   this->setParameterDefault("ThresholdMinimum", 0.);
   this->setParameterDefault("ThresholdMaximum", 0.);

@@ -29,8 +29,9 @@ class qSlicerSegmentEditorAstroCloudLassoEffectPrivate;
 /// \brief Cloud Lasso: select the emission (the "cloud") inside a lasso.
 ///
 /// The lasso is drawn in 2D on a slice view or on the 3D view, as with the
-/// Scissors effect (this effect is a Scissors effect: same shapes, slice cut
-/// modes, and drawing). Filling selects only the voxels whose intensity is in
+/// Scissors effect (this effect is a Scissors effect: same shapes and drawing).
+/// In a slice view the lasso selects the voxels of the current slice, in the
+/// 3D view the voxels through the whole cube (no slice cut options). Filling selects only the voxels whose intensity is in
 /// the threshold range (by default from 3 times the noise, the DisplayThreshold
 /// of the AstroVolume module, to the maximum of the data); erasing removes all
 /// the voxels inside the lasso. With the automatic threshold updating, changing
