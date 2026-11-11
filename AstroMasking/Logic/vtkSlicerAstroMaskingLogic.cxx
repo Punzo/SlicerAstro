@@ -52,7 +52,12 @@
 #include <vtkVersion.h>
 
 // Std includes
+#include <algorithm>
 #include <cassert>
+#include <cmath>
+#include <cstring>
+#include <iomanip>
+#include <limits>
 #include <iostream>
 #include <chrono>
 
@@ -74,12 +79,6 @@ double StringToDouble(const char* str)
 }
 
 //----------------------------------------------------------------------------
-int StringToInt(const char* str)
-{
-  return StringToNumber<int>(str);
-}
-
-//----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
@@ -93,6 +92,14 @@ template <typename T> std::string NumberToString(T V)
 std::string IntToString(int Value)
 {
   return NumberToString<int>(Value);
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double Value)
+{
+  std::stringstream strstream;
+  strstream << std::setprecision(std::numeric_limits<double>::digits10) << Value;
+  return strstream.str();
 }
 
 }// end namespace
@@ -519,24 +526,17 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     }
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
-  const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numSlice = dims[0] * dims[1] * numComponents;
-  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
-
-  // Crop outputVolume by voxels bounds
-  int firstElement = 0, lastElement = 0;
-  double cropBounds[6] = {0.};
-
-  float *inFPixel = nullptr;
-  float *outFPixel = nullptr;
-  double *inDPixel = nullptr;
-  double *outDPixel = nullptr;
-
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  if (DataType != VTK_FLOAT && DataType != VTK_DOUBLE)
+    {
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop : only float and double data can be cropped.");
+    return false;
+    }
 
-  vtkNew<vtkImageData> imageDataTemp;
-  vtkSmartPointer<vtkImageData> blankedImageData;
-
+  // Bounds of the crop (voxel indices) of the ROI or of the segment
+  double cropBounds[6] = {0., -1., 0., -1., 0., -1.};
+  vtkSmartPointer<vtkImageData> sourceImageData;
+  bool boundsFound = false;
   if (!segmentationActive)
     {
     vtkMRMLMarkupsROINode *roiNode = pnode->GetROINode();
@@ -546,96 +546,51 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
                     " roiNode not found!");
       return false;
       }
-
-    this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, cropBounds);
-
-    firstElement = (cropBounds[0] + cropBounds[2] * dims[0] +
-                   cropBounds[4] * numSlice) + 1;
-
-    lastElement = (cropBounds[1] + cropBounds[3] * dims[0] +
-                  cropBounds[5] * numSlice) + 1;
-
-    numElements = lastElement - firstElement;
-
-    int N1 = (int) (cropBounds[1] - cropBounds[0]) + 1;
-    int N2 = (int) (cropBounds[3] - cropBounds[2]) + 1;
-    int N3 = (int) (cropBounds[5] - cropBounds[4]) + 1;
-
-    imageDataTemp->SetDimensions(N1, N2, N3);
-    imageDataTemp->SetSpacing(1.,1.,1.);
-    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-    outputVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS1", IntToString(N1).c_str());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS2", IntToString(N2).c_str());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS3", IntToString(N3).c_str());
-
-    switch (DataType)
-      {
-      case VTK_FLOAT:
-        inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        break;
-      case VTK_DOUBLE:
-        inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        break;
-      default:
-        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-        return 0;
-      }
+    boundsFound = this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, cropBounds);
+    sourceImageData = inputVolume->GetImageData();
     }
   else
     {
-    pnode->SetBlankValue("NaN");
-    pnode->SetBlankRegion("Outside");
-    this->ApplyBlank(pnode);
-    // keep a reference to the blanked (full size) cube: it is read while the
-    // cropped output is filled (no copy)
-    blankedImageData = outputVolume->GetImageData();
-
-    this->GetAstroVolumeLogic()->CalculateSegmentCropVolumeBounds(segmentationNode,
-                                                                  segment,
-                                                                  inputVolume,
-                                                                  cropBounds);
-
-    firstElement = (cropBounds[0] + cropBounds[2] * dims[0] +
-                   cropBounds[4] * numSlice) + 1;
-
-    lastElement = (cropBounds[1] + cropBounds[3] * dims[0] +
-                  cropBounds[5] * numSlice) + 1;
-
-    numElements = lastElement - firstElement;
-
-    int N1 = (int) (cropBounds[1] - cropBounds[0]) + 1;
-    int N2 = (int) (cropBounds[3] - cropBounds[2]) + 1;
-    int N3 = (int) (cropBounds[5] - cropBounds[4]) + 1;
-
-    imageDataTemp->SetDimensions(N1, N2, N3);
-    imageDataTemp->SetSpacing(1.,1.,1.);
-    imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-    outputVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS1", IntToString(N1).c_str());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS2", IntToString(N2).c_str());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS3", IntToString(N3).c_str());
-
-    switch (DataType)
+    boundsFound = this->GetAstroVolumeLogic()->CalculateSegmentCropVolumeBounds(segmentationNode,
+                                                                                segment,
+                                                                                inputVolume,
+                                                                                cropBounds);
+    if (boundsFound)
       {
-      case VTK_FLOAT:
-        inFPixel = static_cast<float*> (blankedImageData->GetScalarPointer(0,0,0));
-        outFPixel = static_cast<float*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        break;
-      case VTK_DOUBLE:
-        inDPixel = static_cast<double*> (blankedImageData->GetScalarPointer(0,0,0));
-        outDPixel = static_cast<double*> (outputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        break;
-      default:
-        vtkErrorMacro("Attempt to allocate scalars of type not allowed");
-        return 0;
+      // blank outside the segment, then crop the blanked (full size) cube
+      pnode->SetBlankValue("NaN");
+      pnode->SetBlankRegion("Outside");
+      this->ApplyBlank(pnode);
+      sourceImageData = outputVolume->GetImageData();
       }
     }
 
+  // integer voxel bounds inside the cube
+  int bounds[6] = {0, -1, 0, -1, 0, -1};
+  for (int axis = 0; axis < 3; axis++)
+    {
+    bounds[2 * axis] = std::max(0, static_cast<int>(std::ceil(cropBounds[2 * axis] - 1.E-6)));
+    bounds[2 * axis + 1] = std::min(dims[axis] - 1, static_cast<int>(std::floor(cropBounds[2 * axis + 1] + 1.E-6)));
+    }
+  if (!boundsFound || !sourceImageData || bounds[0] > bounds[1] || bounds[2] > bounds[3] || bounds[4] > bounds[5])
+    {
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop : the "
+                  << (segmentationActive ? "segment is empty or does not overlap" : "ROI does not overlap")
+                  << " the data cube: nothing to crop.");
+    pnode->SetStatus(100);
+    return false;
+    }
+
+  const int N1 = bounds[1] - bounds[0] + 1;
+  const int N2 = bounds[3] - bounds[2] + 1;
+  const int N3 = bounds[5] - bounds[4] + 1;
+
+  vtkNew<vtkImageData> imageDataTemp;
+  imageDataTemp->SetDimensions(N1, N2, N3);
+  imageDataTemp->SetSpacing(1.,1.,1.);
+  imageDataTemp->AllocateScalars(DataType, 1);
+
   bool cancel = false;
-  int status = 0;
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -645,46 +600,40 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   pnode->SetStatus(1);
 
-  int outElementCnt = 0;
-
-  for (int elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
+  // copy the voxels inside the bounds (one row at a time)
+  const vtkIdType inRow = dims[0];
+  const vtkIdType inSlice = static_cast<vtkIdType>(dims[0]) * dims[1];
+  const size_t elementSize = (DataType == VTK_FLOAT) ? sizeof(float) : sizeof(double);
+  const char* inPixel = static_cast<const char*>(sourceImageData->GetScalarPointer());
+  char* outPixel = static_cast<char*>(imageDataTemp->GetScalarPointer());
+  vtkIdType outIndex = 0;
+  for (int k = bounds[4]; k <= bounds[5] && !cancel; k++)
     {
     if (pnode->GetStatus() == -1)
       {
       cancel = true;
       break;
       }
-
-    int ref  = (int) floor(elementCnt / dims[0]);
-    ref *= dims[0];
-    int x = elementCnt - ref;
-    ref = (int) floor(elementCnt / numSlice);
-    ref *= numSlice;
-    ref = elementCnt - ref;
-    int y = (int) floor(ref / dims[0]);
-
-    if (x < cropBounds[0] || x > cropBounds[1] ||
-        y < cropBounds[2] || y > cropBounds[3])
+    for (int jj = bounds[2]; jj <= bounds[3]; jj++)
       {
-      continue;
+      const vtkIdType inIndex = k * inSlice + jj * inRow + bounds[0];
+      std::memcpy(outPixel + outIndex * elementSize, inPixel + inIndex * elementSize, N1 * elementSize);
+      outIndex += N1;
       }
+    pnode->SetStatus(std::max(1, static_cast<int>(100. * (k - bounds[4] + 1) / N3) - 1));
+    }
+  sourceImageData = nullptr;
 
-    outElementCnt++;
-    switch (DataType)
-      {
-      case VTK_FLOAT:
-        *(outFPixel + outElementCnt) = *(inFPixel + elementCnt);
-        break;
-      case VTK_DOUBLE:
-        *(outDPixel + outElementCnt) = *(inDPixel + elementCnt);
-        break;
-      }
-
-    if((elementCnt - firstElement) / numElements > status)
-      {
-      status += 10;
-      pnode->SetStatus(status);
-      }
+  if (!cancel)
+    {
+    outputVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+    outputVolume->SetAttribute("SlicerAstro.NAXIS1", IntToString(N1).c_str());
+    outputVolume->SetAttribute("SlicerAstro.NAXIS2", IntToString(N2).c_str());
+    outputVolume->SetAttribute("SlicerAstro.NAXIS3", IntToString(N3).c_str());
+    }
+  for (int axis = 0; axis < 6; axis++)
+    {
+    cropBounds[axis] = bounds[axis];
     }
 
   end = std::chrono::steady_clock::now();
@@ -693,17 +642,8 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 
   vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = nullptr;
-  inDPixel = nullptr;
-  blankedImageData = nullptr;
-
   if (cancel)
     {
-    outFPixel = nullptr;
-    outDPixel = nullptr;
-    delete outFPixel;
-    delete outDPixel;
-
     pnode->SetStatus(100);
     return false;
     }
@@ -716,20 +656,15 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   // center the volume
   this->Internal->AstroVolumeLogic->CenterVolume(outputVolume);
 
-  // Calculate the new crpix values
-  int cPixX = StringToInt(outputVolume->GetAttribute("SlicerAstro.CRPIX1"));
-  int cPixY = StringToInt(outputVolume->GetAttribute("SlicerAstro.CRPIX2"));
-  int cPixZ = StringToInt(outputVolume->GetAttribute("SlicerAstro.CRPIX3"));
-
-  // calculate the center with respect to the cutout cube
-  int cPixXCut = cPixX - (int) cropBounds[0];
-  int cPixYCut = cPixY - (int) cropBounds[2];
-  int cPixZCut = cPixZ - (int) cropBounds[4];
+  // reference pixels with respect to the cutout cube (CRPIX can be fractional)
+  const double cPixXCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX1")) - cropBounds[0];
+  const double cPixYCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX2")) - cropBounds[2];
+  const double cPixZCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX3")) - cropBounds[4];
 
   // update header keywords:
-  outputVolume->SetAttribute("SlicerAstro.CRPIX1", IntToString(cPixXCut).c_str());
-  outputVolume->SetAttribute("SlicerAstro.CRPIX2", IntToString(cPixYCut).c_str());
-  outputVolume->SetAttribute("SlicerAstro.CRPIX3", IntToString(cPixZCut).c_str());
+  outputVolume->SetAttribute("SlicerAstro.CRPIX1", DoubleToString(cPixXCut).c_str());
+  outputVolume->SetAttribute("SlicerAstro.CRPIX2", DoubleToString(cPixYCut).c_str());
+  outputVolume->SetAttribute("SlicerAstro.CRPIX3", DoubleToString(cPixZCut).c_str());
 
   vtkMRMLAstroVolumeDisplayNode* astroDisplay = outputVolume->GetAstroVolumeDisplayNode();
   if (!astroDisplay)
