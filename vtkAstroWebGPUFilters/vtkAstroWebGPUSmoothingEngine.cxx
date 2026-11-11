@@ -65,7 +65,7 @@ vtkAstroWebGPUSmoothingEngine::vtkAstroWebGPUSmoothingEngine() = default;
 //----------------------------------------------------------------------------
 vtkAstroWebGPUSmoothingEngine::~vtkAstroWebGPUSmoothingEngine()
 {
-  for (auto& pass : this->Passes)
+  for (vtkSmartPointer<vtkWebGPUComputePass>& pass : this->Passes)
     {
     pass->ReleaseResources();
     }
@@ -83,7 +83,7 @@ vtkAstroWebGPUSmoothingEngine::~vtkAstroWebGPUSmoothingEngine()
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkWebGPUConfiguration> vtkAstroWebGPUSmoothingEngine::NewConfiguration()
 {
-  auto configuration = vtkSmartPointer<vtkWebGPUConfiguration>::New();
+  vtkSmartPointer<vtkWebGPUConfiguration> configuration = vtkSmartPointer<vtkWebGPUConfiguration>::New();
   configuration->SetTimeout(5000.);
   if (!configuration->Initialize())
     {
@@ -301,7 +301,7 @@ bool vtkAstroWebGPUSmoothingEngine::Download(int buffer, vtkImageData* output)
     bool Done;
   } target{scalars, count, false};
 
-  auto onMapped = [](const void* mapped, void* userData)
+  vtkWebGPUComputePass::BufferMapAsyncCallback onMapped = [](const void* mapped, void* userData)
     {
     Target* t = static_cast<Target*>(userData);
     const float* values = static_cast<const float*>(mapped);

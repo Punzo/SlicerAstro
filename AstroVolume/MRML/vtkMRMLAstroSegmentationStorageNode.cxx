@@ -58,6 +58,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <vector>
+#include <functional>
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroSegmentationStorageNode);
@@ -130,7 +131,7 @@ void PaintLabels(vtkImageData* labelmap, vtkImageData* output, const int extent[
             {
             continue;
             }
-          const auto it = sourceIDs.find(value);
+          const std::unordered_map<int, int>::const_iterator it = sourceIDs.find(value);
           if (it != sourceIDs.end())
             {
             out[x] = it->second;
@@ -237,11 +238,11 @@ std::map<int, std::string> vtkMRMLAstroSegmentationStorageNode::ReadSoFiACatalog
     }
 
   // Values of a row; quoted values may contain spaces (SoFiA 2 names)
-  auto split = [](const std::string& text)
+  std::function<std::vector<std::string>(const std::string&)> split = [](const std::string& text)
     {
     std::vector<std::string> values;
     static const std::regex value("\"([^\"]*)\"|(\\S+)");
-    for (auto it = std::sregex_iterator(text.begin(), text.end(), value); it != std::sregex_iterator(); ++it)
+    for (std::sregex_iterator it(text.begin(), text.end(), value); it != std::sregex_iterator(); ++it)
       {
       values.push_back((*it)[1].matched ? (*it)[1].str() : (*it)[2].str());
       }
@@ -260,8 +261,8 @@ std::map<int, std::string> vtkMRMLAstroSegmentationStorageNode::ReadSoFiACatalog
     if (line[line.find_first_not_of(" \t")] == '#')
       {
       const std::vector<std::string> columns = split(line.substr(line.find('#') + 1));
-      const auto name = std::find(columns.begin(), columns.end(), "name");
-      const auto id = std::find(columns.begin(), columns.end(), "id");
+      const std::vector<std::string>::const_iterator name = std::find(columns.begin(), columns.end(), "name");
+      const std::vector<std::string>::const_iterator id = std::find(columns.begin(), columns.end(), "id");
       if (name != columns.end() && id != columns.end())
         {
         nameColumn = static_cast<int>(name - columns.begin());
@@ -364,7 +365,7 @@ int vtkMRMLAstroSegmentationStorageNode::ReadDataInternal(vtkMRMLNode* refNode)
     vtkNew<vtkSegment> segment;
     // name: saved by SlicerAstro in the header, else from the SoFiA catalogue
     const char* headerName = reader->GetHeaderValue(("SlicerAstro.SEGNAM" + std::to_string(label)).c_str());
-    const auto catalogName = catalogNames.find(label);
+    const std::map<int, std::string>::const_iterator catalogName = catalogNames.find(label);
     const std::string name = headerName && *headerName ? std::string(headerName)
                              : catalogName != catalogNames.end() ? catalogName->second
                                                                  : "Source " + std::to_string(label);
@@ -417,7 +418,7 @@ int vtkMRMLAstroSegmentationStorageNode::ReadDataInternal(vtkMRMLNode* refNode)
   for (const std::string& key : spectralKeys)
     {
     const std::string attribute = std::string(AttributePrefix) + key;
-    const auto original = originalKeys.find(key);
+    const std::map<std::string, std::string>::const_iterator original = originalKeys.find(key);
     if (original != originalKeys.end())
       {
       segmentationNode->SetAttribute(attribute.c_str(), original->second.c_str());
@@ -503,7 +504,7 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
   reference->GetDimensions(dimensions);
   for (int axis = 0; axis < 3; ++axis)
     {
-    const auto naxis = header.find("SlicerAstro.NAXIS" + std::to_string(axis + 1));
+    const std::map<std::string, std::string>::const_iterator naxis = header.find("SlicerAstro.NAXIS" + std::to_string(axis + 1));
     const int expected = naxis != header.end() ? atoi(naxis->second.c_str()) : 1;
     if (dimensions[axis] != expected)
       {
@@ -544,7 +545,7 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
     }
 
   // Segment names and colors in the header (read back with the mask)
-  for (auto it = header.begin(); it != header.end();)
+  for (std::map<std::string, std::string>::iterator it = header.begin(); it != header.end();)
     {
     const bool segmentKeyword = it->first.compare(0, 18, "SlicerAstro.SEGNAM") == 0 ||
                                 it->first.compare(0, 18, "SlicerAstro.SEGCOL") == 0;
@@ -665,7 +666,7 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
   writer->SetFileName(fullName.c_str());
   writer->SetInputDataObject(mask);
   writer->SetUseCompression(0);
-  for (const auto& keyValue : header)
+  for (const std::pair<const std::string, std::string>& keyValue : header)
     {
     writer->SetAttribute(keyValue.first, keyValue.second);
     }
@@ -677,7 +678,7 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
     vtkMRMLAstroVolumeStorageNode::RestoreSpectralAxisKeywords(referenceVolume, writer);
     }
   const int* values = static_cast<int*>(mask->GetScalarPointer());
-  const auto range = std::minmax_element(values, values + mask->GetNumberOfPoints());
+  const std::pair<const int*, const int*> range = std::minmax_element(values, values + mask->GetNumberOfPoints());
   writer->SetAttribute("SlicerAstro.DATAMIN", std::to_string(*range.first));
   writer->SetAttribute("SlicerAstro.DATAMAX", std::to_string(*range.second));
 

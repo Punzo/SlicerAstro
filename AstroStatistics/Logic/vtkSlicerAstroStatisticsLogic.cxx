@@ -309,7 +309,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     }
 
   bool cancel = false;
-  int status = 0;
 
 
   std::chrono::steady_clock::time_point start, end;
@@ -331,21 +330,21 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         pnode->GetTotalFlux() || pnode->GetMedian())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
-      vtkSMPThreadLocal<decltype(Max)> MaxLocal(Max);
-      vtkSMPThreadLocal<decltype(Min)> MinLocal(Min);
-      vtkSMPThreadLocal<decltype(Sum)> SumLocal(0);
-      vtkSMPThreadLocal<decltype(Npixels)> NpixelsLocal(0);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+      vtkSMPThreadLocal<double> MaxLocal(Max);
+      vtkSMPThreadLocal<double> MinLocal(Min);
+      vtkSMPThreadLocal<double> SumLocal(0);
+      vtkSMPThreadLocal<int> NpixelsLocal(0);
       vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
         if (progress.IsCancelled())
           {
           return;
           }
-        auto& Max = MaxLocal.Local();
-        auto& Min = MinLocal.Local();
-        auto& Sum = SumLocal.Local();
-        auto& Npixels = NpixelsLocal.Local();
+        double& Max = MaxLocal.Local();
+        double& Min = MinLocal.Local();
+        double& Sum = SumLocal.Local();
+        int& Npixels = NpixelsLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           if (*(maskPixel + elementCnt) < 1)
@@ -391,10 +390,10 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         progress.Done(lastIndex - firstIndex);
         });
-      for (auto value : MaxLocal) { Max = std::max(Max, value); }
-      for (auto value : MinLocal) { Min = std::min(Min, value); }
-      for (auto value : SumLocal) { Sum += value; }
-      for (auto value : NpixelsLocal) { Npixels += value; }
+      for (double value : MaxLocal) { Max = std::max(Max, value); }
+      for (double value : MinLocal) { Min = std::min(Min, value); }
+      for (double value : SumLocal) { Sum += value; }
+      for (int value : NpixelsLocal) { Npixels += value; }
       cancel = progress.IsCancelled();
       }
 
@@ -428,15 +427,15 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     if (pnode->GetStd())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
-      vtkSMPThreadLocal<decltype(Std)> StdLocal(0);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+      vtkSMPThreadLocal<double> StdLocal(0);
       vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
         if (progress.IsCancelled())
           {
           return;
           }
-        auto& Std = StdLocal.Local();
+        double& Std = StdLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           if (*(maskPixel + elementCnt) < 1)
@@ -464,7 +463,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         progress.Done(lastIndex - firstIndex);
         });
-      for (auto value : StdLocal) { Std += value; }
+      for (double value : StdLocal) { Std += value; }
       cancel = progress.IsCancelled();
       }
 
@@ -543,21 +542,21 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         pnode->GetTotalFlux() || pnode->GetMedian())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (lastElement) - (firstElement), 10, 100);
-      vtkSMPThreadLocal<decltype(Max)> MaxLocal(Max);
-      vtkSMPThreadLocal<decltype(Min)> MinLocal(Min);
-      vtkSMPThreadLocal<decltype(Sum)> SumLocal(0);
-      vtkSMPThreadLocal<decltype(Npixels)> NpixelsLocal(0);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (lastElement) - (firstElement), 10, 100);
+      vtkSMPThreadLocal<double> MaxLocal(Max);
+      vtkSMPThreadLocal<double> MinLocal(Min);
+      vtkSMPThreadLocal<double> SumLocal(0);
+      vtkSMPThreadLocal<int> NpixelsLocal(0);
       vtkSMPTools::For(firstElement, lastElement, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
         if (progress.IsCancelled())
           {
           return;
           }
-        auto& Max = MaxLocal.Local();
-        auto& Min = MinLocal.Local();
-        auto& Sum = SumLocal.Local();
-        auto& Npixels = NpixelsLocal.Local();
+        double& Max = MaxLocal.Local();
+        double& Min = MinLocal.Local();
+        double& Sum = SumLocal.Local();
+        int& Npixels = NpixelsLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           int ref  = (int) floor(elementCnt / dims[0]);
@@ -611,10 +610,10 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         progress.Done(lastIndex - firstIndex);
         });
-      for (auto value : MaxLocal) { Max = std::max(Max, value); }
-      for (auto value : MinLocal) { Min = std::min(Min, value); }
-      for (auto value : SumLocal) { Sum += value; }
-      for (auto value : NpixelsLocal) { Npixels += value; }
+      for (double value : MaxLocal) { Max = std::max(Max, value); }
+      for (double value : MinLocal) { Min = std::min(Min, value); }
+      for (double value : SumLocal) { Sum += value; }
+      for (int value : NpixelsLocal) { Npixels += value; }
       cancel = progress.IsCancelled();
       }
 
@@ -648,15 +647,15 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     if (pnode->GetStd())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (lastElement) - (firstElement), 10, 100);
-      vtkSMPThreadLocal<decltype(Std)> StdLocal(0);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (lastElement) - (firstElement), 10, 100);
+      vtkSMPThreadLocal<double> StdLocal(0);
       vtkSMPTools::For(firstElement, lastElement, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
         if (progress.IsCancelled())
           {
           return;
           }
-        auto& Std = StdLocal.Local();
+        double& Std = StdLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           int ref  = (int) floor(elementCnt / dims[0]);
@@ -692,7 +691,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
           }
         progress.Done(lastIndex - firstIndex);
         });
-      for (auto value : StdLocal) { Std += value; }
+      for (double value : StdLocal) { Std += value; }
       cancel = progress.IsCancelled();
       }
 

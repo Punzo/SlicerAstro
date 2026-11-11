@@ -42,6 +42,7 @@
 #include <vtkMRMLTransformNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
+#include <functional>
 
 // OpenMP includes
 
@@ -131,24 +132,6 @@ double StringToDouble(const char* str)
 template <typename T> bool isNaN(T value)
 {
   return value != value;
-}
-
-//----------------------------------------------------------------------------
-bool DoubleIsNaN(double Value)
-{
-  return isNaN<double>(Value);
-}
-
-//----------------------------------------------------------------------------
-bool FloatIsNaN(float Value)
-{
-  return isNaN<float>(Value);
-}
-
-//----------------------------------------------------------------------------
-bool ShortIsNaN(short Value)
-{
-  return isNaN<short>(Value);
 }
 
 }// end namespace
@@ -271,7 +254,7 @@ bool vtkMRMLAstroVolumeNode::UpdateDisplayThresholdAttributes()
     }
 
   // RMS of the voxels in [lowBoundary, highBoundary] (NaN voxels ignored)
-  auto rms = [&](vtkIdType lowBoundary, vtkIdType highBoundary) -> double
+  std::function<double(vtkIdType, vtkIdType)> rms = [&](vtkIdType lowBoundary, vtkIdType highBoundary) -> double
     {
     const vtkIdType cont = highBoundary - lowBoundary;
     if (cont <= 0)

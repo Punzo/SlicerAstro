@@ -255,7 +255,6 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     }
 
   bool cancel = false;
-  int status = 0;
 
 
   std::chrono::steady_clock::time_point start, end;
@@ -297,7 +296,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (dims[2]) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(pnode, (dims[2]) - (0), 10, 100);
     vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -415,7 +414,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       }
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (dims[2]) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(pnode, (dims[2]) - (0), 10, 100);
     vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())

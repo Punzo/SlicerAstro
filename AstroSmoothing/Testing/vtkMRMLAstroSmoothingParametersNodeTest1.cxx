@@ -23,6 +23,7 @@
 
 // VTK includes
 #include <vtkDoubleArray.h>
+#include <functional>
 
 int vtkMRMLAstroSmoothingParametersNodeTest1(int , char * [] )
 {
@@ -84,7 +85,7 @@ int vtkMRMLAstroSmoothingParametersNodeTest1(int , char * [] )
   CHECK_NOT_NULL(kernel);
   CHECK_BOOL(nx >= 5 && ny >= 3 && nz >= 1, true);
   CHECK_INT(static_cast<int>(kernel->GetNumberOfTuples()), nx * ny * nz);
-  auto value = [&](int i, int j, int k)
+  std::function<double(int, int, int)> value = [&](int i, int j, int k)
     {
     return kernel->GetValue(((k + (nz - 1) / 2) * ny + (j + (ny - 1) / 2)) * nx + (i + (nx - 1) / 2));
     };

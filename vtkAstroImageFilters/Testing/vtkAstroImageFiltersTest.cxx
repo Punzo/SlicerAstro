@@ -33,6 +33,7 @@
 #include <limits>
 #include <random>
 #include <vector>
+#include <functional>
 
 namespace
 {
@@ -45,7 +46,7 @@ int failures = 0;
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkImageData> MakeCube(int scalarType)
 {
-  auto image = vtkSmartPointer<vtkImageData>::New();
+  vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
   image->SetDimensions(Dims[0], Dims[1], Dims[2]);
   image->AllocateScalars(scalarType, 1);
   std::mt19937 generator(42);
@@ -154,8 +155,9 @@ void TestSeparable(int scalarType, double tolerance)
   // reference: X pass on the input (NaN = 0), then Y, then Z on the results
   const double kx[3] = {0.25, 0.5, 0.25}, kz[5] = {0.1, 0.2, 0.4, 0.2, 0.1};
   std::vector<double> step(Copy(cube));
-  auto at = [](int x, int y, int z) { return (static_cast<size_t>(z) * Dims[1] + y) * Dims[0] + x; };
-  auto pass = [&](const std::vector<double>& src, int axis, const double* k, int length)
+  std::function<size_t(int, int, int)> at = [](int x, int y, int z) { return (static_cast<size_t>(z) * Dims[1] + y) * Dims[0] + x; };
+  std::function<std::vector<double>(const std::vector<double>&, int, const double*, int)> pass =
+    [&](const std::vector<double>& src, int axis, const double* k, int length)
     {
     std::vector<double> dst(src.size());
     const int r = (length - 1) / 2;
@@ -200,7 +202,7 @@ void TestGradient(int scalarType, double tolerance)
   const double c[3] = {0.7, 0.5, 0.3}, timeStep = 0.05, noise = 0.8, K = 2.;
   const int iterations = 4;
   std::vector<double> cur(Copy(cube));
-  auto at = [](int x, int y, int z) { return (static_cast<size_t>(z) * Dims[1] + y) * Dims[0] + x; };
+  std::function<size_t(int, int, int)> at = [](int x, int y, int z) { return (static_cast<size_t>(z) * Dims[1] + y) * Dims[0] + x; };
   for (int it = 0; it < iterations; ++it)
     {
     std::vector<double> next(cur.size());
@@ -208,7 +210,7 @@ void TestGradient(int scalarType, double tolerance)
       for (int y = 0; y < Dims[1]; ++y)
         for (int x = 0; x < Dims[0]; ++x)
           {
-          auto nb = [&](int dx, int dy, int dz)
+          std::function<double(int, int, int)> nb = [&](int dx, int dy, int dz)
             {
             int p[3] = {x + dx, y + dy, z + dz};
             return Inside(p[0], p[1], p[2]) ? cur[at(p[0], p[1], p[2])] : cur[at(x, y, z)];

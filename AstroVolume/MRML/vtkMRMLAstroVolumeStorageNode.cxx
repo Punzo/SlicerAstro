@@ -79,7 +79,7 @@ void StoreSpectralAxisKeywordsImpl(vtkMRMLNode* node, const std::string& fileNam
   const std::map<std::string, std::string> original = vtkFITSReader::ReadHeaderKeywords(fileName.c_str(), keys);
   for (const std::string& key : keys)
     {
-    const auto originalValue = original.find(key);
+    const std::map<std::string, std::string>::const_iterator originalValue = original.find(key);
     node->SetAttribute((OriginalKeywordPrefix + key).c_str(),
                        originalValue != original.end() ? originalValue->second.c_str() : nullptr);
     node->SetAttribute((ConvertedKeywordPrefix + key).c_str(),

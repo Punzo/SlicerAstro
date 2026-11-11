@@ -56,6 +56,7 @@
 
 // SlicerAstro includes
 #include <vtkAstroLogMessages.h>
+#include <functional>
 
 // Collect a message about the FITS header (see vtkFITSReader::AddHeaderMessage)
 #define vtkFITSHeaderMessageMacro(level, x)                  \
@@ -1432,7 +1433,7 @@ bool vtkFITSReader::AllocateHeader()
      const char* currentFile = this->CurrentFileName ? this->CurrentFileName : this->GetFileName();
      const std::string fileName = currentFile ? std::filesystem::path(currentFile).filename().string() : std::string();
      const std::string baseName = fileName.substr(0, fileName.find('.'));
-     auto nameContains = [&baseName](const char* keyword)
+     std::function<bool(const char*)> nameContains = [&baseName](const char* keyword)
        {
        // keyword delimited by word boundaries or underscores
        const std::regex pattern(std::string("(\\b|_)(") + keyword + ")(\\b|_)");
@@ -1445,7 +1446,7 @@ bool vtkFITSReader::AllocateHeader()
      bool sofiaMask = false;
      if (StringToInt(this->GetHeaderValue("SlicerAstro.BITPIX")) > 0)
        {
-       for (const auto& keyValue : this->HeaderKeyValue)
+       for (const std::pair<const std::string, std::string>& keyValue : this->HeaderKeyValue)
          {
          if (keyValue.first.compare(0, 20, "SlicerAstro._HISTORY") == 0 &&
              keyValue.second.find("SoFiA") != std::string::npos)
@@ -2998,7 +2999,7 @@ void vtkFITSReader::PrintSelf(ostream& os, vtkIndent indent)
 //----------------------------------------------------------------------------
 void vtkFITSReader::AddHeaderMessage(int level, const std::string& message)
 {
-  for (const auto& headerMessage : this->HeaderMessages)
+  for (const std::pair<int, std::string>& headerMessage : this->HeaderMessages)
     {
     if (headerMessage.second == message)
       {
@@ -3016,7 +3017,7 @@ void vtkFITSReader::ReportHeaderMessages()
   const std::string name = fileName ? vtksys::SystemTools::GetFilenameName(fileName) : std::string();
   for (; this->NumberOfReportedHeaderMessages < this->HeaderMessages.size(); ++this->NumberOfReportedHeaderMessages)
     {
-    const auto& headerMessage = this->HeaderMessages[this->NumberOfReportedHeaderMessages];
+    const std::pair<int, std::string>& headerMessage = this->HeaderMessages[this->NumberOfReportedHeaderMessages];
     vtkAstroLogMessage(this,
                        headerMessage.first == vtkFITSReader::HeaderWarning ? vtkAstroLogLevel::Warning
                                                                            : vtkAstroLogLevel::Information,

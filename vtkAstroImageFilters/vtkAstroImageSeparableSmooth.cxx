@@ -22,6 +22,7 @@
 #include <cstring>
 #include <memory>
 #include <vector>
+#include <functional>
 
 vtkStandardNewMacro(vtkAstroImageSeparableSmooth);
 
@@ -187,8 +188,8 @@ bool vtkAstroImageSeparableSmooth::Smooth(vtkImageData* input, vtkImageData* out
     passes += (this->AxisKernels[axis] && this->AxisKernels[axis]->GetNumberOfTuples() > 0) ? 1 : 0;
     }
   this->ResetProgress(static_cast<double>(dims[2]) * std::max(passes, 1));
-  auto addProgress = [this](double work) { this->AddProgress(work); };
-  auto isAborting = [this]() { return this->IsAborting(); };
+  std::function<void(double)> addProgress = [this](double work) { this->AddProgress(work); };
+  std::function<bool()> isAborting = [this]() { return this->IsAborting(); };
 
   switch (input->GetScalarType())
     {

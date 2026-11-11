@@ -46,7 +46,7 @@ int failures = 0;
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkImageData> MakeCube(int scalarType, bool withBlanks)
 {
-  auto image = vtkSmartPointer<vtkImageData>::New();
+  vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
   image->SetDimensions(Dims[0], Dims[1], Dims[2]);
   image->AllocateScalars(scalarType, 1);
   std::mt19937 generator(7);
@@ -122,7 +122,7 @@ void CheckUnchanged(vtkImageData* input, const std::vector<double>& before, cons
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkDoubleArray> Gaussian1D(double fwhm, int length)
 {
-  auto kernel = vtkSmartPointer<vtkDoubleArray>::New();
+  vtkSmartPointer<vtkDoubleArray> kernel = vtkSmartPointer<vtkDoubleArray>::New();
   const double sigma = fwhm / SigmatoFWHM;
   const int r = (length - 1) / 2;
   double sum = 0.;
@@ -140,7 +140,7 @@ vtkSmartPointer<vtkDoubleArray> Gaussian1D(double fwhm, int length)
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkDoubleArray> Gaussian3D(const double fwhm[3], const int length[3])
 {
-  auto kernel = vtkSmartPointer<vtkDoubleArray>::New();
+  vtkSmartPointer<vtkDoubleArray> kernel = vtkSmartPointer<vtkDoubleArray>::New();
   const int r[3] = {(length[0] - 1) / 2, (length[1] - 1) / 2, (length[2] - 1) / 2};
   double sum = 0.;
   for (int k = -r[2]; k <= r[2]; ++k)

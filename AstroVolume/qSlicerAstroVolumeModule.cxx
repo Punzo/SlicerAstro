@@ -97,6 +97,7 @@
 
 // DisplayableManager initialization
 #include <vtkAutoInit.h>
+#include <functional>
 VTK_MODULE_INIT(vtkSlicerAstroVolumeModuleMRMLDisplayableManager)
 
 
@@ -367,7 +368,7 @@ void qSlicerAstroVolumeModule::setup()
     // The Slicer core modules may add the anatomical presets again and read
     // the ruler settings during startup: apply again when startup is completed.
     vtkMRMLScene* scene = this->mrmlScene();
-    auto applySliceViewDefaults = [astroVolumeLogic, scene]()
+    std::function<void()> applySliceViewDefaults = [astroVolumeLogic, scene]()
       {
       astroVolumeLogic->UpdateSliceOrientationPresets();
       vtkMRMLSliceNode* defaultSliceNode = vtkMRMLSliceNode::SafeDownCast(

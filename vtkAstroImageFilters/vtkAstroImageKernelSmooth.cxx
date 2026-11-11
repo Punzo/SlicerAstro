@@ -19,6 +19,7 @@
 
 // STD includes
 #include <algorithm>
+#include <functional>
 
 vtkStandardNewMacro(vtkAstroImageKernelSmooth);
 
@@ -65,7 +66,7 @@ vtkDoubleArray* vtkAstroImageKernelSmooth::GetKernel()
 //----------------------------------------------------------------------------
 void vtkAstroImageKernelSmooth::SetBoxKernel(int sizeX, int sizeY, int sizeZ)
 {
-  auto odd = [](int size) { size = std::max(size, 1); return size % 2 == 0 ? size + 1 : size; };
+  std::function<int(int)> odd = [](int size) { size = std::max(size, 1); return size % 2 == 0 ? size + 1 : size; };
   const int dims[3] = {odd(sizeX), odd(sizeY), odd(sizeZ)};
   const vtkIdType n = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2];
   vtkNew<vtkDoubleArray> kernel;
@@ -141,8 +142,8 @@ bool vtkAstroImageKernelSmooth::Smooth(vtkImageData* input, vtkImageData* output
   input->GetDimensions(dims);
   const double* kernel = this->Kernel->GetPointer(0);
   this->ResetProgress(dims[2]);
-  auto addProgress = [this](double work) { this->AddProgress(work); };
-  auto isAborting = [this]() { return this->IsAborting(); };
+  std::function<void(double)> addProgress = [this](double work) { this->AddProgress(work); };
+  std::function<bool()> isAborting = [this]() { return this->IsAborting(); };
 
   switch (input->GetScalarType())
     {

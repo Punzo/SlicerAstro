@@ -33,6 +33,7 @@
 #include <random>
 #include <string>
 #include <vector>
+#include <functional>
 
 namespace
 {
@@ -43,7 +44,7 @@ vtkSmartPointer<vtkAstroWebGPUDevice> SharedDevice;
 //----------------------------------------------------------------------------
 vtkSmartPointer<vtkImageData> MakeCube(int scalarType, const int dims[3], bool blanks)
 {
-  auto image = vtkSmartPointer<vtkImageData>::New();
+  vtkSmartPointer<vtkImageData> image = vtkSmartPointer<vtkImageData>::New();
   image->SetDimensions(dims[0], dims[1], dims[2]);
   image->SetSpacing(1., 2., 3.);
   image->AllocateScalars(scalarType, 1);
@@ -178,7 +179,7 @@ int main(int, char*[])
   const int dims[3] = {37, 29, 19};
 
   // Non-symmetric 3D kernel: checks the orientation of the correlation
-  auto kernel3D = [](vtkAstroImageKernelSmooth* filter)
+  std::function<void(vtkAstroImageKernelSmooth*)> kernel3D = [](vtkAstroImageKernelSmooth* filter)
     {
     vtkNew<vtkDoubleArray> kernel;
     const int kd[3] = {5, 3, 7};
@@ -189,7 +190,7 @@ int main(int, char*[])
     filter->SetKernel(kernel, kd[0], kd[1], kd[2]);
     };
   // Separable with different kernels per axis, Y disabled
-  auto separableXZ = [](vtkAstroImageSeparableSmooth* filter)
+  std::function<void(vtkAstroImageSeparableSmooth*)> separableXZ = [](vtkAstroImageSeparableSmooth* filter)
     {
     vtkNew<vtkDoubleArray> kx, kz;
     for (double v : {0.25, 0.5, 0.25}) kx->InsertNextValue(v);
@@ -198,13 +199,13 @@ int main(int, char*[])
     filter->SetAxisKernel(2, kz);
     };
   // Separable box along the three axes (three ping-pong passes)
-  auto separableBox = [](vtkAstroImageSeparableSmooth* filter)
+  std::function<void(vtkAstroImageSeparableSmooth*)> separableBox = [](vtkAstroImageSeparableSmooth* filter)
     {
     filter->SetAxisBoxKernel(0, 5);
     filter->SetAxisBoxKernel(1, 3);
     filter->SetAxisBoxKernel(2, 7);
     };
-  auto gradient = [](int iterations)
+  std::function<std::function<void(vtkAstroImageGradientSmooth*)>(int)> gradient = [](int iterations)
     {
     return [iterations](vtkAstroImageGradientSmooth* filter)
       {

@@ -146,7 +146,7 @@ void vtkAstroOpenGLImageBox::ThreadedRequestData(
   double textureSpacing[3];
   inData[0][0]->GetSpacing(textureSpacing);
   cb.Spacing = textureSpacing;
-  vtkAstroRestoreOnExit<std::remove_reference_t<decltype(this->KernelLength[0])>, 3> restoreKernelLength(this->KernelLength);
+  vtkAstroRestoreOnExit<int, 3> restoreKernelLength(this->KernelLength);
   int * extent = inData[0][0]->GetExtent();
   cb.Spacing[0] /= extent[1] - extent[0] + 1;
   cb.Spacing[1] /= extent[3] - extent[2] + 1;

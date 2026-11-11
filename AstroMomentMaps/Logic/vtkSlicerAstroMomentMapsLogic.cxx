@@ -283,7 +283,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     }
 
   bool cancel = false;
-  int status = 0;
 
 
   std::chrono::steady_clock::time_point start, end;
@@ -339,7 +338,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     }
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numSlice) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(pnode, (numSlice) - (0), 10, 100);
     vtkSMPTools::For(0, numSlice, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -375,9 +374,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           }
 
         double SpaceCoordinates[3];
-        double ijkCoordinates[3];
-        ijkCoordinates[0] = ijk[0];
-        ijkCoordinates[1] = ijk[1];
         for (int kk = 0; kk < dims[2]; kk++)
           {
           vtkIdType posData = elemCnt + static_cast<vtkIdType>(kk) * numSlice;
@@ -600,7 +596,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     }
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numSlice) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(pnode, (numSlice) - (0), 10, 100);
     vtkSMPTools::For(0, numSlice, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -636,9 +632,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
           }
 
         double SpaceCoordinates[3];
-        double ijkCoordinates[3];
-        ijkCoordinates[0] = ijk[0];
-        ijkCoordinates[1] = ijk[1];
         for (int kk = Zmin; kk <= Zmax; kk++)
           {
           vtkIdType posData = elemCnt + static_cast<vtkIdType>(kk) * numSlice;

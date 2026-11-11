@@ -18,6 +18,7 @@
 // STD includes
 #include <cstring>
 #include <memory>
+#include <functional>
 
 vtkStandardNewMacro(vtkAstroImageGradientSmooth);
 
@@ -136,8 +137,8 @@ bool vtkAstroImageGradientSmooth::Smooth(vtkImageData* input, vtkImageData* outp
     }
   const int iterations = this->NumberOfIterations;
   this->ResetProgress(static_cast<double>(dims[2]) * (iterations > 0 ? iterations : 1));
-  auto addProgress = [this](double work) { this->AddProgress(work); };
-  auto isAborting = [this]() { return this->IsAborting(); };
+  std::function<void(double)> addProgress = [this](double work) { this->AddProgress(work); };
+  std::function<bool()> isAborting = [this]() { return this->IsAborting(); };
 
   switch (input->GetScalarType())
     {

@@ -1022,7 +1022,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         float totflux_model = 0.;
         this->Internal->totflux_data = 0.;
-        auto totalmap = std::make_unique<MomentMap<float>>();
+        std::unique_ptr<MomentMap<float>> totalmap = std::make_unique<MomentMap<float>>();
         totalmap->input(this->Internal->cubeF);
         totalmap->SumMap(true);
 
@@ -1372,7 +1372,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           }
         double totflux_model = 0.;
         this->Internal->totflux_data = 0.;
-        auto totalmap = std::make_unique<MomentMap<double>>();
+        std::unique_ptr<MomentMap<double>> totalmap = std::make_unique<MomentMap<double>>();
         totalmap->input(this->Internal->cubeD);
         totalmap->SumMap(true);
 
@@ -2275,7 +2275,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         std::unique_ptr<float[]> ringreg(RingRegion(this->Internal->fitF->Outrings(),
                                     this->Internal->cubeF->Head()));
         this->Internal->totflux_data = 0.;
-        auto totalmap = std::make_unique<MomentMap<float>>();
+        std::unique_ptr<MomentMap<float>> totalmap = std::make_unique<MomentMap<float>>();
         totalmap->input(this->Internal->cubeF);
         totalmap->SumMap(true);
 
@@ -2305,7 +2305,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         std::unique_ptr<double[]> ringreg(RingRegion(this->Internal->fitD->Outrings(),
                                      this->Internal->cubeD->Head()));
         this->Internal->totflux_data = 0.;
-        auto totalmap = std::make_unique<MomentMap<double>>();
+        std::unique_ptr<MomentMap<double>> totalmap = std::make_unique<MomentMap<double>>();
         totalmap->input(this->Internal->cubeD);
         totalmap->SumMap(true);
 
@@ -2430,7 +2430,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
       float totflux_model = 0.;
       this->Internal->totflux_data = 0.;
-      auto totalmap = std::make_unique<MomentMap<float>>();
+      std::unique_ptr<MomentMap<float>> totalmap = std::make_unique<MomentMap<float>>();
       totalmap->input(this->Internal->cubeF);
       totalmap->SumMap(true);
 
@@ -2717,7 +2717,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
       double totflux_model = 0.;
       this->Internal->totflux_data = 0.;
-      auto totalmap = std::make_unique<MomentMap<double>>();
+      std::unique_ptr<MomentMap<double>> totalmap = std::make_unique<MomentMap<double>>();
       totalmap->input(this->Internal->cubeD);
       totalmap->SumMap(true);
 

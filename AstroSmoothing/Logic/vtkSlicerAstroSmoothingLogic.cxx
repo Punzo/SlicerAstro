@@ -92,7 +92,8 @@ vtkSmartPointer<CPUFilter> NewSmoothFilter(vtkObject* webGPUDevice)
 #ifdef SLICERASTRO_HAS_WEBGPU
   if (webGPUDevice)
     {
-    auto filter = vtkSmartPointer<typename WebGPUFilter<CPUFilter>::Type>::New();
+    vtkSmartPointer<typename WebGPUFilter<CPUFilter>::Type> filter =
+      vtkSmartPointer<typename WebGPUFilter<CPUFilter>::Type>::New();
     filter->SetDevice(vtkAstroWebGPUDevice::SafeDownCast(webGPUDevice));
     return filter;
     }
@@ -332,10 +333,10 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
   filter->AddObserver(vtkCommand::ProgressEvent, progressCallback);
 
   pnode->SetStatus(1);
-  const auto start = std::chrono::steady_clock::now();
+  const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   filter->SetInputData(inputVolume->GetImageData());
   filter->Update();
-  const auto end = std::chrono::steady_clock::now();
+  const std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
   vtkDebugMacro(<< filterName << " Time : "
                 << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
 
@@ -424,7 +425,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicBoxCPUFilter(vtkMRMLAstroSmoothingP
     {
     return 0;
     }
-  auto filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageKernelSmooth> filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
   filter->SetBoxKernel(static_cast<int>(pnode->GetParameterX()),
                        static_cast<int>(pnode->GetParameterY()),
                        static_cast<int>(pnode->GetParameterZ()));
@@ -442,7 +443,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicBoxCPUFilter(vtkMRMLAstroSmoothingPar
   // Separable box: the kernel size is ParameterX along the axes with a
   // non-zero parameter.
   const int size = static_cast<int>(pnode->GetParameterX());
-  auto filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
   filter->SetAxisBoxKernel(0, pnode->GetParameterX() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(1, pnode->GetParameterY() > 0.001 ? size : 0);
   filter->SetAxisBoxKernel(2, pnode->GetParameterZ() > 0.001 ? size : 0);
@@ -477,7 +478,7 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
     return 0;
     }
   // 3D (possibly rotated) Gaussian kernel computed by the parameters node
-  auto filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageKernelSmooth> filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
   filter->SetKernel(pnode->GetGaussianKernel3D(),
                     static_cast<int>(pnode->GetKernelLengthX()),
                     static_cast<int>(pnode->GetKernelLengthY()),
@@ -495,7 +496,7 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
   // Separable Gaussian: 1D kernel computed by the parameters node, applied
   // along the axes with a non-zero parameter.
   vtkDoubleArray* kernel1D = pnode->GetGaussianKernel1D();
-  auto filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
   filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(2, pnode->GetParameterZ() > 0.001 ? kernel1D : nullptr);
@@ -536,7 +537,7 @@ int vtkSlicerAstroSmoothingLogic::GradientCPUFilter(vtkMRMLAstroSmoothingParamet
     {
     return 0;
     }
-  auto filter = NewSmoothFilter<vtkAstroImageGradientSmooth>(this->WebGPUDevice());
+  vtkSmartPointer<vtkAstroImageGradientSmooth> filter = NewSmoothFilter<vtkAstroImageGradientSmooth>(this->WebGPUDevice());
   filter->SetConductance(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
   filter->SetTimeStep(pnode->GetTimeStep());
   filter->SetK(pnode->GetK());
