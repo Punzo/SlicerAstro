@@ -449,6 +449,16 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.assertIs(moduleMask.GetNodeReference(referenceRole), volumeNode)
         self.assertEqual(moduleMask.GetName(), "WEIN069_SEG")
         self.assertShownIn3D(moduleMask)
+
+        # Edit: the Segment Editor edits the mask with the active cube as source volume
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        slicer.util.findChild(widget, "pushButton_EditSelected").click()
+        slicer.app.processEvents()
+        self.assertEqual(slicer.util.selectedModule(), "SegmentEditor")
+        editor = slicer.modules.segmenteditor.widgetRepresentation().self().editor
+        self.assertIs(editor.segmentationNode(), moduleMask)
+        self.assertIs(editor.sourceVolumeNode(), volumeNode)
+        slicer.util.selectModule("AstroVolume")
         self.assertEqual(moduleMask.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
 
         # Masks section, "Create new Segmentation": a mask of the active cube

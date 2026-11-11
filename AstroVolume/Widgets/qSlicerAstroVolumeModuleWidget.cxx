@@ -57,6 +57,9 @@
 #include <vtkDataArray.h>
 #include <vtkPointData.h>
 #include <vtkSegmentation.h>
+
+// Segmentations includes
+#include <qMRMLSegmentEditorWidget.h>
 #include <vtkWeakPointer.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
@@ -79,6 +82,8 @@
 #include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerCoreApplication.h>
 #include <qSlicerLayoutManager.h>
+#include <qSlicerAbstractModule.h>
+#include <qSlicerAbstractModuleRepresentation.h>
 #include <qSlicerModuleManager.h>
 #include <qSlicerPresetComboBox.h>
 #include <qSlicerPresetComboBox_p.h>
@@ -5080,6 +5085,8 @@ void qSlicerAstroVolumeModuleWidget::onSaveFITSMask()
 //---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::onEditSelectedSegment()
 {
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
   qSlicerModuleManager * moduleManager = qSlicerCoreApplication::application()->moduleManager();
   if (!moduleManager)
     {
@@ -5100,6 +5107,43 @@ void qSlicerAstroVolumeModuleWidget::onEditSelectedSegment()
     return;
     }
   layoutManager->setCurrentModule("SegmentEditor");
+
+  // Edit the selected mask, with the active cube as source volume
+  vtkMRMLSegmentationNode* segmentationNode =
+    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+  vtkMRMLScalarVolumeNode* sourceVolumeNode = nullptr;
+  if (d->selectionNode && this->mrmlScene() && d->selectionNode->GetActiveVolumeID())
+    {
+    sourceVolumeNode = vtkMRMLScalarVolumeNode::SafeDownCast(
+      this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+    }
+  qSlicerAbstractModule* segmentEditorModule = qobject_cast<qSlicerAbstractModule*>(module);
+  QWidget* moduleWidget = segmentEditorModule ?
+    dynamic_cast<QWidget*>(segmentEditorModule->widgetRepresentation()) : nullptr;
+  qMRMLSegmentEditorWidget* editorWidget = moduleWidget ?
+    moduleWidget->findChild<qMRMLSegmentEditorWidget*>() : nullptr;
+  if (editorWidget)
+    {
+    if (segmentationNode)
+      {
+      editorWidget->setSegmentationNode(segmentationNode);
+      }
+    if (sourceVolumeNode)
+      {
+      editorWidget->setSourceVolumeNode(sourceVolumeNode);
+      }
+    }
+  else if (d->segmentEditorNode)
+    {
+    if (segmentationNode)
+      {
+      d->segmentEditorNode->SetAndObserveSegmentationNode(segmentationNode);
+      }
+    if (sourceVolumeNode)
+      {
+      d->segmentEditorNode->SetAndObserveSourceVolumeNode(sourceVolumeNode);
+      }
+    }
 }
 
 //---------------------------------------------------------------------------
