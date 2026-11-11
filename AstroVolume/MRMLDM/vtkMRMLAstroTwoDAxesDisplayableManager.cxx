@@ -86,12 +86,6 @@ template <typename T> T StringToNumber(const char* num)
 }
 
 //----------------------------------------------------------------------------
-int StringToInt(const char* str)
-{
-  return StringToNumber<int>(str);
-}
-
-//----------------------------------------------------------------------------
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
@@ -658,34 +652,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         vtkMRMLAstroVolumeNode::SafeDownCast
           (sliceLayerLogic->GetVolumeNode());
 
-      if (astroVolume)
-        {
-        double CROTA1 = 0., CROTA2 = 0., CROTA3 = 0.;
-        int N = StringToInt(astroVolume->GetAttribute("SlicerAstro.NAXIS"));
-        if (N < 2)
-          {
-          CROTA1 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA1"));
-          }
-        else if (N < 3)
-          {
-          CROTA1 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA1"));
-          CROTA2 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA2"));
-          }
-        else
-          {
-          CROTA1 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA1"));
-          CROTA2 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA2"));
-          CROTA3 = StringToDouble(astroVolume->GetAttribute("SlicerAstro.CROTA3"));
-          }
-
-        if (fabs(CROTA1) > 1.E-6 || fabs(CROTA2) > 1.E-6 || fabs(CROTA3) > 1.E-6)
-          {
-          vtkWarningWithObjectMacro(this->External,
-                                    "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes() : "
-                                    "it is not possible to display WCS axes for rotated data (i.e., CROTAi != 0).");
-          return;
-          }
-        }
+      // rotated data (CROTAi != 0) are fine: the ticks are positioned with
+      // the full WCS (pixel <-> world) of the volume
 
       if (strcmp(displayNode->GetSpace(), "WCS") != 0)
         {
@@ -1283,38 +1251,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         continue;
         }
 
-      vtkMRMLAstroLabelMapVolumeNode* astroLabelVolume =
-        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-          (sliceLayerLogic->GetVolumeNode());
-
-      if (astroLabelVolume)
-        {
-        double CROTA1 = 0., CROTA2 = 0., CROTA3 = 0.;
-        int N = StringToInt(astroLabelVolume->GetAttribute("SlicerAstro.NAXIS"));
-        if (N < 2)
-          {
-          CROTA1 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA1"));
-          }
-        else if (N < 3)
-          {
-          CROTA1 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA1"));
-          CROTA2 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA2"));
-          }
-        else
-          {
-          CROTA1 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA1"));
-          CROTA2 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA2"));
-          CROTA3 = StringToDouble(astroLabelVolume->GetAttribute("SlicerAstro.CROTA3"));
-          }
-
-        if (fabs(CROTA1) > 1.E-6 || fabs(CROTA2) > 1.E-6 || fabs(CROTA3) > 1.E-6)
-          {
-          vtkWarningWithObjectMacro(this->External,
-                                    "vtkMRMLAstroTwoDAxesDisplayableManager::UpdateAxes() : "
-                                    "it is not possible to display WCS axes for rotated data (i.e., CROTAi != 0).");
-          return;
-          }
-        }
+      // rotated data (CROTAi != 0) are fine: the ticks are positioned with
+      // the full WCS (pixel <-> world) of the volume
 
       hasDisplay = true;
 
