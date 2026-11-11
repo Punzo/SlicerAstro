@@ -62,6 +62,7 @@
 
 // STD includes
 #include <sstream>
+#include <cstring>
 #include <algorithm>
 
 // SlicerQt includes
@@ -317,6 +318,86 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::HideSlicerRuler()
 }
 
 //---------------------------------------------------------------------------
+namespace
+{
+/// Spectral axis of a PV diagram (axis 2 of its header: the channels of the
+/// cube): rows (IJK, from 0) <-> velocity (WCS units, e.g. m/s)
+class PVDiagramSpectralAxis
+{
+public:
+  explicit PVDiagramSpectralAxis(vtkMRMLAstroVolumeNode* volume)
+    {
+    this->WCS.flag = -1;
+    if (!volume || wcsini(1, 1, &this->WCS))
+      {
+      return;
+      }
+    this->Initialized = true;
+    const char* ctype = volume->GetAttribute("SlicerAstro.CTYPE2");
+    const char* cunit = volume->GetAttribute("SlicerAstro.CUNIT2");
+    const char* crval = volume->GetAttribute("SlicerAstro.CRVAL2");
+    const char* cdelt = volume->GetAttribute("SlicerAstro.CDELT2");
+    const char* crpix = volume->GetAttribute("SlicerAstro.CRPIX2");
+    const char* restfreq = volume->GetAttribute("SlicerAstro.RESTFREQ");
+    if (!ctype || !crval || !cdelt || !crpix)
+      {
+      return;
+      }
+    strncpy(this->WCS.ctype[0], ctype, 71);
+    if (cunit)
+      {
+      strncpy(this->WCS.cunit[0], cunit, 71);
+      }
+    this->WCS.crval[0] = StringToDouble(crval);
+    this->WCS.cdelt[0] = StringToDouble(cdelt);
+    this->WCS.crpix[0] = StringToDouble(crpix);
+    this->WCS.restfrq = restfreq ? StringToDouble(restfreq) : 0.;
+    // non-standard units and AIPS spectral types (e.g. FELO-HEL)
+    int fixStatus[NWCSFIX];
+    wcsfix(7, nullptr, &this->WCS, fixStatus);
+    this->Valid = (wcsset(&this->WCS) == 0) && this->WCS.spec == 0;
+    }
+  ~PVDiagramSpectralAxis()
+    {
+    if (this->Initialized)
+      {
+      wcsfree(&this->WCS);
+      }
+    }
+  bool IsValid() const
+    {
+    return this->Valid;
+    }
+  bool RowToVelocity(double row, double& velocity)
+    {
+    double pixel[1] = {row + 1.}, imgcrd[1] = {0.}, phi[1] = {0.}, theta[1] = {0.}, world[1] = {0.};
+    int stat[1] = {0};
+    if (!this->Valid || wcsp2s(&this->WCS, 1, 1, pixel, imgcrd, phi, theta, world, stat))
+      {
+      return false;
+      }
+    velocity = world[0];
+    return true;
+    }
+  bool VelocityToRow(double velocity, double& row)
+    {
+    double world[1] = {velocity}, imgcrd[1] = {0.}, phi[1] = {0.}, theta[1] = {0.}, pixel[1] = {0.};
+    int stat[1] = {0};
+    if (!this->Valid || wcss2p(&this->WCS, 1, 1, world, phi, theta, imgcrd, pixel, stat))
+      {
+      return false;
+      }
+    row = pixel[0] - 1.;
+    return true;
+    }
+private:
+  struct wcsprm WCS;
+  bool Initialized{false};
+  bool Valid{false};
+};
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
 void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::AddAxisLabel(const std::string& text,
                                                                        int x, int y, int fontSize)
 {
@@ -350,7 +431,7 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
   int majorTickMin, int majorTickMax, int minorTickMin, int minorTickMax,
   int rulerType, int fontSize)
 {
-  if (!sliceLayerLogic || !displayNode || !pvDiagramVolume || !displayNode->GetWCSStruct())
+  if (!sliceLayerLogic || !displayNode || !pvDiagramVolume)
     {
     return false;
     }
@@ -365,16 +446,14 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
     return false;
     }
 
-  // Vertical: velocity of the rows (the channels of the cube). The display
-  // node has the WCS of the cube; the spectral axis does not depend on the
-  // position on the sky.
-  double cubeIJK[3] = {0., 0., 0.}, cubeWorld[3] = {0., 0., 0.};
-  if (!displayNode->GetReferenceSpace(cubeIJK, cubeWorld))
+  // Vertical: velocity of the rows (the channels of the cube), from the
+  // spectral axis of the PV diagram header (axis 2), with WCSLIB (exact also
+  // for non-linear axes, e.g. VOPT-F2W)
+  PVDiagramSpectralAxis spectralAxis(pvDiagramVolume);
+  if (!spectralAxis.IsValid())
     {
     return false;
     }
-  const double referenceRA = cubeWorld[0];
-  const double referenceDec = cubeWorld[1];
 
   vtkGeneralTransform* xyToIJK = sliceLayerLogic->GetXYToIJKTransform();
   vtkAbstractTransform* ijkToXY = xyToIJK->GetInverse();
@@ -391,12 +470,11 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
   const double offsetA = (ijkA[0] + 1. - crpix1) * cdelt1;
   const double offsetB = (ijkB[0] + 1. - crpix1) * cdelt1;
   // velocities at the bottom and top sides of the view
-  cubeIJK[2] = ijkA[1];
-  displayNode->GetReferenceSpace(cubeIJK, cubeWorld);
-  const double velocityA = cubeWorld[2];
-  cubeIJK[2] = ijkC[1];
-  displayNode->GetReferenceSpace(cubeIJK, cubeWorld);
-  const double velocityC = cubeWorld[2];
+  double velocityA = 0., velocityC = 0.;
+  if (!spectralAxis.RowToVelocity(ijkA[1], velocityA) || !spectralAxis.RowToVelocity(ijkC[1], velocityC))
+    {
+    return false;
+    }
 
   int numberOfPointsHorizontal = std::max(5, static_cast<int>(viewWidthPixel / 150.) + 1);
   int numberOfPointsVertical = std::max(5, static_cast<int>(viewHeightPixel / 150.) + 1);
@@ -449,13 +527,12 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
     double labelY = -1.;
     for (int quarter = 0; quarter < 4; quarter++)
       {
-      double world[3] = {referenceRA, referenceDec, velocity + velocityStep * quarter / 4.};
-      double cube[3] = {0., 0., 0.};
-      if (!displayNode->GetIJKSpace(world, cube))
+      double row = 0.;
+      if (!spectralAxis.VelocityToRow(velocity + velocityStep * quarter / 4., row))
         {
         continue;
         }
-      double ijk[3] = {columnA, cube[2], 0.}, xy[3] = {0., 0., 0.};
+      double ijk[3] = {columnA, row, 0.}, xy[3] = {0., 0., 0.};
       ijkToXY->TransformPoint(ijk, xy);
       if (quarter == 0)
         {
@@ -655,7 +732,11 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       // rotated data (CROTAi != 0) are fine: the ticks are positioned with
       // the full WCS (pixel <-> world) of the volume
 
-      if (strcmp(displayNode->GetSpace(), "WCS") != 0)
+      // PV diagram: offset along the line and velocity (no celestial WCS)
+      const char* dataModel = astroVolume ? astroVolume->GetAttribute("SlicerAstro.DATAMODEL") : nullptr;
+      const bool pvDiagram = dataModel && !strcmp(dataModel, "PVDIAGRAM");
+
+      if (!pvDiagram && strcmp(displayNode->GetSpace(), "WCS") != 0)
         {
         continue;
         }
@@ -665,9 +746,6 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       sliceNode->UpdateMatrices();
       sliceLayerLogic->UpdateTransforms();
 
-      // PV diagram: offset along the line and velocity
-      const char* dataModel = astroVolume ? astroVolume->GetAttribute("SlicerAstro.DATAMODEL") : nullptr;
-      const bool pvDiagram = dataModel && !strcmp(dataModel, "PVDIAGRAM");
       if (pvDiagram || !sliceNode->GetOrientation().compare("PVDiagram"))
         {
         this->ShowActors(pvDiagram &&
