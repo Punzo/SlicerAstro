@@ -453,10 +453,10 @@
       </size>
      </property>
      <property name="toolTip">
-      <string>Segments of the segmentation (FITS masks are loaded as segmentations and saved as FITS masks).</string>
+      <string>Masks: segmentations of binary labelmaps (FITS masks are loaded as segmentations and saved as FITS masks). Contours are not masks.</string>
      </property>
      <property name="text">
-      <string>Segments</string>
+      <string>Masks</string>
      </property>
      <property name="icon">
       <iconset resource="../../../../../Slicer/Modules/Loadable/Segmentations/Widgets/Resources/qSlicerSegmentationsModuleWidgets.qrc">
@@ -500,7 +500,7 @@
           <item>
            <widget class="QLabel" name="SegmentationLabel">
             <property name="text">
-             <string>Segmentation:</string>
+             <string>Mask:</string>
             </property>
            </widget>
           </item>
@@ -513,7 +513,7 @@
              </sizepolicy>
             </property>
             <property name="toolTip">
-             <string>Segmentation shown in the table and edited by the Segment Editor. FITS masks are loaded as segmentations.</string>
+             <string>Mask (segmentation of binary labelmaps) shown in the table and edited by the Segment Editor. FITS masks are loaded as segmentations.</string>
             </property>
             <property name="nodeTypes">
              <stringlist>

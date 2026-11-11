@@ -80,11 +80,12 @@ public:
   /// Set default parameters in the parameter MRML node
   virtual void setMRMLDefaults();
 
-  /// Perform actions needed on master volume change
+  /// Perform actions needed on source volume change
   virtual void sourceVolumeNodeChanged();
 
-  /// Show Segment model
-  virtual void CreateSurface(bool on);
+  /// Display the edited segmentation as binary labelmap in 2D and 3D views
+  /// (no closed surface: faster, the edited voxels are shown as they are)
+  virtual void updateSegmentationDisplay();
 
 public slots:
   /// Update user interface from parameter set node

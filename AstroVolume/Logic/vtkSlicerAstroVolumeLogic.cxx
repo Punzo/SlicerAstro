@@ -49,6 +49,7 @@
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSelectionNode.h>
+#include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
@@ -134,12 +135,6 @@ template <typename T> bool isNaN(T value)
 bool DoubleIsNaN(double Value)
 {
   return isNaN<double>(Value);
-}
-
-//----------------------------------------------------------------------------
-bool FloatIsNaN(float Value)
-{
-  return isNaN<float>(Value);
 }
 
 }// end namespace
@@ -1328,6 +1323,32 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLMarkupsR
 }
 
 //---------------------------------------------------------------------------
+namespace
+{
+// Per-thread histograms of the finite voxels (no locking), merged by the caller
+template <typename T>
+void FillHistograms(const T* data, vtkIdType numElements, double dataMin, double binSpacing, int numberOfBins,
+                    vtkSMPThreadLocal<std::vector<vtkIdType>>& localHistograms)
+{
+  vtkSMPTools::For(0, numElements, [&](vtkIdType first, vtkIdType last)
+    {
+    std::vector<vtkIdType>& histogram = localHistograms.Local();
+    for (vtkIdType i = first; i < last; ++i)
+      {
+      const double value = data[i];
+      if (vtkSlicerAstroSMPTools::IsNaN(value))
+        {
+        continue;
+        }
+      // clamp: the maximum value falls in the last bin
+      const int histoIndex = std::clamp(static_cast<int>((value - dataMin) / binSpacing), 0, numberOfBins - 1);
+      ++histogram[histoIndex];
+      }
+    });
+}
+}
+
+//---------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *inputVolume,
                                                    vtkIntArray *histoArray,
                                                    double binSpacing,
@@ -1363,31 +1384,13 @@ void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *input
 
   // Per-thread histograms (no locking), merged at the end.
   vtkSMPThreadLocal<std::vector<vtkIdType>> localHistograms(std::vector<vtkIdType>(numberOfBins, 0));
-  auto fill = [&](auto* data)
-    {
-    vtkSMPTools::For(0, numElements, [&](vtkIdType first, vtkIdType last)
-      {
-      std::vector<vtkIdType>& histogram = localHistograms.Local();
-      for (vtkIdType i = first; i < last; ++i)
-        {
-        const double value = data[i];
-        if (vtkSlicerAstroSMPTools::IsNaN(value))
-          {
-          continue;
-          }
-        // clamp: the maximum value falls in the last bin
-        const int histoIndex = std::clamp(static_cast<int>((value - DATAMIN) / binSpacing), 0, numberOfBins - 1);
-        ++histogram[histoIndex];
-        }
-      });
-    };
   if (DataType == VTK_FLOAT)
     {
-    fill(static_cast<float*>(scalars));
+    FillHistograms(static_cast<float*>(scalars), numElements, DATAMIN, binSpacing, numberOfBins, localHistograms);
     }
   else
     {
-    fill(static_cast<double*>(scalars));
+    FillHistograms(static_cast<double*>(scalars), numElements, DATAMIN, binSpacing, numberOfBins, localHistograms);
     }
 
   std::vector<vtkIdType> histogram(numberOfBins, 0);
@@ -1719,7 +1722,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(pnode, (numElements) - (0), 10, 100);
     vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -1776,7 +1779,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   else if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bilinear)
     {
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(pnode, (numElements) - (0), 10, 100);
     vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -1918,7 +1921,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   else if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bicubic)
     {
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<std::remove_pointer_t<decltype(pnode)>> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(pnode, (numElements) - (0), 10, 100);
     vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -2819,7 +2822,14 @@ bool vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(vtkVolumeProper
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::IsAstroSegmentation(vtkMRMLSegmentationNode* segmentationNode)
 {
-  if (!segmentationNode)
+  if (!segmentationNode || !segmentationNode->GetSegmentation())
+    {
+    return false;
+    }
+  // masks: binary labelmaps (contours are closed surfaces)
+  if (vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode) ||
+      segmentationNode->GetSegmentation()->GetSourceRepresentationName() !=
+        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName())
     {
     return false;
     }
@@ -2856,7 +2866,32 @@ bool vtkSlicerAstroVolumeLogic::EnsureFITSMaskStorageNode(vtkMRMLSegmentationNod
     return false;
     }
   segmentationNode->SetAndObserveStorageNodeID(newStorageNode->GetID());
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
   return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!segmentationNode)
+    {
+    return;
+    }
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  vtkMRMLSegmentationDisplayNode* displayNode =
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
+  if (displayNode)
+    {
+    displayNode->SetPreferredDisplayRepresentationName2D(labelmapName);
+    displayNode->SetPreferredDisplayRepresentationName3D(labelmapName);
+    }
+  vtkSegmentation* segmentation = segmentationNode->GetSegmentation();
+  if (segmentation && segmentation->GetSourceRepresentationName() != surfaceName &&
+      segmentation->ContainsRepresentation(surfaceName))
+    {
+    segmentation->RemoveRepresentation(surfaceName);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -2875,4 +2910,49 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
     return;
     }
   this->Superclass::ProcessMRMLNodesEvents(caller, event, callData);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsContoursSegmentation(vtkMRMLSegmentationNode* segmentationNode)
+{
+  const char* contours = segmentationNode ?
+    segmentationNode->GetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName()) : nullptr;
+  return contours && !strcmp(contours, "true");
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!segmentationNode || !segmentationNode->GetSegmentation())
+    {
+    return;
+    }
+  segmentationNode->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
+  vtkSegmentation* segmentation = segmentationNode->GetSegmentation();
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  segmentation->CreateRepresentation(labelmapName);
+  segmentation->SetSourceRepresentationName(labelmapName);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!segmentationNode || !segmentationNode->GetSegmentation())
+    {
+    return;
+    }
+  segmentationNode->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
+  vtkSegmentation* segmentation = segmentationNode->GetSegmentation();
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  segmentation->CreateRepresentation(surfaceName);
+  segmentation->SetSourceRepresentationName(surfaceName);
+  segmentation->RemoveRepresentation(labelmapName);
+  vtkMRMLSegmentationDisplayNode* displayNode =
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
+  if (displayNode)
+    {
+    displayNode->SetPreferredDisplayRepresentationName2D(surfaceName);
+    displayNode->SetPreferredDisplayRepresentationName3D(surfaceName);
+    }
 }

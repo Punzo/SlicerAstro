@@ -565,7 +565,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::paintApply(qMRMLWidget* v
   this->ClosedSurfaceStrips->Reset();
   this->ClosedSurfacePolys->Reset();
 
-  q->CreateSurface(true);
+  q->updateSegmentationDisplay();
 
   QApplication::restoreOverrideCursor();
 }
@@ -603,8 +603,14 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::updateBrushStencil(qMRMLW
   this->WorldOriginToModifierLabelmapIjkTransform->Concatenate(segmentationToSegmentationIjkTransformMatrix.GetPointer());
 
   vtkNew<vtkMatrix4x4> worldToSegmentationTransformMatrix;
-  // We don't support painting in non-linearly transformed node (it could be implemented, but would probably slow down things too much)
-  // TODO: show a meaningful error message to the user if attempted
+  // Painting in a non-linearly transformed segmentation is not supported
+  if (segmentationNode->GetParentTransformNode() &&
+      !segmentationNode->GetParentTransformNode()->IsTransformToWorldLinear())
+    {
+    qWarning() << Q_FUNC_INFO << ": the Cloud Lasso cannot edit segmentation"
+               << segmentationNode->GetName() << "because it is transformed non-linearly.";
+    return;
+    }
   vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(nullptr, segmentationNode->GetParentTransformNode(), worldToSegmentationTransformMatrix.GetPointer());
   this->WorldOriginToModifierLabelmapIjkTransform->Concatenate(worldToSegmentationTransformMatrix.GetPointer());
 
@@ -685,8 +691,14 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::createClosedSurfacePolyMa
     return;
     }
   vtkNew<vtkMatrix4x4> segmentationToWorldMatrix;
-  // We don't support painting in non-linearly transformed node (it could be implemented, but would probably slow down things too much)
-  // TODO: show a meaningful error message to the user if attempted
+  // Painting in a non-linearly transformed segmentation is not supported
+  if (segmentationNode->GetParentTransformNode() &&
+      !segmentationNode->GetParentTransformNode()->IsTransformToWorldLinear())
+    {
+    qWarning() << Q_FUNC_INFO << ": the Cloud Lasso cannot edit segmentation"
+               << segmentationNode->GetName() << "because it is transformed non-linearly.";
+    return;
+    }
   vtkMRMLTransformNode::GetMatrixTransformBetweenNodes(segmentationNode->GetParentTransformNode(), nullptr, segmentationToWorldMatrix.GetPointer());
 
   vtkRenderer* renderer = qSlicerSegmentEditorAbstractEffect::renderer(threeDWidget);
@@ -887,7 +899,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
     {
     return;
     }
-  // Make sure the modifier labelmap has the same geometry as the master volume
+  // Make sure the modifier labelmap has the same geometry as the source volume
   if (!vtkOrientedImageDataResample::DoGeometriesMatch(this->LastMask, sourceVolumeOrientedImageData))
     {
     return;
@@ -956,7 +968,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffectPrivate::reApplyPaint()
   q->modifySelectedSegmentByLabelmap(this->LastMask,
     qSlicerSegmentEditorAbstractEffect::ModificationModeAdd);
 
-  q->CreateSurface(true);
+  q->updateSegmentationDisplay();
 }
 
 //----------------------------------------------------------------------------
@@ -1613,7 +1625,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::sourceVolumeNodeChanged()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface(bool on)
+void qSlicerSegmentEditorAstroCloudLassoEffect::updateSegmentationDisplay()
 {
   if (!this->parameterSetNode())
     {
@@ -1633,32 +1645,15 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::CreateSurface(bool on)
     return;
     }
 
-  // If just have been checked, then create closed surface representation and show it
-  if (on)
+  // The binary labelmap is shown in 2D and 3D (no closed surface: faster,
+  // and the edited voxels are shown as they are)
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  displayNode->SetPreferredDisplayRepresentationName2D(labelmapName);
+  displayNode->SetPreferredDisplayRepresentationName3D(labelmapName);
+  if (segmentationNode->GetSegmentation()->GetSourceRepresentationName() != surfaceName)
     {
-    // Make sure closed surface representation exists
-    if (segmentationNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() ))
-      {
-      // Set closed surface as displayed poly data representation
-      displayNode->SetPreferredDisplayRepresentationName3D(
-        vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName() );
-      // But keep binary labelmap for 2D
-      bool binaryLabelmapPresent = segmentationNode->GetSegmentation()->ContainsRepresentation(
-        vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-      if (binaryLabelmapPresent)
-        {
-        displayNode->SetPreferredDisplayRepresentationName2D(
-          vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName() );
-        }
-      }
-    }
-  // If unchecked, then remove representation (but only if it's not the master representation)
-  else if (segmentationNode->GetSegmentation()->GetSourceRepresentationName() !=
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName())
-    {
-    segmentationNode->GetSegmentation()->RemoveRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    segmentationNode->GetSegmentation()->RemoveRepresentation(surfaceName);
     }
 }
 

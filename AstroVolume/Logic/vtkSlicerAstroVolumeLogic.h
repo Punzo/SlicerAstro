@@ -120,6 +120,25 @@ public:
   /// as a FITS mask.
   bool EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Display the binary labelmap of the segmentation in the 2D and 3D views
+  /// (no closed surface: faster, and the voxels of the data are shown); the
+  /// closed surface representation is removed if it is not the source.
+  static void SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Contours (AstroVolume contours, comparisons of Smoothing and Modeling) are
+  /// segmentations of closed surfaces marked with the AstroContours attribute:
+  /// they are not masks (not in the Masks section, not saved as FITS masks).
+  static const char* GetContoursAttributeName() { return "AstroContours"; }
+  static bool IsContoursSegmentation(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Before adding contour levels as binary labelmaps: binary labelmap as
+  /// source representation (the segmentation is marked as contours).
+  static void PrepareContoursUpdate(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// After adding the contour levels: closed surfaces as source and displayed
+  /// representation in 2D and 3D, the binary labelmaps are removed.
+  static void SetClosedSurfaceContours(vtkMRMLSegmentationNode* segmentationNode);
+
   /// Apply SetAstroSliceOrientationPresets to the default slice node and to
   /// all the slice nodes of the scene.
   void UpdateSliceOrientationPresets();

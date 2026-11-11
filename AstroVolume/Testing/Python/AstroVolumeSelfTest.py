@@ -205,9 +205,47 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     contoursNode = slicer.util.getFirstNodeByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg")
     self.assertIsNotNone(contoursNode)
     self.assertGreater(contoursNode.GetSegmentation().GetNumberOfSegments(), 0)
-    # binary labelmap kept as source (closed surfaces only displayed): savable as FITS mask
-    self.assertTrue(contoursNode.GetSegmentation().ContainsRepresentation(
-      slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()))
+    # Contours: closed surfaces in 2D and 3D (3D hidden by default), not masks
+    surfaceName = slicer.vtkSegmentationConverter.GetClosedSurfaceRepresentationName()
+    labelmapName = slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()
+    contours = contoursNode.GetSegmentation()
+    self.assertEqual(contoursNode.GetAttribute("AstroContours"), "true")
+    self.assertEqual(contours.GetSourceRepresentationName(), surfaceName)
+    self.assertFalse(contours.ContainsRepresentation(labelmapName))
+    contoursDisplay = contoursNode.GetDisplayNode()
+    self.assertEqual(contoursDisplay.GetPreferredDisplayRepresentationName2D(), surfaceName)
+    self.assertEqual(contoursDisplay.GetPreferredDisplayRepresentationName3D(), surfaceName)
+    for segmentID in contours.GetSegmentIDs():
+      self.assertFalse(contoursDisplay.GetSegmentVisibility3D(segmentID))
+    storageNode = contoursNode.GetStorageNode()
+    self.assertTrue(storageNode is None or not storageNode.IsA("vtkMRMLAstroSegmentationStorageNode"))
+
+    # Masks section: the mask (binary labelmaps, shown as labelmaps) but not the contours
+    maskSelector = slicer.util.findChild(astroVolumeModuleWidget, "SegmentationNodeComboBox")
+    slicer.app.processEvents()
+    hidden = maskSelector.sortFilterProxyModel().hiddenNodeIDs
+    self.assertIn(contoursNode.GetID(), hidden)
+    self.assertNotIn(maskNode.GetID(), hidden)
+    maskDisplay = maskNode.GetDisplayNode()
+    self.assertEqual(maskDisplay.GetPreferredDisplayRepresentationName2D(), labelmapName)
+    self.assertEqual(maskDisplay.GetPreferredDisplayRepresentationName3D(), labelmapName)
+    self.assertEqual(maskNode.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+    self.assertEqual(slicer.util.findChild(astroVolumeModuleWidget, "CollapsibleButton_CopyMoveSegment").text, "Masks")
+
+    # Cloud Lasso editor effect on the mask: active, the mask stays binary labelmaps
+    segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()
+    segmentEditorWidget.setMRMLScene(slicer.mrmlScene)
+    segmentEditorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentEditorNode")
+    segmentEditorWidget.setMRMLSegmentEditorNode(segmentEditorNode)
+    segmentEditorWidget.setSegmentationNode(maskNode)
+    segmentEditorWidget.setSourceVolumeNode(astroVolume)
+    segmentEditorWidget.setActiveEffectByName("AstroCloudLasso")
+    effect = segmentEditorWidget.activeEffect()
+    self.assertIsNotNone(effect)
+    self.assertEqual(effect.name, "AstroCloudLasso")
+    self.assertEqual(maskNode.GetSegmentation().GetSourceRepresentationName(), labelmapName)
+    segmentEditorWidget.setActiveEffect(None)
+    slicer.mrmlScene.RemoveNode(segmentEditorNode)
     self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), 3)
 
     self.delayDisplay('Test passed', 700)

@@ -742,6 +742,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     this->contoursSegNode = vtkMRMLSegmentationNode::SafeDownCast(foo);
     this->contoursSegNode->SetName("AstroContoursSeg");
+    this->contoursSegNode->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
     this->mrmlScene()->AddNode(this->contoursSegNode);
     }
 
@@ -1059,10 +1060,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     masterVolume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNode->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNode);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -1105,15 +1103,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
       SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
       }
-    SegmentationDisplayNode->SetPreferredDisplayRepresentationName3D(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-
-    SegmentationDisplayNode->SetPreferredDisplayRepresentationName2D(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
     }
 
-  // The binary labelmap stays the source representation (the closed surface is
-  // only displayed): the contours can be edited and saved (e.g. as FITS mask).
+  // Contours: closed surfaces in 2D and 3D (not a mask)
+  vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(this->contoursSegNode);
 
   if (masterVolume != this->volumeNode())
     {

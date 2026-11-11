@@ -136,6 +136,7 @@ protected slots:
   void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
   void onSaveFITSMask();
+  void updateMaskSelector();
   void onSegmentationNodeChanged(vtkMRMLNode* node);
   void onHistoClippingChanged(double percentage);
   void onHistoClippingChanged1();

@@ -26,6 +26,9 @@
 #include <QStatusBar>
 #include <QDir>
 #include <QFileDialog>
+
+// MRMLWidgets includes
+#include <qMRMLSortFilterProxyModel.h>
 #include <QSettings>
 #include <QDoubleSpinBox>
 #include <QString>
@@ -401,6 +404,11 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    this->SegmentationNodeComboBox, SLOT(setMRMLScene(vtkMRMLScene*)));
   QObject::connect(this->SegmentationNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onSegmentationNodeChanged(vtkMRMLNode*)));
+  // only masks (binary labelmaps) in the selector: not the contours
+  QObject::connect(this->SegmentationNodeComboBox, SIGNAL(nodeAdded(vtkMRMLNode*)),
+                   q, SLOT(updateMaskSelector()));
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   q, SLOT(updateMaskSelector()));
   QObject::connect(this->SaveFITSMaskPushButton, SIGNAL(clicked()),
                    q, SLOT(onSaveFITSMask()));
 
@@ -1932,15 +1940,8 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(vtkMRMLSegment
     return;
     }
 
-  segmentationNode->GetSegmentation()->CreateRepresentation(
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-  // Set closed surface as displayed poly data representation
-  displayNode->SetPreferredDisplayRepresentationName3D(
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-  displayNode->SetPreferredDisplayRepresentationName2D(
-    vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
-  // The binary labelmap stays the source representation (the closed surface is
-  // only displayed): the segments can be edited and saved (e.g. as FITS mask).
+  // Contours: closed surfaces in 2D and 3D (not a mask)
+  vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(segmentationNode);
 
 }
 
@@ -1979,7 +1980,8 @@ void qSlicerAstroVolumeModuleWidget::onSegmentEditorNodeModified(vtkObject *send
     return;
     }
 
-  if (d->SegmentationNodeComboBox->currentNode() != segmentationNode)
+  if (d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
+      !vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode))
     {
     d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
     }
@@ -2113,7 +2115,8 @@ void qSlicerAstroVolumeModuleWidget::onPushButtonCovertLabelMapToSegmentationCli
 
   currentSegmentationNode->CreateDefaultDisplayNodes();
 
-  this->onCreateSurfaceButtonToggled(currentSegmentationNode);
+  // a mask: binary labelmap displayed in 2D and 3D
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(currentSegmentationNode);
 
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (!appLogic)
@@ -2692,6 +2695,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     this->contoursSegNodeSmoothing = vtkMRMLSegmentationNode::SafeDownCast(foo);
     this->contoursSegNodeSmoothing->SetName("AstroSmoothingContoursSeg");
+    this->contoursSegNodeSmoothing->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
     this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
     }
 
@@ -2740,10 +2744,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeSmoothing);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -2776,10 +2777,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeSmoothing->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeSmoothing);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -3258,6 +3256,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
     this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
+    this->contoursSegNodeModeling->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
     this->mrmlScene()->AddNode(this->contoursSegNodeModeling);
     }
 
@@ -3295,10 +3294,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -3331,10 +3327,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -3366,10 +3359,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentThreeID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -3618,6 +3608,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
     this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
     this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
+    this->contoursSegNodeModeling->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
     this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
     }
 
@@ -3674,10 +3665,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -3710,10 +3698,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName());
-    this->contoursSegNodeModeling->GetSegmentation()->CreateRepresentation(
-      vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName());
+    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
 
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
@@ -4946,6 +4931,36 @@ void qSlicerAstroVolumeModuleWidget::onSegmentationNodeChanged(vtkMRMLNode* node
     {
     astroVolumeLogic->EnsureFITSMaskStorageNode(segmentationNode);
     }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::updateMaskSelector()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  QStringList hiddenNodeIDs;
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (scene)
+    {
+    std::vector<vtkMRMLNode*> nodes;
+    scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
+    for (vtkMRMLNode* node : nodes)
+      {
+      vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+      if (!segmentationNode || !segmentationNode->GetID() || !segmentationNode->GetSegmentation())
+        {
+        continue;
+        }
+      const bool mask = !vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode) &&
+        segmentationNode->GetSegmentation()->GetSourceRepresentationName() ==
+          vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+      if (!mask)
+        {
+        hiddenNodeIDs << QString::fromUtf8(segmentationNode->GetID());
+        }
+      }
+    }
+  d->SegmentationNodeComboBox->sortFilterProxyModel()->setHiddenNodeIDs(hiddenNodeIDs);
 }
 
 //---------------------------------------------------------------------------

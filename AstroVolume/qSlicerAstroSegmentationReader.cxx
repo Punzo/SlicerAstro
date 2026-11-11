@@ -29,6 +29,9 @@
 #include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentationNode.h>
 
+// Logic includes
+#include <vtkSlicerAstroVolumeLogic.h>
+
 // vtkFits includes
 #include <vtkFITSReader.h>
 
@@ -117,6 +120,7 @@ bool qSlicerAstroSegmentationReader::load(const IOProperties& properties)
     }
 
   segmentationNode->CreateDefaultDisplayNodes();
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
   this->setLoadedNodes(QStringList() << QString(segmentationNode->GetID()));
   return true;
 }
