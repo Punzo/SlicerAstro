@@ -126,6 +126,8 @@ public:
   ~qSlicerAstroModelingModuleWidgetPrivate();
   void init();
   void cleanPointers();
+  // a 3DBarolo operation is running in the worker thread
+  bool workerRunning() const;
 
   vtkSlicerAstroModelingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
@@ -738,6 +740,12 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->workerProgressTimer, SIGNAL(timeout()), q, SLOT(updateWorkerProgress()));
 
   QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(quit()), Qt::DirectConnection);
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroModelingModuleWidgetPrivate::workerRunning() const
+{
+  return this->workerParametersNode != nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -2377,6 +2385,12 @@ bool qSlicerAstroModelingModuleWidget::convertSelectedSegmentToLabelMap()
 void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (d->workerRunning())
+    {
+    // one 3DBarolo operation at a time (e.g. a second click)
+    return;
+    }
 
   if (!d->parametersNode || !d->selectionNode ||
       !this->mrmlScene() || !d->astroVolumeWidget)
@@ -4102,6 +4116,12 @@ void qSlicerAstroModelingModuleWidget::onEstimateInitialParameters()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
 
+  if (d->workerRunning())
+    {
+    // one 3DBarolo operation at a time (e.g. a second click)
+    return;
+    }
+
   if (!d->parametersNode)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onEstimateInitialParameters()"
@@ -4119,6 +4139,12 @@ void qSlicerAstroModelingModuleWidget::onCreate()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
 
+  if (d->workerRunning())
+    {
+    // one 3DBarolo operation at a time (e.g. a second click)
+    return;
+    }
+
   if (!d->parametersNode)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onEstimateInitialParameters()"
@@ -4135,6 +4161,12 @@ void qSlicerAstroModelingModuleWidget::onCreate()
 void qSlicerAstroModelingModuleWidget::onFit()
 {
   Q_D(const qSlicerAstroModelingModuleWidget);
+
+  if (d->workerRunning())
+    {
+    // one 3DBarolo operation at a time (e.g. a second click)
+    return;
+    }
 
   if (!d->parametersNode)
     {
@@ -4221,6 +4253,12 @@ bool qSlicerAstroModelingModuleWidget::applyBeamToInputVolume(vtkMRMLAstroVolume
 void qSlicerAstroModelingModuleWidget::onApply()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (d->workerRunning())
+    {
+    // one 3DBarolo operation at a time (e.g. a second click)
+    return;
+    }
 
   if (!d->parametersNode)
     {
@@ -4494,6 +4532,7 @@ void qSlicerAstroModelingModuleWidget::onComputationFinished()
   d->progressBar->hide();
   d->FitPushButton->show();
   d->CreatePushButton->show();
+  d->EstimateInitialParametersPushButton->setEnabled(true);
 }
 
 //---------------------------------------------------------------------------
@@ -4754,6 +4793,12 @@ void qSlicerAstroModelingModuleWidget::onVerticalRotationalGradientHeightChanged
 void qSlicerAstroModelingModuleWidget::onVisualize()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (d->workerRunning())
+    {
+    // one 3DBarolo operation at a time (e.g. a second click)
+    return;
+    }
 
   if (!d->parametersNode || !d->selectionNode ||
       !this->mrmlScene() || !d->astroVolumeWidget)
@@ -5500,6 +5545,14 @@ void qSlicerAstroModelingModuleWidget::onComputationStarted()
   d->FitPushButton->hide();
   d->progressBar->show();
   d->CancelPushButton->show();
+  // no other operation (or edit of the rings) until the end of this one;
+  // updateWidgetFromMRML enables them again at the end
+  d->EstimateInitialParametersPushButton->setEnabled(false);
+  d->CalculatePushButton->setEnabled(false);
+  d->VisualizePushButton->setEnabled(false);
+  d->TableView->setEnabled(false);
+  d->ContourSliderWidget->setEnabled(false);
+  d->AstroModelingPasteButton->setEnabled(false);
 }
 
 //---------------------------------------------------------------------------
