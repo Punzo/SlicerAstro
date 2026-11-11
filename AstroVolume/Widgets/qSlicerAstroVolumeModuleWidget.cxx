@@ -2354,24 +2354,11 @@ void qSlicerAstroVolumeModuleWidget::onVisibilityChanged(bool visibility)
       {
       continue;
       }
-    double Origin[3];
-    d->astroVolumeNode->GetOrigin(Origin);
-    int* dims = d->astroVolumeNode->GetImageData()->GetDimensions();
-    // In RAS the z axes is on the second index
-    Origin[0] = 0.;
-    Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-    Origin[2] = 0.;
-    cameraNode->SetPosition(Origin);
-    double ViewUp[3];
-    ViewUp[0] = 0.;
-    ViewUp[1] = 0.;
-    ViewUp[2] = 1.;
-    cameraNode->SetViewUp(ViewUp);
-    double FocalPoint[3];
-    FocalPoint[0] = 0.;
-    FocalPoint[1] = 0.;
-    FocalPoint[2] = 0.;
-    cameraNode->SetFocalPoint(FocalPoint);
+    // looking along the velocity axis (A in RAS), north up, centered on the cube
+    const double directionOfProjection[3] = {0., -1., 0.};
+    const double viewUp[3] = {0., 0., 1.};
+    vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, d->astroVolumeNode,
+                                                    directionOfProjection, viewUp);
     }
 
   // Reset the 3D rendering boundaries
@@ -2573,16 +2560,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       if (cameraNode->GetLayoutName() && View1->GetLayoutName() &&
           !strcmp(cameraNode->GetLayoutName(), View1->GetLayoutName()))
         {
-        int* dims = volumeOne->GetImageData()->GetDimensions();
-        // In RAS the z axes is on the second index
-        double Origin[3] = {0.};
-        Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-        cameraNode->SetPosition(Origin);
-        double ViewUp[3] = {0.};
-        ViewUp[2] = 1.;
-        cameraNode->SetViewUp(ViewUp);
-        double FocalPoint[3] = {0.};
-        cameraNode->SetFocalPoint(FocalPoint);
+        // looking along the velocity axis (A in RAS), north up, centered on the cube
+        const double directionOfProjection[3] = {0., -1., 0.};
+        const double viewUp[3] = {0., 0., 1.};
+        vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, volumeOne,
+                                                        directionOfProjection, viewUp);
         break;
         }
       }
@@ -2604,16 +2586,11 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       if (cameraNode->GetLayoutName() && View2->GetLayoutName() &&
           !strcmp(cameraNode->GetLayoutName(), View2->GetLayoutName()))
         {
-        int* dims = volumeTwo->GetImageData()->GetDimensions();
-        // In RAS the z axes is on the second index
-        double Origin[3] = {0.};
-        Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-        cameraNode->SetPosition(Origin);
-        double ViewUp[3] = {0.};
-        ViewUp[2] = 1.;
-        cameraNode->SetViewUp(ViewUp);
-        double FocalPoint[3] = {0.};
-        cameraNode->SetFocalPoint(FocalPoint);
+        // looking along the velocity axis (A in RAS), north up, centered on the cube
+        const double directionOfProjection[3] = {0., -1., 0.};
+        const double viewUp[3] = {0., 0., 1.};
+        vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, volumeTwo,
+                                                        directionOfProjection, viewUp);
         break;
         }
       }
@@ -2933,16 +2910,11 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
       if (cameraNode->GetLayoutName() && View1->GetLayoutName() &&
           !strcmp(cameraNode->GetLayoutName(), View1->GetLayoutName()))
         {
-        int* dims = volumeOne->GetImageData()->GetDimensions();
-        // In RAS the z axes is on the second index
-        double Origin[3] = {0.};
-        Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-        cameraNode->SetPosition(Origin);
-        double ViewUp[3] = {0.};
-        ViewUp[2] = 1.;
-        cameraNode->SetViewUp(ViewUp);
-        double FocalPoint[3] = {0.};
-        cameraNode->SetFocalPoint(FocalPoint);
+        // looking along the velocity axis (A in RAS), north up, centered on the cube
+        const double directionOfProjection[3] = {0., -1., 0.};
+        const double viewUp[3] = {0., 0., 1.};
+        vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, volumeOne,
+                                                        directionOfProjection, viewUp);
         break;
         }
       }
@@ -3192,16 +3164,11 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
       if (cameraNode->GetLayoutName() && View1->GetLayoutName() &&
           !strcmp(cameraNode->GetLayoutName(), View1->GetLayoutName()))
         {
-        int* dims = volumeOne->GetImageData()->GetDimensions();
-        // In RAS the z axes is on the second index
-        double Origin[3] = {0.};
-        Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-        cameraNode->SetPosition(Origin);
-        double ViewUp[3] = {0.};
-        ViewUp[2] = 1.;
-        cameraNode->SetViewUp(ViewUp);
-        double FocalPoint[3] = {0.};
-        cameraNode->SetFocalPoint(FocalPoint);
+        // looking along the velocity axis (A in RAS), north up, centered on the cube
+        const double directionOfProjection[3] = {0., -1., 0.};
+        const double viewUp[3] = {0., 0., 1.};
+        vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, volumeOne,
+                                                        directionOfProjection, viewUp);
         break;
         }
       }

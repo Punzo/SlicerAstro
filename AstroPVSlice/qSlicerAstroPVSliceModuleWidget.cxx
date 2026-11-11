@@ -659,35 +659,20 @@ void qSlicerAstroPVSliceModuleWidget::on3DViewParallel()
 
   inputVolume->SetDisplayVisibility(1);
 
-  // Set the camera position
-  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
-  if (cameraNodes->GetNumberOfItems() < 1)
-    {
-    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
-                   "cameraNode not found!";
-    return;
-    }
-
+  // Camera of the 3D view
   vtkMRMLCameraNode *cameraNode =
-    vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(0));
+    vtkSlicerAstroVolumeLogic::GetThreeDViewCameraNode(this->mrmlScene(), "vtkMRMLViewNode1");
   if (!cameraNode)
     {
-    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
-                   "cameraNode not found!";
+    qCritical() << Q_FUNC_INFO << ": camera of the 3D view not found!";
     return;
     }
 
-  int* dims = inputVolume->GetImageData()->GetDimensions();
-  // In RAS the z axes is on the second index
-  double Origin[3] = {0.};
-  Origin[1] = dims[2] * 2 + sqrt(dims[0] * dims[0] + dims[1] * dims[1]);
-  cameraNode->SetPosition(Origin);
-  double ViewUp[3] = {0.};
-  ViewUp[2] = 1.;
-  cameraNode->SetViewUp(ViewUp);
-  double FocalPoint[3] = {0.};
-  cameraNode->SetFocalPoint(FocalPoint);
+  // looking along the velocity axis (A in RAS), north up, centered on the cube
+  const double directionOfProjection[3] = {0., -1., 0.};
+  const double viewUp[3] = {0., 0., 1.};
+  vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, inputVolume,
+                                                  directionOfProjection, viewUp);
 
   // Reset the 3D rendering boundaries
   qSlicerApplication* app = qSlicerApplication::application();
@@ -741,22 +726,12 @@ void qSlicerAstroPVSliceModuleWidget::on3DViewPerpendicular()
 
   inputVolume->SetDisplayVisibility(1);
 
-  // Set the camera position
-  vtkSmartPointer<vtkCollection> cameraNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLCameraNode"));
-  if (cameraNodes->GetNumberOfItems() < 1)
-    {
-    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
-                   "cameraNode not found!";
-    return;
-    }
-
+  // Camera of the 3D view
   vtkMRMLCameraNode *cameraNode =
-    vtkMRMLCameraNode::SafeDownCast(cameraNodes->GetItemAsObject(0));
+    vtkSlicerAstroVolumeLogic::GetThreeDViewCameraNode(this->mrmlScene(), "vtkMRMLViewNode1");
   if (!cameraNode)
     {
-    qCritical() << "qSlicerAstroPVSliceModuleWidget::on3DViewParallel : "
-                   "cameraNode not found!";
+    qCritical() << Q_FUNC_INFO << ": camera of the 3D view not found!";
     return;
     }
 
@@ -788,20 +763,15 @@ void qSlicerAstroPVSliceModuleWidget::on3DViewPerpendicular()
     {
     angle += PI;
     }
-  double LineLength = sqrt((distX * distX) + (distY * distY));
-  int* dims = inputVolume->GetImageData()->GetDimensions();
-  double shift = sqrt((LineLength * LineLength) + (dims[2] * dims[2])) * 1.5;
-  double Origin[3] = {0.};
-  Origin[0] = MiddlePoint[0] + shift * sin(angle);
-  Origin[2] = MiddlePoint[2] + shift * cos(angle);
-  cameraNode->SetPosition(Origin);
-  double ViewUp[3] = {0.};
-  ViewUp[1] = 1.;
-  cameraNode->SetViewUp(ViewUp);
-  double FocalPoint[3] = {0.};
-  FocalPoint[0] = MiddlePoint[0];
-  FocalPoint[2] = MiddlePoint[2];
-  cameraNode->SetFocalPoint(FocalPoint);
+  // looking at the PV plane (perpendicular to the line), velocity up,
+  // centered on the middle of the line and on the velocity range of the cube
+  double bounds[6] = {0., 0., 0., 0., 0., 0.};
+  inputVolume->GetRASBounds(bounds);
+  const double focalPoint[3] = {MiddlePoint[0], 0.5 * (bounds[2] + bounds[3]), MiddlePoint[2]};
+  const double directionOfProjection[3] = {-sin(angle), 0., -cos(angle)};
+  const double viewUp[3] = {0., 1., 0.};
+  vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(cameraNode, inputVolume,
+                                                  directionOfProjection, viewUp, focalPoint);
 
   // Reset the 3D rendering boundaries
   qSlicerApplication* app = qSlicerApplication::application();

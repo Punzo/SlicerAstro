@@ -34,6 +34,7 @@
 
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
+class vtkMRMLCameraNode;
 class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroReprojectParametersNode;
@@ -133,6 +134,18 @@ public:
   /// "Segmentation_1", ...) after its reference astronomical volume:
   /// "<volume>_SEG", unique in the scene. Returns true if renamed.
   static bool NameMaskAfterReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Point the camera at the volume: focal point at the center of the RAS
+  /// bounds of the volume (or at focalPoint, if given), camera along
+  /// directionOfProjection (from the camera to the focal point) at the
+  /// distance where the whole volume fits in the view angle.
+  /// Returns false if the volume has no valid bounds.
+  static bool CenterCameraOnVolume(vtkMRMLCameraNode* cameraNode, vtkMRMLVolumeNode* volumeNode,
+                                   const double directionOfProjection[3], const double viewUp[3],
+                                   const double* focalPoint = nullptr);
+
+  /// Camera of a 3D view (e.g. "vtkMRMLViewNode1")
+  static vtkMRMLCameraNode* GetThreeDViewCameraNode(vtkMRMLScene* scene, const char* viewNodeID);
 
   /// Display the binary labelmap of the segmentation in the 2D and 3D views
   /// (no closed surface: faster, and the voxels of the data are shown); the

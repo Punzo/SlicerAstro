@@ -26,6 +26,8 @@
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkMath.h>
+#include <vtkMRMLViewLogic.h>
 
 // AstroVolume includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -2946,6 +2948,80 @@ bool vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(vtkMRMLSegmentation
 }
 
 //----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(vtkMRMLCameraNode* cameraNode, vtkMRMLVolumeNode* volumeNode,
+                                                     const double directionOfProjection[3], const double viewUp[3],
+                                                     const double* focalPoint /*= nullptr*/)
+{
+  if (!cameraNode || !volumeNode || !volumeNode->GetImageData())
+    {
+    return false;
+    }
+  double bounds[6] = {1., -1., 1., -1., 1., -1.};
+  volumeNode->GetRASBounds(bounds);
+  if (bounds[0] > bounds[1] || bounds[2] > bounds[3] || bounds[4] > bounds[5])
+    {
+    return false;
+    }
+
+  double center[3] = {0., 0., 0.}, focal[3] = {0., 0., 0.};
+  double radius = 0.;
+  for (int axis = 0; axis < 3; axis++)
+    {
+    center[axis] = 0.5 * (bounds[2 * axis] + bounds[2 * axis + 1]);
+    const double halfSize = 0.5 * (bounds[2 * axis + 1] - bounds[2 * axis]);
+    radius += halfSize * halfSize;
+    focal[axis] = focalPoint ? focalPoint[axis] : center[axis];
+    }
+  radius = sqrt(radius);
+  if (focalPoint)
+    {
+    // the whole volume around a focal point that is not its center
+    radius += sqrt(vtkMath::Distance2BetweenPoints(center, focal));
+    }
+  radius = std::max(radius, 1.);
+
+  double direction[3] = {directionOfProjection[0], directionOfProjection[1], directionOfProjection[2]};
+  if (vtkMath::Normalize(direction) < 1.E-12)
+    {
+    return false;
+    }
+
+  // distance where the bounding sphere fits in the view angle
+  double viewAngle = cameraNode->GetViewAngle();
+  if (viewAngle <= 1.)
+    {
+    viewAngle = 30.;
+    }
+  const double distance = 1.05 * radius / sin(vtkMath::RadiansFromDegrees(0.5 * viewAngle));
+
+  double position[3] = {0., 0., 0.};
+  for (int axis = 0; axis < 3; axis++)
+    {
+    position[axis] = focal[axis] - direction[axis] * distance;
+    }
+
+  int wasModifying = cameraNode->StartModify();
+  cameraNode->SetFocalPoint(focal);
+  cameraNode->SetPosition(position);
+  cameraNode->SetViewUp(viewUp[0], viewUp[1], viewUp[2]);
+  cameraNode->SetParallelScale(1.05 * radius);
+  cameraNode->ResetClippingRange();
+  cameraNode->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLCameraNode* vtkSlicerAstroVolumeLogic::GetThreeDViewCameraNode(vtkMRMLScene* scene, const char* viewNodeID)
+{
+  vtkMRMLViewNode* viewNode = (scene && viewNodeID) ?
+    vtkMRMLViewNode::SafeDownCast(scene->GetNodeByID(viewNodeID)) : nullptr;
+  if (!viewNode || !viewNode->GetLayoutName())
+    {
+    return nullptr;
+    }
+  return vtkMRMLViewLogic::GetCameraNode(scene, viewNode->GetLayoutName());
+}
+
 void vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode* segmentationNode)
 {
   if (!segmentationNode)
