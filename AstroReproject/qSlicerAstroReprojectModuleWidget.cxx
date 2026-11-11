@@ -818,25 +818,35 @@ void qSlicerAstroReprojectModuleWidget::onApply()
 
   if (d->parametersNode->GetReprojectRotation())
     {
-    int n = outputVolumeDisplay->GetWCSStruct()->naxis;
-    double rot = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CROTA1")) * PI / 180.;
-    double rotCos = cos(rot);
-    double rotSin = sin(rot);
-    outputVolumeDisplay->GetWCSStruct()->flag = 0;
+    // north-aligned grid with the pixel steps of the input: identity linear
+    // transformation on the celestial axes (PC form, the steps in CDELT),
+    // whatever the form of the input header (CDi_j, PCi_j or CROTAi)
+    wcsprm* outputWCS = outputVolumeDisplay->GetWCSStruct();
+    const int n = outputWCS->naxis;
+    const bool cdForm = (outputWCS->altlin & 2) && !(outputWCS->altlin & 1);
+    for (int ii = 2; ii < n; ii++)
+      {
+      if (cdForm)
+        {
+        outputWCS->cdelt[ii] = outputWCS->cd[ii * n + ii];
+        }
+      else
+        {
+        outputWCS->cdelt[ii] *= outputWCS->pc[ii * n + ii];
+        }
+      }
     for (int ii = 0; ii < n; ii++)
       {
-      outputVolumeDisplay->GetWCSStruct()->crota[ii] = 0.;
+      for (int jj = 0; jj < n; jj++)
+        {
+        outputWCS->pc[ii * n + jj] = (ii == jj) ? 1. : 0.;
+        }
+      outputWCS->crota[ii] = 0.;
       }
-
-    double temp[4] = {0.};
-    for (int ii = 0; ii < 4; ii++)
-      {
-      temp[ii] = outputVolumeDisplay->GetWCSStruct()->pc[ii];
-      }
-    outputVolumeDisplay->GetWCSStruct()->pc[0] = temp[0] * rotCos + temp[1] * rotSin;
-    outputVolumeDisplay->GetWCSStruct()->pc[1] = -temp[0] * rotSin + temp[1] * rotCos;
-    outputVolumeDisplay->GetWCSStruct()->pc[2] = temp[2] * rotCos + temp[3] * rotSin;
-    outputVolumeDisplay->GetWCSStruct()->pc[3] = -temp[2] * rotSin + temp[3] * rotCos;
+    outputWCS->cdelt[0] = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CDELT1"));
+    outputWCS->cdelt[1] = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CDELT2"));
+    outputWCS->altlin = 1;
+    outputWCS->flag = 0;
 
     outputVolumeDisplay->SetWCSStatus(wcsset(outputVolumeDisplay->GetWCSStruct()));
     if (outputVolumeDisplay->GetWCSStatus())
@@ -864,6 +874,15 @@ void qSlicerAstroReprojectModuleWidget::onApply()
         outputVolume->SetAttribute("SlicerAstro.PC3_1", "0.");
         outputVolume->SetAttribute("SlicerAstro.PC3_2", "0.");
         outputVolume->SetAttribute("SlicerAstro.PC3_3", "1.");
+        }
+      // the CD matrix of the input (rotated) does not describe the output
+      for (int ii = 1; ii <= n; ii++)
+        {
+        for (int jj = 1; jj <= n; jj++)
+          {
+          std::string key = "SlicerAstro.CD" + std::to_string(ii) + "_" + std::to_string(jj);
+          outputVolume->RemoveAttribute(key.c_str());
+          }
         }
       d->parametersNode->SetReferenceVolumeNodeID("");
       d->astroVolumeWidget->setThreeComparativeView

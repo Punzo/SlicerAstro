@@ -1557,7 +1557,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   // Check that the input volume has not already been reprojected to the reference volume
   if (pnode->GetReprojectRotation() &&
-      StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")) < 1.E-6)
+      fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2"))) < 1.E-6)
   {
   vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "the input volume is already aligned to the north pole. "
