@@ -19,14 +19,13 @@
 
 // STD includes
 #include <algorithm>
+#include <array>
+#include <regex>
 #include <type_traits>
 #include <vector>
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
-
-// STD includes
-#include <array>
 
 // AstroVolume includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -299,6 +298,18 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   if (node->IsA("vtkMRMLSliceNode"))
     {
     vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode::SafeDownCast(node));
+    }
+
+  // segmentations created before the astronomical data was loaded (e.g. the
+  // mask of the AstroVolume module) are FITS masks too
+  if (node->IsA("vtkMRMLAstroVolumeNode") && !this->GetMRMLScene()->IsImporting())
+    {
+    std::vector<vtkMRMLNode*> segmentationNodes;
+    this->GetMRMLScene()->GetNodesByClass("vtkMRMLSegmentationNode", segmentationNodes);
+    for (vtkMRMLNode* segmentationNode : segmentationNodes)
+      {
+      this->EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
+      }
     }
 
   // astronomical segmentations are saved as FITS masks by default
@@ -2842,7 +2853,14 @@ bool vtkSlicerAstroVolumeLogic::IsAstroSegmentation(vtkMRMLSegmentationNode* seg
     }
   vtkMRMLNode* referenceNode = segmentationNode->GetNodeReference(
     vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str());
-  return referenceNode && referenceNode->IsA("vtkMRMLAstroVolumeNode");
+  if (referenceNode)
+    {
+    return referenceNode->IsA("vtkMRMLAstroVolumeNode");
+    }
+  // no reference volume yet (e.g. a new segmentation): astronomical if the
+  // scene has astronomical data
+  vtkMRMLScene* scene = segmentationNode->GetScene();
+  return scene && scene->GetFirstNodeByClass("vtkMRMLAstroVolumeNode") != nullptr;
 }
 
 //----------------------------------------------------------------------------
@@ -2854,6 +2872,17 @@ bool vtkSlicerAstroVolumeLogic::EnsureFITSMaskStorageNode(vtkMRMLSegmentationNod
     return false;
     }
   vtkMRMLStorageNode* storageNode = segmentationNode->GetStorageNode();
+  if (storageNode && storageNode->IsA("vtkMRMLAstroSegmentationStorageNode") &&
+      (!storageNode->GetFileName() || !*storageNode->GetFileName()) &&
+      !vtkSlicerAstroVolumeLogic::IsAstroSegmentation(segmentationNode))
+    {
+    // the default FITS storage of a segmentation that is not (or no longer)
+    // astronomical, e.g. its reference volume is a medical image or it became
+    // contours: Slicer's default storage is used instead
+    segmentationNode->SetAndObserveStorageNodeID(nullptr);
+    scene->RemoveNode(storageNode);
+    return false;
+    }
   if (storageNode)
     {
     // an existing storage node (e.g. .seg.nrrd chosen by the user) is kept
@@ -2870,6 +2899,49 @@ bool vtkSlicerAstroVolumeLogic::EnsureFITSMaskStorageNode(vtkMRMLSegmentationNod
     }
   segmentationNode->SetAndObserveStorageNodeID(newStorageNode->GetID());
   vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(vtkMRMLSegmentationNode* segmentationNode,
+                                                       vtkMRMLAstroVolumeNode* volumeNode)
+{
+  if (!segmentationNode || !segmentationNode->GetSegmentation() ||
+      !volumeNode || !volumeNode->GetImageData() ||
+      vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode) ||
+      segmentationNode->GetSegmentation()->GetNumberOfSegments() > 0 ||
+      segmentationNode->GetNodeReference(
+        vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()))
+    {
+    return false;
+    }
+  segmentationNode->SetReferenceImageGeometryParameterFromVolumeNode(volumeNode);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(vtkMRMLSegmentationNode* segmentationNode)
+{
+  vtkMRMLScene* scene = segmentationNode ? segmentationNode->GetScene() : nullptr;
+  if (!scene || !segmentationNode->GetName() ||
+      vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode))
+    {
+    return false;
+    }
+  vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  if (!volumeNode || !volumeNode->GetName())
+    {
+    return false;
+    }
+  // only the default names given by Slicer (the user's names are kept)
+  static const std::regex defaultName("^Segmentation(_[0-9]+)?$");
+  if (!std::regex_match(std::string(segmentationNode->GetName()), defaultName))
+    {
+    return false;
+    }
+  std::string name = scene->GenerateUniqueName(std::string(volumeNode->GetName()) + "_SEG");
+  segmentationNode->SetName(name.c_str());
   return true;
 }
 
@@ -2908,6 +2980,7 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
     // reference geometry set to an astronomical volume, or storage node removed
     if (this->GetMRMLScene() && !this->GetMRMLScene()->IsImporting())
       {
+      vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(segmentationNode);
       this->EnsureFITSMaskStorageNode(segmentationNode);
       }
     return;

@@ -4927,6 +4927,14 @@ void qSlicerAstroVolumeModuleWidget::onSegmentationNodeChanged(vtkMRMLNode* node
     this->qvtkReconnect(d->MaskNode, segmentationNode, event, d->SaveFITSMaskButtonTimer, SLOT(start()));
     }
   d->MaskNode = segmentationNode;
+
+  // A new mask (e.g. "Create new Segmentation" in the selector) gets the
+  // active cube as reference geometry: it is a mask of that cube
+  if (segmentationNode && d->selectionNode && this->mrmlScene())
+    {
+    vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(segmentationNode,
+      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID())));
+    }
   this->updateSaveFITSMaskButton();
   if (segmentationNode && d->segmentEditorNode &&
       d->segmentEditorNode->GetSegmentationNode() != segmentationNode)
@@ -5913,7 +5921,12 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
   if (d->astroVolumeNode == volumeNode)
     {
     return;
-    } 
+    }
+
+  // the mask of the Masks section (e.g. created when the module was opened,
+  // before the data was loaded) is a mask of this cube
+  vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(
+    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode()), volumeNode);
 
   if (!d->astroVolumeNode)
     {

@@ -109,16 +109,30 @@ public:
   /// The orientation and the default orientation of the node are converted.
   static void SetAstroSliceOrientationPresets(vtkMRMLSliceNode* sliceNode);
 
-  /// Return true if the segmentation is astronomical: read from a FITS mask
-  /// (it has the FITS header) or with an astronomical volume as reference
-  /// geometry.
+  /// Return true if the segmentation is an astronomical mask (binary labelmap
+  /// source, not contours): read from a FITS mask (it has the FITS header),
+  /// with an astronomical volume as reference geometry, or without reference
+  /// volume in a scene with astronomical volumes.
   static bool IsAstroSegmentation(vtkMRMLSegmentationNode* segmentationNode);
 
   /// Give an astronomical segmentation without storage node the FITS mask
   /// storage node (vtkMRMLAstroSegmentationStorageNode), so that it is saved
-  /// as a FITS mask by default. Returns true if the segmentation is stored
-  /// as a FITS mask.
+  /// as a FITS mask by default (the default FITS storage is removed again,
+  /// before the first save, from a segmentation that is no longer
+  /// astronomical). Returns true if the segmentation is stored as a FITS mask.
   bool EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Use the astronomical volume as reference geometry of a new mask (no
+  /// segments and no reference volume yet; not the contours). Then the mask
+  /// is saved as a FITS mask with the header of the volume. Returns true if
+  /// the reference was set.
+  static bool SetMaskReferenceVolume(vtkMRMLSegmentationNode* segmentationNode,
+                                     vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Name a mask with the default name of Slicer ("Segmentation",
+  /// "Segmentation_1", ...) after its reference astronomical volume:
+  /// "<volume>_SEG", unique in the scene. Returns true if renamed.
+  static bool NameMaskAfterReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
 
   /// Display the binary labelmap of the segmentation in the 2D and 3D views
   /// (no closed surface: faster, and the voxels of the data are shown); the

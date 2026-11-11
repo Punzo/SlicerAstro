@@ -159,6 +159,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.test_VolumeSaveKeepsHeader()
         self.setUp()
         self.test_SaveButtonEnabled()
+        self.setUp()
+        self.test_NewSegmentationDefaultStorage()
 
     def sourceArray(self, segmentationNode, segmentID):
         """Voxels of a segment in the geometry of the mask (z, y, x)."""
@@ -408,4 +410,66 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         segmentationNode.GetSegmentation().RemoveSegment(segmentID)
         self.waitForButtonUpdate()
         self.assertFalse(saveButton.enabled)
+        self.delayDisplay("Test passed")
+
+    def test_NewSegmentationDefaultStorage(self):
+        """New segmentations are FITS masks by default (not the contours, not
+        segmentations of non-astronomical volumes)."""
+        import AstroSampleData
+
+        # AstroVolume opened before loading the data: its mask is created
+        # without astronomical data, and becomes a FITS mask of the cube
+        slicer.util.selectModule("Data")
+        slicer.util.selectModule("AstroVolume")
+        widget = slicer.modules.astrovolume.widgetRepresentation()
+        selector = slicer.util.findChild(widget, "SegmentationNodeComboBox")
+        referenceRole = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
+        slicer.app.processEvents()
+        moduleMask = selector.currentNode()
+        self.assertIsNotNone(moduleMask)
+        self.assertIsNone(slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroVolumeNode"))
+        self.assertIsNone(moduleMask.GetStorageNode())
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        slicer.app.processEvents()
+        self.assertIs(selector.currentNode(), moduleMask)
+        self.assertIs(moduleMask.GetNodeReference(referenceRole), volumeNode)
+        self.assertEqual(moduleMask.GetName(), "WEIN069_SEG")
+        self.assertEqual(moduleMask.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+
+        # Masks section, "Create new Segmentation": a mask of the active cube
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        maskNode = selector.addNode()
+        slicer.app.processEvents()
+        self.assertIs(maskNode.GetNodeReference(referenceRole), volumeNode)
+        self.assertEqual(maskNode.GetName(), "WEIN069_SEG_1")  # unique name
+        # names given by the user are kept
+        namedNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Galaxy core")
+        namedNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)
+        self.assertEqual(namedNode.GetName(), "Galaxy core")
+        self.assertEqual(maskNode.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+
+        # Any new segmentation (e.g. Segment Editor) before a source volume is set
+        segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        self.assertIsNone(segmentationNode.GetNodeReference(referenceRole))
+        self.assertEqual(segmentationNode.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+        defaultStorageID = segmentationNode.GetStorageNodeID()
+
+        # ... whose reference volume then is not astronomical: Slicer's default storage
+        imageData = vtk.vtkImageData()
+        imageData.SetDimensions(4, 4, 4)
+        imageData.AllocateScalars(vtk.VTK_SHORT, 1)
+        scalarVolume = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLScalarVolumeNode")
+        scalarVolume.SetAndObserveImageData(imageData)
+        segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(scalarVolume)
+        self.assertIs(segmentationNode.GetNodeReference(referenceRole), scalarVolume)
+        self.assertIsNone(segmentationNode.GetStorageNode())
+        self.assertIsNone(slicer.mrmlScene.GetNodeByID(defaultStorageID))
+
+        # Contours: never FITS masks
+        contoursNode = slicer.mrmlScene.CreateNodeByClass("vtkMRMLSegmentationNode")
+        contoursNode.UnRegister(None)
+        contoursNode.SetAttribute("AstroContours", "true")
+        slicer.mrmlScene.AddNode(contoursNode)
+        self.assertIsNone(contoursNode.GetStorageNode())
         self.delayDisplay("Test passed")

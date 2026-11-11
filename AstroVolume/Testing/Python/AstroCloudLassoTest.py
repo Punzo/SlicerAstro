@@ -215,8 +215,15 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         editor.setActiveEffectByName("AstroCloudLasso")
         effect = editor.activeEffect()
         self.assertIsNotNone(effect)
+        # window shortcuts need the active window (asynchronous under Xvfb)
+        import time
         mainWindow.activateWindow()
-        slicer.app.processEvents()
+        timeout = time.time() + 10.0
+        while qt.QApplication.activeWindow() != mainWindow and time.time() < timeout:
+            mainWindow.activateWindow()
+            slicer.app.processEvents()
+            time.sleep(0.05)
+        self.assertEqual(qt.QApplication.activeWindow(), mainWindow)
 
         # select Erase inside, then Fill inside: the focus is on the option
         buttons = {button.text: button for button in effect.optionsFrame().findChildren(qt.QRadioButton)}
