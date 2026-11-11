@@ -226,6 +226,17 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     hidden = maskSelector.sortFilterProxyModel().hiddenNodeIDs
     self.assertIn(contoursNode.GetID(), hidden)
     self.assertNotIn(maskNode.GetID(), hidden)
+    # The table shows the selected mask, never the contours, and the Segment
+    # Editor is not switched to the contours
+    segmentsTable = slicer.util.findChild(astroVolumeModuleWidget, "SegmentsTableView")
+    self.assertIsNot(segmentsTable.segmentationNode(), contoursNode)
+    self.assertIs(segmentsTable.segmentationNode(), maskSelector.currentNode())
+    editorNode = slicer.mrmlScene.GetSingletonNode("SegmentEditor", "vtkMRMLSegmentEditorNode")
+    if editorNode:
+      self.assertIsNot(editorNode.GetSegmentationNode(), contoursNode)
+    astroScalarWidget.onCreateContours()
+    slicer.app.processEvents()
+    self.assertIsNot(segmentsTable.segmentationNode(), contoursNode)
     maskDisplay = maskNode.GetDisplayNode()
     self.assertEqual(maskDisplay.GetPreferredDisplayRepresentationName2D(), labelmapName)
     self.assertEqual(maskDisplay.GetPreferredDisplayRepresentationName3D(), labelmapName)

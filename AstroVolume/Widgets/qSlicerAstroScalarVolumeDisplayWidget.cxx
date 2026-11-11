@@ -47,7 +47,6 @@
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
-#include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
@@ -731,9 +730,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   std::string NamePrefixStdString = masterVolume->GetName();
 
-  std::string segmentEditorSingletonTag = "SegmentEditor";
-  vtkMRMLSegmentEditorNode *segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
   vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
     (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg"));
   this->contoursSegNode = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
@@ -746,8 +742,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     this->mrmlScene()->AddNode(this->contoursSegNode);
     }
 
-  segmentEditorNode->SetAndObserveSegmentationNode
-    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNode));
+  // the contours are not edited: the Segment Editor keeps its segmentation (mask)
 
   if (!this->contoursSegNode->GetDisplayNode())
     {

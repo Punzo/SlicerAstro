@@ -1992,24 +1992,13 @@ void qSlicerAstroVolumeModuleWidget::onSegmentEditorNodeModified(vtkObject *send
     return;
     }
 
+  // The Masks section follows the Segment Editor for masks only (the table
+  // shows the mask of the selector: onSegmentationNodeChanged)
   if (d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
       !vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode))
     {
     d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
     }
-
-  vtkMRMLSegmentationNode* segmentationNodeTable = vtkMRMLSegmentationNode::SafeDownCast(
-    d->SegmentsTableView->segmentationNode());
-  if (!segmentationNodeTable)
-    {
-    d->SegmentsTableView->setSegmentationNode(segmentationNode);
-    return;
-    }
-
-  if (segmentationNode != segmentationNodeTable)
-    {
-    d->SegmentsTableView->setSegmentationNode(segmentationNode);
-  }
 }
 
 //---------------------------------------------------------------------------
@@ -2711,8 +2700,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
     }
 
-  d->segmentEditorNode->SetAndObserveSegmentationNode
-    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNodeSmoothing));
+  // the contours are not edited: the Segment Editor keeps its segmentation (mask)
 
   if (!this->contoursSegNodeSmoothing->GetDisplayNode())
     {
@@ -3272,8 +3260,7 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     this->mrmlScene()->AddNode(this->contoursSegNodeModeling);
     }
 
-  d->segmentEditorNode->SetAndObserveSegmentationNode
-    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNodeModeling));
+  // the contours are not edited: the Segment Editor keeps its segmentation (mask)
 
   if (!this->contoursSegNodeModeling->GetDisplayNode())
     {
@@ -3624,8 +3611,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
     }
 
-  d->segmentEditorNode->SetAndObserveSegmentationNode
-    (vtkMRMLSegmentationNode::SafeDownCast(this->contoursSegNodeModeling));
+  // the contours are not edited: the Segment Editor keeps its segmentation (mask)
 
   if (!this->contoursSegNodeModeling->GetDisplayNode())
     {
