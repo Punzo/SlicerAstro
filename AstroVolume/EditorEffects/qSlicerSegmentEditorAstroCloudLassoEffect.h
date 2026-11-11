@@ -22,91 +22,71 @@
 
 // Segmentations Editor Effects includes
 #include "qSlicerAstroVolumeEditorEffectsExport.h"
-
-#include "qSlicerSegmentEditorAbstractLabelEffect.h"
-
-// CTK includes
-#include <ctkPimpl.h>
-#include <ctkVTKObject.h>
+#include "qSlicerSegmentEditorScissorsEffect.h"
 
 class qSlicerSegmentEditorAstroCloudLassoEffectPrivate;
-class vtkPolyData;
-class vtkObject;
 
-/// \ingroup SlicerRt_QtModules_Segmentations
+/// \brief Cloud Lasso: select the emission (the "cloud") inside a lasso.
+///
+/// The lasso is drawn in 2D on a slice view or on the 3D view, as with the
+/// Scissors effect (this effect is a Scissors effect: same shapes, slice cut
+/// modes, and drawing). Filling selects only the voxels whose intensity is in
+/// the threshold range (by default from 3 times the noise, the DisplayThreshold
+/// of the AstroVolume module, to the maximum of the data); erasing removes all
+/// the voxels inside the lasso. With the automatic threshold updating, changing
+/// the threshold applies the last lasso again.
+///
+/// Keyboard shortcuts in the views: n / m decrease / increase the minimum of
+/// the threshold range, k / l the maximum, c toggles the automatic threshold
+/// updating, x switches between filling and erasing.
+/// \ingroup SlicerAstro_QtModules_AstroVolume
 class Q_SLICERASTRO_ASTROVOLUME_EFFECTS_EXPORT qSlicerSegmentEditorAstroCloudLassoEffect :
-  public qSlicerSegmentEditorAbstractLabelEffect
+  public qSlicerSegmentEditorScissorsEffect
 {
 public:
   Q_OBJECT
-  QVTK_OBJECT
 
 public:
-  typedef qSlicerSegmentEditorAbstractLabelEffect Superclass;
-  qSlicerSegmentEditorAstroCloudLassoEffect(QObject* parent = NULL);
-  virtual ~qSlicerSegmentEditorAstroCloudLassoEffect();
+  typedef qSlicerSegmentEditorScissorsEffect Superclass;
+  qSlicerSegmentEditorAstroCloudLassoEffect(QObject* parent = nullptr);
+  ~qSlicerSegmentEditorAstroCloudLassoEffect() override;
 
-public:
-  /// Get icon for effect to be displayed in segment editor
-  virtual QIcon icon();
+  QIcon icon() override;
+  Q_INVOKABLE const QString helpText() const override;
+  qSlicerSegmentEditorAbstractEffect* clone() override;
 
-  /// Get help text for effect to be displayed in the help box
-  Q_INVOKABLE virtual const QString helpText()const;
+  Q_INVOKABLE void activate() override;
+  Q_INVOKABLE void deactivate() override;
 
-  /// Clone editor effect
-  virtual qSlicerSegmentEditorAbstractEffect* clone();
+  void setupOptionsFrame() override;
+  void setMRMLDefaults() override;
+  void sourceVolumeNodeChanged() override;
 
-  /// Perform actions to activate the effect (show options frame, etc.)
-  Q_INVOKABLE virtual void activate();
+  /// Keyboard shortcuts, then the drawing of the Scissors effect
+  bool processInteractionEvents(vtkRenderWindowInteractor* callerInteractor, unsigned long eid,
+                                qMRMLWidget* viewWidget) override;
 
-  /// Perform actions to deactivate the effect (such as destroy actors, etc.)
-  Q_INVOKABLE virtual void deactivate();
+  /// Keeps the lasso (for the automatic threshold updating); erasing is not
+  /// limited to the threshold range.
+  using Superclass::modifySelectedSegmentByLabelmap;
+  void modifySelectedSegmentByLabelmap(vtkOrientedImageData* modifierLabelmap, ModificationMode modificationMode,
+                                       bool bypassMasking = false) override;
 
-  /// Callback function invoked when interaction happens
-  /// \param callerInteractor Interactor object that was observed to catch the event
-  /// \param eid Event identifier
-  /// \param viewWidget Widget of the Slicer layout view. Can be \sa qMRMLSliceWidget or \sa qMRMLThreeDWidget
-  virtual bool processInteractionEvents(vtkRenderWindowInteractor* callerInteractor, unsigned long eid, qMRMLWidget* viewWidget);
-
-  /// Callback function invoked when view node is modified
-  /// \param callerViewNode View node that was observed to catch the event. Can be either \sa vtkMRMLSliceNode or \sa vtkMRMLViewNode
-  /// \param eid Event identifier
-  /// \param viewWidget Widget of the Slicer layout view. Can be \sa qMRMLSliceWidget or \sa qMRMLThreeDWidget
-  virtual void processViewNodeEvents(vtkMRMLAbstractViewNode* callerViewNode, unsigned long eid, qMRMLWidget* viewWidget);
-
-  /// Create options frame widgets, make connections, and add them to the main options frame using \sa addOptionsWidget
-  virtual void setupOptionsFrame();
-
-  /// Set default parameters in the parameter MRML node
-  virtual void setMRMLDefaults();
-
-  /// Perform actions needed on source volume change
-  virtual void sourceVolumeNodeChanged();
-
-  /// Display the edited segmentation as binary labelmap in 2D and 3D views
-  /// (no closed surface: faster, the edited voxels are shown as they are)
-  virtual void updateSegmentationDisplay();
+  /// Apply the last lasso again with the current threshold range.
+  Q_INVOKABLE void reapplyLastLasso();
 
 public slots:
-  /// Update user interface from parameter set node
-  virtual void updateGUIFromMRML();
+  void updateGUIFromMRML() override;
 
-  /// Update automatic Threshold value changed
-  virtual void onThresholdValueChanged(double min, double max);
-
-  /// Update automatic Threshold mode on/off
-  virtual void onAutomaticThresholdModeChanged(bool mode);
-
-  /// Update Threshold value to optimal one when EraseMode is on/off
-  virtual void onEraseModeChanged(bool mode);
-
-protected:
-  /// Flag determining whether to paint or erase.
-  /// Overridden in the \sa qSlicerSegmentEditorEraseEffect subclass
-  bool m_Erase;
+  void onThresholdValuesChanged(double minimum, double maximum);
+  void onAutomaticThresholdModeChanged(bool automatic);
 
 protected:
   QScopedPointer<qSlicerSegmentEditorAstroCloudLassoEffectPrivate> d_ptr;
+
+  /// Threshold range used as editable intensity range (source volume intensity mask)
+  void updateIntensityMask();
+  bool fillOperation();
 
 private:
   Q_DECLARE_PRIVATE(qSlicerSegmentEditorAstroCloudLassoEffect);

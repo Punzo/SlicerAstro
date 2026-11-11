@@ -25,13 +25,11 @@ set(${KIT}_INCLUDE_DIRECTORIES
 
 set(${KIT}_SRCS
   qSlicerSegmentEditorAstroCloudLassoEffect.h
-  qSlicerSegmentEditorAstroCloudLassoEffect_p.h
   qSlicerSegmentEditorAstroCloudLassoEffect.cxx
   )
 
 set(${KIT}_MOC_SRCS
   qSlicerSegmentEditorAstroCloudLassoEffect.h
-  qSlicerSegmentEditorAstroCloudLassoEffect_p.h
   )
 
 set(${KIT}_UI_SRCS

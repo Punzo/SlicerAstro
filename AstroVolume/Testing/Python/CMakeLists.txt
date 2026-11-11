@@ -22,4 +22,10 @@ if(Slicer_USE_QtTesting AND Slicer_USE_PYTHONQT)
     SCRIPTS AstroSegmentationMaskTest.py
     )
   slicer_add_python_unittest(SCRIPT AstroSegmentationMaskTest.py)
+
+  slicerMacroBuildScriptedModule(
+    NAME AstroCloudLassoTest
+    SCRIPTS AstroCloudLassoTest.py
+    )
+  slicer_add_python_unittest(SCRIPT AstroCloudLassoTest.py)
 endif()
