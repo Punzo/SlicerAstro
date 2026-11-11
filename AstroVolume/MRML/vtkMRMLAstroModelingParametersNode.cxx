@@ -88,6 +88,24 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->NumberOfClounds = -1;
   this->CloudsColumnDensity = 10.;
   this->Tollerance = 0.001;
+  this->TwoStage = true;
+  this->RegularizationType = "auto";
+  this->Side = "B";
+  this->InstrumentalBroadening = -1.;
+  this->RotationVelocityError = 1000.;
+  this->MinimumVelocityDispersion = 0.1;
+  this->MaximumVelocityDispersion = 1000.;
+  this->EstimateErrors = false;
+  this->StartRing = 0;
+  this->BlankWeight = 1.;
+  this->NormalizeCube = true;
+  this->SearchSNRCut = 4.;
+  this->SearchThreshold = 0.;
+  this->SearchMinChannels = 2;
+  this->SearchGrowthCut = 2.5;
+  this->Redshift = 0.;
+  this->RestFrequencies = "";
+  this->RelativeIntensities = "";
   this->XPosCenterIJK = 0.;
   this->YPosCenterIJK = 0.;
   this->XPosCenterRAS = 0.;
@@ -421,6 +439,114 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "TwoStage"))
+      {
+      this->TwoStage = StringToInt(attValue) != 0;
+      continue;
+      }
+
+    if (!strcmp(attName, "RegularizationType"))
+      {
+      this->RegularizationType = attValue;
+      continue;
+      }
+
+    if (!strcmp(attName, "Side"))
+      {
+      this->Side = attValue;
+      continue;
+      }
+
+    if (!strcmp(attName, "InstrumentalBroadening"))
+      {
+      this->InstrumentalBroadening = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "RotationVelocityError"))
+      {
+      this->RotationVelocityError = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "MinimumVelocityDispersion"))
+      {
+      this->MinimumVelocityDispersion = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "MaximumVelocityDispersion"))
+      {
+      this->MaximumVelocityDispersion = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "EstimateErrors"))
+      {
+      this->EstimateErrors = StringToInt(attValue) != 0;
+      continue;
+      }
+
+    if (!strcmp(attName, "StartRing"))
+      {
+      this->StartRing = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "BlankWeight"))
+      {
+      this->BlankWeight = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "NormalizeCube"))
+      {
+      this->NormalizeCube = StringToInt(attValue) != 0;
+      continue;
+      }
+
+    if (!strcmp(attName, "SearchSNRCut"))
+      {
+      this->SearchSNRCut = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "SearchThreshold"))
+      {
+      this->SearchThreshold = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "SearchMinChannels"))
+      {
+      this->SearchMinChannels = StringToInt(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "SearchGrowthCut"))
+      {
+      this->SearchGrowthCut = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "Redshift"))
+      {
+      this->Redshift = StringToDouble(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "RestFrequencies"))
+      {
+      this->RestFrequencies = attValue;
+      continue;
+      }
+
+    if (!strcmp(attName, "RelativeIntensities"))
+      {
+      this->RelativeIntensities = attValue;
+      continue;
+      }
+
     if (!strcmp(attName, "Tollerance"))
       {
       this->Tollerance = StringToDouble(attValue);
@@ -598,6 +724,24 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
   of << indent << " NumberOfClounds=\"" << this->NumberOfClounds << "\"";
   of << indent << " CloudsColumnDensity=\"" << this->CloudsColumnDensity << "\"";
   of << indent << " Tollerance=\"" << this->Tollerance << "\"";
+  of << indent << " TwoStage=\"" << this->TwoStage << "\"";
+  of << indent << " RegularizationType=\"" << this->RegularizationType << "\"";
+  of << indent << " Side=\"" << this->Side << "\"";
+  of << indent << " InstrumentalBroadening=\"" << this->InstrumentalBroadening << "\"";
+  of << indent << " RotationVelocityError=\"" << this->RotationVelocityError << "\"";
+  of << indent << " MinimumVelocityDispersion=\"" << this->MinimumVelocityDispersion << "\"";
+  of << indent << " MaximumVelocityDispersion=\"" << this->MaximumVelocityDispersion << "\"";
+  of << indent << " EstimateErrors=\"" << this->EstimateErrors << "\"";
+  of << indent << " StartRing=\"" << this->StartRing << "\"";
+  of << indent << " BlankWeight=\"" << this->BlankWeight << "\"";
+  of << indent << " NormalizeCube=\"" << this->NormalizeCube << "\"";
+  of << indent << " SearchSNRCut=\"" << this->SearchSNRCut << "\"";
+  of << indent << " SearchThreshold=\"" << this->SearchThreshold << "\"";
+  of << indent << " SearchMinChannels=\"" << this->SearchMinChannels << "\"";
+  of << indent << " SearchGrowthCut=\"" << this->SearchGrowthCut << "\"";
+  of << indent << " Redshift=\"" << this->Redshift << "\"";
+  of << indent << " RestFrequencies=\"" << this->RestFrequencies << "\"";
+  of << indent << " RelativeIntensities=\"" << this->RelativeIntensities << "\"";
   of << indent << " XPosCenterIJK=\"" << this->XPosCenterIJK << "\"";
   of << indent << " YPosCenterIJK=\"" << this->YPosCenterIJK << "\"";
   of << indent << " XPosCenterRAS=\"" << this->XPosCenterRAS << "\"";
@@ -666,6 +810,24 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetNumberOfClounds(node->GetNumberOfClounds());
   this->SetCloudsColumnDensity(node->GetCloudsColumnDensity());
   this->SetTollerance(node->GetTollerance());
+  this->SetTwoStage(node->GetTwoStage());
+  this->SetRegularizationType(node->GetRegularizationType());
+  this->SetSide(node->GetSide());
+  this->SetInstrumentalBroadening(node->GetInstrumentalBroadening());
+  this->SetRotationVelocityError(node->GetRotationVelocityError());
+  this->SetMinimumVelocityDispersion(node->GetMinimumVelocityDispersion());
+  this->SetMaximumVelocityDispersion(node->GetMaximumVelocityDispersion());
+  this->SetEstimateErrors(node->GetEstimateErrors());
+  this->SetStartRing(node->GetStartRing());
+  this->SetBlankWeight(node->GetBlankWeight());
+  this->SetNormalizeCube(node->GetNormalizeCube());
+  this->SetSearchSNRCut(node->GetSearchSNRCut());
+  this->SetSearchThreshold(node->GetSearchThreshold());
+  this->SetSearchMinChannels(node->GetSearchMinChannels());
+  this->SetSearchGrowthCut(node->GetSearchGrowthCut());
+  this->SetRedshift(node->GetRedshift());
+  this->SetRestFrequencies(node->GetRestFrequencies());
+  this->SetRelativeIntensities(node->GetRelativeIntensities());
   this->SetOutputSerial(node->GetOutputSerial());
   this->SetStatus(node->GetStatus());
   this->SetOperation(node->GetOperation());
@@ -797,6 +959,24 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "NumberOfClounds: " << this->NumberOfClounds << "\n";
   os << "CloudsColumnDensity: " << this->CloudsColumnDensity << "\n";
   os << "Tollerance: " << this->Tollerance << "\n";
+  os << "TwoStage: " << this->TwoStage << "\n";
+  os << "RegularizationType: " << this->RegularizationType << "\n";
+  os << "Side: " << this->Side << "\n";
+  os << "InstrumentalBroadening: " << this->InstrumentalBroadening << "\n";
+  os << "RotationVelocityError: " << this->RotationVelocityError << "\n";
+  os << "MinimumVelocityDispersion: " << this->MinimumVelocityDispersion << "\n";
+  os << "MaximumVelocityDispersion: " << this->MaximumVelocityDispersion << "\n";
+  os << "EstimateErrors: " << this->EstimateErrors << "\n";
+  os << "StartRing: " << this->StartRing << "\n";
+  os << "BlankWeight: " << this->BlankWeight << "\n";
+  os << "NormalizeCube: " << this->NormalizeCube << "\n";
+  os << "SearchSNRCut: " << this->SearchSNRCut << "\n";
+  os << "SearchThreshold: " << this->SearchThreshold << "\n";
+  os << "SearchMinChannels: " << this->SearchMinChannels << "\n";
+  os << "SearchGrowthCut: " << this->SearchGrowthCut << "\n";
+  os << "Redshift: " << this->Redshift << "\n";
+  os << "RestFrequencies: " << this->RestFrequencies << "\n";
+  os << "RelativeIntensities: " << this->RelativeIntensities << "\n";
   os << "Status: " << this->Status << "\n";
   os << "Operation: " << this->GetOperationAsString(this->Operation) << "\n";
   os << "FitSuccess: " << this->FitSuccess << "\n";

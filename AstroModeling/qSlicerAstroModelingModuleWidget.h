@@ -214,6 +214,10 @@ protected slots:
   void updateProgress(int value);
   /// Progress of the worker thread (copy of the parameters) in the parameter node
   void updateWorkerProgress();
+  /// 3DBarolo parameters of the Advanced section -> parameter node
+  void onBBaroloParameterChanged();
+  /// parameter node -> 3DBarolo parameters of the Advanced section
+  void updateBBaroloParameterWidgets();
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroModelingModuleWidget);

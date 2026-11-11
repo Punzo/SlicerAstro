@@ -33,6 +33,8 @@
 // STD includes
 #include <memory>
 #include <algorithm>
+#include <vector>
+#include <sstream>
 #include <atomic>
 
 // MRML includes
@@ -76,6 +78,8 @@ public:
   Model::Galfit<float> *fitF;
   Model::Galfit<double> *fitD;
   double totflux_data;
+  /// Abort requested (RequestAbort, or status -1 of the parameter node)
+  std::atomic<bool> AbortRequested{false};
 };
 
 //----------------------------------------------------------------------------
@@ -154,6 +158,62 @@ namespace
 // cancel request (parameters node status set to -1) is forwarded to BBarolo
 // through its abort flag, checked after each fitted ring.
 //----------------------------------------------------------------------------
+// Numbers of a comma (or space) separated list
+std::vector<double> ParseNumberList(const std::string& text)
+{
+  std::vector<double> values;
+  std::string normalized(text);
+  std::replace(normalized.begin(), normalized.end(), ',', ' ');
+  std::stringstream stream(normalized);
+  double value = 0.;
+  while (stream >> value)
+    {
+    values.push_back(value);
+    }
+  return values;
+}
+
+//----------------------------------------------------------------------------
+// Parameters of the fit, of the source search and of the emission lines
+void ApplyBBaroloParameters(Param* par, vtkMRMLAstroModelingParametersNode* pnode)
+{
+  GALFIT_PAR& galfit = par->getParGF();
+  galfit.TWOSTAGE = pnode->GetTwoStage();
+  galfit.REGTYPE = pnode->GetRegularizationType().empty() ? std::string("auto") : pnode->GetRegularizationType();
+  galfit.SIDE = pnode->GetSide().empty() ? std::string("B") : pnode->GetSide();
+  galfit.DELTAVROT = pnode->GetRotationVelocityError();
+  galfit.MINVDISP = pnode->GetMinimumVelocityDispersion();
+  galfit.MAXVDISP = pnode->GetMaximumVelocityDispersion();
+  galfit.flagERRORS = pnode->GetEstimateErrors();
+  galfit.STARTRAD = pnode->GetStartRing();
+  galfit.BWEIGHT = pnode->GetBlankWeight();
+  galfit.NORMALCUBE = pnode->GetNormalizeCube();
+  galfit.REDSHIFT = pnode->GetRedshift();
+  const std::vector<double> restFrequencies = ParseNumberList(pnode->GetRestFrequencies());
+  if (!restFrequencies.empty())
+    {
+    std::vector<double> intensities = ParseNumberList(pnode->GetRelativeIntensities());
+    if (intensities.size() != restFrequencies.size())
+      {
+      intensities.assign(restFrequencies.size(), 1.);
+      }
+    galfit.RESTFREQ = restFrequencies;
+    galfit.RELINT = intensities;
+    }
+  par->setLinear(pnode->GetInstrumentalBroadening());
+
+  SEARCH_PAR& search = par->getParSE();
+  search.snrCut = pnode->GetSearchSNRCut();
+  search.UserThreshold = pnode->GetSearchThreshold() > 0.;
+  if (search.UserThreshold)
+    {
+    search.threshold = pnode->GetSearchThreshold();
+    }
+  search.minChannels = pnode->GetSearchMinChannels();
+  search.growthCut = pnode->GetSearchGrowthCut();
+}
+
+//----------------------------------------------------------------------------
 // Median of the values of the rings (single value for the UI: robust to the
 // rings poorly constrained by the data, e.g. the innermost ones)
 template <typename T>
@@ -184,10 +244,10 @@ void SetProgress(vtkMRMLAstroModelingParametersNode* pnode, int value)
 //----------------------------------------------------------------------------
 template <class T>
 void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* pnode, bool secondStage,
-                    int progressFrom, int progressTo)
+                    int progressFrom, int progressTo, std::atomic<bool>& abortRequested)
 {
-  // progress of the fit: rings done / total rings in [progressFrom, progressTo]
-  std::atomic<bool> abortRequested{false};
+  // progress of the fit: rings done / total rings in [progressFrom, progressTo];
+  // the abort flag is checked by BBarolo at each iteration of the minimization
   fit->setAbortFlag(&abortRequested);
   fit->setProgressCallback([pnode, &abortRequested, progressFrom, progressTo](int done, int total)
     {
@@ -435,6 +495,7 @@ void vtkSlicerAstroModelingLogic::RegisterNodes()
 int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode* pnode,
                                               vtkMRMLTableNode* tnode)
 {
+  this->Internal->AbortRequested = false;
   try
     {
     return this->OperateModelInternal(pnode, tnode);
@@ -451,6 +512,12 @@ int vtkSlicerAstroModelingLogic::OperateModel(vtkMRMLAstroModelingParametersNode
                   << e.what() << "). See the application log for details.");
     return 0;
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroModelingLogic::RequestAbort()
+{
+  this->Internal->AbortRequested = true;
 }
 
 //----------------------------------------------------------------------------
@@ -859,6 +926,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
   this->Internal->par->getParGF().flagADRIFT = pnode->GetADRIFTCorrection();
   this->Internal->par->getParGF().TOL = pnode->GetTollerance();
   this->Internal->par->getParGF().NORM = pnode->GetNormalize();
+  ApplyBBaroloParameters(this->Internal->par, pnode);
 
   // set header
   this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));
@@ -923,7 +991,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
   this->Internal->head->calcArea();
 
-  if (pnode->GetStatus() == -1)
+  if (pnode->GetStatus() == -1 || this->Internal->AbortRequested)
     {
     this->cleanPointers();
     pnode->SetStatus(100);
@@ -991,6 +1059,13 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
       if (this->Internal->par->getParSE().flagSearch)
         {
         this->Internal->cubeF->search();
+        }
+      if (this->Internal->AbortRequested)
+        {
+        this->cleanPointers();
+        pnode->SetStatus(100);
+        pnode->SetFitSuccess(false);
+        return 0;
         }
       SetProgress(pnode, 30);
 
@@ -1078,9 +1153,10 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
           RunGalfitStage(this->Internal->fitF, pnode, false, 40,
-                         this->Internal->par->getParGF().TWOSTAGE ? 70 : 85);
+                         this->Internal->par->getParGF().TWOSTAGE ? 70 : 85,
+                         this->Internal->AbortRequested);
 
-          if (pnode->GetStatus() == -1)
+          if (pnode->GetStatus() == -1 || this->Internal->AbortRequested)
             {
             this->cleanPointers();
             pnode->SetStatus(100);
@@ -1091,8 +1167,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
           if (this->Internal->par->getParGF().TWOSTAGE)
             {
-            RunGalfitStage(this->Internal->fitF, pnode, true, 70, 85);
-            if (pnode->GetStatus() == -1)
+            RunGalfitStage(this->Internal->fitF, pnode, true, 70, 85, this->Internal->AbortRequested);
+            if (pnode->GetStatus() == -1 || this->Internal->AbortRequested)
               {
               this->cleanPointers();
               pnode->SetStatus(100);
@@ -1379,6 +1455,13 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         {
         this->Internal->cubeD->search();
         }
+      if (this->Internal->AbortRequested)
+        {
+        this->cleanPointers();
+        pnode->SetStatus(100);
+        pnode->SetFitSuccess(false);
+        return 0;
+        }
       SetProgress(pnode, 30);
 
       // Cube Fitting
@@ -1465,9 +1548,10 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
           RunGalfitStage(this->Internal->fitD, pnode, false, 40,
-                         this->Internal->par->getParGF().TWOSTAGE ? 70 : 85);
+                         this->Internal->par->getParGF().TWOSTAGE ? 70 : 85,
+                         this->Internal->AbortRequested);
 
-          if (pnode->GetStatus() == -1)
+          if (pnode->GetStatus() == -1 || this->Internal->AbortRequested)
             {
             this->cleanPointers();
             pnode->SetStatus(100);
@@ -1478,8 +1562,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
           if (this->Internal->par->getParGF().TWOSTAGE)
             {
-            RunGalfitStage(this->Internal->fitD, pnode, true, 70, 85);
-            if (pnode->GetStatus() == -1)
+            RunGalfitStage(this->Internal->fitD, pnode, true, 70, 85, this->Internal->AbortRequested);
+            if (pnode->GetStatus() == -1 || this->Internal->AbortRequested)
               {
               this->cleanPointers();
               pnode->SetStatus(100);
@@ -2328,6 +2412,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
     this->Internal->par->getParGF().TOL = pnode->GetTollerance();
 
     this->Internal->par->getParGF().NORM = pnode->GetNormalize();
+    ApplyBBaroloParameters(this->Internal->par, pnode);
 
     // set header
     this->Internal->head->setBitpix(StringToInt(inputVolume->GetAttribute("SlicerAstro.BITPIX")));

@@ -25,6 +25,9 @@
 #include <vtkMRMLScene.h>
 #include <vtkMRMLNode.h>
 
+// STD includes
+#include <string>
+
 // VTK includes
 #include <vtkCollection.h>
 #include <vtkDoubleArray.h>
@@ -272,6 +275,81 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetMacro(CloudsColumnDensity,double);
   vtkGetMacro(CloudsColumnDensity,double);
 
+  /// Second fit stage after the regularization of the parameters (TWOSTAGE)
+  vtkSetMacro(TwoStage,bool);
+  vtkGetMacro(TwoStage,bool);
+  vtkBooleanMacro(TwoStage,bool);
+
+  /// Regularization of the second stage: auto, bezier, median, or the degree of a polynomial (REGTYPE)
+  vtkSetMacro(RegularizationType,std::string);
+  vtkGetMacro(RegularizationType,std::string);
+
+  /// Side of the galaxy fitted: B (both), A (approaching), R (receding) (SIDE)
+  vtkSetMacro(Side,std::string);
+  vtkGetMacro(Side,std::string);
+
+  /// Instrumental spectral broadening in channels, -1 for the 3DBarolo default (LINEAR)
+  vtkSetMacro(InstrumentalBroadening,double);
+  vtkGetMacro(InstrumentalBroadening,double);
+
+  /// Maximum variation of the rotation velocity in the fit, km/s (DELTAVROT)
+  vtkSetMacro(RotationVelocityError,double);
+  vtkGetMacro(RotationVelocityError,double);
+
+  /// Minimum velocity dispersion in the fit, km/s (MINVDISP)
+  vtkSetMacro(MinimumVelocityDispersion,double);
+  vtkGetMacro(MinimumVelocityDispersion,double);
+
+  /// Maximum velocity dispersion in the fit, km/s (MAXVDISP)
+  vtkSetMacro(MaximumVelocityDispersion,double);
+  vtkGetMacro(MaximumVelocityDispersion,double);
+
+  /// Estimate the errors of the fitted parameters (slow) (FLAGERRORS)
+  vtkSetMacro(EstimateErrors,bool);
+  vtkGetMacro(EstimateErrors,bool);
+  vtkBooleanMacro(EstimateErrors,bool);
+
+  /// First ring fitted (STARTRAD)
+  vtkSetMacro(StartRing,int);
+  vtkGetMacro(StartRing,int);
+
+  /// Power of the weighting function of the blank pixels (BWEIGHT)
+  vtkSetMacro(BlankWeight,double);
+  vtkGetMacro(BlankWeight,double);
+
+  /// Normalize the flux values of the cube (NORMALCUBE)
+  vtkSetMacro(NormalizeCube,bool);
+  vtkGetMacro(NormalizeCube,bool);
+  vtkBooleanMacro(NormalizeCube,bool);
+
+  /// Source search (no mask): signal to noise of the detections (SNRCUT)
+  vtkSetMacro(SearchSNRCut,double);
+  vtkGetMacro(SearchSNRCut,double);
+
+  /// Source search (no mask): flux threshold, 0 to use the signal to noise (THRESHOLD)
+  vtkSetMacro(SearchThreshold,double);
+  vtkGetMacro(SearchThreshold,double);
+
+  /// Source search (no mask): minimum channels of a source (MINCHANNELS)
+  vtkSetMacro(SearchMinChannels,int);
+  vtkGetMacro(SearchMinChannels,int);
+
+  /// Source search (no mask): signal to noise to grow the sources down to (GROWTHCUT)
+  vtkSetMacro(SearchGrowthCut,double);
+  vtkGetMacro(SearchGrowthCut,double);
+
+  /// Redshift of the galaxy (REDSHIFT)
+  vtkSetMacro(Redshift,double);
+  vtkGetMacro(Redshift,double);
+
+  /// Rest frequencies of the emission lines in Hz, comma separated; empty for the rest frequency of the header (RESTFREQ)
+  vtkSetMacro(RestFrequencies,std::string);
+  vtkGetMacro(RestFrequencies,std::string);
+
+  /// Relative intensities of the emission lines, comma separated (RELINT)
+  vtkSetMacro(RelativeIntensities,std::string);
+  vtkGetMacro(RelativeIntensities,std::string);
+
   /// Set/Get the Tollerance for the fitting.
   /// \sa SetTollerance(), GetTollerance()
   vtkSetMacro(Tollerance,double);
@@ -492,6 +570,24 @@ protected:
   double CloudsColumnDensity;
 
   double Tollerance;
+  bool TwoStage;
+  std::string RegularizationType;
+  std::string Side;
+  double InstrumentalBroadening;
+  double RotationVelocityError;
+  double MinimumVelocityDispersion;
+  double MaximumVelocityDispersion;
+  bool EstimateErrors;
+  int StartRing;
+  double BlankWeight;
+  bool NormalizeCube;
+  double SearchSNRCut;
+  double SearchThreshold;
+  int SearchMinChannels;
+  double SearchGrowthCut;
+  double Redshift;
+  std::string RestFrequencies;
+  std::string RelativeIntensities;
 
   int Status;
   int Operation;

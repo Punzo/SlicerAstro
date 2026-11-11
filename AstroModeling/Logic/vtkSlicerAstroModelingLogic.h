@@ -70,6 +70,11 @@ public:
   int OperateModel(vtkMRMLAstroModelingParametersNode *pnode,
                    vtkMRMLTableNode *tnode);
 
+  /// Abort the operation in progress (estimate, model or fit), from any
+  /// thread: the fit stops at the next iteration of the minimization, the
+  /// other steps at the end of the current step.
+  void RequestAbort();
+
   /// Recalculate the model from new parameters in the mrml table
   /// \param MRML parameter node
   /// \param MRML table node

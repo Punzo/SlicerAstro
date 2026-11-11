@@ -20,6 +20,12 @@
 // Qt includes
 #include <QAction>
 #include <QDebug>
+#include <QSpinBox>
+#include <QLineEdit>
+#include <QGroupBox>
+#include <QFormLayout>
+#include <QComboBox>
+#include <QCheckBox>
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QDoubleSpinBox>
@@ -128,6 +134,27 @@ public:
   QDoubleSpinBox* BeamMajorSpinBox{nullptr};
   QDoubleSpinBox* BeamMinorSpinBox{nullptr};
   QDoubleSpinBox* BeamPASpinBox{nullptr};
+
+  /// 3DBarolo parameters of the Advanced section
+  QCheckBox* TwoStageCheckBox{nullptr};
+  QComboBox* RegularizationComboBox{nullptr};
+  QComboBox* SideComboBox{nullptr};
+  QDoubleSpinBox* InstrumentalBroadeningSpinBox{nullptr};
+  QDoubleSpinBox* RotationVelocityErrorSpinBox{nullptr};
+  QDoubleSpinBox* MinimumDispersionSpinBox{nullptr};
+  QDoubleSpinBox* MaximumDispersionSpinBox{nullptr};
+  QCheckBox* EstimateErrorsCheckBox{nullptr};
+  QSpinBox* StartRingSpinBox{nullptr};
+  QDoubleSpinBox* BlankWeightSpinBox{nullptr};
+  QCheckBox* NormalizeCubeCheckBox{nullptr};
+  QDoubleSpinBox* RedshiftSpinBox{nullptr};
+  QLineEdit* RestFrequenciesLineEdit{nullptr};
+  QLineEdit* RelativeIntensitiesLineEdit{nullptr};
+  QGroupBox* SearchGroupBox{nullptr};
+  QDoubleSpinBox* SearchSNRCutSpinBox{nullptr};
+  QDoubleSpinBox* SearchThresholdSpinBox{nullptr};
+  QSpinBox* SearchMinChannelsSpinBox{nullptr};
+  QDoubleSpinBox* SearchGrowthCutSpinBox{nullptr};
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
   vtkSmartPointer<vtkMRMLTableNode> astroTableNode;
@@ -463,6 +490,170 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   this->BeamLabel = new QLabel(qSlicerAstroModelingModuleWidget::tr("Beam:"), this->FittingParametersCollapsibleButton);
   this->BeamLabel->setToolTip(beamToolTip);
   this->formLayout_2->insertRow(0, this->BeamLabel, beamWidget);
+
+  // 3DBarolo parameters (Advanced section)
+  QWidget* advanced = this->AdvancedCollapsibleButton;
+  QLabel* fitTitle = new QLabel(qSlicerAstroModelingModuleWidget::tr("<b>3DBarolo fit</b>"), advanced);
+  this->formLayout_3->addRow(fitTitle);
+
+  QWidget* secondStageWidget = new QWidget(advanced);
+  QHBoxLayout* secondStageLayout = new QHBoxLayout(secondStageWidget);
+  secondStageLayout->setContentsMargins(0, 0, 0, 0);
+  this->TwoStageCheckBox = new QCheckBox(qSlicerAstroModelingModuleWidget::tr("regularization:"), secondStageWidget);
+  this->TwoStageCheckBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Second fit stage (TWOSTAGE): the inclination and position angle of the first stage are regularized "
+    "and the other parameters are fitted again."));
+  this->RegularizationComboBox = new QComboBox(secondStageWidget);
+  this->RegularizationComboBox->setEditable(true);
+  this->RegularizationComboBox->addItems(QStringList() << "auto" << "bezier" << "median" << "0" << "1" << "2" << "3");
+  this->RegularizationComboBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Regularization of the second stage (REGTYPE): auto, bezier, median, or the degree of a polynomial."));
+  secondStageLayout->addWidget(this->TwoStageCheckBox);
+  secondStageLayout->addWidget(this->RegularizationComboBox, 1);
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Second stage:"), secondStageWidget);
+
+  this->SideComboBox = new QComboBox(advanced);
+  this->SideComboBox->addItem(qSlicerAstroModelingModuleWidget::tr("Both"), "B");
+  this->SideComboBox->addItem(qSlicerAstroModelingModuleWidget::tr("Approaching"), "A");
+  this->SideComboBox->addItem(qSlicerAstroModelingModuleWidget::tr("Receding"), "R");
+  this->SideComboBox->setToolTip(qSlicerAstroModelingModuleWidget::tr("Side of the galaxy fitted (SIDE)."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Side:"), this->SideComboBox);
+
+  this->InstrumentalBroadeningSpinBox = new QDoubleSpinBox(advanced);
+  this->InstrumentalBroadeningSpinBox->setRange(-1., 100.);
+  this->InstrumentalBroadeningSpinBox->setDecimals(2);
+  this->InstrumentalBroadeningSpinBox->setSingleStep(0.1);
+  this->InstrumentalBroadeningSpinBox->setSpecialValueText(qSlicerAstroModelingModuleWidget::tr("3DBarolo default"));
+  this->InstrumentalBroadeningSpinBox->setSuffix(qSlicerAstroModelingModuleWidget::tr(" channels"));
+  this->InstrumentalBroadeningSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Instrumental spectral broadening (LINEAR), in channels: e.g. for Hanning smoothed data."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Spectral resolution:"), this->InstrumentalBroadeningSpinBox);
+
+  this->RotationVelocityErrorSpinBox = new QDoubleSpinBox(advanced);
+  this->RotationVelocityErrorSpinBox->setRange(0., 10000.);
+  this->RotationVelocityErrorSpinBox->setDecimals(1);
+  this->RotationVelocityErrorSpinBox->setPrefix(QString::fromUtf8("\xC2\xB1 "));
+  this->RotationVelocityErrorSpinBox->setSuffix(" km/s");
+  this->RotationVelocityErrorSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Maximum variation of the rotation velocity from the initial value in the fit (DELTAVROT)."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Rotation velocity:"), this->RotationVelocityErrorSpinBox);
+
+  QWidget* dispersionWidget = new QWidget(advanced);
+  QHBoxLayout* dispersionLayout = new QHBoxLayout(dispersionWidget);
+  dispersionLayout->setContentsMargins(0, 0, 0, 0);
+  this->MinimumDispersionSpinBox = new QDoubleSpinBox(dispersionWidget);
+  this->MaximumDispersionSpinBox = new QDoubleSpinBox(dispersionWidget);
+  QDoubleSpinBox* dispersionSpinBoxes[2] = {this->MinimumDispersionSpinBox, this->MaximumDispersionSpinBox};
+  for (QDoubleSpinBox* spinBox : dispersionSpinBoxes)
+    {
+    spinBox->setRange(0., 10000.);
+    spinBox->setDecimals(1);
+    spinBox->setSuffix(" km/s");
+    dispersionLayout->addWidget(spinBox);
+    }
+  this->MinimumDispersionSpinBox->setPrefix(qSlicerAstroModelingModuleWidget::tr("min "));
+  this->MaximumDispersionSpinBox->setPrefix(qSlicerAstroModelingModuleWidget::tr("max "));
+  dispersionWidget->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Range of the velocity dispersion in the fit (MINVDISP, MAXVDISP)."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Dispersion range:"), dispersionWidget);
+
+  this->StartRingSpinBox = new QSpinBox(advanced);
+  this->StartRingSpinBox->setRange(0, 10000);
+  this->StartRingSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "First ring fitted (STARTRAD, from 0): the inner rings keep their initial values."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("First ring:"), this->StartRingSpinBox);
+
+  this->BlankWeightSpinBox = new QDoubleSpinBox(advanced);
+  this->BlankWeightSpinBox->setRange(0., 10.);
+  this->BlankWeightSpinBox->setDecimals(2);
+  this->BlankWeightSpinBox->setSingleStep(0.1);
+  this->BlankWeightSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Power of the weighting function of the blank pixels in the fit (BWEIGHT)."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Blank pixels weight:"), this->BlankWeightSpinBox);
+
+  QWidget* optionsWidget = new QWidget(advanced);
+  QHBoxLayout* optionsLayout = new QHBoxLayout(optionsWidget);
+  optionsLayout->setContentsMargins(0, 0, 0, 0);
+  this->NormalizeCubeCheckBox = new QCheckBox(qSlicerAstroModelingModuleWidget::tr("normalize the cube"), optionsWidget);
+  this->NormalizeCubeCheckBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Normalize the flux values of the cube before the fit (NORMALCUBE)."));
+  this->EstimateErrorsCheckBox = new QCheckBox(qSlicerAstroModelingModuleWidget::tr("estimate the errors (slow)"), optionsWidget);
+  this->EstimateErrorsCheckBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Estimate the errors of the fitted parameters (FLAGERRORS): much slower fit."));
+  optionsLayout->addWidget(this->NormalizeCubeCheckBox);
+  optionsLayout->addWidget(this->EstimateErrorsCheckBox);
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Options:"), optionsWidget);
+
+  this->RedshiftSpinBox = new QDoubleSpinBox(advanced);
+  this->RedshiftSpinBox->setRange(0., 20.);
+  this->RedshiftSpinBox->setDecimals(6);
+  this->RedshiftSpinBox->setSingleStep(0.001);
+  this->RedshiftSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr("Redshift of the galaxy (REDSHIFT)."));
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Redshift:"), this->RedshiftSpinBox);
+
+  QWidget* linesWidget = new QWidget(advanced);
+  QHBoxLayout* linesLayout = new QHBoxLayout(linesWidget);
+  linesLayout->setContentsMargins(0, 0, 0, 0);
+  this->RestFrequenciesLineEdit = new QLineEdit(linesWidget);
+  this->RestFrequenciesLineEdit->setPlaceholderText(qSlicerAstroModelingModuleWidget::tr("rest frequencies (Hz) from the header"));
+  this->RestFrequenciesLineEdit->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Rest frequencies of the emission lines in Hz, comma separated (RESTFREQ). Empty: the rest frequency of the header."));
+  this->RelativeIntensitiesLineEdit = new QLineEdit(linesWidget);
+  this->RelativeIntensitiesLineEdit->setPlaceholderText(qSlicerAstroModelingModuleWidget::tr("relative intensities"));
+  this->RelativeIntensitiesLineEdit->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Relative intensities of the emission lines, comma separated (RELINT; 1 for each line if empty)."));
+  linesLayout->addWidget(this->RestFrequenciesLineEdit, 2);
+  linesLayout->addWidget(this->RelativeIntensitiesLineEdit, 1);
+  this->formLayout_3->addRow(qSlicerAstroModelingModuleWidget::tr("Emission lines:"), linesWidget);
+
+  // source search: only without a mask
+  this->SearchGroupBox = new QGroupBox(qSlicerAstroModelingModuleWidget::tr("Source search (without mask)"), advanced);
+  this->SearchGroupBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Without a mask, 3DBarolo searches the galaxy in the cube with these parameters."));
+  QFormLayout* searchLayout = new QFormLayout(this->SearchGroupBox);
+  this->SearchSNRCutSpinBox = new QDoubleSpinBox(this->SearchGroupBox);
+  this->SearchSNRCutSpinBox->setRange(0.5, 100.);
+  this->SearchSNRCutSpinBox->setDecimals(1);
+  this->SearchSNRCutSpinBox->setSuffix(QString::fromUtf8(" \xCF\x83"));
+  this->SearchSNRCutSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr("Signal to noise of the detections (SNRCUT)."));
+  searchLayout->addRow(qSlicerAstroModelingModuleWidget::tr("Detection:"), this->SearchSNRCutSpinBox);
+  this->SearchThresholdSpinBox = new QDoubleSpinBox(this->SearchGroupBox);
+  this->SearchThresholdSpinBox->setRange(0., 1.E6);
+  this->SearchThresholdSpinBox->setDecimals(6);
+  this->SearchThresholdSpinBox->setSpecialValueText(qSlicerAstroModelingModuleWidget::tr("from the signal to noise"));
+  this->SearchThresholdSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Flux threshold of the detections in the units of the data (THRESHOLD); 0 to use the signal to noise."));
+  searchLayout->addRow(qSlicerAstroModelingModuleWidget::tr("Threshold:"), this->SearchThresholdSpinBox);
+  this->SearchMinChannelsSpinBox = new QSpinBox(this->SearchGroupBox);
+  this->SearchMinChannelsSpinBox->setRange(1, 10000);
+  this->SearchMinChannelsSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr("Minimum channels of a source (MINCHANNELS)."));
+  searchLayout->addRow(qSlicerAstroModelingModuleWidget::tr("Minimum channels:"), this->SearchMinChannelsSpinBox);
+  this->SearchGrowthCutSpinBox = new QDoubleSpinBox(this->SearchGroupBox);
+  this->SearchGrowthCutSpinBox->setRange(0., 100.);
+  this->SearchGrowthCutSpinBox->setDecimals(1);
+  this->SearchGrowthCutSpinBox->setSuffix(QString::fromUtf8(" \xCF\x83"));
+  this->SearchGrowthCutSpinBox->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Signal to noise down to which the detections are grown (GROWTHCUT)."));
+  searchLayout->addRow(qSlicerAstroModelingModuleWidget::tr("Growth:"), this->SearchGrowthCutSpinBox);
+  this->formLayout_3->addRow(this->SearchGroupBox);
+
+  // any change: parameter node
+  QObject::connect(this->TwoStageCheckBox, SIGNAL(toggled(bool)), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->RegularizationComboBox, SIGNAL(currentTextChanged(QString)), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->SideComboBox, SIGNAL(currentIndexChanged(int)), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->NormalizeCubeCheckBox, SIGNAL(toggled(bool)), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->EstimateErrorsCheckBox, SIGNAL(toggled(bool)), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->RestFrequenciesLineEdit, SIGNAL(editingFinished()), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->RelativeIntensitiesLineEdit, SIGNAL(editingFinished()), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->StartRingSpinBox, SIGNAL(valueChanged(int)), q, SLOT(onBBaroloParameterChanged()));
+  QObject::connect(this->SearchMinChannelsSpinBox, SIGNAL(valueChanged(int)), q, SLOT(onBBaroloParameterChanged()));
+  QDoubleSpinBox* parameterSpinBoxes[] = {this->InstrumentalBroadeningSpinBox, this->RotationVelocityErrorSpinBox,
+    this->MinimumDispersionSpinBox, this->MaximumDispersionSpinBox, this->BlankWeightSpinBox, this->RedshiftSpinBox,
+    this->SearchSNRCutSpinBox, this->SearchThresholdSpinBox, this->SearchGrowthCutSpinBox};
+  for (QDoubleSpinBox* spinBox : parameterSpinBoxes)
+    {
+    QObject::connect(spinBox, SIGNAL(valueChanged(double)), q, SLOT(onBBaroloParameterChanged()));
+    }
 
   this->InputSegmentCollapsibleButton->setCollapsed(true);
   this->FittingParametersCollapsibleButton->setCollapsed(false);
@@ -3072,6 +3263,87 @@ void qSlicerAstroModelingModuleWidget::onMaskActiveToggled(bool active)
     return;
     }
   d->parametersNode->SetMaskActive(active);
+  if (d->SearchGroupBox)
+    {
+    d->SearchGroupBox->setVisible(!active);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onBBaroloParameterChanged()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode || !d->TwoStageCheckBox)
+    {
+    return;
+    }
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetTwoStage(d->TwoStageCheckBox->isChecked());
+  d->parametersNode->SetRegularizationType(d->RegularizationComboBox->currentText().trimmed().toStdString());
+  d->parametersNode->SetSide(d->SideComboBox->currentData().toString().toStdString());
+  d->parametersNode->SetInstrumentalBroadening(d->InstrumentalBroadeningSpinBox->value());
+  d->parametersNode->SetRotationVelocityError(d->RotationVelocityErrorSpinBox->value());
+  d->parametersNode->SetMinimumVelocityDispersion(d->MinimumDispersionSpinBox->value());
+  d->parametersNode->SetMaximumVelocityDispersion(d->MaximumDispersionSpinBox->value());
+  d->parametersNode->SetEstimateErrors(d->EstimateErrorsCheckBox->isChecked());
+  d->parametersNode->SetStartRing(d->StartRingSpinBox->value());
+  d->parametersNode->SetBlankWeight(d->BlankWeightSpinBox->value());
+  d->parametersNode->SetNormalizeCube(d->NormalizeCubeCheckBox->isChecked());
+  d->parametersNode->SetRedshift(d->RedshiftSpinBox->value());
+  d->parametersNode->SetRestFrequencies(d->RestFrequenciesLineEdit->text().trimmed().toStdString());
+  d->parametersNode->SetRelativeIntensities(d->RelativeIntensitiesLineEdit->text().trimmed().toStdString());
+  d->parametersNode->SetSearchSNRCut(d->SearchSNRCutSpinBox->value());
+  d->parametersNode->SetSearchThreshold(d->SearchThresholdSpinBox->value());
+  d->parametersNode->SetSearchMinChannels(d->SearchMinChannelsSpinBox->value());
+  d->parametersNode->SetSearchGrowthCut(d->SearchGrowthCutSpinBox->value());
+  d->parametersNode->EndModify(wasModifying);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::updateBBaroloParameterWidgets()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode || !d->TwoStageCheckBox)
+    {
+    return;
+    }
+  QWidget* widgets[] = {d->TwoStageCheckBox, d->RegularizationComboBox, d->SideComboBox,
+    d->InstrumentalBroadeningSpinBox, d->RotationVelocityErrorSpinBox, d->MinimumDispersionSpinBox,
+    d->MaximumDispersionSpinBox, d->EstimateErrorsCheckBox, d->StartRingSpinBox, d->BlankWeightSpinBox,
+    d->NormalizeCubeCheckBox, d->RedshiftSpinBox, d->RestFrequenciesLineEdit, d->RelativeIntensitiesLineEdit,
+    d->SearchSNRCutSpinBox, d->SearchThresholdSpinBox, d->SearchMinChannelsSpinBox, d->SearchGrowthCutSpinBox};
+  std::vector<bool> blocked;
+  for (QWidget* widget : widgets)
+    {
+    blocked.push_back(widget->blockSignals(true));
+    }
+  d->TwoStageCheckBox->setChecked(d->parametersNode->GetTwoStage());
+  d->RegularizationComboBox->setEnabled(d->parametersNode->GetTwoStage());
+  d->RegularizationComboBox->setCurrentText(QString::fromStdString(d->parametersNode->GetRegularizationType()));
+  const int sideIndex = d->SideComboBox->findData(QString::fromStdString(d->parametersNode->GetSide()));
+  d->SideComboBox->setCurrentIndex(sideIndex >= 0 ? sideIndex : 0);
+  d->InstrumentalBroadeningSpinBox->setValue(d->parametersNode->GetInstrumentalBroadening());
+  d->RotationVelocityErrorSpinBox->setValue(d->parametersNode->GetRotationVelocityError());
+  d->MinimumDispersionSpinBox->setValue(d->parametersNode->GetMinimumVelocityDispersion());
+  d->MaximumDispersionSpinBox->setValue(d->parametersNode->GetMaximumVelocityDispersion());
+  d->EstimateErrorsCheckBox->setChecked(d->parametersNode->GetEstimateErrors());
+  d->StartRingSpinBox->setValue(d->parametersNode->GetStartRing());
+  d->BlankWeightSpinBox->setValue(d->parametersNode->GetBlankWeight());
+  d->NormalizeCubeCheckBox->setChecked(d->parametersNode->GetNormalizeCube());
+  d->RedshiftSpinBox->setValue(d->parametersNode->GetRedshift());
+  d->RestFrequenciesLineEdit->setText(QString::fromStdString(d->parametersNode->GetRestFrequencies()));
+  d->RelativeIntensitiesLineEdit->setText(QString::fromStdString(d->parametersNode->GetRelativeIntensities()));
+  d->SearchSNRCutSpinBox->setValue(d->parametersNode->GetSearchSNRCut());
+  d->SearchThresholdSpinBox->setValue(d->parametersNode->GetSearchThreshold());
+  d->SearchMinChannelsSpinBox->setValue(d->parametersNode->GetSearchMinChannels());
+  d->SearchGrowthCutSpinBox->setValue(d->parametersNode->GetSearchGrowthCut());
+  d->SearchGroupBox->setVisible(!d->parametersNode->GetMaskActive());
+  for (size_t index = 0; index < blocked.size(); index++)
+    {
+    widgets[index]->blockSignals(blocked[index]);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -3513,6 +3785,8 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   // Set params table to table view
   d->TableNodeComboBox->setCurrentNode(d->parametersNode->GetParamsTableNode());
   d->TableView->setMRMLTableNode(d->parametersNode->GetParamsTableNode());
+
+  this->updateBBaroloParameterWidgets();
 }
 
 //---------------------------------------------------------------------------
@@ -4107,6 +4381,8 @@ void qSlicerAstroModelingModuleWidget::onApply()
 void qSlicerAstroModelingModuleWidget::onComputationFinished()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+  d->CancelPushButton->setEnabled(true);
+  d->CancelPushButton->setText(tr("Cancel"));
   d->CancelPushButton->hide();
   d->progressBar->hide();
   d->FitPushButton->show();
@@ -5054,6 +5330,15 @@ void qSlicerAstroModelingModuleWidget::onYellowSliceRotated(double value)
 void qSlicerAstroModelingModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+  // the fit stops at the next iteration of the minimization, the other steps
+  // (source search, estimate, model) at their end
+  vtkSlicerAstroModelingLogic* logic = d->logic();
+  if (logic)
+    {
+    logic->RequestAbort();
+    }
+  d->CancelPushButton->setEnabled(false);
+  d->CancelPushButton->setText(tr("Cancelling..."));
   d->parametersNode->SetStatus(-1);
   if (d->workerParametersNode)
     {
