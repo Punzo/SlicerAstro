@@ -184,6 +184,21 @@ std::string IntToString(int Value)
 }
 
 //----------------------------------------------------------------------------
+// Rotation of the celestial axes (CROTA2, degrees, FITS convention) of the
+// matrix M_ij = CDELT_i * PC_ij (or CD_ij), for the pixel steps cdelt1 and
+// cdelt2: from both columns of the matrix (averaged)
+double CelestialRotation(double m11, double m12, double m21, double m22, double cdelt1, double cdelt2)
+{
+  if (cdelt1 == 0. || cdelt2 == 0.)
+    {
+    return 0.;
+    }
+  const double sine = m21 / cdelt1 - m12 / cdelt2;
+  const double cosine = m11 / cdelt1 + m22 / cdelt2;
+  return atan2(sine, cosine) * 180. / PI;
+}
+
+//----------------------------------------------------------------------------
 std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
@@ -2622,25 +2637,17 @@ bool vtkFITSReader::AllocateWCS()
         }
       else
         {
-        CDELT1 = sqrt(cd11 * cd11 + cd21 * cd21);
-        CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
+        // FITS convention: CDELT2 > 0, CDELT1 with the sign of the
+        // determinant (CDELT1 < 0 for the usual images, East to the left)
         double det = cd11 * cd22 - cd12 * cd21;
-        if (fabs(det) < 1.E-6)
+        if (fabs(det) < 1.E-12)
           {
           vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "Determinant of CD matrix == 0. This means that the CD keyword may be wrong. "
                           "Please check that the CD matrix is not actually the PC matrix.");
           }
-        double sign = 1.0;
-        if (det < 0.0)
-          {
-          CDELT2 = -CDELT2;
-          sign = -1.0;
-          }
-        double rot1_cd = atan2(-cd21, sign * cd11);
-        double rot2_cd = atan2(sign * cd12, cd22);
-        double rot_av = (rot1_cd + rot2_cd) * 0.5;
-        const double rad2deg = 180. / PI;
-        CROTA2 = (rot_av * rad2deg) + 180.;
+        CDELT1 = (det < 0. ? -1. : 1.) * sqrt(cd11 * cd11 + cd21 * cd21);
+        CDELT2 = sqrt(cd12 * cd12 + cd22 * cd22);
+        CROTA2 = CelestialRotation(cd11, cd12, cd21, cd22, CDELT1, CDELT2);
         }
 
       this->HeaderKeyValue["SlicerAstro.CDELT1"] = DoubleToString(CDELT1);
@@ -2674,18 +2681,10 @@ bool vtkFITSReader::AllocateWCS()
       double CROTA2 = 0.;
       if (fabs(pc12) > 1.E-6 && fabs(pc21) > 1.E-6)
         {
-        double det = pc11 * pc22 - pc12 * pc21;
-        double sign = 1.0;
-        if (det < 0.0)
-          {
-          sign = -1.0;
-          }
-        double rot1_cd = atan2(-pc21, sign * pc11);
-        double rot2_cd = atan2(sign * pc12, pc22);
-        double rot_av = (rot1_cd + rot2_cd) * 0.5;
-        const double rad2deg = 180. / PI;
-
-        CROTA2 = (rot_av * rad2deg) + 180.;
+        // rotation with the pixel steps of the header (CDELT_i * PC_ij)
+        const double cdelt1 = this->WCS->cdelt[0];
+        const double cdelt2 = this->WCS->cdelt[1];
+        CROTA2 = CelestialRotation(cdelt1 * pc11, cdelt1 * pc12, cdelt2 * pc21, cdelt2 * pc22, cdelt1, cdelt2);
         }
 
       this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(CROTA2);
