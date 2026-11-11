@@ -107,6 +107,26 @@ add_subdirectory(SlicerAstroDataProbe)
 add_subdirectory(Doxygen)
 
 #-----------------------------------------------------------------------------
+# The Python tests download the sample data into the cache of Slicer: they
+# are not run at the same time (concurrent downloads of a file conflict).
+if(BUILD_TESTING)
+  function(slicerastro_lock_python_tests directory)
+    get_property(_tests DIRECTORY ${directory} PROPERTY TESTS)
+    foreach(_test IN LISTS _tests)
+      if(_test MATCHES "^py_")
+        set_tests_properties(${_test} DIRECTORY ${directory}
+          PROPERTIES RESOURCE_LOCK SlicerAstroSampleDataCache)
+      endif()
+    endforeach()
+    get_property(_subdirectories DIRECTORY ${directory} PROPERTY SUBDIRECTORIES)
+    foreach(_subdirectory IN LISTS _subdirectories)
+      slicerastro_lock_python_tests(${_subdirectory})
+    endforeach()
+  endfunction()
+  slicerastro_lock_python_tests(${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
+#-----------------------------------------------------------------------------
 # Install third-party runtime libraries
 include(SlicerFunctionInstallLibrary)
 if(WIN32)
