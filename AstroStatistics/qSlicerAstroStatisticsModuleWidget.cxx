@@ -623,7 +623,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Selection->SetName("Selection");
   d->astroTableNode->SetColumnUnitLabel("Selection", "");
-  d->astroTableNode->SetColumnLongName("Selection", "Selection");
+  d->astroTableNode->SetColumnTitle("Selection", "Selection");
 
   d->astroTableNode->SetDefaultColumnType("int");
   vtkIntArray* Npixels = vtkIntArray::SafeDownCast(d->astroTableNode->AddColumn());
@@ -635,7 +635,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Npixels->SetName("Npixels");
   d->astroTableNode->SetColumnUnitLabel("Npixels", "#");
-  d->astroTableNode->SetColumnLongName("Npixels", "Number of pixels");
+  d->astroTableNode->SetColumnTitle("Npixels", "Number of pixels");
 
   d->astroTableNode->SetDefaultColumnType("double");
   vtkDoubleArray* Min = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
@@ -647,7 +647,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Min->SetName("Min");
   d->astroTableNode->SetColumnUnitLabel("Min", "Jy/beam");
-  d->astroTableNode->SetColumnLongName("Min", "Minimum");
+  d->astroTableNode->SetColumnTitle("Min", "Minimum");
 
   vtkDoubleArray* Max = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Max)
@@ -658,7 +658,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Max->SetName("Max");
   d->astroTableNode->SetColumnUnitLabel("Max", "Jy/beam");
-  d->astroTableNode->SetColumnLongName("Max", "Maximum");
+  d->astroTableNode->SetColumnTitle("Max", "Maximum");
 
   vtkDoubleArray* Mean = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Mean)
@@ -669,7 +669,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Mean->SetName("Mean");
   d->astroTableNode->SetColumnUnitLabel("Mean", "Jy/beam");
-  d->astroTableNode->SetColumnLongName("Mean", "Mean");
+  d->astroTableNode->SetColumnTitle("Mean", "Mean");
 
   vtkDoubleArray* Std = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Std)
@@ -680,7 +680,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Std->SetName("Std");
   d->astroTableNode->SetColumnUnitLabel("Std", "Jy/beam");
-  d->astroTableNode->SetColumnLongName("Std", "Standard deviation");
+  d->astroTableNode->SetColumnTitle("Std", "Standard deviation");
 
   vtkDoubleArray* Median = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Median)
@@ -691,7 +691,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Median->SetName("Median");
   d->astroTableNode->SetColumnUnitLabel("Median", "Jy/beam");
-  d->astroTableNode->SetColumnLongName("Median", "Median");
+  d->astroTableNode->SetColumnTitle("Median", "Median");
 
   vtkDoubleArray* Sum = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Sum)
@@ -702,7 +702,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   Sum->SetName("Sum");
   d->astroTableNode->SetColumnUnitLabel("Sum", "Jy/beam");
-  d->astroTableNode->SetColumnLongName("Sum", "Sum");
+  d->astroTableNode->SetColumnTitle("Sum", "Sum");
 
   vtkDoubleArray* TotalFlux = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!TotalFlux)
@@ -713,7 +713,7 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
     }
   TotalFlux->SetName("TotalFlux");
   d->astroTableNode->SetColumnUnitLabel("TotalFlux", "Jy");
-  d->astroTableNode->SetColumnLongName("TotalFlux", "Total Flux");
+  d->astroTableNode->SetColumnTitle("TotalFlux", "Total Flux");
 
   d->astroTableNode->EndModify(wasModifying);
 

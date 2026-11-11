@@ -4086,7 +4086,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     }
   Intensity->SetName("Intensity");
   tableNode->SetColumnUnitLabel("Intensity", d->astroVolumeNode->GetAttribute("SlicerAstro.BUNIT"));
-  tableNode->SetColumnLongName("Intensity", "Intensity axes");
+  tableNode->SetColumnTitle("Intensity", "Intensity axes");
 
   std::string name = d->astroVolumeNode->GetName();
   name += "_Histogram";
@@ -4099,7 +4099,7 @@ void qSlicerAstroVolumeModuleWidget::onCreateHistogram()
     }
   Counts->SetName(name.c_str());
   tableNode->SetColumnUnitLabel(name.c_str(), "Log10(#)");
-  tableNode->SetColumnLongName(name.c_str(), "Counts");
+  tableNode->SetColumnTitle(name.c_str(), "Counts");
 
   table->SetNumberOfRows(nBins);
   if (!histoArray)

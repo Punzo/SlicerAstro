@@ -1227,7 +1227,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     }
   Velocity->SetName("Velocity");
   tableNode->SetColumnUnitLabel("Velocity", "km/s");
-  tableNode->SetColumnLongName("Velocity", "Velocity axes");
+  tableNode->SetColumnTitle("Velocity", "Velocity axes");
 
   vtkDoubleArray* Intensity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
   if (!Intensity)
@@ -1238,7 +1238,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     }
   Intensity->SetName(name.c_str());
   tableNode->SetColumnUnitLabel(name.c_str(), "Jy");
-  tableNode->SetColumnLongName(name.c_str(), "Intensity axes");
+  tableNode->SetColumnTitle(name.c_str(), "Intensity axes");
 
   table->SetNumberOfRows(StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1")));
 
