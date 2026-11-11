@@ -121,6 +121,10 @@ protected slots:
 
   /// Set the MRML segmentation editor node
   void onSegmentEditorNodeModified(vtkObject* sender);
+  /// Mask selector: the Segment Editor and the table use the selected mask
+  void onMaskSegmentationChanged(vtkMRMLNode* node);
+  /// Masks only in the selector (not the contours); by default the mask of the input volume
+  void updateMaskSelector();
 
   /// Update widget GUI from MRML parameter node
   void onMRMLAstroModelingParametersNodeModified();

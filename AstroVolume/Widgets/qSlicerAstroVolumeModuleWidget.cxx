@@ -4938,10 +4938,7 @@ void qSlicerAstroVolumeModuleWidget::updateMaskSelector()
         {
         continue;
         }
-      const bool mask = !vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode) &&
-        segmentationNode->GetSegmentation()->GetSourceRepresentationName() ==
-          vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
-      if (!mask)
+      if (!vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
         {
         hiddenNodeIDs << QString::fromUtf8(segmentationNode->GetID());
         }

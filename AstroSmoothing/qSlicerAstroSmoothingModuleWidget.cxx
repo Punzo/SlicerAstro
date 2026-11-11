@@ -55,6 +55,8 @@
 
 // qMRML includes
 #include <qMRMLSegmentsTableView.h>
+#include <qMRMLSortFilterProxyModel.h>
+#include <qMRMLNodeComboBox.h>
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
@@ -300,22 +302,12 @@ void qSlicerAstroSmoothingModuleWidgetPrivate::cleanPointers()
     return;
     }
 
-  if (this->segmentEditorNode)
-    {
-    if (this->segmentEditorNode->GetSegmentationNode())
-      {
-      q->mrmlScene()->RemoveNode(this->segmentEditorNode->GetSegmentationNode());
-      this->segmentEditorNode->SetAndObserveSegmentationNode(nullptr);
-      }
-    q->mrmlScene()->RemoveNode(this->segmentEditorNode);
-    }
+  // the segmentations and the Segment Editor node are shared with the other
+  // modules (and are the user's data): only the references are dropped
+  this->segmentEditorNode = nullptr;
   if (this->SegmentsTableView)
     {
-    if (this->SegmentsTableView->segmentationNode())
-      {
-      q->mrmlScene()->RemoveNode(this->SegmentsTableView->segmentationNode());
-      this->SegmentsTableView->setSegmentationNode(nullptr);
-      }
+    this->SegmentsTableView->setSegmentationNode(nullptr);
     }
 
   if (this->parametersNode)
@@ -348,6 +340,9 @@ qSlicerAstroSmoothingModuleWidget::qSlicerAstroSmoothingModuleWidget(QWidget* _p
 {
   Q_D(qSlicerAstroSmoothingModuleWidget);
   d->init();
+
+  QObject::connect(d->SegmentationNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   this, SLOT(onMaskSegmentationChanged(vtkMRMLNode*)));
 }
 
 //-----------------------------------------------------------------------------
@@ -358,6 +353,8 @@ qSlicerAstroSmoothingModuleWidget::~qSlicerAstroSmoothingModuleWidget()
 //----------------------------------------------------------------------------
 void qSlicerAstroSmoothingModuleWidget::enter()
 {
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
   this->Superclass::enter();
 
   qSlicerApplication* app = qSlicerApplication::application();
@@ -372,6 +369,9 @@ void qSlicerAstroSmoothingModuleWidget::enter()
 
   app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
           (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+
+  this->updateMaskSelector();
+  this->onMaskSegmentationChanged(d->SegmentationNodeComboBox->currentNode());
 }
 
 //----------------------------------------------------------------------------
@@ -482,6 +482,12 @@ void qSlicerAstroSmoothingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
+
+  // masks added, removed or modified (e.g. the contours)
+  this->qvtkReconnect(scene, vtkMRMLScene::NodeAddedEvent, this, SLOT(updateMaskSelector()));
+  this->qvtkReconnect(scene, vtkMRMLScene::NodeRemovedEvent, this, SLOT(updateMaskSelector()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent, this, SLOT(updateMaskSelector()));
+  this->updateMaskSelector();
 }
 
 //-----------------------------------------------------------------------------
@@ -789,6 +795,8 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
+
+  this->updateMaskSelector();
 }
 
 //-----------------------------------------------------------------------------
@@ -1690,12 +1698,75 @@ void qSlicerAstroSmoothingModuleWidget::onSegmentEditorNodeModified(vtkObject *s
     return;
     }
 
-  vtkMRMLSegmentationNode* segmentationNodeTable = vtkMRMLSegmentationNode::SafeDownCast(
-    d->SegmentsTableView->segmentationNode());
-  if (segmentationNode != segmentationNodeTable)
+  // the mask selector follows the Segment Editor (masks only, not the
+  // contours); the table shows the selected mask (onMaskSegmentationChanged)
+  if (this->isEntered() && d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
+      vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
     {
-    d->SegmentsTableView->setSegmentationNode(segmentationNode);
-  }
+    d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
+    }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::onMaskSegmentationChanged(vtkMRMLNode* node)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+  d->SegmentsTableView->setSegmentationNode(segmentationNode);
+  // the Segment Editor node is shared: only the module in use sets it
+  if (this->isEntered() && segmentationNode && d->segmentEditorNode &&
+      d->segmentEditorNode->GetSegmentationNode() != segmentationNode)
+    {
+    d->segmentEditorNode->SetAndObserveSegmentationNode(segmentationNode);
+    }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::updateMaskSelector()
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene || !d->SegmentationNodeComboBox || scene->IsBatchProcessing())
+    {
+    return;
+    }
+
+  QStringList hiddenNodeIDs;
+  std::vector<vtkMRMLNode*> nodes;
+  scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
+  for (vtkMRMLNode* node : nodes)
+    {
+    vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+    if (segmentationNode && segmentationNode->GetID() &&
+        !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
+      {
+      hiddenNodeIDs << QString::fromUtf8(segmentationNode->GetID());
+      }
+    }
+  d->SegmentationNodeComboBox->sortFilterProxyModel()->setHiddenNodeIDs(hiddenNodeIDs);
+
+  // by default the mask of the input volume
+  vtkMRMLSegmentationNode* currentNode =
+    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+  vtkMRMLSegmentationNode* editorNode = d->segmentEditorNode ? d->segmentEditorNode->GetSegmentationNode() : nullptr;
+  vtkMRMLVolumeNode* inputVolume = (d->parametersNode && d->parametersNode->GetInputVolumeNodeID()) ?
+    vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID())) : nullptr;
+  vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, inputVolume,
+    currentNode ? currentNode : editorNode);
+  if (!mask && !currentNode && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(editorNode))
+    {
+    mask = editorNode;
+    }
+  if (mask && mask != currentNode)
+    {
+    d->SegmentationNodeComboBox->setCurrentNode(mask);
+    }
+  else if (currentNode && !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(currentNode))
+    {
+    d->SegmentationNodeComboBox->setCurrentNode(nullptr);
+    }
 }
 
 //-----------------------------------------------------------------------------

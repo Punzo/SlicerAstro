@@ -2948,6 +2948,44 @@ bool vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(vtkMRMLSegmentation
 }
 
 //----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsMaskSegmentation(vtkMRMLSegmentationNode* segmentationNode)
+{
+  return segmentationNode && segmentationNode->GetSegmentation() &&
+         !vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode) &&
+         segmentationNode->GetSegmentation()->GetSourceRepresentationName() ==
+           vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskForVolume(vtkMRMLScene* scene, vtkMRMLVolumeNode* volumeNode,
+                                                                    vtkMRMLSegmentationNode* preferredSegmentationNode)
+{
+  if (!scene || !volumeNode)
+    {
+    return nullptr;
+    }
+  const std::string role = vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole();
+  if (vtkSlicerAstroVolumeLogic::IsMaskSegmentation(preferredSegmentationNode) &&
+      preferredSegmentationNode->GetNodeReference(role.c_str()) == volumeNode)
+    {
+    return preferredSegmentationNode;
+    }
+  vtkMRMLSegmentationNode* mask = nullptr;
+  std::vector<vtkMRMLNode*> nodes;
+  scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
+  for (vtkMRMLNode* node : nodes)
+    {
+    vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+    if (vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode) &&
+        segmentationNode->GetNodeReference(role.c_str()) == volumeNode)
+      {
+      mask = segmentationNode;
+      }
+    }
+  return mask;
+}
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(vtkMRMLCameraNode* cameraNode, vtkMRMLVolumeNode* volumeNode,
                                                      const double directionOfProjection[3], const double viewUp[3],
                                                      const double* focalPoint /*= nullptr*/)

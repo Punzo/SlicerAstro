@@ -135,6 +135,17 @@ public:
   /// "<volume>_SEG", unique in the scene. Returns true if renamed.
   static bool NameMaskAfterReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Return true if the segmentation is a mask: binary labelmap source and
+  /// not contours.
+  static bool IsMaskSegmentation(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Mask of a volume: a mask segmentation with the volume as reference
+  /// geometry. The preferred segmentation is returned if it is a mask of the
+  /// volume, otherwise the last mask of the volume added to the scene;
+  /// nullptr if the volume has no mask.
+  static vtkMRMLSegmentationNode* GetMaskForVolume(vtkMRMLScene* scene, vtkMRMLVolumeNode* volumeNode,
+                                                   vtkMRMLSegmentationNode* preferredSegmentationNode = nullptr);
+
   /// Point the camera at the volume: focal point at the center of the RAS
   /// bounds of the volume (or at focalPoint, if given), camera along
   /// directionOfProjection (from the camera to the focal point) at the

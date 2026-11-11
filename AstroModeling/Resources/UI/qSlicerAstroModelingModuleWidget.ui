@@ -324,6 +324,50 @@
           </property>
           <layout class="QVBoxLayout" name="verticalLayout_4">
            <item>
+            <layout class="QHBoxLayout" name="MaskSelectorLayout">
+             <item>
+              <widget class="QLabel" name="MaskSelectorLabel">
+               <property name="text">
+                <string>Mask:</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="qMRMLNodeComboBox" name="SegmentationNodeComboBox">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
+               <property name="toolTip">
+                <string>Segmentation (mask) with the segments. By default the mask of the input data cube (the segmentation with the cube as reference geometry).</string>
+               </property>
+               <property name="nodeTypes">
+                <stringlist>
+                 <string>vtkMRMLSegmentationNode</string>
+                </stringlist>
+               </property>
+               <property name="noneEnabled">
+                <bool>true</bool>
+               </property>
+               <property name="addEnabled">
+                <bool>false</bool>
+               </property>
+               <property name="removeEnabled">
+                <bool>false</bool>
+               </property>
+               <property name="editEnabled">
+                <bool>false</bool>
+               </property>
+               <property name="renameEnabled">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </item>
+           <item>
             <widget class="qMRMLSegmentsTableView" name="SegmentsTableView">
              <property name="enabled">
               <bool>true</bool>
@@ -4432,6 +4476,22 @@
     <hint type="destinationlabel">
      <x>303</x>
      <y>554</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>qSlicerAstroModelingModuleWidget</sender>
+   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
+   <receiver>SegmentationNodeComboBox</receiver>
+   <slot>setMRMLScene(vtkMRMLScene*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>20</x>
+     <y>20</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>20</x>
+     <y>20</y>
     </hint>
    </hints>
   </connection>
