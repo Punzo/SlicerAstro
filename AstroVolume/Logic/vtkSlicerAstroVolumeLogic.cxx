@@ -521,25 +521,25 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
         }
       }
 
-    vtkMRMLSliceNode* sliceNodeRed = vtkMRMLSliceNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeRed"));
-    if (sliceNodeRed && !this->GetMRMLScene()->IsImporting())
+    // Astronomical orientations of the slice views (XY, XZ, ZY) for the first
+    // astronomical volume of the scene only: the volumes created later by the
+    // modules (moment maps, PV diagrams, models, ...) must not reset the
+    // orientations chosen by the modules or the user.
+    if (this->GetMRMLScene()->GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode") == 1 &&
+        !this->GetMRMLScene()->IsImporting())
       {
-      sliceNodeRed->SetOrientation("XY");
-      }
-
-    vtkMRMLSliceNode* sliceNodeYellow = vtkMRMLSliceNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
-    if (sliceNodeYellow && !this->GetMRMLScene()->IsImporting())
-      {
-      sliceNodeYellow->SetOrientation("XZ");
-      }
-
-    vtkMRMLSliceNode* sliceNodeGreen = vtkMRMLSliceNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
-    if (sliceNodeGreen && !this->GetMRMLScene()->IsImporting())
-      {
-      sliceNodeGreen->SetOrientation("ZY");
+      const char* orientations[3][2] = {{"vtkMRMLSliceNodeRed", "XY"},
+                                        {"vtkMRMLSliceNodeYellow", "XZ"},
+                                        {"vtkMRMLSliceNodeGreen", "ZY"}};
+      for (const char* const* orientation : orientations)
+        {
+        vtkMRMLSliceNode* defaultSliceNode = vtkMRMLSliceNode::SafeDownCast
+          (this->GetMRMLScene()->GetNodeByID(orientation[0]));
+        if (defaultSliceNode)
+          {
+          defaultSliceNode->SetOrientation(orientation[1]);
+          }
+        }
       }
     }
 }
