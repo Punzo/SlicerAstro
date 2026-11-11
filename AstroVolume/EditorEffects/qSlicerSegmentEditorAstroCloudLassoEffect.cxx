@@ -61,6 +61,7 @@
 #include <vtkContourTriangulator.h>
 #include <vtkIdList.h>
 #include <vtkImageData.h>
+#include <vtkPointData.h>
 #include <vtkPoints.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper2D.h>
@@ -109,12 +110,18 @@ public:
   QList<QPointer<QShortcut>> KeyboardShortcuts;
 
   QIcon CloudLassoIcon{ QIcon(":Icons/AstroCloudLasso.png") };
-  QLabel* ThresholdRangeLabel{ nullptr };
-  ctkRangeWidget* ThresholdRangeWidget{ nullptr };
   QCheckBox* AutomaticThresholdCheckBox{ nullptr };
 
+  /// Editable intensity range of the Segment Editor when the effect was activated
+  bool IntensityMaskEnabledBeforeActivation{ false };
+  /// Last intensity range seen (automatic threshold updating)
+  double LastIntensityRange[2]{ 0., 0. };
+  bool LastIntensityRangeValid{ false };
+  bool UpdatingIntensityRange{ false };
+  vtkWeakPointer<vtkMRMLSegmentEditorNode> ObservedSegmentEditorNode;
+
   /// Last lasso (modifier labelmap), its segment, and the segment before it:
-  /// used to apply the lasso again when the threshold range changes.
+  /// used to apply the lasso again when the intensity range changes.
   vtkSmartPointer<vtkOrientedImageData> LastLasso;
   vtkSmartPointer<vtkOrientedImageData> SegmentBeforeLastLasso;
   std::string LastSegmentID;
@@ -154,15 +161,11 @@ QIcon qSlicerSegmentEditorAstroCloudLassoEffect::icon()
 const QString qSlicerSegmentEditorAstroCloudLassoEffect::helpText() const
 {
   return QString("<html>Select the emission inside a lasso.<p>"
-                 "Left-click and drag in a slice view or in the 3D view to draw the lasso: "
-                 "in a slice view it selects the voxels of the current slice, in the 3D view "
-                 "the voxels through the whole cube. "
-                 "<b>Fill</b> selects only the voxels in the threshold range (by default from 3 times the "
-                 "noise, the DisplayThreshold of the AstroVolume module, to the maximum of the data); "
-                 "<b>Erase</b> removes all the voxels inside the lasso.<p>"
-                 "Shortcut keys: <b>n</b> / <b>m</b> decrease / increase the minimum threshold, "
-                 "<b>k</b> / <b>l</b> the maximum threshold, <b>c</b> toggles the automatic threshold "
-                 "updating, <b>x</b> switches between fill and erase.</html>");
+                 "Drag in a slice view (current slice) or in the 3D view (whole cube). "
+                 "<b>Fill</b> keeps only the voxels in the <i>Editable intensity range</i> "
+                 "(Masking; default: 3 times the noise to the maximum). <b>Erase</b> clears the lasso.<p>"
+                 "Keys: <b>n</b>/<b>m</b> minimum -/+, <b>k</b>/<b>l</b> maximum -/+, "
+                 "<b>c</b> update the last lasso with the range, <b>x</b> fill/erase.</html>");
 }
 
 //-----------------------------------------------------------------------------
@@ -181,7 +184,12 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
   // in a slice view: only the current slice (the slice cut options are hidden)
   this->setParameter("SliceCutMode", "Symmetric");
   this->setParameter("SliceCutDepthMm", 0.);
+  vtkMRMLSegmentEditorNode* parameterSetNode = this->parameterSetNode();
+  d->IntensityMaskEnabledBeforeActivation = parameterSetNode && parameterSetNode->GetSourceVolumeIntensityMask();
   this->sourceVolumeNodeChanged();
+  // the Segment Editor notifies the effects only of changes of their parameters
+  d->ObservedSegmentEditorNode = parameterSetNode;
+  this->qvtkConnect(parameterSetNode, vtkCommand::ModifiedEvent, this, SLOT(onSegmentEditorNodeModified()));
 }
 
 //-----------------------------------------------------------------------------
@@ -190,11 +198,15 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   this->removeKeyboardShortcuts();
   this->removeLassoDecorations();
+  this->qvtkDisconnect(d->ObservedSegmentEditorNode, vtkCommand::ModifiedEvent, this, SLOT(onSegmentEditorNodeModified()));
+  d->ObservedSegmentEditorNode = nullptr;
   Superclass::deactivate();
   d->clearLastLasso();
+  d->LastIntensityRangeValid = false;
+  // the editable intensity range is enabled as it was (its values are kept)
   if (this->parameterSetNode())
     {
-    this->parameterSetNode()->SetSourceVolumeIntensityMask(false);
+    this->parameterSetNode()->SetSourceVolumeIntensityMask(d->IntensityMaskEnabledBeforeActivation);
     }
 }
 
@@ -239,22 +251,14 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setupOptionsFrame()
       }
     }
 
-  d->ThresholdRangeLabel = new QLabel("Threshold range:");
-  this->addOptionsWidget(d->ThresholdRangeLabel);
-
-  d->ThresholdRangeWidget = new ctkRangeWidget();
-  d->ThresholdRangeWidget->setToolTip("Intensity range of the voxels selected by the lasso (fill).\n"
-                                      "Shortcut keys: 'n' / 'm' decrease / increase the minimum,\n"
-                                      "'k' / 'l' decrease / increase the maximum.");
-  this->addOptionsWidget(d->ThresholdRangeWidget);
-
-  d->AutomaticThresholdCheckBox = new QCheckBox("Automatic threshold updating");
-  d->AutomaticThresholdCheckBox->setToolTip("Apply the last lasso again when the threshold range changes. "
-                                            "Shortcut key: 'c'.");
+  // The intensity range of the lasso is the editable intensity range of the
+  // Masking section of the Segment Editor (no duplicated threshold widget)
+  d->AutomaticThresholdCheckBox = new QCheckBox("Update the last lasso with the intensity range");
+  d->AutomaticThresholdCheckBox->setToolTip(
+    "Draw a lasso, then tune the selection: when the Editable intensity range of the Masking "
+    "section changes (slider or keys n/m/k/l), the last lasso is applied again with the new "
+    "range, replacing its previous result. Only for Fill. Shortcut key: c.");
   this->addOptionsWidget(d->AutomaticThresholdCheckBox);
-
-  QObject::connect(d->ThresholdRangeWidget, SIGNAL(valuesChanged(double, double)),
-                   this, SLOT(onThresholdValuesChanged(double, double)));
   QObject::connect(d->AutomaticThresholdCheckBox, SIGNAL(toggled(bool)),
                    this, SLOT(onAutomaticThresholdModeChanged(bool)));
 }
@@ -268,9 +272,21 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setMRMLDefaults()
   this->setParameterDefault("SliceCutMode", "Symmetric");
   this->setParameterDefault("SliceCutDepthMm", 0.);
   Superclass::setMRMLDefaults();
-  this->setParameterDefault("ThresholdMinimum", 0.);
-  this->setParameterDefault("ThresholdMaximum", 0.);
   this->setParameterDefault("AutomaticThresholdUpdating", 0);
+}
+
+//-----------------------------------------------------------------------------
+ctkRangeWidget* qSlicerSegmentEditorAstroCloudLassoEffect::intensityRangeWidget()
+{
+  // editable intensity range widget of the Segment Editor that contains the options of the effect
+  for (QWidget* widget = this->optionsFrame(); widget; widget = widget->parentWidget())
+    {
+    if (widget->inherits("qMRMLSegmentEditorWidget"))
+      {
+      return widget->findChild<ctkRangeWidget*>("SourceVolumeIntensityMaskRangeWidget");
+      }
+    }
+  return nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -281,7 +297,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::sourceVolumeNodeChanged()
 
   vtkMRMLSegmentEditorNode* parameterSetNode = this->parameterSetNode();
   vtkMRMLScalarVolumeNode* sourceVolume = parameterSetNode ? parameterSetNode->GetSourceVolumeNode() : nullptr;
-  if (!sourceVolume || !sourceVolume->GetImageData() || !d->ThresholdRangeWidget)
+  if (!this->active() || !sourceVolume || !sourceVolume->GetImageData())
     {
     return;
     }
@@ -292,28 +308,44 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::sourceVolumeNodeChanged()
   const double maximum = AttributeToDouble(sourceVolume, "SlicerAstro.DATAMAX", range[1]);
   // the emission: from 3 times the noise
   const double noise3 = 3. * AttributeToDouble(sourceVolume, "SlicerAstro.DisplayThreshold", 0.);
+  const double step = (maximum - minimum) / 100.;
 
-  int decimals = 6;
-  vtkSlicerApplicationLogic* appLogic = qSlicerCoreApplication::application() ?
-    qSlicerCoreApplication::application()->applicationLogic() : nullptr;
-  vtkMRMLSelectionNode* selectionNode = appLogic ? appLogic->GetSelectionNode() : nullptr;
-  vtkMRMLUnitNode* intensityUnit = selectionNode ? selectionNode->GetUnitNode("intensity") : nullptr;
-  if (intensityUnit && sourceVolume->IsA("vtkMRMLAstroVolumeNode"))
+  // Editable intensity range of the Masking section: decimals, unit and step
+  // suited to the data (astronomical intensities are small, e.g. 0.001 Jy/beam)
+  ctkRangeWidget* rangeWidget = this->intensityRangeWidget();
+  if (rangeWidget && sourceVolume->IsA("vtkMRMLAstroVolumeNode") && step > 0.)
     {
-    decimals = intensityUnit->GetPrecision();
+    int decimals = 0;
+    vtkSlicerApplicationLogic* appLogic = qSlicerCoreApplication::application() ?
+      qSlicerCoreApplication::application()->applicationLogic() : nullptr;
+    vtkMRMLSelectionNode* selectionNode = appLogic ? appLogic->GetSelectionNode() : nullptr;
+    vtkMRMLUnitNode* intensityUnit = selectionNode ? selectionNode->GetUnitNode("intensity") : nullptr;
+    if (intensityUnit)
+      {
+      decimals = intensityUnit->GetPrecision();
+      }
+    // at least the precision of the step
+    decimals = std::max(decimals, static_cast<int>(std::ceil(-std::log10(step))) + 1);
+    const char* unit = sourceVolume->GetAttribute("SlicerAstro.BUNIT");
+    const bool wasBlocked = rangeWidget->blockSignals(true);
+    rangeWidget->setDecimals(std::min(decimals, 10));
+    rangeWidget->setSingleStep(step);
+    rangeWidget->setSuffix(unit && *unit ? QString(" ") + unit : QString());
+    rangeWidget->blockSignals(wasBlocked);
     }
 
-  const bool wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
-  d->ThresholdRangeWidget->setDecimals(decimals);
-  d->ThresholdRangeWidget->setRange(minimum, maximum);
-  d->ThresholdRangeWidget->setSingleStep((maximum - minimum) / 100.);
-  d->ThresholdRangeWidget->blockSignals(wasBlocked);
-
+  // the lasso selects the emission: editable intensity range from 3 times the noise
+  d->UpdatingIntensityRange = true;
   const bool wasModifying = parameterSetNode->StartModify();
-  this->setParameter("ThresholdMinimum", noise3 > minimum && noise3 < maximum ? noise3 : minimum);
-  this->setParameter("ThresholdMaximum", maximum);
+  parameterSetNode->SetSourceVolumeIntensityMask(true);
+  parameterSetNode->SetSourceVolumeIntensityMaskRange(noise3 > minimum && noise3 < maximum ? noise3 : minimum,
+                                                      maximum);
   parameterSetNode->EndModify(wasModifying);
-  this->updateIntensityMask();
+  d->UpdatingIntensityRange = false;
+  // reference for the automatic threshold updating
+  d->LastIntensityRange[0] = parameterSetNode->GetSourceVolumeIntensityMaskRange()[0];
+  d->LastIntensityRange[1] = parameterSetNode->GetSourceVolumeIntensityMaskRange()[1];
+  d->LastIntensityRangeValid = true;
 }
 
 //-----------------------------------------------------------------------------
@@ -322,63 +354,48 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::updateGUIFromMRML()
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
 
   Superclass::updateGUIFromMRML();
-  if (!this->active() || !this->parameterSetNode() || !d->ThresholdRangeWidget)
+  vtkMRMLSegmentEditorNode* parameterSetNode = this->parameterSetNode();
+  if (!this->active() || !parameterSetNode || !d->AutomaticThresholdCheckBox)
     {
     return;
     }
 
   const bool fill = this->fillOperation();
-  bool wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
-  d->ThresholdRangeWidget->setValues(this->doubleParameter("ThresholdMinimum"),
-                                     this->doubleParameter("ThresholdMaximum"));
-  d->ThresholdRangeWidget->setEnabled(fill);
-  d->ThresholdRangeWidget->blockSignals(wasBlocked);
-
-  wasBlocked = d->AutomaticThresholdCheckBox->blockSignals(true);
+  const bool wasBlocked = d->AutomaticThresholdCheckBox->blockSignals(true);
   d->AutomaticThresholdCheckBox->setChecked(this->integerParameter("AutomaticThresholdUpdating") != 0);
   d->AutomaticThresholdCheckBox->setEnabled(fill);
   d->AutomaticThresholdCheckBox->blockSignals(wasBlocked);
-  d->ThresholdRangeLabel->setEnabled(fill);
+}
 
-  this->updateIntensityMask();
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::onSegmentEditorNodeModified()
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  vtkMRMLSegmentEditorNode* parameterSetNode = this->parameterSetNode();
+  if (!this->active() || !parameterSetNode)
+    {
+    return;
+    }
+  const bool fill = this->fillOperation();
+  // automatic threshold updating: the last lasso again when the range changes
+  const double* range = parameterSetNode->GetSourceVolumeIntensityMaskRange();
+  const bool rangeChanged = d->LastIntensityRangeValid &&
+    (range[0] != d->LastIntensityRange[0] || range[1] != d->LastIntensityRange[1]);
+  d->LastIntensityRange[0] = range[0];
+  d->LastIntensityRange[1] = range[1];
+  d->LastIntensityRangeValid = true;
+  if (rangeChanged && !d->UpdatingIntensityRange && !d->Reapplying && fill &&
+      parameterSetNode->GetSourceVolumeIntensityMask() &&
+      this->integerParameter("AutomaticThresholdUpdating"))
+    {
+    this->reapplyLastLasso();
+    }
 }
 
 //-----------------------------------------------------------------------------
 bool qSlicerSegmentEditorAstroCloudLassoEffect::fillOperation()
 {
   return this->parameter("Operation").startsWith("Fill");
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::updateIntensityMask()
-{
-  vtkMRMLSegmentEditorNode* parameterSetNode = this->parameterSetNode();
-  if (!parameterSetNode || !this->active())
-    {
-    return;
-    }
-  // the threshold range is the editable intensity range of the segment editor
-  parameterSetNode->SetSourceVolumeIntensityMask(true);
-  parameterSetNode->SetSourceVolumeIntensityMaskRange(this->doubleParameter("ThresholdMinimum"),
-                                                      this->doubleParameter("ThresholdMaximum"));
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerSegmentEditorAstroCloudLassoEffect::onThresholdValuesChanged(double minimum, double maximum)
-{
-  if (!this->parameterSetNode())
-    {
-    return;
-    }
-  const bool wasModifying = this->parameterSetNode()->StartModify();
-  this->setParameter("ThresholdMinimum", minimum);
-  this->setParameter("ThresholdMaximum", maximum);
-  this->parameterSetNode()->EndModify(wasModifying);
-  this->updateIntensityMask();
-  if (this->integerParameter("AutomaticThresholdUpdating"))
-    {
-    this->reapplyLastLasso();
-    }
 }
 
 //-----------------------------------------------------------------------------
@@ -575,14 +592,18 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::removeKeyboardShortcuts()
 //-----------------------------------------------------------------------------
 void qSlicerSegmentEditorAstroCloudLassoEffect::stepThreshold(bool minimum, double direction)
 {
-  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
-  if (!this->active() || !this->parameterSetNode() || !this->fillOperation() || !d->ThresholdRangeWidget)
+  vtkMRMLSegmentEditorNode* parameterSetNode = this->parameterSetNode();
+  vtkMRMLScalarVolumeNode* sourceVolume = parameterSetNode ? parameterSetNode->GetSourceVolumeNode() : nullptr;
+  if (!this->active() || !sourceVolume || !sourceVolume->GetImageData() || !this->fillOperation())
     {
     return;
     }
-  const double step = d->ThresholdRangeWidget->singleStep();
-  double lower = this->doubleParameter("ThresholdMinimum");
-  double upper = this->doubleParameter("ThresholdMaximum");
+  double dataRange[2] = { 0., 1. };
+  sourceVolume->GetImageData()->GetScalarRange(dataRange);
+  const double step = (AttributeToDouble(sourceVolume, "SlicerAstro.DATAMAX", dataRange[1]) -
+                       AttributeToDouble(sourceVolume, "SlicerAstro.DATAMIN", dataRange[0])) / 100.;
+  double lower = parameterSetNode->GetSourceVolumeIntensityMaskRange()[0];
+  double upper = parameterSetNode->GetSourceVolumeIntensityMaskRange()[1];
   if (minimum)
     {
     lower = std::min(lower + direction * step, upper);
@@ -591,7 +612,9 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::stepThreshold(bool minimum, doub
     {
     upper = std::max(upper + direction * step, lower);
     }
-  this->onThresholdValuesChanged(lower, upper);
+  // the Masking section shows the range; the automatic updating follows it
+  parameterSetNode->SetSourceVolumeIntensityMask(true);
+  parameterSetNode->SetSourceVolumeIntensityMaskRange(lower, upper);
 }
 
 //-----------------------------------------------------------------------------
@@ -661,7 +684,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::modifySelectedSegmentByLabelmap(
       }
     }
 
-  // erasing removes all the voxels inside the lasso (not only the ones in the threshold range)
+  // erasing removes all the voxels inside the lasso (not only the ones in the intensity range)
   const bool restoreIntensityMask = modificationMode == ModificationModeRemove && parameterSetNode &&
                                     parameterSetNode->GetSourceVolumeIntensityMask();
   if (restoreIntensityMask)
@@ -691,8 +714,11 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::reapplyLastLasso()
     parameterSetNode->GetSelectedSegmentID() : "";
   parameterSetNode->SetSelectedSegmentID(d->LastSegmentID.c_str());
 
-  // the segment as it was before the lasso, then the lasso with the current range
-  if (d->SegmentBeforeLastLasso)
+  // the segment as it was before the lasso (empty if it was empty), then the
+  // lasso with the current range
+  vtkSlicerSegmentationsModuleLogic::ClearSegment(segmentationNode, d->LastSegmentID);
+  if (d->SegmentBeforeLastLasso && d->SegmentBeforeLastLasso->GetNumberOfPoints() > 0 &&
+      d->SegmentBeforeLastLasso->GetPointData()->GetScalars())
     {
     vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
       d->SegmentBeforeLastLasso, segmentationNode, d->LastSegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE);

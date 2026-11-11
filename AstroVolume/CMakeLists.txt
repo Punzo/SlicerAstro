@@ -41,6 +41,7 @@ set(MODULE_INCLUDE_DIRECTORIES
   ${WCSLIB_INCLUDE_DIR}
   ${CFITSIO_INCLUDE_DIR}
   ${vtkFits_INCLUDE_DIRS}
+  ${qSlicerSegmentationsModuleWidgets_INCLUDE_DIRS}
   )
 
 set(MODULE_SRCS
@@ -68,6 +69,7 @@ set(MODULE_TARGET_LIBRARIES
   qSlicer${MODULE_NAME}ModuleWidgets
   qSlicer${MODULE_NAME}EditorEffects
   qSlicerVolumeRenderingModuleWidgets
+  qSlicerSegmentationsModuleWidgets
   vtkSlicer${MODULE_NAME}ModuleLogic
   vtkSlicer${MODULE_NAME}ModuleMRML
   vtkSlicer${MODULE_NAME}ModuleMRMLDisplayableManager

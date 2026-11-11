@@ -22,6 +22,7 @@
 #include <QLabel>
 #include <QtPlugin>
 #include <QSettings>
+#include <QStringList>
 #include <QMainWindow>
 
 //VTK includes
@@ -75,6 +76,7 @@
 #include <vtkMRMLAstroBeamDisplayableManager.h>
 
 // Segment editor effects includes
+#include "qMRMLSegmentEditorWidget.h"
 #include "qSlicerSegmentEditorEffectFactory.h"
 #include "qSlicerSegmentEditorAstroCloudLassoEffect.h"
 
@@ -100,6 +102,46 @@
 #include <functional>
 VTK_MODULE_INIT(vtkSlicerAstroVolumeModuleMRMLDisplayableManager)
 
+
+//-----------------------------------------------------------------------------
+namespace
+{
+/// Hide the Scissors effect in the Segment Editor widgets (the Cloud Lasso
+/// effect is a Scissors effect for astronomical data). The other effects are
+/// shown in their order, including the ones registered later.
+void HideScissorsEffect()
+{
+  for (QWidget* widget : QApplication::allWidgets())
+    {
+    qMRMLSegmentEditorWidget* editor = qobject_cast<qMRMLSegmentEditorWidget*>(widget);
+    if (!editor)
+      {
+      continue;
+      }
+    const QStringList available = editor->availableEffectNames();
+    QStringList order;
+    for (const QString& name : editor->effectNameOrder())
+      {
+      if (available.contains(name) && name != "Scissors")
+        {
+        order << name;
+        }
+      }
+    for (const QString& name : available)
+      {
+      if (!order.contains(name) && name != "Scissors")
+        {
+        order << name;
+        }
+      }
+    if (order != editor->effectNameOrder() || editor->unorderedEffectsVisible())
+      {
+      editor->setEffectNameOrder(order);
+      editor->setUnorderedEffectsVisible(false);
+      }
+    }
+}
+}
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroVolume
@@ -478,6 +520,26 @@ void qSlicerAstroVolumeModule::setup()
 
   // Register Astro Editor Effects in the Segmentation Editor
   qSlicerSegmentEditorEffectFactory::instance()->registerEffect(new qSlicerSegmentEditorAstroCloudLassoEffect());
+
+  // Cloud Lasso is a Scissors effect for astronomical data: Scissors is not
+  // shown in the Segment Editor widgets. Applied when the startup is completed
+  // (the Segment Editor widget is created) and when effects are registered.
+  QObject::connect(qSlicerSegmentEditorEffectFactory::instance(), &qSlicerSegmentEditorEffectFactory::effectRegistered,
+                   this, [](QString) { HideScissorsEffect(); }, Qt::QueuedConnection);
+  if (d->app)
+    {
+    qSlicerApplication* app = d->app;
+    QObject::connect(d->app, &qSlicerApplication::startupCompleted, this, [app]()
+      {
+      qSlicerAbstractCoreModule* segmentEditor = app->moduleManager() ?
+        app->moduleManager()->module("SegmentEditor") : nullptr;
+      if (segmentEditor)
+        {
+        segmentEditor->widgetRepresentation();
+        }
+      HideScissorsEffect();
+      });
+    }
 
   // Set Default ColorNodeTable
   vtkSmartPointer<vtkMRMLNode> defaultNode =

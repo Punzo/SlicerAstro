@@ -1,6 +1,7 @@
 import math
 
 import numpy as np
+import qt
 import vtk
 
 import slicer
@@ -97,7 +98,6 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(effect)
         self.assertEqual(effect.parameter("Operation"), "FillInside")
         # no slice cut options
-        import qt
 
         texts = {"Slice cut:", "Unlimited", "Positive", "Negative", "Symmetric"}
         frame = effect.optionsFrame()
@@ -112,10 +112,16 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         self.assertIn("Apply to all visible segments:", labels)
         self.assertNotIn("Apply to visible segments:", labels)
 
-        # threshold range: from 3 times the noise to the maximum
+        # editable intensity range (Masking): from 3 times the noise to the maximum
         noise3 = 3.0 * float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold"))
-        self.assertAlmostEqual(effect.doubleParameter("ThresholdMinimum"), noise3, places=6)
         self.assertTrue(editorNode.GetSourceVolumeIntensityMask())
+        self.assertAlmostEqual(editorNode.GetSourceVolumeIntensityMaskRange()[0], noise3, places=6)
+        self.assertAlmostEqual(editorNode.GetSourceVolumeIntensityMaskRange()[1],
+                               float(volumeNode.GetAttribute("SlicerAstro.DATAMAX")), places=6)
+        # decimals and unit of the data in the Masking range widget
+        rangeWidget = slicer.util.findChild(editorWidget, "SourceVolumeIntensityMaskRangeWidget")
+        self.assertGreaterEqual(rangeWidget.decimals, 4)
+        self.assertIn(volumeNode.GetAttribute("SlicerAstro.BUNIT"), rangeWidget.suffix)
 
         # Lasso in the red slice view: only voxels in the threshold range
         redView = layoutManager.sliceWidget("Red").sliceView()
@@ -130,13 +136,25 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
 
         # Automatic threshold updating: the last lasso with a higher minimum
         effect.setParameter("AutomaticThresholdUpdating", "1")
+        checkBox = [box for box in effect.optionsFrame().findChildren(qt.QCheckBox)
+                    if box.text == "Update the last lasso with the intensity range"]
+        self.assertEqual(len(checkBox), 1)
+        self.assertTrue(checkBox[0].checked)
         higherMinimum = noise3 * 2.0
-        effect.onThresholdValuesChanged(higherMinimum, effect.doubleParameter("ThresholdMaximum"))
+        editorNode.SetSourceVolumeIntensityMaskRange(higherMinimum, editorNode.GetSourceVolumeIntensityMaskRange()[1])
+        slicer.app.processEvents()
         voxels = self.segmentVoxels(segmentationNode, segmentID, volumeNode)
         selected = voxels != 0
         self.assertGreater(np.count_nonzero(selected), 0)
         self.assertLess(np.count_nonzero(selected), countSlice)
         self.assertGreaterEqual(float(np.nanmin(data[selected])), higherMinimum - 1e-6)
+        countHigher = np.count_nonzero(selected)
+        editorNode.SetSourceVolumeIntensityMaskRange(noise3, editorNode.GetSourceVolumeIntensityMaskRange()[1])
+        slicer.app.processEvents()
+        self.assertEqual(np.count_nonzero(self.segmentVoxels(segmentationNode, segmentID, volumeNode)), countSlice)
+        editorNode.SetSourceVolumeIntensityMaskRange(higherMinimum, editorNode.GetSourceVolumeIntensityMaskRange()[1])
+        slicer.app.processEvents()
+        self.assertEqual(np.count_nonzero(self.segmentVoxels(segmentationNode, segmentID, volumeNode)), countHigher)
         effect.setParameter("AutomaticThresholdUpdating", "0")
 
         # Lasso in the 3D view (through the whole cube)
@@ -159,6 +177,7 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
 
         print(f"Cloud Lasso voxels: slice lasso {countSlice}, higher threshold {np.count_nonzero(selected)}, "
               f"3D lasso {before} -> {after}, after erasing {erased}")
+        # deactivated: the editable intensity range is enabled as before the effect
         editorWidget.setActiveEffect(None)
         self.assertFalse(editorNode.GetSourceVolumeIntensityMask())
         self.delayDisplay("Test passed")
@@ -186,6 +205,13 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         editor = slicer.modules.segmenteditor.widgetRepresentation().self().editor
         editor.setSegmentationNode(segmentationNode)
         editor.setSourceVolumeNode(volumeNode)
+        # Scissors is replaced by the Cloud Lasso
+        shownEffects = [editor.effectByIndex(index).name for index in range(editor.effectCount())
+                        if editor.effectByIndex(index)]
+        self.assertIn("AstroCloudLasso", shownEffects)
+        self.assertNotIn("Scissors", shownEffects)
+        self.assertIn("Paint", shownEffects)
+
         editor.setActiveEffectByName("AstroCloudLasso")
         effect = editor.activeEffect()
         self.assertIsNotNone(effect)
@@ -201,15 +227,16 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(effect.parameter("Operation"), "FillInside")
         focusWidget = qt.QApplication.focusWidget() or buttons["Fill inside"]
 
-        minimum = effect.doubleParameter("ThresholdMinimum")
+        editorNode = editor.mrmlSegmentEditorNode()
+        minimum = editorNode.GetSourceVolumeIntensityMaskRange()[0]
         self.pressKey(focusWidget, qt.Qt.Key_M, "m")
-        self.assertGreater(effect.doubleParameter("ThresholdMinimum"), minimum)
+        self.assertGreater(editorNode.GetSourceVolumeIntensityMaskRange()[0], minimum)
         self.pressKey(focusWidget, qt.Qt.Key_N, "n")
-        self.assertAlmostEqual(effect.doubleParameter("ThresholdMinimum"), minimum, places=9)
+        self.assertAlmostEqual(editorNode.GetSourceVolumeIntensityMaskRange()[0], minimum, places=9)
 
-        maximum = effect.doubleParameter("ThresholdMaximum")
+        maximum = editorNode.GetSourceVolumeIntensityMaskRange()[1]
         self.pressKey(focusWidget, qt.Qt.Key_K, "k")
-        self.assertLess(effect.doubleParameter("ThresholdMaximum"), maximum)
+        self.assertLess(editorNode.GetSourceVolumeIntensityMaskRange()[1], maximum)
 
         self.pressKey(focusWidget, qt.Qt.Key_X, "x")
         self.assertEqual(effect.parameter("Operation"), "EraseInside")

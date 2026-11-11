@@ -24,28 +24,30 @@
 #include "qSlicerAstroVolumeEditorEffectsExport.h"
 #include "qSlicerSegmentEditorScissorsEffect.h"
 
+// CTK includes
+#include <ctkVTKObject.h>
+
+class ctkRangeWidget;
 class qSlicerSegmentEditorAstroCloudLassoEffectPrivate;
 
 /// \brief Cloud Lasso: select the emission (the "cloud") inside a lasso.
 ///
-/// The lasso is drawn in 2D on a slice view or on the 3D view, as with the
-/// Scissors effect (this effect is a Scissors effect: same shapes and drawing).
-/// In a slice view the lasso selects the voxels of the current slice, in the
-/// 3D view the voxels through the whole cube (no slice cut options). Filling selects only the voxels whose intensity is in
-/// the threshold range (by default from 3 times the noise, the DisplayThreshold
-/// of the AstroVolume module, to the maximum of the data); erasing removes all
-/// the voxels inside the lasso. With the automatic threshold updating, changing
-/// the threshold applies the last lasso again.
+/// A Scissors effect (same drawing and shapes): in a slice view the lasso
+/// selects the current slice, in the 3D view the whole cube. Filling keeps
+/// only the voxels in the editable intensity range of the Segment Editor
+/// (Masking section), set on activation from 3 times the noise to the maximum
+/// of the data; erasing clears all the voxels inside the lasso. With the
+/// automatic threshold updating, changing the range applies the last lasso again.
 ///
-/// Keyboard shortcuts (while the effect is active): n / m decrease / increase
-/// the minimum of the threshold range, k / l the maximum, c toggles the
-/// automatic threshold updating, x switches between filling and erasing.
+/// Shortcut keys (while the effect is active): n / m minimum -/+, k / l
+/// maximum -/+, c automatic threshold updating, x fill / erase.
 /// \ingroup SlicerAstro_QtModules_AstroVolume
 class Q_SLICERASTRO_ASTROVOLUME_EFFECTS_EXPORT qSlicerSegmentEditorAstroCloudLassoEffect :
   public qSlicerSegmentEditorScissorsEffect
 {
 public:
   Q_OBJECT
+  QVTK_OBJECT
 
 public:
   typedef qSlicerSegmentEditorScissorsEffect Superclass;
@@ -68,19 +70,22 @@ public:
                                 qMRMLWidget* viewWidget) override;
 
   /// Keeps the lasso (for the automatic threshold updating); erasing is not
-  /// limited to the threshold range.
+  /// limited to the intensity range.
   using Superclass::modifySelectedSegmentByLabelmap;
   void modifySelectedSegmentByLabelmap(vtkOrientedImageData* modifierLabelmap, ModificationMode modificationMode,
                                        bool bypassMasking = false) override;
 
-  /// Apply the last lasso again with the current threshold range.
+  /// Apply the last lasso again with the current intensity range.
   Q_INVOKABLE void reapplyLastLasso();
 
 public slots:
   void updateGUIFromMRML() override;
 
-  void onThresholdValuesChanged(double minimum, double maximum);
   void onAutomaticThresholdModeChanged(bool automatic);
+
+  /// Segment Editor node modified: the last lasso again if the editable
+  /// intensity range changed (automatic threshold updating)
+  void onSegmentEditorNodeModified();
 
   /// Keyboard shortcuts (n, m, k, l, c, x)
   void decreaseThresholdMinimum();
@@ -93,9 +98,11 @@ public slots:
 protected:
   QScopedPointer<qSlicerSegmentEditorAstroCloudLassoEffectPrivate> d_ptr;
 
-  /// Threshold range used as editable intensity range (source volume intensity mask)
-  void updateIntensityMask();
   bool fillOperation();
+
+  /// Editable intensity range widget (Masking section) of the Segment Editor
+  /// that contains the effect: the intensity range of the lasso
+  ctkRangeWidget* intensityRangeWidget();
 
   /// Style of the lasso drawn by the Scissors effect: amber outline with a soft
   /// glow and a translucent fill (red when erasing).
