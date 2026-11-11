@@ -5063,9 +5063,14 @@ void qSlicerAstroModelingModuleWidget::updateWorkerProgress()
     {
     return;
     }
+  // cancel requested: kept in the copy of the worker
+  if (d->parametersNode->GetStatus() == -1)
+    {
+    d->workerParametersNode->SetStatus(-1);
+    return;
+    }
   const int status = d->workerParametersNode->GetStatus();
-  if (status > 0 && status < 100 && d->parametersNode->GetStatus() != status &&
-      d->parametersNode->GetStatus() != -1)
+  if (status > 0 && status < 100 && d->parametersNode->GetStatus() != status)
     {
     d->parametersNode->SetStatus(status);
     }

@@ -32,6 +32,7 @@
 
 // STD includes
 #include <memory>
+#include <algorithm>
 #include <atomic>
 
 // MRML includes
@@ -152,16 +153,52 @@ namespace
 // Run the BBarolo ring fitting (first or second stage). The SlicerAstro
 // cancel request (parameters node status set to -1) is forwarded to BBarolo
 // through its abort flag, checked after each fitted ring.
-template <class T>
-void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* pnode, bool secondStage)
+//----------------------------------------------------------------------------
+// Median of the values of the rings (single value for the UI: robust to the
+// rings poorly constrained by the data, e.g. the innermost ones)
+template <typename T>
+double MedianOfRings(const std::vector<T>& values)
 {
+  if (values.empty())
+    {
+    return 0.;
+    }
+  std::vector<T> sorted(values);
+  std::sort(sorted.begin(), sorted.end());
+  const size_t middle = sorted.size() / 2;
+  return sorted.size() % 2 ? sorted[middle] : 0.5 * (sorted[middle - 1] + sorted[middle]);
+}
+
+//----------------------------------------------------------------------------
+// Progress (status) of an operation: only increases, and a cancel request
+// (status -1) is kept
+void SetProgress(vtkMRMLAstroModelingParametersNode* pnode, int value)
+{
+  const int status = pnode ? pnode->GetStatus() : -1;
+  if (status != -1 && value > status && value < 100)
+    {
+    pnode->SetStatus(value);
+    }
+}
+
+//----------------------------------------------------------------------------
+template <class T>
+void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* pnode, bool secondStage,
+                    int progressFrom, int progressTo)
+{
+  // progress of the fit: rings done / total rings in [progressFrom, progressTo]
   std::atomic<bool> abortRequested{false};
   fit->setAbortFlag(&abortRequested);
-  fit->setProgressCallback([pnode, &abortRequested](int, int)
+  fit->setProgressCallback([pnode, &abortRequested, progressFrom, progressTo](int done, int total)
     {
     if (pnode->GetStatus() == -1)
       {
       abortRequested = true;
+      return;
+      }
+    if (total > 0)
+      {
+      SetProgress(pnode, progressFrom + ((progressTo - progressFrom) * done) / total);
       }
     });
   if (secondStage)
@@ -893,7 +930,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     pnode->SetFitSuccess(false);
     return 0;
     }
-  pnode->SetStatus(10);
+  SetProgress(pnode, 5);
 
   int *dims = inputVolume->GetImageData()->GetDimensions();
   int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
@@ -950,10 +987,12 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         }
 
       // Searching stuff if the user has not provided a mask
+      SetProgress(pnode, 10);
       if (this->Internal->par->getParSE().flagSearch)
         {
         this->Internal->cubeF->search();
         }
+      SetProgress(pnode, 30);
 
       // Cube Fitting
       if (this->Internal->par->getflagGalFit())
@@ -969,6 +1008,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         // not enough rings) are reported by BBarolo as bbarolo::Error.
 
         this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
+        SetProgress(pnode, 40);
 
         *this->Internal->par = this->Internal->cubeF->pars();
 
@@ -976,26 +1016,28 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         // Initial parameters (given or estimated by 3DBarolo): BBarolo 1.8
         // keeps the estimates in the initial rings of Galfit (the parameter
-        // strings keep the input, e.g. -1 for the estimated ones)
+        // strings keep the input, e.g. -1 for the estimated ones). The rings
+        // can differ (e.g. the position angles refined ring by ring with a 2D
+        // tilted-ring model): the UI shows their median.
         Rings<float>* initialRings = this->Internal->fitF->Inrings();
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
           pnode->SetRadSep(initialRings->radsep > 0 ? initialRings->radsep :
             (initialRings->nr > 1 ? initialRings->radii[1] - initialRings->radii[0] : initialRings->radii[0]));
-          pnode->SetXCenter(initialRings->xpos[0]);
-          pnode->SetYCenter(initialRings->ypos[0]);
-          pnode->SetSystemicVelocity(initialRings->vsys[0]);
-          pnode->SetRotationVelocity(initialRings->vrot[0]);
-          pnode->SetRadialVelocity(initialRings->vrad[0]);
-          pnode->SetVerticalVelocity(initialRings->vvert[0]);
-          pnode->SetVerticalRotationalGradient(initialRings->dvdz[0]);
-          pnode->SetVerticalRotationalGradientHeight(initialRings->zcyl[0]);
-          pnode->SetPositionAngle(initialRings->phi[0]);
-          pnode->SetInclination(initialRings->inc[0]);
-          pnode->SetScaleHeight(initialRings->z0[0]);
-          pnode->SetVelocityDispersion(initialRings->vdisp[0]);
-          pnode->SetColumnDensity(initialRings->dens[0]);
+          pnode->SetXCenter(MedianOfRings(initialRings->xpos));
+          pnode->SetYCenter(MedianOfRings(initialRings->ypos));
+          pnode->SetSystemicVelocity(MedianOfRings(initialRings->vsys));
+          pnode->SetRotationVelocity(MedianOfRings(initialRings->vrot));
+          pnode->SetRadialVelocity(MedianOfRings(initialRings->vrad));
+          pnode->SetVerticalVelocity(MedianOfRings(initialRings->vvert));
+          pnode->SetVerticalRotationalGradient(MedianOfRings(initialRings->dvdz));
+          pnode->SetVerticalRotationalGradientHeight(MedianOfRings(initialRings->zcyl));
+          pnode->SetPositionAngle(MedianOfRings(initialRings->phi));
+          pnode->SetInclination(MedianOfRings(initialRings->inc));
+          pnode->SetScaleHeight(MedianOfRings(initialRings->z0));
+          pnode->SetVelocityDispersion(MedianOfRings(initialRings->vdisp));
+          pnode->SetColumnDensity(MedianOfRings(initialRings->dens));
           }
         else
           {
@@ -1035,7 +1077,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
-          RunGalfitStage(this->Internal->fitF, pnode, false);
+          RunGalfitStage(this->Internal->fitF, pnode, false, 40,
+                         this->Internal->par->getParGF().TWOSTAGE ? 70 : 85);
 
           if (pnode->GetStatus() == -1)
             {
@@ -1045,11 +1088,10 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             return 0;
             }
 
-          pnode->SetStatus(60);
 
           if (this->Internal->par->getParGF().TWOSTAGE)
             {
-            RunGalfitStage(this->Internal->fitF, pnode, true);
+            RunGalfitStage(this->Internal->fitF, pnode, true, 70, 85);
             if (pnode->GetStatus() == -1)
               {
               this->cleanPointers();
@@ -1060,7 +1102,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
-        pnode->SetStatus(80);
+        const bool fitOperation = pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT;
+        SetProgress(pnode, fitOperation ? 86 : 50);
 
         std::unique_ptr<float[]> ringreg(RingRegion(this->Internal->fitF->Outrings(),
                                     this->Internal->cubeF->Head()));
@@ -1148,7 +1191,9 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
+        SetProgress(pnode, fitOperation ? 88 : 60);
         this->Internal->modF = this->Internal->fitF->getFullModel();
+        SetProgress(pnode, fitOperation ? 92 : 90);
         if (!this->Internal->modF || !this->Internal->modF->Out())
           {
           this->cleanPointers();
@@ -1329,10 +1374,12 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         }
 
       // Searching stuff if the user has not provided a mask
+      SetProgress(pnode, 10);
       if (this->Internal->par->getParSE().flagSearch)
         {
         this->Internal->cubeD->search();
         }
+      SetProgress(pnode, 30);
 
       // Cube Fitting
       if (this->Internal->par->getflagGalFit())
@@ -1348,6 +1395,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         // not enough rings) are reported by BBarolo as bbarolo::Error.
 
         this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
+        SetProgress(pnode, 40);
 
         *this->Internal->par = this->Internal->cubeD->pars();
 
@@ -1355,26 +1403,28 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         // Initial parameters (given or estimated by 3DBarolo): BBarolo 1.8
         // keeps the estimates in the initial rings of Galfit (the parameter
-        // strings keep the input, e.g. -1 for the estimated ones)
+        // strings keep the input, e.g. -1 for the estimated ones). The rings
+        // can differ (e.g. the position angles refined ring by ring with a 2D
+        // tilted-ring model): the UI shows their median.
         Rings<double>* initialRings = this->Internal->fitD->Inrings();
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
           pnode->SetRadSep(initialRings->radsep > 0 ? initialRings->radsep :
             (initialRings->nr > 1 ? initialRings->radii[1] - initialRings->radii[0] : initialRings->radii[0]));
-          pnode->SetXCenter(initialRings->xpos[0]);
-          pnode->SetYCenter(initialRings->ypos[0]);
-          pnode->SetSystemicVelocity(initialRings->vsys[0]);
-          pnode->SetRotationVelocity(initialRings->vrot[0]);
-          pnode->SetRadialVelocity(initialRings->vrad[0]);
-          pnode->SetVerticalVelocity(initialRings->vvert[0]);
-          pnode->SetVerticalRotationalGradient(initialRings->dvdz[0]);
-          pnode->SetVerticalRotationalGradientHeight(initialRings->zcyl[0]);
-          pnode->SetPositionAngle(initialRings->phi[0]);
-          pnode->SetInclination(initialRings->inc[0]);
-          pnode->SetScaleHeight(initialRings->z0[0]);
-          pnode->SetVelocityDispersion(initialRings->vdisp[0]);
-          pnode->SetColumnDensity(initialRings->dens[0]);
+          pnode->SetXCenter(MedianOfRings(initialRings->xpos));
+          pnode->SetYCenter(MedianOfRings(initialRings->ypos));
+          pnode->SetSystemicVelocity(MedianOfRings(initialRings->vsys));
+          pnode->SetRotationVelocity(MedianOfRings(initialRings->vrot));
+          pnode->SetRadialVelocity(MedianOfRings(initialRings->vrad));
+          pnode->SetVerticalVelocity(MedianOfRings(initialRings->vvert));
+          pnode->SetVerticalRotationalGradient(MedianOfRings(initialRings->dvdz));
+          pnode->SetVerticalRotationalGradientHeight(MedianOfRings(initialRings->zcyl));
+          pnode->SetPositionAngle(MedianOfRings(initialRings->phi));
+          pnode->SetInclination(MedianOfRings(initialRings->inc));
+          pnode->SetScaleHeight(MedianOfRings(initialRings->z0));
+          pnode->SetVelocityDispersion(MedianOfRings(initialRings->vdisp));
+          pnode->SetColumnDensity(MedianOfRings(initialRings->dens));
           }
         else
           {
@@ -1414,7 +1464,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
           {
-          RunGalfitStage(this->Internal->fitD, pnode, false);
+          RunGalfitStage(this->Internal->fitD, pnode, false, 40,
+                         this->Internal->par->getParGF().TWOSTAGE ? 70 : 85);
 
           if (pnode->GetStatus() == -1)
             {
@@ -1424,11 +1475,10 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             return 0;
             }
 
-          pnode->SetStatus(60);
 
           if (this->Internal->par->getParGF().TWOSTAGE)
             {
-            RunGalfitStage(this->Internal->fitD, pnode, true);
+            RunGalfitStage(this->Internal->fitD, pnode, true, 70, 85);
             if (pnode->GetStatus() == -1)
               {
               this->cleanPointers();
@@ -1439,7 +1489,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
-        pnode->SetStatus(80);
+        const bool fitOperation = pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT;
+        SetProgress(pnode, fitOperation ? 86 : 50);
 
         // Calculate the total flux inside last ring in data
         std::unique_ptr<double[]> ringreg(RingRegion(this->Internal->fitD->Outrings(),
@@ -1527,7 +1578,9 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
             }
           }
 
+        SetProgress(pnode, fitOperation ? 88 : 60);
         this->Internal->modD = this->Internal->fitD->getFullModel();
+        SetProgress(pnode, fitOperation ? 92 : 90);
         if (!this->Internal->modD || !this->Internal->modD->Out())
           {
           this->cleanPointers();
@@ -1662,7 +1715,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
   // the velocity definition of the input is restored by velocityDefinitionGuard
 
-  pnode->SetStatus(95);
+  SetProgress(pnode, 95);
 
   if (!tnode)
     {
