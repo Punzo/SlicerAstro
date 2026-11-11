@@ -34,8 +34,15 @@ SAMPLE_DATA_SOURCES = (
         ("WEIN069_cat.txt", "WEIN069_catalogue", "SoFiACatalogFile",
          "ae5d212108a702a20476b8084da2172133355cd0c97de1d0a58b15d803a25322"),
     )),
-    ("NGC2403", "NGC2403.png", (("NGC2403.fits", "NGC2403", "AstroVolumeFile", None),)),
-    ("NGC2403_DSS", "NGC2403_DSS.png", (("NGC2403_DSS.fits", "NGC2403_DSS", "AstroVolumeFile", None),)),
+    # THINGS HI cube of NGC 2403 (cropped and rebinned) and DSS2 red image of the field
+    ("NGC2403", "NGC2403.png", (
+        ("NGC2403.fits", "NGC2403", "AstroVolumeFile",
+         "48e885420a8dde00105a0e1a6dfc2af78aa6c77e377b2e75665a42b98ae6bad1"),
+    )),
+    ("NGC2403_DSS", "NGC2403_DSS.png", (
+        ("NGC2403_DSS.fits", "NGC2403_DSS", "AstroVolumeFile",
+         "ea47ce0030f767b4d25427539b944e170e1b302d0d9a0d83108653a6c8fab851"),
+    )),
     ("NGC4111", "NGC4111.png", (("NGC4111.fits", "NGC4111", "AstroVolumeFile", None),)),
     ("NGC3379", "NGC3379.png", (("NGC3379.fits", "NGC3379", "AstroVolumeFile", None),)),
 )

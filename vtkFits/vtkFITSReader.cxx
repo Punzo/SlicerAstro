@@ -1621,8 +1621,7 @@ bool vtkFITSReader::AllocateHeader()
        }
      else
        {
-       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "The fits header is missing the RESTFREQ keyword. "
-                       "Assuming HI data, i.e. RESTFREQ = 1.420405752E+09.");
+       // images (no spectral axis): the rest frequency is not used
        this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = "1.420405752E+09";
        }
      }
