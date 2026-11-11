@@ -158,6 +158,15 @@ public:
 
   qSlicerAstroModelingModuleWorker *worker;
   QThread *thread;
+  /// Parameters of the worker thread: a copy of the parameter node, outside
+  /// the scene and without observers (the widgets and the views must not be
+  /// updated from the worker thread). The results are copied to the
+  /// parameter node in the GUI thread (onWorkFinished).
+  vtkSmartPointer<vtkMRMLAstroModelingParametersNode> workerParametersNode;
+  QTimer* workerProgressTimer{nullptr};
+  /// The input is converted to the optical velocity definition for 3DBarolo
+  /// (in the GUI thread, the WCS is shared with the views) and restored
+  bool restoreRadioVelocity{false};
   QAction *CopyAction;
   QAction *PasteAction;
   QAction *PlotAction;
@@ -473,6 +482,10 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->thread, SIGNAL(started()), this->worker, SLOT(doWork()));
 
   QObject::connect(this->worker, SIGNAL(finished()), q, SLOT(onWorkFinished()));
+
+  this->workerProgressTimer = new QTimer(q);
+  this->workerProgressTimer->setInterval(250);
+  QObject::connect(this->workerProgressTimer, SIGNAL(timeout()), q, SLOT(updateWorkerProgress()));
 
   QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(quit()), Qt::DirectConnection);
 }
@@ -1183,7 +1196,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   Radii->SetName("Radii");
   d->astroTableNode->SetColumnUnitLabel("Radii", "arcsec");
-  d->astroTableNode->SetColumnLongName("Radii", "Radius");
+  d->astroTableNode->SetColumnTitle("Radii", "Radius");
 
   vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VRot)
@@ -1194,7 +1207,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   VRot->SetName("VRot");
   d->astroTableNode->SetColumnUnitLabel("VRot", "km/s");
-  d->astroTableNode->SetColumnLongName("VRot", "Rotational velocity");
+  d->astroTableNode->SetColumnTitle("VRot", "Rotational velocity");
 
   vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VRad)
@@ -1205,7 +1218,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   VRad->SetName("VRad");
   d->astroTableNode->SetColumnUnitLabel("VRad", "km/s");
-  d->astroTableNode->SetColumnLongName("VRad", "Radial velocity");
+  d->astroTableNode->SetColumnTitle("VRad", "Radial velocity");
 
   vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Inc)
@@ -1216,7 +1229,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   Inc->SetName("Inc");
   d->astroTableNode->SetColumnUnitLabel("Inc", "degree");
-  d->astroTableNode->SetColumnLongName("Inc", "Inclination");
+  d->astroTableNode->SetColumnTitle("Inc", "Inclination");
 
   vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Phi)
@@ -1227,7 +1240,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   Phi->SetName("Phi");
   d->astroTableNode->SetColumnUnitLabel("Phi", "degree");
-  d->astroTableNode->SetColumnLongName("Phi", "Position angle");
+  d->astroTableNode->SetColumnTitle("Phi", "Position angle");
 
   vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VSys)
@@ -1238,7 +1251,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   VSys->SetName("VSys");
   d->astroTableNode->SetColumnUnitLabel("VSys", "km/s (Velocity Definition: Optical)");
-  d->astroTableNode->SetColumnLongName("VSys", "Systematic velocity");
+  d->astroTableNode->SetColumnTitle("VSys", "Systemic velocity");
 
   vtkDoubleArray* VDisp = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!VSys)
@@ -1249,7 +1262,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   VDisp->SetName("VDisp");
   d->astroTableNode->SetColumnUnitLabel("VDisp", "km/s");
-  d->astroTableNode->SetColumnLongName("VDisp", "Dispersion velocity");
+  d->astroTableNode->SetColumnTitle("VDisp", "Dispersion velocity");
 
   vtkDoubleArray* Dens = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Dens)
@@ -1260,7 +1273,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   Dens->SetName("Dens");
   d->astroTableNode->SetColumnUnitLabel("Dens", "10^20 cm^-2");
-  d->astroTableNode->SetColumnLongName("Dens", "Column density");
+  d->astroTableNode->SetColumnTitle("Dens", "Column density");
 
   vtkDoubleArray* Z0 = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!Z0)
@@ -1271,7 +1284,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   Z0->SetName("Z0");
   d->astroTableNode->SetColumnUnitLabel("Z0", "Kpc");
-  d->astroTableNode->SetColumnLongName("Z0", "Scale height");
+  d->astroTableNode->SetColumnTitle("Z0", "Scale height");
 
   vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!XPos)
@@ -1282,7 +1295,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   XPos->SetName("XPos");
   d->astroTableNode->SetColumnUnitLabel("XPos", "pixels");
-  d->astroTableNode->SetColumnLongName("XPos", "X center");
+  d->astroTableNode->SetColumnTitle("XPos", "X center");
 
   vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
   if (!YPos)
@@ -1293,7 +1306,7 @@ void qSlicerAstroModelingModuleWidget::initializeTableNode(bool forceNew/* = fal
     }
   YPos->SetName("YPos");
   d->astroTableNode->SetColumnUnitLabel("YPos", "pixels");
-  d->astroTableNode->SetColumnLongName("YPos", "Y center");
+  d->astroTableNode->SetColumnTitle("YPos", "Y center");
   d->astroTableNode->EndModify(wasModifying);
 
   d->parametersNode->SetParamsTableNode(d->astroTableNode);
@@ -4053,8 +4066,13 @@ void qSlicerAstroModelingModuleWidget::onApply()
                               "and/or normalizing (see advanced options) the output model. "
                               "Do you wish to continue?");
     qWarning() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::StandardButton reply;
-    reply = QMessageBox::question(nullptr, tr("3DBarolo"), message);
+    // no question in testing mode (the self-tests run without a mask)
+    QMessageBox::StandardButton reply = QMessageBox::Yes;
+    qSlicerApplication* application = qSlicerApplication::application();
+    if (!application || !application->testAttribute(qSlicerCoreApplication::AA_EnableTesting))
+      {
+      reply = QMessageBox::question(nullptr, tr("3DBarolo"), message);
+      }
     if (reply != QMessageBox::Yes)
       {
       d->parametersNode->SetStatus(0);
@@ -4062,9 +4080,22 @@ void qSlicerAstroModelingModuleWidget::onApply()
       }
     }
 
+  // 3DBarolo works with the optical velocity definition: converted here in
+  // the GUI thread, restored when the work is finished
+  d->restoreRadioVelocity = !strncmp(inputVolumeDisplayNode->GetVelocityDefinition().c_str(), "VRAD", 4);
+  if (d->restoreRadioVelocity)
+    {
+    inputVolumeDisplayNode->SetOpticalVelocityDefinition();
+    }
+
+  // the worker thread works on a copy of the parameters
+  d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
+  d->workerParametersNode->Copy(d->parametersNode);
+
   d->worker->SetTableNode(d->internalTableNode);
-  d->worker->SetAstroModelingParametersNode(d->parametersNode);
+  d->worker->SetAstroModelingParametersNode(d->workerParametersNode);
   d->worker->SetAstroModelingLogic(logic);
+  d->workerProgressTimer->start();
   d->worker->requestWork();
 }
 
@@ -4460,6 +4491,27 @@ void qSlicerAstroModelingModuleWidget::onWeightingFunctionChanged(int flag)
 void qSlicerAstroModelingModuleWidget::onWorkFinished()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+
+  // results of the worker thread (parameters and status) in the parameter
+  // node, in the GUI thread
+  d->workerProgressTimer->stop();
+  if (d->workerParametersNode && d->parametersNode)
+    {
+    d->parametersNode->Copy(d->workerParametersNode);
+    }
+  d->workerParametersNode = nullptr;
+
+  // velocity definition of the input restored
+  if (d->restoreRadioVelocity && d->parametersNode && this->mrmlScene())
+    {
+    vtkMRMLAstroVolumeNode* input = vtkMRMLAstroVolumeNode::SafeDownCast(
+      this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+    if (input && input->GetAstroVolumeDisplayNode())
+      {
+      input->GetAstroVolumeDisplayNode()->SetRadioVelocityDefinition();
+      }
+    }
+  d->restoreRadioVelocity = false;
 
   if (!d->astroVolumeWidget)
     {
@@ -4994,7 +5046,29 @@ void qSlicerAstroModelingModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
   d->parametersNode->SetStatus(-1);
+  if (d->workerParametersNode)
+    {
+    d->workerParametersNode->SetStatus(-1);
+    }
   d->worker->abort();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::updateWorkerProgress()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  // progress of the worker thread, shown by the parameter node (GUI thread)
+  if (!d->workerParametersNode || !d->parametersNode)
+    {
+    return;
+    }
+  const int status = d->workerParametersNode->GetStatus();
+  if (status > 0 && status < 100 && d->parametersNode->GetStatus() != status &&
+      d->parametersNode->GetStatus() != -1)
+    {
+    d->parametersNode->SetStatus(status);
+    }
 }
 
 //-----------------------------------------------------------------------------

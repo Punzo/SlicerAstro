@@ -171,15 +171,19 @@ class AstroModelingSelfTestTest(unittest.TestCase):
     AstroModelingParameterNode.SetNumberOfRings(20)
     astroModelingModuleWidget.onEstimateInitialParameters()
 
-    self.delayDisplay('Estimating parameters', 10000)
+    # the estimate runs in a worker thread: wait for the results
+    import time
+    timeout = time.time() + 120
+    while AstroModelingParameterNode.GetSystemicVelocity() < 0 and time.time() < timeout:
+      slicer.app.processEvents()
+      time.sleep(0.1)
     SysVelocity = AstroModelingParameterNode.GetSystemicVelocity()
 
-    if (math.fabs(SysVelocity - 132) < 1.):
-       self.delayDisplay('Test passed', 700)
-    else:
-       self.delayDisplay('Test failed', 700)
-       # if run from Slicer interface remove the followinf exit
-       sys.exit()
+    # NGC 2403: systemic velocity of about 133 km/s (THINGS, de Blok et al. 2008)
+    self.assertLess(math.fabs(SysVelocity - 133.), 3.)
+    self.assertGreater(AstroModelingParameterNode.GetNumberOfRings(), 0)
+    self.assertGreater(AstroModelingParameterNode.GetInclination(), 0.)
+    self.delayDisplay('Test passed', 700)
 
 
   def downloadNGC2403(self):

@@ -212,6 +212,8 @@ protected slots:
   void onComputationFinished();
   void onWorkFinished();
   void updateProgress(int value);
+  /// Progress of the worker thread (copy of the parameters) in the parameter node
+  void updateWorkerProgress();
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroModelingModuleWidget);

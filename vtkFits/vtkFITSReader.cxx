@@ -1070,15 +1070,21 @@ bool vtkFITSReader::AllocateHeader()
    if (this->HeaderKeyValue.find("SlicerAstro.CUNIT3") == this->HeaderKeyValue.end() && n > 2)
      {
      std::string ctype3 = this->HeaderKeyValue.at("SlicerAstro.CTYPE3");
+     // FITS WCS default units (as WCSLIB): Hz, m, m/s
      if(!(ctype3.compare(0,4,"FREQ")))
        {
        vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT3 keyword. Assuming Hz.");
        this->HeaderKeyValue["SlicerAstro.CUNIT3"] = "Hz";
        }
+     else if (!(ctype3.compare(0,4,"WAVE")) || !(ctype3.compare(0,4,"AWAV")))
+       {
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT3 keyword. Assuming m.");
+       this->HeaderKeyValue["SlicerAstro.CUNIT3"] = "m";
+       }
      else
        {
-       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT3 keyword. Assuming km/s.");
-       this->HeaderKeyValue["SlicerAstro.CUNIT3"] = "km/s";
+       vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the CUNIT3 keyword. Assuming m/s.");
+       this->HeaderKeyValue["SlicerAstro.CUNIT3"] = "m/s";
        }
      }
 

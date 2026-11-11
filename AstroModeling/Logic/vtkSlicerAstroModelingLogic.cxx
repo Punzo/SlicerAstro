@@ -237,6 +237,30 @@ std::string DoubleToString(double Value)
   return NumberToString<double>(Value);
 }
 
+//----------------------------------------------------------------------------
+// 3DBarolo works with the optical velocity definition: the definition of the
+// input volume (e.g. radio for HI data) is restored at the end of the
+// operation, whatever its outcome.
+class VelocityDefinitionGuard
+{
+public:
+  explicit VelocityDefinitionGuard(vtkMRMLAstroVolumeDisplayNode* displayNode)
+    : DisplayNode(displayNode),
+      Radio(displayNode && !strncmp(displayNode->GetVelocityDefinition().c_str(), "VRAD", 4))
+    {
+    }
+  ~VelocityDefinitionGuard()
+    {
+    if (this->DisplayNode && this->Radio)
+      {
+      this->DisplayNode->SetRadioVelocityDefinition(false);
+      }
+    }
+private:
+  vtkMRMLAstroVolumeDisplayNode* DisplayNode;
+  const bool Radio;
+};
+
 } // end namespace
 
 //----------------------------------------------------------------------------
@@ -507,7 +531,9 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     return 0;
     }
 
-  // 3DBarolo works on input with the optical velocity definition
+  // 3DBarolo works on input with the optical velocity definition (the
+  // definition of the input is restored at the end)
+  VelocityDefinitionGuard velocityDefinitionGuard(inputVolumeDisplay);
   if (!strncmp(inputVolumeDisplay->GetVelocityDefinition().c_str(), "VRAD", 4))
     {
     if (!inputVolumeDisplay->SetOpticalVelocityDefinition(false))
@@ -948,22 +974,51 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         wasModifying = pnode->StartModify();
 
-        pnode->SetNumberOfRings(this->Internal->par->getParGF().NRADII);
-        pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
-        pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
-        pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
-        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()));
-        pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
-        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
-        pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
-        pnode->SetVerticalRotationalGradient(StringToDouble(this->Internal->par->getParGF().DVDZ.c_str()));
-        pnode->SetVerticalRotationalGradientHeight(StringToDouble(this->Internal->par->getParGF().ZCYL.c_str()));
-        pnode->SetPositionAngle(StringToDouble(this->Internal->par->getParGF().PHI.c_str()));
-        pnode->SetInclination(StringToDouble(this->Internal->par->getParGF().INC.c_str()));
-        pnode->SetScaleHeight(StringToDouble(this->Internal->par->getParGF().Z0.c_str()));
+        // Initial parameters (given or estimated by 3DBarolo): BBarolo 1.8
+        // keeps the estimates in the initial rings of Galfit (the parameter
+        // strings keep the input, e.g. -1 for the estimated ones)
+        Rings<float>* initialRings = this->Internal->fitF->Inrings();
+        if (initialRings && initialRings->nr > 0)
+          {
+          pnode->SetNumberOfRings(initialRings->nr);
+          pnode->SetRadSep(initialRings->radsep > 0 ? initialRings->radsep :
+            (initialRings->nr > 1 ? initialRings->radii[1] - initialRings->radii[0] : initialRings->radii[0]));
+          pnode->SetXCenter(initialRings->xpos[0]);
+          pnode->SetYCenter(initialRings->ypos[0]);
+          pnode->SetSystemicVelocity(initialRings->vsys[0]);
+          pnode->SetRotationVelocity(initialRings->vrot[0]);
+          pnode->SetRadialVelocity(initialRings->vrad[0]);
+          pnode->SetVerticalVelocity(initialRings->vvert[0]);
+          pnode->SetVerticalRotationalGradient(initialRings->dvdz[0]);
+          pnode->SetVerticalRotationalGradientHeight(initialRings->zcyl[0]);
+          pnode->SetPositionAngle(initialRings->phi[0]);
+          pnode->SetInclination(initialRings->inc[0]);
+          pnode->SetScaleHeight(initialRings->z0[0]);
+          pnode->SetVelocityDispersion(initialRings->vdisp[0]);
+          pnode->SetColumnDensity(initialRings->dens[0]);
+          }
+        else
+          {
+          pnode->SetNumberOfRings(this->Internal->par->getParGF().NRADII);
+          pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
+          pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
+          pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
+          pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()));
+          pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
+          pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
+          pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
+          pnode->SetVerticalRotationalGradient(StringToDouble(this->Internal->par->getParGF().DVDZ.c_str()));
+          pnode->SetVerticalRotationalGradientHeight(StringToDouble(this->Internal->par->getParGF().ZCYL.c_str()));
+          pnode->SetPositionAngle(StringToDouble(this->Internal->par->getParGF().PHI.c_str()));
+          pnode->SetInclination(StringToDouble(this->Internal->par->getParGF().INC.c_str()));
+          pnode->SetScaleHeight(StringToDouble(this->Internal->par->getParGF().Z0.c_str()));
+          pnode->SetDistance(this->Internal->par->getParGF().DISTANCE);
+          pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getParGF().VDISP.c_str()));
+          pnode->SetColumnDensity(StringToDouble(this->Internal->par->getParGF().DENS.c_str()));
+          pnode->SetCloudsColumnDensity((double) this->Internal->par->getParGF().CDENS);
+          pnode->SetNumberOfClounds(this->Internal->par->getParGF().NV);
+          }
         pnode->SetDistance(this->Internal->par->getParGF().DISTANCE);
-        pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getParGF().VDISP.c_str()));
-        pnode->SetColumnDensity(StringToDouble(this->Internal->par->getParGF().DENS.c_str()));
         pnode->SetCloudsColumnDensity((double) this->Internal->par->getParGF().CDENS);
         pnode->SetNumberOfClounds(this->Internal->par->getParGF().NV);
 
@@ -1298,22 +1353,51 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         wasModifying = pnode->StartModify();
 
-        pnode->SetNumberOfRings(this->Internal->par->getParGF().NRADII);
-        pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
-        pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
-        pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
-        pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()));
-        pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
-        pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
-        pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
-        pnode->SetVerticalRotationalGradient(StringToDouble(this->Internal->par->getParGF().DVDZ.c_str()));
-        pnode->SetVerticalRotationalGradientHeight(StringToDouble(this->Internal->par->getParGF().ZCYL.c_str()));
-        pnode->SetPositionAngle(StringToDouble(this->Internal->par->getParGF().PHI.c_str()));
-        pnode->SetInclination(StringToDouble(this->Internal->par->getParGF().INC.c_str()));
-        pnode->SetScaleHeight(StringToDouble(this->Internal->par->getParGF().Z0.c_str()));
+        // Initial parameters (given or estimated by 3DBarolo): BBarolo 1.8
+        // keeps the estimates in the initial rings of Galfit (the parameter
+        // strings keep the input, e.g. -1 for the estimated ones)
+        Rings<double>* initialRings = this->Internal->fitD->Inrings();
+        if (initialRings && initialRings->nr > 0)
+          {
+          pnode->SetNumberOfRings(initialRings->nr);
+          pnode->SetRadSep(initialRings->radsep > 0 ? initialRings->radsep :
+            (initialRings->nr > 1 ? initialRings->radii[1] - initialRings->radii[0] : initialRings->radii[0]));
+          pnode->SetXCenter(initialRings->xpos[0]);
+          pnode->SetYCenter(initialRings->ypos[0]);
+          pnode->SetSystemicVelocity(initialRings->vsys[0]);
+          pnode->SetRotationVelocity(initialRings->vrot[0]);
+          pnode->SetRadialVelocity(initialRings->vrad[0]);
+          pnode->SetVerticalVelocity(initialRings->vvert[0]);
+          pnode->SetVerticalRotationalGradient(initialRings->dvdz[0]);
+          pnode->SetVerticalRotationalGradientHeight(initialRings->zcyl[0]);
+          pnode->SetPositionAngle(initialRings->phi[0]);
+          pnode->SetInclination(initialRings->inc[0]);
+          pnode->SetScaleHeight(initialRings->z0[0]);
+          pnode->SetVelocityDispersion(initialRings->vdisp[0]);
+          pnode->SetColumnDensity(initialRings->dens[0]);
+          }
+        else
+          {
+          pnode->SetNumberOfRings(this->Internal->par->getParGF().NRADII);
+          pnode->SetRadSep(this->Internal->par->getParGF().RADSEP);
+          pnode->SetXCenter(StringToDouble(this->Internal->par->getParGF().XPOS.c_str()));
+          pnode->SetYCenter(StringToDouble(this->Internal->par->getParGF().YPOS.c_str()));
+          pnode->SetSystemicVelocity(StringToDouble(this->Internal->par->getParGF().VSYS.c_str()));
+          pnode->SetRotationVelocity(StringToDouble(this->Internal->par->getParGF().VROT.c_str()));
+          pnode->SetRadialVelocity(StringToDouble(this->Internal->par->getParGF().VRAD.c_str()));
+          pnode->SetVerticalVelocity(StringToDouble(this->Internal->par->getParGF().VVERT.c_str()));
+          pnode->SetVerticalRotationalGradient(StringToDouble(this->Internal->par->getParGF().DVDZ.c_str()));
+          pnode->SetVerticalRotationalGradientHeight(StringToDouble(this->Internal->par->getParGF().ZCYL.c_str()));
+          pnode->SetPositionAngle(StringToDouble(this->Internal->par->getParGF().PHI.c_str()));
+          pnode->SetInclination(StringToDouble(this->Internal->par->getParGF().INC.c_str()));
+          pnode->SetScaleHeight(StringToDouble(this->Internal->par->getParGF().Z0.c_str()));
+          pnode->SetDistance(this->Internal->par->getParGF().DISTANCE);
+          pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getParGF().VDISP.c_str()));
+          pnode->SetColumnDensity(StringToDouble(this->Internal->par->getParGF().DENS.c_str()));
+          pnode->SetCloudsColumnDensity((double) this->Internal->par->getParGF().CDENS);
+          pnode->SetNumberOfClounds(this->Internal->par->getParGF().NV);
+          }
         pnode->SetDistance(this->Internal->par->getParGF().DISTANCE);
-        pnode->SetVelocityDispersion(StringToDouble(this->Internal->par->getParGF().VDISP.c_str()));
-        pnode->SetColumnDensity(StringToDouble(this->Internal->par->getParGF().DENS.c_str()));
         pnode->SetCloudsColumnDensity((double) this->Internal->par->getParGF().CDENS);
         pnode->SetNumberOfClounds(this->Internal->par->getParGF().NV);
 
@@ -1576,13 +1660,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
       }
     }
 
-  // Transform back the velocity definition to optical one
-  if (!inputVolumeDisplay->SetOpticalVelocityDefinition(false))
-    {
-    vtkErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " Conversion to optical velocity definition failed!");
-    return 0;
-    }
+  // the velocity definition of the input is restored by velocityDefinitionGuard
 
   pnode->SetStatus(95);
 
@@ -1928,7 +2006,9 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
     return 0;
     }
 
-  // 3DBarolo works on input with the optical velocity definition
+  // 3DBarolo works on input with the optical velocity definition (the
+  // definition of the input is restored at the end)
+  VelocityDefinitionGuard velocityDefinitionGuard(inputVolumeDisplay);
   wcsprm* WCS = inputVolumeDisplay->GetWCSStruct();
   if (!WCS)
     {
