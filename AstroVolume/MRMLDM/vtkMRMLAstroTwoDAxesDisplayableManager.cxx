@@ -43,6 +43,7 @@
 #include <vtkCamera.h>
 #include <vtkCellArray.h>
 #include <vtkGeneralTransform.h>
+#include <vtkAbstractTransform.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -61,6 +62,7 @@
 
 // STD includes
 #include <sstream>
+#include <algorithm>
 
 // SlicerQt includes
 #include <qSlicerApplication.h>
@@ -135,6 +137,16 @@ public:
 
   void SetupAxes();
   void UpdateAxes();
+  /// Axes of a PV diagram (DATAMODEL PVDIAGRAM): offset along the line
+  /// (horizontal) and velocity (vertical). Returns false if not drawn.
+  bool UpdatePVDiagramAxes(vtkMRMLSliceLayerLogic* sliceLayerLogic,
+                           vtkMRMLAstroVolumeDisplayNode* displayNode,
+                           vtkMRMLAstroVolumeNode* pvDiagramVolume,
+                           int viewWidthPixel, int viewHeightPixel,
+                           int majorTickMin, int majorTickMax,
+                           int minorTickMin, int minorTickMax,
+                           int rulerType, int fontSize);
+  void AddAxisLabel(const std::string& text, int x, int y, int fontSize);
   void HideSlicerRuler();
   void ShowActors(bool show);
 
@@ -311,6 +323,177 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::HideSlicerRuler()
 }
 
 //---------------------------------------------------------------------------
+void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::AddAxisLabel(const std::string& text,
+                                                                       int x, int y, int fontSize)
+{
+  vtkSmartPointer<vtkTextActor> textActor = vtkSmartPointer<vtkTextActor>::New();
+  vtkTextProperty* textProperty = textActor->GetTextProperty();
+  textProperty->SetFontSize(fontSize);
+  if (!this->fontStyle.compare("Courier"))
+    {
+    textProperty->SetFontFamilyToCourier();
+    }
+  else if (!this->fontStyle.compare("Times"))
+    {
+    textProperty->SetFontFamilyToTimes();
+    }
+  else
+    {
+    textProperty->SetFontFamilyToArial();
+    }
+  textActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                     this->Color->GetValue(1),
+                                     this->Color->GetValue(2));
+  textActor->SetInput(text.c_str());
+  textActor->SetDisplayPosition(x, y);
+  this->MarkerRenderer->AddViewProp(textActor);
+}
+
+//---------------------------------------------------------------------------
+bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
+  vtkMRMLSliceLayerLogic* sliceLayerLogic, vtkMRMLAstroVolumeDisplayNode* displayNode,
+  vtkMRMLAstroVolumeNode* pvDiagramVolume, int viewWidthPixel, int viewHeightPixel,
+  int majorTickMin, int majorTickMax, int minorTickMin, int minorTickMax,
+  int rulerType, int fontSize)
+{
+  if (!sliceLayerLogic || !displayNode || !pvDiagramVolume || !displayNode->GetWCSStruct())
+    {
+    return false;
+    }
+
+  // Horizontal: offset along the line (degrees), CDELT1 per pixel
+  const char* cdelt1Attribute = pvDiagramVolume->GetAttribute("SlicerAstro.CDELT1");
+  const char* crpix1Attribute = pvDiagramVolume->GetAttribute("SlicerAstro.CRPIX1");
+  const double cdelt1 = cdelt1Attribute ? StringToDouble(cdelt1Attribute) : 0.;
+  const double crpix1 = crpix1Attribute ? StringToDouble(crpix1Attribute) : 1.;
+  if (cdelt1 <= 0.)
+    {
+    return false;
+    }
+
+  // Vertical: velocity of the rows (the channels of the cube). The display
+  // node has the WCS of the cube; the spectral axis does not depend on the
+  // position on the sky.
+  double cubeIJK[3] = {0., 0., 0.}, cubeWorld[3] = {0., 0., 0.};
+  if (!displayNode->GetReferenceSpace(cubeIJK, cubeWorld))
+    {
+    return false;
+    }
+  const double referenceRA = cubeWorld[0];
+  const double referenceDec = cubeWorld[1];
+
+  vtkGeneralTransform* xyToIJK = sliceLayerLogic->GetXYToIJKTransform();
+  vtkAbstractTransform* ijkToXY = xyToIJK->GetInverse();
+
+  double xyz[3] = {0., 0., 0.}, ijkA[3] = {0., 0., 0.}, ijkB[3] = {0., 0., 0.}, ijkC[3] = {0., 0., 0.};
+  xyToIJK->TransformPoint(xyz, ijkA);
+  xyz[0] = viewWidthPixel;
+  xyToIJK->TransformPoint(xyz, ijkB);
+  xyz[0] = 0.;
+  xyz[1] = viewHeightPixel;
+  xyToIJK->TransformPoint(xyz, ijkC);
+
+  // offsets at the left and right sides of the view
+  const double offsetA = (ijkA[0] + 1. - crpix1) * cdelt1;
+  const double offsetB = (ijkB[0] + 1. - crpix1) * cdelt1;
+  // velocities at the bottom and top sides of the view
+  cubeIJK[2] = ijkA[1];
+  displayNode->GetReferenceSpace(cubeIJK, cubeWorld);
+  const double velocityA = cubeWorld[2];
+  cubeIJK[2] = ijkC[1];
+  displayNode->GetReferenceSpace(cubeIJK, cubeWorld);
+  const double velocityC = cubeWorld[2];
+
+  int numberOfPointsHorizontal = std::max(5, static_cast<int>(viewWidthPixel / 150.) + 1);
+  int numberOfPointsVertical = std::max(5, static_cast<int>(viewHeightPixel / 150.) + 1);
+  const double offsetStep = displayNode->GetWcsTickStepAxisY(fabs(offsetB - offsetA), &numberOfPointsHorizontal);
+  const double firstOffset = displayNode->GetFirstWcsTickAxisY(offsetA, offsetB, offsetStep);
+  const double velocityStep = displayNode->GetWcsTickStepAxisZ(fabs(velocityC - velocityA), &numberOfPointsVertical);
+  const double firstVelocity = displayNode->GetFirstWcsTickAxisZ(velocityA, velocityC, velocityStep);
+  if (!(offsetStep > 0.) || !(velocityStep > 0.))
+    {
+    return false;
+    }
+
+  const double rowA = ijkA[1];
+  const double columnA = ijkA[0];
+
+  // major tick and three minor ticks per step
+  double oldOutputValues[3] = {0., 0., 0.}, outputValues[3] = {0., 0., 0.};
+  for (int i = 0; i < numberOfPointsHorizontal; i++)
+    {
+    const double offset = firstOffset + offsetStep * i;
+    double labelX = 0.;
+    for (int quarter = 0; quarter < 4; quarter++)
+      {
+      double ijk[3] = {(offset + offsetStep * quarter / 4.) / cdelt1 + crpix1 - 1., rowA, 0.};
+      double xy[3] = {0., 0., 0.};
+      ijkToXY->TransformPoint(ijk, xy);
+      if (quarter == 0)
+        {
+        labelX = xy[0];
+        }
+      vtkIdType ids[2];
+      ids[0] = this->twoDAxesPoints->InsertNextPoint(xy[0], quarter == 0 ? majorTickMin : minorTickMin, 0.);
+      ids[1] = this->twoDAxesPoints->InsertNextPoint(xy[0], quarter == 0 ? majorTickMax : minorTickMax, 0.);
+      this->twoDAxesCellArray->InsertNextCell(2, ids);
+      }
+    if (labelX < 30 || labelX > viewWidthPixel - 30)
+      {
+      continue;
+      }
+    std::string label = displayNode->GetDisplayStringFromValueY(offset, oldOutputValues, outputValues, 0, true);
+    std::copy(outputValues, outputValues + 3, oldOutputValues);
+    this->AddAxisLabel(label, static_cast<int>(labelX - fontSize * 2), 15, fontSize);
+    }
+
+  std::fill(oldOutputValues, oldOutputValues + 3, 0.);
+  std::fill(outputValues, outputValues + 3, 0.);
+  for (int i = 0; i < numberOfPointsVertical; i++)
+    {
+    const double velocity = firstVelocity + velocityStep * i;
+    double labelY = -1.;
+    for (int quarter = 0; quarter < 4; quarter++)
+      {
+      double world[3] = {referenceRA, referenceDec, velocity + velocityStep * quarter / 4.};
+      double cube[3] = {0., 0., 0.};
+      if (!displayNode->GetIJKSpace(world, cube))
+        {
+        continue;
+        }
+      double ijk[3] = {columnA, cube[2], 0.}, xy[3] = {0., 0., 0.};
+      ijkToXY->TransformPoint(ijk, xy);
+      if (quarter == 0)
+        {
+        labelY = xy[1];
+        }
+      vtkIdType ids[2];
+      ids[0] = this->twoDAxesPoints->InsertNextPoint(quarter == 0 ? majorTickMin : minorTickMin, xy[1], 0.);
+      ids[1] = this->twoDAxesPoints->InsertNextPoint(quarter == 0 ? majorTickMax : minorTickMax, xy[1], 0.);
+      this->twoDAxesCellArray->InsertNextCell(2, ids);
+      }
+    if (labelY < 50 || labelY > viewHeightPixel)
+      {
+      continue;
+      }
+    std::string label = displayNode->GetDisplayStringFromValueZ(velocity, oldOutputValues, outputValues, 0);
+    std::copy(outputValues, outputValues + 3, oldOutputValues);
+    this->AddAxisLabel(label, 20, static_cast<int>(labelY - fontSize * 0.5), fontSize);
+    }
+
+  this->twoDAxesPolyData->SetPoints(this->twoDAxesPoints);
+  this->twoDAxesPolyData->SetLines(this->twoDAxesCellArray);
+  this->twoDAxesMapper->SetInputData(this->twoDAxesPolyData);
+  this->twoDAxesActor->SetMapper(this->twoDAxesMapper);
+  this->twoDAxesActor->GetProperty()->SetLineWidth(rulerType == vtkMRMLAbstractViewNode::RulerTypeThick ? 3 : 1);
+  this->twoDAxesActor->GetProperty()->SetColor(this->Color->GetValue(0),
+                                               this->Color->GetValue(1),
+                                               this->Color->GetValue(2));
+  this->MarkerRenderer->AddViewProp(this->twoDAxesActor);
+  return true;
+}
+
+//---------------------------------------------------------------------------
 void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 {
   this->HideSlicerRuler();
@@ -393,6 +576,7 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       sliceNode->GetOrientation().compare("XZ") &&
       sliceNode->GetOrientation().compare("PVMajor") &&
       sliceNode->GetOrientation().compare("PVMinor") &&
+      sliceNode->GetOrientation().compare("PVDiagram") &&
       sliceNode->GetOrientation().compare("Reformat"))
     {
     this->ShowActors(false);
@@ -512,6 +696,19 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
 
       sliceNode->UpdateMatrices();
       sliceLayerLogic->UpdateTransforms();
+
+      // PV diagram: offset along the line and velocity
+      const char* dataModel = astroVolume ? astroVolume->GetAttribute("SlicerAstro.DATAMODEL") : nullptr;
+      const bool pvDiagram = dataModel && !strcmp(dataModel, "PVDIAGRAM");
+      if (pvDiagram || !sliceNode->GetOrientation().compare("PVDiagram"))
+        {
+        this->ShowActors(pvDiagram &&
+          this->UpdatePVDiagramAxes(sliceLayerLogic, displayNode, astroVolume,
+                                    viewWidthPixel, viewHeightPixel,
+                                    MajorTickMin, MajorTickMax, MinorTickMin, MinorTickMax,
+                                    type, internalFontSize));
+        return;
+        }
 
       vtkGeneralTransform* xyToIJK =
           sliceLayerLogic->GetXYToIJKTransform();

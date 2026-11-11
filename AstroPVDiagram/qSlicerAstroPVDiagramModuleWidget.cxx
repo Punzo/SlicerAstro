@@ -68,6 +68,9 @@
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
+
+// STD includes
+#include <vector>
 #include <vtkMRMLAstroPVDiagramParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
@@ -188,6 +191,9 @@ void qSlicerAstroPVDiagramModuleWidgetPrivate::init()
 
   QObject::connect(this->MomentMapNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onMomentMapChanged(vtkMRMLNode*)));
+
+  QObject::connect(this->SecondMomentMapNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onSecondMomentMapChanged(vtkMRMLNode*)));
 
   QObject::connect(this->OutputNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
@@ -369,6 +375,13 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeThin);
     }
 
+  vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  if (greenSliceNode)
+    {
+    greenSliceNode->SetOrientation("XY");
+    }
+
   vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
     this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeYellow"));
   if (yellowSliceComposite)
@@ -383,10 +396,13 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
   if (greenSliceComposite)
     {
+    // 2nd moment map (velocity dispersion)
+    vtkMRMLNode* secondMomentMapNode = d->parametersNode->GetNodeReference(
+      vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole());
     greenSliceComposite->SetLabelVolumeID("");
     greenSliceComposite->SetForegroundVolumeID("");
     greenSliceComposite->SetForegroundOpacity(0.);
-    greenSliceComposite->SetBackgroundVolumeID("");
+    greenSliceComposite->SetBackgroundVolumeID(secondMomentMapNode ? secondMomentMapNode->GetID() : "");
     }
 
   vtkMRMLAstroVolumeNode *PVDiagramVolume =
@@ -731,7 +747,15 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
     return;
     }
 
-  vtkMRMLAstroVolumeNode *MomentMapNode = nullptr;
+  // 0th (Red view) and 2nd (Green view) moment maps of the input volume:
+  // the maps of the AstroMomentMaps module if available, otherwise the maps
+  // calculated by this module
+  vtkMRMLAstroVolumeNode *ZeroMomentMapNode = nullptr;
+  vtkMRMLAstroVolumeNode *SecondMomentMapNode = nullptr;
+  vtkMRMLAstroVolumeNode *PVZeroMomentMapNode = nullptr;
+  vtkMRMLAstroVolumeNode *PVSecondMomentMapNode = nullptr;
+  std::vector<vtkMRMLAstroVolumeNode*> pvMomentMapNodes;
+  const std::string inputName = inputVolume->GetName() ? inputVolume->GetName() : "";
 
   vtkSmartPointer<vtkCollection> AstroVolumeNodes = vtkSmartPointer<vtkCollection>::Take
       (this->mrmlScene()->GetNodesByClass("vtkMRMLAstroVolumeNode"));
@@ -740,25 +764,49 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
     {
     vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast
       (AstroVolumeNodes->GetItemAsObject(AstroVolumeIndex));
-    if (!astroVolume)
+    if (!astroVolume || !astroVolume->GetName() || !astroVolume->GetImageData())
       {
       continue;
       }
-    std::string name = astroVolume->GetName();
-    if (name.find("PVDiagramMomentMap") != std::string::npos &&
-        name.find(inputVolume->GetName()) != std::string::npos)
+    const std::string name = astroVolume->GetName();
+    if (name.compare(0, inputName.size(), inputName) != 0)
       {
-      if (forceNew)
-        {
-        this->mrmlScene()->RemoveNode(astroVolume);
-        }
-      else
-        {
-        MomentMapNode = astroVolume;
-        break;
-        }
+      continue;
+      }
+    const std::string suffix = name.substr(inputName.size());
+    if (suffix.find("_PVDiagramMomentMap") == 0)
+      {
+      pvMomentMapNodes.push_back(astroVolume);
+      PVZeroMomentMapNode = PVZeroMomentMapNode ? PVZeroMomentMapNode : astroVolume;
+      }
+    else if (suffix.find("_PVDiagramSecondMomentMap") == 0)
+      {
+      pvMomentMapNodes.push_back(astroVolume);
+      PVSecondMomentMapNode = PVSecondMomentMapNode ? PVSecondMomentMapNode : astroVolume;
+      }
+    // AstroMomentMaps module (<input>_mom0th_<n>, <input>_mom2nd_<n>): the last one
+    else if (suffix.find("_mom0th_") == 0)
+      {
+      ZeroMomentMapNode = astroVolume;
+      }
+    else if (suffix.find("_mom2nd_") == 0)
+      {
+      SecondMomentMapNode = astroVolume;
       }
     }
+
+  // recalculated: the maps of this module
+  if (forceNew)
+    {
+    for (vtkMRMLAstroVolumeNode* momentMapNode : pvMomentMapNodes)
+      {
+      this->mrmlScene()->RemoveNode(momentMapNode);
+      }
+    PVZeroMomentMapNode = nullptr;
+    PVSecondMomentMapNode = nullptr;
+    }
+  ZeroMomentMapNode = ZeroMomentMapNode ? ZeroMomentMapNode : PVZeroMomentMapNode;
+  SecondMomentMapNode = SecondMomentMapNode ? SecondMomentMapNode : PVSecondMomentMapNode;
 
   vtkSlicerAstroPVDiagramLogic *logic = d->logic();
   if (!logic)
@@ -768,16 +816,27 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
     return;
     }
 
-  if (!MomentMapNode)
+  if (ZeroMomentMapNode)
     {
-    logic->Calculate0thMomentMap(d->parametersNode);
+    d->parametersNode->SetMomentMapNodeID(ZeroMomentMapNode->GetID());
     }
   else
     {
-    d->parametersNode->SetMomentMapNodeID(MomentMapNode->GetID());
+    logic->CalculateMomentMap(d->parametersNode, 0);
     }
+  if (SecondMomentMapNode)
+    {
+    d->parametersNode->SetNodeReferenceID(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole(),
+                                          SecondMomentMapNode->GetID());
+    }
+  else
+    {
+    logic->CalculateMomentMap(d->parametersNode, 2);
+    }
+  d->SecondMomentMapNodeSelector->setCurrentNode(d->parametersNode->GetNodeReference(
+    vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole()));
 
-  logic->SetMomentMapOnRedWidget(d->parametersNode);
+  logic->SetMomentMapsOnViews(d->parametersNode);
 }
 
 //--------------------------------------------------------------------------
@@ -826,14 +885,18 @@ void qSlicerAstroPVDiagramModuleWidget::initializeFiducialsMarkupsNode(bool forc
     this->mrmlScene()->AddNode(SourcePointNode);
     }
 
-  SourcePointNode->RemoveAllControlPoints();
-
   vtkMRMLMarkupsDisplayNode* SourcePointDisplayNode = SourcePointNode->GetMarkupsDisplayNode();
   if (!SourcePointDisplayNode)
     {
     SourcePointNode->CreateDefaultDisplayNodes();
     SourcePointDisplayNode = SourcePointNode->GetMarkupsDisplayNode();
     }
+  // control points in the moment maps (Red, Green) and 3D views, not on the
+  // PV diagram (Yellow view)
+  SourcePointDisplayNode->RemoveAllViewNodeIDs();
+  SourcePointDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
+  SourcePointDisplayNode->AddViewNodeID("vtkMRMLSliceNodeGreen");
+  SourcePointDisplayNode->AddViewNodeID("vtkMRMLViewNode1");
   SourcePointDisplayNode->SetGlyphType(vtkMRMLMarkupsDisplayNode::Sphere3D);
   SourcePointDisplayNode->SetColor(0., 0.66, 1.);
   SourcePointDisplayNode->SetSelectedColor(0., 0.66, 1.);
@@ -898,6 +961,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeLineModelNode(bool forceNew)
   LineModelDisplayNode->SetSliceDisplayModeToProjection();
   LineModelDisplayNode->RemoveAllViewNodeIDs();
   LineModelDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
+  LineModelDisplayNode->AddViewNodeID("vtkMRMLSliceNodeGreen");
   LineModelDisplayNode->AddViewNodeID("vtkMRMLViewNode1");
 
   d->parametersNode->SetModelID(LineModelNode->GetID());
@@ -963,7 +1027,8 @@ void qSlicerAstroPVDiagramModuleWidget::generatePVDiagram()
 
   PVDiagramVolume->SetAttribute("SlicerAstro.NAXIS1", "1");
   PVDiagramVolume->SetAttribute("SlicerAstro.CROTA1", "0");
-  PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX1", "0");
+  // offset 0 at the first pixel (FITS pixel 1)
+  PVDiagramVolume->SetAttribute("SlicerAstro.CRPIX1", "1");
   PVDiagramVolume->SetAttribute("SlicerAstro.CRVAL1", "0");
   PVDiagramVolume->SetAttribute("SlicerAstro.CTYPE1", "UNDEFINED");
 
@@ -1207,6 +1272,8 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramParametersNodeModifi
   vtkMRMLAstroVolumeNode *momentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(momentMapNodeID));
   d->MomentMapNodeSelector->setCurrentNode(momentMapNode);
+  d->SecondMomentMapNodeSelector->setCurrentNode(d->parametersNode->GetNodeReference(
+    vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole()));
 
   const char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
   vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
@@ -1419,6 +1486,29 @@ void qSlicerAstroPVDiagramModuleWidget::onStartImportEvent()
 }
 
 //---------------------------------------------------------------------------
+void qSlicerAstroPVDiagramModuleWidget::onSecondMomentMapChanged(vtkMRMLNode *mrmlNode)
+{
+  Q_D(qSlicerAstroPVDiagramModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  const char* role = vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole();
+  if (d->parametersNode->GetNodeReference(role) == mrmlNode)
+    {
+    return;
+    }
+  d->parametersNode->SetNodeReferenceID(role, mrmlNode ? mrmlNode->GetID() : nullptr);
+
+  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
+  if (logic)
+    {
+    logic->SetMomentMapsOnViews(d->parametersNode);
+    }
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroPVDiagramModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
@@ -1435,7 +1525,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode
     vtkSlicerAstroPVDiagramLogic *logic = d->logic();
     if (logic)
       {
-      logic->SetMomentMapOnRedWidget(d->parametersNode);
+      logic->SetMomentMapsOnViews(d->parametersNode);
       }
     }
   else

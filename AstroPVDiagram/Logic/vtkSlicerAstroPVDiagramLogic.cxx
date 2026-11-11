@@ -32,6 +32,7 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroPVDiagramParametersNode.h>
+#include <vtkMRMLColorTableNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLMarkupsFiducialNode.h>
@@ -49,6 +50,7 @@
 #include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
 #include <vtkLine.h>
+#include <vtkMath.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
@@ -227,70 +229,58 @@ void vtkSlicerAstroPVDiagramLogic::RegisterNodes()
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVDiagramLogic::Calculate0thMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode)
+const char* vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole()
 {
-  if (!this->GetMRMLScene() || !pnode)
+  return "secondMomentMap";
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroPVDiagramLogic::CreateMomentMapVolume(vtkMRMLAstroVolumeNode* inputVolume,
+                                                                            const std::string& nameSuffix,
+                                                                            const char* bunit,
+                                                                            const char* dataModel)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene || !inputVolume || !inputVolume->GetImageData())
     {
-    return false;
+    return nullptr;
     }
 
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if(!inputVolume || !inputVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateAndSet0thMomentMap :"
-                  " inputVolume not found.");
-    return false;
-    }
-
-  vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = inputVolume->GetAstroVolumeDisplayNode();
-  if (!astroMrmlDisplayNode)
-    {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateAndSet0thMomentMap :"
-                  " astroMrmlDisplayNode not found.");
-    return false;
-    }
-
-  // Create Astro Volume for the moment map
   std::string name = inputVolume->GetName();
   name += "_";
-  name += this->GetMRMLScene()->GetUniqueNameByString("PVDiagramMomentMap");
+  name += scene->GetUniqueNameByString(nameSuffix.c_str());
 
-  vtkMRMLAstroVolumeNode* MomentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
-     (this->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(this->GetMRMLScene(), inputVolume, name.c_str()));
+  vtkMRMLAstroVolumeNode* momentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
+     (this->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, name.c_str()));
+  if (!momentMapNode)
+    {
+    return nullptr;
+    }
 
   // Modify fits attributes
-  MomentMapNode->SetAttribute("SlicerAstro.NAXIS", "2");
-  MomentMapNode->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
-  MomentMapNode->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
-  std::string Bunit = MomentMapNode->GetAttribute("SlicerAstro.BUNIT");
-  Bunit += " km/s";
-  MomentMapNode->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
-  std::string Btype = "";
-  Btype = astroMrmlDisplayNode->AddVelocityInfoToDisplayStringZ(Btype);
-  MomentMapNode->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-  MomentMapNode->RemoveAttribute("SlicerAstro.NAXIS3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CROTA3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CRPIX3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CRVAL3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CTYPE3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.CUNIT3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.DTYPE3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.DRVAL3");
-  MomentMapNode->RemoveAttribute("SlicerAstro.DUNIT3");
-  MomentMapNode->SetAttribute("SlicerAstro.DATAMODEL", "ZEROMOMENTMAP");
+  momentMapNode->SetAttribute("SlicerAstro.NAXIS", "2");
+  momentMapNode->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
+  momentMapNode->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
+  momentMapNode->SetAttribute("SlicerAstro.BUNIT", bunit);
+  std::string btype = "";
+  btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(btype);
+  momentMapNode->SetAttribute("SlicerAstro.BTYPE", btype.c_str());
+  for (const char* keyword : { "NAXIS3", "CDELT3", "CROTA3", "CRPIX3", "CRVAL3", "CTYPE3", "CUNIT3",
+                               "DTYPE3", "DRVAL3", "DUNIT3", "PC1_3", "PC2_3", "PC3_1", "PC3_2", "PC3_3" })
+    {
+    momentMapNode->RemoveAttribute((std::string("SlicerAstro.") + keyword).c_str());
+    }
+  momentMapNode->SetAttribute("SlicerAstro.DATAMODEL", dataModel);
 
   // Remove old rendering Display
-  int ndnodes = MomentMapNode->GetNumberOfDisplayNodes();
-  for (int ii = 0; ii < ndnodes; ii++)
+  int ndnodes = momentMapNode->GetNumberOfDisplayNodes();
+  for (int ii = ndnodes - 1; ii >= 0; ii--)
     {
     vtkMRMLVolumeRenderingDisplayNode *dnode =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-        MomentMapNode->GetNthDisplayNode(ii));
+      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(momentMapNode->GetNthDisplayNode(ii));
     if (dnode)
       {
-      MomentMapNode->RemoveNthDisplayNodeID(ii);
+      momentMapNode->RemoveNthDisplayNodeID(ii);
       }
     }
 
@@ -301,86 +291,135 @@ bool vtkSlicerAstroPVDiagramLogic::Calculate0thMomentMap(vtkMRMLAstroPVDiagramPa
   imageDataTemp->SetDimensions(N1, N2, 1);
   imageDataTemp->SetSpacing(1.,1.,1.);
   imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
-
-  MomentMapNode->SetAndObserveImageData(imageDataTemp.GetPointer());
+  momentMapNode->SetAndObserveImageData(imageDataTemp.GetPointer());
 
   // Set the Origin
   double Origin[3];
   inputVolume->GetOrigin(Origin);
   Origin[1] = -Origin[1];
-  MomentMapNode->SetOrigin(Origin);
+  momentMapNode->SetOrigin(Origin);
+
+  return momentMapNode;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVDiagramLogic::CalculateMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode, int order)
+{
+  if (!this->GetMRMLScene() || !pnode || (order != 0 && order != 2))
+    {
+    return false;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
+      GetNodeByID(pnode->GetInputVolumeNodeID()));
+  if(!inputVolume || !inputVolume->GetImageData())
+    {
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateMomentMap :"
+                  " inputVolume not found.");
+    return false;
+    }
+
+  vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = inputVolume->GetAstroVolumeDisplayNode();
+  struct wcsprm* WCS = astroMrmlDisplayNode ? astroMrmlDisplayNode->GetWCSStruct() : nullptr;
+  if (!WCS)
+    {
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateMomentMap :"
+                  " WCS of the input volume not found.");
+    return false;
+    }
+
+  // 0th moment map (Red view) or 2nd moment map (velocity dispersion, Green view)
+  vtkMRMLAstroVolumeNode* momentMapNode = nullptr;
+  if (order == 0)
+    {
+    std::string bunit = inputVolume->GetAttribute("SlicerAstro.BUNIT") ?
+      inputVolume->GetAttribute("SlicerAstro.BUNIT") : "";
+    bunit += " km/s";
+    momentMapNode = this->CreateMomentMapVolume(inputVolume, "PVDiagramMomentMap", bunit.c_str(), "ZEROMOMENTMAP");
+    }
+  else
+    {
+    momentMapNode = this->CreateMomentMapVolume(inputVolume, "PVDiagramSecondMomentMap", "km/s", "SECONDMOMENTMAP");
+    vtkMRMLColorTableNode* rainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+      (this->GetMRMLScene()->GetFirstNodeByName("Rainbow"));
+    if (momentMapNode && rainbowColorTableNode)
+      {
+      momentMapNode->GetAstroVolumeDisplayNode()->SetAndObserveColorNodeID(rainbowColorTableNode->GetID());
+      }
+    }
+  if (!momentMapNode)
+    {
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateMomentMap :"
+                  " the moment map volume could not be created.");
+    return false;
+    }
 
   vtkNew<vtkMRMLAstroMomentMapsParametersNode> momentMapParametersNode;
   momentMapParametersNode->SetInputVolumeNodeID(inputVolume->GetID());
-  momentMapParametersNode->SetZeroMomentVolumeNodeID(MomentMapNode->GetID());
   momentMapParametersNode->SetMaskActive(false);
-  momentMapParametersNode->SetGenerateZero(true);
+  momentMapParametersNode->SetGenerateZero(order == 0);
   momentMapParametersNode->SetGenerateFirst(false);
-  momentMapParametersNode->SetGenerateSecond(false);
-  momentMapParametersNode->SetIntensityMin(StringToDouble
-    (inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")) * 2);
-  momentMapParametersNode->SetIntensityMax(StringToDouble
-    (inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
+  momentMapParametersNode->SetGenerateSecond(order == 2);
+  if (order == 0)
+    {
+    momentMapParametersNode->SetZeroMomentVolumeNodeID(momentMapNode->GetID());
+    }
+  else
+    {
+    momentMapParametersNode->SetSecondMomentVolumeNodeID(momentMapNode->GetID());
+    }
+  // the velocity dispersion is noisy at low signal to noise: higher threshold
+  const double displayThreshold = StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold"));
+  momentMapParametersNode->SetIntensityMin(displayThreshold * (order == 0 ? 2. : 4.));
+  momentMapParametersNode->SetIntensityMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
 
+  // the full velocity range of the cube
+  int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
+  int N2 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
   double ijk[3], worldOne[3], worldTwo[3];
   ijk[0] = N1 * 0.5;
   ijk[1] = N2 * 0.5;
   ijk[2] = 0.;
   astroMrmlDisplayNode->GetReferenceSpace(ijk, worldOne);
-  struct wcsprm* WCS = astroMrmlDisplayNode->GetWCSStruct();
-  if (!WCS)
+  ijk[2] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS3")) - 1.;
+  if (ijk[2] < 1)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateAndSet0thMomentMap :"
-                  " WCS not found.");
-    return false;
-    }
-  if(!strcmp(WCS->cunit[2], "m/s"))
-    {
-    worldOne[2] /= 1000.;
-    }
-  ijk[2] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-  if (ijk[2] < 2)
-    {
-    ijk[2] += 1;
+    ijk[2] = 1;
     }
   astroMrmlDisplayNode->GetReferenceSpace(ijk, worldTwo);
   if(!strcmp(WCS->cunit[2], "m/s"))
     {
+    worldOne[2] /= 1000.;
     worldTwo[2] /= 1000.;
     }
-
-  double Vmin, Vmax;
-
-  if (worldOne[2] < worldTwo[2])
-    {
-    Vmin = worldOne[2];
-    Vmax = worldTwo[2];
-    }
-  else
-    {
-    Vmin = worldTwo[2];
-    Vmax = worldOne[2];
-    }
-  momentMapParametersNode->SetVelocityMin(Vmin);
-  momentMapParametersNode->SetVelocityMax(Vmax);
+  momentMapParametersNode->SetVelocityMin(std::min(worldOne[2], worldTwo[2]));
+  momentMapParametersNode->SetVelocityMax(std::max(worldOne[2], worldTwo[2]));
 
   momentMapParametersNode->SetStatus(0);
   momentMapParametersNode->SetCores(0);
 
   if (!this->GetAstroMomentMapsLogic()->CalculateMomentMaps(momentMapParametersNode.GetPointer()))
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateAndSet0thMomentMap :"
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateMomentMap :"
                   " MomentMaps calculations failed.");
     return false;
     }
 
-  pnode->SetMomentMapNodeID(MomentMapNode->GetID());
-
+  if (order == 0)
+    {
+    pnode->SetMomentMapNodeID(momentMapNode->GetID());
+    }
+  else
+    {
+    pnode->SetNodeReferenceID(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole(),
+                              momentMapNode->GetID());
+    }
   return true;
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagramParametersNode *pnode)
+bool vtkSlicerAstroPVDiagramLogic::SetMomentMapsOnViews(vtkMRMLAstroPVDiagramParametersNode *pnode)
 {
   if (!pnode || !this->GetMRMLScene())
     {
@@ -391,7 +430,7 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
   qSlicerApplication* app = qSlicerApplication::application();
   if(!app)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::Set0thMomentMap : "
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::SetMomentMapsOnViews : "
                    "app not found!");
     return false;
     }
@@ -400,7 +439,7 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
 
   if(!layoutManager)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::Set0thMomentMap : "
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::SetMomentMapsOnViews : "
                    "layoutManager not found!");
     return false;
     }
@@ -431,17 +470,20 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
   yellowSliceComposite->SetForegroundOpacity(0.);
   yellowSliceComposite->SetBackgroundVolumeID(pnode->GetInputVolumeNodeID());
 
+  // 2nd moment map (velocity dispersion) in the Green view
+  vtkMRMLNode* secondMomentMapNode =
+    pnode->GetNodeReference(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole());
   vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
     this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
   greenSliceComposite->SetLabelVolumeID("");
   greenSliceComposite->SetForegroundVolumeID("");
   greenSliceComposite->SetForegroundOpacity(0.);
-  greenSliceComposite->SetBackgroundVolumeID(pnode->GetInputVolumeNodeID());
+  greenSliceComposite->SetBackgroundVolumeID(secondMomentMapNode ? secondMomentMapNode->GetID() : "");
 
   vtkSlicerApplicationLogic *appLogic = app->applicationLogic();
   if (!appLogic)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::Set0thMomentMap : "
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::SetMomentMapsOnViews : "
                    "appLogic not found!");
     return false;
     }
@@ -449,7 +491,7 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
   vtkMRMLSliceLogic* redSliceLogic = appLogic->GetSliceLogic(redSlice);
   if (!redSliceLogic)
     {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::Set0thMomentMap : "
+    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::SetMomentMapsOnViews : "
                    "redSliceLogic not found!");
     return false;
     }
@@ -460,6 +502,22 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagram
     redSliceLogic->FitSliceToAll(dims[0], dims[1]);
     }
   redSliceLogic->SnapSliceOffsetToIJK();
+
+  vtkMRMLSliceNode *greenSlice = vtkMRMLSliceNode::SafeDownCast(
+    this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+  vtkMRMLSliceLogic* greenSliceLogic = greenSlice ? appLogic->GetSliceLogic(greenSlice) : nullptr;
+  if (greenSliceLogic)
+    {
+    // setting to the XZ orientation is needed in order to force the refresh
+    greenSlice->SetOrientation("XZ");
+    greenSlice->SetOrientation("XY");
+    int *greenDims = greenSlice->GetDimensions();
+    if (greenDims)
+      {
+      greenSliceLogic->FitSliceToAll(greenDims[0], greenDims[1]);
+      }
+    greenSliceLogic->SnapSliceOffsetToIJK();
+    }
 
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
@@ -960,8 +1018,12 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       double oldPosIJK[3], oldPosWCS[3];
       points->GetPoint(PointIndex - 1, oldPosIJK);
       astroInputDisplay->GetReferenceSpace(oldPosIJK, oldPosWCS);
-      CDELT1 += sqrt(((posWCS[0] - oldPosWCS[0]) * (posWCS[0] - oldPosWCS[0])) +
-                     ((posWCS[1] - oldPosWCS[1]) * (posWCS[1] - oldPosWCS[1])));
+      // angular distance on the sky (degrees): RA differences shrink with cos(Dec)
+      const double deg2rad = vtkMath::Pi() / 180.;
+      const double cosDec = cos(0.5 * (posWCS[1] + oldPosWCS[1]) * deg2rad);
+      const double deltaRA = (posWCS[0] - oldPosWCS[0]) * cosDec;
+      const double deltaDec = posWCS[1] - oldPosWCS[1];
+      CDELT1 += sqrt((deltaRA * deltaRA) + (deltaDec * deltaDec));
       }
     }
   CDELT1 /= points->GetNumberOfPoints() - 1;

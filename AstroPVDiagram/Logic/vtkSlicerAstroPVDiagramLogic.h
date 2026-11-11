@@ -23,7 +23,10 @@
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
 class vtkMRMLVolumeNode;
+#include <string>
+
 class vtkSlicerAstroMomentMapsLogic;
+class vtkMRMLAstroVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
 // AstroPVDiagrams includes
@@ -59,15 +62,25 @@ public:
   /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() override;
 
-  /// Run 0th moment maps calculation algorithm
+  /// Calculate a moment map of the input volume: the 0th moment map (order
+  /// 0, Red view: the line of the PV diagram is drawn on it), set as moment
+  /// map of the parameter node, or the 2nd moment map (order 2, velocity
+  /// dispersion, Green view), referenced by the parameter node with the
+  /// GetSecondMomentMapReferenceRole() role.
   /// \param MRML parameter node
+  /// \param order 0 or 2
   /// \return Success flag
-  bool Calculate0thMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode);
+  bool CalculateMomentMap(vtkMRMLAstroPVDiagramParametersNode *pnode, int order);
 
-  /// Set current selected moment map on Red slice widget
+  /// Set the moment maps in the views: 0th moment map in the Red view, 2nd
+  /// moment map in the Green view (XY orientation); the Yellow view is prepared for the PV
+  /// diagram.
   /// \param MRML parameter node
   /// \return Success flag
-  bool SetMomentMapOnRedWidget(vtkMRMLAstroPVDiagramParametersNode *pnode);
+  bool SetMomentMapsOnViews(vtkMRMLAstroPVDiagramParametersNode *pnode);
+
+  /// Node reference role of the 2nd moment map in the parameter node
+  static const char* GetSecondMomentMapReferenceRole();
 
   /// Update the slice selection from the MRML fiducial markups node
   /// \param MRML parameter node
@@ -82,6 +95,13 @@ public:
 protected:
   vtkSlicerAstroPVDiagramLogic();
   virtual ~vtkSlicerAstroPVDiagramLogic();
+
+  /// 2D astronomical volume (no spectral axis, no volume rendering) for a
+  /// moment map of the input volume
+  vtkMRMLAstroVolumeNode* CreateMomentMapVolume(vtkMRMLAstroVolumeNode* inputVolume,
+                                                const std::string& nameSuffix,
+                                                const char* bunit,
+                                                const char* dataModel);
 
 private:
   vtkSlicerAstroPVDiagramLogic(const vtkSlicerAstroPVDiagramLogic&); // Not implemented

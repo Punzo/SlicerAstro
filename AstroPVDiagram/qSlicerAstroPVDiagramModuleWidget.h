@@ -89,6 +89,7 @@ protected slots:
 
   /// Set the MRML moment map input node
   void onMomentMapChanged(vtkMRMLNode* mrmlNode);
+  void onSecondMomentMapChanged(vtkMRMLNode* mrmlNode);
 
   /// Set the MRML output node
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);

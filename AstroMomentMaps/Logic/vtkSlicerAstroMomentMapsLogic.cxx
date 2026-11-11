@@ -250,15 +250,30 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     forceGenerateFirst = true ;
     }
 
-  const int DataType = ZeroMomentVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  // The 1st moment needs the 0th, the 2nd the 0th and the 1st: maps that
+  // are not requested as output are calculated in internal buffers
+  const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
+  vtkSmartPointer<vtkImageData> zeroMomentImage = (pnode->GetGenerateZero() && ZeroMomentVolume) ?
+    ZeroMomentVolume->GetImageData() : nullptr;
+  vtkSmartPointer<vtkImageData> firstMomentImage = (pnode->GetGenerateFirst() && FirstMomentVolume) ?
+    FirstMomentVolume->GetImageData() : nullptr;
+  for (vtkSmartPointer<vtkImageData>* momentImage : { &zeroMomentImage, &firstMomentImage })
+    {
+    if (!*momentImage)
+      {
+      *momentImage = vtkSmartPointer<vtkImageData>::New();
+      (*momentImage)->SetDimensions(dims[0], dims[1], 1);
+      (*momentImage)->AllocateScalars(DataType, 1);
+      }
+    }
   switch (DataType)
     {
     case VTK_FLOAT:
       inFPixel = static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        outZeroFPixel = static_cast<float*> (ZeroMomentVolume->GetImageData()->GetScalarPointer(0,0,0));
+      outZeroFPixel = static_cast<float*> (zeroMomentImage->GetScalarPointer(0,0,0));
       if (forceGenerateFirst)
         {
-        outFirstFPixel = static_cast<float*> (FirstMomentVolume->GetImageData()->GetScalarPointer(0,0,0));
+        outFirstFPixel = static_cast<float*> (firstMomentImage->GetScalarPointer(0,0,0));
         }
       if (pnode->GetGenerateSecond())
         {
@@ -267,10 +282,10 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       break;
     case VTK_DOUBLE:
       inDPixel = static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer(0,0,0));
-        outZeroDPixel = static_cast<double*> (ZeroMomentVolume->GetImageData()->GetScalarPointer(0,0,0));
+      outZeroDPixel = static_cast<double*> (zeroMomentImage->GetScalarPointer(0,0,0));
       if (forceGenerateFirst)
         {
-        outFirstDPixel = static_cast<double*> (FirstMomentVolume->GetImageData()->GetScalarPointer(0,0,0));
+        outFirstDPixel = static_cast<double*> (firstMomentImage->GetScalarPointer(0,0,0));
         }
       if (pnode->GetGenerateSecond())
         {
