@@ -412,6 +412,19 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.assertFalse(saveButton.enabled)
         self.delayDisplay("Test passed")
 
+    def assertShownIn3D(self, segmentationNode):
+        """Binary labelmap in 2D and 3D, with "Show 3D" of the Segment Editor on."""
+        labelmapName = slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName()
+        displayNode = segmentationNode.GetDisplayNode()
+        self.assertEqual(displayNode.GetPreferredDisplayRepresentationName2D(), labelmapName)
+        self.assertEqual(displayNode.GetPreferredDisplayRepresentationName3D(), labelmapName)
+        self.assertTrue(displayNode.GetVisibility3D())
+        segmentationNode.GetSegmentation().AddEmptySegment("", "Show3DCheck")
+        show3DButton = slicer.qMRMLSegmentationShow3DButton()
+        show3DButton.setSegmentationNode(segmentationNode)
+        self.assertTrue(show3DButton.checked)
+        segmentationNode.GetSegmentation().RemoveSegment("Show3DCheck")
+
     def test_NewSegmentationDefaultStorage(self):
         """New segmentations are FITS masks by default (not the contours, not
         segmentations of non-astronomical volumes)."""
@@ -435,6 +448,7 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.assertIs(selector.currentNode(), moduleMask)
         self.assertIs(moduleMask.GetNodeReference(referenceRole), volumeNode)
         self.assertEqual(moduleMask.GetName(), "WEIN069_SEG")
+        self.assertShownIn3D(moduleMask)
         self.assertEqual(moduleMask.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
 
         # Masks section, "Create new Segmentation": a mask of the active cube
@@ -454,6 +468,9 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.assertIsNone(segmentationNode.GetNodeReference(referenceRole))
         self.assertEqual(segmentationNode.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
         defaultStorageID = segmentationNode.GetStorageNodeID()
+        # display node created afterwards: binary labelmap in 2D and 3D, shown in 3D
+        segmentationNode.CreateDefaultDisplayNodes()
+        self.assertShownIn3D(segmentationNode)
 
         # ... whose reference volume then is not astronomical: Slicer's default storage
         imageData = vtk.vtkImageData()

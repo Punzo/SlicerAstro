@@ -136,7 +136,8 @@ public:
 
   /// Display the binary labelmap of the segmentation in the 2D and 3D views
   /// (no closed surface: faster, and the voxels of the data are shown); the
-  /// closed surface representation is removed if it is not the source.
+  /// closed surface representation is removed if it is not the source. The
+  /// 3D display is on ("Show 3D" of the Segment Editor).
   static void SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode* segmentationNode);
 
   /// Return true if the segmentation has at least one segment that is not

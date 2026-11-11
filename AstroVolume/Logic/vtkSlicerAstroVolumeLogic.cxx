@@ -2958,8 +2958,10 @@ void vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode
     vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
   if (displayNode)
     {
+    // "Show 3D" on: the binary labelmap is shown in the 3D views too
     displayNode->SetPreferredDisplayRepresentationName2D(labelmapName);
     displayNode->SetPreferredDisplayRepresentationName3D(labelmapName);
+    displayNode->SetVisibility3D(true);
     }
   vtkSegmentation* segmentation = segmentationNode->GetSegmentation();
   if (segmentation && segmentation->GetSourceRepresentationName() != surfaceName &&
@@ -2981,7 +2983,16 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
     if (this->GetMRMLScene() && !this->GetMRMLScene()->IsImporting())
       {
       vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(segmentationNode);
-      this->EnsureFITSMaskStorageNode(segmentationNode);
+      bool fitsMask = this->EnsureFITSMaskStorageNode(segmentationNode);
+      // display node created after the FITS storage (e.g. AddNewNodeByClass
+      // followed by CreateDefaultDisplayNodes): binary labelmap display in 2D
+      // and 3D. A representation already chosen is kept.
+      vtkMRMLSegmentationDisplayNode* displayNode =
+        vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
+      if (fitsMask && displayNode && !displayNode->GetPreferredDisplayRepresentationName3D())
+        {
+        vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
+        }
       }
     return;
     }
