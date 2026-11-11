@@ -80,6 +80,9 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLMarkupsDisplayNode.h>
+#include <vtkMRMLMarkupsCurveNode.h>
+#include <vtkVector.h>
+#include <algorithm>
 #include <vtkMRMLMarkupsFiducialNode.h>
 #include <vtkMRMLModelNode.h>
 #include <vtkMRMLModelDisplayNode.h>
@@ -201,9 +204,6 @@ void qSlicerAstroPVDiagramModuleWidgetPrivate::init()
   QObject::connect(this->SourcePointsNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onFiducialsMarkupsChanged(vtkMRMLNode*)));
 
-  QObject::connect(this->CurveModelNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onModelChanged(vtkMRMLNode*)));
-
   QObject::connect(this->InterpolationSplineRadioButton, SIGNAL(toggled(bool)),
                    q, SLOT(onInterpolationSpline(bool)));
 
@@ -315,7 +315,8 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     return;
     }
 
-  d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode");
+  // the clicks add control points to the line (Markups open curve)
+  d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsCurveNode");
   interactionNode->SetCurrentInteractionMode(vtkMRMLInteractionNode::Place);
   interactionNode->SetPlaceModePersistence(1);
 
@@ -330,32 +331,17 @@ void qSlicerAstroPVDiagramModuleWidget::enter()
     return;
     }
 
-  vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
+  // line of the PV diagram shown, and the place mode adds points to it
+  vtkMRMLMarkupsCurveNode *lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
-  if (fiducialsMarkupsNode)
+  if (lineNode)
     {
-    vtkMRMLMarkupsDisplayNode* PointsDisplayNode =
-      fiducialsMarkupsNode->GetMarkupsDisplayNode();
-    if (!PointsDisplayNode)
+    if (!lineNode->GetDisplayNode())
       {
-      fiducialsMarkupsNode->CreateDefaultDisplayNodes();
-      PointsDisplayNode = fiducialsMarkupsNode->GetMarkupsDisplayNode();
+      lineNode->CreateDefaultDisplayNodes();
       }
-    PointsDisplayNode->SetVisibility(1);
-    }
-
-  vtkMRMLModelNode *ModelNode = vtkMRMLModelNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetModelID()));
-  if (ModelNode)
-    {
-    vtkMRMLModelDisplayNode* LineModelDisplayNode =
-      ModelNode->GetModelDisplayNode();
-    if (!LineModelDisplayNode)
-      {
-      ModelNode->CreateDefaultDisplayNodes();
-      LineModelDisplayNode = ModelNode->GetModelDisplayNode();
-      }
-    LineModelDisplayNode->SetVisibility(1);
+    lineNode->GetDisplayNode()->SetVisibility(1);
+    d->selectionNode->SetActivePlaceNodeID(lineNode->GetID());
     }
 
   vtkMRMLSliceCompositeNode *redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
@@ -492,32 +478,12 @@ void qSlicerAstroPVDiagramModuleWidget::exit()
     redSliceNode->SetRulerType(vtkMRMLSliceNode::RulerTypeNone);
     }
 
-  vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
+  // line of the PV diagram hidden (not removed)
+  vtkMRMLMarkupsCurveNode *lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
-  if (fiducialsMarkupsNode)
+  if (lineNode && lineNode->GetDisplayNode())
     {
-    vtkMRMLMarkupsDisplayNode* PointsDisplayNode =
-      fiducialsMarkupsNode->GetMarkupsDisplayNode();
-    if (!PointsDisplayNode)
-      {
-      fiducialsMarkupsNode->CreateDefaultDisplayNodes();
-      PointsDisplayNode = fiducialsMarkupsNode->GetMarkupsDisplayNode();
-      }
-    PointsDisplayNode->SetVisibility(0);
-    }
-
-  vtkMRMLModelNode *ModelNode = vtkMRMLModelNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetModelID()));
-  if (ModelNode)
-    {
-    vtkMRMLModelDisplayNode* LineModelDisplayNode =
-      ModelNode->GetModelDisplayNode();
-    if (!LineModelDisplayNode)
-      {
-      ModelNode->CreateDefaultDisplayNodes();
-      LineModelDisplayNode = ModelNode->GetModelDisplayNode();
-      }
-    LineModelDisplayNode->SetVisibility(0);
+    lineNode->GetDisplayNode()->SetVisibility(0);
     }
 }
 
@@ -570,9 +536,7 @@ void qSlicerAstroPVDiagramModuleWidget::initializeNodes(bool forceNew /*= false*
 
   this->initializeMomentMapNode(forceNew);
 
-  this->initializeFiducialsMarkupsNode(forceNew);
-
-  this->initializeLineModelNode(forceNew);
+  this->initializeLineNode(forceNew);
 }
 
 //-----------------------------------------------------------------------------
@@ -650,7 +614,7 @@ void qSlicerAstroPVDiagramModuleWidget::onFiducialsMarkupsChanged(vtkMRMLNode *m
     return;
     }
 
-  vtkMRMLMarkupsFiducialNode* SourcePointsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast(mrmlNode);
+  vtkMRMLMarkupsCurveNode* SourcePointsNode = vtkMRMLMarkupsCurveNode::SafeDownCast(mrmlNode);
 
   if (SourcePointsNode)
     {
@@ -840,131 +804,110 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::initializeFiducialsMarkupsNode(bool forceNew)
+void qSlicerAstroPVDiagramModuleWidget::initializeLineNode(bool forceNew)
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
 
-  if (!this->mrmlScene() || !d->parametersNode)
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene || !d->parametersNode)
     {
     return;
     }
 
-  vtkSmartPointer<vtkMRMLMarkupsFiducialNode> SourcePointNode = nullptr;
-
-  vtkSmartPointer<vtkCollection> FiducialsMarkupsNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLMarkupsFiducialNode"));
-
-  for (int FiducialsMarkupsIndex = 0; FiducialsMarkupsIndex < FiducialsMarkupsNodes->GetNumberOfItems(); FiducialsMarkupsIndex++)
+  // the line of the PV diagram: a Markups open curve
+  vtkMRMLNode* referencedNode = d->parametersNode->GetFiducialsMarkupsID() ?
+    scene->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()) : nullptr;
+  vtkMRMLMarkupsCurveNode* lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(referencedNode);
+  if (!lineNode)
     {
-    vtkMRMLMarkupsFiducialNode* FiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
-      (FiducialsMarkupsNodes->GetItemAsObject(FiducialsMarkupsIndex));
-    if (!FiducialsMarkupsNode)
+    std::vector<vtkMRMLNode*> curveNodes;
+    scene->GetNodesByClass("vtkMRMLMarkupsCurveNode", curveNodes);
+    for (vtkMRMLNode* node : curveNodes)
       {
-      continue;
-      }
-    std::string name = FiducialsMarkupsNode->GetName();
-    if (name.find("PVDiagramSourcePoints") != std::string::npos)
-      {
-      if (forceNew)
+      if (node->GetName() && std::string(node->GetName()) == "PVDiagramLine")
         {
-        this->mrmlScene()->RemoveNode(FiducialsMarkupsNode);
-        }
-      else
-        {
-        SourcePointNode = FiducialsMarkupsNode;
+        lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(node);
         break;
         }
       }
     }
-
-  if (!SourcePointNode)
+  if (lineNode && forceNew)
     {
-    SourcePointNode.TakeReference(vtkMRMLMarkupsFiducialNode::SafeDownCast
-      (this->mrmlScene()->CreateNodeByClass("vtkMRMLMarkupsFiducialNode")));
-    SourcePointNode->SetName("PVDiagramSourcePoints");
-    this->mrmlScene()->AddNode(SourcePointNode);
+    scene->RemoveNode(lineNode);
+    lineNode = nullptr;
+    }
+  if (!lineNode)
+    {
+    lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(
+      scene->AddNewNodeByClass("vtkMRMLMarkupsCurveNode", "PVDiagramLine"));
+    }
+  if (!lineNode)
+    {
+    return;
     }
 
-  vtkMRMLMarkupsDisplayNode* SourcePointDisplayNode = SourcePointNode->GetMarkupsDisplayNode();
-  if (!SourcePointDisplayNode)
+  // scenes of the previous versions: source points (fiducials) and line model
+  vtkMRMLMarkupsFiducialNode* oldPointsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast(referencedNode);
+  if (oldPointsNode)
     {
-    SourcePointNode->CreateDefaultDisplayNodes();
-    SourcePointDisplayNode = SourcePointNode->GetMarkupsDisplayNode();
+    if (lineNode->GetNumberOfControlPoints() == 0)
+      {
+      for (int index = 0; index < oldPointsNode->GetNumberOfControlPoints(); index++)
+        {
+        double position[3] = {0., 0., 0.};
+        oldPointsNode->GetNthControlPointPositionWorld(index, position);
+        lineNode->AddControlPointWorld(vtkVector3d(position[0], position[1], position[2]));
+        }
+      }
+    scene->RemoveNode(oldPointsNode);
     }
-  // control points in the moment maps (Red, Green) and 3D views, not on the
-  // PV diagram (Yellow view)
-  SourcePointDisplayNode->RemoveAllViewNodeIDs();
-  SourcePointDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
-  SourcePointDisplayNode->AddViewNodeID("vtkMRMLSliceNodeGreen");
-  SourcePointDisplayNode->AddViewNodeID("vtkMRMLViewNode1");
-  SourcePointDisplayNode->SetGlyphType(vtkMRMLMarkupsDisplayNode::Sphere3D);
-  SourcePointDisplayNode->SetColor(0., 0.66, 1.);
-  SourcePointDisplayNode->SetSelectedColor(0., 0.66, 1.);
+  vtkMRMLNode* oldModelNode = d->parametersNode->GetModelID() ?
+    scene->GetNodeByID(d->parametersNode->GetModelID()) : nullptr;
+  if (oldModelNode && oldModelNode->IsA("vtkMRMLModelNode"))
+    {
+    scene->RemoveNode(oldModelNode);
+    }
+  d->parametersNode->SetModelID(nullptr);
 
-  d->parametersNode->SetFiducialsMarkupsID(SourcePointNode->GetID());
+  // shown in the moment maps (Red, Green) and 3D views, not on the PV diagram (Yellow)
+  if (!lineNode->GetDisplayNode())
+    {
+    lineNode->CreateDefaultDisplayNodes();
+    }
+  vtkMRMLMarkupsDisplayNode* lineDisplayNode = lineNode->GetMarkupsDisplayNode();
+  if (lineDisplayNode)
+    {
+    lineDisplayNode->RemoveAllViewNodeIDs();
+    lineDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
+    lineDisplayNode->AddViewNodeID("vtkMRMLSliceNodeGreen");
+    lineDisplayNode->AddViewNodeID("vtkMRMLViewNode1");
+    lineDisplayNode->SetGlyphType(vtkMRMLMarkupsDisplayNode::Sphere3D);
+    lineDisplayNode->SetColor(0., 0.66, 1.);
+    lineDisplayNode->SetSelectedColor(0., 0.66, 1.);
+    }
+  this->updateLineCurveType(lineNode);
+
+  d->parametersNode->SetFiducialsMarkupsID(lineNode->GetID());
 }
 
 //--------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::initializeLineModelNode(bool forceNew)
+void qSlicerAstroPVDiagramModuleWidget::updateLineCurveType(vtkMRMLMarkupsCurveNode* lineNode)
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
 
-  if (!this->mrmlScene() || !d->parametersNode)
+  if (!lineNode || !d->parametersNode)
     {
     return;
     }
-
-  vtkSmartPointer<vtkMRMLModelNode> LineModelNode = nullptr;
-
-  vtkSmartPointer<vtkCollection> ModelNodes = vtkSmartPointer<vtkCollection>::Take
-      (this->mrmlScene()->GetNodesByClass("vtkMRMLModelNode"));
-
-  for (int ModelNodesIndex = 0; ModelNodesIndex < ModelNodes->GetNumberOfItems(); ModelNodesIndex++)
+  // interpolation of the line: spline or straight segments
+  if (d->parametersNode->GetInterpolation())
     {
-    vtkMRMLModelNode* ModelNode = vtkMRMLModelNode::SafeDownCast
-      (ModelNodes->GetItemAsObject(ModelNodesIndex));
-    if (!ModelNode)
-      {
-      continue;
-      }
-    std::string name = ModelNode->GetName();
-    if (name.find("PVDiagramLineSelection") != std::string::npos)
-      {
-      if (forceNew)
-        {
-        this->mrmlScene()->RemoveNode(ModelNode);
-        }
-      else
-        {
-        LineModelNode = ModelNode;
-        break;
-        }
-      }
+    lineNode->SetCurveTypeToCardinalSpline();
     }
-
-  if (!LineModelNode)
+  else
     {
-    LineModelNode.TakeReference(vtkMRMLModelNode::SafeDownCast
-      (this->mrmlScene()->CreateNodeByClass("vtkMRMLModelNode")));
-    LineModelNode->SetName("PVDiagramLineSelection");
-    this->mrmlScene()->AddNode(LineModelNode);
+    lineNode->SetCurveTypeToLinear();
     }
-
-  vtkMRMLModelDisplayNode* LineModelDisplayNode = LineModelNode->GetModelDisplayNode();
-  if (!LineModelDisplayNode)
-    {
-    LineModelNode->CreateDefaultDisplayNodes();
-    LineModelDisplayNode = LineModelNode->GetModelDisplayNode();
-    }
-  LineModelDisplayNode->SetColor(0., 0.5, 1.);
-  LineModelDisplayNode->SetVisibility2D(true);
-  LineModelDisplayNode->SetSliceDisplayModeToProjection();
-  LineModelDisplayNode->RemoveAllViewNodeIDs();
-  LineModelDisplayNode->AddViewNodeID("vtkMRMLSliceNodeRed");
-  LineModelDisplayNode->AddViewNodeID("vtkMRMLSliceNodeGreen");
-  LineModelDisplayNode->AddViewNodeID("vtkMRMLViewNode1");
-
-  d->parametersNode->SetModelID(LineModelNode->GetID());
 }
 
 //--------------------------------------------------------------------------
@@ -1234,26 +1177,6 @@ void qSlicerAstroPVDiagramModuleWidget::onInterpolationSpline(bool toggled)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroPVDiagramModuleWidget::onModelChanged(vtkMRMLNode *mrmlNode)
-{
-  Q_D(qSlicerAstroPVDiagramModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  if (mrmlNode)
-    {
-    d->parametersNode->SetModelID(mrmlNode->GetID());
-    }
-  else
-    {
-    d->parametersNode->SetModelID(nullptr);
-    }
-}
-
-//-----------------------------------------------------------------------------
 void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramParametersNodeModified()
 {
   Q_D(qSlicerAstroPVDiagramModuleWidget);
@@ -1281,15 +1204,11 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramParametersNodeModifi
   d->OutputNodeSelector->setCurrentNode(outputVolumeNode);
 
   const char *fiducialsMarkupsNodeID = d->parametersNode->GetFiducialsMarkupsID();
-  vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
+  vtkMRMLMarkupsCurveNode *fiducialsMarkupsNode = vtkMRMLMarkupsCurveNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(fiducialsMarkupsNodeID));
   d->SourcePointsNodeComboBox->setCurrentNode(fiducialsMarkupsNode);
   d->PointsMarkupsPlaceWidget->setCurrentNode(fiducialsMarkupsNode);
 
-  const char *modelNodeID = d->parametersNode->GetModelID();
-  vtkMRMLModelNode *modelNode = vtkMRMLModelNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(modelNodeID));
-  d->CurveModelNodeComboBox->setCurrentNode(modelNode);
 
   d->AutoUpdateCheckBox->setChecked(d->parametersNode->GetAutoUpdate());
 }
@@ -1325,15 +1244,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSelectionNodeModified(vtkObject *s
   d->parametersNode->EndModify(wasModifying);
 
   this->initializeMomentMapNode(true);
-  this->initializeFiducialsMarkupsNode(false);
-
-  // Update Line Selection
-  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-  if (logic)
-    {
-    logic->UpdateSliceSelection(d->parametersNode);
-    }
-  this->initializeLineModelNode(false);
+  this->initializeLineNode(false);
 }
 
 //-----------------------------------------------------------------------------
@@ -1346,7 +1257,7 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeMarkupAdded()
     return;
     }
 
-  vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode = vtkMRMLMarkupsFiducialNode::SafeDownCast
+  vtkMRMLMarkupsCurveNode *fiducialsMarkupsNode = vtkMRMLMarkupsCurveNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
   if (!fiducialsMarkupsNode)
     {
@@ -1372,8 +1283,8 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
     return;
     }
 
-  vtkMRMLMarkupsFiducialNode *fiducialsMarkupsNode =
-    vtkMRMLMarkupsFiducialNode::SafeDownCast
+  vtkMRMLMarkupsCurveNode *fiducialsMarkupsNode =
+    vtkMRMLMarkupsCurveNode::SafeDownCast
       (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID()));
   if (!fiducialsMarkupsNode)
     {
@@ -1402,27 +1313,15 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
     }
   d->UpdatingSourcePoints = true;
 
-  // Ensure the fiducials are restrained on the Moment Map
-  double* RASOrigin = PVMomentMap->GetOrigin();
-  int dimsIJK[3];
-  double dimsIJKDouble[3], dimsRAS[3];
+  // The control points stay on the moment map (plane and extent), in the
+  // pixel coordinates of the moment map
+  int dimsIJK[3] = {0, 0, 0};
   PVMomentMap->GetImageData()->GetDimensions(dimsIJK);
-  dimsIJKDouble[0] = dimsIJK[0];
-  dimsIJKDouble[1] = dimsIJK[1];
-  dimsIJKDouble[2] = dimsIJK[2];
-  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
-  IJKtoRASTransform->Identity();
-  IJKtoRASTransform->PostMultiply();
-  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
-  PVMomentMap->GetRASToIJKMatrix(IJKtoRASMatrix.GetPointer());
-  IJKtoRASMatrix->Invert();
-  IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
-  IJKtoRASTransform->TransformPoint(dimsIJKDouble, dimsRAS);
+  vtkNew<vtkMatrix4x4> RASToIJKMatrix;
+  PVMomentMap->GetRASToIJKMatrix(RASToIJKMatrix.GetPointer());
+  vtkNew<vtkMatrix4x4> IJKToRASMatrix;
+  PVMomentMap->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
 
-  dimsRAS[0] = fabs(dimsRAS[0]) - 2;
-  dimsRAS[2] = fabs(dimsRAS[2]) - 2;
-
-  double position[3] = {0};
   for (int fiducialIndex = 0; fiducialIndex < nOfControlPoints; fiducialIndex++)
     {
     if (!fiducialsMarkupsNode->ControlPointExists(fiducialIndex) ||
@@ -1431,45 +1330,20 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLSourcePointsNodeModified()
       // point being placed (preview) or undefined
       continue;
       }
-    fiducialsMarkupsNode->GetNthControlPointPosition(fiducialIndex, position);
-    const double originalPosition[3] = {position[0], position[1], position[2]};
-    // RAS Origin Z is the second axes
-    if (fabs(position[1] - RASOrigin[1]) > 0.01)
+    double positionRAS[4] = {0., 0., 0., 1.}, positionIJK[4] = {0., 0., 0., 1.};
+    fiducialsMarkupsNode->GetNthControlPointPosition(fiducialIndex, positionRAS);
+    RASToIJKMatrix->MultiplyPoint(positionRAS, positionIJK);
+    const double clampedIJK[4] = {std::clamp(positionIJK[0], 0., dimsIJK[0] - 1.),
+                                  std::clamp(positionIJK[1], 0., dimsIJK[1] - 1.), 0., 1.};
+    if (fabs(clampedIJK[0] - positionIJK[0]) > 1.E-6 || fabs(clampedIJK[1] - positionIJK[1]) > 1.E-6 ||
+        fabs(positionIJK[2]) > 1.E-6)
       {
-      position[1] = RASOrigin[1];
-      }
-    // X
-    if (position[0] < -dimsRAS[0])
-      {
-      position[0] = -dimsRAS[0];
-      }
-    if (position[0] > dimsRAS[0])
-      {
-      position[0] = dimsRAS[0];
-      }
-    // Y
-    if (position[2] < -dimsRAS[2])
-      {
-      position[2] = -dimsRAS[2];
-      }
-    if (position[2] > dimsRAS[2])
-      {
-      position[2] = dimsRAS[2];
-      }
-    if (position[0] != originalPosition[0] || position[1] != originalPosition[1] ||
-        position[2] != originalPosition[2])
-      {
-      fiducialsMarkupsNode->SetNthControlPointPosition(fiducialIndex, position);
+      double clampedRAS[4] = {0., 0., 0., 1.};
+      IJKToRASMatrix->MultiplyPoint(clampedIJK, clampedRAS);
+      fiducialsMarkupsNode->SetNthControlPointPosition(fiducialIndex, clampedRAS[0], clampedRAS[1], clampedRAS[2]);
       }
     }
   d->UpdatingSourcePoints = false;
-
-  // Update Line Selection
-  vtkSlicerAstroPVDiagramLogic *logic = d->logic();
-  if (logic)
-    {
-    logic->UpdateSliceSelection(d->parametersNode);
-    }
 
   if (d->parametersNode->GetAutoUpdate())
     {
@@ -1555,6 +1429,8 @@ void qSlicerAstroPVDiagramModuleWidget::onMRMLAstroPVDiagramInterpolationModeMod
     d->InterpolationNoneRadioButton->setChecked(true);
     }
 
+  this->updateLineCurveType(vtkMRMLMarkupsCurveNode::SafeDownCast
+    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetFiducialsMarkupsID())));
   this->onMRMLSourcePointsNodeModified();
 }
 

@@ -36,26 +36,26 @@ class AstroPVDiagramSelfTestLogic(ScriptedLoadableModuleLogic):
 
 
 def linearPath(controlPointsIJK):
-    """Sampling of the polyline through the control points (IJK), as done by
-    vtkSlicerAstroPVDiagramLogic without spline interpolation: steps smaller
-    than one pixel along each segment."""
-    path = []
-    for index, point in enumerate(controlPointsIJK):
-        if index == 0:
-            path.append(list(point))
-            continue
-        old = list(controlPointsIJK[index - 1])
-        step = 0.5
-        deltaX = (point[0] - old[0]) * step
-        deltaY = (point[1] - old[1]) * step
-        while abs(deltaX) > 0.95 or abs(deltaY) > 0.95:
-            step *= 0.75
-            deltaX = (point[0] - old[0]) * step
-            deltaY = (point[1] - old[1]) * step
-        for _ in range(int(1.0 / step)):
-            old[0] += deltaX
-            old[1] += deltaY
-            path.append(list(old))
+    """Sampling of the line (linear curve through the control points, IJK of
+    the moment map) as done by vtkSlicerAstroPVDiagramLogic: one sample every
+    pixel along the line, and the end of the line."""
+    points = [(float(p[0]), float(p[1])) for p in controlPointsIJK]
+    path = [[points[0][0], points[0][1], 0.0]]
+    toNext = 1.0
+    last = points[0]
+    for (x0, y0), (x1, y1) in zip(points[:-1], points[1:]):
+        length = math.hypot(x1 - x0, y1 - y0)
+        along = 0.0
+        while length - along >= toNext:
+            along += toNext
+            fraction = along / length
+            last = (x0 + (x1 - x0) * fraction, y0 + (y1 - y0) * fraction)
+            path.append([last[0], last[1], 0.0])
+            toNext = 1.0
+        toNext -= length - along
+    end = points[-1]
+    if math.hypot(end[0] - last[0], end[1] - last[1]) > 0.5:
+        path.append([end[0], end[1], 0.0])
     return path
 
 
@@ -105,7 +105,11 @@ class AstroPVDiagramSelfTestTest(ScriptedLoadableModuleTest):
 
         parametersNode = slicer.util.getNode("AstroPVDiagramParameters")
         parametersNode.SetInterpolation(False)
-        sourceNode = slicer.util.getNode("PVDiagramSourcePoints")
+        # the line of the PV diagram is a Markups open curve (linear)
+        sourceNode = slicer.util.getNode("PVDiagramLine")
+        self.assertTrue(sourceNode.IsA("vtkMRMLMarkupsCurveNode"))
+        self.assertEqual(sourceNode.GetCurveType(), slicer.vtkCurveGenerator.CURVE_TYPE_LINEAR)
+        self.assertNotIn("vtkMRMLSliceNodeYellow", sourceNode.GetDisplayNode().GetViewNodeIDs())
 
         self.delayDisplay("Adding source points and calculating the PV diagram")
         sourceNode.AddControlPoint(0, 0, 0)
@@ -137,5 +141,14 @@ class AstroPVDiagramSelfTestTest(ScriptedLoadableModuleTest):
         self.assertTrue(np.allclose(computed, expected, atol=1e-6 * scale, equal_nan=True),
                         "PV diagram differs from the reference interpolation, max abs diff %g"
                         % np.nanmax(np.abs(computed - expected)))
+
+        # the Green view keeps the 2nd moment map in XY
+        greenSlice = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeGreen")
+        self.assertEqual(greenSlice.GetOrientation(), "XY")
+
+        # spline interpolation: the curve type of the line
+        parametersNode.SetInterpolation(True)
+        slicer.app.processEvents()
+        self.assertEqual(sourceNode.GetCurveType(), slicer.vtkCurveGenerator.CURVE_TYPE_CARDINAL_SPLINE)
 
         self.delayDisplay("Test passed")

@@ -35,7 +35,7 @@
 #include <vtkMRMLColorTableNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
-#include <vtkMRMLMarkupsFiducialNode.h>
+#include <vtkMRMLMarkupsCurveNode.h>
 #include <vtkMRMLModelNode.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
@@ -43,7 +43,6 @@
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 // VTK includes
-#include <vtkCardinalSpline.h>
 #include <vtkCellArray.h>
 #include <vtkCellData.h>
 #include <vtkCacheManager.h>
@@ -60,7 +59,6 @@
 #include <vtkPolyData.h>
 #include <vtkSmartPointer.h>
 #include <vtkTransform.h>
-#include <vtkTubeFilter.h>
 #include <vtkVersion.h>
 
 // SlicerQt includes
@@ -89,7 +87,6 @@ public:
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
   vtkSmartPointer<vtkSlicerAstroMomentMapsLogic> AstroMomentMapsLogic;
-  vtkSmartPointer<vtkPolyData> CurvePoly;
 };
 
 //----------------------------------------------------------------------------
@@ -97,7 +94,6 @@ vtkSlicerAstroPVDiagramLogic::vtkInternal::vtkInternal()
 {
   this->AstroVolumeLogic = nullptr;
   this->AstroMomentMapsLogic = nullptr;
-  this->CurvePoly = vtkSmartPointer<vtkPolyData>::New();
 }
 
 //---------------------------------------------------------------------------
@@ -556,162 +552,6 @@ bool vtkSlicerAstroPVDiagramLogic::SetMomentMapsOnViews(vtkMRMLAstroPVDiagramPar
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection(vtkMRMLAstroPVDiagramParametersNode *pnode)
-{
-  if (!this->GetMRMLScene() || !pnode)
-    {
-    return false;
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if(!inputVolume || !inputVolume->GetImageData())
-    {
-    return false;
-    }
-
-  vtkMRMLModelNode *LineSelectionModelNode =
-    vtkMRMLModelNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetModelID()));
-  if(!LineSelectionModelNode)
-    {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
-                  " LineSelectionModelNode not found.");
-    return false;
-    }
-
-  vtkMRMLMarkupsFiducialNode *PointsSourceNode =
-    vtkMRMLMarkupsFiducialNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetFiducialsMarkupsID()));
-  if(!PointsSourceNode)
-    {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
-                  " PointsSourceNode not found.");
-    return false;
-    }
-
-  vtkMRMLAstroVolumeNode *PVMomentMap =
-    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->
-      GetNodeByID(pnode->GetMomentMapNodeID()));
-  if(!PVMomentMap || !PVMomentMap->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::UpdateSliceSelection :"
-                  " PVMomentMap not found.");
-    return false;
-    }
-
-  int nOfControlPoints = PointsSourceNode->GetNumberOfControlPoints();
-  if (nOfControlPoints < 2)
-    {
-    this->Internal->CurvePoly->Initialize();
-    LineSelectionModelNode->SetAndObservePolyData(this->Internal->CurvePoly);
-    LineSelectionModelNode->Modified();
-    return false;
-    }
-
-  vtkNew<vtkPoints> points;
-  vtkNew<vtkCellArray> cellArray;
-  int nInterpolatedPoints = (10 * (nOfControlPoints - 1)) + 1;
-
-  if (!pnode->GetInterpolation() || nOfControlPoints == 2)
-    {
-    points->SetNumberOfPoints(nInterpolatedPoints);
-    cellArray->InsertNextCell(nInterpolatedPoints);
-
-    double pos[3] = {0.}, oldPos[3] = {0.};
-    for (int ii = 0; ii < nOfControlPoints; ii++)
-      {
-      PointsSourceNode->GetNthControlPointPosition(ii, pos);
-      if (ii == 0)
-        {
-        points->SetPoint(ii, pos);
-        cellArray->InsertCellPoint(ii);
-        }
-      else
-        {
-        PointsSourceNode->GetNthControlPointPosition(ii - 1, oldPos);
-        double deltaX = (pos[0] - oldPos[0]) * 0.1;
-        double deltaY = (pos[1] - oldPos[1]) * 0.1;
-        double deltaZ = (pos[2] - oldPos[2]) * 0.1;
-        for (int jj = 0; jj < 10; jj++)
-          {
-          int pointIndex = ((ii - 1) * 10) + jj + 1;
-          oldPos[0] += deltaX;
-          oldPos[1] += deltaY;
-          oldPos[2] += deltaZ;
-          points->SetPoint(pointIndex, oldPos);
-          cellArray->InsertCellPoint(pointIndex);
-          }
-        }
-      }
-    }
-  else
-    {
-    double pos[3] = {0.};
-
-    vtkNew<vtkCardinalSpline> aSplineX;
-    vtkNew<vtkCardinalSpline> aSplineY;
-    vtkNew<vtkCardinalSpline> aSplineZ;
-
-    aSplineX->ClosedOff();
-    aSplineY->ClosedOff();
-    aSplineZ->ClosedOff();
-
-    for (int ii = 0; ii < nOfControlPoints; ii++)
-      {
-      PointsSourceNode->GetNthControlPointPosition(ii, pos);
-      aSplineX->AddPoint(ii, pos[0]);
-      aSplineY->AddPoint(ii, pos[1]);
-      aSplineZ->AddPoint(ii, pos[2]);
-      }
-
-    double r[2] = {0.};
-    aSplineX->GetParametricRange(r);
-    double t = r[0];
-    int p = 0;
-    double tStep = (nOfControlPoints - 1.) / (nInterpolatedPoints - 1.);
-    int nOutputPoints = 0;
-
-    while (t < r[1])
-      {
-      points->InsertPoint(p, aSplineX->Evaluate(t), aSplineY->Evaluate(t), aSplineZ->Evaluate(t));
-      t += tStep;
-      p++;
-      }
-    t += tStep;
-    points->InsertPoint(p, aSplineX->Evaluate(t), aSplineY->Evaluate(t), aSplineZ->Evaluate(t));
-    p++;
-    nOutputPoints = p;
-
-    cellArray->InsertNextCell(nOutputPoints);
-    for (int ii = 0; ii < nOutputPoints; ii++)
-      {
-      cellArray->InsertCellPoint(ii);
-      }
-    }
-
-  this->Internal->CurvePoly->Initialize();
-  this->Internal->CurvePoly->SetPoints(points.GetPointer());
-  this->Internal->CurvePoly->SetLines(cellArray.GetPointer());
-
-  vtkNew<vtkTubeFilter> tubeFilter;
-
-  tubeFilter->SetInputData(this->Internal->CurvePoly);
-  int *dims = PVMomentMap->GetImageData()->GetDimensions();
-  double LineWidth = sqrt(dims[0] * dims[0] + dims[1] * dims[1]) * 0.0025;
-  tubeFilter->SetRadius(LineWidth);
-  tubeFilter->SetNumberOfSides(20);
-  tubeFilter->CappingOn();
-  tubeFilter->Update();
-
-  LineSelectionModelNode->SetAndObservePolyData(tubeFilter->GetOutput());
-  LineSelectionModelNode->Modified();
-
-  return true;
-}
-
-//----------------------------------------------------------------------------
 bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode)
 {
 
@@ -720,13 +560,14 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     return false;
     }
 
-  vtkMRMLMarkupsFiducialNode *PointsSourceNode =
-    vtkMRMLMarkupsFiducialNode::SafeDownCast(this->GetMRMLScene()->
+  // line of the PV diagram: Markups open curve (linear or spline)
+  vtkMRMLMarkupsCurveNode *curveNode =
+    vtkMRMLMarkupsCurveNode::SafeDownCast(this->GetMRMLScene()->
       GetNodeByID(pnode->GetFiducialsMarkupsID()));
-  if(!PointsSourceNode)
+  if(!curveNode)
     {
     vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram :"
-                  " PointsSourceNode not found.");
+                  " line (curve) not found.");
     return false;
     }
 
@@ -760,120 +601,59 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     return false;
     }
 
-  int nOfControlPoints = PointsSourceNode->GetNumberOfControlPoints();
-  if (nOfControlPoints < 2)
+  vtkPoints* curvePoints = curveNode->GetCurvePointsWorld();
+  if (curveNode->GetNumberOfDefinedControlPoints() < 2 || !curvePoints || curvePoints->GetNumberOfPoints() < 2)
     {
     return false;
     }
 
-  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
-  RAStoIJKTransform->Identity();
-  RAStoIJKTransform->PostMultiply();
   vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
   PVMomentMap->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
-  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
 
+  // The interpolated points of the curve in the pixels of the moment map,
+  // resampled every pixel along the line (positions of the PV diagram columns)
   vtkNew<vtkPoints> points;
-  double posRAS[3] = {0.}, oldPosRAS[3] = {0.};
-  double posIJK[3] = {0.}, oldPosIJK[3] = {0.};
-  if (!pnode->GetInterpolation() || nOfControlPoints == 2)
+  double previousIJK[3] = {0., 0., 0.};
+  double lastSampleIJK[3] = {0., 0., 0.};
+  double toNextSample = 1.;
+  for (vtkIdType pointIndex = 0; pointIndex < curvePoints->GetNumberOfPoints(); pointIndex++)
     {
-    for (int ii = 0; ii < nOfControlPoints; ii++)
+    double posRAS[4] = {0., 0., 0., 1.}, posIJK[4] = {0., 0., 0., 1.};
+    curvePoints->GetPoint(pointIndex, posRAS);
+    RAStoIJKMatrix->MultiplyPoint(posRAS, posIJK);
+    posIJK[2] = 0.;
+    if (pointIndex == 0)
       {
-      PointsSourceNode->GetNthControlPointPosition(ii, posRAS);
-      RAStoIJKTransform->TransformPoint(posRAS, posIJK);
-      if (ii == 0)
-        {
-        points->InsertNextPoint(posIJK);
-        }
-      else
-        {
-        PointsSourceNode->GetNthControlPointPosition(ii - 1, oldPosRAS);
-        RAStoIJKTransform->TransformPoint(oldPosRAS, oldPosIJK);
-        double step = 0.5;
-        double deltaX = (posIJK[0] - oldPosIJK[0]) * step;
-        double deltaY = (posIJK[1] - oldPosIJK[1]) * step;
-        while (fabs(deltaX) > 0.95 || fabs(deltaY) > 0.95)
-          {
-          step *= 0.75;
-          deltaX = (posIJK[0] - oldPosIJK[0]) * step;
-          deltaY = (posIJK[1] - oldPosIJK[1]) * step;
-          }
-
-        int numberOfSteps = (int) (1. / step);
-        for (int jj = 0; jj < numberOfSteps; jj++)
-          {
-          oldPosIJK[0] += deltaX;
-          oldPosIJK[1] += deltaY;
-          points->InsertNextPoint(oldPosIJK);
-          }
-        }
+      points->InsertNextPoint(posIJK);
+      std::copy(posIJK, posIJK + 3, previousIJK);
+      std::copy(posIJK, posIJK + 3, lastSampleIJK);
+      continue;
       }
+    const double deltaX = posIJK[0] - previousIJK[0];
+    const double deltaY = posIJK[1] - previousIJK[1];
+    const double segmentLength = sqrt(deltaX * deltaX + deltaY * deltaY);
+    double alongSegment = 0.;
+    while (segmentLength - alongSegment >= toNextSample)
+      {
+      alongSegment += toNextSample;
+      const double fraction = alongSegment / segmentLength;
+      lastSampleIJK[0] = previousIJK[0] + deltaX * fraction;
+      lastSampleIJK[1] = previousIJK[1] + deltaY * fraction;
+      lastSampleIJK[2] = 0.;
+      points->InsertNextPoint(lastSampleIJK);
+      toNextSample = 1.;
+      }
+    toNextSample -= segmentLength - alongSegment;
+    std::copy(posIJK, posIJK + 3, previousIJK);
     }
-  else
+  // the end of the line (if not just sampled)
+  if (sqrt(vtkMath::Distance2BetweenPoints(previousIJK, lastSampleIJK)) > 0.5)
     {
-    vtkNew<vtkCardinalSpline> aSplineX;
-    vtkNew<vtkCardinalSpline> aSplineY;
-    vtkNew<vtkCardinalSpline> aSplineZ;
-
-    aSplineX->ClosedOff();
-    aSplineY->ClosedOff();
-    aSplineZ->ClosedOff();
-
-    for (int ii = 0; ii < nOfControlPoints; ii++)
-      {
-      PointsSourceNode->GetNthControlPointPosition(ii, posRAS);
-      RAStoIJKTransform->TransformPoint(posRAS, posIJK);
-      if (ii == 0)
-        {
-        RAStoIJKTransform->TransformPoint(posRAS, oldPosIJK);
-        }
-      aSplineX->AddPoint(ii, posIJK[0]);
-      aSplineY->AddPoint(ii, posIJK[1]);
-      aSplineZ->AddPoint(ii, posIJK[2]);
-      }
-
-    double r[2] = {0.};
-    aSplineX->GetParametricRange(r);
-    double t = r[0], newT;
-    double tStep = 1. / (3 * nOfControlPoints);
-    double valueX, valueY, valueZ, deltaX, deltaY;
-    double oldValueX = oldPosIJK[0];
-    double oldValueY = oldPosIJK[1];
-
-    valueX = aSplineX->Evaluate(t);
-    valueY = aSplineY->Evaluate(t);
-    valueZ = aSplineZ->Evaluate(t);
-    points->InsertNextPoint(valueX, valueY, valueZ);
-
-    while (t < r[1])
-      {
-      newT = t + tStep;
-      valueX = aSplineX->Evaluate(newT);
-      valueY = aSplineY->Evaluate(newT);
-
-      deltaX = valueX - oldValueX;
-      deltaY = valueY - oldValueY;
-
-      while (fabs(deltaX) > 0.95 || fabs(deltaY) > 0.95)
-        {
-        tStep *= 0.75;
-        newT = t + tStep;
-        valueX = aSplineX->Evaluate(newT);
-        valueY = aSplineY->Evaluate(newT);
-
-        deltaX = valueX - oldValueX;
-        deltaY = valueY - oldValueY;
-        }
-
-      t = newT;
-      tStep = 1. / (2 * nOfControlPoints);
-
-      oldValueX = valueX;
-      oldValueY = valueY;
-
-      points->InsertNextPoint(valueX, valueY, valueZ);
-      }
+    points->InsertNextPoint(previousIJK);
+    }
+  if (points->GetNumberOfPoints() < 2)
+    {
+    return false;
     }
 
   // Get dimensions
@@ -1069,12 +849,21 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
     redSlice->SetOrientation("XZ");
     redSlice->SetOrientation("XY");
 
+    // Green: 2nd moment map (XY)
+    vtkMRMLNode* secondMomentMapNode =
+      pnode->GetNodeReference(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole());
     vtkMRMLSliceCompositeNode *greenSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(
       this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceCompositeNodeGreen"));
     greenSliceComposite->SetLabelVolumeID("");
     greenSliceComposite->SetForegroundVolumeID("");
     greenSliceComposite->SetForegroundOpacity(0.);
-    greenSliceComposite->SetBackgroundVolumeID("");
+    greenSliceComposite->SetBackgroundVolumeID(secondMomentMapNode ? secondMomentMapNode->GetID() : "");
+    vtkMRMLSliceNode *greenSlice = vtkMRMLSliceNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID("vtkMRMLSliceNodeGreen"));
+    if (greenSlice)
+      {
+      greenSlice->SetOrientation("XY");
+      }
     }
 
   vtkMRMLSliceCompositeNode *yellowSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast(

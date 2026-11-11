@@ -82,12 +82,8 @@ public:
   /// Node reference role of the 2nd moment map in the parameter node
   static const char* GetSecondMomentMapReferenceRole();
 
-  /// Update the slice selection from the MRML fiducial markups node
-  /// \param MRML parameter node
-  /// \return Success flag
-  bool UpdateSliceSelection(vtkMRMLAstroPVDiagramParametersNode *pnode);
-
-  /// Run the calculation to generate the PV diagram and set in the layout
+  /// Run the calculation to generate the PV diagram along the line (Markups
+  /// open curve, linear or spline) and set it in the layout
   /// \param MRML parameter node
   /// \return Success flag
   bool GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagramParametersNode *pnode);

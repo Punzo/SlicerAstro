@@ -29,6 +29,7 @@
 #include <ctkVTKObject.h>
 
 class qSlicerAstroPVDiagramModuleWidgetPrivate;
+class vtkMRMLMarkupsCurveNode;
 class vtkMRMLAstroPVDiagramParametersNode;
 class vtkMRMLNode;
 
@@ -71,10 +72,13 @@ protected:
   void initializeMomentMapNode(bool forceNew = false);
 
   /// Initialization of MRML fiducial markups node
-  void initializeFiducialsMarkupsNode(bool forceNew = false);
+  /// Line of the PV diagram: Markups open curve (the source points and the
+  /// line model of the scenes of the previous versions are converted)
+  void initializeLineNode(bool forceNew = false);
+  /// Curve type of the line (linear or spline) from the parameter node
+  void updateLineCurveType(vtkMRMLMarkupsCurveNode* lineNode);
 
   /// Initialization of MRML model (line) node
-  void initializeLineModelNode(bool forceNew = false);
 
 protected slots:
 
@@ -85,7 +89,6 @@ protected slots:
   void onFiducialsMarkupsChanged(vtkMRMLNode* mrmlNode);
 
   /// Set the MRML model (line) node
-  void onModelChanged(vtkMRMLNode* mrmlNode);
 
   /// Set the MRML moment map input node
   void onMomentMapChanged(vtkMRMLNode* mrmlNode);

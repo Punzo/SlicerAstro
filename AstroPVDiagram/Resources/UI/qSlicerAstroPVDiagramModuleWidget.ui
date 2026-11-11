@@ -281,26 +281,7 @@
          </size>
         </property>
         <property name="text">
-         <string>Source Points:</string>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="0">
-       <widget class="QLabel" name="CurveModelLabel">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="text">
-         <string>Curve Model:</string>
+         <string>Line:</string>
         </property>
        </widget>
       </item>
@@ -323,31 +304,7 @@
         </property>
         <property name="nodeTypes">
          <stringlist>
-          <string>vtkMRMLMarkupsFiducialNode</string>
-         </stringlist>
-        </property>
-       </widget>
-      </item>
-      <item row="5" column="1">
-       <widget class="qMRMLNodeComboBox" name="CurveModelNodeComboBox">
-        <property name="enabled">
-         <bool>true</bool>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>0</height>
-         </size>
-        </property>
-        <property name="nodeTypes">
-         <stringlist>
-          <string>vtkMRMLModelNode</string>
+          <string>vtkMRMLMarkupsCurveNode</string>
          </stringlist>
         </property>
        </widget>
@@ -438,7 +395,7 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>This refers to the selection line. The PVDiagram is generated always with a 2D nearest-neighbour interpolation.</string>
+         <string>Interpolation of the line between the control points: straight segments (None) or spline. The PV diagram is sampled every pixel along the line (bilinear interpolation of the cube).</string>
         </property>
         <property name="text">
          <string>Interpolation:</string>
@@ -462,7 +419,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>This refers to the selection line. The PVDiagram is generated always with a 2D nearest-neighbour interpolation.</string>
+           <string>Interpolation of the line between the control points: straight segments (None) or spline. The PV diagram is sampled every pixel along the line (bilinear interpolation of the cube).</string>
           </property>
           <property name="text">
            <string>None</string>
@@ -484,7 +441,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>This refers to the selection line. The PVDiagram is generated always with a 2D nearest-neighbour interpolation.</string>
+           <string>Interpolation of the line between the control points: straight segments (None) or spline. The PV diagram is sampled every pixel along the line (bilinear interpolation of the cube).</string>
           </property>
           <property name="text">
            <string>Spline</string>
@@ -726,22 +683,6 @@
     <hint type="destinationlabel">
      <x>219</x>
      <y>127</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>qSlicerAstroPVDiagramModuleWidget</sender>
-   <signal>mrmlSceneChanged(vtkMRMLScene*)</signal>
-   <receiver>CurveModelNodeComboBox</receiver>
-   <slot>setMRMLScene(vtkMRMLScene*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>173</x>
-     <y>257</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>219</x>
-     <y>163</y>
     </hint>
    </hints>
   </connection>
