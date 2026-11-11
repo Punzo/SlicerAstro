@@ -2989,6 +2989,7 @@ void vtkSlicerAstroVolumeLogic::EnsureVolumePropertyTransferFunctionGaps(vtkMRML
     {
     ExtendFiniteRange(range, volumeProperty->GetRGBTransferFunction()->GetRange());
     }
+  bool constantData = false;
   std::vector<vtkMRMLNode*> referencingNodes;
   scene->GetReferencingNodes(volumePropertyNode, referencingNodes);
   for (vtkMRMLNode* node : referencingNodes)
@@ -3001,11 +3002,23 @@ void vtkSlicerAstroVolumeLogic::EnsureVolumePropertyTransferFunctionGaps(vtkMRML
       double dataRange[2] = {0., 0.};
       imageData->GetPointData()->GetScalars()->GetFiniteRange(dataRange);
       ExtendFiniteRange(range, dataRange);
+      // e.g. a model being created, still empty
+      constantData = constantData || dataRange[0] == dataRange[1];
       }
     }
-  if (!(range[1] > range[0]))
+  if (range[1] < range[0])
     {
     return;
+    }
+  // a volume with constant data (e.g. a model being created, still empty)
+  // has a degenerate range: the lookup tables of VTK then use a default
+  // range, so the gaps must be significant with respect to a unit range
+  if (constantData && range[1] - range[0] < 1.)
+    {
+    const double center = 0.5 * (range[0] + range[1]);
+    const double halfWidth = std::max(0.5, fabs(center));
+    range[0] = center - halfWidth;
+    range[1] = center + halfWidth;
     }
 
   this->UpdatingTransferFunctionGaps = true;

@@ -2744,6 +2744,28 @@
         </item>
        </layout>
       </item>
+      <item row="1" column="1">
+       <widget class="QPushButton" name="VisualizePushButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Click to update the visualization of the model. The model and the data will be visualized at the chosen Contour Level. </string>
+        </property>
+        <property name="text">
+         <string>Visualize Model</string>
+        </property>
+       </widget>
+      </item>
       <item row="2" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <property name="spacing">
@@ -2860,7 +2882,7 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Click to recalculate and visualize the model using the parameters in Tabular. </string>
+         <string>Click to recalculate and visualize the model using the parameters in Tabular. The model and the data will be visualized at the chosen Contour Level.</string>
         </property>
         <property name="text">
          <string>Calculate and Visualize Model</string>

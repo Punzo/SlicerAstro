@@ -96,14 +96,28 @@ void qSlicerAstroModelingModuleWorker::doWork()
   bool abort = _abort;
   mutex.unlock();
 
+  lastResult = 0;
   if (abort)
     {
     qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
     parametersNode->SetStatus(0);
+    mutex.lock();
+    _working = false;
+    mutex.unlock();
+    emit finished();
     return;
     }
 
-  if (!astroModelingLogic->OperateModel(parametersNode, internalTableNode))
+  // model from the rings of the table, or estimate / create / fit
+  if (parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::UPDATE)
+    {
+    lastResult = astroModelingLogic->UpdateModelFromTable(parametersNode, internalTableNode);
+    }
+  else
+    {
+    lastResult = astroModelingLogic->OperateModel(parametersNode, internalTableNode);
+    }
+  if (!lastResult)
     {
     qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
     }

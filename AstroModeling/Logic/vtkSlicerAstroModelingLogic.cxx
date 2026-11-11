@@ -521,11 +521,13 @@ void vtkSlicerAstroModelingLogic::RequestAbort()
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParametersNode* pnode)
+int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParametersNode* pnode,
+                                                      vtkMRMLTableNode* tableNode)
 {
+  this->Internal->AbortRequested = false;
   try
     {
-    return this->UpdateModelFromTableInternal(pnode);
+    return this->UpdateModelFromTableInternal(pnode, tableNode);
     }
   catch (const std::exception& e)
     {
@@ -904,12 +906,10 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         this->Internal->par->getParGF().VSYS == "-1" ||
         this->Internal->par->getParGF().VROT == "-1" ||
         this->Internal->par->getParGF().PHI == "-1" ||
-        this->Internal->par->getParGF().INC == "-1" ||
-        this->Internal->par->getParGF().Z0 == "-1" ||
-        this->Internal->par->getParGF().DISTANCE == -1 ||
-        this->Internal->par->getParGF().VDISP == "-1" ||
-        this->Internal->par->getParGF().DENS == "-1" ||
-        this->Internal->par->getParGF().NV == -1)
+        this->Internal->par->getParGF().INC == "-1")
+      // the rings and the geometry are needed; the distance (from the systemic
+      // velocity), the clouds, the scale height, the dispersion and the column
+      // density have defaults in 3DBarolo (-1)
       {
       this->Internal->par->getParSE().flagSearch = true;
       }
@@ -2065,7 +2065,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 }
 
 //----------------------------------------------------------------------------
-int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode)
+int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode,
+                                                              vtkMRMLTableNode *tableNode)
 {
   if(!pnode)
     {
@@ -2387,12 +2388,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         this->Internal->par->getParGF().VSYS == "-1" ||
         this->Internal->par->getParGF().VROT == "-1" ||
         this->Internal->par->getParGF().PHI == "-1" ||
-        this->Internal->par->getParGF().INC == "-1" ||
-        this->Internal->par->getParGF().Z0 == "-1" ||
-        this->Internal->par->getParGF().DISTANCE == -1 ||
-        this->Internal->par->getParGF().VDISP == "-1" ||
-        this->Internal->par->getParGF().DENS == "-1" ||
-        this->Internal->par->getParGF().NV == -1)
+        this->Internal->par->getParGF().INC == "-1")
+      // the rings and the geometry are needed; the distance (from the systemic
+      // velocity), the clouds, the scale height, the dispersion and the column
+      // density have defaults in 3DBarolo (-1)
       {
       vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
                     "Run again the estimation of the input parameters. ");
@@ -2539,7 +2538,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
       }
     }
 
-  vtkMRMLTableNode* paramsTableNode = pnode->GetParamsTableNode();
+  vtkMRMLTableNode* paramsTableNode = tableNode ? tableNode : pnode->GetParamsTableNode();
   if (!paramsTableNode)
     {
     vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -2719,7 +2718,15 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
           }
         }
 
+      SetProgress(pnode, 40);
+      if (this->Internal->AbortRequested)
+        {
+        this->cleanPointers();
+        pnode->SetStatus(100);
+        return 0;
+        }
       this->Internal->modF = this->Internal->fitF->getFullModel();
+      SetProgress(pnode, 90);
       if (!this->Internal->modF || !this->Internal->modF->Out())
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "
@@ -3006,7 +3013,15 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
           }
         }
 
+      SetProgress(pnode, 40);
+      if (this->Internal->AbortRequested)
+        {
+        this->cleanPointers();
+        pnode->SetStatus(100);
+        return 0;
+        }
       this->Internal->modD = this->Internal->fitD->getFullModel();
+      SetProgress(pnode, 90);
       if (!this->Internal->modD || !this->Internal->modD->Out())
         {
         vtkErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : "

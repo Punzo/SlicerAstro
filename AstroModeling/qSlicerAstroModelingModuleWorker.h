@@ -53,8 +53,12 @@ public:
   /// Set AstroModeling module parameters node
   void SetAstroModelingParametersNode(vtkMRMLAstroModelingParametersNode* pnode);
 
-  /// Set AstroModeling module table node
+  /// Set AstroModeling module table node: the internal table of the results
+  /// (estimate, create, fit), or the parameters table of the rings (update)
   void SetTableNode(vtkMRMLTableNode* tnode);
+
+  /// Result of the last computation (logic return value)
+  int GetLastResult() const { return lastResult; }
 
 private:
   bool _abort;
@@ -63,6 +67,7 @@ private:
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
   vtkSlicerAstroModelingLogic* astroModelingLogic;
+  int lastResult{0};
 
 signals:
   void workRequested();

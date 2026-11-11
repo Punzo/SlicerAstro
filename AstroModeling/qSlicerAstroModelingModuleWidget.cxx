@@ -136,6 +136,8 @@ public:
   QDoubleSpinBox* BeamPASpinBox{nullptr};
 
   /// 3DBarolo parameters of the Advanced section
+  /// Initial parameters (and their estimate): Manual mode only
+  QWidget* InitialParametersWidget{nullptr};
   QCheckBox* TwoStageCheckBox{nullptr};
   QComboBox* RegularizationComboBox{nullptr};
   QComboBox* SideComboBox{nullptr};
@@ -451,6 +453,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->CancelPushButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
+  QObject::connect(this->VisualizePushButton, SIGNAL(clicked()),
+                   q, SLOT(onVisualize()));
+
   this->contourLevelTimer = new QTimer(q);
   this->contourLevelTimer->setSingleShot(true);
   this->contourLevelTimer->setInterval(300);
@@ -490,6 +495,55 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   this->BeamLabel = new QLabel(qSlicerAstroModelingModuleWidget::tr("Beam:"), this->FittingParametersCollapsibleButton);
   this->BeamLabel->setToolTip(beamToolTip);
   this->formLayout_2->insertRow(0, this->BeamLabel, beamWidget);
+
+  // The initial parameters rows (from the Clean/Estimate buttons to the
+  // column density) in a widget, hidden in Automatic mode without leaving
+  // the spacing of the rows
+  int firstRow = -1, lastRow = -1;
+  QFormLayout::ItemRole role = QFormLayout::LabelRole;
+  this->formLayout_2->getWidgetPosition(this->RingsLabel, &firstRow, &role);
+  this->formLayout_2->getWidgetPosition(this->CDLabel, &lastRow, &role);
+  if (firstRow > 0 && lastRow >= firstRow)
+    {
+    firstRow -= 1; // Clean and Estimate buttons
+    this->InitialParametersWidget = new QWidget(this->FittingParametersCollapsibleButton);
+    QFormLayout* initialLayout = new QFormLayout(this->InitialParametersWidget);
+    initialLayout->setContentsMargins(0, 0, 0, 0);
+    initialLayout->setFieldGrowthPolicy(this->formLayout_2->fieldGrowthPolicy());
+    for (int row = firstRow; row <= lastRow; row++)
+      {
+      QFormLayout::TakeRowResult taken = this->formLayout_2->takeRow(firstRow);
+      QWidget* label = taken.labelItem ? taken.labelItem->widget() : nullptr;
+      QLayout* fieldLayout = taken.fieldItem ? taken.fieldItem->layout() : nullptr;
+      QWidget* fieldWidget = (taken.fieldItem && !fieldLayout) ? taken.fieldItem->widget() : nullptr;
+      if (label && fieldLayout)
+        {
+        initialLayout->addRow(label, fieldLayout);
+        }
+      else if (label && fieldWidget)
+        {
+        initialLayout->addRow(label, fieldWidget);
+        }
+      else if (fieldLayout)
+        {
+        initialLayout->addRow(fieldLayout);
+        }
+      else if (fieldWidget)
+        {
+        initialLayout->addRow(fieldWidget);
+        }
+      // the widget items are not needed (the layout items are the layouts)
+      if (taken.labelItem && !taken.labelItem->layout())
+        {
+        delete taken.labelItem;
+        }
+      if (taken.fieldItem && !fieldLayout)
+        {
+        delete taken.fieldItem;
+        }
+      }
+    this->formLayout_2->insertRow(firstRow, this->InitialParametersWidget);
+    }
 
   // 3DBarolo parameters (Advanced section)
   QWidget* advanced = this->AdvancedCollapsibleButton;
@@ -2346,8 +2400,6 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     return;
     }
 
-  const char *activeVolumeNodeID = d->selectionNode->GetActiveVolumeID();
-  const char *secondaryVolumeNodeID = d->selectionNode->GetSecondaryVolumeID();
 
   if (!d->logic())
     {
@@ -2356,7 +2408,46 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     return;
     }
 
-  if (!d->logic()->UpdateModelFromTable(d->parametersNode))
+  // the model is computed in the worker thread (progress, no blocked UI);
+  // the visualization follows in onWorkFinished (finishCalculateAndVisualize)
+  vtkMRMLAstroVolumeNode* inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
+    this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  vtkMRMLAstroVolumeDisplayNode* inputVolumeDisplayNode = inputVolume ? inputVolume->GetAstroVolumeDisplayNode() : nullptr;
+  if (!inputVolumeDisplayNode)
+    {
+    qCritical() << Q_FUNC_INFO << ": input volume not found!";
+    return;
+    }
+  d->restoreRadioVelocity = !strncmp(inputVolumeDisplayNode->GetVelocityDefinition().c_str(), "VRAD", 4);
+  if (d->restoreRadioVelocity)
+    {
+    inputVolumeDisplayNode->SetOpticalVelocityDefinition();
+    }
+  d->parametersNode->SetStatus(1);
+  d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
+  d->workerParametersNode->Copy(d->parametersNode);
+  d->workerParametersNode->SetOperation(vtkMRMLAstroModelingParametersNode::UPDATE);
+  d->worker->SetTableNode(d->parametersNode->GetParamsTableNode());
+  d->worker->SetAstroModelingParametersNode(d->workerParametersNode);
+  d->worker->SetAstroModelingLogic(d->logic());
+  d->workerProgressTimer->start();
+  d->worker->requestWork();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::finishCalculateAndVisualize(bool success)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->parametersNode || !d->selectionNode || !this->mrmlScene() ||
+      !d->astroVolumeWidget || !d->parametersNode->GetParamsTableNode())
+    {
+    return;
+    }
+  const char *activeVolumeNodeID = d->selectionNode->GetActiveVolumeID();
+  const char *secondaryVolumeNodeID = d->selectionNode->GetSecondaryVolumeID();
+
+  if (!success)
     {
     qCritical() <<"qSlicerAstroModelingModuleWidget::onCalculateAndVisualize :"
                   " UpdateModel error!";
@@ -3347,6 +3438,20 @@ void qSlicerAstroModelingModuleWidget::updateBBaroloParameterWidgets()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::setInitialParametersVisible(bool visible)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  // the initial parameters (and their estimate) and the advanced parameters
+  // are set in Manual mode only: in Automatic mode 3DBarolo estimates them
+  if (d->InitialParametersWidget)
+    {
+    d->InitialParametersWidget->setVisible(visible);
+    }
+  d->AdvancedCollapsibleButton->setVisible(visible);
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onModeChanged()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -3697,6 +3802,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
 
+  this->setInitialParametersVisible(strcmp(d->parametersNode->GetMode(), "Automatic") != 0);
   if (!(strcmp(d->parametersNode->GetMode(), "Automatic")))
     {
     d->AutomaticModeRadioButton->setChecked(true);
@@ -3771,6 +3877,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->TableView->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourLabel->setEnabled(d->parametersNode->GetFitSuccess());
+  d->VisualizePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->CalculatePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->AstroModelingCopyButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->AstroModelingPasteButton->setEnabled(d->parametersNode->GetFitSuccess());
@@ -4797,6 +4904,14 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       }
     }
   d->restoreRadioVelocity = false;
+
+  // Calculate and Visualize Model: visualization of the model of the table
+  if (d->parametersNode && d->parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::UPDATE)
+    {
+    this->finishCalculateAndVisualize(d->worker->GetLastResult() != 0);
+    d->parametersNode->SetStatus(0);
+    return;
+    }
 
   if (!d->astroVolumeWidget)
     {

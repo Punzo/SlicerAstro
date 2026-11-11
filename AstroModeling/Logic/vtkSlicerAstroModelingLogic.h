@@ -79,7 +79,10 @@ public:
   /// \param MRML parameter node
   /// \param MRML table node
   /// \return Success flag
-  int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode);
+  /// The parameters of the rings are read from tableNode (default: the
+  /// parameters table of pnode, which must be in the scene).
+  int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode,
+                           vtkMRMLTableNode *tableNode = nullptr);
 
   /// Clean all the pointers of the instantiated calsses of 3DBarolo
   void cleanPointers();
@@ -89,7 +92,8 @@ protected:
   /// bbarolo::Error, which the public methods catch and report.
   int OperateModelInternal(vtkMRMLAstroModelingParametersNode *pnode,
                            vtkMRMLTableNode *tnode);
-  int UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode);
+  int UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode,
+                                   vtkMRMLTableNode *tableNode);
 
   vtkSlicerAstroModelingLogic();
   virtual ~vtkSlicerAstroModelingLogic();

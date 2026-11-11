@@ -214,10 +214,14 @@ protected slots:
   void updateProgress(int value);
   /// Progress of the worker thread (copy of the parameters) in the parameter node
   void updateWorkerProgress();
+  /// Visualization of the model computed from the table (after the worker)
+  void finishCalculateAndVisualize(bool success);
   /// 3DBarolo parameters of the Advanced section -> parameter node
   void onBBaroloParameterChanged();
   /// parameter node -> 3DBarolo parameters of the Advanced section
   void updateBBaroloParameterWidgets();
+  /// Initial parameters rows (Manual mode only)
+  void setInitialParametersVisible(bool visible);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroModelingModuleWidget);

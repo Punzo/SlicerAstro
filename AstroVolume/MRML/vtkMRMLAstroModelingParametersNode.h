@@ -447,6 +447,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
     ESTIMATE = 0,
     CREATE,
     FIT,
+    /// model from the parameters of the table (Calculate and Visualize Model)
+    UPDATE,
   };
 
   /// Convert between Operation ID and name

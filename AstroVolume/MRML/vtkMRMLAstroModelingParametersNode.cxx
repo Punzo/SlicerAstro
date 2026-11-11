@@ -869,6 +869,7 @@ const char *vtkMRMLAstroModelingParametersNode::GetOperationAsString(int id)
     case ESTIMATE: return "Estimate";
     case CREATE: return "Create";
     case FIT: return "Fit";
+    case UPDATE: return "Update";
     default:
       // invalid id
       return "";
@@ -883,7 +884,7 @@ int vtkMRMLAstroModelingParametersNode::GetOperationFromString(const char *name)
     // invalid name
     return -1;
     }
-  for (int ii = 0; ii < 3; ii++)
+  for (int ii = ESTIMATE; ii <= UPDATE; ii++)
     {
     if (strcmp(name, GetOperationAsString(ii)) == 0)
       {
