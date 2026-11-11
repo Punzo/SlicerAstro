@@ -230,6 +230,35 @@ double MedianOfRings(const std::vector<T>& values)
 }
 
 //----------------------------------------------------------------------------
+// 3DBarolo refines the initial rotation velocities ring by ring with a 2D
+// tilted-ring fit of the velocity field, except the innermost ring (within
+// about a beam of the centre), which keeps the global estimate of the flat
+// part of the rotation curve. The innermost ring is extrapolated as a solid
+// body rotation from the next ring (the model of Create is not fitted).
+template <class T>
+void ExtrapolateInnerRotationVelocity(Rings<T>* rings)
+{
+  if (!rings || rings->nr < 2 || rings->vrot.size() < 2 || rings->radii.size() < 2 ||
+      rings->radii[1] <= 0)
+    {
+    return;
+    }
+  bool refined = false;
+  for (int ii = 1; ii < rings->nr; ii++)
+    {
+    if (rings->vrot[ii] != rings->vrot[0])
+      {
+      refined = true;
+      break;
+      }
+    }
+  if (refined)
+    {
+    rings->vrot[0] = rings->vrot[1] * std::max(rings->radii[0], static_cast<T>(0)) / rings->radii[1];
+    }
+}
+
+//----------------------------------------------------------------------------
 // Progress (status) of an operation: only increases, and a cancel request
 // (status -1) is kept
 void SetProgress(vtkMRMLAstroModelingParametersNode* pnode, int value)
@@ -1095,6 +1124,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         // can differ (e.g. the position angles refined ring by ring with a 2D
         // tilted-ring model): the UI shows their median.
         Rings<float>* initialRings = this->Internal->fitF->Inrings();
+        ExtrapolateInnerRotationVelocity(initialRings);
+        ExtrapolateInnerRotationVelocity(this->Internal->fitF->Outrings());
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
@@ -1490,6 +1521,8 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         // can differ (e.g. the position angles refined ring by ring with a 2D
         // tilted-ring model): the UI shows their median.
         Rings<double>* initialRings = this->Internal->fitD->Inrings();
+        ExtrapolateInnerRotationVelocity(initialRings);
+        ExtrapolateInnerRotationVelocity(this->Internal->fitD->Outrings());
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
