@@ -22,6 +22,7 @@
 #include "vtkSlicerSegmentationsModuleLogic.h"
 
 // Slicer includes
+#include <qSlicerApplication.h>
 #include <qSlicerCoreApplication.h>
 #include <vtkSlicerApplicationLogic.h>
 
@@ -40,7 +41,12 @@
 // Qt includes
 #include <QCheckBox>
 #include <QDebug>
+#include <QKeySequence>
 #include <QLabel>
+#include <QList>
+#include <QMainWindow>
+#include <QPointer>
+#include <QShortcut>
 #include <QRadioButton>
 #include <QStringList>
 
@@ -100,6 +106,7 @@ class qSlicerSegmentEditorAstroCloudLassoEffectPrivate
 {
 public:
   std::map<vtkRenderer*, LassoDecoration> LassoDecorations;
+  QList<QPointer<QShortcut>> KeyboardShortcuts;
 
   QIcon CloudLassoIcon{ QIcon(":Icons/AstroCloudLasso.png") };
   QLabel* ThresholdRangeLabel{ nullptr };
@@ -169,6 +176,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
   Superclass::activate();
+  this->installKeyboardShortcuts();
   d->clearLastLasso();
   // in a slice view: only the current slice (the slice cut options are hidden)
   this->setParameter("SliceCutMode", "Symmetric");
@@ -180,6 +188,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
 void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  this->removeKeyboardShortcuts();
   this->removeLassoDecorations();
   Superclass::deactivate();
   d->clearLastLasso();
@@ -382,34 +391,6 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::onAutomaticThresholdModeChanged(
 bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
   vtkRenderWindowInteractor* callerInteractor, unsigned long eid, qMRMLWidget* viewWidget)
 {
-  if (eid == vtkCommand::KeyPressEvent && callerInteractor && callerInteractor->GetKeySym() &&
-      this->parameterSetNode())
-    {
-    const std::string key(callerInteractor->GetKeySym());
-    const bool fill = this->fillOperation();
-    double minimum = this->doubleParameter("ThresholdMinimum");
-    double maximum = this->doubleParameter("ThresholdMaximum");
-    const double step = this->d_ptr->ThresholdRangeWidget ? this->d_ptr->ThresholdRangeWidget->singleStep() : 0.;
-    if (fill && (key == "n" || key == "m" || key == "k" || key == "l"))
-      {
-      if (key == "n") { minimum -= step; }
-      if (key == "m") { minimum += step; }
-      if (key == "k") { maximum -= step; }
-      if (key == "l") { maximum += step; }
-      this->onThresholdValuesChanged(minimum, std::max(minimum, maximum));
-      return true;
-      }
-    if (key == "c")
-      {
-      this->onAutomaticThresholdModeChanged(this->integerParameter("AutomaticThresholdUpdating") == 0);
-      return true;
-      }
-    if (key == "x")
-      {
-      this->setParameter("Operation", fill ? "EraseInside" : "FillInside");
-      return true;
-      }
-    }
   const bool abortEvent = Superclass::processInteractionEvents(callerInteractor, eid, viewWidget);
   this->updateLassoDecoration(viewWidget);
   return abortEvent;
@@ -545,6 +526,116 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::removeLassoDecorations()
       }
     }
   d->LassoDecorations.clear();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::installKeyboardShortcuts()
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  this->removeKeyboardShortcuts();
+
+  QWidget* parent = qSlicerApplication::application() ? qSlicerApplication::application()->mainWindow() : nullptr;
+  if (!parent && this->optionsFrame())
+    {
+    parent = this->optionsFrame()->window();
+    }
+  if (!parent)
+    {
+    return;
+    }
+  const char* keys[] = { "n", "m", "k", "l", "c", "x" };
+  const char* slotSignatures[] = { SLOT(decreaseThresholdMinimum()), SLOT(increaseThresholdMinimum()),
+                          SLOT(decreaseThresholdMaximum()), SLOT(increaseThresholdMaximum()),
+                          SLOT(toggleAutomaticThresholdMode()), SLOT(toggleFillErase()) };
+  for (int index = 0; index < 6; ++index)
+    {
+    // the text fields (e.g. renaming a segment) keep the keys typed in them
+    QShortcut* shortcut = new QShortcut(QKeySequence(keys[index]), parent);
+    shortcut->setObjectName(QString("AstroCloudLassoShortcut_") + keys[index]);
+    QObject::connect(shortcut, SIGNAL(activated()), this, slotSignatures[index]);
+    d->KeyboardShortcuts.push_back(shortcut);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::removeKeyboardShortcuts()
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  for (QPointer<QShortcut>& shortcut : d->KeyboardShortcuts)
+    {
+    if (shortcut)
+      {
+      shortcut->setEnabled(false);
+      shortcut->deleteLater();
+      }
+    }
+  d->KeyboardShortcuts.clear();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::stepThreshold(bool minimum, double direction)
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  if (!this->active() || !this->parameterSetNode() || !this->fillOperation() || !d->ThresholdRangeWidget)
+    {
+    return;
+    }
+  const double step = d->ThresholdRangeWidget->singleStep();
+  double lower = this->doubleParameter("ThresholdMinimum");
+  double upper = this->doubleParameter("ThresholdMaximum");
+  if (minimum)
+    {
+    lower = std::min(lower + direction * step, upper);
+    }
+  else
+    {
+    upper = std::max(upper + direction * step, lower);
+    }
+  this->onThresholdValuesChanged(lower, upper);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::decreaseThresholdMinimum()
+{
+  this->stepThreshold(true, -1.);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::increaseThresholdMinimum()
+{
+  this->stepThreshold(true, 1.);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::decreaseThresholdMaximum()
+{
+  this->stepThreshold(false, -1.);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::increaseThresholdMaximum()
+{
+  this->stepThreshold(false, 1.);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::toggleAutomaticThresholdMode()
+{
+  if (!this->active() || !this->parameterSetNode())
+    {
+    return;
+    }
+  this->onAutomaticThresholdModeChanged(this->integerParameter("AutomaticThresholdUpdating") == 0);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::toggleFillErase()
+{
+  if (!this->active() || !this->parameterSetNode())
+    {
+    return;
+    }
+  this->setParameter("Operation", this->fillOperation() ? "EraseInside" : "FillInside");
 }
 
 //-----------------------------------------------------------------------------

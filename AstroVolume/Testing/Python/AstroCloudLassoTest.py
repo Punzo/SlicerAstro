@@ -43,6 +43,8 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         self.setUp()
         self.test_CloudLasso()
+        self.setUp()
+        self.test_KeyboardShortcuts()
 
     def drawLasso(self, view, center, radius, steps=24):
         """Left-drag along a circle in a view (display coordinates)."""
@@ -159,4 +161,69 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
               f"3D lasso {before} -> {after}, after erasing {erased}")
         editorWidget.setActiveEffect(None)
         self.assertFalse(editorNode.GetSourceVolumeIntensityMask())
+        self.delayDisplay("Test passed")
+
+    def pressKey(self, widget, key, text):
+        import qt
+
+        for eventType in (qt.QEvent.KeyPress, qt.QEvent.KeyRelease):
+            slicer.app.sendEvent(widget, qt.QKeyEvent(eventType, key, qt.Qt.NoModifier, text))
+        slicer.app.processEvents()
+
+    def test_KeyboardShortcuts(self):
+        """Shortcuts work also when an option of the effect has the focus."""
+        import qt
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        segmentationNode.CreateDefaultDisplayNodes()
+        segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)
+        segmentationNode.GetSegmentation().AddEmptySegment("", "Galaxy")
+
+        mainWindow = slicer.util.mainWindow()
+        slicer.util.selectModule("SegmentEditor")
+        editor = slicer.modules.segmenteditor.widgetRepresentation().self().editor
+        editor.setSegmentationNode(segmentationNode)
+        editor.setSourceVolumeNode(volumeNode)
+        editor.setActiveEffectByName("AstroCloudLasso")
+        effect = editor.activeEffect()
+        self.assertIsNotNone(effect)
+        mainWindow.activateWindow()
+        slicer.app.processEvents()
+
+        # select Erase inside, then Fill inside: the focus is on the option
+        buttons = {button.text: button for button in effect.optionsFrame().findChildren(qt.QRadioButton)}
+        for text in ("Erase inside", "Fill inside"):
+            buttons[text].setFocus()
+            buttons[text].click()
+            slicer.app.processEvents()
+        self.assertEqual(effect.parameter("Operation"), "FillInside")
+        focusWidget = qt.QApplication.focusWidget() or buttons["Fill inside"]
+
+        minimum = effect.doubleParameter("ThresholdMinimum")
+        self.pressKey(focusWidget, qt.Qt.Key_M, "m")
+        self.assertGreater(effect.doubleParameter("ThresholdMinimum"), minimum)
+        self.pressKey(focusWidget, qt.Qt.Key_N, "n")
+        self.assertAlmostEqual(effect.doubleParameter("ThresholdMinimum"), minimum, places=9)
+
+        maximum = effect.doubleParameter("ThresholdMaximum")
+        self.pressKey(focusWidget, qt.Qt.Key_K, "k")
+        self.assertLess(effect.doubleParameter("ThresholdMaximum"), maximum)
+
+        self.pressKey(focusWidget, qt.Qt.Key_X, "x")
+        self.assertEqual(effect.parameter("Operation"), "EraseInside")
+        self.pressKey(focusWidget, qt.Qt.Key_X, "x")
+        self.assertEqual(effect.parameter("Operation"), "FillInside")
+
+        automatic = effect.integerParameter("AutomaticThresholdUpdating")
+        self.pressKey(focusWidget, qt.Qt.Key_C, "c")
+        self.assertNotEqual(effect.integerParameter("AutomaticThresholdUpdating"), automatic)
+
+        # no shortcuts once the effect is deactivated
+        editor.setActiveEffect(None)
+        slicer.app.processEvents()
+        shortcuts = [shortcut for shortcut in mainWindow.findChildren(qt.QShortcut)
+                     if shortcut.objectName.startswith("AstroCloudLassoShortcut") and shortcut.enabled]
+        self.assertEqual(shortcuts, [])
         self.delayDisplay("Test passed")

@@ -37,9 +37,9 @@ class qSlicerSegmentEditorAstroCloudLassoEffectPrivate;
 /// the voxels inside the lasso. With the automatic threshold updating, changing
 /// the threshold applies the last lasso again.
 ///
-/// Keyboard shortcuts in the views: n / m decrease / increase the minimum of
-/// the threshold range, k / l the maximum, c toggles the automatic threshold
-/// updating, x switches between filling and erasing.
+/// Keyboard shortcuts (while the effect is active): n / m decrease / increase
+/// the minimum of the threshold range, k / l the maximum, c toggles the
+/// automatic threshold updating, x switches between filling and erasing.
 /// \ingroup SlicerAstro_QtModules_AstroVolume
 class Q_SLICERASTRO_ASTROVOLUME_EFFECTS_EXPORT qSlicerSegmentEditorAstroCloudLassoEffect :
   public qSlicerSegmentEditorScissorsEffect
@@ -63,7 +63,7 @@ public:
   void setMRMLDefaults() override;
   void sourceVolumeNodeChanged() override;
 
-  /// Keyboard shortcuts, then the drawing of the Scissors effect
+  /// Drawing of the Scissors effect, with the lasso decoration
   bool processInteractionEvents(vtkRenderWindowInteractor* callerInteractor, unsigned long eid,
                                 qMRMLWidget* viewWidget) override;
 
@@ -82,6 +82,14 @@ public slots:
   void onThresholdValuesChanged(double minimum, double maximum);
   void onAutomaticThresholdModeChanged(bool automatic);
 
+  /// Keyboard shortcuts (n, m, k, l, c, x)
+  void decreaseThresholdMinimum();
+  void increaseThresholdMinimum();
+  void decreaseThresholdMaximum();
+  void increaseThresholdMaximum();
+  void toggleAutomaticThresholdMode();
+  void toggleFillErase();
+
 protected:
   QScopedPointer<qSlicerSegmentEditorAstroCloudLassoEffectPrivate> d_ptr;
 
@@ -93,6 +101,13 @@ protected:
   /// glow and a translucent fill (red when erasing).
   void updateLassoDecoration(qMRMLWidget* viewWidget);
   void removeLassoDecorations();
+
+  /// Keyboard shortcuts on the main window while the effect is active: they
+  /// work wherever the focus is (e.g. after clicking an option), not only
+  /// in the views.
+  void installKeyboardShortcuts();
+  void removeKeyboardShortcuts();
+  void stepThreshold(bool minimum, double direction);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerSegmentEditorAstroCloudLassoEffect);
