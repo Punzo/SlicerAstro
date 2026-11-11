@@ -136,6 +136,16 @@ public:
   /// "<volume>_SEG", unique in the scene. Returns true if renamed.
   static bool NameMaskAfterReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Estimate the beam of a radio data cube from its noise. The noise of
+  /// interferometric data is correlated on the scale of the beam: its
+  /// spatial autocorrelation is the beam convolved with itself (for a
+  /// Gaussian beam, sqrt(2) times wider). The autocorrelation is measured
+  /// on the first and last channels (usually without emission).
+  /// beam: BMAJ, BMIN (FWHM, degrees) and BPA (degrees, from North to East).
+  /// Returns false if the noise is not correlated (e.g. single dish or
+  /// optical data) or the cube is too small.
+  static bool EstimateBeamFromNoise(vtkMRMLAstroVolumeNode* volumeNode, double beam[3]);
+
   /// Return true if the segmentation is a mask: binary labelmap source and
   /// not contours.
   static bool IsMaskSegmentation(vtkMRMLSegmentationNode* segmentationNode);

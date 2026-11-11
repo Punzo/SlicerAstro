@@ -20,6 +20,9 @@
 // Qt includes
 #include <QAction>
 #include <QDebug>
+#include <QLabel>
+#include <QHBoxLayout>
+#include <QDoubleSpinBox>
 #include <QMessageBox>
 #include <QMutexLocker>
 #include <QPushButton>
@@ -100,6 +103,9 @@
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
 #include <chrono>
+#include <utility>
+#include <sstream>
+#include <iomanip>
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroModeling
@@ -117,6 +123,11 @@ public:
 
   vtkSlicerAstroModelingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
+  /// Beam (FWHM major and minor axes in arcsec, position angle in degrees)
+  QLabel* BeamLabel{nullptr};
+  QDoubleSpinBox* BeamMajorSpinBox{nullptr};
+  QDoubleSpinBox* BeamMinorSpinBox{nullptr};
+  QDoubleSpinBox* BeamPASpinBox{nullptr};
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
   vtkSmartPointer<vtkMRMLTableNode> astroTableNode;
@@ -412,6 +423,32 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
 
   QObject::connect(this->GreenSliceSliderWidget, SIGNAL(valueChanged(double)),
                    q, SLOT(onGreenSliceRotated(double)));
+
+  // Beam of the data (from the FITS header, or estimated from the noise)
+  QWidget* beamWidget = new QWidget(this->FittingParametersCollapsibleButton);
+  QHBoxLayout* beamLayout = new QHBoxLayout(beamWidget);
+  beamLayout->setContentsMargins(0, 0, 0, 0);
+  const QString beamToolTip = qSlicerAstroModelingModuleWidget::tr(
+    "Beam of the data (BMAJ, BMIN, BPA): FWHM of the major and minor axes in arcsec, position "
+    "angle of the major axis in degrees (from North to East). Read from the FITS header; if the "
+    "header has no beam, it is estimated from the noise and can be edited.");
+  this->BeamMajorSpinBox = new QDoubleSpinBox(beamWidget);
+  this->BeamMinorSpinBox = new QDoubleSpinBox(beamWidget);
+  this->BeamPASpinBox = new QDoubleSpinBox(beamWidget);
+  QDoubleSpinBox* beamSpinBoxes[3] = {this->BeamMajorSpinBox, this->BeamMinorSpinBox, this->BeamPASpinBox};
+  const char* beamPrefixes[3] = {"major ", "minor ", "PA "};
+  for (int i = 0; i < 3; i++)
+    {
+    beamSpinBoxes[i]->setDecimals(2);
+    beamSpinBoxes[i]->setRange(i < 2 ? 0. : -180., i < 2 ? 36000. : 180.);
+    beamSpinBoxes[i]->setPrefix(QString::fromUtf8(beamPrefixes[i]));
+    beamSpinBoxes[i]->setSuffix(i < 2 ? QString(" arcsec") : QString(" deg"));
+    beamSpinBoxes[i]->setToolTip(beamToolTip);
+    beamLayout->addWidget(beamSpinBoxes[i]);
+    }
+  this->BeamLabel = new QLabel(qSlicerAstroModelingModuleWidget::tr("Beam:"), this->FittingParametersCollapsibleButton);
+  this->BeamLabel->setToolTip(beamToolTip);
+  this->formLayout_2->insertRow(0, this->BeamLabel, beamWidget);
 
   this->InputSegmentCollapsibleButton->setCollapsed(true);
   this->FittingParametersCollapsibleButton->setCollapsed(false);
@@ -2991,6 +3028,7 @@ void qSlicerAstroModelingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 
+  this->updateBeamFromVolume(vtkMRMLAstroVolumeNode::SafeDownCast(mrmlNode));
   this->updateMaskSelector();
 }
 
@@ -3713,6 +3751,75 @@ void qSlicerAstroModelingModuleWidget::onFit()
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::updateBeamFromVolume(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!d->BeamMajorSpinBox)
+    {
+    return;
+    }
+  double beam[3] = {0., 0., 0.};
+  QString source;
+  const char* bmaj = volumeNode ? volumeNode->GetAttribute("SlicerAstro.BMAJ") : nullptr;
+  const char* bmin = volumeNode ? volumeNode->GetAttribute("SlicerAstro.BMIN") : nullptr;
+  const char* bpa = volumeNode ? volumeNode->GetAttribute("SlicerAstro.BPA") : nullptr;
+  if (bmaj && bmin && strcmp(bmaj, "UNDEFINED") && strcmp(bmin, "UNDEFINED") &&
+      StringToDouble(bmaj) > 0. && StringToDouble(bmin) > 0.)
+    {
+    beam[0] = StringToDouble(bmaj);
+    beam[1] = StringToDouble(bmin);
+    beam[2] = (bpa && strcmp(bpa, "UNDEFINED")) ? StringToDouble(bpa) : 0.;
+    source = tr("from the FITS header");
+    }
+  else if (volumeNode && vtkSlicerAstroVolumeLogic::EstimateBeamFromNoise(volumeNode, beam))
+    {
+    source = tr("estimated from the noise (spatial autocorrelation of the first and last "
+                "channels): check it");
+    }
+  else if (volumeNode)
+    {
+    source = tr("not in the FITS header and not estimated (the noise is not correlated): "
+                "enter it");
+    }
+  d->BeamMajorSpinBox->setValue(beam[0] * 3600.);
+  d->BeamMinorSpinBox->setValue(beam[1] * 3600.);
+  d->BeamPASpinBox->setValue(beam[2]);
+  d->BeamLabel->setText(source.startsWith(tr("from")) || source.isEmpty() ? tr("Beam:") : tr("Beam (!):"));
+  d->BeamLabel->setToolTip(d->BeamMajorSpinBox->toolTip() + (source.isEmpty() ? QString() : "\n\n" + tr("Beam ") + source + "."));
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroModelingModuleWidget::applyBeamToInputVolume(vtkMRMLAstroVolumeNode* inputVolume)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  if (!inputVolume || !d->BeamMajorSpinBox)
+    {
+    return false;
+    }
+  double bmaj = d->BeamMajorSpinBox->value() / 3600.;
+  double bmin = d->BeamMinorSpinBox->value() / 3600.;
+  if (bmaj <= 0. || bmin <= 0.)
+    {
+    return false;
+    }
+  if (bmin > bmaj)
+    {
+    std::swap(bmaj, bmin);
+    }
+  // the beam of the data (BBarolo, beam display, saved FITS header)
+  std::ostringstream bmajString, bminString, bpaString;
+  bmajString << std::setprecision(10) << bmaj;
+  bminString << std::setprecision(10) << bmin;
+  bpaString << std::setprecision(10) << d->BeamPASpinBox->value();
+  inputVolume->SetAttribute("SlicerAstro.BMAJ", bmajString.str().c_str());
+  inputVolume->SetAttribute("SlicerAstro.BMIN", bminString.str().c_str());
+  inputVolume->SetAttribute("SlicerAstro.BPA", bpaString.str().c_str());
+  return true;
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onApply()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
@@ -3789,13 +3896,13 @@ void qSlicerAstroModelingModuleWidget::onApply()
     return;
     }
 
-  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.BPA"), "UNDEFINED") )
+  // beam of the Fitting Parameters section (header, estimate or user)
+  if (!this->applyBeamToInputVolume(inputVolume))
     {
-    QString message = QString("Beam information (BMAJ, BMIN and/or BPA) not available. "
-                              "It is not possible to procede with the model fitting. "
-                              "You may edit these values in the Data module.");
+    QString message = tr("The beam of the data is needed for the model (it is not in the FITS "
+                         "header and could not be estimated from the noise). Enter it in the "
+                         "Fitting Parameters section: FWHM of the major and minor axes in arcsec "
+                         "and position angle in degrees.");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(nullptr, tr("Failed to run 3DBarolo"), message);
     d->parametersNode->SetStatus(0);

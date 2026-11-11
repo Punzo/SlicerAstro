@@ -27,6 +27,7 @@
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
 #include <cmath>
+#include <limits>
 #include <vtkMath.h>
 #include <vtkMRMLViewLogic.h>
 
@@ -3010,6 +3011,182 @@ void vtkSlicerAstroVolumeLogic::EnsureVolumePropertyTransferFunctionGaps(vtkMRML
   this->UpdatingTransferFunctionGaps = true;
   vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(volumeProperty, range);
   this->UpdatingTransferFunctionGaps = false;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::EstimateBeamFromNoise(vtkMRMLAstroVolumeNode* volumeNode, double beam[3])
+{
+  beam[0] = beam[1] = beam[2] = 0.;
+  vtkImageData* imageData = volumeNode ? volumeNode->GetImageData() : nullptr;
+  if (!imageData || !imageData->GetPointData() || !imageData->GetPointData()->GetScalars())
+    {
+    return false;
+    }
+  vtkDataArray* scalars = imageData->GetPointData()->GetScalars();
+  int dims[3] = {0, 0, 0};
+  imageData->GetDimensions(dims);
+  const double cdelt1 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT1"));
+  const double cdelt2 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT2"));
+  const int maxLag = std::min(24, std::min(dims[0], dims[1]) / 4);
+  if (maxLag < 3 || cdelt1 == 0. || cdelt2 == 0.)
+    {
+    return false;
+    }
+
+  // autocorrelation of the noise (lags up to maxLag) of the first and last channels
+  const int size = 2 * maxLag + 1;
+  std::vector<double> acf(static_cast<size_t>(size) * size, 0.);
+  std::vector<double> counts(acf.size(), 0.);
+  std::vector<int> channels = {0};
+  if (dims[2] > 1)
+    {
+    channels.push_back(dims[2] - 1);
+    }
+  const vtkIdType sliceSize = static_cast<vtkIdType>(dims[0]) * dims[1];
+  std::vector<double> plane(static_cast<size_t>(sliceSize));
+  for (int channel : channels)
+    {
+    // channel without its mean (NaN: blank)
+    double sum = 0.;
+    vtkIdType finite = 0;
+    for (vtkIdType index = 0; index < sliceSize; index++)
+      {
+      const double value = scalars->GetComponent(channel * sliceSize + index, 0);
+      plane[index] = value;
+      if (std::isfinite(value))
+        {
+        sum += value;
+        finite++;
+        }
+      }
+    if (finite < sliceSize / 2)
+      {
+      continue;
+      }
+    const double mean = sum / finite;
+    for (double& value : plane)
+      {
+      value = std::isfinite(value) ? value - mean : std::numeric_limits<double>::quiet_NaN();
+      }
+    for (int dy = -maxLag; dy <= maxLag; dy++)
+      {
+      for (int dx = -maxLag; dx <= maxLag; dx++)
+        {
+        double product = 0.;
+        double count = 0.;
+        for (int y = std::max(0, -dy); y < std::min(dims[1], dims[1] - dy); y++)
+          {
+          const double* row = plane.data() + static_cast<vtkIdType>(y) * dims[0];
+          const double* shiftedRow = plane.data() + static_cast<vtkIdType>(y + dy) * dims[0];
+          for (int x = std::max(0, -dx); x < std::min(dims[0], dims[0] - dx); x++)
+            {
+            const double value = row[x] * shiftedRow[x + dx];
+            if (std::isfinite(value))
+              {
+              product += value;
+              count += 1.;
+              }
+            }
+          }
+        const size_t lag = static_cast<size_t>(dy + maxLag) * size + (dx + maxLag);
+        acf[lag] += product;
+        counts[lag] += count;
+        }
+      }
+    }
+  const size_t center = static_cast<size_t>(maxLag) * size + maxLag;
+  if (counts[center] <= 0. || acf[center] <= 0.)
+    {
+    return false;
+    }
+  const double acfCenter = acf[center] / counts[center];
+  for (size_t lag = 0; lag < acf.size(); lag++)
+    {
+    acf[lag] = counts[lag] > 0. ? (acf[lag] / counts[lag]) / acfCenter : 0.;
+    }
+
+  // region above half maximum connected to the center (no sidelobes)
+  std::vector<char> region(acf.size(), 0);
+  std::vector<size_t> stack = {center};
+  region[center] = 1;
+  bool touchesBorder = false;
+  while (!stack.empty())
+    {
+    const size_t lag = stack.back();
+    stack.pop_back();
+    const int lx = static_cast<int>(lag % size);
+    const int ly = static_cast<int>(lag / size);
+    if (lx == 0 || ly == 0 || lx == size - 1 || ly == size - 1)
+      {
+      touchesBorder = true;
+      }
+    const int neighbours[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+    for (const int* step : neighbours)
+      {
+      const int nx = lx + step[0];
+      const int ny = ly + step[1];
+      if (nx < 0 || ny < 0 || nx >= size || ny >= size)
+        {
+        continue;
+        }
+      const size_t neighbour = static_cast<size_t>(ny) * size + nx;
+      if (!region[neighbour] && acf[neighbour] >= 0.5)
+        {
+        region[neighbour] = 1;
+        stack.push_back(neighbour);
+        }
+      }
+    }
+  // not correlated (a single pixel) or beam too large for the lags
+  int regionSize = 0;
+  for (char inside : region)
+    {
+    regionSize += inside;
+    }
+  if (regionSize < 5 || touchesBorder)
+    {
+    return false;
+    }
+
+  // second moments of the half maximum ellipse (East, North offsets in
+  // degrees): for a uniform ellipse the moment along an axis is HWHM^2 / 4
+  double cee = 0., cnn = 0., cen = 0.;
+  for (size_t lag = 0; lag < acf.size(); lag++)
+    {
+    if (!region[lag])
+      {
+      continue;
+      }
+    const double east = cdelt1 * (static_cast<int>(lag % size) - maxLag);
+    const double north = cdelt2 * (static_cast<int>(lag / size) - maxLag);
+    cee += east * east;
+    cnn += north * north;
+    cen += east * north;
+    }
+  // pixel area: each lag is a pixel, the continuous ellipse adds 1/12 pixel^2
+  cee = cee / regionSize + cdelt1 * cdelt1 / 12.;
+  cnn = cnn / regionSize + cdelt2 * cdelt2 / 12.;
+  cen /= regionSize;
+  const double trace = cee + cnn;
+  const double delta = sqrt(std::max(0., 0.25 * (cee - cnn) * (cee - cnn) + cen * cen));
+  const double majorMoment = 0.5 * trace + delta;
+  const double minorMoment = std::max(0., 0.5 * trace - delta);
+  // FWHM of the autocorrelation = 2 * HWHM = 4 sqrt(moment); beam = FWHM / sqrt(2)
+  beam[0] = 4. * sqrt(majorMoment) / sqrt(2.);
+  beam[1] = 4. * sqrt(minorMoment) / sqrt(2.);
+  // position angle of the major axis, from North to East
+  const double angle = 0.5 * atan2(2. * cen, cnn - cee);
+  double positionAngle = vtkMath::DegreesFromRadians(angle);
+  while (positionAngle < 0.)
+    {
+    positionAngle += 180.;
+    }
+  while (positionAngle >= 180.)
+    {
+    positionAngle -= 180.;
+    }
+  beam[2] = positionAngle;
+  return beam[0] > 0. && beam[1] > 0.;
 }
 
 //----------------------------------------------------------------------------

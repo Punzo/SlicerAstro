@@ -26,6 +26,7 @@
 #include "qSlicerAstroModelingModuleExport.h"
 
 class qSlicerAstroModelingModuleWidgetPrivate;
+class vtkMRMLAstroVolumeNode;
 class vtkCollection;
 class vtkMRMLAstroModelingParametersNode;
 class vtkMRMLNode;
@@ -74,6 +75,10 @@ public slots:
   void onVisualize();
 
 protected:
+  /// Set the beam of the Fitting Parameters section in the input volume
+  /// (BMAJ, BMIN, BPA). Returns false if the beam is not set.
+  bool applyBeamToInputVolume(vtkMRMLAstroVolumeNode* inputVolume);
+
   QScopedPointer<qSlicerAstroModelingModuleWidgetPrivate> d_ptr;
 
   /// Initialization of the qvtk connections between MRML nodes
@@ -121,6 +126,9 @@ protected slots:
 
   /// Set the MRML segmentation editor node
   void onSegmentEditorNodeModified(vtkObject* sender);
+  /// Beam of the Fitting Parameters section from the FITS header (or
+  /// estimated from the noise)
+  void updateBeamFromVolume(vtkMRMLAstroVolumeNode* volumeNode);
   /// Mask selector: the Segment Editor and the table use the selected mask
   void onMaskSegmentationChanged(vtkMRMLNode* node);
   /// Masks only in the selector (not the contours); by default the mask of the input volume
