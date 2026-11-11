@@ -26,6 +26,7 @@
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
+#include <cmath>
 #include <vtkMath.h>
 #include <vtkMRMLViewLogic.h>
 
@@ -312,6 +313,15 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       {
       this->EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
       }
+    }
+
+  // transfer functions without points too close for the GPU lookup tables
+  if (vtkMRMLVolumePropertyNode* volumePropertyNode = vtkMRMLVolumePropertyNode::SafeDownCast(node))
+    {
+    vtkNew<vtkIntArray> events;
+    events->InsertNextValue(vtkCommand::ModifiedEvent);
+    vtkObserveMRMLNodeEventsMacro(volumePropertyNode, events.GetPointer());
+    this->EnsureVolumePropertyTransferFunctionGaps(volumePropertyNode);
     }
 
   // astronomical segmentations are saved as FITS masks by default
@@ -2739,6 +2749,16 @@ namespace
 // Positions of the points shifted so that consecutive points are at least
 // minimumGap apart; the points are moved toward the inside of the range
 // (first and last points stay at their place when possible).
+void ExtendFiniteRange(double range[2], const double otherRange[2])
+{
+  if (otherRange[1] >= otherRange[0] && std::isfinite(otherRange[0]) && std::isfinite(otherRange[1]))
+    {
+    range[0] = std::min(range[0], otherRange[0]);
+    range[1] = std::max(range[1], otherRange[1]);
+    }
+}
+
+//----------------------------------------------------------------------------
 std::vector<double> SpreadPositions(const std::vector<double>& positions, double minimumGap)
 {
   std::vector<double> spread(positions);
@@ -2948,6 +2968,51 @@ bool vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(vtkMRMLSegmentation
 }
 
 //----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::EnsureVolumePropertyTransferFunctionGaps(vtkMRMLVolumePropertyNode* volumePropertyNode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (this->UpdatingTransferFunctionGaps || !scene || scene->IsImporting() || scene->IsClosing() ||
+      !volumePropertyNode || !volumePropertyNode->GetVolumeProperty())
+    {
+    return;
+    }
+  vtkVolumeProperty* volumeProperty = volumePropertyNode->GetVolumeProperty();
+
+  // range: the transfer functions and the data of the volumes rendered with them
+  double range[2] = {VTK_DOUBLE_MAX, VTK_DOUBLE_MIN};
+  if (volumeProperty->GetScalarOpacity() && volumeProperty->GetScalarOpacity()->GetSize() > 1)
+    {
+    ExtendFiniteRange(range, volumeProperty->GetScalarOpacity()->GetRange());
+    }
+  if (volumeProperty->GetRGBTransferFunction() && volumeProperty->GetRGBTransferFunction()->GetSize() > 1)
+    {
+    ExtendFiniteRange(range, volumeProperty->GetRGBTransferFunction()->GetRange());
+    }
+  std::vector<vtkMRMLNode*> referencingNodes;
+  scene->GetReferencingNodes(volumePropertyNode, referencingNodes);
+  for (vtkMRMLNode* node : referencingNodes)
+    {
+    vtkMRMLVolumeRenderingDisplayNode* renderingDisplayNode = vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(node);
+    vtkMRMLVolumeNode* volumeNode = renderingDisplayNode ? renderingDisplayNode->GetVolumeNode() : nullptr;
+    vtkImageData* imageData = volumeNode ? volumeNode->GetImageData() : nullptr;
+    if (imageData && imageData->GetPointData() && imageData->GetPointData()->GetScalars())
+      {
+      double dataRange[2] = {0., 0.};
+      imageData->GetPointData()->GetScalars()->GetFiniteRange(dataRange);
+      ExtendFiniteRange(range, dataRange);
+      }
+    }
+  if (!(range[1] > range[0]))
+    {
+    return;
+    }
+
+  this->UpdatingTransferFunctionGaps = true;
+  vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(volumeProperty, range);
+  this->UpdatingTransferFunctionGaps = false;
+}
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::IsMaskSegmentation(vtkMRMLSegmentationNode* segmentationNode)
 {
   return segmentationNode && segmentationNode->GetSegmentation() &&
@@ -3088,6 +3153,12 @@ void vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData)
 {
+  vtkMRMLVolumePropertyNode* volumePropertyNode = vtkMRMLVolumePropertyNode::SafeDownCast(caller);
+  if (volumePropertyNode && event == vtkCommand::ModifiedEvent)
+    {
+    this->EnsureVolumePropertyTransferFunctionGaps(volumePropertyNode);
+    return;
+    }
   vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(caller);
   if (segmentationNode && (event == vtkMRMLNode::ReferenceAddedEvent ||
                            event == vtkMRMLNode::ReferenceModifiedEvent ||

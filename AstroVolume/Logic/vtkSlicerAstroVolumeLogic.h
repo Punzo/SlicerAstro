@@ -41,6 +41,7 @@ class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLSliceNode;
+class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkVolumeProperty;
@@ -250,8 +251,17 @@ protected:
   /// Handle MRML node removed events
   virtual void OnMRMLSceneNodeRemoved(vtkMRMLNode* node) override;
 
-  /// Segmentations: FITS mask storage (see EnsureFITSMaskStorageNode)
+  /// Segmentations: FITS mask storage (see EnsureFITSMaskStorageNode).
+  /// Volume properties: minimum gap of the transfer functions (see
+  /// EnsureVolumePropertyTransferFunctionGaps).
   void ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData) override;
+
+  /// Transfer functions of a volume property (any module, preset or user
+  /// edit) without points closer than 1/10000 of the range of the data of
+  /// the volumes rendered with it (and of the functions): the lookup table
+  /// textures of the GPU ray cast mapper stay small.
+  void EnsureVolumePropertyTransferFunctionGaps(vtkMRMLVolumePropertyNode* volumePropertyNode);
+  bool UpdatingTransferFunctionGaps{false};
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;
