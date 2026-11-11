@@ -2717,7 +2717,7 @@
            </size>
           </property>
           <property name="toolTip">
-           <string>Value of the contour level. The value will be used both in the 3D (for the model segmentation and volume rendering of the data) and 2D Views. A value major than 1.5 is adviced. </string>
+           <string>Contour level of the model and of the data, in units of the RMS noise of the data (2D outlines and 3D model). The views are updated when the value stops changing. Values above 1.5 are recommended.</string>
           </property>
           <property name="decimals">
            <number>2</number>
@@ -2743,28 +2743,6 @@
          </widget>
         </item>
        </layout>
-      </item>
-      <item row="1" column="1">
-       <widget class="QPushButton" name="VisualizePushButton">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="minimumSize">
-         <size>
-          <width>0</width>
-          <height>35</height>
-         </size>
-        </property>
-        <property name="toolTip">
-         <string>Click to update the visualization of the model. The model and the data will be visualized at the chosen Contour Level. </string>
-        </property>
-        <property name="text">
-         <string>Visualize Model</string>
-        </property>
-       </widget>
       </item>
       <item row="2" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -2882,7 +2860,7 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Click to recalculate and visualize the model using the parameters in Tabular. The model and the data will be visualized at the chosen Contour Level.</string>
+         <string>Click to recalculate and visualize the model using the parameters in Tabular. </string>
         </property>
         <property name="text">
          <string>Calculate and Visualize Model</string>

@@ -164,6 +164,9 @@ public:
   /// parameter node in the GUI thread (onWorkFinished).
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> workerParametersNode;
   QTimer* workerProgressTimer{nullptr};
+  /// The model and the data are shown again at the contour level when it
+  /// stops changing
+  QTimer* contourLevelTimer{nullptr};
   /// The input is converted to the optical velocity definition for 3DBarolo
   /// (in the GUI thread, the WCS is shared with the views) and restored
   bool restoreRadioVelocity{false};
@@ -421,8 +424,10 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->CancelPushButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  QObject::connect(this->VisualizePushButton, SIGNAL(clicked()),
-                   q, SLOT(onVisualize()));
+  this->contourLevelTimer = new QTimer(q);
+  this->contourLevelTimer->setSingleShot(true);
+  this->contourLevelTimer->setInterval(300);
+  QObject::connect(this->contourLevelTimer, SIGNAL(timeout()), q, SLOT(onVisualize()));
 
   QObject::connect(this->CalculatePushButton, SIGNAL(clicked()),
                    q, SLOT(onCalculateAndVisualize()));
@@ -3494,7 +3499,6 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->TableView->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourLabel->setEnabled(d->parametersNode->GetFitSuccess());
-  d->VisualizePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->CalculatePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->AstroModelingCopyButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->AstroModelingPasteButton->setEnabled(d->parametersNode->GetFitSuccess());
@@ -4119,6 +4123,11 @@ void qSlicerAstroModelingModuleWidget::onContourLevelChanged(double value)
     return;
     }
   d->parametersNode->SetContourLevel(value);
+  // the model and the data at the new level (no button)
+  if (d->parametersNode->GetFitSuccess())
+    {
+    d->contourLevelTimer->start();
+    }
 }
 
 //---------------------------------------------------------------------------

@@ -3368,7 +3368,9 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentThreeID, false);
     }
 
-  this->onCreateSurfaceButtonToggled(this->contoursSegNodeModeling);
+  // data and model contours of the Modeling module: binary labelmaps in
+  // 2D (outlines) and 3D (no closed surface conversion)
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(this->contoursSegNodeModeling);
 
   // Create PV major
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
@@ -3580,7 +3582,7 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
     this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
     this->contoursSegNodeModeling->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
-    this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
+    this->mrmlScene()->AddNode(this->contoursSegNodeModeling);
     }
 
   // the contours are not edited: the Segment Editor keeps its segmentation (mask)
@@ -3702,7 +3704,9 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentTwoID, false);
     }
 
-  this->onCreateSurfaceButtonToggled(this->contoursSegNodeModeling);
+  // data and model contours of the Modeling module: binary labelmaps in
+  // 2D (outlines) and 3D (no closed surface conversion)
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(this->contoursSegNodeModeling);
 
   // Create PV major
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
