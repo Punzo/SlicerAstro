@@ -28,6 +28,8 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QHBoxLayout>
+#include <QGridLayout>
+#include <QProgressBar>
 #include <QDoubleSpinBox>
 #include <QMessageBox>
 #include <QMutexLocker>
@@ -128,6 +130,10 @@ public:
   void cleanPointers();
   // a 3DBarolo operation is running in the worker thread
   bool workerRunning() const;
+  // Calculate and Visualize Model: progress below its button (the Fitting
+  // parameters section, with the other progress bar, is often collapsed)
+  QProgressBar* calculateProgressBar = nullptr;
+  bool calculatingModel = false;
 
   vtkSlicerAstroModelingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
@@ -720,6 +726,22 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   this->progressBar->setMinimum(0);
   this->progressBar->setMaximum(100);
   this->CancelPushButton->hide();
+
+  this->calculateProgressBar = new QProgressBar(q);
+  this->calculateProgressBar->setObjectName("CalculateProgressBar");
+  this->calculateProgressBar->setMinimum(0);
+  this->calculateProgressBar->setMaximum(100);
+  this->calculateProgressBar->setTextVisible(true);
+  this->calculateProgressBar->setMinimumHeight(35);
+  this->calculateProgressBar->hide();
+  QGridLayout* calculateLayout = qobject_cast<QGridLayout*>(this->CalculatePushButton->parentWidget()->layout());
+  const int calculateIndex = calculateLayout ? calculateLayout->indexOf(this->CalculatePushButton) : -1;
+  if (calculateIndex >= 0)
+    {
+    int row = 0, column = 0, rowSpan = 0, columnSpan = 0;
+    calculateLayout->getItemPosition(calculateIndex, &row, &column, &rowSpan, &columnSpan);
+    calculateLayout->addWidget(this->calculateProgressBar, calculateLayout->rowCount(), column, 1, columnSpan);
+    }
 
   this->thread = new QThread();
   this->worker = new qSlicerAstroModelingModuleWorker();
@@ -2437,6 +2459,7 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     {
     inputVolumeDisplayNode->SetOpticalVelocityDefinition();
     }
+  d->calculatingModel = true;
   d->parametersNode->SetStatus(1);
   d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
   d->workerParametersNode->Copy(d->parametersNode);
@@ -4530,6 +4553,8 @@ void qSlicerAstroModelingModuleWidget::onComputationFinished()
   d->CancelPushButton->setText(tr("Cancel"));
   d->CancelPushButton->hide();
   d->progressBar->hide();
+  d->calculateProgressBar->hide();
+  d->calculatingModel = false;
   d->FitPushButton->show();
   d->CreatePushButton->show();
   d->EstimateInitialParametersPushButton->setEnabled(true);
@@ -5535,6 +5560,7 @@ void qSlicerAstroModelingModuleWidget::updateProgress(int value)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
   d->progressBar->setValue(value);
+  d->calculateProgressBar->setValue(value);
 }
 
 //-----------------------------------------------------------------------------
@@ -5545,6 +5571,11 @@ void qSlicerAstroModelingModuleWidget::onComputationStarted()
   d->FitPushButton->hide();
   d->progressBar->show();
   d->CancelPushButton->show();
+  if (d->calculatingModel)
+    {
+    d->calculateProgressBar->setValue(0);
+    d->calculateProgressBar->show();
+    }
   // no other operation (or edit of the rings) until the end of this one;
   // updateWidgetFromMRML enables them again at the end
   d->EstimateInitialParametersPushButton->setEnabled(false);

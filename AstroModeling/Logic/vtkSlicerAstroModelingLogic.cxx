@@ -301,6 +301,25 @@ void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* p
   fit->setAbortFlag(nullptr);
   fit->setProgressCallback(nullptr);
 }
+
+//----------------------------------------------------------------------------
+// Final model of the output rings, with the progress (rings done, then the
+// convolution with the beam) in [progressFrom, progressTo]
+template <class T>
+Model::Galmod<T>* GetFullModel(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* pnode,
+                               int progressFrom, int progressTo)
+{
+  fit->setProgressCallback([pnode, progressFrom, progressTo](int done, int total)
+    {
+    if (total > 0)
+      {
+      SetProgress(pnode, progressFrom + ((progressTo - progressFrom) * done) / total);
+      }
+    });
+  Model::Galmod<T>* model = fit->getFullModel();
+  fit->setProgressCallback(nullptr);
+  return model;
+}
 } // end of anonymous namespace
 
 //----------------------------------------------------------------------------
@@ -1299,7 +1318,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           }
 
         SetProgress(pnode, fitOperation ? 88 : 60);
-        this->Internal->modF = this->Internal->fitF->getFullModel();
+        this->Internal->modF = GetFullModel(this->Internal->fitF, pnode, fitOperation ? 88 : 60, fitOperation ? 92 : 90);
         SetProgress(pnode, fitOperation ? 92 : 90);
         if (!this->Internal->modF || !this->Internal->modF->Out())
           {
@@ -1696,7 +1715,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           }
 
         SetProgress(pnode, fitOperation ? 88 : 60);
-        this->Internal->modD = this->Internal->fitD->getFullModel();
+        this->Internal->modD = GetFullModel(this->Internal->fitD, pnode, fitOperation ? 88 : 60, fitOperation ? 92 : 90);
         SetProgress(pnode, fitOperation ? 92 : 90);
         if (!this->Internal->modD || !this->Internal->modD->Out())
           {
@@ -2758,7 +2777,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         pnode->SetStatus(100);
         return 0;
         }
-      this->Internal->modF = this->Internal->fitF->getFullModel();
+      this->Internal->modF = GetFullModel(this->Internal->fitF, pnode, 40, 90);
       SetProgress(pnode, 90);
       if (!this->Internal->modF || !this->Internal->modF->Out())
         {
@@ -3053,7 +3072,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         pnode->SetStatus(100);
         return 0;
         }
-      this->Internal->modD = this->Internal->fitD->getFullModel();
+      this->Internal->modD = GetFullModel(this->Internal->fitD, pnode, 40, 90);
       SetProgress(pnode, 90);
       if (!this->Internal->modD || !this->Internal->modD->Out())
         {
