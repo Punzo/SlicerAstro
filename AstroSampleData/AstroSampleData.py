@@ -34,10 +34,10 @@ SAMPLE_DATA_SOURCES = (
         ("WEIN069_cat.txt", "WEIN069_catalogue", "SoFiACatalogFile",
          "ae5d212108a702a20476b8084da2172133355cd0c97de1d0a58b15d803a25322"),
     )),
-    # THINGS HI cube of NGC 2403 (cropped and rebinned) and DSS2 red image of the field
+    # HALOGAS-DR1 low-resolution (30 arcsec) VLA HI cube of NGC 2403 and DSS2 red image of the field
     ("NGC2403", "NGC2403.png", (
         ("NGC2403.fits", "NGC2403", "AstroVolumeFile",
-         "48e885420a8dde00105a0e1a6dfc2af78aa6c77e377b2e75665a42b98ae6bad1"),
+         "09959b45590be00dc98dcee07fd8b99d6dbd49de7651f7ad7d4ef543ee8d2005"),
     )),
     ("NGC2403_DSS", "NGC2403_DSS.png", (
         ("NGC2403_DSS.fits", "NGC2403_DSS", "AstroVolumeFile",

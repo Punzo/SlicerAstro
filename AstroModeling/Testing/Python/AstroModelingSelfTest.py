@@ -179,7 +179,7 @@ class AstroModelingSelfTestTest(unittest.TestCase):
       time.sleep(0.1)
     SysVelocity = AstroModelingParameterNode.GetSystemicVelocity()
 
-    # NGC 2403: systemic velocity of about 133 km/s (THINGS, de Blok et al. 2008)
+    # NGC 2403: systemic velocity of about 133 km/s (de Blok et al. 2008; Fraternali et al. 2002)
     self.assertLess(math.fabs(SysVelocity - 133.), 3.)
     self.assertGreater(AstroModelingParameterNode.GetNumberOfRings(), 0)
     self.assertGreater(AstroModelingParameterNode.GetInclination(), 0.)
