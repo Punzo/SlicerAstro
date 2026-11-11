@@ -106,6 +106,9 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
             if spinBox.quantity == "length":
                 self.assertFalse(spinBox.visible, "slice cut depth")
         self.assertEqual(effect.parameter("SliceCutMode"), "Symmetric")
+        labels = [label.text for label in frame.findChildren(qt.QLabel)]
+        self.assertIn("Apply to all visible segments:", labels)
+        self.assertNotIn("Apply to visible segments:", labels)
 
         # threshold range: from 3 times the noise to the maximum
         noise3 = 3.0 * float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold"))

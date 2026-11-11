@@ -216,6 +216,10 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::setupOptionsFrame()
       {
       label->hide();
       }
+    else if (label->text() == Superclass::tr("Apply to visible segments:"))
+      {
+      label->setText(tr("Apply to all visible segments:"));
+      }
     }
   for (QWidget* widget : this->optionsFrame()->findChildren<QWidget*>())
     {
