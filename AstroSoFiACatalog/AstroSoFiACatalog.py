@@ -3,6 +3,8 @@ import re
 import shlex
 import xml.etree.ElementTree as ElementTree
 
+import ctk
+import qt
 import vtk
 
 import slicer
@@ -44,8 +46,6 @@ This work was supported by ERC grant nr. 291531 and the Slicer Community.
 class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
     def setup(self):
         ScriptedLoadableModuleWidget.setup(self)
-        import ctk
-        import qt
 
         self.logic = AstroSoFiACatalogLogic()
 
@@ -101,10 +101,21 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.tableView = slicer.qMRMLTableView()
         self.tableView.setMRMLScene(slicer.mrmlScene)
         self.tableView.setSelectionBehavior(qt.QAbstractItemView.SelectRows)
-        self.tableView.setSelectionMode(qt.QAbstractItemView.SingleSelection)
+        self.tableView.setSelectionMode(qt.QAbstractItemView.ExtendedSelection)
         self.tableView.minimumHeight = 250
-        self.tableView.toolTip = "Select a source to center the views on it."
+        self.tableView.toolTip = ("Select sources (Ctrl/Shift for several): the views are centered on the "
+                                  "current one and their points are shown with the selected color.")
         sourcesLayout.addWidget(self.tableView)
+
+        editLayout = qt.QHBoxLayout()
+        self.deleteSelectedButton = qt.QPushButton("Delete selected")
+        self.deleteSelectedButton.toolTip = "Delete the selected sources (table rows and points)."
+        self.deleteAllButton = qt.QPushButton("Delete all points")
+        self.deleteAllButton.toolTip = "Delete all the source points of the catalogue (the table is kept)."
+        editLayout.addWidget(self.deleteSelectedButton)
+        editLayout.addWidget(self.deleteAllButton)
+        editLayout.addStretch(1)
+        sourcesLayout.addLayout(editLayout)
 
         # Source points (markups point list of the catalogue)
         pointsSection = ctk.ctkCollapsibleButton()
@@ -128,9 +139,24 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         togglesLayout.addWidget(self.markupsModuleButton)
         pointsLayout.addLayout(togglesLayout)
 
-        # glyph type and size, colors, opacity, text, 2D projection
+        colorsLayout = qt.QHBoxLayout()
+        colorsLayout.addWidget(qt.QLabel("Color:"))
+        self.colorButton = ctk.ctkColorPickerButton()
+        self.colorButton.toolTip = "Color of the source points."
+        colorsLayout.addWidget(self.colorButton)
+        colorsLayout.addWidget(qt.QLabel("Selected color:"))
+        self.selectedColorButton = ctk.ctkColorPickerButton()
+        self.selectedColorButton.toolTip = "Color of the points of the sources selected in the table."
+        colorsLayout.addWidget(self.selectedColorButton)
+        colorsLayout.addStretch(1)
+        pointsLayout.addLayout(colorsLayout)
+
+        # opacity, glyph and text size; Advanced: glyph type, text, 2D projection
         self.markupsDisplayWidget = slicer.qMRMLMarkupsDisplayNodeWidget()
         self.markupsDisplayWidget.setMRMLScene(slicer.mrmlScene)
+        for groupName in ("CollapsibleGroupBox", "ScalarsCollapsibleGroupBox"):  # interaction handles, scalars
+            group = slicer.util.findChild(self.markupsDisplayWidget, groupName)
+            group.hide()
         pointsLayout.addWidget(self.markupsDisplayWidget)
 
         self.layout.addStretch(1)
@@ -142,6 +168,12 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.showNamesCheckBox.connect("toggled(bool)", self.updatePointDisplay)
         self.lockedCheckBox.connect("toggled(bool)", self.updatePointDisplay)
         self.markupsModuleButton.connect("clicked()", self.onEditInMarkups)
+        self.deleteSelectedButton.connect("clicked()", self.onDeleteSelected)
+        self.deleteAllButton.connect("clicked()", self.onDeleteAllPoints)
+        self.colorButton.connect("colorChanged(QColor)", self.onColorChanged)
+        self.selectedColorButton.connect("colorChanged(QColor)", self.onColorChanged)
+        self.tableView.selectionModel().connect(
+            "selectionChanged(QItemSelection,QItemSelection)", self.onSelectionChanged)
         self.tableView.selectionModel().connect(
             "currentRowChanged(QModelIndex,QModelIndex)", self.onSourceSelected)
         self.updateLoadButton()
@@ -170,15 +202,19 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.tableView.setMRMLTableNode(tableNode)
         pointListNode = self.pointListNode()
         self.markupsDisplayWidget.setMRMLMarkupsNode(pointListNode)
-        toggles = (self.showPointsCheckBox, self.showNamesCheckBox, self.lockedCheckBox)
+        toggles = (self.showPointsCheckBox, self.showNamesCheckBox, self.lockedCheckBox,
+                   self.colorButton, self.selectedColorButton)
         enabled = pointListNode is not None and pointListNode.GetDisplayNode() is not None
-        for widget in toggles + (self.markupsModuleButton, self.markupsDisplayWidget):
+        for widget in toggles + (self.markupsModuleButton, self.markupsDisplayWidget,
+                                 self.deleteSelectedButton, self.deleteAllButton):
             widget.enabled = enabled
         if not enabled:
             return
         displayNode = pointListNode.GetDisplayNode()
         for widget in toggles:
             widget.blockSignals(True)
+        self.colorButton.color = qt.QColor.fromRgbF(*displayNode.GetColor())
+        self.selectedColorButton.color = qt.QColor.fromRgbF(*displayNode.GetSelectedColor())
         self.showPointsCheckBox.checked = displayNode.GetVisibility()
         self.showNamesCheckBox.checked = displayNode.GetPointLabelsVisibility()
         self.lockedCheckBox.checked = pointListNode.GetLocked() or all(
@@ -202,6 +238,52 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         for index in range(pointListNode.GetNumberOfControlPoints()):
             pointListNode.SetNthControlPointLocked(index, locked)
         pointListNode.EndModify(wasModifying)
+
+    def selectedRows(self):
+        return sorted({index.row() for index in self.tableView.selectionModel().selectedRows()})
+
+    def onSelectionChanged(self, selected=None, deselected=None):
+        """Points of the selected sources are drawn with the selected color."""
+        pointListNode = self.pointListNode()
+        if not pointListNode:
+            return
+        rows = set(self.selectedRows())
+        wasModifying = pointListNode.StartModify()
+        for index in range(pointListNode.GetNumberOfControlPoints()):
+            pointListNode.SetNthControlPointSelected(index, index in rows)
+        pointListNode.EndModify(wasModifying)
+
+    def onColorChanged(self, color=None):
+        pointListNode = self.pointListNode()
+        displayNode = pointListNode.GetDisplayNode() if pointListNode else None
+        if not displayNode:
+            return
+        color = self.colorButton.color
+        selectedColor = self.selectedColorButton.color
+        wasModifying = displayNode.StartModify()
+        displayNode.SetColor(color.redF(), color.greenF(), color.blueF())
+        displayNode.SetSelectedColor(selectedColor.redF(), selectedColor.greenF(), selectedColor.blueF())
+        displayNode.EndModify(wasModifying)
+
+    def onDeleteSelected(self):
+        """Delete the selected sources: rows of the table and points."""
+        tableNode = self.catalogSelector.currentNode()
+        pointListNode = self.pointListNode()
+        rows = self.selectedRows()
+        if not tableNode or not rows:
+            return
+        self.logic.deleteSources(tableNode, rows)
+        self.tableView.clearSelection()
+
+    def onDeleteAllPoints(self):
+        pointListNode = self.pointListNode()
+        if not pointListNode:
+            return
+        if not slicer.util.confirmOkCancelDisplay(
+                f"Delete all the {pointListNode.GetNumberOfControlPoints()} source points of "
+                f"{self.catalogSelector.currentNode().GetName()}?"):
+            return
+        pointListNode.RemoveAllControlPoints()
 
     def onEditInMarkups(self):
         pointListNode = self.pointListNode()
@@ -440,8 +522,9 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         displayNode.SetTextScale(3)
         displayNode.SliceProjectionOn()
         displayNode.SliceProjectionUseFiducialColorOff()
+        # points of the sources selected in the table: selected color
         displayNode.SetColor(0.4, 1.0, 1.0)
-        displayNode.SetSelectedColor(0.4, 1.0, 1.0)
+        displayNode.SetSelectedColor(1.0, 0.733, 0.078)
         displayNode.SetSliceProjectionColor(1.0, 0.733, 0.078)
 
         wasModifying = pointListNode.StartModify()
@@ -453,9 +536,24 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
             if "id" in row:
                 pointListNode.SetNthControlPointDescription(index, "id %d" % int(row["id"]))
             pointListNode.SetNthControlPointLocked(index, True)
+            pointListNode.SetNthControlPointSelected(index, False)
         pointListNode.SetLocked(True)
         pointListNode.EndModify(wasModifying)
         return pointListNode
+
+    @staticmethod
+    def deleteSources(tableNode, rows):
+        """Delete sources of a loaded catalogue: rows of the table and their points."""
+        pointListID = tableNode.GetAttribute("SlicerAstro.SoFiASources")
+        pointListNode = slicer.mrmlScene.GetNodeByID(pointListID) if pointListID else None
+        table = tableNode.GetTable()
+        for row in sorted(set(rows), reverse=True):
+            if 0 <= row < table.GetNumberOfRows():
+                table.RemoveRow(row)
+            if pointListNode and 0 <= row < pointListNode.GetNumberOfControlPoints():
+                pointListNode.RemoveNthControlPoint(row)
+        table.Modified()
+        tableNode.Modified()
 
     def loadCatalog(self, catalogPath, referenceNode=None):
         """Load a SoFiA catalogue: table with all the columns, and point list of the sources.
@@ -653,6 +751,17 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         widget.lockedCheckBox.checked = True
         self.assertTrue(pointListNode.GetNthControlPointLocked(1))
 
+        # only the Advanced group of the markups display options
+        self.assertFalse(slicer.util.findChild(widget.markupsDisplayWidget, "ScalarsCollapsibleGroupBox").visible)
+        self.assertFalse(slicer.util.findChild(widget.markupsDisplayWidget, "CollapsibleGroupBox").visible)
+
+        # selected sources: selected points (selected color)
+        widget.tableView.selectRow(0)
+        self.assertTrue(pointListNode.GetNthControlPointSelected(0))
+        self.assertFalse(pointListNode.GetNthControlPointSelected(1))
+        widget.selectedColorButton.color = qt.QColor(255, 0, 0)
+        self.assertEqual(pointListNode.GetDisplayNode().GetSelectedColor(), (1.0, 0.0, 0.0))
+
         # selecting a source centers the slice views on it
         widget.tableView.selectRow(1)
         position = [0.0, 0.0, 0.0]
@@ -661,4 +770,13 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         rasToXY = vtk.vtkMatrix4x4()
         vtk.vtkMatrix4x4.Invert(redSliceNode.GetXYToRAS(), rasToXY)
         self.assertAlmostEqual(rasToXY.MultiplyPoint(position + [1.0])[2], 0.0, places=3)
+
+        # delete the selected source: table row and point
+        secondName = pointListNode.GetNthControlPointLabel(1)
+        widget.onDeleteSelected()
+        self.assertEqual(tableNode.GetNumberOfRows(), 1)
+        self.assertEqual(pointListNode.GetNumberOfControlPoints(), 1)
+        self.assertNotEqual(pointListNode.GetNthControlPointLabel(0), secondName)
+        self.assertEqual(tableNode.GetTable().GetValueByName(0, "name").ToString(),
+                         pointListNode.GetNthControlPointLabel(0))
         self.delayDisplay("Test passed")
