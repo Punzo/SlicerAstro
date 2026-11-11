@@ -116,14 +116,6 @@ if(BUILD_TESTING)
       if(_test MATCHES "^py_")
         set_tests_properties(${_test} DIRECTORY ${directory}
           PROPERTIES RESOURCE_LOCK SlicerAstroSampleDataCache)
-        if(UNIX AND NOT APPLE)
-          # VTK 9.6 probes GLX by making an offscreen X window current when a
-          # plot view (vtkContextView) is created; on some X servers (Xvfb,
-          # XWayland with the NVIDIA driver) this fails with BadAccess and
-          # Xlib exits the application. EGL avoids the probe.
-          set_property(TEST ${_test} DIRECTORY ${directory}
-            APPEND PROPERTY ENVIRONMENT "VTK_DEFAULT_OPENGL_WINDOW=vtkEGLRenderWindow")
-        endif()
       endif()
     endforeach()
     get_property(_subdirectories DIRECTORY ${directory} PROPERTY SUBDIRECTORIES)

@@ -75,6 +75,16 @@ set(MODULE_TARGET_LIBRARIES
   vtkSlicer${MODULE_NAME}ModuleMRMLDisplayableManager
   )
 
+# Linux (X11): handler of the X errors of the OpenGL backend probe of VTK
+# (see qSlicerAstroVolumeModule.cxx)
+if(UNIX AND NOT APPLE)
+  find_package(X11)
+  if(X11_FOUND)
+    list(APPEND MODULE_TARGET_LIBRARIES ${X11_X11_LIB})
+    add_definitions(-DSLICERASTRO_HAS_X11)
+  endif()
+endif()
+
 set(MODULE_RESOURCES
   Resources/qSlicer${MODULE_NAME}Module.qrc
   )

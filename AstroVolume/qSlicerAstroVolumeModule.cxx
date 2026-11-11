@@ -103,6 +103,86 @@
 VTK_MODULE_INIT(vtkSlicerAstroVolumeModuleMRMLDisplayableManager)
 
 
+#include <QDebug>
+
+#if defined(SLICERASTRO_HAS_X11)
+#include <X11/Xlib.h>
+#include <cstdlib>
+// Xlib macros that clash with Qt and VTK names
+#undef None
+#undef Bool
+#undef Status
+#undef Success
+#undef CursorShape
+#undef KeyPress
+#undef KeyRelease
+#undef FocusIn
+#undef FocusOut
+#undef FontChange
+#undef Expose
+#undef Unsorted
+#endif
+
+#if defined(SLICERASTRO_HAS_X11)
+//-----------------------------------------------------------------------------
+namespace
+{
+/// X error handler: VTK 9.6 creates a render window with
+/// vtkOpenGLRenderWindow::New() (e.g. for every plot view, vtkContextView),
+/// which probes GLX with an offscreen X window. On some X servers (Xvfb,
+/// XWayland with the NVIDIA driver) glXMakeCurrent of the probe fails with
+/// BadAccess and the default handler of Xlib exits Slicer. This error is
+/// ignored: the probe then fails and VTK falls back to its next backend
+/// (EGL). The other errors go to the previous handler.
+XErrorHandler PreviousXErrorHandler = nullptr;
+int GLXMajorOpcode = -1;
+const int X_GLXMakeCurrentRequest = 5;
+
+int SlicerAstroXErrorHandler(Display* display, XErrorEvent* event)
+{
+  if (event && GLXMajorOpcode > 0 && event->error_code == BadAccess &&
+      event->request_code == GLXMajorOpcode && event->minor_code == X_GLXMakeCurrentRequest)
+    {
+    static bool reported = false;
+    if (!reported)
+      {
+      reported = true;
+      qWarning() << "SlicerAstro: glXMakeCurrent failed (BadAccess) in the OpenGL probe of VTK;"
+                    " the error is ignored and VTK uses its next OpenGL backend (EGL).";
+      }
+    return 0;
+    }
+  return PreviousXErrorHandler ? PreviousXErrorHandler(display, event) : 0;
+}
+
+void InstallXErrorHandler()
+{
+  static bool installed = false;
+  if (installed || !std::getenv("DISPLAY"))
+    {
+    return;
+    }
+  installed = true;
+  // the GLX opcode is the same for all the connections to the X server
+  Display* display = XOpenDisplay(nullptr);
+  if (!display)
+    {
+    return;
+    }
+  int firstEvent = 0, firstError = 0;
+  if (!XQueryExtension(display, "GLX", &GLXMajorOpcode, &firstEvent, &firstError))
+    {
+    GLXMajorOpcode = -1;
+    }
+  XCloseDisplay(display);
+  if (GLXMajorOpcode > 0)
+    {
+    PreviousXErrorHandler = XSetErrorHandler(SlicerAstroXErrorHandler);
+    }
+}
+} // end of anonymous namespace
+#endif
+
 //-----------------------------------------------------------------------------
 namespace
 {
@@ -240,6 +320,11 @@ void qSlicerAstroVolumeModule::setup()
 {
   Q_D(qSlicerAstroVolumeModule);
   this->Superclass::setup();
+
+#if defined(SLICERASTRO_HAS_X11)
+  // plot views must not exit Slicer (see SlicerAstroXErrorHandler)
+  InstallXErrorHandler();
+#endif
 
   d->app = qSlicerApplication::application();
 

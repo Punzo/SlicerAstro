@@ -76,11 +76,6 @@ template <typename T> bool isNaN(T value)
   return value != value;
 }
 
-//----------------------------------------------------------------------------
-bool ShortIsNaN(short Value)
-{
-  return isNaN<short>(Value);
-}
 }//end namespace
 
 //----------------------------------------------------------------------------
