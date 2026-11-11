@@ -224,6 +224,14 @@ protected:
   bool AllocateWCS();
 
   bool FixGipsyHeaderOn;
+  // Gipsy optical velocity convention (FREQ-OHEL, FREQ-OLSR)
+  bool GipsyOpticalVelocity;
+
+  // Velocity type of the 3rd axis ("VRAD" or "VOPT") for the spectral type
+  // of the header: frequency axes (radio data, e.g. HI) as radio velocity,
+  // wavelength axes (optical data) as optical velocity; velocity axes keep
+  // their definition.
+  std::string GetVelocityTypeForSpectralAxis(const std::string& ctype) const;
 
   static bool decompress_one_file(const char *infilename, const char *outfilename);
 

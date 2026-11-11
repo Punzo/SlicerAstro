@@ -18,6 +18,11 @@
 ==============================================================================*/
 
 // MRML includes
+// STD includes
+#include <iomanip>
+#include <limits>
+#include <type_traits>
+
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
@@ -119,6 +124,11 @@ template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
   std::stringstream strstream;
+  // floating point: all the significant digits of the WCS values
+  if (std::is_floating_point<T>::value)
+    {
+    strstream << std::setprecision(std::numeric_limits<double>::digits10);
+    }
   strstream << V;
   strstream >> stringValue;
   return stringValue;

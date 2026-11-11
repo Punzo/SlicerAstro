@@ -53,6 +53,9 @@
 
 // STD includes
 #include <sstream>
+#include <type_traits>
+#include <limits>
+#include <iomanip>
 
 // SlicerAstro includes
 #include <vtkAstroLogMessages.h>
@@ -91,6 +94,7 @@ vtkFITSReader::vtkFITSReader()
   this->NWCS = 0;
   this->WCSStatus = 0;
   this->FixGipsyHeaderOn = false;
+  this->GipsyOpticalVelocity = false;
 }
 
 //----------------------------------------------------------------------------
@@ -162,6 +166,12 @@ template <typename T> std::string NumberToString(T V)
   std::string stringValue;
   std::stringstream strstream;
 
+  // floating point: all the significant digits of the header values (the
+  // default precision of 6 digits changes e.g. CRVAL3 of a frequency axis)
+  if (std::is_floating_point<T>::value)
+    {
+    strstream << std::setprecision(std::numeric_limits<double>::digits10);
+    }
   strstream << V;
   strstream >> stringValue;
   return stringValue;
@@ -1525,6 +1535,43 @@ bool vtkFITSReader::AllocateHeader()
      this->HeaderKeyValue["SlicerAstro.DRVAL3"] = "0.";
      }
 
+   // Rest frequency: RESTFRQ (FITS WCS standard, e.g. CASA, JCMT) or
+   // RESTFREQ (older convention); SlicerAstro.RESTFREQ holds the value used
+   if (this->HeaderKeyValue.find("SlicerAstro.RESTFRQ") != this->HeaderKeyValue.end())
+     {
+     const std::string restfrq = this->HeaderKeyValue.at("SlicerAstro.RESTFRQ");
+     std::map<std::string, std::string>::const_iterator restfreq =
+       this->HeaderKeyValue.find("SlicerAstro.RESTFREQ");
+     if (restfreq != this->HeaderKeyValue.end())
+       {
+       const double restfrqValue = StringToDouble(restfrq.c_str());
+       const double restfreqValue = StringToDouble(restfreq->second.c_str());
+       if (fabs(restfrqValue - restfreqValue) > 1.E-09 * fabs(restfrqValue))
+         {
+         vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "RESTFRQ (" << restfrq << ") and RESTFREQ ("
+                         << restfreq->second << ") differ: the rest frequency is RESTFRQ.");
+         }
+       }
+     this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = restfrq;
+     }
+
+   // optical data: rest wavelength (RESTWAV, or RESTWAVE) in m
+   if (this->HeaderKeyValue.find("SlicerAstro.RESTFREQ") == this->HeaderKeyValue.end())
+     {
+     std::map<std::string, std::string>::const_iterator restwav =
+       this->HeaderKeyValue.find("SlicerAstro.RESTWAV");
+     if (restwav == this->HeaderKeyValue.end())
+       {
+       restwav = this->HeaderKeyValue.find("SlicerAstro.RESTWAVE");
+       }
+     const double restwavValue = restwav != this->HeaderKeyValue.end() ?
+       StringToDouble(restwav->second.c_str()) : 0.;
+     if (restwavValue > 0.)
+       {
+       this->HeaderKeyValue["SlicerAstro.RESTFREQ"] = DoubleToString(299792458. / restwavValue);
+       }
+     }
+
    if (this->HeaderKeyValue.find("SlicerAstro.RESTFREQ") == this->HeaderKeyValue.end())
      {
      if (this->HeaderKeyValue.find("SlicerAstro.FREQ0") != this->HeaderKeyValue.end())
@@ -1963,8 +2010,10 @@ int vtkFITSReader::FixGipsyHeader()
 
     // Calculate reference frequency in the barycentric system
     double freqB;
-    if (!this->HeaderKeyValue.at("SlicerAstro.CTYPE3").compare(GipsyKeywords[0].c_str()) ||
-        !this->HeaderKeyValue.at("SlicerAstro.CTYPE3").compare(GipsyKeywords[1].c_str()))
+    this->GipsyOpticalVelocity =
+      !this->HeaderKeyValue.at("SlicerAstro.CTYPE3").compare(GipsyKeywords[0].c_str()) ||
+      !this->HeaderKeyValue.at("SlicerAstro.CTYPE3").compare(GipsyKeywords[1].c_str());
+    if (this->GipsyOpticalVelocity)
       {
       freqB = freq0 * (1. + (vel / c));
       }
@@ -1988,6 +2037,24 @@ int vtkFITSReader::FixGipsyHeader()
     }
 
   return 1;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkFITSReader::GetVelocityTypeForSpectralAxis(const std::string& ctype) const
+{
+  const std::string type = ctype.substr(0, 4);
+  if (type == "VRAD" || type == "VOPT")
+    {
+    return type;
+    }
+  // frequency axes (radio data, e.g. HI): radio velocity, unless the Gipsy
+  // header used the optical convention
+  if (type == "FREQ" || type == "AFRQ" || type == "ENER" || type == "WAVN")
+    {
+    return this->FixGipsyHeaderOn && this->GipsyOpticalVelocity ? "VOPT" : "VRAD";
+    }
+  // wavelength (optical data), redshift, relativistic velocity: optical velocity
+  return "VOPT";
 }
 
 //----------------------------------------------------------------------------
@@ -2088,33 +2155,37 @@ bool vtkFITSReader::AllocateWCS()
       }
     }
 
-  found = stdHeader.find("RESTFREQ");
-  if (found != std::string::npos)
+  // Rest frequency for WCSLIB: the value used by SlicerAstro in the RESTFRQ
+  // and RESTFREQ cards (wcspih reads both), or a new RESTFRQ card
+  if (this->HeaderKeyValue.find("SlicerAstro.RESTFREQ") != this->HeaderKeyValue.end())
     {
-    size_t first = stdHeader.find("=", found);
-    if (first != std::string::npos)
+    std::string restFrequency = this->HeaderKeyValue.at("SlicerAstro.RESTFREQ");
+    if (restFrequency.size() < 20)
       {
-      std::string blankString = "                                                                       ";
-      std::string replaceString = this->HeaderKeyValue.at("SlicerAstro.RESTFREQ");
-      blankString.replace(1, replaceString.size(), replaceString);
-      stdHeader.replace(first + 1, blankString.size(), blankString);
+      restFrequency.insert(0, 20 - restFrequency.size(), ' ');
       }
-    }
-  else
-    {
-    std::string addString = "RESTFREQ=                                                                       ";
-    stdHeader.insert(0, addString);
-    found = stdHeader.find("RESTFREQ");
-    if (found != std::string::npos)
+    std::string valueField = "= " + restFrequency;
+    valueField.resize(72, ' ');
+    bool restFrequencyCard = false;
+    size_t endCard = std::string::npos;
+    for (size_t card = 0; card + 80 <= stdHeader.size(); card += 80)
       {
-      size_t first = stdHeader.find("=", found);
-      if (first != std::string::npos)
+      const std::string key = stdHeader.substr(card, 8);
+      if (key == "RESTFRQ " || key == "RESTFREQ")
         {
-        std::string blankString = "                                                                       ";
-        std::string replaceString = this->HeaderKeyValue.at("SlicerAstro.RESTFREQ");
-        blankString.replace(1, replaceString.size(), replaceString);
-        stdHeader.replace(first + 1, blankString.size(), blankString);
+        stdHeader.replace(card + 8, 72, valueField);
+        restFrequencyCard = true;
         }
+      else if (key == "END     " && endCard == std::string::npos)
+        {
+        endCard = card;
+        }
+      }
+    if (!restFrequencyCard)
+      {
+      std::string newCard = "RESTFRQ " + valueField;
+      stdHeader.insert(endCard == std::string::npos ? stdHeader.size() : endCard, newCard);
+      nkeyrec++;
       }
     }
 
@@ -2143,16 +2214,27 @@ bool vtkFITSReader::AllocateWCS()
     return false;
     }
 
+  // Alternate WCS descriptions (e.g. CTYPE3A in CASA or JCMT products): the
+  // primary WCS is used
+  struct wcsprm* readWCS = this->ReadWCS;
   if (this->NWCS > 1)
     {
-    vtkErrorMacro("vtkFITSReader::AllocateWCS: the volume has more than one WCS, "
-                  "SlicerAstro assume only one WCS per volume.");
-    return false;
+    for (int iwcs = 0; iwcs < this->NWCS; iwcs++)
+      {
+      if (this->ReadWCS[iwcs].alt[0] == ' ' || this->ReadWCS[iwcs].alt[0] == '\0')
+        {
+        readWCS = this->ReadWCS + iwcs;
+        break;
+        }
+      }
+    vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "the FITS header has " << this->NWCS
+                    << " WCS descriptions: the " << (readWCS->alt[0] == ' ' || readWCS->alt[0] == '\0' ?
+                    std::string("primary") : std::string("alternate ") + readWCS->alt) << " one is used.");
     }
 
   // run automatic wcs fix (the messages in info are allocated by wcslib)
   struct wcserr info[NWCSFIX] = {};
-  if ((this->WCSStatus = wcsfixi(7, 0, this->ReadWCS, stat, info)))
+  if ((this->WCSStatus = wcsfixi(7, 0, readWCS, stat, info)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: wcsfix error: "<<this->WCSStatus);
     }
@@ -2183,7 +2265,7 @@ bool vtkFITSReader::AllocateWCS()
     }
 
   // Reduce wcs dimensionality to the real one
-  int readWcsAxis = this->ReadWCS->naxis;
+  int readWcsAxis = readWCS->naxis;
   int nsub = 3;
   int axes[3];
 
@@ -2219,7 +2301,7 @@ bool vtkFITSReader::AllocateWCS()
   // Release the previous content of WCS before copying the sub-image WCS
   wcsfree(this->WCS);
   this->WCS->flag = -1;
-  if ((this->WCSStatus = wcssub(1, this->ReadWCS, &nsub, axes, this->WCS)))
+  if ((this->WCSStatus = wcssub(1, readWCS, &nsub, axes, this->WCS)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: "
                   << vtkAstroWCSErrorMessage("wcssub", this->WCSStatus, this->WCS));
@@ -2463,7 +2545,8 @@ bool vtkFITSReader::AllocateWCS()
       }
     if (n > 2)
       {
-      if (fabs(this->WCS->cdelt[2]) < 1.E-9 ||
+      // the spectral step can be tiny in SI units (e.g. 1.E-10 m for 1 Angstrom)
+      if (this->WCS->cdelt[2] == 0. ||
           fabs(this->WCS->cdelt[2] - 1.) < 1.E-9)
         {
         cDeltNotValid = true;
@@ -2499,7 +2582,8 @@ bool vtkFITSReader::AllocateWCS()
     if (pcMatrixFound && !cdMatrixFound && cDeltNotValid)
       {
       vtkErrorMacro("vtkFITSReader::AllocateWCS: "
-                    "WCS found pc matrix, but cdelti are invalid.");
+                    "WCS found pc matrix, but cdelti are invalid (CDELT1 = " << this->WCS->cdelt[0]
+                    << ", CDELT2 = " << this->WCS->cdelt[1] << ").");
       return false;
       }
 
@@ -2609,19 +2693,24 @@ bool vtkFITSReader::AllocateWCS()
     vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     }
 
-  // project third axes always as a velocity
+  // project third axes always as a velocity: radio velocity for radio data
+  // (frequency axis, e.g. HI), optical velocity for optical data
   if (this->WCS->naxis > 2)
     {
     std::string ctype2 = this->WCS->ctype[2];
-    if (strncmp(this->WCS->ctype[2], "VOPT", 4))
+    std::string velocityType = this->GetVelocityTypeForSpectralAxis(ctype2);
+    if (ctype2.compare(0, 4, velocityType))
       {
       int index = 2;
       char ctypeS[9];
-      strcpy(ctypeS, "VOPT-???");
+      snprintf(ctypeS, sizeof(ctypeS), "%s-???", velocityType.c_str());
 
       if ((this->WCSStatus = wcssptr(this->WCS, &index, ctypeS)))
         {
-        vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcssptr", this->WCSStatus, this->WCS));
+        vtkErrorMacro("vtkFITSReader::AllocateWCS: the spectral axis " << ctype2 << " could not be converted to "
+                      << velocityType << " with the rest frequency " << this->WCS->restfrq
+                      << " Hz (check RESTFRQ in the header). "
+                      << vtkAstroWCSErrorMessage("wcssptr", this->WCSStatus, this->WCS));
         }
       else
         {

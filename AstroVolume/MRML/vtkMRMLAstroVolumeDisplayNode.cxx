@@ -22,6 +22,9 @@
 #include <string>
 #include <iostream>
 #include <sstream>
+#include <iomanip>
+#include <limits>
+#include <type_traits>
 #include <algorithm>
 
 // MRML includes
@@ -141,6 +144,11 @@ template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
   std::stringstream strstream;
+  // floating point: all the significant digits of the WCS values
+  if (std::is_floating_point<T>::value)
+    {
+    strstream << std::setprecision(std::numeric_limits<double>::digits10);
+    }
   strstream << V;
   strstream >> stringValue;
   return stringValue;
@@ -376,7 +384,11 @@ bool vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace(const double ijk[3],
     double phi[1], imgcrd[4], theta[1], ijkm [] = {0., 0., 0., 0.}, SpaceCoordinatesM [] = {0., 0., 0., 0.};
     int stati[1];
 
-    std::copy(ijk, ijk + 3, ijkm);
+    // IJK (voxel centers from 0) to FITS pixel coordinates (from 1)
+    for (int axis = 0; axis < 3; axis++)
+      {
+      ijkm[axis] = ijk[axis] + 1.;
+      }
 
     if ((this->WCSStatus = wcsp2s(this->WCS, 1, 4, ijkm, imgcrd, phi, theta, SpaceCoordinatesM, stati)))
       {
@@ -432,7 +444,11 @@ bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(const double SpaceCoordinates[3]
         }
       return false;
       }
-    std::copy(ijkm, ijkm + 3, ijk);
+    // FITS pixel coordinates (from 1) to IJK (voxel centers from 0)
+    for (int axis = 0; axis < 3; axis++)
+      {
+      ijk[axis] = ijkm[axis] - 1.;
+      }
     }
   else
     {
@@ -476,7 +492,11 @@ bool vtkMRMLAstroVolumeDisplayNode::GetIJKSpace(std::vector<double> SpaceCoordin
         }
       return false;
       }
-    std::copy(ijkm, ijkm + 3, ijk);
+    // FITS pixel coordinates (from 1) to IJK (voxel centers from 0)
+    for (int axis = 0; axis < 3; axis++)
+      {
+      ijk[axis] = ijkm[axis] - 1.;
+      }
     }
   else
     {
