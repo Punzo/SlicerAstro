@@ -137,6 +137,7 @@ protected slots:
   void onEditSelectedSegment();
   void onSaveFITSMask();
   void updateMaskSelector();
+  void updateSaveFITSMaskButton();
   void onSegmentationNodeChanged(vtkMRMLNode* node);
   void onHistoClippingChanged(double percentage);
   void onHistoClippingChanged1();

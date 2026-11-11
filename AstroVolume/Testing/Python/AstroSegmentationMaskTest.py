@@ -157,6 +157,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.test_SegmentationOnAstroVolume()
         self.setUp()
         self.test_VolumeSaveKeepsHeader()
+        self.setUp()
+        self.test_SaveButtonEnabled()
 
     def sourceArray(self, segmentationNode, segmentID):
         """Voxels of a segment in the geometry of the mask (z, y, x)."""
@@ -366,4 +368,44 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
             self.assertTrue(f.read(6) == b"SIMPLE")
         reloaded = slicer.util.loadVolume(compressedFile, {"center": True})
         self.assertEqual(reloaded.GetImageData().GetDimensions(), (20, 16, 12))
+        self.delayDisplay("Test passed")
+
+    def waitForButtonUpdate(self):
+        import time
+
+        for _ in range(10):
+            slicer.app.processEvents()
+            time.sleep(0.05)
+
+    def test_SaveButtonEnabled(self):
+        """Save as FITS mask is enabled only for masks with voxels."""
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        dims = volumeNode.GetImageData().GetDimensions()
+        slicer.util.selectModule("AstroVolume")
+        widget = slicer.modules.astrovolume.widgetRepresentation()
+        selector = slicer.util.findChild(widget, "SegmentationNodeComboBox")
+        saveButton = slicer.util.findChild(widget, "SaveFITSMaskPushButton")
+
+        segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
+        segmentationNode.CreateDefaultDisplayNodes()
+        segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)
+        selector.setCurrentNode(segmentationNode)
+        self.waitForButtonUpdate()
+        self.assertFalse(saveButton.enabled)  # no segments
+
+        segmentID = segmentationNode.GetSegmentation().AddEmptySegment("", "Galaxy")
+        self.waitForButtonUpdate()
+        self.assertFalse(saveButton.enabled)  # empty segment
+
+        voxels = np.zeros((dims[2], dims[1], dims[0]), dtype=np.uint8)
+        voxels[10:12, 30:32, 20:22] = 1
+        slicer.util.updateSegmentBinaryLabelmapFromArray(voxels, segmentationNode, segmentID, volumeNode)
+        self.waitForButtonUpdate()
+        self.assertTrue(saveButton.enabled)
+
+        segmentationNode.GetSegmentation().RemoveSegment(segmentID)
+        self.waitForButtonUpdate()
+        self.assertFalse(saveButton.enabled)
         self.delayDisplay("Test passed")

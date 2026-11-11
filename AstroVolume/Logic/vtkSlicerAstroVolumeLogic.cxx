@@ -76,6 +76,9 @@
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPiecewiseFunction.h>
+#include <vtkSegmentationConverter.h>
+#include <vtkPolyData.h>
+#include <vtkOrientedImageData.h>
 #include <vtkVolumeProperty.h>
 #include <vtkPointData.h>
 #include <vtkSegment.h>
@@ -2955,4 +2958,67 @@ void vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(vtkMRMLSegmentationNode
     displayNode->SetPreferredDisplayRepresentationName2D(surfaceName);
     displayNode->SetPreferredDisplayRepresentationName3D(surfaceName);
     }
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+template <typename T>
+bool ContainsLabel(const T* values, vtkIdType numberOfValues, int label)
+{
+  const T labelValue = static_cast<T>(label);
+  for (vtkIdType index = 0; index < numberOfValues; ++index)
+    {
+    if (values[index] == labelValue)
+      {
+      return true;
+      }
+    }
+  return false;
+}
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::HasNonEmptySegments(vtkMRMLSegmentationNode* segmentationNode)
+{
+  vtkSegmentation* segmentation = segmentationNode ? segmentationNode->GetSegmentation() : nullptr;
+  if (!segmentation)
+    {
+    return false;
+    }
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkSegment* segment = segmentation->GetSegment(segmentID);
+    if (!segment)
+      {
+      continue;
+      }
+    vtkOrientedImageData* labelmap = vtkOrientedImageData::SafeDownCast(segment->GetRepresentation(labelmapName));
+    vtkDataArray* scalars = labelmap && labelmap->GetPointData() ? labelmap->GetPointData()->GetScalars() : nullptr;
+    if (scalars && scalars->GetNumberOfTuples() > 0)
+      {
+      const vtkIdType numberOfValues = scalars->GetNumberOfTuples() * scalars->GetNumberOfComponents();
+      bool found = false;
+      switch (scalars->GetDataType())
+        {
+        vtkTemplateMacro(found = ContainsLabel(static_cast<const VTK_TT*>(scalars->GetVoidPointer(0)),
+                                               numberOfValues, segment->GetLabelValue()));
+        }
+      if (found)
+        {
+        return true;
+        }
+      continue;
+      }
+    vtkPolyData* surface = vtkPolyData::SafeDownCast(segment->GetRepresentation(surfaceName));
+    if (surface && surface->GetNumberOfPoints() > 0)
+      {
+      return true;
+      }
+    }
+  return false;
 }

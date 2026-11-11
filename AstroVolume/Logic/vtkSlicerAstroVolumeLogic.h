@@ -125,6 +125,12 @@ public:
   /// closed surface representation is removed if it is not the source.
   static void SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Return true if the segmentation has at least one segment that is not
+  /// empty (voxels with the label value of the segment in its binary
+  /// labelmap, or a closed surface with points). The search stops at the
+  /// first voxel found.
+  static bool HasNonEmptySegments(vtkMRMLSegmentationNode* segmentationNode);
+
   /// Contours (AstroVolume contours, comparisons of Smoothing and Modeling) are
   /// segmentations of closed surfaces marked with the AstroContours attribute:
   /// they are not masks (not in the Masks section, not saved as FITS masks).

@@ -26,6 +26,7 @@
 #include <QStatusBar>
 #include <QDir>
 #include <QFileDialog>
+#include <QTimer>
 
 // MRMLWidgets includes
 #include <qMRMLSortFilterProxyModel.h>
@@ -55,6 +56,8 @@
 #include <vtkPlotPoints.h>
 #include <vtkDataArray.h>
 #include <vtkPointData.h>
+#include <vtkSegmentation.h>
+#include <vtkWeakPointer.h>
 #include <vtkRenderer.h>
 #include <vtkTable.h>
 #include <vtkTransform.h>
@@ -149,6 +152,9 @@ public:
   vtkSmartPointer<vtkMRMLTableNode> TableThresholdNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;  
   vtkSmartPointer<vtkMRMLAstroVolumeNode> astroVolumeNode;
+  /// Mask of the Masks section (observed to enable Save as FITS mask)
+  vtkWeakPointer<vtkMRMLSegmentationNode> MaskNode;
+  QTimer* SaveFITSMaskButtonTimer{ nullptr };
   vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> astroLabelVolumeNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
 
@@ -411,6 +417,12 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(updateMaskSelector()));
   QObject::connect(this->SaveFITSMaskPushButton, SIGNAL(clicked()),
                    q, SLOT(onSaveFITSMask()));
+  // enabled for masks with voxels (checked after the edits, not at each stroke)
+  this->SaveFITSMaskButtonTimer = new QTimer(q);
+  this->SaveFITSMaskButtonTimer->setSingleShot(true);
+  this->SaveFITSMaskButtonTimer->setInterval(200);
+  QObject::connect(this->SaveFITSMaskButtonTimer, SIGNAL(timeout()),
+                   q, SLOT(updateSaveFITSMaskButton()));
 
   QObject::connect(this->pushButton_EditSelected, SIGNAL(clicked()),
                    q, SLOT(onEditSelectedSegment()));
@@ -4920,7 +4932,16 @@ void qSlicerAstroVolumeModuleWidget::onSegmentationNodeChanged(vtkMRMLNode* node
 
   vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
   d->SegmentsTableView->setSegmentationNode(segmentationNode);
-  d->SaveFITSMaskPushButton->setEnabled(segmentationNode != nullptr);
+
+  // Save as FITS mask: only masks with voxels
+  for (unsigned long event : { vtkSegmentation::SegmentAdded, vtkSegmentation::SegmentRemoved,
+                               vtkSegmentation::SegmentModified, vtkSegmentation::RepresentationModified,
+                               vtkSegmentation::SourceRepresentationModified })
+    {
+    this->qvtkReconnect(d->MaskNode, segmentationNode, event, d->SaveFITSMaskButtonTimer, SLOT(start()));
+    }
+  d->MaskNode = segmentationNode;
+  this->updateSaveFITSMaskButton();
   if (segmentationNode && d->segmentEditorNode &&
       d->segmentEditorNode->GetSegmentationNode() != segmentationNode)
     {
@@ -4961,6 +4982,21 @@ void qSlicerAstroVolumeModuleWidget::updateMaskSelector()
       }
     }
   d->SegmentationNodeComboBox->sortFilterProxyModel()->setHiddenNodeIDs(hiddenNodeIDs);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::updateSaveFITSMaskButton()
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkMRMLSegmentationNode* segmentationNode =
+    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+  const bool hasVoxels = vtkSlicerAstroVolumeLogic::HasNonEmptySegments(segmentationNode);
+  d->SaveFITSMaskPushButton->setEnabled(hasVoxels);
+  d->SaveFITSMaskPushButton->setToolTip(hasVoxels ?
+    tr("Save the segmentation as a FITS mask (one label value per segment, with the FITS header "
+       "of the mask or of the reference data cube).") :
+    tr("The mask has no segments or its segments are empty: nothing to save."));
 }
 
 //---------------------------------------------------------------------------
