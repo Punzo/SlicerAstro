@@ -46,14 +46,29 @@
 #include <ctkRangeWidget.h>
 
 // VTK includes
+#include <vtkActor2D.h>
+#include <vtkActor2DCollection.h>
+#include <vtkCellArray.h>
 #include <vtkCommand.h>
+#include <vtkContourTriangulator.h>
+#include <vtkIdList.h>
 #include <vtkImageData.h>
+#include <vtkPoints.h>
+#include <vtkPolyData.h>
+#include <vtkPolyDataMapper2D.h>
+#include <vtkProperty2D.h>
+#include <vtkRenderer.h>
 #include <vtkRenderWindowInteractor.h>
+#include <vtkNew.h>
 #include <vtkSmartPointer.h>
+#include <vtkWeakPointer.h>
 
 // STD includes
+#include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <string>
 
 namespace
@@ -67,9 +82,23 @@ double AttributeToDouble(vtkMRMLNode* node, const char* name, double defaultValu
 }
 
 //-----------------------------------------------------------------------------
+/// Decoration of the lasso of the Scissors effect in a view
+struct LassoDecoration
+{
+  vtkWeakPointer<vtkRenderer> Renderer;
+  vtkWeakPointer<vtkActor2D> Outline;  // drawn path (Scissors)
+  vtkWeakPointer<vtkActor2D> Closing;  // segment back to the first point (Scissors)
+  vtkSmartPointer<vtkActor2D> Glow;
+  vtkSmartPointer<vtkActor2D> Fill;
+  vtkSmartPointer<vtkPolyData> FillPolyData;
+};
+
+//-----------------------------------------------------------------------------
 class qSlicerSegmentEditorAstroCloudLassoEffectPrivate
 {
 public:
+  std::map<vtkRenderer*, LassoDecoration> LassoDecorations;
+
   QIcon CloudLassoIcon{ QIcon(":Icons/AstroCloudLasso.png") };
   QLabel* ThresholdRangeLabel{ nullptr };
   ctkRangeWidget* ThresholdRangeWidget{ nullptr };
@@ -145,6 +174,7 @@ void qSlicerSegmentEditorAstroCloudLassoEffect::activate()
 void qSlicerSegmentEditorAstroCloudLassoEffect::deactivate()
 {
   Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  this->removeLassoDecorations();
   Superclass::deactivate();
   d->clearLastLasso();
   if (this->parameterSetNode())
@@ -338,7 +368,141 @@ bool qSlicerSegmentEditorAstroCloudLassoEffect::processInteractionEvents(
       return true;
       }
     }
-  return Superclass::processInteractionEvents(callerInteractor, eid, viewWidget);
+  const bool abortEvent = Superclass::processInteractionEvents(callerInteractor, eid, viewWidget);
+  this->updateLassoDecoration(viewWidget);
+  return abortEvent;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::updateLassoDecoration(qMRMLWidget* viewWidget)
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+
+  vtkRenderer* renderer = qSlicerSegmentEditorAbstractEffect::renderer(viewWidget);
+  if (!renderer)
+    {
+    return;
+    }
+  LassoDecoration& decoration = d->LassoDecorations[renderer];
+  decoration.Renderer = renderer;
+
+  if (!decoration.Outline)
+    {
+    // the actors of the Scissors effect, recognized by their default style
+    vtkActor2DCollection* actors = renderer->GetActors2D();
+    actors->InitTraversal();
+    for (vtkActor2D* actor = actors->GetNextActor2D(); actor; actor = actors->GetNextActor2D())
+      {
+      if (!vtkPolyDataMapper2D::SafeDownCast(actor->GetMapper()) || actor == decoration.Glow || actor == decoration.Fill)
+        {
+        continue;
+        }
+      const double* color = actor->GetProperty()->GetColor();
+      const double width = actor->GetProperty()->GetLineWidth();
+      if (color[0] == 1. && color[1] == 1. && color[2] == 0. && width == 2.)
+        {
+        decoration.Outline = actor;
+        }
+      else if (color[0] == 0.7 && color[1] == 0.7 && color[2] == 0. && width == 1.)
+        {
+        decoration.Closing = actor;
+        }
+      }
+    if (!decoration.Outline)
+      {
+      return;
+      }
+    vtkPolyDataMapper2D* outlineMapper = vtkPolyDataMapper2D::SafeDownCast(decoration.Outline->GetMapper());
+
+    // soft glow under the outline (same path)
+    decoration.Glow = vtkSmartPointer<vtkActor2D>::New();
+    vtkNew<vtkPolyDataMapper2D> glowMapper;
+    glowMapper->SetInputConnection(outlineMapper->GetInputConnection(0, 0));
+    if (!outlineMapper->GetInputConnection(0, 0))
+      {
+      glowMapper->SetInputData(vtkPolyData::SafeDownCast(outlineMapper->GetInputDataObject(0, 0)));
+      }
+    glowMapper->SetTransformCoordinate(outlineMapper->GetTransformCoordinate());
+    decoration.Glow->SetMapper(glowMapper);
+    decoration.Glow->GetProperty()->SetLineWidth(9.);
+    decoration.Glow->GetProperty()->SetOpacity(0.22);
+
+    // translucent fill of the area of the lasso
+    decoration.FillPolyData = vtkSmartPointer<vtkPolyData>::New();
+    decoration.Fill = vtkSmartPointer<vtkActor2D>::New();
+    vtkNew<vtkPolyDataMapper2D> fillMapper;
+    fillMapper->SetInputData(decoration.FillPolyData);
+    fillMapper->SetTransformCoordinate(outlineMapper->GetTransformCoordinate());
+    decoration.Fill->SetMapper(fillMapper);
+    decoration.Fill->GetProperty()->SetOpacity(0.15);
+
+    // drawing order: fill, glow, outline, closing segment
+    renderer->RemoveViewProp(decoration.Outline);
+    if (decoration.Closing)
+      {
+      renderer->RemoveViewProp(decoration.Closing);
+      }
+    renderer->AddViewProp(decoration.Fill);
+    renderer->AddViewProp(decoration.Glow);
+    renderer->AddViewProp(decoration.Outline);
+    if (decoration.Closing)
+      {
+      renderer->AddViewProp(decoration.Closing);
+      }
+    }
+
+  // colors: amber when filling, red when erasing
+  const bool fill = this->fillOperation();
+  const double amber[3] = { 1.0, 0.73, 0.08 };
+  const double red[3] = { 1.0, 0.32, 0.32 };
+  const double* color = fill ? amber : red;
+  decoration.Outline->GetProperty()->SetColor(color[0], color[1], color[2]);
+  decoration.Outline->GetProperty()->SetLineWidth(2.5);
+  decoration.Glow->GetProperty()->SetColor(color[0], color[1], color[2]);
+  decoration.Fill->GetProperty()->SetColor(color[0], color[1], color[2]);
+  if (decoration.Closing)
+    {
+    decoration.Closing->GetProperty()->SetColor(color[0], color[1], color[2]);
+    decoration.Closing->GetProperty()->SetOpacity(0.55);
+    decoration.Closing->GetProperty()->SetLineWidth(1.5);
+    }
+
+  // the decoration follows the lasso
+  const bool visible = decoration.Outline->GetVisibility() != 0;
+  decoration.Glow->SetVisibility(visible);
+  decoration.Fill->SetVisibility(visible);
+  vtkPolyData* path = vtkPolyData::SafeDownCast(decoration.Outline->GetMapper()->GetInputDataObject(0, 0));
+  vtkPoints* points = path ? path->GetPoints() : nullptr;
+  vtkNew<vtkCellArray> triangles;
+  if (visible && points && points->GetNumberOfPoints() >= 3)
+    {
+    vtkNew<vtkIdList> polygon;
+    for (vtkIdType pointIndex = 0; pointIndex < points->GetNumberOfPoints(); ++pointIndex)
+      {
+      polygon->InsertNextId(pointIndex);
+      }
+    // concave polygons are triangulated correctly; self-intersecting lassos are partly filled
+    vtkContourTriangulator::TriangulatePolygon(polygon, points, triangles);
+    }
+  decoration.FillPolyData->SetPoints(points);
+  decoration.FillPolyData->SetPolys(triangles);
+  decoration.FillPolyData->Modified();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerSegmentEditorAstroCloudLassoEffect::removeLassoDecorations()
+{
+  Q_D(qSlicerSegmentEditorAstroCloudLassoEffect);
+  for (std::pair<vtkRenderer* const, LassoDecoration>& rendererDecoration : d->LassoDecorations)
+    {
+    LassoDecoration& decoration = rendererDecoration.second;
+    if (decoration.Renderer)
+      {
+      decoration.Renderer->RemoveViewProp(decoration.Glow);
+      decoration.Renderer->RemoveViewProp(decoration.Fill);
+      }
+    }
+  d->LassoDecorations.clear();
 }
 
 //-----------------------------------------------------------------------------

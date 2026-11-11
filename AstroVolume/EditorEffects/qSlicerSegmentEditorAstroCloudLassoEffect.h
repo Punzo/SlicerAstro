@@ -88,6 +88,11 @@ protected:
   void updateIntensityMask();
   bool fillOperation();
 
+  /// Style of the lasso drawn by the Scissors effect: amber outline with a soft
+  /// glow and a translucent fill (red when erasing).
+  void updateLassoDecoration(qMRMLWidget* viewWidget);
+  void removeLassoDecorations();
+
 private:
   Q_DECLARE_PRIVATE(qSlicerSegmentEditorAstroCloudLassoEffect);
   Q_DISABLE_COPY(qSlicerSegmentEditorAstroCloudLassoEffect);
