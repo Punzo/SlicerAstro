@@ -43,8 +43,20 @@ SAMPLE_DATA_SOURCES = (
         ("NGC2403_DSS.fits", "NGC2403_DSS", "AstroVolumeFile",
          "ea47ce0030f767b4d25427539b944e170e1b302d0d9a0d83108653a6c8fab851"),
     )),
-    ("NGC4111", "NGC4111.png", (("NGC4111.fits", "NGC4111", "AstroVolumeFile", None),)),
-    ("NGC3379", "NGC3379.png", (("NGC3379.fits", "NGC3379", "AstroVolumeFile", None),)),
+    # HALOGAS-DR1 low-resolution WSRT HI cubes, cropped to the emission:
+    # edge-on disk with extraplanar gas, regular rotating disk, interacting group with tidal streams
+    ("NGC891", "NGC891.png", (
+        ("NGC891.fits", "NGC891", "AstroVolumeFile",
+         "5e30500172c3c048a612acbc54f7099e0ab6f55b2e2b83fda801dc845bc2c2da"),
+    )),
+    ("NGC3198", "NGC3198.png", (
+        ("NGC3198.fits", "NGC3198", "AstroVolumeFile",
+         "306ff41d14eb60262ee6ee262109dc7139bebef449012eb2d7a0f3f055ab197f"),
+    )),
+    ("NGC4631", "NGC4631.png", (
+        ("NGC4631.fits", "NGC4631", "AstroVolumeFile",
+         "3a0d9e4ed2be1c85c9f3a485268de68aab852f98501071b614bdaa446c3c308d"),
+    )),
 )
 
 
@@ -128,6 +140,8 @@ class AstroSampleDataTest(ScriptedLoadableModuleTest):
         sources = slicer.modules.sampleDataSources.get(SAMPLE_DATA_CATEGORY, [])
         self.assertEqual(len([s for s in sources if s.sampleName == "WEIN069"]), 1)
         self.assertIn("WEIN069_MASK", names)
+        for name in ("NGC2403", "NGC2403_DSS", "NGC891", "NGC3198", "NGC4631"):
+            self.assertIn(name, names)
         self.delayDisplay("Test passed")
 
     def test_WEIN069Mask(self):

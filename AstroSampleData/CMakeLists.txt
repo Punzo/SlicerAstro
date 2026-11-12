@@ -12,8 +12,9 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Icons/WEIN069_mask.png
   Resources/Icons/NGC2403_DSS.png
   Resources/Icons/NGC2403.png
-  Resources/Icons/NGC4111.png
-  Resources/Icons/NGC3379.png
+  Resources/Icons/NGC891.png
+  Resources/Icons/NGC3198.png
+  Resources/Icons/NGC4631.png
   )
 
 #-----------------------------------------------------------------------------
