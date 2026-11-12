@@ -1711,7 +1711,8 @@ bool vtkFITSReader::AllocateHeader()
 
    if (this->HeaderKeyValue.find("SlicerAstro.BLANK") == this->HeaderKeyValue.end())
      {
-     vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderInformation, "The fits header is missing the BLANK keyword. Assuming a value equal to zero.");
+     // no blank voxels (BLANK applies to integer data only; floating point
+     // data use NaN): the attribute is kept for compatibility, without message
      this->HeaderKeyValue["SlicerAstro.BLANK"] = "0.";
      }
 
@@ -3279,7 +3280,10 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     static_cast<LONGLONG>(dims[0]) * dims[1] * dims[2] * data->GetNumberOfScalarComponents();
   // value of the undefined (BLANK) voxels: NaN for floating point data,
   // 0 (background) for masks
+  // (each of the type of the data: cfitsio reads the null value with the
+  // type of the voxels)
   float nullptrval = NAN;
+  double nullDouble = NAN;
   short nullShort = 0;
   int nullInt = 0;
   int anynullptr = 0;
@@ -3287,7 +3291,7 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   switch (this->DataType)
     {
     case VTK_DOUBLE:
-      if(fits_read_img(this->fptr, TDOUBLE, 1, numberOfElements, &nullptrval, ptr, &anynullptr, &this->ReadStatus))
+      if(fits_read_img(this->fptr, TDOUBLE, 1, numberOfElements, &nullDouble, ptr, &anynullptr, &this->ReadStatus))
         {
         vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not read the voxels of "
                       << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
