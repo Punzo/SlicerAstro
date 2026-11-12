@@ -73,10 +73,17 @@ public slots:
 
   /// Slots to visualize the model at different intensity level.
   void onVisualize();
+  void onShowModelToggled(bool show);
   void onShowModelMaskToggled(bool show);
-  void updateModelMaskButton();
+  void applyModelingSegmentVisibility();
+  void updateModelingButtons();
 
 protected:
+  /// Visibility of a segment of the contours of the module (model contours
+  /// in 2D and 3D, region of the model in 3D)
+  void setModelingSegmentVisibility(const char* segmentID, bool show);
+  bool isModelingSegmentVisible(const char* segmentID);
+
   /// Set the beam of the Fitting Parameters section in the input volume
   /// (BMAJ, BMIN, BPA). Returns false if the beam is not set.
   bool applyBeamToInputVolume(vtkMRMLAstroVolumeNode* inputVolume);

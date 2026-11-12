@@ -2759,7 +2759,10 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Show the model and the data at the contour level (segmentations in the 2D and 3D views).</string>
+         <string>Show or hide the contours of the model (yellow segment) at the contour level, in the 2D and 3D views.</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
         </property>
         <property name="text">
          <string>Show Model</string>

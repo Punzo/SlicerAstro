@@ -138,9 +138,9 @@ public:
   void cleanPointers();
   // a 3DBarolo operation is running in the worker thread
   bool workerRunning() const;
-  // purple segment (region of the model) of the contours
-  bool modelMaskSegment(vtkMRMLScene* scene, vtkMRMLSegmentationNode*& segmentationNode,
-                        std::string& segmentID) const;
+  // segment of the contours segmentation of the module (data, model, region
+  // of the model): the segmentation node if the segment exists
+  vtkMRMLSegmentationNode* modelingSegment(vtkMRMLScene* scene, const char* segmentID) const;
   // Calculate and Visualize Model: progress below its button (the Fitting
   // parameters section, with the other progress bar, is often collapsed)
   QProgressBar* calculateProgressBar = nullptr;
@@ -478,8 +478,8 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->CancelPushButton, SIGNAL(clicked()),
                    q, SLOT(onComputationCancelled()));
 
-  QObject::connect(this->VisualizePushButton, SIGNAL(clicked()),
-                   q, SLOT(onVisualize()));
+  QObject::connect(this->VisualizePushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onShowModelToggled(bool)));
 
   QObject::connect(this->VisualizeMaskPushButton, SIGNAL(toggled(bool)),
                    q, SLOT(onShowModelMaskToggled(bool)));
@@ -870,22 +870,17 @@ void qSlicerAstroModelingModuleWidgetPrivate::appendOperationHeader(int operatio
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroModelingModuleWidgetPrivate::modelMaskSegment(vtkMRMLScene* scene,
-  vtkMRMLSegmentationNode*& segmentationNode, std::string& segmentID) const
+vtkMRMLSegmentationNode* qSlicerAstroModelingModuleWidgetPrivate::modelingSegment(vtkMRMLScene* scene,
+                                                                                const char* segmentID) const
 {
-  segmentationNode = nullptr;
-  segmentID.clear();
-  if (!scene || !this->parametersNode || !this->parametersNode->GetOutputVolumeNodeID())
+  vtkMRMLSegmentationNode* segmentationNode = scene ?
+    vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroModelingContoursSeg")) : nullptr;
+  if (!segmentationNode || !segmentationNode->GetSegmentation() ||
+      !segmentationNode->GetSegmentation()->GetSegment(segmentID))
     {
-    return false;
+    return nullptr;
     }
-  segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroModelingContoursSeg"));
-  if (!segmentationNode || !segmentationNode->GetSegmentation())
-    {
-    return false;
-    }
-  segmentID = qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID();
-  return segmentationNode->GetSegmentation()->GetSegment(segmentID) != nullptr;
+  return segmentationNode;
 }
 
 //-----------------------------------------------------------------------------
@@ -2701,18 +2696,17 @@ void qSlicerAstroModelingModuleWidget::finishCalculateAndVisualize(bool success)
          d->parametersNode->GetPVPhi() + 90.,
          RAS, RAS, true);
 
-  // the region of the model as chosen by the user (the redraw shows it)
-  this->onShowModelMaskToggled(d->VisualizeMaskPushButton->isChecked());
+  // the model and its region as chosen by the user (the redraw shows them)
+  this->applyModelingSegmentVisibility();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroModelingModuleWidget::onShowModelMaskToggled(bool show)
+void qSlicerAstroModelingModuleWidget::setModelingSegmentVisibility(const char* segmentID, bool show)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  vtkMRMLSegmentationNode* segmentationNode = nullptr;
-  std::string segmentID;
-  if (!d->modelMaskSegment(this->mrmlScene(), segmentationNode, segmentID))
+  vtkMRMLSegmentationNode* segmentationNode = d->modelingSegment(this->mrmlScene(), segmentID);
+  if (!segmentationNode)
     {
     return;
     }
@@ -2724,29 +2718,71 @@ void qSlicerAstroModelingModuleWidget::onShowModelMaskToggled(bool show)
       {
       continue;
       }
-    // the region of the model is shown in the 3D view only
     displayNode->SetSegmentVisibility(segmentID, show);
-    displayNode->SetSegmentVisibility3D(segmentID, show);
+    // the region of the model is shown in the 3D view only
+    if (!strcmp(segmentID, qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID()))
+      {
+      displayNode->SetSegmentVisibility3D(segmentID, show);
+      }
     }
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroModelingModuleWidget::updateModelMaskButton()
+bool qSlicerAstroModelingModuleWidget::isModelingSegmentVisible(const char* segmentID)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  vtkMRMLSegmentationNode* segmentationNode = nullptr;
-  std::string segmentID;
-  bool visible = false;
-  if (d->modelMaskSegment(this->mrmlScene(), segmentationNode, segmentID))
+  vtkMRMLSegmentationNode* segmentationNode = d->modelingSegment(this->mrmlScene(), segmentID);
+  vtkMRMLSegmentationDisplayNode* displayNode = segmentationNode ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode()) : nullptr;
+  return displayNode && displayNode->GetSegmentVisibility(segmentID);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onShowModelToggled(bool show)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  // no contours of the model yet (or not for this model): draw them
+  if (show && !d->modelingSegment(this->mrmlScene(),
+                                  qSlicerAstroVolumeModuleWidget::modelingModelContoursSegmentID()))
     {
-    vtkMRMLSegmentationDisplayNode* displayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
-    visible = displayNode && displayNode->GetSegmentVisibility(segmentID) &&
-              displayNode->GetSegmentVisibility3D(segmentID);
+    this->onVisualize();
+    return;
     }
-  const QSignalBlocker blocker(d->VisualizeMaskPushButton);
-  d->VisualizeMaskPushButton->setChecked(visible);
+  this->setModelingSegmentVisibility(qSlicerAstroVolumeModuleWidget::modelingModelContoursSegmentID(), show);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onShowModelMaskToggled(bool show)
+{
+  this->setModelingSegmentVisibility(qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID(), show);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::applyModelingSegmentVisibility()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  // after a redraw of the contours (which shows them), as chosen by the user
+  this->setModelingSegmentVisibility(qSlicerAstroVolumeModuleWidget::modelingModelContoursSegmentID(),
+                                     d->VisualizePushButton->isChecked());
+  this->setModelingSegmentVisibility(qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID(),
+                                     d->VisualizeMaskPushButton->isChecked());
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::updateModelingButtons()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  // after a new model (Create, Fit): the buttons show what is visible
+  const QSignalBlocker modelBlocker(d->VisualizePushButton);
+  d->VisualizePushButton->setChecked(
+    this->isModelingSegmentVisible(qSlicerAstroVolumeModuleWidget::modelingModelContoursSegmentID()));
+  const QSignalBlocker maskBlocker(d->VisualizeMaskPushButton);
+  d->VisualizeMaskPushButton->setChecked(
+    this->isModelingSegmentVisible(qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID()));
 }
 
 //-----------------------------------------------------------------------------
@@ -4845,8 +4881,8 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
          d->parametersNode->GetPVPhi() + 90. + d->parametersNode->GetGreenRotValue(),
          yellowRAS, greenRAS, false);
 
-  // the region of the model as chosen by the user (the redraw shows it)
-  this->onShowModelMaskToggled(d->VisualizeMaskPushButton->isChecked());
+  // the model and its region as chosen by the user (the redraw shows them)
+  this->applyModelingSegmentVisibility();
 }
 
 //-----------------------------------------------------------------------------
@@ -5208,7 +5244,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
          PVPhi + 90.,
          RAS);
 
-    this->updateModelMaskButton();
+    this->updateModelingButtons();
 
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
