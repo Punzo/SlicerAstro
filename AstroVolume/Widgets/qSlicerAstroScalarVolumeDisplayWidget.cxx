@@ -22,6 +22,7 @@
 
 // Qt includes
 #include <QApplication>
+#include <QLabel>
 #include <QSignalBlocker>
 #include <QStyle>
 #include <QIcon>
@@ -43,6 +44,7 @@
 #include <qSlicerModuleManager.h>
 #include <vtkSlicerApplicationLogic.h>
 #include <atomic>
+#include <cmath>
 #include <vtkSegmentationConverter.h>
 #include <vtkSegmentation.h>
 #include <vtkSegment.h>
@@ -89,6 +91,48 @@
 #include <limits>
 
 //-----------------------------------------------------------------------------
+namespace
+{
+vtkSlicerAstroVolumeLogic* AstroVolumeLogic()
+{
+  qSlicerAbstractCoreModule* astroVolumeModule = (qSlicerApplication::application() &&
+    qSlicerApplication::application()->moduleManager()) ?
+    qSlicerApplication::application()->moduleManager()->module("AstroVolume") : nullptr;
+  return astroVolumeModule ? vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic()) : nullptr;
+}
+
+// contours segmentation of the active volume (contours drawn over it)
+vtkMRMLSegmentationNode* ContoursSegmentationNode(vtkMRMLAstroVolumeNode* activeVolume, bool create = false)
+{
+  vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
+  vtkMRMLSegmentationNode* node = (logic && activeVolume) ?
+    logic->GetContoursSegmentationForVolume(activeVolume, create) : nullptr;
+  return (node && node->GetSegmentation()) ? node : nullptr;
+}
+
+// only the contours of the data (segments tagged with its ID) are shown
+void ShowContoursOfData(vtkMRMLSegmentationNode* contours, vtkMRMLAstroVolumeNode* data)
+{
+  vtkMRMLSegmentationDisplayNode* displayNode = contours ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(contours->GetDisplayNode()) : nullptr;
+  if (!displayNode || !data || !data->GetID())
+    {
+    return;
+    }
+  std::vector<std::string> segmentIDs;
+  contours->GetSegmentation()->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkSegment* segment = contours->GetSegmentation()->GetSegment(segmentID);
+    std::string sourceVolumeID;
+    const bool ofData = segment &&
+      segment->GetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), sourceVolumeID) &&
+      sourceVolumeID == data->GetID();
+    displayNode->SetSegmentVisibility(segmentID, ofData);
+    }
+}
+} // end of anonymous namespace
+
 /// \ingroup SlicerAstro_QtModules_Volumes
 class qSlicerAstroScalarVolumeDisplayWidgetPrivate
   : public Ui_qSlicerAstroScalarVolumeDisplayWidget
@@ -103,6 +147,7 @@ public:
 
   vtkSmartPointer<vtkColorTransferFunction> ColorTransferFunction;
   vtkWeakPointer<vtkMRMLAstroVolumeNode> contoursVolumeNode;
+  QLabel* ChannelVelocityLabel = nullptr;
   QToolButton* ShowContoursButton = nullptr;
   QToolButton* SmoothContoursButton = nullptr;
   QToolButton* DeleteContoursButton = nullptr;
@@ -226,6 +271,23 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
   this->SliceSegmentationLabel->hide();
   this->Contours2DSliderWidget->hide();
 
+  // channel map of 3D contours over a 2D image: channel and its velocity
+  this->SliceSegmentationLabel->setText(qSlicerAstroScalarVolumeDisplayWidget::tr("Channel:"));
+  this->SliceSegmentationLabel->setToolTip(qSlicerAstroScalarVolumeDisplayWidget::tr(
+    "Channel map: channel of the contours data (3D) shown over the 2D image."));
+  this->ChannelVelocityLabel = new QLabel(q);
+  this->ChannelVelocityLabel->setObjectName("ChannelVelocityLabel");
+  this->ChannelVelocityLabel->hide();
+  QHBoxLayout* channelLayout = q->findChild<QHBoxLayout*>("horizontalLayout_10");
+  if (channelLayout)
+    {
+    channelLayout->addWidget(this->ChannelVelocityLabel);
+    }
+  this->Contours2DSliderWidget->setToolTip(qSlicerAstroScalarVolumeDisplayWidget::tr(
+    "Channel map: moves the 2D image along the spectral axis of the contours data (3D), "
+    "so that the contours of the chosen channel are shown over the image. The velocity "
+    "of the channel is shown on the right."));
+
   // contours: visibility, smooth 2D lines, deletion
   this->ShowContoursButton = new QToolButton(q);
   this->ShowContoursButton->setObjectName("ShowContoursButton");
@@ -273,12 +335,7 @@ qSlicerAstroScalarVolumeDisplayWidget::qSlicerAstroScalarVolumeDisplayWidget(QWi
 // --------------------------------------------------------------------------
 qSlicerAstroScalarVolumeDisplayWidget::~qSlicerAstroScalarVolumeDisplayWidget()
 {
-  if (this->contoursSegNode)
-    {
-    this->mrmlScene()->RemoveNode(this->contoursSegNode);
-    this->contoursSegNode->Delete();
-    }
-
+  // the contours segmentation belongs to its volume (not removed here)
   this->contoursSegNode = nullptr;
 }
 
@@ -506,8 +563,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
   astroDisplayNode->SetContoursColor(2, color.blue() / 255.);
 
   // the contours of these data already shown take the new color
-  vtkMRMLSegmentationNode* contoursSegmentationNode = this->mrmlScene() ?
-    vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->GetFirstNodeByName("AstroContoursSeg")) : nullptr;
+  vtkMRMLSegmentationNode* contoursSegmentationNode = ContoursSegmentationNode(this->volumeNode());
   vtkSegmentation* contoursSegmentation = contoursSegmentationNode ?
     contoursSegmentationNode->GetSegmentation() : nullptr;
   if (!contoursSegmentation)
@@ -572,6 +628,58 @@ void qSlicerAstroScalarVolumeDisplayWidget::onContours2DOriginChanged(double val
   IJKOrigin[2] = value - contoursDims[2] * 0.5;
   IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
   astroVolume->SetOrigin(RASOrigin);
+  this->updateContoursChannelLabel();
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::updateContoursChannelLabel()
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+
+  // channel of the contours data at the plane of the 2D image, and its velocity
+  const bool shown = d->Contours2DSliderWidget->isVisibleTo(this);
+  d->SliceSegmentationLabel->setVisible(shown);
+  d->ChannelVelocityLabel->setVisible(shown);
+  vtkMRMLAstroVolumeNode* image = this->volumeNode();
+  vtkMRMLAstroVolumeNode* contoursData = d->contoursVolumeNode;
+  vtkMRMLAstroVolumeDisplayNode* contoursDisplay = contoursData ? contoursData->GetAstroVolumeDisplayNode() : nullptr;
+  if (!shown || !image || !image->GetImageData() || !contoursData || !contoursData->GetImageData() ||
+      !contoursDisplay || !contoursDisplay->GetWCSStruct())
+    {
+    d->ChannelVelocityLabel->clear();
+    return;
+    }
+  int imageDims[3] = {0, 0, 0}, contoursDims[3] = {0, 0, 0};
+  image->GetImageData()->GetDimensions(imageDims);
+  contoursData->GetImageData()->GetDimensions(contoursDims);
+  vtkNew<vtkMatrix4x4> imageIJKToRAS, contoursRASToIJK;
+  image->GetIJKToRASMatrix(imageIJKToRAS.GetPointer());
+  contoursData->GetRASToIJKMatrix(contoursRASToIJK.GetPointer());
+  double imageCenter[4] = {imageDims[0] * 0.5, imageDims[1] * 0.5, 0., 1.}, ras[4] = {0., 0., 0., 1.};
+  double contoursIJK[4] = {0., 0., 0., 1.};
+  imageIJKToRAS->MultiplyPoint(imageCenter, ras);
+  contoursRASToIJK->MultiplyPoint(ras, contoursIJK);
+  const int channel = static_cast<int>(std::lround(contoursIJK[2]));
+  if (channel < 0 || channel >= contoursDims[2])
+    {
+    d->ChannelVelocityLabel->setText(tr("outside of the data"));
+    return;
+    }
+  double ijk[3] = {contoursDims[0] * 0.5, contoursDims[1] * 0.5, static_cast<double>(channel)};
+  double world[3] = {0., 0., 0.};
+  if (!contoursDisplay->GetReferenceSpace(ijk, world))
+    {
+    d->ChannelVelocityLabel->setText(tr("channel %1").arg(channel));
+    return;
+    }
+  const wcsprm* wcs = contoursDisplay->GetWCSStruct();
+  const bool metersPerSecond = wcs->naxis > 2 && !strcmp(wcs->cunit[2], "m/s");
+  const double velocity = metersPerSecond ? world[2] * 0.001 : world[2];
+  d->ChannelVelocityLabel->setText(tr("channel %1: %2 %3 (%4)")
+    .arg(channel)
+    .arg(velocity, 0, 'f', 1)
+    .arg(metersPerSecond ? QString("km/s") : QString(wcs->naxis > 2 ? wcs->cunit[2] : ""))
+    .arg(QString::fromStdString(contoursDisplay->GetVelocityDefinition())));
 }
 
 // --------------------------------------------------------------------------
@@ -592,6 +700,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onContoursVolumeChanged(vtkMRMLNode 
                 this, SLOT(updateWidgetFromContoursMRML()));
 
   this->updateWidgetFromContoursMRML();
+
+  // the contours of these data are shown, the others hidden
+  ShowContoursOfData(ContoursSegmentationNode(this->volumeNode()), d->contoursVolumeNode);
+  this->updateContoursButtons();
 }
 
 // --------------------------------------------------------------------------
@@ -798,16 +910,18 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   // segments named after the data of the contours (not the reprojected copy)
   std::string NamePrefixStdString = contoursVolume->GetName();
 
-  vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
-    (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg"));
-  this->contoursSegNode = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
+  // contours segmentation of the volume the contours are drawn over (the
+  // active volume, or its north-aligned copy)
+  this->contoursSegNode = ContoursSegmentationNode(newActiveVolume ? newActiveVolume : this->volumeNode(), true);
   if (!this->contoursSegNode)
     {
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    this->contoursSegNode = vtkMRMLSegmentationNode::SafeDownCast(foo);
-    this->contoursSegNode->SetName("AstroContoursSeg");
-    this->contoursSegNode->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
-    this->mrmlScene()->AddNode(this->contoursSegNode);
+    qCritical() << Q_FUNC_INFO << ": the contours segmentation of the volume could not be created.";
+    if (temporaryVolume)
+      {
+      this->mrmlScene()->RemoveNode(temporaryVolume);
+      }
+    QApplication::restoreOverrideCursor();
+    return;
     }
 
   // the contours are not edited: the Segment Editor keeps its segmentation (mask)
@@ -1210,21 +1324,12 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 }
 
 // --------------------------------------------------------------------------
-namespace
-{
-vtkMRMLSegmentationNode* ContoursSegmentationNode(vtkMRMLScene* scene)
-{
-  vtkMRMLSegmentationNode* node = scene ?
-    vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroContoursSeg")) : nullptr;
-  return (node && node->GetSegmentation()) ? node : nullptr;
-}
-} // end of anonymous namespace
 
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::updateContoursButtons()
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->volumeNode());
   const bool hasContours = node && node->GetSegmentation()->GetNumberOfSegments() > 0;
   d->ShowContoursButton->setEnabled(hasContours);
   d->SmoothContoursButton->setEnabled(hasContours);
@@ -1241,7 +1346,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateContoursButtons()
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onShowContoursToggled(bool show)
 {
-  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->volumeNode());
   if (node && node->GetDisplayNode())
     {
     node->GetDisplayNode()->SetVisibility(show);
@@ -1252,7 +1357,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onShowContoursToggled(bool show)
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::onDeleteContours()
 {
-  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->volumeNode());
   if (node)
     {
     node->GetSegmentation()->RemoveAllSegments();
@@ -1264,7 +1369,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onDeleteContours()
 void qSlicerAstroScalarVolumeDisplayWidget::onSmoothContoursToggled(bool smooth)
 {
   Q_D(qSlicerAstroScalarVolumeDisplayWidget);
-  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->volumeNode());
   if (!node)
     {
     return;
@@ -1312,7 +1417,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onSmoothContoursToggled(bool smooth)
     [&converted, total]() { return total > 0 ? (100 * converted) / total : 100; },
     [&cancelled]() { cancelled = true; });
 
-  if (cancelled || !this->mrmlScene() || ContoursSegmentationNode(this->mrmlScene()) != node)
+  if (cancelled || !this->mrmlScene() || ContoursSegmentationNode(this->volumeNode()) != node)
     {
     const QSignalBlocker blocker(d->SmoothContoursButton);
     d->SmoothContoursButton->setChecked(false);
@@ -1443,7 +1548,34 @@ void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolume
   this->setEnabled(volumeNode != 0);
   this->onFitSlicesModified();
   this->updateWidgetFromDisplayMRML();
-  this->onContoursVolumeChanged(volumeNode);
+  // the data of the contours are kept (e.g. HI contours over a new optical
+  // image); by default the active volume
+  if (!d->contoursVolumeNode || !d->contoursVolumeNode->GetScene())
+    {
+    this->onContoursVolumeChanged(volumeNode);
+    }
+  else
+    {
+    this->updateWidgetFromContoursMRML();
+    }
+  // the contours drawn over the active volume are shown, those over the
+  // other volumes are hidden
+  vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
+  if (logic && this->mrmlScene())
+    {
+    std::vector<vtkMRMLNode*> astroVolumes;
+    this->mrmlScene()->GetNodesByClass("vtkMRMLAstroVolumeNode", astroVolumes);
+    for (vtkMRMLNode* node : astroVolumes)
+      {
+      vtkMRMLSegmentationNode* contours = logic->GetContoursSegmentationForVolume(
+        vtkMRMLAstroVolumeNode::SafeDownCast(node), false);
+      if (contours && contours->GetDisplayNode())
+        {
+        contours->GetDisplayNode()->SetVisibility(node == volumeNode);
+        }
+      }
+    }
+  this->updateContoursButtons();
   this->updateWidgetFromActiveVolumeMRML();
 }
 
@@ -1871,6 +2003,10 @@ if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
       {
       d->Contours2DSliderWidget->show();
       }
+    else
+      {
+      d->Contours2DSliderWidget->hide();
+      }
 
     vtkImageData* contoursImage = d->contoursVolumeNode->GetImageData();
     if (!contoursImage)
@@ -1904,6 +2040,7 @@ if (!d->contoursVolumeNode->GetAstroVolumeDisplayNode())
     d->SliceSegmentationLabel->hide();
     d->Contours2DSliderWidget->hide();
     }
+  this->updateContoursChannelLabel();
 }
 
 // --------------------------------------------------------------------------

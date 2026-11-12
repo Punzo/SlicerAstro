@@ -160,6 +160,24 @@ public:
   static vtkMRMLSegmentationNode* GetMaskForVolume(vtkMRMLScene* scene, vtkMRMLVolumeNode* volumeNode,
                                                    vtkMRMLSegmentationNode* preferredSegmentationNode = nullptr);
 
+  /// Segmentations associated with an astronomical volume: its contours
+  /// ("<volume>_Contours": contours drawn over the volume, of the volume or of
+  /// other data reprojected on it; not a mask) and its mask ("<volume>_SEG",
+  /// binary labelmap, FITS mask). Both have the volume as reference geometry
+  /// and are referenced by the volume (roles GetContoursReferenceRole and
+  /// GetMaskReferenceRole). An existing segmentation of the scene is used
+  /// (and its references fixed) before creating a new one (if create).
+  vtkMRMLSegmentationNode* GetContoursSegmentationForVolume(vtkMRMLAstroVolumeNode* volumeNode, bool create);
+  vtkMRMLSegmentationNode* GetMaskSegmentationForVolume(vtkMRMLAstroVolumeNode* volumeNode, bool create);
+  /// Contours and mask segmentations of the volume (created if needed): when
+  /// a FITS file is loaded, and for the volumes of an imported scene
+  void EnsureVolumeSegmentations(vtkMRMLAstroVolumeNode* volumeNode);
+  /// EnsureVolumeSegmentations for a volume loaded from a file (data and a
+  /// storage node with a file name), outside of scene imports
+  void EnsureSegmentationsOfLoadedVolume(vtkMRMLAstroVolumeNode* volumeNode);
+  static const char* GetContoursReferenceRole() { return "SlicerAstroContours"; }
+  static const char* GetMaskReferenceRole() { return "SlicerAstroMask"; }
+
   /// Point the camera at the volume: focal point at the center of the RAS
   /// bounds of the volume (or at focalPoint, if given), camera along
   /// directionOfProjection (from the camera to the focal point) at the
@@ -351,6 +369,7 @@ protected:
   /// textures of the GPU ray cast mapper stay small.
   void EnsureVolumePropertyTransferFunctionGaps(vtkMRMLVolumePropertyNode* volumePropertyNode);
   bool UpdatingTransferFunctionGaps{false};
+  bool EnsuringVolumeSegmentations{false};
 #ifndef __VTK_WRAP__
   BackgroundRunnerType BackgroundRunner;
 #endif

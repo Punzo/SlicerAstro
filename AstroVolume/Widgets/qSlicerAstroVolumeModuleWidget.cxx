@@ -642,17 +642,24 @@ void qSlicerAstroVolumeModuleWidget::initializeSegmentations(bool forceNew /*= f
 
   if (!d->segmentEditorNode->GetSegmentationNode() || forceNew)
     {
-    vtkSmartPointer<vtkMRMLNode> segmentationNode;
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    segmentationNode.TakeReference(foo);
-    this->mrmlScene()->AddNode(segmentationNode);
-    vtkMRMLSegmentationNode* sceneSegmentationNode =
-      vtkMRMLSegmentationNode::SafeDownCast(segmentationNode);
-    sceneSegmentationNode->CreateDefaultDisplayNodes();
-    d->segmentEditorNode->SetAndObserveSegmentationNode(sceneSegmentationNode);
+    // the mask of the active cube (no segmentation without data)
+    vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+    vtkMRMLSelectionNode* selectionNode = (this->module() && this->module()->appLogic()) ?
+      this->module()->appLogic()->GetSelectionNode() : nullptr;
+    vtkMRMLAstroVolumeNode* activeVolume = (selectionNode && selectionNode->GetActiveVolumeID()) ?
+      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(selectionNode->GetActiveVolumeID())) : nullptr;
+    vtkMRMLSegmentationNode* sceneSegmentationNode = (astroVolumeLogic && activeVolume) ?
+      astroVolumeLogic->GetMaskSegmentationForVolume(activeVolume, true) : nullptr;
+    if (sceneSegmentationNode)
+      {
+      d->segmentEditorNode->SetAndObserveSegmentationNode(sceneSegmentationNode);
+      }
     }
 
-  d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
+  if (d->segmentEditorNode->GetSegmentationNode())
+    {
+    d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -4944,8 +4951,15 @@ void qSlicerAstroVolumeModuleWidget::onSegmentationNodeChanged(vtkMRMLNode* node
   // active cube as reference geometry: it is a mask of that cube
   if (segmentationNode && d->selectionNode && this->mrmlScene())
     {
-    vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(segmentationNode,
-      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID())));
+    vtkMRMLAstroVolumeNode* activeVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
+      this->mrmlScene()->GetNodeByID(d->selectionNode->GetActiveVolumeID()));
+    vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(segmentationNode, activeVolume);
+    // the mask chosen for the cube becomes its mask (e.g. a SoFiA mask)
+    if (activeVolume && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode) &&
+        segmentationNode->GetNodeReference(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()) == activeVolume)
+      {
+      activeVolume->SetNodeReferenceID(vtkSlicerAstroVolumeLogic::GetMaskReferenceRole(), segmentationNode->GetID());
+      }
     }
   this->updateSaveFITSMaskButton();
   if (segmentationNode && d->segmentEditorNode &&
@@ -5971,10 +5985,24 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     return;
     }
 
-  // the mask of the Masks section (e.g. created when the module was opened,
-  // before the data was loaded) is a mask of this cube
-  vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(
-    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode()), volumeNode);
+  // the mask of this cube (created when it was loaded) in the Masks section;
+  // otherwise the mask of the Masks section (e.g. created when the module
+  // was opened, before the data was loaded) becomes a mask of this cube
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  vtkMRMLSegmentationNode* volumeMask = astroVolumeLogic ?
+    astroVolumeLogic->GetMaskSegmentationForVolume(volumeNode, false) : nullptr;
+  if (volumeMask)
+    {
+    if (d->SegmentationNodeComboBox->currentNode() != volumeMask)
+      {
+      d->SegmentationNodeComboBox->setCurrentNode(volumeMask);
+      }
+    }
+  else
+    {
+    vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(
+      vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode()), volumeNode);
+    }
 
   if (!d->astroVolumeNode)
     {

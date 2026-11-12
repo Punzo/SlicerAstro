@@ -63,6 +63,7 @@
 #include <qMRMLTableView.h>
 
 // MRMLLogic includes
+#include <vtkSlicerApplicationLogic.h>
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
@@ -498,15 +499,24 @@ void qSlicerAstroMomentMapsModuleWidget::initializeSegmentations(bool forceNew /
 
   if (!d->segmentEditorNode->GetSegmentationNode() || forceNew)
     {
-    vtkSmartPointer<vtkMRMLNode> segmentationNode;
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    segmentationNode.TakeReference(foo);
-    this->mrmlScene()->AddNode(segmentationNode);
-    d->segmentEditorNode->SetAndObserveSegmentationNode
-      (vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
+    // the mask of the active astronomical volume (no segmentation without data)
+    vtkSlicerAstroVolumeLogic* astroVolumeLogic = d->logic() ? d->logic()->GetAstroVolumeLogic() : nullptr;
+    vtkMRMLSelectionNode* activeSelectionNode = (this->module() && this->module()->appLogic()) ?
+      this->module()->appLogic()->GetSelectionNode() : nullptr;
+    vtkMRMLAstroVolumeNode* activeVolume = (activeSelectionNode && activeSelectionNode->GetActiveVolumeID()) ?
+      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(activeSelectionNode->GetActiveVolumeID())) : nullptr;
+    vtkMRMLSegmentationNode* activeMask = (astroVolumeLogic && activeVolume) ?
+      astroVolumeLogic->GetMaskSegmentationForVolume(activeVolume, true) : nullptr;
+    if (activeMask)
+      {
+      d->segmentEditorNode->SetAndObserveSegmentationNode(activeMask);
+      }
     }
 
-  d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
+  if (d->segmentEditorNode->GetSegmentationNode())
+    {
+    d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
+    }
 }
 
 //-----------------------------------------------------------------------------

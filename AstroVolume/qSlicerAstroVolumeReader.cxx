@@ -27,6 +27,12 @@
 // Logic includes
 #include <vtkSlicerApplicationLogic.h>
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+
+// Slicer includes
+#include <qSlicerAbstractCoreModule.h>
+#include <qSlicerCoreApplication.h>
+#include <qSlicerModuleManager.h>
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
@@ -168,6 +174,17 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
         node->GetDisplayNode()->SetAndObserveColorNodeID(colorNodeID.toLatin1());
         }
       }
+    // contours and mask segmentations of the loaded astronomical volume
+    vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+    qSlicerAbstractCoreModule* astroVolumeModule = qSlicerCoreApplication::application() ?
+      qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume") : nullptr;
+    vtkSlicerAstroVolumeLogic* astroVolumeLogic = astroVolumeModule ?
+      vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic()) : nullptr;
+    if (astroVolume && astroVolumeLogic && !vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node))
+      {
+      astroVolumeLogic->EnsureVolumeSegmentations(astroVolume);
+      }
+
     vtkSlicerApplicationLogic* appLogic =
       d->Logic->GetApplicationLogic();
     vtkMRMLSelectionNode* selectionNode =

@@ -44,7 +44,6 @@
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 #include <functional>
 
-// OpenMP includes
 
 //------------------------------------------------------------------------------
 const char* vtkMRMLAstroVolumeNode::PRESET_REFERENCE_ROLE = "preset";

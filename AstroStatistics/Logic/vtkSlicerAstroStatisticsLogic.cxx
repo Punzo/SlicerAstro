@@ -55,7 +55,6 @@
 #include <iostream>
 #include <chrono>
 
-// OpenMP includes
 
 namespace
 {

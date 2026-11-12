@@ -49,7 +49,6 @@
 #include <iostream>
 #include <chrono>
 
-// OpenMP includes
 
 #define DOUBLEPRECISION 1.E-16
 

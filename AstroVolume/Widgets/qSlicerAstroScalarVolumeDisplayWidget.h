@@ -94,6 +94,8 @@ public slots:
   void onSmoothContoursToggled(bool smooth);
   void onDeleteContours();
   void updateContoursButtons();
+  /// Channel of the contours data shown over a 2D image (channel map) and its velocity
+  void updateContoursChannelLabel();
 
   /// Method to change the display visualization of the 2D slices.
   void ExtendAllSlices();

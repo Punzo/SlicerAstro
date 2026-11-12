@@ -37,7 +37,6 @@
 #include <vtkPointData.h>
 #include <vtkVolume.h>
 
-// OpenMP includes
 
 //----------------------------------------------------------------------------
 vtkMRMLNodeNewMacro(vtkMRMLAstroLabelMapVolumeNode);
