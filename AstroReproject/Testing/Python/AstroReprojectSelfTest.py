@@ -1,189 +1,176 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import math
-import sys
+import numpy as np
 
-#
-# AstroReprojectSelfTest
-#
+import slicer
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
 
-class AstroReprojectSelfTest:
-  def __init__(self, parent):
-    parent.title = "Astro Reproject SelfTest"
-    parent.categories = ["Testing.TestCases"]
-    parent.dependencies = ["AstroVolume"]
-    parent.contributors = ["""
-    Davide Punzo (Kapteyn Astronomical Institute) and
-    Thijs van der Hulst (Kapteyn Astronomical Institute)."""]
-    parent.helpText = """
-    This module was developed as a self test to perform the operations needed for reproject astroVolumes.
-    """
-    parent.acknowledgementText = """
-""" # replace with organization, grant and thanks.
-    self.parent = parent
 
-    # Add this test to the SelfTest module's list for discovery when the module
-    # is created.  Since this module may be discovered before SelfTests itself,
-    # create the list if it doesn't already exist.
-    try:
-      slicer.selfTests
-    except AttributeError:
-      slicer.selfTests = {}
-    slicer.selfTests['Astro Reproject SelfTest'] = self.runTest
+class AstroReprojectSelfTest(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        self.parent.title = "Astro Reproject SelfTest"
+        self.parent.categories = ["Testing.TestCases"]
+        self.parent.dependencies = ["AstroVolume", "AstroReproject"]
+        self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
+        self.parent.helpText = """
+Self test of the AstroReproject module: the alignment of the NGC 2403 DSS image
+to the north and the reprojection of the NGC 2403 HI cube on the grid of the
+DSS image are compared, voxel by voxel, with the input data at the same world
+coordinates (nearest neighbour interpolation).
+"""
+        self.parent.hidden = True
 
-  def runTest(self):
-    tester = AstroReprojectSelfTestTest()
-    tester.runTest()
 
-#
-# qAstroReprojectSelfTestWidget
-#
-
-class AstroReprojectSelfTestWidget:
-  def __init__(self, parent = None):
-    if not parent:
-      self.parent = slicer.qMRMLWidget()
-      self.parent.setLayout(qt.QVBoxLayout())
-      self.parent.setMRMLScene(slicer.mrmlScene)
-    else:
-      self.parent = parent
-    self.layout = self.parent.layout()
-    if not parent:
-      self.setup()
-      self.parent.show()
-
-  def setup(self):
-    # Instantiate and connect widgets ...
-
-    # reload button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadButton = qt.QPushButton("Reload")
-    self.reloadButton.toolTip = "Reload this module."
-    self.reloadButton.name = "AstroReprojectSelfTest Reload"
-    self.layout.addWidget(self.reloadButton)
-    self.reloadButton.connect('clicked()', self.onReload)
-
-    # reload and test button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadAndTestButton = qt.QPushButton("Reload and Test")
-    self.reloadAndTestButton.toolTip = "Reload this module and then run the self tests."
-    self.layout.addWidget(self.reloadAndTestButton)
-    self.reloadAndTestButton.connect('clicked()', self.onReloadAndTest)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-  def cleanup(self):
+class AstroReprojectSelfTestWidget(ScriptedLoadableModuleWidget):
     pass
 
-  def onReload(self,moduleName="AstroReprojectSelfTest"):
-    """Generic reload method for any scripted module.
-    ModuleWizard will subsitute correct default moduleName.
-    """
-    globals()[moduleName] = slicer.util.reloadScriptedModule(moduleName)
 
-  def onReloadAndTest(self,moduleName="AstroReprojectSelfTest"):
-    self.onReload()
-    evalString = 'globals()["%s"].%sTest()' % (moduleName, moduleName)
-    tester = eval(evalString)
-    tester.runTest()
-
-#
-# AstroReprojectSelfTestLogic
-#
-
-class AstroReprojectSelfTestLogic:
-  """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget
-  """
-  def __init__(self):
+class AstroReprojectSelfTestLogic(ScriptedLoadableModuleLogic):
     pass
 
-  def hasImageData(self,volumeNode):
-    """This is a dummy logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      print('no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      print('no image data')
-      return False
-    return True
+
+def voxelArray(volumeNode):
+    """Zero-copy (z, y, x) view on the voxels of an (astro) volume node."""
+    from vtk.util.numpy_support import vtk_to_numpy
+    imageData = volumeNode.GetImageData()
+    dims = imageData.GetDimensions()
+    return vtk_to_numpy(imageData.GetPointData().GetScalars()).reshape(dims[2], dims[1], dims[0])
 
 
-class AstroReprojectSelfTestTest(unittest.TestCase):
-  """
-  This is the test case for your scripted module.
-  """
+def compareWithInput(testCase, inputNode, outputNode, samples=400, margin=0.15, seed=2403):
+    """Output voxels against the input voxels at the same celestial coordinates.
 
-  def delayDisplay(self,message,msec=100):
-    """This utility method displays a small dialog and waits.
-    This does two things: 1) it lets the event loop catch up
-    to the state of the test so that rendering and widget updates
-    have all taken place before the test continues and 2) it
-    shows the user/developer/tester the state of the test
-    so that we'll know when it breaks.
-    """
-    print(message)
-    self.info = qt.QDialog()
-    self.infoLayout = qt.QVBoxLayout()
-    self.info.setLayout(self.infoLayout)
-    self.label = qt.QLabel(message,self.info)
-    self.infoLayout.addWidget(self.label)
-    qt.QTimer.singleShot(msec, self.info.close)
-    self.info.exec_()
+    The reprojection is spatial only: channel k of the output is channel k of
+    the input. Nearest neighbour: the input pixel is the rounded WCS position
+    (as in vtkSlicerAstroVolumeLogic::Reproject). Returns the number of
+    compared voxels."""
+    inputDisplay = inputNode.GetAstroVolumeDisplayNode()
+    outputDisplay = outputNode.GetAstroVolumeDisplayNode()
+    inputVoxels = voxelArray(inputNode)
+    outputVoxels = voxelArray(outputNode)
+    nz, ny, nx = outputVoxels.shape
+    rng = np.random.default_rng(seed)
+    compared = 0
+    matches = 0
+    for _ in range(samples):
+        i = int(rng.integers(int(margin * nx), int((1. - margin) * nx)))
+        j = int(rng.integers(int(margin * ny), int((1. - margin) * ny)))
+        k = int(rng.integers(0, nz))
+        world = [0., 0., 0.]
+        testCase.assertTrue(outputDisplay.GetReferenceSpace([float(i), float(j), float(k)], world))
+        ijk = [0., 0., 0.]
+        testCase.assertTrue(inputDisplay.GetIJKSpace(world, ijk))
+        x = int(np.floor(ijk[0] + 0.5))
+        y = int(np.floor(ijk[1] + 0.5))
+        if not (0 <= x < inputVoxels.shape[2] and 0 <= y < inputVoxels.shape[1]):
+            continue
+        expected = float(inputVoxels[k, y, x])
+        value = float(outputVoxels[k, j, i])
+        compared += 1
+        if (np.isnan(expected) and np.isnan(value)) or np.isclose(value, expected, rtol=1.e-5, atol=0.):
+            matches += 1
+    testCase.assertGreater(compared, samples // 2)
+    # positions within float rounding of a pixel edge can pick the neighbour
+    testCase.assertGreaterEqual(matches, 0.98 * compared)
+    return compared
 
-  def setUp(self):
-    slicer.mrmlScene.Clear(0)
 
-  def runTest(self):
-    self.setUp()
-    self.test_AstroReprojectSelfTest()
+class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        slicer.mrmlScene.Clear(0)
 
-  def test_AstroReprojectSelfTest(self):
-    print("Running AstroReprojectSelfTest Test case:")
+    def runTest(self):
+        self.setUp()
+        self.test_NorthAlignment()
+        self.setUp()
+        self.test_ReprojectionOnReference()
 
-    astroVolume = self.downloadNGC2403DSS()
+    def reprojectModule(self, inputNode):
+        """Select the AstroReproject module with inputNode as input: the
+        parameters node and the Apply button."""
+        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        selectionNode.SetActiveVolumeID(inputNode.GetID())
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroReproject")
+        widget = slicer.modules.astroreproject.widgetRepresentation()
+        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroReprojectParametersNode")
+        self.assertIsNotNone(parametersNode)
+        parametersNode.SetInputVolumeNodeID(inputNode.GetID())
+        parametersNode.SetInterpolationOrder(slicer.vtkMRMLAstroReprojectParametersNode.NearestNeighbour)
+        applyButton = slicer.util.findChild(widget, "ApplyButton")
+        return parametersNode, applyButton
 
-    mainWindow = slicer.util.mainWindow()
-    mainWindow.moduleSelector().selectModule('AstroVolume')
-    mainWindow.moduleSelector().selectModule('AstroReproject')
+    def outputVolume(self, parametersNode):
+        outputNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertIsNotNone(outputNode)
+        self.assertIsNotNone(outputNode.GetImageData())
+        return outputNode
 
-    astroReprojectModule = module = slicer.modules.astroreproject
-    astroReprojectModuleWidget = astroReprojectModule.widgetRepresentation()
+    def test_NorthAlignment(self):
+        """The DSS image of NGC 2403 (CROTA2 of about -2.8 degrees) is aligned to the north."""
+        import AstroSampleData
 
-    AstroReprojectParameterNode = slicer.util.getNode("AstroReprojectParameters")
-    AstroReprojectParameterNode.SetReprojectRotation(True)
+        self.delayDisplay("Aligning the NGC 2403 DSS image to the north")
+        dssNode = AstroSampleData.AstroSampleDataLogic().downloadSample("NGC2403_DSS")
+        self.assertIsNotNone(dssNode)
+        self.assertGreater(abs(float(dssNode.GetAttribute("SlicerAstro.CROTA2") or 0.)), 1.)
 
-    QPushButtonList = astroReprojectModuleWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "ApplyButton":
-            ApplyPushButton = QPushButton
+        parametersNode, applyButton = self.reprojectModule(dssNode)
+        parametersNode.SetReferenceVolumeNodeID("")
+        parametersNode.SetReprojectData(False)
+        parametersNode.SetReprojectRotation(True)
+        applyButton.click()
+        slicer.app.processEvents()
 
-    self.delayDisplay('Apply Reprojection (Rotation)', 700)
-    ApplyPushButton.click()
+        northNode = self.outputVolume(parametersNode)
+        self.assertNotEqual(northNode.GetID(), dssNode.GetID())
+        self.assertEqual(float(northNode.GetAttribute("SlicerAstro.CROTA2")), 0.)
+        self.assertEqual(northNode.GetImageData().GetDimensions(), dssNode.GetImageData().GetDimensions())
+        compareWithInput(self, dssNode, northNode)
 
-    outputVolume = slicer.util.getNode("NGC2403_DSS_Reprojected_1")
-    pixelValue = outputVolume.GetImageData().GetScalarComponentAsFloat(340, 330, 0, 0)
+        # the input data are not modified, and an aligned image is not aligned again
+        self.assertGreater(abs(float(dssNode.GetAttribute("SlicerAstro.CROTA2"))), 1.)
+        parametersNode.SetInputVolumeNodeID(northNode.GetID())
+        numberOfVolumes = slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode")
+        applyButton.click()
+        slicer.app.processEvents()
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), numberOfVolumes)
+        self.delayDisplay("Test passed")
 
-    if (math.fabs(pixelValue - 13034.2) < 0.1):
-       self.delayDisplay('Test passed', 700)
-    else:
-       self.delayDisplay('Test failed', 700)
-       # if run from Slicer interface remove the followinf exit
-       sys.exit()
+    def test_ReprojectionOnReference(self):
+        """The HI cube of NGC 2403 is reprojected on the (north-aligned) grid of the DSS image."""
+        import AstroSampleData
 
-  def downloadNGC2403DSS(self):
-    import AstroSampleData
-    astroSampleDataLogic = AstroSampleData.AstroSampleDataLogic()
-    self.delayDisplay('Getting NGC2403DSS Astro Volume')
-    NGC2403DSSVolume = astroSampleDataLogic.downloadSample("NGC2403_DSS")
-    return NGC2403DSSVolume
+        self.delayDisplay("Reprojecting the NGC 2403 HI cube on the DSS image")
+        logic = AstroSampleData.AstroSampleDataLogic()
+        hiNode = logic.downloadSample("NGC2403")
+        dssNode = logic.downloadSample("NGC2403_DSS")
+        self.assertIsNotNone(hiNode)
+        self.assertIsNotNone(dssNode)
+
+        parametersNode, applyButton = self.reprojectModule(hiNode)
+        parametersNode.SetReprojectRotation(False)
+        parametersNode.SetReprojectData(True)
+        parametersNode.SetReferenceVolumeNodeID(dssNode.GetID())
+        applyButton.click()
+        slicer.app.processEvents()
+
+        # the DSS image is rotated: a north-aligned copy is the reference (in
+        # testing mode the question is answered with yes)
+        referenceNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetReferenceVolumeNodeID())
+        self.assertIsNotNone(referenceNode)
+        self.assertNotEqual(referenceNode.GetID(), dssNode.GetID())
+        self.assertEqual(float(referenceNode.GetAttribute("SlicerAstro.CROTA2")), 0.)
+
+        outputNode = self.outputVolume(parametersNode)
+        hiDims = hiNode.GetImageData().GetDimensions()
+        referenceDims = referenceNode.GetImageData().GetDimensions()
+        self.assertEqual(outputNode.GetImageData().GetDimensions(),
+                         (referenceDims[0], referenceDims[1], hiDims[2]))
+        compareWithInput(self, hiNode, outputNode)
+        self.delayDisplay("Test passed")

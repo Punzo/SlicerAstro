@@ -1,194 +1,81 @@
-import os
-import unittest
-import vtk, qt, ctk, slicer
-import math
-import sys
+import time
 
-#
-# AstroModelingSelfTest
-#
+import slicer
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
 
-class AstroModelingSelfTest:
-  def __init__(self, parent):
-    parent.title = "Astro Modeling SelfTest"
-    parent.categories = ["Testing.TestCases"]
-    parent.dependencies = ["AstroVolume"]
-    parent.contributors = ["""
-    Davide Punzo (Kapteyn Astronomical Institute) and
-    Thijs van der Hulst (Kapteyn Astronomical Institute)."""]
-    parent.helpText = """
-    This module was developed as a self test to perform the operations needed for modeling astroVolumes.
-    """
-    parent.acknowledgementText = """
-""" # replace with organization, grant and thanks.
-    self.parent = parent
 
-    # Add this test to the SelfTest module's list for discovery when the module
-    # is created.  Since this module may be discovered before SelfTests itself,
-    # create the list if it doesn't already exist.
-    try:
-      slicer.selfTests
-    except AttributeError:
-      slicer.selfTests = {}
-    slicer.selfTests['Astro Modeling SelfTest'] = self.runTest
+class AstroModelingSelfTest(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        self.parent.title = "Astro Modeling SelfTest"
+        self.parent.categories = ["Testing.TestCases"]
+        self.parent.dependencies = ["AstroVolume", "AstroModeling"]
+        self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
+        self.parent.helpText = """
+Self test of the AstroModeling module: 3DBarolo estimates the initial
+parameters of the HALOGAS-DR1 HI cube of NGC 2403, compared with the values of
+Fraternali et al. (2002).
+"""
+        self.parent.hidden = True
 
-  def runTest(self):
-    tester = AstroModelingSelfTestTest()
-    tester.runTest()
 
-#
-# qAstroModelingSelfTestWidget
-#
-
-class AstroModelingSelfTestWidget:
-  def __init__(self, parent = None):
-    if not parent:
-      self.parent = slicer.qMRMLWidget()
-      self.parent.setLayout(qt.QVBoxLayout())
-      self.parent.setMRMLScene(slicer.mrmlScene)
-    else:
-      self.parent = parent
-    self.layout = self.parent.layout()
-    if not parent:
-      self.setup()
-      self.parent.show()
-
-  def setup(self):
-    # Instantiate and connect widgets ...
-
-    # reload button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadButton = qt.QPushButton("Reload")
-    self.reloadButton.toolTip = "Reload this module."
-    self.reloadButton.name = "AstroModelingSelfTest Reload"
-    self.layout.addWidget(self.reloadButton)
-    self.reloadButton.connect('clicked()', self.onReload)
-
-    # reload and test button
-    # (use this during development, but remove it when delivering
-    #  your module to users)
-    self.reloadAndTestButton = qt.QPushButton("Reload and Test")
-    self.reloadAndTestButton.toolTip = "Reload this module and then run the self tests."
-    self.layout.addWidget(self.reloadAndTestButton)
-    self.reloadAndTestButton.connect('clicked()', self.onReloadAndTest)
-
-    # Add vertical spacer
-    self.layout.addStretch(1)
-
-  def cleanup(self):
+class AstroModelingSelfTestWidget(ScriptedLoadableModuleWidget):
     pass
 
-  def onReload(self,moduleName="AstroModelingSelfTest"):
-    """Generic reload method for any scripted module.
-    ModuleWizard will subsitute correct default moduleName.
-    """
-    globals()[moduleName] = slicer.util.reloadScriptedModule(moduleName)
 
-  def onReloadAndTest(self,moduleName="AstroModelingSelfTest"):
-    self.onReload()
-    evalString = 'globals()["%s"].%sTest()' % (moduleName, moduleName)
-    tester = eval(evalString)
-    tester.runTest()
-
-#
-# AstroModelingSelfTestLogic
-#
-
-class AstroModelingSelfTestLogic:
-  """This class should implement all the actual
-  computation done by your module.  The interface
-  should be such that other python code can import
-  this class and make use of the functionality without
-  requiring an instance of the Widget
-  """
-  def __init__(self):
+class AstroModelingSelfTestLogic(ScriptedLoadableModuleLogic):
     pass
 
-  def hasImageData(self,volumeNode):
-    """This is a dummy logic method that
-    returns true if the passed in volume
-    node has valid image data
-    """
-    if not volumeNode:
-      print('no volume node')
-      return False
-    if volumeNode.GetImageData() is None:
-      print('no image data')
-      return False
-    return True
 
+class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        slicer.mrmlScene.Clear(0)
 
-class AstroModelingSelfTestTest(unittest.TestCase):
-  """
-  This is the test case for your scripted module.
-  """
+    def runTest(self):
+        self.setUp()
+        self.test_EstimateInitialParameters()
 
-  def delayDisplay(self,message,msec=100):
-    """This utility method displays a small dialog and waits.
-    This does two things: 1) it lets the event loop catch up
-    to the state of the test so that rendering and widget updates
-    have all taken place before the test continues and 2) it
-    shows the user/developer/tester the state of the test
-    so that we'll know when it breaks.
-    """
-    print(message)
-    self.info = qt.QDialog()
-    self.infoLayout = qt.QVBoxLayout()
-    self.info.setLayout(self.infoLayout)
-    self.label = qt.QLabel(message,self.info)
-    self.infoLayout.addWidget(self.label)
-    qt.QTimer.singleShot(msec, self.info.close)
-    self.info.exec_()
+    def test_EstimateInitialParameters(self):
+        """Only the estimate of the initial parameters is tested: it is fast,
+        while the fit takes minutes (it runs in a worker thread)."""
+        import AstroSampleData
 
-  def setUp(self):
-    slicer.mrmlScene.Clear(0)
+        self.delayDisplay("Estimating the initial parameters of NGC 2403")
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("NGC2403")
+        self.assertIsNotNone(volumeNode)
 
-  def runTest(self):
-    self.setUp()
-    self.test_AstroModelingSelfTest()
+        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        selectionNode.SetActiveVolumeID(volumeNode.GetID())
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroModeling")
+        widget = slicer.modules.astromodeling.widgetRepresentation()
+        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroModelingParametersNode")
+        self.assertIsNotNone(parametersNode)
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+        # not estimated yet (the estimate sets it)
+        parametersNode.SetSystemicVelocity(-1.)
 
-  def test_AstroModelingSelfTest(self):
-    print("Running AstroModelingSelfTest Test case:")
+        parametersNode.SetNumberOfRings(20)
+        widget.onEstimateInitialParameters()
 
-    astroVolume = self.downloadNGC2403()
+        # the estimate runs in a worker thread: wait for the results
+        timeout = time.time() + 120
+        while parametersNode.GetSystemicVelocity() < 0 and time.time() < timeout:
+            slicer.app.processEvents()
+            time.sleep(0.1)
 
-    mainWindow = slicer.util.mainWindow()
-    mainWindow.moduleSelector().selectModule('AstroVolume')
-    mainWindow.moduleSelector().selectModule('AstroModeling')
-
-    AstroModelingParameterNode = slicer.util.getNode("AstroModelingParameters")
-
-    astroModelingModule = module = slicer.modules.astromodeling
-    astroModelingModuleWidget = astroModelingModule.widgetRepresentation()
-
-    self.delayDisplay('Test passed')
-    """
-    selfTest is not safe on the fitting because the computations run on another QThread.
-    Therefore we test only the estimation of the parameters which is fast and
-    it is reasonable that it runs in 5 sec even on a very slow hardware.
-    """
-    AstroModelingParameterNode.SetNumberOfRings(20)
-    astroModelingModuleWidget.onEstimateInitialParameters()
-
-    # the estimate runs in a worker thread: wait for the results
-    import time
-    timeout = time.time() + 120
-    while AstroModelingParameterNode.GetSystemicVelocity() < 0 and time.time() < timeout:
-      slicer.app.processEvents()
-      time.sleep(0.1)
-    SysVelocity = AstroModelingParameterNode.GetSystemicVelocity()
-
-    # NGC 2403: systemic velocity of about 133 km/s (de Blok et al. 2008; Fraternali et al. 2002)
-    self.assertLess(math.fabs(SysVelocity - 133.), 3.)
-    self.assertGreater(AstroModelingParameterNode.GetNumberOfRings(), 0)
-    self.assertGreater(AstroModelingParameterNode.GetInclination(), 0.)
-    self.delayDisplay('Test passed', 700)
-
-
-  def downloadNGC2403(self):
-    import AstroSampleData
-    astroSampleDataLogic = AstroSampleData.AstroSampleDataLogic()
-    self.delayDisplay('Getting NGC2403 Astro Volume')
-    NGC2403Volume = astroSampleDataLogic.downloadSample("NGC2403")
-    return NGC2403Volume
+        # NGC 2403 (Fraternali et al. 2002): systemic velocity 133 km/s,
+        # inclination 60-63 degrees, position angle 124 degrees
+        self.assertLess(abs(parametersNode.GetSystemicVelocity() - 133.), 3.)
+        self.assertGreater(parametersNode.GetNumberOfRings(), 0)
+        self.assertGreater(parametersNode.GetInclination(), 40.)
+        self.assertLess(parametersNode.GetInclination(), 80.)
+        self.assertLess(abs(parametersNode.GetPositionAngle() - 124.), 20.)
+        self.assertGreater(parametersNode.GetRotationVelocity(), 0.)
+        self.delayDisplay("Test passed")
