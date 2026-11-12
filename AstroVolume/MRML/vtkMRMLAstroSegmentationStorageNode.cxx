@@ -198,6 +198,17 @@ bool vtkMRMLAstroSegmentationStorageNode::CanReadInReferenceNode(vtkMRMLNode* re
 }
 
 //----------------------------------------------------------------------------
+int vtkMRMLAstroSegmentationStorageNode::ReadData(vtkMRMLNode* refNode, bool temporaryFile)
+{
+  if ((!this->GetFileName() || !*this->GetFileName()) && this->GetNumberOfFileNames() == 0 &&
+      (!this->GetURI() || !*this->GetURI()))
+    {
+    return 1;
+    }
+  return this->Superclass::ReadData(refNode, temporaryFile);
+}
+
+//----------------------------------------------------------------------------
 void vtkMRMLAstroSegmentationStorageNode::InitializeSupportedReadFileTypes()
 {
   this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fits)");
@@ -493,9 +504,22 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
     return 0;
     }
 
-  // Geometry of the FITS mask
-  const std::string geometryString =
+  // Geometry of the FITS mask: the one of the segmentation, or for an empty
+  // segmentation (e.g. a new mask, without segments) the one of its
+  // reference volume
+  std::string geometryString =
     segmentation->GetConversionParameter(vtkSegmentationConverter::GetReferenceImageGeometryParameterName());
+  if (geometryString.empty())
+    {
+    vtkMRMLVolumeNode* geometryVolume = vtkMRMLVolumeNode::SafeDownCast(
+      segmentationNode->GetNodeReference(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+    if (geometryVolume && geometryVolume->GetImageData())
+      {
+      vtkNew<vtkMatrix4x4> ijkToRAS;
+      geometryVolume->GetIJKToRASMatrix(ijkToRAS);
+      geometryString = vtkSegmentationConverter::SerializeImageGeometry(ijkToRAS, geometryVolume->GetImageData());
+      }
+    }
   vtkNew<vtkOrientedImageData> reference;
   if (geometryString.empty() ||
       !vtkSegmentationConverter::DeserializeImageGeometry(geometryString, reference, false))

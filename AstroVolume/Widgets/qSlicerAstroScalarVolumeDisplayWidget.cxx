@@ -93,6 +93,15 @@
 //-----------------------------------------------------------------------------
 namespace
 {
+//-----------------------------------------------------------------------------
+// Color function options of SlicerAstro (attributes "on"/"off" of the color
+// nodes); color nodes of Slicer have none of these attributes
+bool IsColorAttributeOn(vtkMRMLNode* colorNode, const char* attribute)
+{
+  const char* value = colorNode ? colorNode->GetAttribute(attribute) : nullptr;
+  return value && !strcmp(value, "on");
+}
+
 vtkSlicerAstroVolumeLogic* AstroVolumeLogic()
 {
   qSlicerAbstractCoreModule* astroVolumeModule = (qSlicerApplication::application() &&
@@ -1627,7 +1636,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
   vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
   if (colorNode)
     {
-    if (!strcmp(colorNode->GetAttribute("SlicerAstro.AddFunctions"), "on"))
+    if (IsColorAttributeOn(colorNode, "SlicerAstro.AddFunctions"))
       {
       d->ReversePushButton->show();
       d->InversePushButton->show();
@@ -1635,7 +1644,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
       d->ReversePushButton->blockSignals(true);
       d->InversePushButton->blockSignals(true);
       d->LogPushButton->blockSignals(true);
-      if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
+      if (IsColorAttributeOn(colorNode, "SlicerAstro.Reverse"))
         {
         if (!d->ReversePushButton->isChecked())
           {
@@ -1651,7 +1660,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
           }
         d->ReversePushButton->setChecked(false);
         }
-      if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
+      if (IsColorAttributeOn(colorNode, "SlicerAstro.Inverse"))
         {
         if (!d->InversePushButton->isChecked())
           {
@@ -1667,7 +1676,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
           }
         d->InversePushButton->setChecked(false);
         }
-      if (!strcmp(colorNode->GetAttribute("SlicerAstro.Log"), "on"))
+      if (IsColorAttributeOn(colorNode, "SlicerAstro.Log"))
         {
         if (colorNode->GetLookupTable())
           {
@@ -2074,7 +2083,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::setColorNode(vtkMRMLNode* colorNode)
   Q_ASSERT(vtkMRMLColorNode::SafeDownCast(colorNode));
 
   d->ReversePushButton->blockSignals(true);
-  if (!strcmp(colorNode->GetAttribute("SlicerAstro.Reverse"), "on"))
+  if (IsColorAttributeOn(colorNode, "SlicerAstro.Reverse"))
     {
     d->ReversePushButton->setChecked(true);
     }
@@ -2085,7 +2094,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::setColorNode(vtkMRMLNode* colorNode)
   d->ReversePushButton->blockSignals(false);
 
   d->InversePushButton->blockSignals(true);
-  if (!strcmp(colorNode->GetAttribute("SlicerAstro.Inverse"), "on"))
+  if (IsColorAttributeOn(colorNode, "SlicerAstro.Inverse"))
     {
     d->InversePushButton->setChecked(true);
     }

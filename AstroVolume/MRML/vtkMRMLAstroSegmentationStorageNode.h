@@ -67,6 +67,11 @@ public:
 
   bool CanReadInReferenceNode(vtkMRMLNode* refNode) override;
 
+  /// No file to read (success): the default storage node of a segmentation
+  /// that has not been saved yet, e.g. the empty mask of a data cube in a
+  /// scene saved without its data.
+  int ReadData(vtkMRMLNode* refNode, bool temporaryFile = false) override;
+
   const char* GetDefaultWriteFileExtension() override { return "fits"; }
 
   /// Segment tag holding the label value of the segment in the FITS mask.

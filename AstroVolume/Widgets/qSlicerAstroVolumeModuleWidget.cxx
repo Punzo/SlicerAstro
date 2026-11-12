@@ -1038,33 +1038,9 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     this->mrmlScene()->RemoveNode(tempProceduralColorTableNode);
     }
 
-  // ReAdd Generic, Random and DarkBrightChart Colors
-  colorNodes = vtkSmartPointer<vtkCollection>::Take(
-      this->mrmlScene()->GetNodesByClass("vtkMRMLColorTableNode"));
-  for (int ii = 0; ii < colorNodes->GetNumberOfItems(); ii++)
-    {
-    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-            (colorNodes->GetItemAsObject(ii));
-    if (!tempColorTableNode)
-      {
-      continue;
-      }
-    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
-        !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors") ||
-        !strcmp(tempColorTableNode->GetName(), "Random"))
-      {
-      vtkNew<vtkMRMLColorTableNode> tempTableNode;
-      tempTableNode->Copy(tempColorTableNode);
-      this->mrmlScene()->RemoveNode(tempColorTableNode);
-      tempTableNode->SetAttribute("SlicerAstro.AddFunctions", "off");
-      if (!strcmp(tempColorTableNode->GetName(), "Random"))
-        {
-        tempTableNode->GetLookupTable()->SetTableValue(0, 0.047, 0.063, 0.635);
-        tempTableNode->SetNamesFromColors();
-        }
-      this->mrmlScene()->AddNode(tempTableNode.GetPointer());
-      }
-    }
+  // GenericColors, DarkBrightChartColors and Random (color tables of Slicer,
+  // e.g. for segments and labels) are kept unmodified: copies of them were
+  // saved with the scene and could not be read again (Random)
 
   // Ensure Lookup Table is updated
   colorNodes = vtkSmartPointer<vtkCollection>::Take(
