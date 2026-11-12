@@ -20,6 +20,8 @@
 #include <algorithm>
 #include <vtkAstroWCSErrors.h>
 #include <vtkAstroFITSErrors.h>
+#include <atomic>
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <stdio.h>
@@ -71,6 +73,292 @@
 
 vtkStandardNewMacro(vtkFITSReader);
 
+namespace
+{
+const size_t FITSBlockSize = 2880;
+const size_t FITSCardSize = 80;
+
+//----------------------------------------------------------------------------
+std::string LowerCaseFileName(const char* fileName)
+{
+  return vtksys::SystemTools::LowerCase(fileName ? std::string(fileName) : std::string());
+}
+
+//----------------------------------------------------------------------------
+bool EndsWith(const std::string& text, const std::string& suffix)
+{
+  return text.size() >= suffix.size() &&
+         text.compare(text.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
+//----------------------------------------------------------------------------
+bool IsGzipFileName(const char* fileName)
+{
+  return EndsWith(LowerCaseFileName(fileName), ".gz");
+}
+
+//----------------------------------------------------------------------------
+// The headers of a gzip-compressed FITS file, up to the header of the first
+// HDU with data (headers of HDUs without data, e.g. an empty primary HDU, are
+// followed directly by the next header): only these blocks are decompressed.
+bool ReadGzipHeaders(const char* fileName, std::vector<char>& headers)
+{
+  headers.clear();
+  gzFile file = gzopen(fileName, "rb");
+  if (!file)
+    {
+    return false;
+    }
+  std::vector<char> block(FITSBlockSize);
+  bool firstBlockOfHeader = true;
+  bool firstHeader = true;
+  long naxis = 0;
+  bool found = false;
+  // headers longer than 10000 blocks (about 29 MB) are not FITS headers
+  for (int blockIndex = 0; blockIndex < 10000 && !found; blockIndex++)
+    {
+    if (gzread(file, block.data(), static_cast<unsigned int>(FITSBlockSize)) != static_cast<int>(FITSBlockSize))
+      {
+      break;
+      }
+    if (firstBlockOfHeader &&
+        strncmp(block.data(), firstHeader ? "SIMPLE  =" : "XTENSION=", 9) != 0)
+      {
+      break;
+      }
+    firstBlockOfHeader = false;
+    headers.insert(headers.end(), block.begin(), block.end());
+    for (size_t position = 0; position < FITSBlockSize; position += FITSCardSize)
+      {
+      const char* card = block.data() + position;
+      if (!strncmp(card, "NAXIS   =", 9))
+        {
+        naxis = strtol(card + 10, nullptr, 10);
+        }
+      else if (!strncmp(card, "END", 3) &&
+               std::all_of(card + 3, card + FITSCardSize, [](char c) { return c == ' '; }))
+        {
+        if (naxis > 0)
+          {
+          found = true;
+          }
+        // no data (NAXIS = 0): the next block starts the next header
+        firstBlockOfHeader = true;
+        firstHeader = false;
+        naxis = 0;
+        break;
+        }
+      }
+    }
+  gzclose(file);
+  return found;
+}
+
+//----------------------------------------------------------------------------
+// Name of a new temporary file for the decompressed copy of fileName (in the
+// temporary directory of the system). Characters with a meaning in the
+// extended file names of cfitsio ([, (, ...) are replaced.
+std::string TemporaryFITSFileName(const char* fileName)
+{
+  static std::atomic<unsigned long> counter(0);
+  std::string name = std::filesystem::path(fileName).filename().string();
+  name = name.substr(0, name.size() - 3);
+  for (char& c : name)
+    {
+    if (!isalnum(static_cast<unsigned char>(c)) && c != '.' && c != '-' && c != '_')
+      {
+      c = '_';
+      }
+    }
+  std::ostringstream unique;
+  unique << "SlicerAstro-" << std::chrono::steady_clock::now().time_since_epoch().count()
+         << "-" << counter++ << "-" << name;
+  std::error_code error;
+  std::filesystem::path directory = std::filesystem::temp_directory_path(error);
+  if (error)
+    {
+    directory = std::filesystem::path(fileName).parent_path();
+    }
+  return (directory / unique.str()).string();
+}
+
+//----------------------------------------------------------------------------
+bool DecompressGzipFile(const char* fileName, const std::string& outputFileName)
+{
+  gzFile input = gzopen(fileName, "rb");
+  if (!input)
+    {
+    return false;
+    }
+  FILE* output = fopen(outputFileName.c_str(), "wb");
+  if (!output)
+    {
+    gzclose(input);
+    return false;
+    }
+  gzbuffer(input, 1 << 20);
+  std::vector<char> buffer(1 << 20);
+  bool success = true;
+  int read = 0;
+  while ((read = gzread(input, buffer.data(), static_cast<unsigned int>(buffer.size()))) > 0)
+    {
+    if (fwrite(buffer.data(), 1, static_cast<size_t>(read), output) != static_cast<size_t>(read))
+      {
+      success = false;
+      break;
+      }
+    }
+  if (read < 0)
+    {
+    success = false;
+    }
+  gzclose(input);
+  if (fclose(output) != 0)
+    {
+    success = false;
+    }
+  return success;
+}
+
+//----------------------------------------------------------------------------
+// Opens a FITS file with cfitsio at its first HDU with data (as
+// fits_open_data). cfitsio inflates gzip-compressed files in memory: instead,
+// for reading the header only the header blocks are decompressed (in memory),
+// and for reading the data the file is decompressed to a temporary file.
+// The file is closed, and the temporary file removed, at destruction.
+class FITSFileOpener
+{
+public:
+  explicit FITSFileOpener(fitsfile** file)
+    : File(file)
+  {
+  }
+
+  ~FITSFileOpener()
+  {
+    int status = 0;
+    this->Close(&status);
+    if (!this->TemporaryFileName.empty())
+      {
+      std::error_code error;
+      std::filesystem::remove(this->TemporaryFileName, error);
+      }
+  }
+
+  FITSFileOpener(const FITSFileOpener&) = delete;
+  FITSFileOpener& operator=(const FITSFileOpener&) = delete;
+
+  int Open(const char* fileName, bool headerOnly, int* status)
+  {
+    *this->File = nullptr;
+    if (!IsGzipFileName(fileName))
+      {
+      return fits_open_data(this->File, fileName, READONLY, status);
+      }
+    if (headerOnly)
+      {
+      if (!ReadGzipHeaders(fileName, this->Headers))
+        {
+        *status = FILE_NOT_OPENED;
+        return *status;
+        }
+      // cfitsio keeps the address of these two variables while the file is open
+      this->HeadersAddress = this->Headers.data();
+      this->HeadersSize = this->Headers.size();
+      if (fits_open_memfile(this->File, "header.fits", READONLY, &this->HeadersAddress,
+                            &this->HeadersSize, 0, nullptr, status))
+        {
+        return *status;
+        }
+      // first HDU with data
+      int hduType = IMAGE_HDU;
+      int naxis = 0;
+      fits_get_hdu_type(*this->File, &hduType, status);
+      fits_get_img_dim(*this->File, &naxis, status);
+      while (*status == 0 && hduType == IMAGE_HDU && naxis == 0)
+        {
+        fits_movrel_hdu(*this->File, 1, &hduType, status);
+        fits_get_img_dim(*this->File, &naxis, status);
+        }
+      return *status;
+      }
+    this->TemporaryFileName = TemporaryFITSFileName(fileName);
+    if (!DecompressGzipFile(fileName, this->TemporaryFileName))
+      {
+      *status = FILE_NOT_OPENED;
+      return *status;
+      }
+    return fits_open_data(this->File, this->TemporaryFileName.c_str(), READONLY, status);
+  }
+
+  int Close(int* status)
+  {
+    if (*this->File)
+      {
+      fits_close_file(*this->File, status);
+      *this->File = nullptr;
+      }
+    return *status;
+  }
+
+private:
+  fitsfile** File;
+  std::vector<char> Headers;
+  void* HeadersAddress = nullptr;
+  size_t HeadersSize = 0;
+  std::string TemporaryFileName;
+};
+
+//----------------------------------------------------------------------------
+// The header of a tile-compressed image (.fz, stored in a binary table) as
+// the header of the uncompressed image, for reading the cards; other HDUs
+// are read directly.
+class UncompressedHeader
+{
+public:
+  explicit UncompressedHeader(fitsfile* file)
+    : File(file)
+  {
+    int status = 0;
+    if (file && fits_is_compressed_image(file, &status))
+      {
+      if (fits_create_file(&this->Temporary, "mem://", &status) ||
+          fits_img_decompress_header(file, this->Temporary, &status))
+        {
+        if (this->Temporary)
+          {
+          int closeStatus = 0;
+          fits_delete_file(this->Temporary, &closeStatus);
+          this->Temporary = nullptr;
+          }
+        fits_clear_errmsg();
+        }
+      }
+  }
+
+  ~UncompressedHeader()
+  {
+    if (this->Temporary)
+      {
+      int status = 0;
+      fits_close_file(this->Temporary, &status);
+      }
+  }
+
+  UncompressedHeader(const UncompressedHeader&) = delete;
+  UncompressedHeader& operator=(const UncompressedHeader&) = delete;
+
+  fitsfile* Get() const
+  {
+    return this->Temporary ? this->Temporary : this->File;
+  }
+
+private:
+  fitsfile* File;
+  fitsfile* Temporary = nullptr;
+};
+}
+
 //----------------------------------------------------------------------------
 vtkFITSReader::vtkFITSReader()
 {
@@ -78,7 +366,6 @@ vtkFITSReader::vtkFITSReader()
   this->HeaderKeys = nullptr;
   this->CurrentFileName = nullptr;
   this->UseNativeOrigin = true;
-  this->Compression = false;
   this->fptr = nullptr;
   this->ReadStatus = 0;
   // wcslib releases wcsprm structs with free(): allocate them with calloc.
@@ -292,31 +579,6 @@ struct wcsprm* vtkFITSReader::GetWCSStruct()
   return this->WCS;
 }
 
-// Utility function to decompress files with zlib
-//----------------------------------------------------------------------------
-bool vtkFITSReader::decompress_one_file(const char *infilename, const char *outfilename)
-{
-  gzFile infile = gzopen(infilename, "rb");
-  FILE *outfile = fopen(outfilename, "wb");
-
-  if (!infile || !outfile)
-    {
-    return false;
-    }
-
-  char buffer[128];
-  int num_read = 0;
-  while ((num_read = gzread(infile, buffer, sizeof(buffer))) > 0)
-    {
-    fwrite(buffer, 1, num_read, outfile);
-    }
-
-  gzclose(infile);
-  fclose(outfile);
-
-  return true;
-}
-
 //----------------------------------------------------------------------------
 int vtkFITSReader::CanReadFile(const char* filename)
 {
@@ -331,26 +593,18 @@ int vtkFITSReader::CanReadFile(const char* filename)
     return false;
     }
 
-  std::string extension = vtksys::SystemTools::LowerCase( vtksys::SystemTools::GetFilenameLastExtension(fname) );
-  if (extension != ".fits" && extension != ".gz")
+  // .fits, .fit, .fts, tile-compressed .fz, gzip-compressed .gz (read
+  // without decompressing the file next to it)
+  std::string name = LowerCaseFileName(filename);
+  if (EndsWith(name, ".gz"))
+    {
+    name = name.substr(0, name.size() - 3);
+    }
+  if (!EndsWith(name, ".fits") && !EndsWith(name, ".fit") &&
+      !EndsWith(name, ".fts") && !EndsWith(name, ".fz"))
     {
     vtkDebugMacro(<<"vtkFITSReader::CanReadFile: The filename extension is not recognized.");
     return false;
-    }
-
-  std::string FileName = filename;
-  std::string gz = ".gz";
-  std::size_t found =  FileName.find(gz);
-  if (found != std::string::npos)
-    {
-    FileName.replace(FileName.find(gz),gz.length(),"");
-    if (!vtkFITSReader::decompress_one_file(filename, FileName.c_str()))
-      {
-      vtkErrorMacro(<<"vtkFITSReader::CanReadFile: Decompression failed.");
-      return false;
-      }
-    this->SetFileName(FileName.c_str());
-    this->SetCompression(true);
     }
 
   if (this->AstroExecuteInformation())
@@ -364,7 +618,8 @@ int vtkFITSReader::CanReadFile(const char* filename)
 //----------------------------------------------------------------------------
 bool vtkFITSReader::AstroExecuteInformation()
 {
-  if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &ReadStatus))
+  FITSFileOpener opener(&this->fptr);
+  if(opener.Open(this->GetFileName(), true, &this->ReadStatus))
     {
     vtkErrorMacro("vtkFITSReader::AstroExecuteInformation: could not open "
                   << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -433,7 +688,7 @@ bool vtkFITSReader::AstroExecuteInformation()
     return false;
     }
 
-  if (fits_close_file(this->fptr, &this->ReadStatus))
+  if (opener.Close(&this->ReadStatus))
     {
     vtkErrorMacro("could not close " << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     }
@@ -463,7 +718,8 @@ void vtkFITSReader::ExecuteInformation()
   this->CurrentFileName = new char[1 + strlen(this->GetFileName())];
   strcpy (this->CurrentFileName, this->GetFileName());
 
-  if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &ReadStatus))
+  FITSFileOpener opener(&this->fptr);
+  if(opener.Open(this->GetFileName(), true, &this->ReadStatus))
     {
     vtkErrorMacro("vtkFITSReader::ExecuteInformation: could not open "
                   << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -639,7 +895,7 @@ void vtkFITSReader::ExecuteInformation()
 
   this->vtkImageReader2::ExecuteInformation();
 
-  if (fits_close_file(this->fptr, &this->ReadStatus))
+  if (opener.Close(&this->ReadStatus))
     {
     vtkErrorMacro("could not close " << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
     }
@@ -663,14 +919,16 @@ bool vtkFITSReader::AllocateHeader()
      return false;
      }
 
-   fits_get_hdrspace(this->fptr, &nkeys, nullptr, &this->ReadStatus); /* get # of keywords */
+   // cards of the uncompressed image for tile-compressed images (.fz)
+   UncompressedHeader headerFile(this->fptr);
+   fits_get_hdrspace(headerFile.Get(), &nkeys, nullptr, &this->ReadStatus); /* get # of keywords */
 
    /* Read and print each keywords */
    int histCont = 0, commCont = 0;
    this->HeaderKeyValue["SlicerAstro.DSS"] = "0";
    for (ii = 1; ii <= nkeys; ii++)
      {
-     if (fits_read_record(this->fptr, ii, card, &this->ReadStatus))
+     if (fits_read_record(headerFile.Get(), ii, card, &this->ReadStatus))
        {
        continue;
        }
@@ -2085,7 +2343,8 @@ bool vtkFITSReader::AllocateWCS()
 
   // read header from fits file
   int hdrStatus = 0;
-  if (fits_hdr2str(this->fptr, 1, nullptr, 0, &header, &nkeyrec, &hdrStatus) || !header)
+  // header of the uncompressed image for tile-compressed images (.fz)
+  if (fits_convert_hdr2str(this->fptr, 1, nullptr, 0, &header, &nkeyrec, &hdrStatus) || !header)
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: could not read the header of " << this->GetFileName()
                   << ": " << vtkAstroFITSErrorMessage(hdrStatus));
@@ -2997,8 +3256,11 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
     }
 
   // Open the fits.  Yes, this means that the file is being opened
-  // twice: once by ExecuteInformation, and once here
-  if(fits_open_data(&this->fptr, this->GetFileName(), READONLY, &this->ReadStatus))
+  // twice: once by ExecuteInformation, and once here. A gzip-compressed file
+  // is decompressed to a temporary file (removed when the data are read):
+  // cfitsio would decompress it in memory, doubling the memory used.
+  FITSFileOpener opener(&this->fptr);
+  if(opener.Open(this->GetFileName(), false, &this->ReadStatus))
     {
     vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
                   "could not open "<< this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
@@ -3067,19 +3329,10 @@ void vtkFITSReader::ExecuteDataWithInformation(vtkDataObject *output, vtkInforma
   // The data has been read: report what was found in the header
   this->ReportHeaderMessages();
 
-  if (fits_close_file(this->fptr, &this->ReadStatus))
+  if (opener.Close(&this->ReadStatus))
     {
     vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: could not close "
                   << this->GetFileName() << ": " << vtkAstroFITSErrorMessage(this->ReadStatus));
-    }
-
-  if (this->GetCompression())
-    {
-    if (remove(this->GetFileName()) != 0)
-      {
-      vtkErrorMacro("vtkFITSReader::ExecuteDataWithInformation: "
-                    "Error deleting the decompressed file: "<< this->GetFileName());
-      }
     }
 }
 
@@ -3154,18 +3407,20 @@ bool vtkFITSReader::IsMaskFile(const char* fileName)
     return false;
     }
   fitsfile* file = nullptr;
+  FITSFileOpener opener(&file);
   int status = 0;
-  if (fits_open_data(&file, fileName, READONLY, &status))
+  if (opener.Open(fileName, true, &status))
     {
     fits_clear_errmsg();
     return false;
     }
+  UncompressedHeader headerFile(file);
 
   bool isMask = false;
   bool decided = false;
   char value[FLEN_VALUE] = {0};
   int keyStatus = 0;
-  if (!fits_read_keyword(file, "DATAMODEL", value, nullptr, &keyStatus))
+  if (!fits_read_keyword(headerFile.Get(), "DATAMODEL", value, nullptr, &keyStatus))
     {
     std::string dataModel(value);
     dataModel.erase(std::remove_if(dataModel.begin(), dataModel.end(),
@@ -3182,12 +3437,12 @@ bool vtkFITSReader::IsMaskFile(const char* fileName)
     // SoFiA masks: integer data with the SoFiA control parameters in the history
     int numberOfKeys = 0;
     keyStatus = 0;
-    fits_get_hdrspace(file, &numberOfKeys, nullptr, &keyStatus);
+    fits_get_hdrspace(headerFile.Get(), &numberOfKeys, nullptr, &keyStatus);
     char card[FLEN_CARD] = {0};
     for (int key = 1; key <= numberOfKeys && !isMask; ++key)
       {
       keyStatus = 0;
-      if (fits_read_record(file, key, card, &keyStatus))
+      if (fits_read_record(headerFile.Get(), key, card, &keyStatus))
         {
         break;
         }
@@ -3197,8 +3452,6 @@ bool vtkFITSReader::IsMaskFile(const char* fileName)
         }
       }
     }
-  status = 0;
-  fits_close_file(file, &status);
   fits_clear_errmsg();
   if (decided || isMask)
     {
@@ -3225,17 +3478,19 @@ std::map<std::string, std::string> vtkFITSReader::ReadHeaderKeywords(const char*
 {
   std::map<std::string, std::string> keywords;
   fitsfile* file = nullptr;
+  FITSFileOpener opener(&file);
   int status = 0;
-  if (!fileName || fits_open_data(&file, fileName, READONLY, &status))
+  if (!fileName || opener.Open(fileName, true, &status))
     {
     fits_clear_errmsg();
     return keywords;
     }
+  UncompressedHeader headerFile(file);
   for (const std::string& key : keys)
     {
     char value[FLEN_VALUE] = { 0 };
     int keyStatus = 0;
-    if (fits_read_keyword(file, key.c_str(), value, nullptr, &keyStatus))
+    if (fits_read_keyword(headerFile.Get(), key.c_str(), value, nullptr, &keyStatus))
       {
       continue;
       }
@@ -3247,8 +3502,7 @@ std::map<std::string, std::string> vtkFITSReader::ReadHeaderKeywords(const char*
       }
     keywords[key] = text;
     }
-  status = 0;
-  fits_close_file(file, &status);
+  opener.Close(&status);
   fits_clear_errmsg();
   return keywords;
 }

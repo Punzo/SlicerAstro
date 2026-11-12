@@ -101,10 +101,10 @@ qSlicerIO::IOFileType qSlicerAstroVolumeReader::fileType()const
 QStringList qSlicerAstroVolumeReader::extensions()const
 {
   return QStringList()
-    << "Volume (*.fits)"
-    << "Volume (*.fits.gz)"
-    << "Image (*.fits)"
-    << "Image (*.fits.gz)"
+    << "Volume (*.fits *.fit *.fts *.fz)"
+    << "Volume (*.fits.gz *.fit.gz *.fts.gz)"
+    << "Image (*.fits *.fit *.fts *.fz)"
+    << "Image (*.fits.gz *.fit.gz *.fts.gz)"
     << "All Files (*)";
 }
 

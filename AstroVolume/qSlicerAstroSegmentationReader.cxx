@@ -62,8 +62,8 @@ qSlicerIO::IOFileType qSlicerAstroSegmentationReader::fileType() const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroSegmentationReader::extensions() const
 {
-  return QStringList() << "FITS mask (*.fits)"
-                       << "FITS mask (*.fits.gz)";
+  return QStringList() << "FITS mask (*.fits *.fit *.fts *.fz)"
+                       << "FITS mask (*.fits.gz *.fit.gz *.fts.gz)";
 }
 
 //-----------------------------------------------------------------------------

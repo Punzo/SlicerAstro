@@ -590,6 +590,12 @@ void vtkMRMLAstroVolumeStorageNode::InitializeSupportedReadFileTypes()
 {
   this->SupportedReadFileTypes->InsertNextValue("FITS (.fits)");
   this->SupportedReadFileTypes->InsertNextValue("FITS (.fits.gz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fit)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fit.gz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fts)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fts.gz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fits.fz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS (.fz)");
 }
 
 //----------------------------------------------------------------------------

@@ -202,6 +202,12 @@ void vtkMRMLAstroSegmentationStorageNode::InitializeSupportedReadFileTypes()
 {
   this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fits)");
   this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fits.gz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fit)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fit.gz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fts)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fts.gz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fits.fz)");
+  this->SupportedReadFileTypes->InsertNextValue("FITS mask (.fz)");
 }
 
 //----------------------------------------------------------------------------

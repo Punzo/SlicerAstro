@@ -84,7 +84,7 @@ public:
   /// Valid extentsions
   virtual const char* GetFileExtensions() override
     {
-    return ".fits .fits.gz";
+    return ".fits .fit .fts .fz .fits.fz .fits.gz .fit.gz .fts.gz";
     }
 
   ///
@@ -120,10 +120,6 @@ public:
   vtkSetMacro(WCSStatus,int);
   vtkGetMacro(WCSStatus,int);
 
-  ///
-  /// Compression
-  vtkSetMacro(Compression,bool);
-  vtkGetMacro(Compression,bool);
 
   ///
   /// Use image origin from the file
@@ -198,7 +194,6 @@ protected:
   int PointDataType;
   int DataType;
   int NumberOfComponents;
-  bool Compression;
   bool UseNativeOrigin;
 
   fitsfile *fptr;
@@ -232,8 +227,6 @@ protected:
   // wavelength axes (optical data) as optical velocity; velocity axes keep
   // their definition.
   std::string GetVelocityTypeForSpectralAxis(const std::string& ctype) const;
-
-  static bool decompress_one_file(const char *infilename, const char *outfilename);
 
   /// Add a header message (duplicates are ignored: the header can be parsed
   /// more than once).
