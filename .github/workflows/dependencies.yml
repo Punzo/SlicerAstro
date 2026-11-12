@@ -1,0 +1,61 @@
+# Third-party libraries of SlicerAstro (CFITSIO, WCSLIB, FFTW, BBarolo) built on
+# Linux, Windows and macOS with the versions pinned in SuperBuild/External_*.cmake,
+# and a smoke test using them (no Slicer needed). The full extension is built
+# against a Slicer build tree.
+name: Dependencies
+
+on:
+  push:
+    paths:
+      - "SuperBuild/**"
+      - ".github/ci/dependencies/**"
+      - ".github/workflows/dependencies.yml"
+  pull_request:
+    paths:
+      - "SuperBuild/**"
+      - ".github/ci/dependencies/**"
+      - ".github/workflows/dependencies.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dependencies:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build zlib1g-dev
+
+      - name: Install build tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Configure
+        run: cmake -S .github/ci/dependencies -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Smoke test (Linux, macOS)
+        if: runner.os != 'Windows'
+        run: build/smoke-prefix/src/smoke-build/smoke smoke.fits
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $env:PATH = "$PWD\build\install\bin;$env:PATH"
+          build\smoke-prefix\src\smoke-build\smoke.exe smoke.fits
