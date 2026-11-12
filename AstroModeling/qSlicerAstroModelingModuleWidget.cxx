@@ -1139,50 +1139,6 @@ std::string IntToString(int Value)
   return NumberToString<int>(Value);
 }
 
-//-----------------------------------------------------------------------------
-double sign(double x)
-{
-  if (x < 0.)
-    {
-    return -1.;
-    }
-
- return 1.;
-}
-
-//-----------------------------------------------------------------------------
-double arctan(double y, double x)
-{
-  double r;
-
-  r = atan2(y, x);
-
-  if (r < 0.)
-    {
-    r += 2. * PI;
-    }
-
-  return r;
-}
-
-//-----------------------------------------------------------------------------
-double putinrangerad(double angle)
-{
-  double twopi = 2. * PI;
-
-  while (angle < 0.)
-    {
-    angle += twopi;
-    }
-
-  while (angle > twopi)
-    {
-    angle -= twopi;
-    }
-
-  return angle;
-}
-
 } // end namespace
 
 //-----------------------------------------------------------------------------

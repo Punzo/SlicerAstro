@@ -1836,7 +1836,6 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     }
 
   bool cancel = false;
-  int status = 0;
   const double NaN = sqrt(-1);
 
 

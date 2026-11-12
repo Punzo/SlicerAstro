@@ -276,7 +276,6 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     }
 
   bool cancel = false;
-  int status = 0;
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -370,7 +369,6 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     compute();
     }
   cancel = cancel || progressNode->GetStatus() == -1;
-  status = 100;
 
   end = std::chrono::steady_clock::now();
 

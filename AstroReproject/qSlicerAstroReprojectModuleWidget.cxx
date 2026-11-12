@@ -268,12 +268,6 @@ template <typename T> T StringToNumber(const char* num)
 }
 
 //----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-//----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
