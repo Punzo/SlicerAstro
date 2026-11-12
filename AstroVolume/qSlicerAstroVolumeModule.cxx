@@ -361,16 +361,16 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
-  // Reprojections: interpolation in a worker thread, the GUI responsive with
-  // a progress dialog (Reproject module, contours, alignment to the north)
-  logic->SetBackgroundRunner([logic](const std::function<void()>& work)
+  // Long computations of the SlicerAstro modules (reprojection, smoothing,
+  // moment maps, ...): in a worker thread, the GUI responsive with a
+  // progress dialog
+  logic->SetBackgroundRunner([](const std::string& label, const std::function<void()>& work,
+                                 const std::function<int()>& progress, const std::function<void()>& cancel)
     {
     qSlicerApplication* application = qSlicerApplication::application();
     qSlicerAstroVolumeModuleWidget::runInBackground(
       application ? application->mainWindow() : nullptr,
-      qSlicerAstroVolumeModuleWidget::tr("Reprojecting the data..."), work,
-      [logic]() { return logic->GetReprojectionProgress(); },
-      [logic]() { logic->CancelReprojection(); });
+      qSlicerAstroVolumeModuleWidget::tr(label.c_str()), work, progress, cancel);
     });
 
   // Register I/O manager

@@ -21,6 +21,7 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroMomentMapsLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <functional>
 #include <vtkSlicerAstroSMPTools.h>
 #include <type_traits>
 #include <vector>
@@ -306,7 +307,15 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   start = std::chrono::steady_clock::now();
 
-  pnode->SetStatus(1);
+  // The loops run in the background runner of the AstroVolume logic (e.g. a
+  // worker thread, the GUI responsive with a progress dialog): the progress
+  // and the cancel request go to a node without observers (no MRML events
+  // from a worker thread); the scene is modified before and after them only.
+  vtkNew<vtkMRMLAstroMomentMapsParametersNode> progressNode;
+  bool computeResult = true;
+  std::function<void()> compute = [&]()
+  {
+  progressNode->SetStatus(1);
 
   const double NaN = sqrt(-1);
 
@@ -315,7 +324,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " astroDisplay not found!");
-    return false;
+    computeResult = false;
+    return;
     }
   double ijk[3], world[3];
   ijk[0] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
@@ -327,7 +337,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " WCS not found!");
-    return false;
+    computeResult = false;
+    return;
     }
   if (!strcmp(WCS->cunit[2], "m/s"))
     {
@@ -353,7 +364,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     }
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(pnode, (numSlice) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(progressNode.GetPointer(), (numSlice) - (0), 10, 100);
     vtkSMPTools::For(0, numSlice, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -611,7 +622,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     }
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(pnode, (numSlice) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(progressNode.GetPointer(), (numSlice) - (0), 10, 100);
     vtkSMPTools::For(0, numSlice, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -844,6 +855,27 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     maskPixel = nullptr;
     delete maskPixel;
     }
+
+  };
+  progressNode->SetStatus(1);
+  if (this->Internal->AstroVolumeLogic)
+    {
+    this->Internal->AstroVolumeLogic->RunInBackground("Calculating the moment maps...", compute, progressNode.GetPointer());
+    }
+  else
+    {
+    compute();
+    }
+  if (!computeResult)
+    {
+    pnode->SetStatus(100);
+    return false;
+    }
+  if (progressNode->GetStatus() == -1)
+    {
+    pnode->SetStatus(-1);
+    }
+  cancel = cancel || progressNode->GetStatus() == -1;
 
   if (cancel)
     {

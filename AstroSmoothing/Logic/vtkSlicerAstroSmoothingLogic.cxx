@@ -309,7 +309,7 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
     return 0;
     }
 
-  // The filter runs in the background runner if set (e.g. a worker thread,
+  // The filter runs in the background runner of the AstroVolume logic (e.g. a worker thread,
   // the GUI responsive with a progress dialog). Its progress goes to an atomic
   // counter (no MRML events from a worker thread) and the cancel request
   // (CancelSmoothing, or the status -1 of the parameters node) aborts it.
@@ -339,9 +339,11 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
   const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   filter->SetInputData(inputVolume->GetImageData());
   std::function<void()> update = [filter]() { filter->Update(); };
-  if (this->BackgroundRunner)
+  if (this->Internal->AstroVolumeLogic)
     {
-    this->BackgroundRunner(update);
+    this->Internal->AstroVolumeLogic->RunInBackground("Smoothing the data...", update,
+      [this]() { return this->GetSmoothingProgress(); },
+      [this]() { this->CancelSmoothing(); });
     }
   else
     {

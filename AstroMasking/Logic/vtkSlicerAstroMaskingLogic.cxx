@@ -22,6 +22,9 @@
 #include <vtkAstroWCSErrors.h>
 #include "vtkSlicerAstroMaskingLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <vtkSlicerAstroSMPTools.h>
+#include <vtkSMPTools.h>
+#include <functional>
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
@@ -281,51 +284,12 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   start = std::chrono::steady_clock::now();
 
-  pnode->SetStatus(1);
-
-  if(segmentationActive)
+  // Region to blank (ROI bounds: from the scene, before the loop)
+  double roiBounds[6] = {0., -1., 0., -1., 0., -1.};
+  vtkIdType firstElement = 0, lastElement = numElements;
+  if (segmentationActive)
     {
     maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
-    for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
-      {
-      if (pnode->GetStatus() == -1)
-        {
-        cancel = true;
-        break;
-        }
-
-      if ((regionInside && *(maskPixel + elementCnt) < 1) ||
-          (!regionInside && *(maskPixel + elementCnt) > 0))
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elementCnt) = *(inFPixel + elementCnt);
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elementCnt) = *(inDPixel + elementCnt);
-            break;
-          }
-        }
-      else
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elementCnt) = BlankValue;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elementCnt) = BlankValue;
-            break;
-          }
-        }
-
-      if(elementCnt / numElements > status)
-        {
-        status += 10;
-        pnode->SetStatus(status);
-        }
-      }
     }
   else
     {
@@ -334,30 +298,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
                     " roiNode not found!");
-      inFPixel = nullptr;
-      outFPixel = nullptr;
-      inDPixel = nullptr;
-      outFPixel = nullptr;
-      maskPixel = nullptr;
-
-      delete inFPixel;
-      delete outFPixel;
-      delete inDPixel;
-      delete outDPixel;
-      delete maskPixel;
-
       return false;
       }
-
-    double roiBounds[6];
     this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
-
-    int firstElement = (roiBounds[0] + roiBounds[2] * dims[0] +
-                       roiBounds[4] * numSlice);
-
-    int lastElement = (roiBounds[1] + roiBounds[3] * dims[0] +
-                      roiBounds[5] * numSlice) + 1;
-
+    firstElement = static_cast<vtkIdType>(roiBounds[0] + roiBounds[2] * dims[0] + roiBounds[4] * numSlice);
+    lastElement = static_cast<vtkIdType>(roiBounds[1] + roiBounds[3] * dims[0] + roiBounds[5] * numSlice) + 1;
     if (firstElement == 0 && lastElement == numElements &&
         (BlankString.find("NaN") != std::string::npos ||
          !strcmp(BlankString.c_str(), "0") ||
@@ -366,72 +311,66 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       {
       vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
                     " can not fill the entire datacube with NaN!");
-      inFPixel = nullptr;
-      outFPixel = nullptr;
-      inDPixel = nullptr;
-      outFPixel = nullptr;
-      maskPixel = nullptr;
-
-      delete inFPixel;
-      delete outFPixel;
-      delete inDPixel;
-      delete outDPixel;
-      delete maskPixel;
-
       return false;
       }
+    }
 
-    for (int elementCnt = 0; elementCnt < numElements; elementCnt++)
+  // Blanking: parallel loop (vtkSMPTools) in the background runner of the
+  // AstroVolume logic (e.g. a worker thread, the GUI responsive with a
+  // progress dialog); progress and cancel through a node without observers
+  vtkNew<vtkMRMLAstroMaskingParametersNode> progressNode;
+  progressNode->SetStatus(1);
+  pnode->SetStatus(1);
+  std::function<void()> compute = [&]()
+  {
+  vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMaskingParametersNode> progress(
+    progressNode.GetPointer(), numElements, 1, 99);
+  vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
+    {
+    if (progress.IsCancelled())
       {
-      if (pnode->GetStatus() == -1)
+      return;
+      }
+    for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
+      {
+      bool blank = false;
+      if (segmentationActive)
         {
-        cancel = true;
-        break;
-        }
-
-      int ref  = (int) floor(elementCnt / dims[0]);
-      ref *= dims[0];
-      int x = elementCnt - ref;
-      ref = (int) floor(elementCnt / numSlice);
-      ref *= numSlice;
-      ref = elementCnt - ref;
-      int y = (int) floor(ref / dims[0]);
-      bool eleOutside = (elementCnt < firstElement || elementCnt >= lastElement ||
-                        x < roiBounds[0] ||  x > roiBounds[1] ||
-                        y < roiBounds[2] ||  y > roiBounds[3]);
-      if ((regionInside && !eleOutside) ||
-          (!regionInside && eleOutside))
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elementCnt) = BlankValue;
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elementCnt) = BlankValue;
-            break;
-          }
+        const bool inMask = maskPixel[elementCnt] > 0;
+        blank = regionInside ? inMask : !inMask;
         }
       else
         {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outFPixel + elementCnt) = *(inFPixel + elementCnt);
-            break;
-          case VTK_DOUBLE:
-            *(outDPixel + elementCnt) = *(inDPixel + elementCnt);
-            break;
-          }
+        const vtkIdType x = elementCnt % dims[0];
+        const vtkIdType y = (elementCnt % numSlice) / dims[0];
+        const bool eleOutside = (elementCnt < firstElement || elementCnt >= lastElement ||
+                                 x < roiBounds[0] || x > roiBounds[1] ||
+                                 y < roiBounds[2] || y > roiBounds[3]);
+        blank = regionInside ? !eleOutside : eleOutside;
         }
-
-      if(elementCnt / numElements > status)
+      if (DataType == VTK_FLOAT)
         {
-        status += 10;
-        pnode->SetStatus(status);
+        outFPixel[elementCnt] = blank ? static_cast<float>(BlankValue) : inFPixel[elementCnt];
+        }
+      else
+        {
+        outDPixel[elementCnt] = blank ? BlankValue : inDPixel[elementCnt];
         }
       }
+    progress.Done(lastIndex - firstIndex);
+    });
+  cancel = progress.IsCancelled();
+  };
+  if (this->GetAstroVolumeLogic())
+    {
+    this->GetAstroVolumeLogic()->RunInBackground("Blanking the data...", compute, progressNode.GetPointer());
     }
+  else
+    {
+    compute();
+    }
+  cancel = cancel || progressNode->GetStatus() == -1;
+  status = 100;
 
   end = std::chrono::steady_clock::now();
 
@@ -606,22 +545,45 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   const size_t elementSize = (DataType == VTK_FLOAT) ? sizeof(float) : sizeof(double);
   const char* inPixel = static_cast<const char*>(sourceImageData->GetScalarPointer());
   char* outPixel = static_cast<char*>(imageDataTemp->GetScalarPointer());
-  vtkIdType outIndex = 0;
-  for (int k = bounds[4]; k <= bounds[5] && !cancel; k++)
+  // parallel over the channels (vtkSMPTools), in the background runner of
+  // the AstroVolume logic (progress and cancel through a node without
+  // observers); the output volume is set afterwards, in this thread
+  vtkNew<vtkMRMLAstroMaskingParametersNode> progressNode;
+  progressNode->SetStatus(1);
+  std::function<void()> compute = [&]()
+  {
+  vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMaskingParametersNode> progress(
+    progressNode.GetPointer(), N3, 1, 99);
+  vtkSMPTools::For(0, N3, [&](vtkIdType firstChannel, vtkIdType lastChannel)
     {
-    if (pnode->GetStatus() == -1)
+    for (vtkIdType channel = firstChannel; channel < lastChannel; channel++)
       {
-      cancel = true;
-      break;
+      if (progress.IsCancelled())
+        {
+        return;
+        }
+      const vtkIdType k = bounds[4] + channel;
+      vtkIdType outIndex = channel * static_cast<vtkIdType>(N1) * N2;
+      for (int jj = bounds[2]; jj <= bounds[3]; jj++)
+        {
+        const vtkIdType inIndex = k * inSlice + jj * inRow + bounds[0];
+        std::memcpy(outPixel + outIndex * elementSize, inPixel + inIndex * elementSize, N1 * elementSize);
+        outIndex += N1;
+        }
       }
-    for (int jj = bounds[2]; jj <= bounds[3]; jj++)
-      {
-      const vtkIdType inIndex = k * inSlice + jj * inRow + bounds[0];
-      std::memcpy(outPixel + outIndex * elementSize, inPixel + inIndex * elementSize, N1 * elementSize);
-      outIndex += N1;
-      }
-    pnode->SetStatus(std::max(1, static_cast<int>(100. * (k - bounds[4] + 1) / N3) - 1));
+    progress.Done(lastChannel - firstChannel);
+    });
+  cancel = progress.IsCancelled();
+  };
+  if (this->GetAstroVolumeLogic())
+    {
+    this->GetAstroVolumeLogic()->RunInBackground("Cropping the data...", compute, progressNode.GetPointer());
     }
+  else
+    {
+    compute();
+    }
+  cancel = cancel || progressNode->GetStatus() == -1;
   sourceImageData = nullptr;
 
   if (!cancel)

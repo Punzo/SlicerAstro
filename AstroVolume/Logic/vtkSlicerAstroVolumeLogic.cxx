@@ -92,6 +92,8 @@
 #include "wcslib.h"
 #include <vtkAstroWCSErrors.h>
 #include <sstream>
+#include <vtkSMPThreadLocal.h>
+#include <memory>
 
 // OpenMP includes
 
@@ -1441,6 +1443,33 @@ void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *input
 namespace
 {
 //---------------------------------------------------------------------------
+// Copies of the WCS of the reference and input data of a reprojection, for
+// one thread (WCSLIB structures must not be shared between threads)
+class ThreadWCSCopies
+{
+public:
+  ThreadWCSCopies(const wcsprm* reference, const wcsprm* input)
+    {
+    this->Reference.flag = -1;
+    this->Input.flag = -1;
+    this->Valid = reference && input &&
+      !wcssub(1, reference, nullptr, nullptr, &this->Reference) && !wcsset(&this->Reference) &&
+      !wcssub(1, input, nullptr, nullptr, &this->Input) && !wcsset(&this->Input);
+    }
+  ~ThreadWCSCopies()
+    {
+    wcsfree(&this->Reference);
+    wcsfree(&this->Input);
+    }
+  ThreadWCSCopies(const ThreadWCSCopies&) = delete;
+  ThreadWCSCopies& operator=(const ThreadWCSCopies&) = delete;
+
+  wcsprm Reference;
+  wcsprm Input;
+  bool Valid = false;
+};
+
+//---------------------------------------------------------------------------
 // WCS of a volume usable for a reprojection: empty string, or why not
 std::string ReprojectionWCSIssue(vtkMRMLAstroVolumeNode* volume)
 {
@@ -1566,23 +1595,6 @@ int vtkSlicerAstroVolumeLogic::CheckReprojection(vtkMRMLAstroReprojectParameters
     return ReprojectionReferenceRotated;
     }
   return ReprojectionOK;
-}
-
-//---------------------------------------------------------------------------
-int vtkSlicerAstroVolumeLogic::GetReprojectionProgress()
-{
-  vtkMRMLAstroReprojectParametersNode* progressNode = this->ReprojectionProgressNode;
-  return progressNode ? progressNode->GetStatus() : 0;
-}
-
-//---------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::CancelReprojection()
-{
-  vtkMRMLAstroReprojectParametersNode* progressNode = this->ReprojectionProgressNode;
-  if (progressNode)
-    {
-    progressNode->SetStatus(-1);
-    }
 }
 
 //---------------------------------------------------------------------------
@@ -1803,7 +1815,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   // goes to a node without observers (no MRML events from a worker thread)
   vtkNew<vtkMRMLAstroReprojectParametersNode> progressNode;
   progressNode->SetInterpolationOrder(pnode->GetInterpolationOrder());
-  this->ReprojectionProgressNode = progressNode.GetPointer();
+  progressNode->SetStatus(1);
   bool computeResult = true;
   std::function<void()> compute = [&]()
   {
@@ -1826,38 +1838,68 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     {
     shift = 0.;
     }
-  // WCS are not thread safe, no OpenMP
-
-  bool overlay = false;
-  for (int ii = 0; ii < referenceLengthX; ii++)
-    {  
-    for (int jj = 0; jj < referenceLengthY; jj++)
+  // The WCS structures are not shared between threads: each thread converts
+  // the pixels with its own copies of the WCS of the reference and input data
+  const wcsprm* referenceWCS = referenceVolumeDisplay->GetWCSStruct();
+  const wcsprm* inputWCS = inputVolumeDisplay->GetWCSStruct();
+  vtkSMPThreadLocal<std::shared_ptr<ThreadWCSCopies> > threadWCS;
+  std::atomic<bool> overlay{false};
+  {
+  vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(
+    progressNode.GetPointer(), referenceLengthX, 1, 10);
+  vtkSMPTools::For(0, referenceLengthX, [&](vtkIdType firstRow, vtkIdType lastRow)
+    {
+    std::shared_ptr<ThreadWCSCopies>& wcsCopies = threadWCS.Local();
+    if (!wcsCopies)
       {
-      double ijk[3] = {0.}, world[3] = {0.};
-      ijk[0] = ii + shift;
-      ijk[1] = jj + shift;
-
-      referenceVolumeDisplay->GetReferenceSpace(ijk, world);
-      inputVolumeDisplay->GetIJKSpace(world, ijk);
-
-      referenceGrid[ii][jj][0] = ijk[0];
-      referenceGrid[ii][jj][1] = ijk[1];
-
-      if (!overlay)
+      wcsCopies = std::make_shared<ThreadWCSCopies>(referenceWCS, inputWCS);
+      }
+    for (vtkIdType ii = firstRow; ii < lastRow; ii++)
+      {
+      if (progress.IsCancelled())
         {
-        if (ijk[0] > 0 && ijk[0] < inputDims[0] &&
-            ijk[1] > 0 && ijk[1] < inputDims[1])
+        return;
+        }
+      for (int jj = 0; jj < referenceLengthY; jj++)
+        {
+        // as vtkMRMLAstroVolumeDisplayNode::GetReferenceSpace and GetIJKSpace
+        // (FITS pixel coordinates from 1)
+        double ijk[3] = {ii + shift, jj + shift, 0.};
+        double pixel[4] = {ijk[0] + 1., ijk[1] + 1., ijk[2] + 1., 0.};
+        double world[4] = {0., 0., 0., 0.}, imgcrd[4] = {0., 0., 0., 0.}, phi[1] = {0.}, theta[1] = {0.};
+        int stat[1] = {0};
+        if (wcsCopies->Valid &&
+            wcsp2s(&wcsCopies->Reference, 1, 4, pixel, imgcrd, phi, theta, world, stat) != 0)
+          {
+          std::fill(world, world + 4, 0.);
+          }
+        world[3] = 0.;
+        double inputPixel[4] = {0., 0., 0., 0.};
+        if (wcsCopies->Valid &&
+            wcss2p(&wcsCopies->Input, 1, 4, world, phi, theta, imgcrd, inputPixel, stat) == 0)
+          {
+          ijk[0] = inputPixel[0] - 1.;
+          ijk[1] = inputPixel[1] - 1.;
+          }
+        referenceGrid[ii][jj][0] = ijk[0];
+        referenceGrid[ii][jj][1] = ijk[1];
+        if (ijk[0] > 0 && ijk[0] < inputDims[0] && ijk[1] > 0 && ijk[1] < inputDims[1])
           {
           overlay = true;
           }
         }
       }
-
-    if(ii / (referenceLengthX / 10.) > status)
-      {
-      status += 1.;
-      progressNode->SetStatus(status);
-      }
+    progress.Done(lastRow - firstRow);
+    });
+  if (progress.IsCancelled())
+    {
+    progressNode->SetStatus(-1);
+    }
+  }
+  if (progressNode->GetStatus() == -1)
+    {
+    // cancelled: the status must stay -1 (see the end of Reproject)
+    return;
     }
 
   progressNode->SetStatus(10);
@@ -2449,15 +2491,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
   referenceGrid.shrink_to_fit();
 
   };
-  if (this->BackgroundRunner)
-    {
-    this->BackgroundRunner(compute);
-    }
-  else
-    {
-    compute();
-    }
-  this->ReprojectionProgressNode = nullptr;
+  this->RunInBackground("Reprojecting the data...", compute, progressNode.GetPointer());
   if (!computeResult)
     {
     pnode->SetStatus(100);

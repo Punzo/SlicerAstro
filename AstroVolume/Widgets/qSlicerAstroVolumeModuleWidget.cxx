@@ -18,6 +18,8 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QApplication>
+#include <QEvent>
 #include <QThread>
 #include <QProgressDialog>
 #include <QEventLoop>
@@ -2724,7 +2726,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     // shown with the input data (first 3D view, semi-transparent) and in the
     // slice views; not with the smoothed data (second 3D view)
-    maskDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.5);
+    maskDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.3);
     maskDisplayNode->RemoveAllViewNodeIDs();
     vtkMRMLViewNode* inputDataView = col->GetNumberOfItems() > 0 ?
       vtkMRMLViewNode::SafeDownCast(col->GetItemAsObject(0)) : nullptr;
@@ -3029,6 +3031,48 @@ void qSlicerAstroVolumeModuleWidget::informUser(QWidget* parent, QMessageBox::Ic
 }
 
 //---------------------------------------------------------------------------
+namespace
+{
+// While a background computation runs: user input (mouse, keyboard) goes only
+// to the progress dialog (no other operation can start, e.g. before the
+// dialog is shown)
+class BackgroundInputBlocker : public QObject
+{
+public:
+  explicit BackgroundInputBlocker(QWidget* allowed)
+    : Allowed(allowed)
+    {
+    }
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override
+    {
+    switch (event->type())
+      {
+      case QEvent::MouseButtonPress:
+      case QEvent::MouseButtonRelease:
+      case QEvent::MouseButtonDblClick:
+      case QEvent::KeyPress:
+      case QEvent::KeyRelease:
+      case QEvent::Wheel:
+      case QEvent::Shortcut:
+      case QEvent::ShortcutOverride:
+      case QEvent::ContextMenu:
+        {
+        QWidget* widget = qobject_cast<QWidget*>(watched);
+        return !(widget && this->Allowed && (widget == this->Allowed || this->Allowed->isAncestorOf(widget)));
+        }
+      default:
+        return false;
+      }
+    }
+
+private:
+  QWidget* Allowed;
+};
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::runInBackground(QWidget* parent, const QString& label,
                                                      const std::function<void()>& work,
                                                      const std::function<int()>& progress,
@@ -3063,9 +3107,12 @@ void qSlicerAstroVolumeModuleWidget::runInBackground(QWidget* parent, const QStr
       loop.quit();
       }
     });
+  BackgroundInputBlocker inputBlocker(&dialog);
+  qApp->installEventFilter(&inputBlocker);
   thread->start();
   timer.start();
   loop.exec();
+  qApp->removeEventFilter(&inputBlocker);
   timer.stop();
   thread->wait();
   delete thread;

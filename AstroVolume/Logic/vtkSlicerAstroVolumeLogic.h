@@ -29,6 +29,7 @@
 // Slicer includes
 #include <atomic>
 #include <functional>
+#include <string>
 #include <vtkSlicerVolumesLogic.h>
 
 // STD includes
@@ -281,20 +282,45 @@ public:
                                                    int interpolationOrder,
                                                    const char* name = nullptr);
 
-  /// Progress (0-100) of the interpolation of the reprojection in progress
-  /// (thread safe), and cancel request (Reproject returns false).
-  int GetReprojectionProgress();
-  void CancelReprojection();
-
 #ifndef __VTK_WRAP__
-  /// Runner of the interpolation of Reproject (long): e.g. in a worker thread
-  /// with the GUI responsive and a progress dialog (GetReprojectionProgress,
-  /// CancelReprojection); it must return when the work is done. Default:
-  /// the work runs directly. The scene is modified before and after the
-  /// interpolation only, in the calling thread.
-  void SetBackgroundRunner(std::function<void(const std::function<void()>&)> runner)
+  /// Runner of long computations (e.g. a worker thread, the GUI responsive
+  /// with a progress dialog): runs work and returns when it is done. label
+  /// describes the work, progress returns its progress (0-100) and cancel
+  /// requests to stop it. The work must not modify the scene (no MRML events
+  /// from a worker thread).
+  typedef std::function<void(const std::string& label, const std::function<void()>& work,
+                             const std::function<int()>& progress,
+                             const std::function<void()>& cancel)> BackgroundRunnerType;
+  void SetBackgroundRunner(BackgroundRunnerType runner)
     {
     this->BackgroundRunner = runner;
+    }
+
+  /// Run work with the background runner if set, otherwise directly (used
+  /// by the logics of all the SlicerAstro modules).
+  void RunInBackground(const std::string& label, const std::function<void()>& work,
+                       const std::function<int()>& progress, const std::function<void()>& cancel)
+    {
+    if (this->BackgroundRunner)
+      {
+      this->BackgroundRunner(label, work, progress, cancel);
+      }
+    else
+      {
+      work();
+      }
+    }
+
+  /// RunInBackground with the progress and the cancel request in the Status
+  /// of progressNode (any node with GetStatus/SetStatus, -1: cancel), e.g. an
+  /// unobserved copy of a parameters node used by ProgressReporter.
+  template <class ProgressNodeType>
+  void RunInBackground(const std::string& label, const std::function<void()>& work,
+                       ProgressNodeType* progressNode)
+    {
+    this->RunInBackground(label, work,
+      [progressNode]() { return progressNode->GetStatus(); },
+      [progressNode]() { progressNode->SetStatus(-1); });
     }
 #endif
 
@@ -326,9 +352,8 @@ protected:
   void EnsureVolumePropertyTransferFunctionGaps(vtkMRMLVolumePropertyNode* volumePropertyNode);
   bool UpdatingTransferFunctionGaps{false};
 #ifndef __VTK_WRAP__
-  std::function<void(const std::function<void()>&)> BackgroundRunner;
+  BackgroundRunnerType BackgroundRunner;
 #endif
-  std::atomic<vtkMRMLAstroReprojectParametersNode*> ReprojectionProgressNode{nullptr};
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;

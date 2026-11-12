@@ -21,6 +21,7 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroProfilesLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <functional>
 #include <vtkSlicerAstroSMPTools.h>
 #include <type_traits>
 
@@ -263,7 +264,15 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   start = std::chrono::steady_clock::now();
 
-  pnode->SetStatus(1);
+  // The loops run in the background runner of the AstroVolume logic (e.g. a
+  // worker thread, the GUI responsive with a progress dialog): the progress
+  // and the cancel request go to a node without observers (no MRML events
+  // from a worker thread); the scene is modified before and after them only.
+  vtkNew<vtkMRMLAstroProfilesParametersNode> progressNode;
+  bool computeResult = true;
+  std::function<void()> compute = [&]()
+  {
+  progressNode->SetStatus(1);
 
   const double NaN = sqrt(-1);
 
@@ -272,7 +281,8 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " astroDisplay not found!");
-    return false;
+    computeResult = false;
+    return;
     }
   double ijk[3], world[3];
   ijk[0] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
@@ -284,7 +294,8 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " WCS not found!");
-    return false;
+    computeResult = false;
+    return;
     }
   if (!strcmp(WCS->cunit[2], "m/s"))
     {
@@ -296,7 +307,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(pnode, (dims[2]) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(progressNode.GetPointer(), (dims[2]) - (0), 10, 100);
     vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -414,7 +425,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       }
 
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(pnode, (dims[2]) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(progressNode.GetPointer(), (dims[2]) - (0), 10, 100);
     vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -510,6 +521,27 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     maskPixel = nullptr;
     delete maskPixel;
     }
+
+  };
+  progressNode->SetStatus(1);
+  if (this->Internal->AstroVolumeLogic)
+    {
+    this->Internal->AstroVolumeLogic->RunInBackground("Calculating the profile...", compute, progressNode.GetPointer());
+    }
+  else
+    {
+    compute();
+    }
+  if (!computeResult)
+    {
+    pnode->SetStatus(100);
+    return false;
+    }
+  if (progressNode->GetStatus() == -1)
+    {
+    pnode->SetStatus(-1);
+    }
+  cancel = cancel || progressNode->GetStatus() == -1;
 
   if (cancel)
     {

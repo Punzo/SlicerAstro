@@ -21,6 +21,7 @@
 #include "vtkSlicerAstroVolumeLogic.h"
 #include "vtkSlicerAstroStatisticsLogic.h"
 #include "vtkSlicerAstroConfigure.h"
+#include <functional>
 #include <vtkSlicerAstroSMPTools.h>
 #include <type_traits>
 
@@ -317,7 +318,15 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   start = std::chrono::steady_clock::now();
 
-  pnode->SetStatus(1);
+  // The loops run in the background runner of the AstroVolume logic (e.g. a
+  // worker thread, the GUI responsive with a progress dialog): the progress
+  // and the cancel request go to a node without observers (no MRML events
+  // from a worker thread); the scene is modified before and after them only.
+  vtkNew<vtkMRMLAstroStatisticsParametersNode> progressNode;
+  bool computeResult = true;
+  std::function<void()> compute = [&]()
+  {
+  progressNode->SetStatus(1);
 
   if(segmentationActive)
     {
@@ -330,7 +339,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         pnode->GetTotalFlux() || pnode->GetMedian())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(progressNode.GetPointer(), (numElements) - (0), 10, 100);
       vtkSMPThreadLocal<double> MaxLocal(Max);
       vtkSMPThreadLocal<double> MinLocal(Min);
       vtkSMPThreadLocal<double> SumLocal(0);
@@ -407,7 +416,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         delete inDPixel;
         delete maskPixel;
 
-        return false;
+        computeResult = false;
+
+        return;
         }
       }
 
@@ -427,7 +438,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     if (pnode->GetStd())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(progressNode.GetPointer(), (numElements) - (0), 10, 100);
       vtkSMPThreadLocal<double> StdLocal(0);
       vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
@@ -477,7 +488,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         delete inDPixel;
         delete maskPixel;
 
-        return false;
+        computeResult = false;
+
+        return;
         }
 
       Std = sqrt(Std / Npixels);
@@ -491,7 +504,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       selectedValues.reserve(static_cast<size_t>(Npixels));
       for (vtkIdType elementCnt = 0; elementCnt < numElements; elementCnt++)
         {
-        if ((elementCnt & 0xFFFFF) == 0 && pnode->GetStatus() < 0)
+        if ((elementCnt & 0xFFFFF) == 0 && progressNode->GetStatus() < 0)
           {
           cancel = true;
           break;
@@ -509,9 +522,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         selectedValues.push_back(static_cast<float>(value));
         }
 
-      pnode->SetStatus(90);
+      progressNode->SetStatus(90);
       Median = vtkSlicerAstroSMPTools::Median(selectedValues);
-      pnode->SetStatus(95);
+      progressNode->SetStatus(95);
       }
     }
   else
@@ -521,7 +534,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       {
       vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
                     " roiNode not found!");
-      return false;
+      computeResult = false;
+      return;
       }
 
     double roiBounds[6];
@@ -542,7 +556,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         pnode->GetTotalFlux() || pnode->GetMedian())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (lastElement) - (firstElement), 10, 100);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(progressNode.GetPointer(), (lastElement) - (firstElement), 10, 100);
       vtkSMPThreadLocal<double> MaxLocal(Max);
       vtkSMPThreadLocal<double> MinLocal(Min);
       vtkSMPThreadLocal<double> SumLocal(0);
@@ -627,7 +641,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         delete inDPixel;
         delete maskPixel;
 
-        return false;
+        computeResult = false;
+
+        return;
         }
       }
 
@@ -647,7 +663,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     if (pnode->GetStd())
       {
       {
-      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(pnode, (lastElement) - (firstElement), 10, 100);
+      vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroStatisticsParametersNode> progress(progressNode.GetPointer(), (lastElement) - (firstElement), 10, 100);
       vtkSMPThreadLocal<double> StdLocal(0);
       vtkSMPTools::For(firstElement, lastElement, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
@@ -705,7 +721,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         delete inDPixel;
         delete maskPixel;
 
-        return false;
+        computeResult = false;
+
+        return;
         }
 
       Std = sqrt(Std / Npixels);
@@ -719,7 +737,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       selectedValues.reserve(static_cast<size_t>(Npixels));
       for (vtkIdType elementCnt = firstElement; elementCnt < lastElement; elementCnt++)
         {
-        if ((elementCnt & 0xFFFFF) == 0 && pnode->GetStatus() < 0)
+        if ((elementCnt & 0xFFFFF) == 0 && progressNode->GetStatus() < 0)
           {
           cancel = true;
           break;
@@ -740,9 +758,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         selectedValues.push_back(static_cast<float>(value));
         }
 
-      pnode->SetStatus(90);
+      progressNode->SetStatus(90);
       Median = vtkSlicerAstroSMPTools::Median(selectedValues);
-      pnode->SetStatus(95);
+      progressNode->SetStatus(95);
       }
     }
 
@@ -759,6 +777,27 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   delete inFPixel;
   delete inDPixel;
   delete maskPixel;
+
+  };
+  progressNode->SetStatus(1);
+  if (this->Internal->AstroVolumeLogic)
+    {
+    this->Internal->AstroVolumeLogic->RunInBackground("Calculating the statistics...", compute, progressNode.GetPointer());
+    }
+  else
+    {
+    compute();
+    }
+  if (!computeResult)
+    {
+    pnode->SetStatus(100);
+    return false;
+    }
+  if (progressNode->GetStatus() == -1)
+    {
+    pnode->SetStatus(-1);
+    }
+  cancel = cancel || progressNode->GetStatus() == -1;
 
   pnode->SetStatus(100);
 
