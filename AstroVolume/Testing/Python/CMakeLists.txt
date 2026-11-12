@@ -34,4 +34,10 @@ if(Slicer_USE_QtTesting AND Slicer_USE_PYTHONQT)
     SCRIPTS AstroFITSIOTest.py
     )
   slicer_add_python_unittest(SCRIPT AstroFITSIOTest.py)
+
+  slicerMacroBuildScriptedModule(
+    NAME AstroVolumeSegmentationsTest
+    SCRIPTS AstroVolumeSegmentationsTest.py
+    )
+  slicer_add_python_unittest(SCRIPT AstroVolumeSegmentationsTest.py)
 endif()
