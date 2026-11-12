@@ -3377,9 +3377,20 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::IsContoursSegmentation(vtkMRMLSegmentationNode* segmentationNode)
 {
-  const char* contours = segmentationNode ?
-    segmentationNode->GetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName()) : nullptr;
-  return contours && !strcmp(contours, "true");
+  if (!segmentationNode)
+    {
+    return false;
+    }
+  const char* contours = segmentationNode->GetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName());
+  if (contours && !strcmp(contours, "true"))
+    {
+    return true;
+    }
+  // contours of the AstroVolume, AstroSmoothing and AstroModeling modules in
+  // scenes saved without the attribute
+  const char* name = segmentationNode->GetName();
+  return name && (!strcmp(name, "AstroContoursSeg") || !strcmp(name, "AstroSmoothingContoursSeg") ||
+                  !strcmp(name, "AstroModelingContoursSeg"));
 }
 
 //----------------------------------------------------------------------------
@@ -3397,7 +3408,7 @@ void vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(vtkMRMLSegmentationNode* s
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(vtkMRMLSegmentationNode* segmentationNode)
+void vtkSlicerAstroVolumeLogic::SetContoursDisplay(vtkMRMLSegmentationNode* segmentationNode)
 {
   if (!segmentationNode || !segmentationNode->GetSegmentation())
     {
@@ -3407,15 +3418,19 @@ void vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(vtkMRMLSegmentationNode
   vtkSegmentation* segmentation = segmentationNode->GetSegmentation();
   const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
   const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  if (segmentation->GetSourceRepresentationName() != labelmapName)
+    {
+    segmentation->CreateRepresentation(labelmapName);
+    segmentation->SetSourceRepresentationName(labelmapName);
+    }
+  // derived from the labelmaps (updated with them)
   segmentation->CreateRepresentation(surfaceName);
-  segmentation->SetSourceRepresentationName(surfaceName);
-  segmentation->RemoveRepresentation(labelmapName);
   vtkMRMLSegmentationDisplayNode* displayNode =
     vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
   if (displayNode)
     {
     displayNode->SetPreferredDisplayRepresentationName2D(surfaceName);
-    displayNode->SetPreferredDisplayRepresentationName3D(surfaceName);
+    displayNode->SetPreferredDisplayRepresentationName3D(labelmapName);
     }
 }
 

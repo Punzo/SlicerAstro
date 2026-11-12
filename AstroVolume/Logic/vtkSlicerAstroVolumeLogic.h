@@ -191,9 +191,15 @@ public:
   /// source representation (the segmentation is marked as contours).
   static void PrepareContoursUpdate(vtkMRMLSegmentationNode* segmentationNode);
 
-  /// After adding the contour levels: closed surfaces as source and displayed
-  /// representation in 2D and 3D, the binary labelmaps are removed.
-  static void SetClosedSurfaceContours(vtkMRMLSegmentationNode* segmentationNode);
+  /// After adding the contour levels: the binary labelmaps stay the source
+  /// representation; closed surfaces (derived) are shown in the 2D views
+  /// (smooth contour lines) and the binary labelmaps in the 3D views (no
+  /// surface rendering of large volumes: faster). The segmentation is
+  /// marked as contours (not listed as a mask).
+  static void SetContoursDisplay(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Tag of the contour segments with the ID of the volume of their data
+  static const char* GetContoursVolumeTagName() { return "SlicerAstro.ContoursVolumeID"; }
 
   /// Apply SetAstroSliceOrientationPresets to the default slice node and to
   /// all the slice nodes of the scene.

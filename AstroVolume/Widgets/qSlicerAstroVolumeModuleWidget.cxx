@@ -1957,8 +1957,8 @@ void qSlicerAstroVolumeModuleWidget::onCreateSurfaceButtonToggled(vtkMRMLSegment
     return;
     }
 
-  // Contours: closed surfaces in 2D and 3D (not a mask)
-  vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(segmentationNode);
+  // Contours: closed surfaces in 2D, binary labelmaps in 3D (not a mask)
+  vtkSlicerAstroVolumeLogic::SetContoursDisplay(segmentationNode);
 
 }
 
@@ -3380,9 +3380,9 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentThreeID, false);
     }
 
-  // data and model contours of the Modeling module: binary labelmaps in
-  // 2D (outlines) and 3D (no closed surface conversion)
-  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(this->contoursSegNodeModeling);
+  // data and model contours of the Modeling module: closed surfaces in 2D
+  // (contour lines), binary labelmaps in 3D
+  vtkSlicerAstroVolumeLogic::SetContoursDisplay(this->contoursSegNodeModeling);
 
   // Create PV major
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
@@ -3655,9 +3655,9 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
     SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentTwoID, false);
     }
 
-  // data and model contours of the Modeling module: binary labelmaps in
-  // 2D (outlines) and 3D (no closed surface conversion)
-  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(this->contoursSegNodeModeling);
+  // data and model contours of the Modeling module: closed surfaces in 2D
+  // (contour lines), binary labelmaps in 3D
+  vtkSlicerAstroVolumeLogic::SetContoursDisplay(this->contoursSegNodeModeling);
 
   // Create PV major
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast

@@ -461,6 +461,28 @@ void qSlicerAstroScalarVolumeDisplayWidget::onColorChanged(QColor color)
   astroDisplayNode->SetContoursColor(0, color.red() / 255.);
   astroDisplayNode->SetContoursColor(1, color.green() / 255.);
   astroDisplayNode->SetContoursColor(2, color.blue() / 255.);
+
+  // the contours of these data already shown take the new color
+  vtkMRMLSegmentationNode* contoursSegmentationNode = this->mrmlScene() ?
+    vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->GetFirstNodeByName("AstroContoursSeg")) : nullptr;
+  vtkSegmentation* contoursSegmentation = contoursSegmentationNode ?
+    contoursSegmentationNode->GetSegmentation() : nullptr;
+  if (!contoursSegmentation)
+    {
+    return;
+    }
+  std::vector<std::string> segmentIDs;
+  contoursSegmentation->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkSegment* segment = contoursSegmentation->GetSegment(segmentID);
+    std::string sourceVolumeID;
+    if (segment && segment->GetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), sourceVolumeID) &&
+        sourceVolumeID == d->contoursVolumeNode->GetID())
+      {
+      segment->SetColor(color.redF(), color.greenF(), color.blueF());
+      }
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -728,7 +750,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       }
     }
 
-  std::string NamePrefixStdString = masterVolume->GetName();
+  // segments named after the data of the contours (not the reprojected copy)
+  std::string NamePrefixStdString = contoursVolume->GetName();
 
   vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
     (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroContoursSeg"));
@@ -747,23 +770,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   if (!this->contoursSegNode->GetDisplayNode())
     {
     this->contoursSegNode->CreateDefaultDisplayNodes();
-    }
-
-  bool duplicateName = false;
-  for (int ii = 0; ii < this->contoursSegNode->GetSegmentation()->GetNumberOfSegments(); ii++)
-    {
-    std::string segmentID = this->contoursSegNode->GetSegmentation()->GetNthSegmentID(ii);
-    if (segmentID.find(NamePrefixStdString) != std::string::npos)
-      {
-      duplicateName = true;
-      }
-    }
-
-  if (duplicateName)
-    {
-    NamePrefixStdString += "_";
-    NamePrefixStdString += IntToString(d->nameIndex);
-    d->nameIndex++;
     }
 
   vtkNew<vtkDoubleArray> Levels;
@@ -986,6 +992,23 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       }
     }
 
+  // The new contours replace the previous ones: all of them, or with
+  // "overlay" only those of the same data (contours of other data stay)
+  vtkSegmentation* contoursSegmentation = this->contoursSegNode->GetSegmentation();
+  std::vector<std::string> previousSegmentIDs;
+  contoursSegmentation->GetSegmentIDs(previousSegmentIDs);
+  for (const std::string& previousSegmentID : previousSegmentIDs)
+    {
+    vtkSegment* previousSegment = contoursSegmentation->GetSegment(previousSegmentID);
+    std::string sourceVolumeID;
+    if (!overlay || (previousSegment &&
+        previousSegment->GetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), sourceVolumeID) &&
+        sourceVolumeID == contoursVolume->GetID()))
+      {
+      contoursSegmentation->RemoveSegment(previousSegmentID);
+      }
+    }
+
   // Create empty segment in current segmentation
   int LevelDim = 0;
 
@@ -1012,6 +1035,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     Segment->SetColor(ContoursColor->GetValue(0),
                       ContoursColor->GetValue(1),
                       ContoursColor->GetValue(2));
+    // data of the contours: color changes and replacement of the contours
+    Segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), contoursVolume->GetID());
 
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(masterVolume->GetImageData());
@@ -1100,8 +1125,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       }
     }
 
-  // Contours: closed surfaces in 2D and 3D (not a mask)
-  vtkSlicerAstroVolumeLogic::SetClosedSurfaceContours(this->contoursSegNode);
+  // Contours: closed surfaces in 2D, binary labelmaps in 3D (not a mask)
+  vtkSlicerAstroVolumeLogic::SetContoursDisplay(this->contoursSegNode);
 
   if (masterVolume != this->volumeNode())
     {
