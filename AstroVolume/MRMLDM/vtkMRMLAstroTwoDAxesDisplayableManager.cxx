@@ -62,6 +62,7 @@
 
 // STD includes
 #include <sstream>
+#include <vtkMath.h>
 #include <cstring>
 #include <algorithm>
 
@@ -395,6 +396,37 @@ private:
   bool Initialized{false};
   bool Valid{false};
 };
+//---------------------------------------------------------------------------
+// Signed angular offset (degrees) for the labels of the position axis of PV
+// slices and PV diagrams: unit from the tick step (degrees, arcmin, arcsec),
+// one decimal if the step is not a whole number of the unit; 0 at the center.
+std::string FormatAngularOffset(double offsetDegrees, double stepDegrees)
+{
+  double factor = 3600.;
+  const char* unit = "\x22";
+  if (stepDegrees >= 1. - 1.E-9)
+    {
+    factor = 1.;
+    unit = "\u00B0";
+    }
+  else if (stepDegrees >= 1. / 60. - 1.E-9)
+    {
+    factor = 60.;
+    unit = "\x27";
+    }
+  const double step = stepDegrees * factor;
+  double value = offsetDegrees * factor;
+  if (fabs(value) < 1.E-6 * std::max(step, 1.))
+    {
+    value = 0.;
+    }
+  std::ostringstream label;
+  label.setf(std::ios::fixed, std::ios::floatfield);
+  label.precision(fabs(step - std::round(step)) > 1.E-6 ? 1 : 0);
+  label << value << unit;
+  return label.str();
+}
+
 } // end of anonymous namespace
 
 //---------------------------------------------------------------------------
@@ -514,8 +546,7 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
       {
       continue;
       }
-    std::string label = displayNode->GetDisplayStringFromValueY(offset, oldOutputValues, outputValues, 0, true);
-    std::copy(outputValues, outputValues + 3, oldOutputValues);
+    std::string label = FormatAngularOffset(offset, offsetStep);
     this->AddAxisLabel(label, static_cast<int>(labelX - fontSize * 2), 15, fontSize);
     }
 
@@ -838,14 +869,23 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
           !sliceNode->GetOrientation().compare("PVMinor") ||
           showReformat)
         {
+        // ticks every wcsStep[0] degrees on the sky along the slice (the
+        // right ascension differences are scaled by cos(declination))
         double distX = (worldA[0] - worldB[0]);
         double distY = (worldA[1] - worldB[1]);
-        double dist = sqrt((distX * distX) + (distY * distY));
+        const double cosDeclination = cos(vtkMath::RadiansFromDegrees(worldD[1]));
+        const double worldDist = sqrt((distX * distX) + (distY * distY));
+        double dist = sqrt((distX * cosDeclination * distX * cosDeclination) + (distY * distY));
+        if (!(dist > 0.))
+          {
+          this->ShowActors(false);
+          return;
+          }
         wcsStep[0] = displayNode->GetWcsTickStepAxisY(dist, &numberOfPointsHorizontal);
 
         PVAngle = atan(distY / distX);
-        PVwcsStepCos = wcsStep[0] * cos(PVAngle);
-        PVwcsStepSin = wcsStep[0] * sin(PVAngle);
+        PVwcsStepCos = wcsStep[0] * (worldDist / dist) * cos(PVAngle);
+        PVwcsStepSin = wcsStep[0] * (worldDist / dist) * sin(PVAngle);
 
         if (numberOfPointsHorizontal % 2 != 0)
           {
@@ -1212,11 +1252,8 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
             !sliceNode->GetOrientation().compare("PVMinor") ||
             showReformat)
           {
-          double dist = sqrt(((world[i][0] - worldD[0]) * (world[i][0] - worldD[0])) +
-                            ((world[i][1] - worldD[1]) * (world[i][1] - worldD[1])));
-          coord = displayNode->GetDisplayStringFromValueY(dist,
-                                                          oldOutputHorizontalValues,
-                                                          outputHorizontalValues, 0, true);
+          // signed offset from the center of the view along the slice
+          coord = FormatAngularOffset(wcsStep[0] * (i - (numberOfPointsHorizontal / 2.)), wcsStep[0]);
           }
 
         oldOutputHorizontalValues[0] = outputHorizontalValues[0];
