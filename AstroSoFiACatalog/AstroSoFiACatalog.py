@@ -1,3 +1,5 @@
+import csv
+import math
 import os
 import re
 import shlex
@@ -58,9 +60,14 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.catalogPathEdit = ctk.ctkPathLineEdit()
         self.catalogPathEdit.filters = ctk.ctkPathLineEdit.Files
         self.catalogPathEdit.nameFilters = [
-            "SoFiA catalogue (*_cat.txt *_cat.xml *_cat.ascii)", "All files (*)"]
+            "SoFiA catalogue (*_cat.txt *_cat.xml *_cat.ascii)",
+            "Source catalogue (*.csv *.tsv *.txt *.xml *.vot)", "All files (*)"]
         self.catalogPathEdit.settingKey = "AstroSoFiACatalog/CatalogPath"
-        self.catalogPathEdit.toolTip = "Plain text (_cat.txt, _cat.ascii) or VOTable (_cat.xml) catalogue of SoFiA."
+        self.catalogPathEdit.toolTip = (
+            "Plain text (_cat.txt, _cat.ascii) or VOTable (_cat.xml) catalogue of SoFiA, or another source "
+            "catalogue (CSV, plain text table or VOTable) with the columns ra and dec (degrees) and "
+            "optionally v_opt, v_rad, v_app (km/s, or the unit in the column name, e.g. v_opt [m/s]) or "
+            "freq (Hz).")
         loadLayout.addRow("Catalogue:", self.catalogPathEdit)
 
         self.referenceSelector = slicer.qMRMLNodeComboBox()
@@ -72,7 +79,9 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.referenceSelector.showChildNodeTypes = False
         self.referenceSelector.setMRMLScene(slicer.mrmlScene)
         self.referenceSelector.toolTip = ("Data cube or mask on which the pixel positions of the catalogue are "
-                                          "placed: the catalogue must have been created from it.")
+                                          "placed (the SoFiA catalogue must have been created from it), or data "
+                                          "cube whose world coordinates place the celestial positions of other "
+                                          "catalogues.")
         loadLayout.addRow("Positions on:", self.referenceSelector)
 
         self.loadButton = qt.QPushButton("Load")
@@ -188,7 +197,7 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         try:
             tableNode, _ = self.logic.loadCatalog(path, self.referenceSelector.currentNode())
         except Exception as e:
-            slicer.util.errorDisplay(f"Failed to load the SoFiA catalogue {os.path.basename(path)}: {e}")
+            slicer.util.errorDisplay(f"Failed to load the catalogue {os.path.basename(path)}: {e}")
             return
         self.catalogPathEdit.addCurrentPathToHistory()
         self.catalogSelector.setCurrentNode(tableNode)
@@ -357,12 +366,35 @@ class AstroSoFiACatalogFileReader:
 
 
 class SoFiACatalog:
-    """Columns (names, units) and rows (one dict per source) of a SoFiA catalogue."""
+    """Columns (names, units) and rows (one dict per source) of a SoFiA catalogue
+    (or of another source catalogue with celestial positions)."""
 
     def __init__(self):
         self.columns = []
         self.units = {}
         self.rows = []
+
+    def column(self, names):
+        """First column (case insensitive) among names, or None."""
+        lowerColumns = {column.lower(): column for column in self.columns}
+        for name in names:
+            if name in lowerColumns:
+                return lowerColumns[name]
+        return None
+
+
+SPEED_OF_LIGHT = 299792458.0  # m/s
+
+# Columns of the celestial positions (degrees) and of the spectral positions
+# (velocity definition or frequency) of source catalogues
+RA_COLUMNS = ("ra", "raj2000", "_raj2000", "ra_deg", "ra2000")
+DEC_COLUMNS = ("dec", "dej2000", "_dej2000", "decj2000", "dec_deg", "de2000", "dec2000")
+SPECTRAL_COLUMNS = (
+    ("v_opt", "VOPT"), ("vopt", "VOPT"), ("cz", "VOPT"),
+    ("v_rad", "VRAD"), ("vrad", "VRAD"),
+    ("v_app", "VELO"), ("vapp", "VELO"), ("velo", "VELO"),
+    ("freq", "FREQ"), ("frequency", "FREQ"),
+)
 
 
 class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
@@ -382,10 +414,21 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
 
     @staticmethod
     def readCatalog(filePath):
-        """Read a SoFiA catalogue (plain text or VOTable)."""
-        if filePath.lower().endswith(".xml"):
-            return AstroSoFiACatalogLogic._readVOTable(filePath)
-        return AstroSoFiACatalogLogic._readText(filePath)
+        """Read a SoFiA catalogue (plain text or VOTable), or another source
+        catalogue (VOTable, CSV or plain text table with the column names in
+        the first row) with celestial positions (ra, dec in degrees) and
+        optionally a velocity (v_opt, v_rad, v_app) or frequency column."""
+        lowerPath = filePath.lower()
+        if lowerPath.endswith((".xml", ".vot", ".votable")):
+            catalog = AstroSoFiACatalogLogic._readVOTable(filePath)
+        elif AstroSoFiACatalogLogic.isSoFiACatalog(filePath):
+            catalog = AstroSoFiACatalogLogic._readText(filePath)
+        else:
+            catalog = AstroSoFiACatalogLogic._readTable(filePath)
+        if "x" not in catalog.columns and not (catalog.column(RA_COLUMNS) and catalog.column(DEC_COLUMNS)):
+            raise ValueError(f"{filePath}: the catalogue has no pixel (x, y, z) or celestial (ra, dec) "
+                             "position columns")
+        return catalog
 
     @staticmethod
     def _convert(value):
@@ -423,6 +466,34 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         return catalog
 
     @staticmethod
+    def _readTable(filePath):
+        """CSV or whitespace separated table: column names in the first row
+        (units in brackets, e.g. "v_opt [km/s]"), lines starting with # are comments."""
+        catalog = SoFiACatalog()
+        with open(filePath, errors="replace", newline="") as f:
+            lines = [line.strip() for line in f if line.strip() and not line.lstrip().startswith("#")]
+        if not lines:
+            raise ValueError(f"{filePath}: empty catalogue")
+        delimiter = next((d for d in (",", ";", "\t") if d in lines[0]), None)
+        if delimiter:
+            rows = [[value.strip() for value in row] for row in csv.reader(lines, delimiter=delimiter)]
+        else:
+            rows = [shlex.split(line) for line in lines]
+        unitPattern = re.compile(r"^(.*?)\s*[\[(]([^\])]*)[\])]$")
+        for name in rows[0]:
+            match = unitPattern.match(name)
+            column = match.group(1) if match else name
+            catalog.columns.append(column)
+            if match:
+                catalog.units[column] = match.group(2)
+        for values in rows[1:]:
+            if len(values) != len(catalog.columns):
+                raise ValueError(f"{filePath}: a row has {len(values)} values for {len(catalog.columns)} columns")
+            catalog.rows.append({column: AstroSoFiACatalogLogic._convert(value)
+                                 for column, value in zip(catalog.columns, values)})
+        return catalog
+
+    @staticmethod
     def _readVOTable(filePath):
         catalog = SoFiACatalog()
         root = ElementTree.parse(filePath).getroot()
@@ -442,9 +513,93 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
                     raise ValueError(f"{filePath}: a row has {len(values)} values for {len(catalog.columns)} columns")
                 catalog.rows.append({column: AstroSoFiACatalogLogic._convert(value)
                                      for column, value in zip(catalog.columns, values)})
-        if "x" not in catalog.columns:
-            raise ValueError(f"{filePath}: the catalogue has no pixel position columns")
         return catalog
+
+    @staticmethod
+    def spectralWorldCoordinate(value, unit, columnType, volumeNode):
+        """Spectral world coordinate of volumeNode (m/s, in the velocity definition
+        of its display: radio, optical or relativistic) of a catalogue velocity
+        (columnType VRAD, VOPT, VELO; m/s or km/s, km/s if no unit) or
+        frequency (FREQ; Hz if no unit). The conversion goes through the ratio
+        of the frequency to the rest frequency, so that e.g. optical velocities
+        of a catalogue are placed correctly on a radio velocity axis."""
+        c = SPEED_OF_LIGHT
+        unit = (unit or "").strip().lower().replace(" ", "")
+        restFrequency = float(volumeNode.GetAttribute("SlicerAstro.RESTFREQ") or 0.)
+        if columnType == "FREQ":
+            scales = {"": 1., "hz": 1., "khz": 1.e3, "mhz": 1.e6, "ghz": 1.e9}
+            if unit not in scales:
+                raise ValueError(f"unknown frequency unit {unit}")
+            if restFrequency <= 0.:
+                raise ValueError(f"{volumeNode.GetName()} has no rest frequency: the frequencies of the "
+                                 "catalogue cannot be placed")
+            ratio = value * scales[unit] / restFrequency
+        else:
+            scales = {"": 1.e3, "m/s": 1., "ms-1": 1., "m.s-1": 1., "m.s**-1": 1.,
+                      "km/s": 1.e3, "kms-1": 1.e3, "km.s-1": 1.e3, "km.s**-1": 1.e3}
+            if unit not in scales:
+                raise ValueError(f"unknown velocity unit {unit}")
+            beta = value * scales[unit] / c
+            if columnType == "VRAD":
+                ratio = 1. - beta
+            elif columnType == "VOPT":
+                ratio = 1. / (1. + beta)
+            else:
+                ratio = math.sqrt((1. - beta) / (1. + beta))
+        target = volumeNode.GetAstroVolumeDisplayNode().GetVelocityDefinition()[:4]
+        if target == "VRAD":
+            return c * (1. - ratio)
+        if target == "VOPT":
+            return c * (1. / ratio - 1.)
+        if target == "VELO":
+            return c * (1. - ratio * ratio) / (1. + ratio * ratio)
+        raise ValueError(f"{volumeNode.GetName()}: unsupported spectral axis {target}")
+
+    @staticmethod
+    def worldPositionVolume(referenceNode):
+        """Data cube with the WCS for placing celestial positions: referenceNode,
+        or the reference volume of a segmentation."""
+        if referenceNode.IsA("vtkMRMLAstroVolumeNode") or referenceNode.IsA("vtkMRMLAstroLabelMapVolumeNode"):
+            return referenceNode
+        if referenceNode.IsA("vtkMRMLSegmentationNode"):
+            volumeNode = referenceNode.GetNodeReference(
+                slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole())
+            if volumeNode and volumeNode.IsA("vtkMRMLAstroVolumeNode"):
+                return volumeNode
+        return None
+
+    @staticmethod
+    def worldToIJK(catalog, row, volumeNode):
+        """IJK position of a source of a catalogue with celestial (and spectral) positions."""
+        displayNode = volumeNode.GetAstroVolumeDisplayNode()
+        if displayNode is None:
+            raise ValueError(f"{volumeNode.GetName()} has no world coordinates")
+        raColumn = catalog.column(RA_COLUMNS)
+        decColumn = catalog.column(DEC_COLUMNS)
+        is3D = volumeNode.GetImageData() is not None and volumeNode.GetImageData().GetDimensions()[2] > 1
+        world = [float(row[raColumn]), float(row[decColumn]), 0.]
+        spectralColumn, spectralType = None, None
+        for name, columnType in SPECTRAL_COLUMNS:
+            spectralColumn = catalog.column((name,))
+            if spectralColumn:
+                spectralType = columnType
+                break
+        if is3D:
+            if spectralColumn is None:
+                # no spectral position: the central channel
+                center = [0., 0., (volumeNode.GetImageData().GetDimensions()[2] - 1) * 0.5]
+                centerWorld = [0., 0., 0.]
+                displayNode.GetReferenceSpace(center, centerWorld)
+                world[2] = centerWorld[2]
+            else:
+                world[2] = AstroSoFiACatalogLogic.spectralWorldCoordinate(
+                    float(row[spectralColumn]), catalog.units.get(spectralColumn, ""), spectralType, volumeNode)
+        ijk = [0., 0., 0.]
+        if not displayNode.GetIJKSpace(world, ijk):
+            raise ValueError(f"the world coordinates {world} are not valid for {volumeNode.GetName()}")
+        if not is3D:
+            ijk[2] = 0.
+        return ijk
 
     @staticmethod
     def referenceGeometry(node):
@@ -513,6 +668,15 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         ijkToRAS = self.referenceGeometry(referenceNode)
         if ijkToRAS is None:
             raise ValueError(f"{referenceNode.GetName()} has no geometry")
+        # pixel positions (SoFiA), else celestial positions placed with the WCS of the cube
+        worldVolume = None
+        if "x" not in catalog.columns:
+            worldVolume = self.worldPositionVolume(referenceNode)
+            if worldVolume is None:
+                raise ValueError("the positions of the catalogue are celestial coordinates: select a data cube "
+                                 "(or a mask of a data cube) for placing them")
+            ijkToRAS = vtk.vtkMatrix4x4()
+            worldVolume.GetIJKToRASMatrix(ijkToRAS)
         pointListNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsFiducialNode", name)
         pointListNode.SetAttribute("SlicerAstro.SoFiACatalog", "true")
         pointListNode.SetAndObserveTransformNodeID(referenceNode.GetTransformNodeID())
@@ -528,12 +692,19 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         displayNode.SetSliceProjectionColor(1.0, 0.733, 0.078)
 
         wasModifying = pointListNode.StartModify()
+        nameColumn = catalog.column(("name", "id", "source", "object", "main_id"))
         for row in catalog.rows:
-            # SoFiA pixel coordinates are zero-based, as the IJK coordinates
-            ijk = [row["x"], row.get("y", 0.0), row.get("z", 0.0), 1.0]
+            if worldVolume is None:
+                # SoFiA pixel coordinates are zero-based, as the IJK coordinates
+                ijk = [row["x"], row.get("y", 0.0), row.get("z", 0.0), 1.0]
+            else:
+                ijk = self.worldToIJK(catalog, row, worldVolume) + [1.0]
             ras = ijkToRAS.MultiplyPoint(ijk)[:3]
-            index = pointListNode.AddControlPoint(ras, str(row.get("name", "")))
-            if "id" in row:
+            label = row.get(nameColumn, "") if nameColumn else ""
+            if isinstance(label, float) and label.is_integer():
+                label = int(label)
+            index = pointListNode.AddControlPoint(ras, str(label))
+            if "id" in row and isinstance(row["id"], float):
                 pointListNode.SetNthControlPointDescription(index, "id %d" % int(row["id"]))
             pointListNode.SetNthControlPointLocked(index, True)
             pointListNode.SetNthControlPointSelected(index, False)
@@ -559,11 +730,14 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         """Load a SoFiA catalogue: table with all the columns, and point list of the sources.
 
         The point list is created only if a data cube or mask (referenceNode,
-        found automatically if not specified) is loaded: the positions of the
-        catalogue are pixel coordinates.
+        found automatically if not specified) is loaded: the positions of
+        SoFiA catalogues are pixel coordinates. Other catalogues (see
+        readCatalog) are placed with the world coordinates of the data cube.
         """
         catalog = self.readCatalog(catalogPath)
         base = self.CATALOG_SUFFIX.sub("", os.path.basename(catalogPath))
+        if base == os.path.basename(catalogPath):
+            base = os.path.splitext(base)[0]
         tableNode = self.createTable(catalog, base + "_catalogue")
         if referenceNode is None:
             referenceNode = self.findReferenceNode(catalogPath)
@@ -572,7 +746,7 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
                              "of the catalogue are pixel coordinates")
         pointListNode = self.createPointList(catalog, base + "_sources", referenceNode)
         tableNode.SetAttribute("SlicerAstro.SoFiASources", pointListNode.GetID())
-        if referenceNode.IsA("vtkMRMLSegmentationNode"):
+        if referenceNode.IsA("vtkMRMLSegmentationNode") and "x" in catalog.columns:
             self.nameSegments(catalog, referenceNode)
         return tableNode, pointListNode
 
@@ -630,19 +804,23 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         self.test_LoadCatalogues()
         self.setUp()
         self.test_ModuleWidget()
+        self.setUp()
+        self.test_CelestialCatalogues()
 
-    def writeMask(self, path):
+    def writeMask(self, path, cube=False):
         import numpy as np
 
         data = np.zeros((12, 16, 20), dtype=">i4")
         data[2:6, 3:6, 1:5] = 1
         data[6:9, 10:14, 12:17] = 2
-        cards = [("SIMPLE", True), ("BITPIX", 32), ("NAXIS", 3), ("NAXIS1", 20), ("NAXIS2", 16), ("NAXIS3", 12),
-                 ("BUNIT", " "),
+        if cube:
+            data = data.astype(">f4")
+        cards = [("SIMPLE", True), ("BITPIX", -32 if cube else 32), ("NAXIS", 3), ("NAXIS1", 20), ("NAXIS2", 16),
+                 ("NAXIS3", 12), ("BUNIT", "JY/BEAM" if cube else " "), ("RESTFREQ", 1.42040575177e9),
                  ("CTYPE1", "RA---SIN"), ("CRVAL1", 180.0), ("CDELT1", -0.001), ("CRPIX1", 10.0), ("CUNIT1", "deg"),
                  ("CTYPE2", "DEC--SIN"), ("CRVAL2", 30.0), ("CDELT2", 0.001), ("CRPIX2", 8.0), ("CUNIT2", "deg"),
                  ("CTYPE3", "VRAD"), ("CRVAL3", 1000.0), ("CDELT3", 5000.0), ("CRPIX3", 1.0), ("CUNIT3", "m/s"),
-                 ("HISTORY", "SoFiA control parameters")]
+                 ] + ([] if cube else [("HISTORY", "SoFiA control parameters")])
         text = "".join(_fitsCard(k, v) for k, v in cards) + "END".ljust(80)
         text += " " * (-len(text) % 2880)
         payload = data.tobytes()
@@ -779,4 +957,64 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         self.assertNotEqual(pointListNode.GetNthControlPointLabel(0), secondName)
         self.assertEqual(tableNode.GetTable().GetValueByName(0, "name").ToString(),
                          pointListNode.GetNthControlPointLabel(0))
+        self.delayDisplay("Test passed")
+
+    def test_CelestialCatalogues(self):
+        """Catalogues with celestial positions and optical velocities or
+        frequencies are placed with the WCS of a radio velocity cube (#118)."""
+        cubePath = os.path.join(self.directory, "cube.fits")
+        self.writeMask(cubePath, cube=True)
+        cubeNode = slicer.util.loadVolume(cubePath)
+        self.assertTrue(cubeNode.IsA("vtkMRMLAstroVolumeNode"))
+        displayNode = cubeNode.GetAstroVolumeDisplayNode()
+        self.assertEqual(displayNode.GetVelocityDefinition()[:4], "VRAD")
+        c = 299792458.0
+        restFrequency = 1.42040575177e9
+        sources = {"A": (2.5, 4.0, 3.5), "B": (14.0, 11.5, 7.0)}
+        csvLines = ["name,ra,dec,v_opt [km/s]"]
+        textLines = ["# a source list", "name ra dec freq[MHz]"]
+        for name, ijk in sources.items():
+            world = [0.0, 0.0, 0.0]
+            displayNode.GetReferenceSpace(list(ijk), world)
+            radioVelocity = world[2]  # m/s
+            opticalVelocity = c * radioVelocity / (c - radioVelocity)
+            frequency = restFrequency * (1.0 - radioVelocity / c)
+            csvLines.append(f"{name},{world[0]!r},{world[1]!r},{opticalVelocity / 1000.0!r}")
+            textLines.append(f"{name} {world[0]!r} {world[1]!r} {frequency / 1.e6!r}")
+        csvPath = os.path.join(self.directory, "sources.csv")
+        textPath = os.path.join(self.directory, "sources.txt")
+        with open(csvPath, "w") as f:
+            f.write("\n".join(csvLines) + "\n")
+        with open(textPath, "w") as f:
+            f.write("\n".join(textLines) + "\n")
+
+        ijkToRAS = vtk.vtkMatrix4x4()
+        cubeNode.GetIJKToRASMatrix(ijkToRAS)
+        logic = AstroSoFiACatalogLogic()
+        for path in (csvPath, textPath):
+            tableNode, pointListNode = logic.loadCatalog(path, cubeNode)
+            self.assertEqual(tableNode.GetNumberOfRows(), 2)
+            self.assertEqual(pointListNode.GetNumberOfControlPoints(), 2)
+            for index, (name, ijk) in enumerate(sources.items()):
+                self.assertEqual(pointListNode.GetNthControlPointLabel(index), name)
+                expected = ijkToRAS.MultiplyPoint(list(ijk) + [1.0])[:3]
+                position = pointListNode.GetNthControlPointPosition(index)
+                for axis in range(3):
+                    self.assertAlmostEqual(position[axis], expected[axis], places=4)
+
+        # same positions with the optical velocity definition on the cube
+        displayNode.SetOpticalVelocityDefinition()
+        tableNode, pointListNode = logic.loadCatalog(csvPath, cubeNode)
+        for index, ijk in enumerate(sources.values()):
+            expected = ijkToRAS.MultiplyPoint(list(ijk) + [1.0])[:3]
+            position = pointListNode.GetNthControlPointPosition(index)
+            for axis in range(3):
+                self.assertAlmostEqual(position[axis], expected[axis], places=4)
+
+        # without celestial or pixel positions: a clear error
+        badPath = os.path.join(self.directory, "bad.csv")
+        with open(badPath, "w") as f:
+            f.write("name,flux\nA,1.0\n")
+        with self.assertRaises(ValueError):
+            logic.loadCatalog(badPath, cubeNode)
         self.delayDisplay("Test passed")
