@@ -34,6 +34,12 @@
 #include <QMessageBox>
 #include <QMutexLocker>
 #include <QPushButton>
+#include <ctkCollapsibleButton.h>
+#include <QDateTime>
+#include <QFontDatabase>
+#include <QPlainTextEdit>
+#include <QScrollBar>
+#include <QVBoxLayout>
 #include <QRadioButton>
 #include <QStringList>
 #include <QThread>
@@ -134,6 +140,12 @@ public:
   // parameters section, with the other progress bar, is often collapsed)
   QProgressBar* calculateProgressBar = nullptr;
   bool calculatingModel = false;
+  // Output of 3DBarolo and of the operations (also in the terminal and in
+  // the application log)
+  ctkCollapsibleButton* outputLogCollapsibleButton = nullptr;
+  QPlainTextEdit* outputLogTextEdit = nullptr;
+  void appendOutputLog(const QString& text);
+  void appendOperationHeader(int operation);
 
   vtkSlicerAstroModelingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
@@ -743,6 +755,39 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
     calculateLayout->addWidget(this->calculateProgressBar, calculateLayout->rowCount(), column, 1, columnSpan);
     }
 
+  this->outputLogCollapsibleButton = new ctkCollapsibleButton(q);
+  this->outputLogCollapsibleButton->setObjectName("OutputLogCollapsibleButton");
+  this->outputLogCollapsibleButton->setText(qSlicerAstroModelingModuleWidget::tr("3DBarolo Output"));
+  this->outputLogCollapsibleButton->setCollapsed(true);
+  QVBoxLayout* outputLogLayout = new QVBoxLayout(this->outputLogCollapsibleButton);
+  this->outputLogTextEdit = new QPlainTextEdit(this->outputLogCollapsibleButton);
+  this->outputLogTextEdit->setObjectName("OutputLogTextEdit");
+  this->outputLogTextEdit->setReadOnly(true);
+  this->outputLogTextEdit->setLineWrapMode(QPlainTextEdit::NoWrap);
+  this->outputLogTextEdit->setMaximumBlockCount(20000);
+  this->outputLogTextEdit->setMinimumHeight(200);
+  this->outputLogTextEdit->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+  this->outputLogTextEdit->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "What 3DBarolo prints during the operations (also printed in the terminal), "
+    "and the errors and warnings of the operations (also in the application log)."));
+  outputLogLayout->addWidget(this->outputLogTextEdit);
+  QPushButton* clearOutputLogButton = new QPushButton(qSlicerAstroModelingModuleWidget::tr("Clear"),
+                                                      this->outputLogCollapsibleButton);
+  clearOutputLogButton->setObjectName("ClearOutputLogPushButton");
+  QObject::connect(clearOutputLogButton, SIGNAL(clicked()), this->outputLogTextEdit, SLOT(clear()));
+  outputLogLayout->addWidget(clearOutputLogButton);
+  QVBoxLayout* moduleLayout = qobject_cast<QVBoxLayout*>(q->layout());
+  if (moduleLayout)
+    {
+    // before the final spacer of the module, if any
+    int index = moduleLayout->count();
+    if (index > 0 && moduleLayout->itemAt(index - 1)->spacerItem())
+      {
+      index--;
+      }
+    moduleLayout->insertWidget(index, this->outputLogCollapsibleButton);
+    }
+
   this->thread = new QThread();
   this->worker = new qSlicerAstroModelingModuleWorker();
 
@@ -762,6 +807,58 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->workerProgressTimer, SIGNAL(timeout()), q, SLOT(updateWorkerProgress()));
 
   QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(quit()), Qt::DirectConnection);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidgetPrivate::appendOutputLog(const QString& text)
+{
+  if (!this->outputLogTextEdit || text.isEmpty())
+    {
+    return;
+    }
+  QScrollBar* scrollBar = this->outputLogTextEdit->verticalScrollBar();
+  const bool atEnd = scrollBar->value() == scrollBar->maximum();
+  QTextCursor cursor(this->outputLogTextEdit->document());
+  cursor.movePosition(QTextCursor::End);
+  // progress bars of 3DBarolo rewrite their line with carriage returns
+  QString cleaned = text;
+  cleaned.replace("\r\n", "\n");
+  cleaned.replace('\r', '\n');
+  cursor.insertText(cleaned);
+  if (atEnd)
+    {
+    scrollBar->setValue(scrollBar->maximum());
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidgetPrivate::appendOperationHeader(int operation)
+{
+  QString name;
+  switch (operation)
+    {
+    case vtkMRMLAstroModelingParametersNode::ESTIMATE:
+      name = qSlicerAstroModelingModuleWidget::tr("Estimate initial parameters");
+      break;
+    case vtkMRMLAstroModelingParametersNode::CREATE:
+      name = qSlicerAstroModelingModuleWidget::tr("Create model");
+      break;
+    case vtkMRMLAstroModelingParametersNode::FIT:
+      name = qSlicerAstroModelingModuleWidget::tr("Fit model");
+      break;
+    case vtkMRMLAstroModelingParametersNode::UPDATE:
+      name = qSlicerAstroModelingModuleWidget::tr("Calculate and visualize model");
+      break;
+    default:
+      name = qSlicerAstroModelingModuleWidget::tr("3DBarolo");
+      break;
+    }
+  if (this->outputLogTextEdit && !this->outputLogTextEdit->document()->isEmpty())
+    {
+    this->appendOutputLog("\n");
+    }
+  this->appendOutputLog(QString("==== %1 (%2) ====\n")
+    .arg(name, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")));
 }
 
 //-----------------------------------------------------------------------------
@@ -2460,6 +2557,7 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     inputVolumeDisplayNode->SetOpticalVelocityDefinition();
     }
   d->calculatingModel = true;
+  d->appendOperationHeader(vtkMRMLAstroModelingParametersNode::UPDATE);
   d->parametersNode->SetStatus(1);
   d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
   d->workerParametersNode->Copy(d->parametersNode);
@@ -2727,377 +2825,157 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
     return;
     }
 
-  int dims[3];
-  inputVolume->GetImageData()->GetDimensions(dims);
-  int Zcenter = dims[2] * 0.5;
+  vtkMRMLTableNode* paramsTableNode = d->parametersNode->GetParamsTableNode();
+  if (!inputVolume->GetImageData() || !paramsTableNode || !paramsTableNode->GetTable())
+    {
+    return;
+    }
+  vtkTable* paramsTable = paramsTableNode->GetTable();
+  vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("Radii"));
+  vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("VRot"));
+  vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("VRad"));
+  vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("Inc"));
+  vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("Phi"));
+  vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("VSys"));
+  vtkDoubleArray* XPos = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("XPos"));
+  vtkDoubleArray* YPos = vtkDoubleArray::SafeDownCast(paramsTable->GetColumnByName("YPos"));
+  if (!Radii || !VRot || !VRad || !Inc || !Phi || !VSys || !XPos || !YPos)
+    {
+    return;
+    }
+  const vtkIdType numberOfRings = Radii->GetNumberOfValues();
+  if (VRot->GetNumberOfValues() < numberOfRings || VRad->GetNumberOfValues() < numberOfRings ||
+      Inc->GetNumberOfValues() < numberOfRings || Phi->GetNumberOfValues() < numberOfRings ||
+      VSys->GetNumberOfValues() < numberOfRings || XPos->GetNumberOfValues() < numberOfRings ||
+      YPos->GetNumberOfValues() < numberOfRings)
+    {
+    return;
+    }
 
-  const double arcsec2deg = 1. / 3600.;
-  const double deg2arcsec = 3600.;
-  const double deg2rad = PI / 180.;
-  const double kms2ms = 1000.;
-  double  pidiv4 = PI / 4.;
-  double  pidiv2 = PI / 2.;
-  double SliceCenterWorld[3] = {0.,0.,0.}, ModelCenterWorld[3] = {0.,0.,0.},
-         SliceCenterIJK[3] = {0.,0.,0.},   ModelCenterIJK[3] = {0.,0.,0.},
-         SliceCenterRAS[3] = {0., 0., 0.}, //newSliceCenterRAS[3] = {0., 0., 0.},
-         worldPositive[3] = {0.,0.,0.}, worldNegative[3] = {0.,0.,0.},
-         IJK[3] = {0.,0.,0.}, RAS[3] = {0.,0.,0.};
+  // points of the rotation curve on the PV slice: two points per ring
+  vtkMRMLMarkupsFiducialNode* pointsNode = nullptr;
+  if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
+    {
+    pointsNode = d->fiducialNodeMajor;
+    }
+  else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
+    {
+    pointsNode = d->fiducialNodeMinor;
+    }
+  if (!pointsNode || pointsNode->GetNumberOfControlPoints() != numberOfRings * 2)
+    {
+    return;
+    }
 
-  vtkNew<vtkGeneralTransform> IJKtoRASTransform;
-  IJKtoRASTransform->Identity();
-  IJKtoRASTransform->PostMultiply();
-  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
-  inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix.GetPointer());
-  IJKtoRASTransform->Concatenate(IJKtoRASMatrix.GetPointer());
-
-  vtkNew<vtkGeneralTransform> RAStoIJKTransform;
-  RAStoIJKTransform->Identity();
-  RAStoIJKTransform->PostMultiply();
+  // The PV slice in the pixel space (IJK, from 0) of the input: the line of
+  // the slice through its center, along the spatial direction of the slice
   vtkNew<vtkMatrix4x4> RAStoIJKMatrix;
   inputVolume->GetRASToIJKMatrix(RAStoIJKMatrix.GetPointer());
-  RAStoIJKTransform->Concatenate(RAStoIJKMatrix.GetPointer());
-
-  vtkNew<vtkGeneralTransform> EllipseTransform;
-  EllipseTransform->Identity();
-  EllipseTransform->PostMultiply();
-
-  if (!d->parametersNode->GetParamsTableNode())
+  vtkNew<vtkMatrix4x4> IJKtoRASMatrix;
+  inputVolume->GetIJKToRASMatrix(IJKtoRASMatrix.GetPointer());
+  double centerRAS[4] = {sliceToRAS->GetElement(0, 3), sliceToRAS->GetElement(1, 3),
+                         sliceToRAS->GetElement(2, 3), 1.};
+  double centerIJK[4] = {0., 0., 0., 1.};
+  RAStoIJKMatrix->MultiplyPoint(centerRAS, centerIJK);
+  double direction[2] = {0., 0.};
+  for (int axis = 0; axis < 2 && hypot(direction[0], direction[1]) < 1.E-9; axis++)
+    {
+    double axisRAS[4] = {centerRAS[0] + sliceToRAS->GetElement(0, axis),
+                         centerRAS[1] + sliceToRAS->GetElement(1, axis),
+                         centerRAS[2] + sliceToRAS->GetElement(2, axis), 1.};
+    double axisIJK[4] = {0., 0., 0., 1.};
+    RAStoIJKMatrix->MultiplyPoint(axisRAS, axisIJK);
+    direction[0] = axisIJK[0] - centerIJK[0];
+    direction[1] = axisIJK[1] - centerIJK[1];
+    }
+  const double directionNorm = hypot(direction[0], direction[1]);
+  if (directionNorm < 1.E-9)
     {
     return;
     }
+  direction[0] /= directionNorm;
+  direction[1] /= directionNorm;
 
-  vtkDoubleArray* VRot = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("VRot"));
-
-  vtkDoubleArray* VRad = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("VRad"));
-
-  vtkDoubleArray* Inc = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("Inc"));
-
-  vtkDoubleArray* VSys = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("VSys"));
-
-  vtkDoubleArray* Radii = vtkDoubleArray::SafeDownCast
-    (d->parametersNode->GetParamsTableNode()
-       ->GetTable()->GetColumnByName("Radii"));
-
-  if (!VRot || !VRad || !Inc || !VSys || !Radii)
+  // geometry of the rings as in the model of 3DBarolo (Galmod): pixel steps
+  // in arcsec (signed), position angle plus the rotation of the image
+  const double deg2rad = PI / 180.;
+  const double cdelt1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1")) * 3600.;
+  const double cdelt2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2")) * 3600.;
+  const double crota = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")) * deg2rad;
+  if (cdelt1 == 0. || cdelt2 == 0.)
     {
     return;
     }
+  // the velocities of 3DBarolo are optical; the spectral axis of the input
+  // may be displayed as radio velocity (same frequency: vrad = c vopt / (c + vopt))
+  const bool radioVelocity = !strncmp(inputVolumeDisplayNode->GetVelocityDefinition().c_str(), "VRAD", 4);
+  const double speedOfLight = 299792.458; // km/s
 
-  double *VRotPointer = static_cast<double*> (VRot->GetPointer(0));
-  double *VRadPointer = static_cast<double*> (VRad->GetPointer(0));
-  double *IncPointer = static_cast<double*> (Inc->GetPointer(0));
-  double *VSysPointer = static_cast<double*> (VSys->GetPointer(0));
-  double *RadiiPointer = static_cast<double*> (Radii->GetPointer(0));
-
-  // Semi-major axes angle (ijk coordinates)
-  double PVPhi = d->parametersNode->GetPVPhi();
-
-  // Slice angle (ijk coordinates)
-  double sliceAngle = 0.;
-  if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
+  pointsNode->GlobalWarningDisplayOff();
+  const int wasModifying = pointsNode->StartModify();
+  for (vtkIdType ring = 0; ring < numberOfRings; ring++)
     {
-    if (!d->fiducialNodeMajor ||
-        d->fiducialNodeMajor->GetNumberOfControlPoints() != Radii->GetNumberOfValues() * 2)
+    const double radius = Radii->GetValue(ring);
+    const double inc = Inc->GetValue(ring) * deg2rad;
+    const double pa = Phi->GetValue(ring) * deg2rad + crota;
+    const double spa = sin(pa);
+    const double cpa = cos(pa);
+    const double xpos = XPos->GetValue(ring);
+    const double ypos = YPos->GetValue(ring);
+
+    // Point of the ring at the azimuth az (from the receding major axis, in
+    // the plane of the disk): x = R cos(az), y = R sin(az) cos(inc),
+    // pixel = (xpos + (x spa - y cpa) / cdelt1, ypos + (x cpa + y spa) / cdelt2).
+    // On the line of the slice: A + B cos(az) + E sin(az) = 0.
+    const double ai = xpos - centerIJK[0];
+    const double aj = ypos - centerIJK[1];
+    const double bi = radius * spa / cdelt1;
+    const double ei = -radius * cos(inc) * cpa / cdelt1;
+    const double bj = radius * cpa / cdelt2;
+    const double ej = radius * cos(inc) * spa / cdelt2;
+    const double A = ai * direction[1] - aj * direction[0];
+    const double B = bi * direction[1] - bj * direction[0];
+    const double E = ei * direction[1] - ej * direction[0];
+    const double rho = hypot(B, E);
+    const int firstIndex = static_cast<int>(ring) * 2;
+    if (radius <= 0. || rho < 1.E-12 || fabs(A) > rho)
       {
-      return;
-      }
-
-    sliceAngle = d->parametersNode->GetYellowRotValue();
-    }
-  else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-    {
-    if (!d->fiducialNodeMinor ||
-        d->fiducialNodeMinor->GetNumberOfControlPoints() != Radii->GetNumberOfValues() * 2)
-      {
-      return;
-      }
-
-    sliceAngle = d->parametersNode->GetGreenRotValue();
-    }
-
-  if (int(fabs(sliceAngle) < 1.E-6) ||
-      int(fabs(fabs(sliceAngle) - 180.)) < 1.E-6)
-    {
-    sliceAngle += 0.01;
-    }
-  else if (int(fabs(fabs(sliceAngle) - 90.)) < 1.E-6 ||
-           int(fabs(fabs(sliceAngle) - 270.)) < 1.E-6)
-    {
-    sliceAngle -= 0.01;
-    }
-
-  if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
-    {
-    sliceAngle += PVPhi;
-    }
-  else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-    {
-    sliceAngle += PVPhi +90.;
-    }
-
-  if (int(fabs(sliceAngle) < 1.E-6) ||
-      int(fabs(fabs(sliceAngle) - 180.)) < 1.E-6)
-    {
-    sliceAngle += 0.01;
-    }
-  else if (int(fabs(fabs(sliceAngle) - 90.)) < 1.E-6 ||
-           int(fabs(fabs(sliceAngle) - 270.)) < 1.E-6)
-    {
-    sliceAngle -= 0.01;
-    }
-
-  double factor = 0.;
-  if ((sliceAngle - 90) > 1.E-6 && (sliceAngle - 270.) < 1.E-6)
-    {
-    factor = -180.;
-    }
-  else if ((sliceAngle - 270.) > 1.E-6)
-    {
-    factor = -360.;
-    }
-  else if ((sliceAngle + 90.) < 1.E-6 && (sliceAngle + 270.) > 1.E-6)
-    {
-    factor = +180.;
-    }
-  else if ((sliceAngle + 270.) < 1.E-6)
-    {
-    factor = +360.;
-    }
-  sliceAngle += factor;
-
-  // Convert angles to rad
-  PVPhi *= deg2rad;
-  sliceAngle *= deg2rad;
-
-  // Calculate WCS (sky) and fits header CDELT conversion factors
-  ModelCenterIJK[0] = 0;
-  ModelCenterIJK[1] = 0;
-  ModelCenterIJK[2] = 0;
-  inputVolumeDisplayNode->GetReferenceSpace(ModelCenterIJK, ModelCenterWorld);
-  SliceCenterIJK[0] = 1;
-  SliceCenterIJK[1] = 1;
-  SliceCenterIJK[2] = 0;
-  inputVolumeDisplayNode->GetReferenceSpace(SliceCenterIJK, SliceCenterWorld);
-  // P.S.: distances (stepX, stepY) should be calculated as the spherical distances.
-  //       However, at the cost of performance,
-  //       it seems the differences are very small under 1 degree field
-  double stepX = SliceCenterWorld[1] - ModelCenterWorld[1];
-  double stepY = SliceCenterWorld[0] - ModelCenterWorld[0];
-  double CDELTA1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
-  double CDELTA2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
-  double factorX = fabs(stepX / CDELTA1);
-  double factorY = fabs(stepY / CDELTA2);
-
-  // Calculate WCS (sky) slice angle
-  for (int ii = 0; ii < 3; ii++)
-    {
-    SliceCenterRAS[ii] = sliceToRAS->GetElement(ii, 3);
-    }
-
-  RAStoIJKTransform->TransformPoint(SliceCenterRAS, SliceCenterIJK);
-  SliceCenterIJK[2] = Zcenter;
-  inputVolumeDisplayNode->GetReferenceSpace(SliceCenterIJK, SliceCenterWorld);
-  SliceCenterIJK[0] += (10 * cos(sliceAngle));
-  SliceCenterIJK[1] += (10 * sin(sliceAngle));
-  inputVolumeDisplayNode->GetReferenceSpace(SliceCenterIJK, ModelCenterWorld);
-
-  double distX = (ModelCenterWorld[0] - SliceCenterWorld[0]);
-  double distY = (ModelCenterWorld[1] - SliceCenterWorld[1]);
-  double sliceAngleWorld = atan(distY / distX);
-
-  double sliceAngleCos = cos(-sliceAngleWorld);
-  double sliceAngleSin = sin(-sliceAngleWorld);
-
-  // Calculate the semi-major axis (a) and semi-minor axis (b) lengths in ijk coordinates
-  ModelCenterIJK[0] = d->parametersNode->GetXPosCenterIJK();
-  ModelCenterIJK[1] = d->parametersNode->GetYPosCenterIJK();
-  ModelCenterIJK[2] = Zcenter;
-
-  RAStoIJKTransform->TransformPoint(SliceCenterRAS, SliceCenterIJK);
-
-  inputVolumeDisplayNode->GetReferenceSpace(SliceCenterIJK, SliceCenterWorld);
-
-  // Calculate the center of the model in the WCS (sky) coordinates.
-  inputVolumeDisplayNode->GetReferenceSpace(ModelCenterIJK, ModelCenterWorld);
-
-  // Calculate the offsets (between slice/model centers)
-  // P.S.: distances (worldOffsetX, worldOffsetY) should be calculated as the spherical distances.
-  //       However, at the cost of performance,
-  //       it seems the differences are very small under 1 degree field
-  double worldOffsetX = (SliceCenterWorld[0] - ModelCenterWorld[0]) * factorX * deg2arcsec;
-  double worldOffsetY = (SliceCenterWorld[1] - ModelCenterWorld[1]) * factorY * deg2arcsec;
-
-  // Update Fiducials
-  double alpha = PVPhi;
-  double sina  = sin(alpha);
-  double cosa  = cos(alpha);
-
-  int MajorWasModifying = 0, MinorWasModifying= 0;
-  if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
-    {
-    d->fiducialNodeMajor->GlobalWarningDisplayOff();
-    MajorWasModifying = d->fiducialNodeMajor->StartModify();
-    }
-  else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-    {
-    d->fiducialNodeMinor->GlobalWarningDisplayOff();
-    MinorWasModifying = d->fiducialNodeMinor->StartModify();
-    }
-  for (int radiiIndex = 0; radiiIndex < Radii->GetNumberOfValues(); radiiIndex++)
-    {
-    double m, b, p, q, r, x[2], y[2];
-    int positiveIndex = radiiIndex * 2;
-    int negativeIndex = (radiiIndex * 2) + 1;
-    double sinInc = sin(*(IncPointer + radiiIndex) * deg2rad);
-    double cosInc = cos(*(IncPointer + radiiIndex) * deg2rad);
-    double cosIncCosInc = 1. / (cosInc * cosInc);
-
-    double A = cosa * cosa + sina * sina * cosIncCosInc;
-    double B = 2. * cosa * sina - 2. * sina * cosa * cosIncCosInc;
-    double C = sina * sina + cosa * cosa * cosIncCosInc;
-
-
-    bool danger = ((sliceAngle >= 1. * pidiv4 && sliceAngle <= 3. * pidiv4) ||
-                   (sliceAngle >= 5. * pidiv4 && sliceAngle <= 7. * pidiv4));
-    if (!danger)
-      {
-      // Intersect with a line Y = mX + b
-      m = tan(sliceAngle);
-      b = worldOffsetY - worldOffsetX * m;  // offsets are from g. to sl. center
-      p = A + B * m + C * m * m;
-      q = B * b + 2. * m * b * C;
-      r = C * b * b - *(RadiiPointer + radiiIndex) * *(RadiiPointer + radiiIndex);
-      }
-    else
-      {
-      // Intersect with a line X = mY + b
-      m = tan(pidiv2 - sliceAngle);
-      b = worldOffsetX - worldOffsetY * m;
-      p = A * m * m + B * m + C;
-      q = B * b + 2. * m * b * A;
-      r = A * b * b - *(RadiiPointer + radiiIndex) * *(RadiiPointer + radiiIndex);
-      }
-
-    double det = q * q - 4. * p * r;
-    if (det < 0.)
-      {
-      if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
+      // the ring does not cross the slice
+      for (int side = 0; side < 2; side++)
         {
-        d->fiducialNodeMajor->SetNthControlPointPosition(positiveIndex, 0., 0., 0.);
-        d->fiducialNodeMajor->SetNthControlPointPosition(negativeIndex, 0., 0., 0.);
-        d->fiducialNodeMajor->SetNthControlPointVisibility(positiveIndex, false);
-        d->fiducialNodeMajor->SetNthControlPointVisibility(negativeIndex, false);
-        }
-      else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-        {
-        d->fiducialNodeMinor->SetNthControlPointPosition(positiveIndex, 0., 0., 0.);
-        d->fiducialNodeMinor->SetNthControlPointPosition(negativeIndex, 0., 0., 0.);
-        d->fiducialNodeMinor->SetNthControlPointVisibility(positiveIndex, false);
-        d->fiducialNodeMinor->SetNthControlPointVisibility(negativeIndex, false);
+        pointsNode->SetNthControlPointVisibility(firstIndex + side, false);
         }
       continue;
       }
-
-    double sqrdet = sqrt(det);
-    if (!danger)
+    const double base = atan2(E, B);
+    const double delta = acos(-A / rho);
+    for (int side = 0; side < 2; side++)
       {
-      x[0] = (-1. * q + sqrdet) / (2. * p);
-      x[1] = (-1. * q - sqrdet) / (2. * p);
-      y[0] = m * (x[0]) + b;
-      y[1] = m * (x[1]) + b;
-      }
-    else
-      {
-      y[0] = (-1. * q + sqrdet) / (2. * p);
-      y[1] = (-1. * q - sqrdet) / (2. * p);
-      x[0] = m * (y[0]) + b;
-      x[1] = m * (y[1]) + b;
-      }
-
-    // Project velocity
-    double e1 = arctan(y[0], x[0]);
-    double beta1 = putinrangerad(e1 - alpha);
-    double theta1 = arctan(fabs(tan(beta1)), fabs(cosInc));
-    double VelocitySin1 = (*(VRadPointer + radiiIndex) * sinInc * sin(theta1) +
-                           *(VRotPointer + radiiIndex) * sinInc * cos(theta1)) * sign(cos(beta1));
-    double VelocityPositive = *(VSysPointer + radiiIndex) + VelocitySin1;
-
-    // Project radius
-    double xt1 = x[0] - worldOffsetX;
-    double yt1 = y[0] - worldOffsetY;
-    double ProjectedRadius1 = (xt1 * cos(sliceAngle) / factorX + yt1 * sin(sliceAngle) / factorY)
-                               * fabs(cos(theta1) / cos(beta1)) * arcsec2deg;
-
-    // Update fiducials
-    double ShiftX1 = ProjectedRadius1 * sliceAngleCos;
-    double ShiftY1 = ProjectedRadius1 * sliceAngleSin;
-    worldPositive[0] = SliceCenterWorld[0] + ShiftX1;
-    worldPositive[1] = SliceCenterWorld[1] + ShiftY1;
-    worldPositive[2] = VelocityPositive * kms2ms;
-    inputVolumeDisplayNode->GetIJKSpace(worldPositive, IJK);
-    IJKtoRASTransform->TransformPoint(IJK, RAS);
-    if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
-      {
-      d->fiducialNodeMajor->SetNthControlPointPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMajor->SetNthControlPointVisibility(positiveIndex, true);
-      }
-    else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-      {
-      d->fiducialNodeMinor->SetNthControlPointPosition(positiveIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMinor->SetNthControlPointVisibility(positiveIndex, true);
-      }
-    // Project velocity
-    double e2 = arctan(y[1], x[1]);
-    double beta2 = putinrangerad(e2 - alpha);
-    double theta2 = arctan(fabs(tan(beta2)), fabs(cosInc));
-    double VelocitySin2 = (*(VRadPointer + radiiIndex) * sinInc * sin(theta2) +
-                           *(VRotPointer + radiiIndex) * sinInc * cos(theta2)) * sign(cos(beta2));
-    double VelocityNegative = *(VSysPointer + radiiIndex) + VelocitySin2;
-
-    // Project radius
-    double xt2 = x[1] - worldOffsetX;
-    double yt2 = y[1] - worldOffsetY;
-    double ProjectedRadius2 = (xt2 * cos(sliceAngle) / factorX + yt2 * sin(sliceAngle) / factorY)
-                               * fabs(cos(theta2) / cos(beta2)) * arcsec2deg;
-
-    // Update fiducials
-    double ShiftX2 = ProjectedRadius2 * sliceAngleCos;
-    double ShiftY2 = ProjectedRadius2 * sliceAngleSin;
-    worldNegative[0] = SliceCenterWorld[0] + ShiftX2;
-    worldNegative[1] = SliceCenterWorld[1] + ShiftY2;
-    worldNegative[2] = VelocityNegative * kms2ms;
-    inputVolumeDisplayNode->GetIJKSpace(worldNegative, IJK);
-    IJKtoRASTransform->TransformPoint(IJK, RAS);
-    if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
-      {
-      d->fiducialNodeMajor->SetNthControlPointPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMajor->SetNthControlPointVisibility(negativeIndex, true);
-      }
-    else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-      {
-      d->fiducialNodeMinor->SetNthControlPointPosition(negativeIndex, RAS[0], RAS[1], RAS[2]);
-      d->fiducialNodeMinor->SetNthControlPointVisibility(negativeIndex, true);
+      const double az = base + (side == 0 ? delta : -delta);
+      const double x = radius * cos(az);
+      const double y = radius * sin(az) * cos(inc);
+      double ijk[3] = {xpos + (x * spa - y * cpa) / cdelt1,
+                       ypos + (x * cpa + y * spa) / cdelt2,
+                       0.};
+      double velocity = VSys->GetValue(ring) +
+        (VRot->GetValue(ring) * cos(az) + VRad->GetValue(ring) * sin(az)) * sin(inc);
+      if (radioVelocity)
+        {
+        velocity = speedOfLight * velocity / (speedOfLight + velocity);
+        }
+      double world[3] = {0., 0., 0.}, velocityIJK[3] = {0., 0., 0.};
+      inputVolumeDisplayNode->GetReferenceSpace(ijk, world);
+      world[2] = velocity * 1000.;
+      inputVolumeDisplayNode->GetIJKSpace(world, velocityIJK);
+      double pointIJK[4] = {ijk[0], ijk[1], velocityIJK[2], 1.};
+      double pointRAS[4] = {0., 0., 0., 1.};
+      IJKtoRASMatrix->MultiplyPoint(pointIJK, pointRAS);
+      pointsNode->SetNthControlPointPosition(firstIndex + side, pointRAS[0], pointRAS[1], pointRAS[2]);
+      pointsNode->SetNthControlPointVisibility(firstIndex + side, true);
       }
     }
-
-  if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeYellow"))
-    {
-    d->fiducialNodeMajor->EndModify(MajorWasModifying);
-    d->fiducialNodeMajor->GlobalWarningDisplayOn();
-    }
-  else if (!strcmp(sliceNode->GetID(), "vtkMRMLSliceNodeGreen"))
-    {
-    d->fiducialNodeMinor->EndModify(MinorWasModifying);
-    d->fiducialNodeMinor->GlobalWarningDisplayOn();
-    }
+  pointsNode->EndModify(wasModifying);
+  pointsNode->GlobalWarningDisplayOn();
 
    // This is required to update the table in the Markups Module.
    // However, it slows down a lot the performance.
@@ -4534,6 +4412,7 @@ void qSlicerAstroModelingModuleWidget::onApply()
     inputVolumeDisplayNode->SetOpticalVelocityDefinition();
     }
 
+  d->appendOperationHeader(d->parametersNode->GetOperation());
   // the worker thread works on a copy of the parameters
   d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
   d->workerParametersNode->Copy(d->parametersNode);
@@ -4957,6 +4836,10 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   // results of the worker thread (parameters and status) in the parameter
   // node, in the GUI thread
   d->workerProgressTimer->stop();
+  if (d->logic())
+    {
+    d->appendOutputLog(QString::fromStdString(d->logic()->TakeLog()));
+    }
   if (d->workerParametersNode && d->parametersNode)
     {
     d->parametersNode->Copy(d->workerParametersNode);
@@ -5536,6 +5419,12 @@ void qSlicerAstroModelingModuleWidget::onComputationCancelled()
 void qSlicerAstroModelingModuleWidget::updateWorkerProgress()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
+
+  // output of 3DBarolo since the last update
+  if (d->logic())
+    {
+    d->appendOutputLog(QString::fromStdString(d->logic()->TakeLog()));
+    }
 
   // progress of the worker thread, shown by the parameter node (GUI thread)
   if (!d->workerParametersNode || !d->parametersNode)

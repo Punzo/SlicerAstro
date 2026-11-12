@@ -38,6 +38,8 @@ class vtkMRMLAstroVolumeDisplayNode;
 /// developed by Enrico di Teodoro.
 ///
 /// \ingroup SlicerAstro_QtModules_AstroModeling
+#include <string>
+
 class VTK_SLICERASTRO_ASTROMODELING_MODULE_LOGIC_EXPORT vtkSlicerAstroModelingLogic
   : public vtkSlicerModuleLogic
 {
@@ -86,6 +88,14 @@ public:
 
   /// Clean all the pointers of the instantiated calsses of 3DBarolo
   void cleanPointers();
+
+  /// Output of the operations since the last call: what 3DBarolo prints
+  /// (standard output and error, also still printed in the terminal) and
+  /// the errors and warnings of the operations. Thread safe.
+  std::string TakeLog();
+
+  /// Append text to the output of the operations. Thread safe.
+  void AppendLog(const std::string& text);
 
 protected:
   /// Implementation of OperateModel and UpdateModelFromTable. They may throw
