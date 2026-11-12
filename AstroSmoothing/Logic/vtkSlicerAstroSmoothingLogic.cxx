@@ -309,25 +309,28 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
     return 0;
     }
 
-  // Progress events are invoked from this thread only: report them to the
-  // parameters node (GUI progress bar) and forward the cancel request.
+  // The filter runs in the background runner if set (e.g. a worker thread,
+  // the GUI responsive with a progress dialog). Its progress goes to an atomic
+  // counter (no MRML events from a worker thread) and the cancel request
+  // (CancelSmoothing, or the status -1 of the parameters node) aborts it.
+  this->SmoothingProgress = 0;
+  this->SmoothingCancelRequested = pnode->GetStatus() == -1;
   vtkNew<vtkCallbackCommand> progressCallback;
-  progressCallback->SetClientData(pnode);
+  progressCallback->SetClientData(this);
   progressCallback->SetCallback([](vtkObject* caller, unsigned long, void* clientData, void* callData)
     {
-    vtkMRMLAstroSmoothingParametersNode* parametersNode =
-      static_cast<vtkMRMLAstroSmoothingParametersNode*>(clientData);
+    vtkSlicerAstroSmoothingLogic* self = static_cast<vtkSlicerAstroSmoothingLogic*>(clientData);
     vtkAlgorithm* algorithm = vtkAlgorithm::SafeDownCast(caller);
-    if (parametersNode->GetStatus() == -1)
+    if (self->SmoothingCancelRequested)
       {
       algorithm->SetAbortExecute(1);
       return;
       }
     const double progress = callData ? *static_cast<double*>(callData) : 0.;
-    const int status = 1 + static_cast<int>(progress * 98.);
-    if (status > parametersNode->GetStatus())
+    const int value = 1 + static_cast<int>(progress * 98.);
+    if (value > self->SmoothingProgress)
       {
-      parametersNode->SetStatus(status);
+      self->SmoothingProgress = value;
       }
     });
   filter->AddObserver(vtkCommand::ProgressEvent, progressCallback);
@@ -335,10 +338,23 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
   pnode->SetStatus(1);
   const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   filter->SetInputData(inputVolume->GetImageData());
-  filter->Update();
+  std::function<void()> update = [filter]() { filter->Update(); };
+  if (this->BackgroundRunner)
+    {
+    this->BackgroundRunner(update);
+    }
+  else
+    {
+    update();
+    }
+  filter->RemoveObserver(progressCallback);
   const std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
   vtkDebugMacro(<< filterName << " Time : "
                 << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
+  if (this->SmoothingCancelRequested)
+    {
+    pnode->SetStatus(-1);
+    }
 
   if (filter->GetAbortExecute() || pnode->GetStatus() == -1)
     {

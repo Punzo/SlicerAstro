@@ -2673,70 +2673,15 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     return;
     }
 
+  // Smoothing makes a mask only (no contours): the contours segmentation of
+  // the Smoothing module of previous runs or scenes is removed
   vtkSmartPointer<vtkCollection> segNodes = vtkSmartPointer<vtkCollection>::Take
     (this->mrmlScene()->GetNodesByClassByName("vtkMRMLSegmentationNode", "AstroSmoothingContoursSeg"));
-  this->contoursSegNodeSmoothing = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
-  if (!this->contoursSegNodeSmoothing)
+  for (int ii = 0; ii < segNodes->GetNumberOfItems(); ii++)
     {
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    this->contoursSegNodeSmoothing = vtkMRMLSegmentationNode::SafeDownCast(foo);
-    this->contoursSegNodeSmoothing->SetName("AstroSmoothingContoursSeg");
-    this->contoursSegNodeSmoothing->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
-    this->mrmlScene()->AddNode(this->contoursSegNodeSmoothing);
+    this->mrmlScene()->RemoveNode(vtkMRMLNode::SafeDownCast(segNodes->GetItemAsObject(ii)));
     }
-
-  // the contours are not edited: the Segment Editor keeps its segmentation (mask)
-
-  if (!this->contoursSegNodeSmoothing->GetDisplayNode())
-    {
-    this->contoursSegNodeSmoothing->CreateDefaultDisplayNodes();
-    }
-
-  // Contour of the input data at 3 RMS, for the comparison with the mask of
-  // the smoothed data (one segment, recomputed)
-  this->contoursSegNodeSmoothing->GetSegmentation()->RemoveAllSegments();
-  std::string SegmentOneID = std::string(volumeOne->GetName()) + "_3RMS";
-    {
-    double color[3] = {0.5, 0.68, 0.5};
-    SegmentOneID = this->contoursSegNodeSmoothing->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
-
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeOne->GetImageData());
-    double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
-    max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(min, max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeSmoothing);
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-      {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-      }
-    }
-  for (int ii = 0; ii < this->contoursSegNodeSmoothing->GetNumberOfDisplayNodes(); ii++)
-    {
-    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeSmoothing->GetNthDisplayNode(ii));
-    if (!SegmentationDisplayNode)
-      {
-      continue;
-      }
-    SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
-    SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentOneID, false);
-    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentOneID, true);
-    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentOneID, false);
-    }
-  this->onCreateSurfaceButtonToggled(this->contoursSegNodeSmoothing);
+  this->contoursSegNodeSmoothing = nullptr;
 
   // Mask of the smoothed data at 3 RMS: a mask (binary labelmap in 2D and 3D,
   // FITS mask) on the grid of the input data, e.g. for the other modules
@@ -2777,7 +2722,22 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkMRMLSegmentationDisplayNode::SafeDownCast(maskNode->GetDisplayNode());
   if (maskDisplayNode)
     {
-    maskDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.8);
+    // shown with the input data (first 3D view, semi-transparent) and in the
+    // slice views; not with the smoothed data (second 3D view)
+    maskDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.5);
+    maskDisplayNode->RemoveAllViewNodeIDs();
+    vtkMRMLViewNode* inputDataView = col->GetNumberOfItems() > 0 ?
+      vtkMRMLViewNode::SafeDownCast(col->GetItemAsObject(0)) : nullptr;
+    if (inputDataView)
+      {
+      maskDisplayNode->AddViewNodeID(inputDataView->GetID());
+      }
+    std::vector<vtkMRMLNode*> sliceNodes;
+    this->mrmlScene()->GetNodesByClass("vtkMRMLSliceNode", sliceNodes);
+    for (vtkMRMLNode* sliceNode : sliceNodes)
+      {
+      maskDisplayNode->AddViewNodeID(sliceNode->GetID());
+      }
     }
   // the mask is the segmentation of the Segment Editor (and of the mask
   // selectors of the modules)

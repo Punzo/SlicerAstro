@@ -2009,6 +2009,13 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     return;
     }
 
+  // one smoothing at a time (e.g. a parameter changed while the OpenGL
+  // filters run in this thread would apply the smoothing again)
+  if (d->parametersNode->GetStatus() != 0)
+    {
+    return;
+    }
+
   vtkSlicerAstroSmoothingLogic *logic = d->logic();
   if (!logic)
     {

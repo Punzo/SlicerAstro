@@ -31,6 +31,8 @@ class vtkRenderWindow;
 #include "vtkSlicerAstroSmoothingModuleLogicExport.h"
 
 // STD includes
+#include <atomic>
+#include <functional>
 #include <string>
 class vtkMRMLAstroSmoothingParametersNode;
 
@@ -88,6 +90,24 @@ public:
 
   /// Description of the GPU backend in use (e.g. "WebGPU: Vulkan - NVIDIA ...").
   static std::string GetGPUBackendDescription();
+
+  /// Progress (0-100) of the CPU/WebGPU filter in progress (thread safe), and
+  /// cancel request (Apply returns 0).
+  int GetSmoothingProgress() { return this->SmoothingProgress; }
+  void CancelSmoothing() { this->SmoothingCancelRequested = true; }
+
+#ifndef __VTK_WRAP__
+  /// Runner of the CPU and WebGPU filters (long): e.g. in a worker thread with
+  /// the GUI responsive and a progress dialog (GetSmoothingProgress,
+  /// CancelSmoothing); it must return when the work is done. Default: the
+  /// filter runs directly. The scene is modified after the filter only, in
+  /// the calling thread. The OpenGL filters run in the calling thread (their
+  /// OpenGL context belongs to it).
+  void SetBackgroundRunner(std::function<void(const std::function<void()>&)> runner)
+    {
+    this->BackgroundRunner = runner;
+    }
+#endif
 
 protected:
   /// Run a smoothing filter (CPU or GPU) on the input volume of \a pnode and
@@ -151,6 +171,12 @@ private:
   /// True while Apply runs the (CPU code paths of the) filters with their
   /// WebGPU implementations.
   bool UseWebGPU{false};
+
+#ifndef __VTK_WRAP__
+  std::function<void(const std::function<void()>&)> BackgroundRunner;
+#endif
+  std::atomic<int> SmoothingProgress{0};
+  std::atomic<bool> SmoothingCancelRequested{false};
 
   /// Name of a filter including the hardware used, e.g. "Box Filter (CPU)".
   std::string FilterName(const char* name) const;

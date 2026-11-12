@@ -19,9 +19,12 @@
 
 // Qt includes
 #include <QDebug>
+#include <QMainWindow>
 #include <QtPlugin>
 
 // Slicer includes
+#include <qSlicerApplication.h>
+#include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerCoreApplication.h>
 #include <qSlicerModuleManager.h>
 
@@ -145,6 +148,18 @@ void qSlicerAstroSmoothingModule::setup()
     }
 
   AstroSmoothingLogic->SetAstroVolumeLogic(astroVolumeLogic);
+
+  // CPU and WebGPU filters in a worker thread, the GUI responsive with a
+  // progress dialog
+  AstroSmoothingLogic->SetBackgroundRunner([AstroSmoothingLogic](const std::function<void()>& work)
+    {
+    qSlicerApplication* application = qSlicerApplication::application();
+    qSlicerAstroVolumeModuleWidget::runInBackground(
+      application ? application->mainWindow() : nullptr,
+      qSlicerAstroSmoothingModule::tr("Smoothing the data..."), work,
+      [AstroSmoothingLogic]() { return AstroSmoothingLogic->GetSmoothingProgress(); },
+      [AstroSmoothingLogic]() { AstroSmoothingLogic->CancelSmoothing(); });
+    });
 }
 
 //-----------------------------------------------------------------------------
