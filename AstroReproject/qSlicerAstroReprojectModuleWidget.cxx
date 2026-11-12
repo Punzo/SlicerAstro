@@ -20,6 +20,8 @@
 // Qt includes
 #include <QDebug>
 #include <vtkAstroWCSErrors.h>
+#include <QApplication>
+#include <QCursor>
 #include <QMessageBox>
 
 // CTK includes
@@ -762,6 +764,100 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     ReferenceID = d->parametersNode->GetReferenceVolumeNodeID();
     }
 
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = logic->GetAstroVolumeLogic();
+  const QString title = tr("Reprojection");
+
+  // Alignment to the north
+  if (d->parametersNode->GetReprojectRotation())
+    {
+    std::string message;
+    const int issue = astroVolumeLogic->CheckReprojection(d->parametersNode, message);
+    if (issue != vtkSlicerAstroVolumeLogic::ReprojectionOK)
+      {
+      qSlicerAstroVolumeModuleWidget::informUser(this,
+        issue == vtkSlicerAstroVolumeLogic::ReprojectionAlreadyNorthAligned ? QMessageBox::Information : QMessageBox::Warning,
+        title, QString::fromStdString(message));
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+    std::ostringstream northName;
+    northName << inputVolume->GetName() << "_Reprojected_" << d->parametersNode->GetOutputSerial();
+    d->parametersNode->SetOutputSerial(d->parametersNode->GetOutputSerial() + 1);
+    QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
+    vtkMRMLAstroVolumeNode* northVolume = astroVolumeLogic->CreateNorthAlignedVolume(
+      inputVolume, d->parametersNode->GetInterpolationOrder(), northName.str().c_str());
+    QApplication::restoreOverrideCursor();
+    if (!northVolume)
+      {
+      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Critical, title,
+        tr("The alignment of %1 to the north failed (see the error log).").arg(inputVolume->GetName()));
+      d->parametersNode->SetOutputVolumeNodeID("");
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+    d->parametersNode->SetOutputVolumeNodeID(northVolume->GetID());
+    d->astroVolumeWidget->setThreeComparativeView(inputVolume->GetID(), northVolume->GetID(), northVolume->GetID());
+    d->parametersNode->SetStatus(0);
+    return;
+    }
+
+  // Reprojection on the grid of the reference: problems are reported, and
+  // rotated data can be aligned to the north first (new volumes, the data
+  // are not modified) if the user agrees
+  if (ReprojectToReference)
+    {
+    for (int attempt = 0; attempt < 3; attempt++)
+      {
+      std::string message;
+      const int issue = astroVolumeLogic->CheckReprojection(d->parametersNode, message);
+      if (issue == vtkSlicerAstroVolumeLogic::ReprojectionOK)
+        {
+        break;
+        }
+      if (issue == vtkSlicerAstroVolumeLogic::ReprojectionInputRotated ||
+          issue == vtkSlicerAstroVolumeLogic::ReprojectionReferenceRotated)
+        {
+        const bool inputRotated = issue == vtkSlicerAstroVolumeLogic::ReprojectionInputRotated;
+        vtkMRMLAstroVolumeNode* rotatedVolume = inputRotated ? inputVolume : referenceVolume;
+        const QString question = QString::fromStdString(message) + "\n\n" +
+          tr("Create a copy of %1 aligned to the north and use it for the reprojection? "
+             "The data of %1 are not modified.").arg(rotatedVolume->GetName());
+        if (!qSlicerAstroVolumeModuleWidget::askUser(this, title, question))
+          {
+          d->parametersNode->SetStatus(0);
+          return;
+          }
+        QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
+        vtkMRMLAstroVolumeNode* northVolume = astroVolumeLogic->CreateNorthAlignedVolume(
+          rotatedVolume, d->parametersNode->GetInterpolationOrder());
+        QApplication::restoreOverrideCursor();
+        if (!northVolume)
+          {
+          qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Critical, title,
+            tr("The alignment of %1 to the north failed (see the error log).").arg(rotatedVolume->GetName()));
+          d->parametersNode->SetStatus(0);
+          return;
+          }
+        if (inputRotated)
+          {
+          d->parametersNode->SetInputVolumeNodeID(northVolume->GetID());
+          inputVolume = northVolume;
+          }
+        else
+          {
+          d->parametersNode->SetReferenceVolumeNodeID(northVolume->GetID());
+          referenceVolume = northVolume;
+          }
+        continue;
+        }
+      qSlicerAstroVolumeModuleWidget::informUser(this,
+        issue == vtkSlicerAstroVolumeLogic::ReprojectionSameGrid ? QMessageBox::Information : QMessageBox::Warning,
+        title, QString::fromStdString(message));
+      d->parametersNode->SetStatus(0);
+      return;
+      }
+    }
+
   const char* outputNameReference = "_Reprojected_";
 
   // Create output volume
@@ -816,85 +912,7 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     return;
     }
 
-  if (d->parametersNode->GetReprojectRotation())
-    {
-    // north-aligned grid with the pixel steps of the input: identity linear
-    // transformation on the celestial axes (PC form, the steps in CDELT),
-    // whatever the form of the input header (CDi_j, PCi_j or CROTAi)
-    wcsprm* outputWCS = outputVolumeDisplay->GetWCSStruct();
-    const int n = outputWCS->naxis;
-    const bool cdForm = (outputWCS->altlin & 2) && !(outputWCS->altlin & 1);
-    for (int ii = 2; ii < n; ii++)
-      {
-      if (cdForm)
-        {
-        outputWCS->cdelt[ii] = outputWCS->cd[ii * n + ii];
-        }
-      else
-        {
-        outputWCS->cdelt[ii] *= outputWCS->pc[ii * n + ii];
-        }
-      }
-    for (int ii = 0; ii < n; ii++)
-      {
-      for (int jj = 0; jj < n; jj++)
-        {
-        outputWCS->pc[ii * n + jj] = (ii == jj) ? 1. : 0.;
-        }
-      outputWCS->crota[ii] = 0.;
-      }
-    outputWCS->cdelt[0] = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CDELT1"));
-    outputWCS->cdelt[1] = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CDELT2"));
-    outputWCS->altlin = 1;
-    outputWCS->flag = 0;
-
-    outputVolumeDisplay->SetWCSStatus(wcsset(outputVolumeDisplay->GetWCSStruct()));
-    if (outputVolumeDisplay->GetWCSStatus())
-      {
-      qCritical() <<"qSlicerAstroReprojectModuleWidget::onApply :"
-                    << vtkAstroWCSErrorMessage("wcsset", outputVolumeDisplay->GetWCSStatus(), outputVolumeDisplay->GetWCSStruct()).c_str();
-      }
-
-    d->parametersNode->SetReferenceVolumeNodeID(outputVolume->GetID());
-
-    if (logic->Reproject(d->parametersNode))
-      {
-      outputVolume->SetAttribute("SlicerAstro.CROTA1", "0.");
-      outputVolume->SetAttribute("SlicerAstro.CROTA2", "0.");
-      outputVolume->SetAttribute("SlicerAstro.PC1_1", "1.");
-      outputVolume->SetAttribute("SlicerAstro.PC1_2", "0.");
-      outputVolume->SetAttribute("SlicerAstro.PC2_1", "0.");
-      outputVolume->SetAttribute("SlicerAstro.PC2_2", "1.");
-
-      if (n > 2)
-        {
-        outputVolume->SetAttribute("SlicerAstro.CROTA3", "0.");
-        outputVolume->SetAttribute("SlicerAstro.PC1_3", "0.");
-        outputVolume->SetAttribute("SlicerAstro.PC2_3", "0.");
-        outputVolume->SetAttribute("SlicerAstro.PC3_1", "0.");
-        outputVolume->SetAttribute("SlicerAstro.PC3_2", "0.");
-        outputVolume->SetAttribute("SlicerAstro.PC3_3", "1.");
-        }
-      // the CD matrix of the input (rotated) does not describe the output
-      for (int ii = 1; ii <= n; ii++)
-        {
-        for (int jj = 1; jj <= n; jj++)
-          {
-          std::string key = "SlicerAstro.CD" + std::to_string(ii) + "_" + std::to_string(jj);
-          outputVolume->RemoveAttribute(key.c_str());
-          }
-        }
-      d->parametersNode->SetReferenceVolumeNodeID("");
-      d->astroVolumeWidget->setThreeComparativeView
-        (inputVolume->GetID(), outputVolume->GetID(), outputVolume->GetID());
-      }
-    else
-      {
-      scene->RemoveNode(outputVolume);
-      d->parametersNode->SetOutputVolumeNodeID("");
-      }
-    }
-  else if (ReprojectToReference)
+  if (ReprojectToReference)
     {
     if (logic->Reproject(d->parametersNode))
       {
@@ -978,6 +996,8 @@ void qSlicerAstroReprojectModuleWidget::onApply()
       {
       scene->RemoveNode(outputVolume);
       d->parametersNode->SetOutputVolumeNodeID("");
+      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Critical, title,
+        tr("The reprojection of %1 failed (see the error log).").arg(inputVolume->GetName()));
       }
     }
 

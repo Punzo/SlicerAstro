@@ -3037,6 +3037,44 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
 }
 
 //---------------------------------------------------------------------------
+bool qSlicerAstroVolumeModuleWidget::askUser(QWidget* parent, const QString& title, const QString& question)
+{
+  qInfo().noquote() << title << ":" << question;
+  qSlicerApplication* application = qSlicerApplication::application();
+  if (!application || application->testAttribute(qSlicerCoreApplication::AA_EnableTesting))
+    {
+    return true;
+    }
+  return QMessageBox::question(parent, title, question, QMessageBox::Yes | QMessageBox::No,
+                               QMessageBox::Yes) == QMessageBox::Yes;
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::informUser(QWidget* parent, QMessageBox::Icon icon,
+                                                const QString& title, const QString& message)
+{
+  if (icon == QMessageBox::Critical)
+    {
+    qCritical().noquote() << title << ":" << message;
+    }
+  else if (icon == QMessageBox::Warning)
+    {
+    qWarning().noquote() << title << ":" << message;
+    }
+  else
+    {
+    qInfo().noquote() << title << ":" << message;
+    }
+  qSlicerApplication* application = qSlicerApplication::application();
+  if (!application || application->testAttribute(qSlicerCoreApplication::AA_EnableTesting))
+    {
+    return;
+    }
+  QMessageBox messageBox(icon, title, message, QMessageBox::Ok, parent);
+  messageBox.exec();
+}
+
+//---------------------------------------------------------------------------
 const char* qSlicerAstroVolumeModuleWidget::modelingDataContoursSegmentID()
 {
   return "ModelingDataContours";

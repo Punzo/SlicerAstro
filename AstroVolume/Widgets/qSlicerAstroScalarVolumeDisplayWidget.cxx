@@ -37,6 +37,7 @@
 #include <qSlicerModuleFactoryManager.h>
 #include <qSlicerModuleManager.h>
 #include <vtkSlicerApplicationLogic.h>
+#include "qSlicerAstroVolumeModuleWidget.h"
 
 // MRML includes
 #include <vtkMRMLAstroReprojectParametersNode.h>
@@ -588,145 +589,154 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     return;
     }
 
+  // Contours of other data: reprojected on the grid of the active data
+  // (temporary copy). Problems are reported to the user, and rotated data can
+  // be aligned to the north first (new volumes: the data are not modified).
+  vtkMRMLAstroVolumeNode* temporaryVolume = nullptr;
+  vtkMRMLAstroVolumeNode* newActiveVolume = nullptr;
   if (contoursVolume && masterVolume != contoursVolume)
     {
-    QString message = QString("In order to overlay the segmentation, "
-                              "the contours data will be reprojected over the active data. "
-                              "The regridding is performed with a bilinear interpolation.");
-    qWarning() << Q_FUNC_INFO << ": " << message;
-
-    std::ostringstream outSS;
-    outSS << contoursVolume->GetName() << "_Reprojected";
-
-    if (!qSlicerApplication::application())
-      {
-      QString message = QString("Slicer app not found.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
-      return;
-      }
-
-    qSlicerModuleManager* moduleManager = qSlicerApplication::application()->moduleManager();
-    if (!moduleManager)
-      {
-      QString message = QString("Module manager not found.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
-      return;
-      }
-
-    qSlicerAbstractCoreModule* AstroVolumeModule =
-      qSlicerApplication::application()->moduleManager()->module("AstroVolume");
-    if (!AstroVolumeModule)
-      {
-      QString message = QString("AstroVolume module not found.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
-      return;
-      }
-
-    vtkSlicerAstroVolumeLogic* astroVolumeLogic =
-      vtkSlicerAstroVolumeLogic::SafeDownCast(AstroVolumeModule->logic());
+    const QString title = tr("Contours");
+    qSlicerAbstractCoreModule* astroVolumeModule = qSlicerApplication::application() &&
+      qSlicerApplication::application()->moduleManager() ?
+      qSlicerApplication::application()->moduleManager()->module("AstroVolume") : nullptr;
+    vtkSlicerAstroVolumeLogic* astroVolumeLogic = astroVolumeModule ?
+      vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic()) : nullptr;
     if (!astroVolumeLogic)
       {
-      QString message = QString("AstroVolume logic not found.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
+      qCritical() << Q_FUNC_INFO << ": AstroVolume logic not found.";
       return;
       }
 
-    vtkMRMLAstroVolumeNode *outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-       (astroVolumeLogic->CloneVolume(this->mrmlScene(), contoursVolume, outSS.str().c_str()));
-
-    int ndnodes = outputVolume->GetNumberOfDisplayNodes();
-    for (int ii = 0; ii < ndnodes; ii++)
-      {
-      vtkMRMLVolumeRenderingDisplayNode *dnode =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-          outputVolume->GetNthDisplayNode(ii));
-      if (dnode)
-        {
-        outputVolume->RemoveNthDisplayNodeID(ii);
-        }
-      }
-
-    vtkNew<vtkMatrix4x4> transformationMatrix;
-    contoursVolume->GetRASToIJKMatrix(transformationMatrix.GetPointer());
-    outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
-    outputVolume->SetAndObserveTransformNodeID(contoursVolume->GetTransformNodeID());
-
+    vtkMRMLAstroVolumeNode* contoursData = contoursVolume;
     vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParaNode;
     reprojectParaNode->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::Bilinear);
-    reprojectParaNode->SetInputVolumeNodeID(contoursVolume->GetID());
+    reprojectParaNode->SetInputVolumeNodeID(contoursData->GetID());
     reprojectParaNode->SetReferenceVolumeNodeID(masterVolume->GetID());
-    reprojectParaNode->SetOutputVolumeNodeID(outputVolume->GetID());
     reprojectParaNode->SetReprojectRotation(false);
-
-    astroVolumeLogic->CenterVolume(masterVolume);
-    astroVolumeLogic->CenterVolume(contoursVolume);
-    astroVolumeLogic->CenterVolume(outputVolume);
-
-    QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
-    if (astroVolumeLogic->Reproject(reprojectParaNode))
+    bool sameGrid = false;
+    for (int attempt = 0; attempt < 3; attempt++)
       {
-      vtkNew<vtkStringArray> outputAttributes;
-      outputVolume->GetAttributeNames(outputAttributes);
-      for (int AttributeIndex = 0; AttributeIndex < outputAttributes->GetNumberOfValues(); AttributeIndex++)
+      std::string message;
+      const int issue = astroVolumeLogic->CheckReprojection(reprojectParaNode, message);
+      if (issue == vtkSlicerAstroVolumeLogic::ReprojectionOK)
         {
-        std::string AttributeKey = outputAttributes->GetValue(AttributeIndex).c_str();
-        if (AttributeKey.find("_COMMENT") != std::string::npos ||
-            AttributeKey.find("_HISTORY") != std::string::npos)
+        break;
+        }
+      if (issue == vtkSlicerAstroVolumeLogic::ReprojectionSameGrid)
+        {
+        sameGrid = true;
+        break;
+        }
+      if (issue == vtkSlicerAstroVolumeLogic::ReprojectionInputRotated ||
+          issue == vtkSlicerAstroVolumeLogic::ReprojectionReferenceRotated)
+        {
+        const bool inputRotated = issue == vtkSlicerAstroVolumeLogic::ReprojectionInputRotated;
+        vtkMRMLAstroVolumeNode* rotatedVolume = inputRotated ? contoursData : masterVolume;
+        const QString question = QString::fromStdString(message) + "\n\n" + (inputRotated ?
+          tr("Create a copy of %1 aligned to the north and draw its contours over %2? "
+             "The data of %1 are not modified.").arg(rotatedVolume->GetName(), masterVolume->GetName()) :
+          tr("Create a copy of %1 aligned to the north, show it, and draw the contours of %2 over it? "
+             "The data of %1 are not modified.").arg(rotatedVolume->GetName(), contoursVolume->GetName()));
+        if (!qSlicerAstroVolumeModuleWidget::askUser(this, title, question))
           {
-          continue;
+          return;
           }
-        else if (AttributeKey.find("BMAJ") != std::string::npos ||
-            AttributeKey.find("BMIN") != std::string::npos ||
-            AttributeKey.find("BPA") != std::string::npos ||
-            AttributeKey.find("CDELT1") != std::string::npos ||
-            AttributeKey.find("CDELT2") != std::string::npos ||
-            AttributeKey.find("CROTA1") != std::string::npos ||
-            AttributeKey.find("CROTA2") != std::string::npos ||
-            AttributeKey.find("CRPIX1") != std::string::npos ||
-            AttributeKey.find("CRPIX2") != std::string::npos ||
-            AttributeKey.find("CRVAL1") != std::string::npos ||
-            AttributeKey.find("CRVAL2") != std::string::npos ||
-            AttributeKey.find("CTYPE1") != std::string::npos ||
-            AttributeKey.find("CTYPE2") != std::string::npos ||
-            AttributeKey.find("CUNIT1") != std::string::npos ||
-            AttributeKey.find("CUNIT2") != std::string::npos ||
-            AttributeKey.find("NAXIS1") != std::string::npos ||
-            AttributeKey.find("NAXIS2") != std::string::npos)
+        QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
+        vtkMRMLAstroVolumeNode* northVolume = astroVolumeLogic->CreateNorthAlignedVolume(
+          rotatedVolume, vtkMRMLAstroReprojectParametersNode::Bilinear);
+        QApplication::restoreOverrideCursor();
+        if (!northVolume)
           {
-          outputVolume->RemoveAttribute(AttributeKey.c_str());
+          qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Critical, title,
+            tr("The alignment of %1 to the north failed (see the error log).").arg(rotatedVolume->GetName()));
+          return;
+          }
+        if (inputRotated)
+          {
+          contoursData = northVolume;
+          reprojectParaNode->SetInputVolumeNodeID(northVolume->GetID());
+          }
+        else
+          {
+          masterVolume = northVolume;
+          newActiveVolume = northVolume;
+          reprojectParaNode->SetReferenceVolumeNodeID(northVolume->GetID());
+          }
+        continue;
+        }
+      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, title,
+        QString::fromStdString(message) + "\n\n" + tr("No contours will be generated."));
+      return;
+      }
+
+    if (sameGrid)
+      {
+      // the contours are drawn from the data directly
+      masterVolume = contoursData;
+      }
+    else
+      {
+      qInfo().noquote() << title << ":" << tr("the data of the contours are reprojected on the grid of %1 "
+                                               "(bilinear interpolation).").arg(masterVolume->GetName());
+      std::ostringstream outSS;
+      outSS << contoursData->GetName() << "_Reprojected";
+      vtkMRMLAstroVolumeNode *outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+         (astroVolumeLogic->CloneVolume(this->mrmlScene(), contoursData, outSS.str().c_str()));
+      if (!outputVolume)
+        {
+        qCritical() << Q_FUNC_INFO << ": the copy of the contours data failed.";
+        return;
+        }
+
+      int ndnodes = outputVolume->GetNumberOfDisplayNodes();
+      for (int ii = 0; ii < ndnodes; ii++)
+        {
+        vtkMRMLVolumeRenderingDisplayNode *dnode =
+          vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
+            outputVolume->GetNthDisplayNode(ii));
+        if (dnode)
+          {
+          outputVolume->RemoveNthDisplayNodeID(ii);
           }
         }
 
-      vtkNew<vtkStringArray> referenceAttributes;
-      masterVolume->GetAttributeNames(referenceAttributes);
-      for (int AttributeIndex = 0; AttributeIndex < referenceAttributes->GetNumberOfValues(); AttributeIndex++)
+      vtkNew<vtkMatrix4x4> transformationMatrix;
+      contoursData->GetRASToIJKMatrix(transformationMatrix.GetPointer());
+      outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
+      outputVolume->SetAndObserveTransformNodeID(contoursData->GetTransformNodeID());
+      reprojectParaNode->SetOutputVolumeNodeID(outputVolume->GetID());
+
+      astroVolumeLogic->CenterVolume(masterVolume);
+      astroVolumeLogic->CenterVolume(contoursData);
+      astroVolumeLogic->CenterVolume(outputVolume);
+
+      QApplication::setOverrideCursor(QCursor(Qt::BusyCursor));
+      if (!astroVolumeLogic->Reproject(reprojectParaNode))
         {
-        std::string AttributeKey = referenceAttributes->GetValue(AttributeIndex).c_str();
-        if (AttributeKey.find("_COMMENT") != std::string::npos ||
-            AttributeKey.find("_HISTORY") != std::string::npos)
+        this->mrmlScene()->RemoveNode(outputVolume);
+        QApplication::restoreOverrideCursor();
+        qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Critical, title,
+          tr("The reprojection of %1 on the grid of %2 failed (see the error log). "
+             "No contours will be generated.").arg(contoursData->GetName(), masterVolume->GetName()));
+        return;
+        }
+
+      // the copy has the celestial grid of the active data
+      const char* gridKeys[] = {"BMAJ", "BMIN", "BPA", "CDELT1", "CDELT2", "CROTA1", "CROTA2", "CRPIX1",
+                                "CRPIX2", "CRVAL1", "CRVAL2", "CTYPE1", "CTYPE2", "CUNIT1", "CUNIT2",
+                                "NAXIS1", "NAXIS2"};
+      for (const char* key : gridKeys)
+        {
+        const std::string attribute = std::string("SlicerAstro.") + key;
+        const char* referenceValue = masterVolume->GetAttribute(attribute.c_str());
+        if (referenceValue)
           {
-          continue;
+          outputVolume->SetAttribute(attribute.c_str(), referenceValue);
           }
-        else if (AttributeKey.find("BMAJ") != std::string::npos ||
-            AttributeKey.find("BMIN") != std::string::npos ||
-            AttributeKey.find("BPA") != std::string::npos ||
-            AttributeKey.find("CDELT1") != std::string::npos ||
-            AttributeKey.find("CDELT2") != std::string::npos ||
-            AttributeKey.find("CROTA1") != std::string::npos ||
-            AttributeKey.find("CROTA2") != std::string::npos ||
-            AttributeKey.find("CRPIX1") != std::string::npos ||
-            AttributeKey.find("CRPIX2") != std::string::npos ||
-            AttributeKey.find("CRVAL1") != std::string::npos ||
-            AttributeKey.find("CRVAL2") != std::string::npos ||
-            AttributeKey.find("CTYPE1") != std::string::npos ||
-            AttributeKey.find("CTYPE2") != std::string::npos ||
-            AttributeKey.find("CUNIT1") != std::string::npos ||
-            AttributeKey.find("CUNIT2") != std::string::npos ||
-            AttributeKey.find("NAXIS1") != std::string::npos ||
-            AttributeKey.find("NAXIS2") != std::string::npos)
+        else
           {
-          std::string AttributeValue = masterVolume->GetAttribute(AttributeKey.c_str());
-          outputVolume->SetAttribute(AttributeKey.c_str(), AttributeValue.c_str());
+          outputVolume->RemoveAttribute(attribute.c_str());
           }
         }
 
@@ -738,15 +748,8 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
       outputDisplayNode->SetSpace(referenceDisplayNode->GetSpace());
       outputDisplayNode->CopySpatialWCS(referenceDisplayNode);
 
+      temporaryVolume = outputVolume;
       masterVolume = outputVolume;
-      }
-    else
-      {
-      this->mrmlScene()->RemoveNode(outputVolume);
-      QString message = QString("The reprojection failed. No contours will be generated.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
-      QApplication::restoreOverrideCursor();
-      return;
       }
     }
 
@@ -979,16 +982,21 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     Levels->Squeeze();
     if (Levels->GetNumberOfValues() == 0)
       {
-      QString message = QString("All the value of some Contour Levels exceeds the MIN and MAX values. "
-                                "Contours can not be generated");
-      qWarning() << Q_FUNC_INFO << ": " << message;
+      QApplication::restoreOverrideCursor();
+      if (temporaryVolume)
+        {
+        this->mrmlScene()->RemoveNode(temporaryVolume);
+        }
+      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, tr("Contours"),
+        tr("All the contour levels are outside the range of the data (%1, %2): "
+           "no contours will be generated.").arg(MIN).arg(MAX));
       return;
       }
     else
       {
-      QString message = QString("The value of some Contour Levels exceeds the MIN and MAX values. "
-                                "These will be ignored.");
-      qWarning() << Q_FUNC_INFO << ": " << message;
+      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, tr("Contours"),
+        tr("Some contour levels are outside the range of the data (%1, %2): "
+           "they are ignored.").arg(MIN).arg(MAX));
       }
     }
 
@@ -1128,13 +1136,22 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
   // Contours: closed surfaces in 2D, binary labelmaps in 3D (not a mask)
   vtkSlicerAstroVolumeLogic::SetContoursDisplay(this->contoursSegNode);
 
-  if (masterVolume != this->volumeNode())
+  if (temporaryVolume)
     {
-    this->mrmlScene()->RemoveNode(masterVolume->GetAstroVolumeDisplayNode());
-    this->mrmlScene()->RemoveNode(masterVolume);
+    this->mrmlScene()->RemoveNode(temporaryVolume->GetAstroVolumeDisplayNode());
+    this->mrmlScene()->RemoveNode(temporaryVolume);
     }
 
   QApplication::restoreOverrideCursor();
+
+  // the north-aligned copy of the active data, with the contours, is shown
+  vtkSlicerApplicationLogic* applicationLogic = qSlicerApplication::application() ?
+    qSlicerApplication::application()->applicationLogic() : nullptr;
+  if (newActiveVolume && applicationLogic && applicationLogic->GetSelectionNode())
+    {
+    applicationLogic->GetSelectionNode()->SetActiveVolumeID(newActiveVolume->GetID());
+    applicationLogic->PropagateVolumeSelection();
+    }
 }
 
 // --------------------------------------------------------------------------

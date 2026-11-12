@@ -21,6 +21,7 @@
 #define __qSlicerAstroVolumeModuleWidget_h
 
 // CTK includes
+#include <QMessageBox>
 #include <ctkVTKObject.h>
 
 // SlicerQt includes
@@ -114,6 +115,13 @@ public slots:
   /// IDs of the segments of the contours of the Modeling module (segmentation
   /// "AstroModelingContoursSeg"): data and model at the contour level, and
   /// region of the model
+  /// Questions and messages to the user (e.g. reprojection issues and their
+  /// fixes): also in the application log. In testing mode no dialog is
+  /// shown and the answer to a question is Yes.
+  static bool askUser(QWidget* parent, const QString& title, const QString& question);
+  static void informUser(QWidget* parent, QMessageBox::Icon icon, const QString& title,
+                         const QString& message);
+
   static const char* modelingDataContoursSegmentID();
   static const char* modelingModelContoursSegmentID();
   static const char* modelingModelMaskSegmentID();

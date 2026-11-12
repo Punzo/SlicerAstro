@@ -90,6 +90,7 @@
 // WCS includes
 #include "wcslib.h"
 #include <vtkAstroWCSErrors.h>
+#include <sstream>
 
 // OpenMP includes
 
@@ -1436,6 +1437,243 @@ void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *input
 }
 
 //---------------------------------------------------------------------------
+namespace
+{
+//---------------------------------------------------------------------------
+// WCS of a volume usable for a reprojection: empty string, or why not
+std::string ReprojectionWCSIssue(vtkMRMLAstroVolumeNode* volume)
+{
+  std::string name = volume->GetName() ? volume->GetName() : "";
+  const char* dss = volume->GetAttribute("SlicerAstro.DSS");
+  const char* cdelt1 = volume->GetAttribute("SlicerAstro.CDELT1");
+  const char* cdelt2 = volume->GetAttribute("SlicerAstro.CDELT2");
+  if (dss && cdelt1 && cdelt2 && !strcmp(dss, "1") && !strcmp(cdelt1, "1.0") && !strcmp(cdelt2, "1.0"))
+    {
+    return name + " has a WCS from the old plate solution of the DSS (PPO, AMDX, AMDY), "
+                  "which is not supported: it can not be reprojected.";
+    }
+  vtkMRMLAstroVolumeDisplayNode* display = volume->GetAstroVolumeDisplayNode();
+  if (!display || !display->GetWCSStruct() || !display->GetSpace() || !strcmp(display->GetSpace(), "IJK"))
+    {
+    return name + " has no valid world coordinates (WCS): it can not be reprojected.";
+    }
+  const int naxis = display->GetWCSStruct()->naxis;
+  if (naxis != 2 && naxis != 3)
+    {
+    return name + " is not a 2D image or a 3D cube: it can not be reprojected.";
+    }
+  return std::string();
+}
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::CheckReprojection(vtkMRMLAstroReprojectParametersNode* pnode,
+                                                 std::string& message)
+{
+  message.clear();
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkMRMLAstroVolumeNode* inputVolume = (scene && pnode) ? vtkMRMLAstroVolumeNode::SafeDownCast
+    (scene->GetNodeByID(pnode->GetInputVolumeNodeID())) : nullptr;
+  if (!inputVolume || !inputVolume->GetImageData())
+    {
+    message = "The volume to reproject was not found.";
+    return ReprojectionNoData;
+    }
+  message = ReprojectionWCSIssue(inputVolume);
+  if (!message.empty())
+    {
+    return ReprojectionNoWCS;
+    }
+  const std::string inputName = inputVolume->GetName();
+  const double inputRotation = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2"));
+
+  // alignment of the input to the north (the reference is the output grid)
+  if (pnode->GetReprojectRotation())
+    {
+    if (fabs(inputRotation) < 1.E-6)
+      {
+      message = inputName + " is already aligned to the north: no reprojection is needed.";
+      return ReprojectionAlreadyNorthAligned;
+      }
+    return ReprojectionOK;
+    }
+
+  vtkMRMLAstroVolumeNode* referenceVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (scene->GetNodeByID(pnode->GetReferenceVolumeNodeID()));
+  if (!referenceVolume || !referenceVolume->GetImageData())
+    {
+    message = "The reference volume (grid of the reprojection) was not found.";
+    return ReprojectionNoData;
+    }
+  message = ReprojectionWCSIssue(referenceVolume);
+  if (!message.empty())
+    {
+    return ReprojectionNoWCS;
+    }
+  const std::string referenceName = referenceVolume->GetName();
+
+  // same celestial system (no conversion between systems in SlicerAstro)
+  const double inputEquinox = inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()->equinox;
+  const double referenceEquinox = referenceVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()->equinox;
+  if (fabs(inputEquinox - referenceEquinox) > 1.E-6)
+    {
+    std::ostringstream text;
+    text << inputName << " (equinox " << inputEquinox << ") and " << referenceName << " (equinox "
+         << referenceEquinox << ") have different celestial reference systems. SlicerAstro can not "
+            "convert between them: please provide data in the same system (e.g. both J2000).";
+    message = text.str();
+    return ReprojectionDifferentSystems;
+    }
+
+  // already on the grid of the reference
+  const char* keys[] = {"CDELT1", "CDELT2", "CROTA1", "CROTA2", "CRPIX1", "CRPIX2", "CRVAL1", "CRVAL2",
+                        "CTYPE1", "CTYPE2", "CUNIT1", "CUNIT2", "NAXIS1", "NAXIS2"};
+  bool sameGrid = true;
+  for (const char* key : keys)
+    {
+    const std::string attribute = std::string("SlicerAstro.") + key;
+    const char* inputValue = inputVolume->GetAttribute(attribute.c_str());
+    const char* referenceValue = referenceVolume->GetAttribute(attribute.c_str());
+    if (!inputValue || !referenceValue || strcmp(inputValue, referenceValue))
+      {
+      sameGrid = false;
+      break;
+      }
+    }
+  if (sameGrid)
+    {
+    message = inputName + " is already on the grid of " + referenceName + ": no reprojection is needed.";
+    return ReprojectionSameGrid;
+    }
+
+  // the reprojection works on north-aligned grids
+  std::ostringstream rotationText;
+  rotationText.precision(3);
+  if (fabs(inputRotation) > 1.E-6)
+    {
+    rotationText << inputName << " is rotated by " << inputRotation << " degrees with respect to the north: "
+                 "it has to be aligned to the north before the reprojection.";
+    message = rotationText.str();
+    return ReprojectionInputRotated;
+    }
+  const double referenceRotation = StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA2"));
+  if (fabs(referenceRotation) > 1.E-6)
+    {
+    rotationText << referenceName << " is rotated by " << referenceRotation << " degrees with respect to the north: "
+                 "it has to be aligned to the north before reprojecting data on its grid.";
+    message = rotationText.str();
+    return ReprojectionReferenceRotated;
+    }
+  return ReprojectionOK;
+}
+
+//---------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CreateNorthAlignedVolume(vtkMRMLAstroVolumeNode* inputVolume,
+                                                                           int interpolationOrder,
+                                                                           const char* name)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene || !inputVolume || !inputVolume->GetImageData() || !inputVolume->GetAstroVolumeDisplayNode())
+    {
+    return nullptr;
+    }
+  std::string outputName = (name && *name) ? std::string(name) : std::string(inputVolume->GetName()) + "_North";
+  if (!(name && *name) && scene->GetFirstNodeByName(outputName.c_str()))
+    {
+    outputName = scene->GenerateUniqueName(outputName);
+    }
+  vtkMRMLAstroVolumeNode* outputVolume = this->CloneAstroVolume(scene, inputVolume, nullptr, "_North", outputName.c_str());
+  if (!outputVolume || !outputVolume->GetImageData())
+    {
+    return nullptr;
+    }
+  vtkMRMLNode* noPreset = nullptr;
+  outputVolume->SetPresetNode(noPreset);
+  vtkMRMLAstroVolumeDisplayNode* outputVolumeDisplay = outputVolume->GetAstroVolumeDisplayNode();
+  if (!outputVolumeDisplay || !outputVolumeDisplay->GetWCSStruct())
+    {
+    scene->RemoveNode(outputVolume);
+    return nullptr;
+    }
+
+  // north-aligned grid with the pixel steps of the input: identity linear
+  // transformation on the celestial axes (PC form, the steps in CDELT),
+  // whatever the form of the input header (CDi_j, PCi_j or CROTAi)
+  wcsprm* outputWCS = outputVolumeDisplay->GetWCSStruct();
+  const int n = outputWCS->naxis;
+  const bool cdForm = (outputWCS->altlin & 2) && !(outputWCS->altlin & 1);
+  for (int ii = 2; ii < n; ii++)
+    {
+    if (cdForm)
+      {
+      outputWCS->cdelt[ii] = outputWCS->cd[ii * n + ii];
+      }
+    else
+      {
+      outputWCS->cdelt[ii] *= outputWCS->pc[ii * n + ii];
+      }
+    }
+  for (int ii = 0; ii < n; ii++)
+    {
+    for (int jj = 0; jj < n; jj++)
+      {
+      outputWCS->pc[ii * n + jj] = (ii == jj) ? 1. : 0.;
+      }
+    outputWCS->crota[ii] = 0.;
+    }
+  outputWCS->cdelt[0] = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CDELT1"));
+  outputWCS->cdelt[1] = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CDELT2"));
+  outputWCS->altlin = 1;
+  outputWCS->flag = 0;
+  outputVolumeDisplay->SetWCSStatus(wcsset(outputWCS));
+  if (outputVolumeDisplay->GetWCSStatus())
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateNorthAlignedVolume : "
+                  << vtkAstroWCSErrorMessage("wcsset", outputVolumeDisplay->GetWCSStatus(), outputWCS));
+    scene->RemoveNode(outputVolume);
+    return nullptr;
+    }
+
+  vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParameters;
+  reprojectParameters->SetInputVolumeNodeID(inputVolume->GetID());
+  reprojectParameters->SetReferenceVolumeNodeID(outputVolume->GetID());
+  reprojectParameters->SetOutputVolumeNodeID(outputVolume->GetID());
+  reprojectParameters->SetReprojectRotation(true);
+  reprojectParameters->SetInterpolationOrder(interpolationOrder);
+  if (!this->Reproject(reprojectParameters))
+    {
+    scene->RemoveNode(outputVolume);
+    return nullptr;
+    }
+
+  outputVolume->SetAttribute("SlicerAstro.CROTA1", "0.");
+  outputVolume->SetAttribute("SlicerAstro.CROTA2", "0.");
+  outputVolume->SetAttribute("SlicerAstro.PC1_1", "1.");
+  outputVolume->SetAttribute("SlicerAstro.PC1_2", "0.");
+  outputVolume->SetAttribute("SlicerAstro.PC2_1", "0.");
+  outputVolume->SetAttribute("SlicerAstro.PC2_2", "1.");
+  if (n > 2)
+    {
+    outputVolume->SetAttribute("SlicerAstro.CROTA3", "0.");
+    outputVolume->SetAttribute("SlicerAstro.PC1_3", "0.");
+    outputVolume->SetAttribute("SlicerAstro.PC2_3", "0.");
+    outputVolume->SetAttribute("SlicerAstro.PC3_1", "0.");
+    outputVolume->SetAttribute("SlicerAstro.PC3_2", "0.");
+    outputVolume->SetAttribute("SlicerAstro.PC3_3", "1.");
+    }
+  // the CD matrix of the input (rotated) does not describe the output
+  for (int ii = 1; ii <= n; ii++)
+    {
+    for (int jj = 1; jj <= n; jj++)
+      {
+      const std::string key = "SlicerAstro.CD" + std::to_string(ii) + "_" + std::to_string(jj);
+      outputVolume->RemoveAttribute(key.c_str());
+      }
+    }
+  return outputVolume;
+}
+
+//---------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *pnode)
 {
   if (!this->GetMRMLScene())
@@ -1450,169 +1688,30 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     return false;
     }
 
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
-  if (!inputVolume || !inputVolume->GetImageData())
+  std::string message;
+  const int issue = this->CheckReprojection(pnode, message);
+  if (issue == ReprojectionSameGrid || issue == ReprojectionAlreadyNorthAligned)
     {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "inputVolume not found.");
+    vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : " << message);
+    return false;
+    }
+  if (issue != ReprojectionOK)
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : " << message);
     return false;
     }
 
-  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.DSS"), "1") &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), "1.0") &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), "1.0"))
+  vtkMRMLAstroVolumeNode *inputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+  vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  vtkMRMLAstroVolumeNode *referenceVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+    (this->GetMRMLScene()->GetNodeByID(pnode->GetReferenceVolumeNodeID()));
+  if (!referenceVolume || !referenceVolume->GetAstroVolumeDisplayNode())
     {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "input volume has WCS generated from old (and not accepted) PPO, AMDX, AMDY matrices. "
-                  "It is not possible to continue with the reprojection.");
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : the reference volume was not found.");
     return false;
     }
-
-  vtkMRMLAstroVolumeDisplayNode *inputVolumeDisplay =
-    inputVolume->GetAstroVolumeDisplayNode();
-  if (!inputVolumeDisplay || !inputVolumeDisplay->GetWCSStruct())
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "inputVolumeDisplay not found.");
-    return false;
-    }
-
-  if (!strcmp(inputVolumeDisplay->GetSpace(), "IJK"))
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "inputVolumeDisplay has not WCS.");
-    return false;
-    }
-
-  vtkMRMLAstroVolumeNode *referenceVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetReferenceVolumeNodeID()));
-  if (!referenceVolume || !referenceVolume->GetImageData())
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "referenceVolume not found.");
-    return false;
-    }
-
-  if (!strcmp(referenceVolume->GetAttribute("SlicerAstro.DSS"), "1") &&
-      !strcmp(referenceVolume->GetAttribute("SlicerAstro.CDELT1"), "1.0") &&
-      !strcmp(referenceVolume->GetAttribute("SlicerAstro.CDELT2"), "1.0"))
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "reference volume has WCS generated from old (and not accepted) PPO, AMDX, AMDY matrices. "
-                  "It is not possible to continue with the reprojection.");
-    return false;
-    }
-
-  vtkMRMLAstroVolumeDisplayNode *referenceVolumeDisplay =
-    referenceVolume->GetAstroVolumeDisplayNode();
-  if (!referenceVolumeDisplay || !referenceVolumeDisplay->GetWCSStruct())
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "referenceVolumeDisplay not found.");
-    return false;
-    }
-
-  if (!strcmp(referenceVolumeDisplay->GetSpace(), "IJK"))
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "referenceVolumeDisplay has not WCS.");
-    return false;
-    }
-
-  // Check if the images dimensionality
-  int nInput = inputVolumeDisplay->GetWCSStruct()->naxis;
-  int nReference = referenceVolumeDisplay->GetWCSStruct()->naxis;
-  if (nInput != 2 && nInput != 3 && nReference != 2 && nReference != 3)
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "the dimensionalities of the input and reference data has to be 2 or 3.");
-    return false;
-    }
-
-  // Check that the input volume has not already been reprojected to the reference volume
-  if (!pnode->GetReprojectRotation() &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), referenceVolume->GetAttribute("SlicerAstro.CDELT1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), referenceVolume->GetAttribute("SlicerAstro.CDELT2")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CROTA1"), referenceVolume->GetAttribute("SlicerAstro.CROTA1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CROTA2"), referenceVolume->GetAttribute("SlicerAstro.CROTA2")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRPIX1"), referenceVolume->GetAttribute("SlicerAstro.CRPIX1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRPIX2"), referenceVolume->GetAttribute("SlicerAstro.CRPIX2")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRVAL1"), referenceVolume->GetAttribute("SlicerAstro.CRVAL1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CRVAL2"), referenceVolume->GetAttribute("SlicerAstro.CRVAL2")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CTYPE1"), referenceVolume->GetAttribute("SlicerAstro.CTYPE1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CTYPE2"), referenceVolume->GetAttribute("SlicerAstro.CTYPE2")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CUNIT1"), referenceVolume->GetAttribute("SlicerAstro.CUNIT1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CUNIT2"), referenceVolume->GetAttribute("SlicerAstro.CUNIT2")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.NAXIS1"), referenceVolume->GetAttribute("SlicerAstro.NAXIS1")) &&
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.NAXIS2"), referenceVolume->GetAttribute("SlicerAstro.NAXIS2")))
-  {
-  vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "the input and reference volume keywords relative to the WCS coordinates match. "
-                  "No reprojection is needed.");
-  return false;
-  }
-
-  // Check that the input volume has not already been reprojected to the reference volume
-  if (pnode->GetReprojectRotation() &&
-      fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2"))) < 1.E-6)
-  {
-  vtkWarningMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                  "the input volume is already aligned to the north pole. "
-                  "No reprojection is needed.");
-  return false;
-  }
-
-  // Check if the images need rotation or change of equinox
-  bool needToPreRotateInput = false;      
-  if (fabs(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2"))) > 1.E-6 &&
-      !pnode->GetReprojectRotation())
-    {
-    needToPreRotateInput = true;
-    }
-
-  bool needToPreRotateReference = false;
-  if (fabs(StringToDouble(referenceVolume->GetAttribute("SlicerAstro.CROTA2"))) > 1.E-6 &&
-      !pnode->GetReprojectRotation())
-    {
-    needToPreRotateReference = true;
-    }
-
-  bool needToPreReprojectCelestialSystem = false;
-  if (fabs(inputVolumeDisplay->GetWCSStruct()->equinox - referenceVolumeDisplay->GetWCSStruct()->equinox) > 1.E-6)
-    {
-    needToPreReprojectCelestialSystem = true;
-    }
-
-  if (needToPreRotateInput || needToPreRotateReference ||
-      needToPreReprojectCelestialSystem)
-    {
-    if (needToPreRotateInput)
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                    "the input volume is rotated respect to the north pole. "
-                    "Please create a new reprojected (north aligned) volume in the reprojection module.");
-      }
-
-    if (needToPreRotateReference)
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                    "the reference volume is rotated respect to the north pole. "
-                    "Please create a new reprojected (north aligned) volume in the reprojection module.");
-      }
-
-    if (needToPreReprojectCelestialSystem)
-      {
-      vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
-                    "the two datasets have different equinox/radesys. "
-                    "Please check that they are consistent (e.g., both B1950 or J2000). "
-                    "SlicerAstro does not provide tools to convert system of reference.");
-      }
-
-    return false;
-    }
+  vtkMRMLAstroVolumeDisplayNode *referenceVolumeDisplay = referenceVolume->GetAstroVolumeDisplayNode();
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
