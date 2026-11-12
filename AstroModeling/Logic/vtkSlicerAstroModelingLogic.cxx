@@ -1354,11 +1354,11 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::ESTIMATE)
           {
-          // Exit. Only the estimation of the parameters was requested.
+          // Exit (success). Only the estimation of the parameters was requested.
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
-          return 0;
+          return 1;
           }
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
@@ -1753,11 +1753,11 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::ESTIMATE)
           {
-          //Exit. Only the estimation of the parameters was requested.
+          // Exit (success). Only the estimation of the parameters was requested.
           this->cleanPointers();
           pnode->SetStatus(100);
           pnode->SetFitSuccess(false);
-          return 0;
+          return 1;
           }
 
         if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)

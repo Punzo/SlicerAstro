@@ -20,6 +20,7 @@
 // Qt includes
 #include <QDebug>
 #include <QEventLoop>
+#include <QMutexLocker>
 #include <QThread>
 #include <QTimer>
 
@@ -28,6 +29,32 @@
 #include <vtkMRMLAstroModelingParametersNode.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkSlicerAstroModelingLogic.h>
+
+namespace
+{
+//-----------------------------------------------------------------------------
+// Name of the operation of 3DBarolo for the application log
+QString OperationName(vtkMRMLAstroModelingParametersNode* parametersNode)
+{
+  if (!parametersNode)
+    {
+    return QString("operation");
+    }
+  switch (parametersNode->GetOperation())
+    {
+    case vtkMRMLAstroModelingParametersNode::ESTIMATE:
+      return QString("estimate of the initial parameters");
+    case vtkMRMLAstroModelingParametersNode::CREATE:
+      return QString("create model");
+    case vtkMRMLAstroModelingParametersNode::FIT:
+      return QString("fit model");
+    case vtkMRMLAstroModelingParametersNode::UPDATE:
+      return QString("calculate model");
+    default:
+      return QString("operation");
+    }
+}
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
 qSlicerAstroModelingModuleWorker::qSlicerAstroModelingModuleWorker(QObject *parent) :
@@ -50,7 +77,6 @@ void qSlicerAstroModelingModuleWorker::requestWork()
   mutex.lock();
   _working = true;
   _abort = false;
-  qDebug()<<"Request qSlicerAstroModelingModuleWorker start in Thread "<<thread()->currentThreadId();
   mutex.unlock();
 
   emit workRequested();
@@ -63,9 +89,16 @@ void qSlicerAstroModelingModuleWorker::abort()
   if (_working)
     {
     _abort = true;
-    qDebug()<<"Request qSlicerAstroModelingModuleWorker aborting in Thread "<<thread()->currentThreadId();
+    qInfo().noquote() << "3DBarolo:" << OperationName(parametersNode) << "- cancel requested.";
     }
   mutex.unlock();
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroModelingModuleWorker::abortRequested()
+{
+  QMutexLocker locker(&mutex);
+  return _abort;
 }
 
 //-----------------------------------------------------------------------------
@@ -89,8 +122,6 @@ void qSlicerAstroModelingModuleWorker::SetTableNode(vtkMRMLTableNode *tnode)
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWorker::doWork()
 {
-  qDebug()<<"Starting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
-
   // Checks if the process should be aborted
   mutex.lock();
   bool abort = _abort;
@@ -99,7 +130,7 @@ void qSlicerAstroModelingModuleWorker::doWork()
   lastResult = 0;
   if (abort)
     {
-    qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
+    qInfo().noquote() << "3DBarolo:" << OperationName(parametersNode) << "- cancelled before starting.";
     parametersNode->SetStatus(0);
     mutex.lock();
     _working = false;
@@ -109,6 +140,7 @@ void qSlicerAstroModelingModuleWorker::doWork()
     }
 
   // model from the rings of the table, or estimate / create / fit
+  qInfo().noquote() << "3DBarolo:" << OperationName(parametersNode) << "- started.";
   if (parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::UPDATE)
     {
     lastResult = astroModelingLogic->UpdateModelFromTable(parametersNode, internalTableNode);
@@ -117,17 +149,25 @@ void qSlicerAstroModelingModuleWorker::doWork()
     {
     lastResult = astroModelingLogic->OperateModel(parametersNode, internalTableNode);
     }
-  if (!lastResult)
+  const bool cancelled = parametersNode->GetStatus() == -1 || abortRequested();
+  if (cancelled)
     {
-    qDebug()<<"Aborting qSlicerAstroModelingModuleWorker process in Thread "<<thread()->currentThreadId();
+    qInfo().noquote() << "3DBarolo:" << OperationName(parametersNode) << "- cancelled.";
+    }
+  else if (!lastResult)
+    {
+    qWarning().noquote() << "3DBarolo:" << OperationName(parametersNode)
+                         << "- failed (see the 3DBarolo Output section of the Modeling module).";
+    }
+  else
+    {
+    qInfo().noquote() << "3DBarolo:" << OperationName(parametersNode) << "- finished.";
     }
 
   // Set _working to false, meaning the process can't be aborted anymore.
   mutex.lock();
   _working = false;
   mutex.unlock();
-
-  qDebug()<<"qSlicerAstroModelingModuleWorker process finished in Thread "<<thread()->currentThreadId();
 
   emit finished();
 }

@@ -61,6 +61,9 @@ public:
   int GetLastResult() const { return lastResult; }
 
 private:
+  /// Cancel requested by abort() (thread safe)
+  bool abortRequested();
+
   bool _abort;
   bool _working;
   QMutex mutex;
