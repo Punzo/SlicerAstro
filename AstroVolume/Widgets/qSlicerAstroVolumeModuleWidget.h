@@ -111,6 +111,13 @@ public slots:
                                 double greenRAS[3],
                                 bool overrideSegments = false);
 
+  /// IDs of the segments of the contours of the Modeling module (segmentation
+  /// "AstroModelingContoursSeg"): data and model at the contour level, and
+  /// region of the model
+  static const char* modelingDataContoursSegmentID();
+  static const char* modelingModelContoursSegmentID();
+  static const char* modelingModelMaskSegmentID();
+
   /// Utility function to be connected with generic signals
   void setMRMLVolumeNode(vtkMRMLNode* node);
 
@@ -222,6 +229,15 @@ protected:
   bool updateMasterRepresentationInSegmentation(vtkSegmentation* segmentation, QString representation);
 
   vtkMRMLSegmentationNode* contoursSegNodeSmoothing;
+  /// Contours of the Modeling module: create or recompute in place the
+  /// segment segmentID (voxels of volume in [lower, upper]), named name
+  bool updateModelingContourSegment(const char* segmentID, const std::string& name,
+                                    const double color[3], vtkMRMLAstroVolumeNode* volume,
+                                    double lower, double upper);
+  /// Remove the segments of the contours of the Modeling module that are
+  /// not the data contours, the model contours or the region of the model
+  void removeObsoleteModelingContourSegments();
+
   vtkMRMLSegmentationNode* contoursSegNodeModeling;
 
 private:

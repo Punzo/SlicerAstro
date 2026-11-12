@@ -3037,6 +3037,96 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
 }
 
 //---------------------------------------------------------------------------
+const char* qSlicerAstroVolumeModuleWidget::modelingDataContoursSegmentID()
+{
+  return "ModelingDataContours";
+}
+
+//---------------------------------------------------------------------------
+const char* qSlicerAstroVolumeModuleWidget::modelingModelContoursSegmentID()
+{
+  return "ModelingModelContours";
+}
+
+//---------------------------------------------------------------------------
+const char* qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID()
+{
+  return "ModelingModelMask";
+}
+
+//---------------------------------------------------------------------------
+bool qSlicerAstroVolumeModuleWidget::updateModelingContourSegment(const char* segmentID,
+                                                                  const std::string& name,
+                                                                  const double color[3],
+                                                                  vtkMRMLAstroVolumeNode* volume,
+                                                                  double lower, double upper)
+{
+  if (!this->contoursSegNodeModeling || !this->contoursSegNodeModeling->GetSegmentation() ||
+      !volume || !volume->GetImageData())
+    {
+    return false;
+    }
+  // one segment per kind of contours, recomputed in place (the labelmap of a
+  // segment has the size of the cube)
+  vtkSegmentation* segmentation = this->contoursSegNodeModeling->GetSegmentation();
+  vtkSegment* segment = segmentation->GetSegment(segmentID);
+  if (!segment)
+    {
+    double segmentColor[3] = {color[0], color[1], color[2]};
+    segmentation->AddEmptySegment(segmentID, name, segmentColor);
+    }
+  else
+    {
+    segment->SetName(name.c_str());
+    }
+
+  vtkNew<vtkImageThreshold> imageThreshold;
+  imageThreshold->SetInputData(volume->GetImageData());
+  imageThreshold->ThresholdBetween(lower, upper);
+  imageThreshold->SetInValue(1);
+  imageThreshold->SetOutValue(0);
+  imageThreshold->SetOutputScalarType(VTK_SHORT);
+  imageThreshold->Update();
+  vtkNew<vtkOrientedImageData> modifierLabelmap;
+  modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
+  vtkNew<vtkMatrix4x4> IJKToRASMatrix;
+  volume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
+  modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
+
+  vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
+  if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
+      modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, segmentID,
+      vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
+    {
+    qCritical() << Q_FUNC_INFO << ": failed to update the segment" << segmentID;
+    return false;
+    }
+  return true;
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::removeObsoleteModelingContourSegments()
+{
+  if (!this->contoursSegNodeModeling || !this->contoursSegNodeModeling->GetSegmentation())
+    {
+    return;
+    }
+  // e.g. one segment per contour level or per model (scenes of SlicerAstro 1)
+  vtkSegmentation* segmentation = this->contoursSegNodeModeling->GetSegmentation();
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    if (segmentID != modelingDataContoursSegmentID() &&
+        segmentID != modelingModelContoursSegmentID() &&
+        segmentID != modelingModelMaskSegmentID())
+      {
+      segmentation->RemoveSegment(segmentID);
+      }
+    }
+}
+
+//---------------------------------------------------------------------------
 void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNodeOneID,
                                                            const char *volumeNodeTwoID,
                                                            const char *volumeNodeThreeID,
@@ -3241,103 +3331,25 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
 
   // Create empty segment in current segmentation
 
-  std::string SegmentOneID = volumeOne->GetName();
-  SegmentOneID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentOne = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentOneID);
-  if(!SegmentOne)
-    {
-    double color[3] = {0.5, 0.68, 0.5};
-    SegmentOneID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
-
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeOne->GetImageData());
-    double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
-    max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(min, max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
-
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-      {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-      }
-    }
-
-  std::string SegmentTwoID = volumeTwo->GetName();
-  SegmentTwoID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentTwo = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentTwoID);
-  if(!SegmentTwo)
-    {
-    double color[3] = {1., 0.9, 0.13};
-    SegmentTwoID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
-
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeTwo->GetImageData());
-    double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
-    max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(min, max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
-
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-      {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-      }
-    }
-
-  std::string SegmentThreeID = volumeTwo->GetName();
-  SegmentThreeID += "_asMask";
-  vtkSegment *SegmentThree = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentThreeID);
-  if(!SegmentThree)
-    {
-    double color[3] = {0.73, 0.06, 0.59};
-    SegmentThreeID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentThreeID, SegmentThreeID, color);
-
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeTwo->GetImageData());
-    double max;
-    max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(1.E-6 , max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
-
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentThreeID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-      {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-      }
-    }
+  const double contourThreshold =
+    StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
+  const std::string levelSuffix = "_" + DoubleToString(ContourLevel) + "RMS";
+  const double dataColor[3] = {0.5, 0.68, 0.5};
+  const double modelColor[3] = {1., 0.9, 0.13};
+  const double maskColor[3] = {0.73, 0.06, 0.59};
+  const std::string SegmentOneID = modelingDataContoursSegmentID();
+  const std::string SegmentTwoID = modelingModelContoursSegmentID();
+  const std::string SegmentThreeID = modelingModelMaskSegmentID();
+  this->removeObsoleteModelingContourSegments();
+  this->updateModelingContourSegment(SegmentOneID.c_str(), std::string(volumeOne->GetName()) + levelSuffix,
+    dataColor, volumeOne, contourThreshold,
+    StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX")));
+  this->updateModelingContourSegment(SegmentTwoID.c_str(), std::string(volumeTwo->GetName()) + levelSuffix,
+    modelColor, volumeTwo, contourThreshold,
+    StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX")));
+  // region of the model (independent of the contour level)
+  this->updateModelingContourSegment(SegmentThreeID.c_str(), std::string(volumeTwo->GetName()) + "_asMask",
+    maskColor, volumeTwo, 1.E-6, StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX")));
 
   if (this->contoursSegNodeModeling->GetNumberOfDisplayNodes() < 1)
     {
@@ -3594,89 +3606,28 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
 
   // Create empty segment in current segmentation
 
-  if (overrideSegments)
+  const double contourThreshold =
+    StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
+  const std::string levelSuffix = "_" + DoubleToString(ContourLevel) + "RMS";
+  const double dataColor[3] = {0.5, 0.68, 0.5};
+  const double modelColor[3] = {1., 0.9, 0.13};
+  const double maskColor[3] = {0.73, 0.06, 0.59};
+  const std::string SegmentOneID = modelingDataContoursSegmentID();
+  const std::string SegmentTwoID = modelingModelContoursSegmentID();
+  const std::string SegmentThreeID = modelingModelMaskSegmentID();
+  this->removeObsoleteModelingContourSegments();
+  this->updateModelingContourSegment(SegmentOneID.c_str(), std::string(volumeOne->GetName()) + levelSuffix,
+    dataColor, volumeOne, contourThreshold,
+    StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX")));
+  this->updateModelingContourSegment(SegmentTwoID.c_str(), std::string(volumeTwo->GetName()) + levelSuffix,
+    modelColor, volumeTwo, contourThreshold,
+    StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX")));
+  // region of the model: recomputed when the model changes (independent of
+  // the contour level)
+  if (overrideSegments || !this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentThreeID))
     {
-    std::vector<std::string> segmentIds;
-    this->contoursSegNodeModeling->GetSegmentation()->GetSegmentIDs(segmentIds);
-
-    for (unsigned int ii = 0; ii < segmentIds.size(); ii++)
-      {
-      size_t foundVolumeOne = segmentIds[ii].find(volumeOne->GetName());
-      size_t foundVolumeTwo = segmentIds[ii].find(volumeTwo->GetName());
-
-      if (foundVolumeOne != std::string::npos || foundVolumeTwo != std::string::npos)
-        {
-        this->contoursSegNodeModeling->GetSegmentation()->GlobalWarningDisplayOff();
-        this->contoursSegNodeModeling->GetSegmentation()->RemoveSegment(segmentIds[ii]);
-        this->contoursSegNodeModeling->GetSegmentation()->GlobalWarningDisplayOn();
-        }
-      }
-    }
-
-  std::string SegmentOneID = volumeOne->GetName();
-  SegmentOneID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentOne = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentOneID);
-  if (!SegmentOne)
-    {
-    double color[3] = {0.5, 0.68, 0.5};
-    SegmentOneID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
-
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeOne->GetImageData());
-    double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
-    max = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(min, max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeOne->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
-
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-       {
-       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-       }
-    }
-
-  std::string SegmentTwoID = volumeTwo->GetName();
-  SegmentTwoID += "_" + DoubleToString(ContourLevel) + "RMS";
-  vtkSegment *SegmentTwo = this->contoursSegNodeModeling->GetSegmentation()->GetSegment(SegmentTwoID);
-  if(!SegmentTwo)
-    {
-    double color[3] = {1., 0.9, 0.13};
-    SegmentTwoID = this->contoursSegNodeModeling->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
-
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeTwo->GetImageData());
-    double min, max;
-    min = StringToDouble(volumeOne->GetAttribute("SlicerAstro.DisplayThreshold")) * ContourLevel;
-    max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(min, max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeModeling);
-
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeModeling, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-      {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-      }
+    this->updateModelingContourSegment(SegmentThreeID.c_str(), std::string(volumeTwo->GetName()) + "_asMask",
+      maskColor, volumeTwo, 1.E-6, StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX")));
     }
 
   if (this->contoursSegNodeModeling->GetNumberOfDisplayNodes() < 1)

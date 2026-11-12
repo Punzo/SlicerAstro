@@ -138,7 +138,7 @@ public:
   void cleanPointers();
   // a 3DBarolo operation is running in the worker thread
   bool workerRunning() const;
-  // purple segment "<model>_asMask" (region of the model) of the contours
+  // purple segment (region of the model) of the contours
   bool modelMaskSegment(vtkMRMLScene* scene, vtkMRMLSegmentationNode*& segmentationNode,
                         std::string& segmentID) const;
   // Calculate and Visualize Model: progress below its button (the Fitting
@@ -879,13 +879,12 @@ bool qSlicerAstroModelingModuleWidgetPrivate::modelMaskSegment(vtkMRMLScene* sce
     {
     return false;
     }
-  vtkMRMLNode* outputVolume = scene->GetNodeByID(this->parametersNode->GetOutputVolumeNodeID());
   segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroModelingContoursSeg"));
-  if (!outputVolume || !outputVolume->GetName() || !segmentationNode || !segmentationNode->GetSegmentation())
+  if (!segmentationNode || !segmentationNode->GetSegmentation())
     {
     return false;
     }
-  segmentID = std::string(outputVolume->GetName()) + "_asMask";
+  segmentID = qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID();
   return segmentationNode->GetSegmentation()->GetSegment(segmentID) != nullptr;
 }
 
