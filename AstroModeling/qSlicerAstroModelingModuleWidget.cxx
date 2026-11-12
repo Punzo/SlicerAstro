@@ -34,6 +34,7 @@
 #include <QMessageBox>
 #include <QMutexLocker>
 #include <QPushButton>
+#include <ctkMessageBox.h>
 #include <QSignalBlocker>
 #include <ctkCollapsibleButton.h>
 #include <QDateTime>
@@ -4501,12 +4502,25 @@ void qSlicerAstroModelingModuleWidget::onApply()
                               "and/or normalizing (see advanced options) the output model. "
                               "Do you wish to continue?");
     qWarning() << Q_FUNC_INFO << ": " << message;
-    // no question in testing mode (the self-tests run without a mask)
-    QMessageBox::StandardButton reply = QMessageBox::Yes;
+    // no question in testing mode (the self-tests run without a mask); the
+    // answer can be remembered ("Don't show this message again", stored in
+    // the application settings)
+    int reply = QMessageBox::Yes;
     qSlicerApplication* application = qSlicerApplication::application();
     if (!application || !application->testAttribute(qSlicerCoreApplication::AA_EnableTesting))
       {
-      reply = QMessageBox::question(nullptr, tr("3DBarolo"), message);
+      ctkMessageBox confirmation(this);
+      confirmation.setWindowTitle(tr("3DBarolo"));
+      confirmation.setIcon(QMessageBox::Question);
+      confirmation.setText(message);
+      confirmation.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+      confirmation.setDefaultButton(QMessageBox::Yes);
+      confirmation.setDontShowAgainVisible(true);
+      // only "Yes" is remembered (ctkMessageBox remembers AcceptRole buttons
+      // by default, and Yes has the YesRole)
+      confirmation.setDontShowAgainButtonRoles(QList<QMessageBox::ButtonRole>() << QMessageBox::YesRole);
+      confirmation.setDontShowAgainSettingsKey("SlicerAstro/Modeling/DontAskSearchWithoutMask");
+      reply = confirmation.exec();
       }
     if (reply != QMessageBox::Yes)
       {
