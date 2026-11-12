@@ -2689,23 +2689,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     this->contoursSegNodeSmoothing->CreateDefaultDisplayNodes();
     }
 
-  for (int ii = 0; ii < this->contoursSegNodeSmoothing->GetNumberOfDisplayNodes(); ii++)
-    {
-    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeSmoothing->GetNthDisplayNode(ii));
-    if (!SegmentationDisplayNode)
-      {
-      continue;
-      }
-    SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-    }
-
-  // Create empty segment in current segmentation
-
-  std::string SegmentOneID = volumeOne->GetName();
-  SegmentOneID += "_3RMS";
-  vtkSegment *SegmentOne = this->contoursSegNodeSmoothing->GetSegmentation()->GetSegment(SegmentOneID);
-  if(!SegmentOne)
+  // Contour of the input data at 3 RMS, for the comparison with the mask of
+  // the smoothed data (one segment, recomputed)
+  this->contoursSegNodeSmoothing->GetSegmentation()->RemoveAllSegments();
+  std::string SegmentOneID = std::string(volumeOne->GetName()) + "_3RMS";
     {
     double color[3] = {0.5, 0.68, 0.5};
     SegmentOneID = this->contoursSegNodeSmoothing->GetSegmentation()->AddEmptySegment(SegmentOneID, SegmentOneID, color);
@@ -2727,22 +2714,40 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
 
     vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeSmoothing);
-
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
         modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentOneID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
-
-  std::string SegmentTwoID = volumeTwo->GetName();
-  SegmentTwoID += "_3RMS";
-  vtkSegment *SegmentTwo = this->contoursSegNodeSmoothing->GetSegmentation()->GetSegment(SegmentTwoID);
-  if(!SegmentTwo)
+  for (int ii = 0; ii < this->contoursSegNodeSmoothing->GetNumberOfDisplayNodes(); ii++)
     {
-    double color[3] = {1., 0.9, 0.13};
-    SegmentTwoID = this->contoursSegNodeSmoothing->GetSegmentation()->AddEmptySegment(SegmentTwoID, SegmentTwoID, color);
+    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeSmoothing->GetNthDisplayNode(ii));
+    if (!SegmentationDisplayNode)
+      {
+      continue;
+      }
+    SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
+    SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentOneID, false);
+    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentOneID, true);
+    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentOneID, false);
+    }
+  this->onCreateSurfaceButtonToggled(this->contoursSegNodeSmoothing);
 
+  // Mask of the smoothed data at 3 RMS: a mask (binary labelmap in 2D and 3D,
+  // FITS mask) on the grid of the input data, e.g. for the other modules
+  vtkSmartPointer<vtkMRMLSegmentationNode> maskNode = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
+    vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode")));
+  maskNode->SetName(this->mrmlScene()->GetUniqueNameByString((std::string(volumeTwo->GetName()) + "_SEG").c_str()));
+  this->mrmlScene()->AddNode(maskNode);
+  maskNode->CreateDefaultDisplayNodes();
+  vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(maskNode, volumeOne);
+
+  const std::string SegmentTwoName = std::string(volumeTwo->GetName()) + "_3RMS";
+  double maskColor[3] = {1., 0.9, 0.13};
+  const std::string SegmentTwoID = maskNode->GetSegmentation()->AddEmptySegment(SegmentTwoName, SegmentTwoName, maskColor);
+    {
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
     double min, max;
@@ -2758,37 +2763,23 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkNew<vtkMatrix4x4> IJKToRASMatrix;
     volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
     modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNodeSmoothing);
-
     if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNodeSmoothing, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
+        modifierLabelmap.GetPointer(), maskNode, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
       {
       qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
       }
     }
-
-  for (int ii = 0; ii < this->contoursSegNodeSmoothing->GetNumberOfDisplayNodes(); ii++)
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(maskNode);
+  vtkMRMLSegmentationDisplayNode* maskDisplayNode =
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(maskNode->GetDisplayNode());
+  if (maskDisplayNode)
     {
-    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNodeSmoothing->GetNthDisplayNode(ii));
-    if (!SegmentationDisplayNode)
-      {
-      continue;
-      }
-
-    SegmentationDisplayNode->SetSegmentVisibility(SegmentOneID, true);
-    SegmentationDisplayNode->SetSegmentVisibility(SegmentTwoID, true);
-    SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentOneID, false);
-    SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentTwoID, false);
-    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentOneID, true);
-    SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentTwoID, true);
-    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentOneID, false);
-    SegmentationDisplayNode->SetSegmentVisibility3D(SegmentTwoID, true);
-    SegmentationDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.8);
+    maskDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.8);
     }
+  // the mask is the segmentation of the Segment Editor (and of the mask
+  // selectors of the modules)
+  d->segmentEditorNode->SetAndObserveSegmentationNode(maskNode);
 
-  this->onCreateSurfaceButtonToggled(this->contoursSegNodeSmoothing);
   d->AutoPropagateCheckBox->setChecked(autoPropagate);
 }
 
