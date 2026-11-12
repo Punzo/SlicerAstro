@@ -73,6 +73,8 @@ public slots:
 
   /// Slots to visualize the model at different intensity level.
   void onVisualize();
+  void onShowModelMaskToggled(bool show);
+  void updateModelMaskButton();
 
 protected:
   /// Set the beam of the Fitting Parameters section in the input volume

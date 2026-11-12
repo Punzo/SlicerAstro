@@ -34,6 +34,7 @@
 #include <QMessageBox>
 #include <QMutexLocker>
 #include <QPushButton>
+#include <QSignalBlocker>
 #include <ctkCollapsibleButton.h>
 #include <QDateTime>
 #include <QFontDatabase>
@@ -110,6 +111,7 @@
 #include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLSegmentationNode.h>
+#include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLTableNode.h>
@@ -136,6 +138,9 @@ public:
   void cleanPointers();
   // a 3DBarolo operation is running in the worker thread
   bool workerRunning() const;
+  // purple segment "<model>_asMask" (region of the model) of the contours
+  bool modelMaskSegment(vtkMRMLScene* scene, vtkMRMLSegmentationNode*& segmentationNode,
+                        std::string& segmentID) const;
   // Calculate and Visualize Model: progress below its button (the Fitting
   // parameters section, with the other progress bar, is often collapsed)
   QProgressBar* calculateProgressBar = nullptr;
@@ -476,6 +481,9 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->VisualizePushButton, SIGNAL(clicked()),
                    q, SLOT(onVisualize()));
 
+  QObject::connect(this->VisualizeMaskPushButton, SIGNAL(toggled(bool)),
+                   q, SLOT(onShowModelMaskToggled(bool)));
+
   this->contourLevelTimer = new QTimer(q);
   this->contourLevelTimer->setSingleShot(true);
   this->contourLevelTimer->setInterval(300);
@@ -752,7 +760,7 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
     {
     int row = 0, column = 0, rowSpan = 0, columnSpan = 0;
     calculateLayout->getItemPosition(calculateIndex, &row, &column, &rowSpan, &columnSpan);
-    calculateLayout->addWidget(this->calculateProgressBar, calculateLayout->rowCount(), column, 1, columnSpan);
+    calculateLayout->addWidget(this->calculateProgressBar, row + 1, column, 1, columnSpan);
     }
 
   this->outputLogCollapsibleButton = new ctkCollapsibleButton(q);
@@ -859,6 +867,26 @@ void qSlicerAstroModelingModuleWidgetPrivate::appendOperationHeader(int operatio
     }
   this->appendOutputLog(QString("==== %1 (%2) ====\n")
     .arg(name, QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")));
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroModelingModuleWidgetPrivate::modelMaskSegment(vtkMRMLScene* scene,
+  vtkMRMLSegmentationNode*& segmentationNode, std::string& segmentID) const
+{
+  segmentationNode = nullptr;
+  segmentID.clear();
+  if (!scene || !this->parametersNode || !this->parametersNode->GetOutputVolumeNodeID())
+    {
+    return false;
+    }
+  vtkMRMLNode* outputVolume = scene->GetNodeByID(this->parametersNode->GetOutputVolumeNodeID());
+  segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroModelingContoursSeg"));
+  if (!outputVolume || !outputVolume->GetName() || !segmentationNode || !segmentationNode->GetSegmentation())
+    {
+    return false;
+    }
+  segmentID = std::string(outputVolume->GetName()) + "_asMask";
+  return segmentationNode->GetSegmentation()->GetSegment(segmentID) != nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -2673,6 +2701,53 @@ void qSlicerAstroModelingModuleWidget::finishCalculateAndVisualize(bool success)
          d->parametersNode->GetPVPhi(),
          d->parametersNode->GetPVPhi() + 90.,
          RAS, RAS, true);
+
+  // the region of the model as chosen by the user (the redraw shows it)
+  this->onShowModelMaskToggled(d->VisualizeMaskPushButton->isChecked());
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onShowModelMaskToggled(bool show)
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  vtkMRMLSegmentationNode* segmentationNode = nullptr;
+  std::string segmentID;
+  if (!d->modelMaskSegment(this->mrmlScene(), segmentationNode, segmentID))
+    {
+    return;
+    }
+  for (int ii = 0; ii < segmentationNode->GetNumberOfDisplayNodes(); ii++)
+    {
+    vtkMRMLSegmentationDisplayNode* displayNode =
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetNthDisplayNode(ii));
+    if (!displayNode)
+      {
+      continue;
+      }
+    // the region of the model is shown in the 3D view only
+    displayNode->SetSegmentVisibility(segmentID, show);
+    displayNode->SetSegmentVisibility3D(segmentID, show);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::updateModelMaskButton()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+
+  vtkMRMLSegmentationNode* segmentationNode = nullptr;
+  std::string segmentID;
+  bool visible = false;
+  if (d->modelMaskSegment(this->mrmlScene(), segmentationNode, segmentID))
+    {
+    vtkMRMLSegmentationDisplayNode* displayNode =
+      vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
+    visible = displayNode && displayNode->GetSegmentVisibility(segmentID) &&
+              displayNode->GetSegmentVisibility3D(segmentID);
+    }
+  const QSignalBlocker blocker(d->VisualizeMaskPushButton);
+  d->VisualizeMaskPushButton->setChecked(visible);
 }
 
 //-----------------------------------------------------------------------------
@@ -3793,6 +3868,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLAstroModelingParametersNodeModified
   d->ContourSliderWidget->setEnabled(d->parametersNode->GetFitSuccess());
   d->ContourLabel->setEnabled(d->parametersNode->GetFitSuccess());
   d->VisualizePushButton->setEnabled(d->parametersNode->GetFitSuccess());
+  d->VisualizeMaskPushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->CalculatePushButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->AstroModelingCopyButton->setEnabled(d->parametersNode->GetFitSuccess());
   d->AstroModelingPasteButton->setEnabled(d->parametersNode->GetFitSuccess());
@@ -4769,6 +4845,9 @@ void qSlicerAstroModelingModuleWidget::onVisualize()
          d->parametersNode->GetPVPhi() + d->parametersNode->GetYellowRotValue(),
          d->parametersNode->GetPVPhi() + 90. + d->parametersNode->GetGreenRotValue(),
          yellowRAS, greenRAS, false);
+
+  // the region of the model as chosen by the user (the redraw shows it)
+  this->onShowModelMaskToggled(d->VisualizeMaskPushButton->isChecked());
 }
 
 //-----------------------------------------------------------------------------
@@ -5130,6 +5209,8 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
          PVPhi + 90.,
          RAS);
 
+    this->updateModelMaskButton();
+
     d->InputSegmentCollapsibleButton->setCollapsed(true);
     d->FittingParametersCollapsibleButton->setCollapsed(true);
     d->OutputCollapsibleButton->setCollapsed(false);
@@ -5470,6 +5551,7 @@ void qSlicerAstroModelingModuleWidget::onComputationStarted()
   d->EstimateInitialParametersPushButton->setEnabled(false);
   d->CalculatePushButton->setEnabled(false);
   d->VisualizePushButton->setEnabled(false);
+  d->VisualizeMaskPushButton->setEnabled(false);
   d->TableView->setEnabled(false);
   d->ContourSliderWidget->setEnabled(false);
   d->AstroModelingPasteButton->setEnabled(false);

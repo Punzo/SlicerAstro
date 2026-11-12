@@ -2684,7 +2684,7 @@
       <property name="spacing">
        <number>4</number>
       </property>
-      <item row="0" column="1">
+      <item row="6" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_26">
         <property name="leftMargin">
          <number>0</number>
@@ -2744,7 +2744,7 @@
         </item>
        </layout>
       </item>
-      <item row="1" column="1">
+      <item row="2" column="1">
        <widget class="QPushButton" name="VisualizePushButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -2759,14 +2759,33 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Click to update the visualization of the model. The model and the data will be visualized at the chosen Contour Level. </string>
+         <string>Show the model and the data at the contour level (segmentations in the 2D and 3D views).</string>
         </property>
         <property name="text">
-         <string>Visualize Model</string>
+         <string>Show Model</string>
         </property>
        </widget>
       </item>
-      <item row="2" column="1">
+      <item row="3" column="1">
+       <widget class="QPushButton" name="VisualizeMaskPushButton">
+        <property name="minimumSize">
+         <size>
+          <width>0</width>
+          <height>35</height>
+         </size>
+        </property>
+        <property name="toolTip">
+         <string>Show or hide the region of the model of 3DBarolo (purple segment &quot;&lt;model&gt;_asMask&quot; in the 3D view): it hides the data fitted by the model, so the data not described by the model (e.g. extra-planar gas) stand out.</string>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Show 3DBarolo Mask</string>
+        </property>
+       </widget>
+      </item>
+      <item row="0" column="1">
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <property name="spacing">
          <number>3</number>
@@ -2867,7 +2886,7 @@
         </item>
        </layout>
       </item>
-      <item row="6" column="1">
+      <item row="4" column="1">
        <widget class="QPushButton" name="CalculatePushButton">
         <property name="sizePolicy">
          <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
@@ -2882,14 +2901,14 @@
          </size>
         </property>
         <property name="toolTip">
-         <string>Click to recalculate and visualize the model using the parameters in Tabular. The model and the data will be visualized at the chosen Contour Level.</string>
+         <string>Recalculate the model from the parameters of the rings in the table, then show it at the contour level.</string>
         </property>
         <property name="text">
-         <string>Calculate and Visualize Model</string>
+         <string>Calculate Model</string>
         </property>
        </widget>
       </item>
-      <item row="3" column="1">
+      <item row="1" column="1">
        <widget class="qMRMLTableView" name="TableView">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
