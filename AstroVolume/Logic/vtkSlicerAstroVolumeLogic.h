@@ -27,6 +27,8 @@
 #define __vtkSlicerAstroVolumeLogic_h
 
 // Slicer includes
+#include <atomic>
+#include <functional>
 #include <vtkSlicerVolumesLogic.h>
 
 // STD includes
@@ -191,12 +193,15 @@ public:
   /// source representation (the segmentation is marked as contours).
   static void PrepareContoursUpdate(vtkMRMLSegmentationNode* segmentationNode);
 
-  /// After adding the contour levels: the binary labelmaps stay the source
-  /// representation; closed surfaces (derived) are shown in the 2D views
-  /// (smooth contour lines) and the binary labelmaps in the 3D views (no
-  /// surface rendering of large volumes: faster). The segmentation is
-  /// marked as contours (not listed as a mask).
+  /// After adding the contour levels: binary labelmaps (source
+  /// representation) shown in the 2D and 3D views; the closed surfaces are
+  /// removed (slow for large data, see SetContoursSmooth2D). The segmentation
+  /// is marked as contours (not listed as a mask).
   static void SetContoursDisplay(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// 2D display of contours: closed surfaces (smooth lines, if the segments
+  /// have them) or binary labelmaps (outlines of the voxels).
+  static void SetContoursSmooth2D(vtkMRMLSegmentationNode* segmentationNode, bool smooth);
 
   /// Tag of the contour segments with the ID of the volume of their data
   static const char* GetContoursVolumeTagName() { return "SlicerAstro.ContoursVolumeID"; }
@@ -276,6 +281,23 @@ public:
                                                    int interpolationOrder,
                                                    const char* name = nullptr);
 
+  /// Progress (0-100) of the interpolation of the reprojection in progress
+  /// (thread safe), and cancel request (Reproject returns false).
+  int GetReprojectionProgress();
+  void CancelReprojection();
+
+#ifndef __VTK_WRAP__
+  /// Runner of the interpolation of Reproject (long): e.g. in a worker thread
+  /// with the GUI responsive and a progress dialog (GetReprojectionProgress,
+  /// CancelReprojection); it must return when the work is done. Default:
+  /// the work runs directly. The scene is modified before and after the
+  /// interpolation only, in the calling thread.
+  void SetBackgroundRunner(std::function<void(const std::function<void()>&)> runner)
+    {
+    this->BackgroundRunner = runner;
+    }
+#endif
+
 protected:
   vtkSlicerAstroVolumeLogic();
   virtual ~vtkSlicerAstroVolumeLogic();
@@ -303,6 +325,10 @@ protected:
   /// textures of the GPU ray cast mapper stay small.
   void EnsureVolumePropertyTransferFunctionGaps(vtkMRMLVolumePropertyNode* volumePropertyNode);
   bool UpdatingTransferFunctionGaps{false};
+#ifndef __VTK_WRAP__
+  std::function<void(const std::function<void()>&)> BackgroundRunner;
+#endif
+  std::atomic<vtkMRMLAstroReprojectParametersNode*> ReprojectionProgressNode{nullptr};
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;

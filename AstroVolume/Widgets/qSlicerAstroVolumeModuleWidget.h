@@ -21,6 +21,7 @@
 #define __qSlicerAstroVolumeModuleWidget_h
 
 // CTK includes
+#include <functional>
 #include <QMessageBox>
 #include <ctkVTKObject.h>
 
@@ -121,6 +122,15 @@ public slots:
   static bool askUser(QWidget* parent, const QString& title, const QString& question);
   static void informUser(QWidget* parent, QMessageBox::Icon icon, const QString& title,
                          const QString& message);
+
+  /// Run work in a worker thread and return when it is done; the GUI stays
+  /// responsive, with a progress dialog (progress: 0-100) and a Cancel
+  /// button (cancel: request to stop the work). The work must not modify
+  /// the scene (no MRML events from the worker thread).
+  static void runInBackground(QWidget* parent, const QString& label,
+                              const std::function<void()>& work,
+                              const std::function<int()>& progress,
+                              const std::function<void()>& cancel);
 
   static const char* modelingDataContoursSegmentID();
   static const char* modelingModelContoursSegmentID();

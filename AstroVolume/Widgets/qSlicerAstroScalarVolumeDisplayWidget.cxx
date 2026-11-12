@@ -22,6 +22,11 @@
 
 // Qt includes
 #include <QApplication>
+#include <QSignalBlocker>
+#include <QStyle>
+#include <QIcon>
+#include <QHBoxLayout>
+#include <QToolButton>
 #include <QMessageBox>
 #include <QSettings>
 #include <QString>
@@ -37,6 +42,10 @@
 #include <qSlicerModuleFactoryManager.h>
 #include <qSlicerModuleManager.h>
 #include <vtkSlicerApplicationLogic.h>
+#include <atomic>
+#include <vtkSegmentationConverter.h>
+#include <vtkSegmentation.h>
+#include <vtkSegment.h>
 #include "qSlicerAstroVolumeModuleWidget.h"
 
 // MRML includes
@@ -94,6 +103,9 @@ public:
 
   vtkSmartPointer<vtkColorTransferFunction> ColorTransferFunction;
   vtkWeakPointer<vtkMRMLAstroVolumeNode> contoursVolumeNode;
+  QToolButton* ShowContoursButton = nullptr;
+  QToolButton* SmoothContoursButton = nullptr;
+  QToolButton* DeleteContoursButton = nullptr;
   int nameIndex;
 };
 
@@ -213,6 +225,36 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
 
   this->SliceSegmentationLabel->hide();
   this->Contours2DSliderWidget->hide();
+
+  // contours: visibility, smooth 2D lines, deletion
+  this->ShowContoursButton = new QToolButton(q);
+  this->ShowContoursButton->setObjectName("ShowContoursButton");
+  this->ShowContoursButton->setCheckable(true);
+  this->ShowContoursButton->setChecked(true);
+  this->ShowContoursButton->setIcon(QIcon(":/Icons/Small/SlicerVisible.png"));
+  this->ShowContoursButton->setToolTip(qSlicerAstroScalarVolumeDisplayWidget::tr("Show or hide the contours."));
+  this->SmoothContoursButton = new QToolButton(q);
+  this->SmoothContoursButton->setObjectName("SmoothContoursButton");
+  this->SmoothContoursButton->setCheckable(true);
+  this->SmoothContoursButton->setText(qSlicerAstroScalarVolumeDisplayWidget::tr("Smooth"));
+  this->SmoothContoursButton->setToolTip(qSlicerAstroScalarVolumeDisplayWidget::tr(
+    "Show the contours in the 2D views as smooth lines (closed surfaces, computed in the background: "
+    "it can take time for large data) instead of the outlines of the voxels."));
+  this->DeleteContoursButton = new QToolButton(q);
+  this->DeleteContoursButton->setObjectName("DeleteContoursButton");
+  this->DeleteContoursButton->setIcon(q->style()->standardIcon(QStyle::SP_TrashIcon));
+  this->DeleteContoursButton->setToolTip(qSlicerAstroScalarVolumeDisplayWidget::tr("Delete all the contours."));
+  QHBoxLayout* contoursLayout = q->findChild<QHBoxLayout*>("horizontalLayout_5");
+  if (contoursLayout)
+    {
+    contoursLayout->addWidget(this->ShowContoursButton);
+    contoursLayout->addWidget(this->SmoothContoursButton);
+    contoursLayout->addWidget(this->DeleteContoursButton);
+    }
+  QObject::connect(this->ShowContoursButton, SIGNAL(toggled(bool)), q, SLOT(onShowContoursToggled(bool)));
+  QObject::connect(this->SmoothContoursButton, SIGNAL(toggled(bool)), q, SLOT(onSmoothContoursToggled(bool)));
+  QObject::connect(this->DeleteContoursButton, SIGNAL(clicked()), q, SLOT(onDeleteContours()));
+  q->updateContoursButtons();
 }
 
 // --------------------------------------------------------------------------
@@ -1144,6 +1186,19 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
   QApplication::restoreOverrideCursor();
 
+  // new contours: shown, outlines of the voxels in 2D (fast)
+  if (this->contoursSegNode && this->contoursSegNode->GetDisplayNode())
+    {
+    this->contoursSegNode->GetDisplayNode()->SetVisibility(true);
+    }
+    {
+    const QSignalBlocker showBlocker(d->ShowContoursButton);
+    d->ShowContoursButton->setChecked(true);
+    const QSignalBlocker smoothBlocker(d->SmoothContoursButton);
+    d->SmoothContoursButton->setChecked(false);
+    }
+  this->updateContoursButtons();
+
   // the north-aligned copy of the active data, with the contours, is shown
   vtkSlicerApplicationLogic* applicationLogic = qSlicerApplication::application() ?
     qSlicerApplication::application()->applicationLogic() : nullptr;
@@ -1152,6 +1207,130 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     applicationLogic->GetSelectionNode()->SetActiveVolumeID(newActiveVolume->GetID());
     applicationLogic->PropagateVolumeSelection();
     }
+}
+
+// --------------------------------------------------------------------------
+namespace
+{
+vtkMRMLSegmentationNode* ContoursSegmentationNode(vtkMRMLScene* scene)
+{
+  vtkMRMLSegmentationNode* node = scene ?
+    vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroContoursSeg")) : nullptr;
+  return (node && node->GetSegmentation()) ? node : nullptr;
+}
+} // end of anonymous namespace
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::updateContoursButtons()
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  const bool hasContours = node && node->GetSegmentation()->GetNumberOfSegments() > 0;
+  d->ShowContoursButton->setEnabled(hasContours);
+  d->SmoothContoursButton->setEnabled(hasContours);
+  d->DeleteContoursButton->setEnabled(hasContours);
+  if (hasContours && node->GetDisplayNode())
+    {
+    const QSignalBlocker blocker(d->ShowContoursButton);
+    d->ShowContoursButton->setChecked(node->GetDisplayNode()->GetVisibility());
+    }
+  d->ShowContoursButton->setIcon(QIcon(d->ShowContoursButton->isChecked() ?
+    ":/Icons/Small/SlicerVisible.png" : ":/Icons/Small/SlicerInvisible.png"));
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onShowContoursToggled(bool show)
+{
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  if (node && node->GetDisplayNode())
+    {
+    node->GetDisplayNode()->SetVisibility(show);
+    }
+  this->updateContoursButtons();
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onDeleteContours()
+{
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  if (node)
+    {
+    node->GetSegmentation()->RemoveAllSegments();
+    }
+  this->updateContoursButtons();
+}
+
+// --------------------------------------------------------------------------
+void qSlicerAstroScalarVolumeDisplayWidget::onSmoothContoursToggled(bool smooth)
+{
+  Q_D(qSlicerAstroScalarVolumeDisplayWidget);
+  vtkMRMLSegmentationNode* node = ContoursSegmentationNode(this->mrmlScene());
+  if (!node)
+    {
+    return;
+    }
+  vtkSegmentation* segmentation = node->GetSegmentation();
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  if (!smooth || segmentation->ContainsRepresentation(surfaceName))
+    {
+    vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(node, smooth);
+    return;
+    }
+
+  // Closed surfaces of the contours, in the background (one segment at a time:
+  // progress and cancel). The worker converts copies of the segments (no
+  // scene objects); the surfaces are added to the segments afterwards.
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  std::vector<vtkSmartPointer<vtkSegmentation> > copies;
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkSmartPointer<vtkSegmentation> copy = vtkSmartPointer<vtkSegmentation>::New();
+    copy->SetSourceRepresentationName(labelmapName);
+    vtkNew<vtkSegment> segmentCopy;
+    segmentCopy->DeepCopy(segmentation->GetSegment(segmentID));
+    copy->AddSegment(segmentCopy, segmentID);
+    copies.push_back(copy);
+    }
+  std::atomic<int> converted{0};
+  std::atomic<bool> cancelled{false};
+  const int total = static_cast<int>(copies.size());
+  qSlicerAstroVolumeModuleWidget::runInBackground(this, tr("Computing the smooth contour lines..."),
+    [&copies, &converted, &cancelled, surfaceName]()
+      {
+      for (const vtkSmartPointer<vtkSegmentation>& copy : copies)
+        {
+        if (cancelled)
+          {
+          return;
+          }
+        copy->CreateRepresentation(surfaceName);
+        converted++;
+        }
+      },
+    [&converted, total]() { return total > 0 ? (100 * converted) / total : 100; },
+    [&cancelled]() { cancelled = true; });
+
+  if (cancelled || !this->mrmlScene() || ContoursSegmentationNode(this->mrmlScene()) != node)
+    {
+    const QSignalBlocker blocker(d->SmoothContoursButton);
+    d->SmoothContoursButton->setChecked(false);
+    return;
+    }
+  for (size_t ii = 0; ii < segmentIDs.size(); ii++)
+    {
+    vtkSegment* segment = segmentation->GetSegment(segmentIDs[ii]);
+    vtkSegment* segmentCopy = copies[ii]->GetSegment(segmentIDs[ii]);
+    vtkDataObject* surface = segmentCopy ? segmentCopy->GetRepresentation(surfaceName) : nullptr;
+    if (segment && surface)
+      {
+      segment->AddRepresentation(surfaceName, surface);
+      segmentation->InvokeEvent(vtkSegmentation::RepresentationModified, (void*)segmentIDs[ii].c_str());
+      }
+    }
+  segmentation->InvokeEvent(vtkSegmentation::ContainedRepresentationNamesModified);
+  vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(node, true);
 }
 
 // --------------------------------------------------------------------------

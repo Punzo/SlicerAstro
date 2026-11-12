@@ -19,6 +19,7 @@
 
 // STD includes
 #include <algorithm>
+#include <functional>
 #include <array>
 #include <regex>
 #include <type_traits>
@@ -1568,6 +1569,23 @@ int vtkSlicerAstroVolumeLogic::CheckReprojection(vtkMRMLAstroReprojectParameters
 }
 
 //---------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::GetReprojectionProgress()
+{
+  vtkMRMLAstroReprojectParametersNode* progressNode = this->ReprojectionProgressNode;
+  return progressNode ? progressNode->GetStatus() : 0;
+}
+
+//---------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::CancelReprojection()
+{
+  vtkMRMLAstroReprojectParametersNode* progressNode = this->ReprojectionProgressNode;
+  if (progressNode)
+    {
+    progressNode->SetStatus(-1);
+    }
+}
+
+//---------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CreateNorthAlignedVolume(vtkMRMLAstroVolumeNode* inputVolume,
                                                                            int interpolationOrder,
                                                                            const char* name)
@@ -1780,7 +1798,16 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   start = std::chrono::steady_clock::now();
 
-  pnode->SetStatus(1);
+  // The interpolation (long) runs in the background runner if set (e.g. a
+  // worker thread, the GUI responsive with a progress dialog): its progress
+  // goes to a node without observers (no MRML events from a worker thread)
+  vtkNew<vtkMRMLAstroReprojectParametersNode> progressNode;
+  progressNode->SetInterpolationOrder(pnode->GetInterpolationOrder());
+  this->ReprojectionProgressNode = progressNode.GetPointer();
+  bool computeResult = true;
+  std::function<void()> compute = [&]()
+  {
+  progressNode->SetStatus(1);
 
   // Calculate the 2D interpolation grid
   std::vector<std::vector<std::vector<double> > > referenceGrid;
@@ -1795,7 +1822,7 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     }
 
   double shift = 0.5;
-  if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
+  if (progressNode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
     shift = 0.;
     }
@@ -1829,26 +1856,27 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     if(ii / (referenceLengthX / 10.) > status)
       {
       status += 1.;
-      pnode->SetStatus(status);
+      progressNode->SetStatus(status);
       }
     }
 
-  pnode->SetStatus(10);
+  progressNode->SetStatus(10);
 
   if (!overlay)
     {
     vtkErrorMacro("vtkSlicerAstroVolumeLogic::Reproject : "
                   "datasets WCS have no overlay");
-    return false;
+    computeResult = false;
+    return;
     }
 
   // Interpolate
   int numElements = referenceLengthX * referenceLengthY * inputDims[2];
 
-  if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
+  if (progressNode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::NearestNeighbour)
     {
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(progressNode.GetPointer(), (numElements) - (0), 10, 100);
     vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -1902,10 +1930,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     cancel = progress.IsCancelled();
     }
     }
-  else if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bilinear)
+  else if (progressNode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bilinear)
     {
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(progressNode.GetPointer(), (numElements) - (0), 10, 100);
     vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -2044,10 +2072,10 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
     cancel = progress.IsCancelled();
     }
     }
-  else if (pnode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bicubic)
+  else if (progressNode->GetInterpolationOrder() == vtkMRMLAstroReprojectParametersNode::Bicubic)
     {
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(pnode, (numElements) - (0), 10, 100);
+    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroReprojectParametersNode> progress(progressNode.GetPointer(), (numElements) - (0), 10, 100);
     vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
       {
       if (progress.IsCancelled())
@@ -2419,6 +2447,23 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 
   referenceGrid.clear();
   referenceGrid.shrink_to_fit();
+
+  };
+  if (this->BackgroundRunner)
+    {
+    this->BackgroundRunner(compute);
+    }
+  else
+    {
+    compute();
+    }
+  this->ReprojectionProgressNode = nullptr;
+  if (!computeResult)
+    {
+    pnode->SetStatus(100);
+    return false;
+    }
+  cancel = cancel || progressNode->GetStatus() == -1;
 
   if (cancel)
     {
@@ -3522,15 +3567,33 @@ void vtkSlicerAstroVolumeLogic::SetContoursDisplay(vtkMRMLSegmentationNode* segm
     segmentation->CreateRepresentation(labelmapName);
     segmentation->SetSourceRepresentationName(labelmapName);
     }
-  // derived from the labelmaps (updated with them)
-  segmentation->CreateRepresentation(surfaceName);
+  // no closed surfaces by default (slow for large data): see SetContoursSmooth2D
+  if (segmentation->ContainsRepresentation(surfaceName))
+    {
+    segmentation->RemoveRepresentation(surfaceName);
+    }
   vtkMRMLSegmentationDisplayNode* displayNode =
     vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode());
   if (displayNode)
     {
-    displayNode->SetPreferredDisplayRepresentationName2D(surfaceName);
+    displayNode->SetPreferredDisplayRepresentationName2D(labelmapName);
     displayNode->SetPreferredDisplayRepresentationName3D(labelmapName);
     }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(vtkMRMLSegmentationNode* segmentationNode, bool smooth)
+{
+  vtkMRMLSegmentationDisplayNode* displayNode = segmentationNode ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(segmentationNode->GetDisplayNode()) : nullptr;
+  if (!displayNode || !segmentationNode->GetSegmentation())
+    {
+    return;
+    }
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  const bool hasSurfaces = segmentationNode->GetSegmentation()->ContainsRepresentation(surfaceName);
+  displayNode->SetPreferredDisplayRepresentationName2D(smooth && hasSurfaces ? surfaceName : labelmapName);
 }
 
 //----------------------------------------------------------------------------

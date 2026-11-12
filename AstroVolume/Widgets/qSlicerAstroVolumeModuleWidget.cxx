@@ -18,6 +18,9 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QThread>
+#include <QProgressDialog>
+#include <QEventLoop>
 #include <QPointer>
 #include <QAbstractItemView>
 #include <QtDebug>
@@ -3063,6 +3066,52 @@ void qSlicerAstroVolumeModuleWidget::informUser(QWidget* parent, QMessageBox::Ic
     }
   QMessageBox messageBox(icon, title, message, QMessageBox::Ok, parent);
   messageBox.exec();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::runInBackground(QWidget* parent, const QString& label,
+                                                     const std::function<void()>& work,
+                                                     const std::function<int()>& progress,
+                                                     const std::function<void()>& cancel)
+{
+  QThread* thread = QThread::create(work);
+  QProgressDialog dialog(label, tr("Cancel"), 0, 100, parent);
+  dialog.setWindowTitle(tr("SlicerAstro"));
+  dialog.setWindowModality(Qt::WindowModal);
+  dialog.setMinimumDuration(500);
+  dialog.setAutoClose(false);
+  dialog.setAutoReset(false);
+  dialog.setValue(0);
+  QObject::connect(&dialog, &QProgressDialog::canceled, [&dialog, cancel]()
+    {
+    dialog.setLabelText(tr("Cancelling..."));
+    cancel();
+    });
+  QEventLoop loop;
+  QTimer timer;
+  timer.setInterval(100);
+  // the end of the work is polled (no lost signal before the loop starts)
+  QObject::connect(&timer, &QTimer::timeout, [&dialog, &loop, thread, progress]()
+    {
+    const int value = progress();
+    if (value >= 0 && value <= 100 && !dialog.wasCanceled())
+      {
+      dialog.setValue(value);
+      }
+    if (thread->isFinished())
+      {
+      loop.quit();
+      }
+    });
+  thread->start();
+  timer.start();
+  loop.exec();
+  timer.stop();
+  thread->wait();
+  delete thread;
+  // closing a QProgressDialog emits canceled(): not a cancel request
+  QObject::disconnect(&dialog, nullptr, nullptr, nullptr);
+  dialog.close();
 }
 
 //---------------------------------------------------------------------------

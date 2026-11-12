@@ -88,6 +88,12 @@ public slots:
 
   /// Generate closed contours (see tooltip for the options)
   void onCreateContours();
+  /// Contours of the 2D Display section: visibility, smooth 2D lines (closed
+  /// surfaces, computed in the background), deletion
+  void onShowContoursToggled(bool show);
+  void onSmoothContoursToggled(bool smooth);
+  void onDeleteContours();
+  void updateContoursButtons();
 
   /// Method to change the display visualization of the 2D slices.
   void ExtendAllSlices();
