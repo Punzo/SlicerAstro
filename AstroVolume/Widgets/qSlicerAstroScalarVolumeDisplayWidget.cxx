@@ -701,6 +701,17 @@ void qSlicerAstroScalarVolumeDisplayWidget::onContoursVolumeChanged(vtkMRMLNode 
 
   this->updateWidgetFromContoursMRML();
 
+  // new contours data (3D over a 2D image): channel map from the middle channel
+  if (d->Contours2DSliderWidget->isVisibleTo(this) && d->contoursVolumeNode &&
+      d->contoursVolumeNode->GetImageData())
+    {
+    int contoursDims[3] = {0, 0, 0};
+    d->contoursVolumeNode->GetImageData()->GetDimensions(contoursDims);
+    d->Contours2DSliderWidget->setValue(std::floor(contoursDims[2] * 0.5));
+    // also when the value does not change (no valueChanged signal)
+    this->onContours2DOriginChanged(d->Contours2DSliderWidget->value());
+    }
+
   // the contours of these data are shown, the others hidden
   ShowContoursOfData(ContoursSegmentationNode(this->volumeNode()), d->contoursVolumeNode);
   this->updateContoursButtons();
@@ -1188,20 +1199,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     std::string SegmentID = NamePrefixStdString;
     SegmentID += "Contour" + IntToString(ii + 1);
     SegmentIDs->InsertNextValue(SegmentID.c_str());
-    vtkSegment *Segment = this->contoursSegNode->GetSegmentation()->GetSegment(SegmentID);
-    if(!Segment)
-      {
-      SegmentID = this->contoursSegNode->GetSegmentation()->AddEmptySegment(SegmentID, SegmentID);
-      Segment = this->contoursSegNode->GetSegmentation()->GetSegment(SegmentID);
-      }
-
-    vtkDoubleArray* ContoursColor =  astroDisplayNode->GetContoursColor();
-    Segment->SetColor(ContoursColor->GetValue(0),
-                      ContoursColor->GetValue(1),
-                      ContoursColor->GetValue(2));
-    // data of the contours: color changes and replacement of the contours
-    Segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), contoursVolume->GetID());
-
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(masterVolume->GetImageData());
 
@@ -1246,10 +1243,30 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
     vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNode);
 
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), this->contoursSegNode, SegmentID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
+    // Each contour level is a segment with its own labelmap (own layer, own
+    // geometry): contours of data with different grids (e.g. 3D HI contours
+    // reprojected on an optical image and 2D contours of the image) and
+    // overlapping levels are kept as they are (a shared layer would resample
+    // or overwrite them)
+    vtkSegmentation* contoursSegmentation = this->contoursSegNode->GetSegmentation();
+    if (contoursSegmentation->GetSegment(SegmentID))
       {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
+      contoursSegmentation->RemoveSegment(SegmentID);
+      }
+    vtkNew<vtkSegment> Segment;
+    Segment->SetName(SegmentID.c_str());
+    vtkDoubleArray* ContoursColor = astroDisplayNode->GetContoursColor();
+    Segment->SetColor(ContoursColor->GetValue(0),
+                      ContoursColor->GetValue(1),
+                      ContoursColor->GetValue(2));
+    // data of the contours: color changes and replacement of the contours
+    Segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), contoursVolume->GetID());
+    Segment->SetLabelValue(1);
+    Segment->AddRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName(),
+                               modifierLabelmap.GetPointer());
+    if (!contoursSegmentation->AddSegment(Segment, SegmentID))
+      {
+      qCritical() << Q_FUNC_INFO << ": failed to add the contour segment" << SegmentID.c_str();
       }
 
     int dims[3];
