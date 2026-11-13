@@ -29,3 +29,5 @@
 
 # Exclude QtCreator files ...
 CMakeLists.txt.user*
+__pycache__/
+*.pyc
