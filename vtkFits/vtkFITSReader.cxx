@@ -2751,6 +2751,14 @@ bool vtkFITSReader::AllocateWCS()
                     "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
       return false;
       }
+
+    // the standard WCS of the header is used: WCSLIB translates the DSS
+    // plate solution (PPO, AMDX, AMDY) into a distortion, which would be
+    // applied on top of it (and inherited by the copies of the image, e.g.
+    // aligned to the north)
+    lindist(1, &this->WCS->lin, nullptr, 0);
+    lindist(2, &this->WCS->lin, nullptr, 0);
+    this->WCS->flag = 0;
     }
 
   double CRVAL1 = this->WCS->crval[0];

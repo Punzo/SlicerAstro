@@ -1072,15 +1072,17 @@ void vtkMRMLAstroVolumeDisplayNode::CopySpatialWCS(vtkMRMLNode *node)
 
   this->WCS->equinox = WCSNew->equinox;
 
+  // linear transformation of the spatial axes. After wcsset the PCi_j and
+  // CDELTi of a WCS describe it whatever the form of the header (CDi_j,
+  // CROTAi): they are copied, and the PCi_j form is used (the CDi_j matrix of
+  // the source may be outdated, e.g. a rotated volume aligned to the north)
   this->WCS->pc[0] = WCSNew->pc[0];
   this->WCS->pc[1] = WCSNew->pc[1];
   this->WCS->pc[WCS->naxis] = WCSNew->pc[WCSNew->naxis];
   this->WCS->pc[WCS->naxis + 1] = WCSNew->pc[WCSNew->naxis + 1];
-
-  this->WCS->cd[0] = WCSNew->cd[0];
-  this->WCS->cd[1] = WCSNew->cd[1];
-  this->WCS->cd[WCS->naxis] = WCSNew->cd[WCSNew->naxis];
-  this->WCS->cd[WCS->naxis + 1] = WCSNew->cd[WCSNew->naxis + 1];
+  this->WCS->altlin = (this->WCS->altlin & ~6) | 1;
+  this->WCS->crota[0] = 0.;
+  this->WCS->crota[1] = 0.;
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {

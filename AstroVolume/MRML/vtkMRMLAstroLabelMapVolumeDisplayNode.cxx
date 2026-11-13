@@ -953,10 +953,10 @@ void vtkMRMLAstroLabelMapVolumeDisplayNode::CopySpatialWCS(vtkMRMLNode *node)
   this->WCS->pc[WCS->naxis] = WCSNew->pc[WCSNew->naxis];
   this->WCS->pc[WCS->naxis + 1] = WCSNew->pc[WCSNew->naxis + 1];
 
-  this->WCS->cd[0] = WCSNew->cd[0];
-  this->WCS->cd[1] = WCSNew->cd[1];
-  this->WCS->cd[WCS->naxis] = WCSNew->cd[WCSNew->naxis];
-  this->WCS->cd[WCS->naxis + 1] = WCSNew->cd[WCSNew->naxis + 1];
+  // PCi_j form (see vtkMRMLAstroVolumeDisplayNode::CopySpatialWCS)
+  this->WCS->altlin = (this->WCS->altlin & ~6) | 1;
+  this->WCS->crota[0] = 0.;
+  this->WCS->crota[1] = 0.;
 
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
