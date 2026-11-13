@@ -78,12 +78,14 @@ set(SLICERASTRO_THIRDPARTY_LIBRARY_NAMES)
 slicerastro_find_thirdparty_library(CFITSIO cfitsio)
 slicerastro_find_thirdparty_library(WCSLIB wcslib)
 slicerastro_find_thirdparty_library(FFTW3 fftw3)
+slicerastro_find_thirdparty_library(ERFA erfa)
 slicerastro_find_thirdparty_library(BBAROLO bbarolo)
 
 #-----------------------------------------------------------------------------
 # Extension modules
 add_subdirectory(SlicerAstroWelcome)
 add_subdirectory(vtkFits)
+add_subdirectory(vtkAstroCoordinates)
 add_subdirectory(vtkAstroImageFilters)
 if(VTK_SLICER_ASTRO_SUPPORT_OPENGL)
   add_subdirectory(vtkOpenGLFilters)
@@ -141,7 +143,7 @@ if(WIN32)
     unset(_dll)
   endforeach()
 else()
-  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${FFTW3_LIBRARY} ${BBAROLO_LIBRARY})
+  foreach(library IN ITEMS ${CFITSIO_LIBRARY} ${WCSLIB_LIBRARY} ${FFTW3_LIBRARY} ${ERFA_LIBRARY} ${BBAROLO_LIBRARY})
     slicerInstallLibrary(FILE ${library}
       DESTINATION ${Slicer_INSTALL_THIRDPARTY_LIB_DIR}
       COMPONENT RuntimeLibraries

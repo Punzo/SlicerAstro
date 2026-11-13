@@ -1,5 +1,5 @@
 # Builds the third-party libraries of SlicerAstro (CFITSIO, WCSLIB, FFTW,
-# BBarolo) without Slicer, with the versions pinned in SuperBuild/External_*.cmake,
+# ERFA, BBarolo) without Slicer, with the versions pinned in SuperBuild/External_*.cmake,
 # and a smoke test using them. Used by .github/workflows/dependencies.yml on
 # Linux, Windows and macOS.
 cmake_minimum_required(VERSION 3.20)
@@ -32,8 +32,10 @@ endfunction()
 read_pin(cfitsio External_cfitsio.cmake)
 read_pin(wcslib External_wcslib.cmake)
 read_pin(fftw3 External_fftw3.cmake)
+read_pin(erfa External_erfa.cmake)
 read_pin(bbarolo External_bbarolo.cmake)
 foreach(var cfitsio_REPOSITORY cfitsio_TAG wcslib_REPOSITORY wcslib_TAG fftw3_VERSION fftw3_SHA256
+            erfa_VERSION erfa_SHA256
             bbarolo_REPOSITORY bbarolo_TAG)
   if(NOT ${var})
     message(FATAL_ERROR "${var} not found in SuperBuild/External_*.cmake")
@@ -96,6 +98,16 @@ ExternalProject_Add(fftw3
     -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5
   )
 
+# ERFA: release tarball, built with the CMakeLists.txt of SlicerAstro
+ExternalProject_Add(erfa
+  URL "https://github.com/liberfa/erfa/releases/download/v${erfa_VERSION}/erfa-${erfa_VERSION}.tar.xz"
+  URL_HASH "SHA256=${erfa_SHA256}"
+  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  PATCH_COMMAND ${CMAKE_COMMAND} -E copy
+    ${SLICERASTRO_SOURCE_DIR}/SuperBuild/erfa/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
+  CMAKE_ARGS ${common_args} -DBUILD_TESTING:BOOL=OFF
+  )
+
 ExternalProject_Add(bbarolo
   GIT_REPOSITORY "${bbarolo_REPOSITORY}"
   GIT_TAG "${bbarolo_TAG}"
@@ -114,5 +126,5 @@ ExternalProject_Add(smoke
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/smoke"
   CMAKE_ARGS ${common_args}
   INSTALL_COMMAND ""
-  DEPENDS bbarolo
+  DEPENDS bbarolo erfa
   )

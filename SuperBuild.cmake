@@ -19,6 +19,7 @@ set(${proj}_DEPENDS
   cfitsio
   wcslib
   fftw3
+  erfa
   bbarolo
   )
 

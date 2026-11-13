@@ -1,6 +1,7 @@
 // Smoke test of the third-party libraries of SlicerAstro: CFITSIO writes and
 // reads a small HI cube, WCSLIB converts its coordinates (frequency to radio
-// velocity), FFTW transforms a delta function, BBarolo reads the header.
+// velocity), FFTW transforms a delta function, ERFA converts FK4 <-> FK5 and
+// computes the velocity of the Earth, BBarolo reads the header.
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -8,6 +9,7 @@
 #include <vector>
 
 #include <fitsio.h>
+#include <erfa.h>
 #include <fftw3.h>
 #include <wcslib/wcslib.h>
 
@@ -127,6 +129,21 @@ int main(int argc, char* argv[])
   check(constant, "FFTW transform");
   fftw_destroy_plan(plan);
   fftw_free(out);
+
+  // ERFA: FK4 B1950 <-> FK5 J2000 round trip, velocity of the Earth ~30 km/s
+  {
+  const double ra1950 = 1.0, dec1950 = 0.5;
+  double ra2000 = 0., dec2000 = 0., ra = 0., dec = 0., dra = 0., ddec = 0.;
+  eraFk45z(ra1950, dec1950, 1950.0, &ra2000, &dec2000);
+  eraFk54z(ra2000, dec2000, 1950.0, &ra, &dec, &dra, &ddec);
+  check(std::fabs(ra2000 - ra1950) > 1.e-3 && std::fabs(ra - ra1950) < 1.e-9 && std::fabs(dec - dec1950) < 1.e-9,
+        "ERFA FK4 <-> FK5");
+  double heliocentric[2][3], barycentric[2][3];
+  eraEpv00(2451545.0, 0., heliocentric, barycentric);
+  const double speed = std::sqrt(barycentric[1][0] * barycentric[1][0] + barycentric[1][1] * barycentric[1][1] +
+                                 barycentric[1][2] * barycentric[1][2]) * 149597870700.0 / 86400.0;
+  check(speed > 29.e3 && speed < 31.e3, "ERFA velocity of the Earth");
+  }
 
   // BBarolo reads the header
   try
