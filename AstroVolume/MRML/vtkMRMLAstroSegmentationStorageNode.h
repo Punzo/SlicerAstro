@@ -28,6 +28,8 @@
 #include <map>
 #include <string>
 
+class vtkMRMLSegmentationNode;
+
 /// \brief Storage of segmentations as FITS masks.
 ///
 /// A FITS mask (DATAMODEL = 'MASK', or a mask created by SoFiA, see
@@ -71,6 +73,11 @@ public:
   /// that has not been saved yet, e.g. the empty mask of a data cube in a
   /// scene saved without its data.
   int ReadData(vtkMRMLNode* refNode, bool temporaryFile = false) override;
+
+  /// Opacity saved with a FITS mask (keyword SEGOPAC, the opacity of the
+  /// display of the segmentation when it was saved) set to the display node.
+  /// Returns false if the mask has no saved opacity.
+  static bool ApplySavedOpacity(vtkMRMLSegmentationNode* segmentationNode);
 
   const char* GetDefaultWriteFileExtension() override { return "fits"; }
 

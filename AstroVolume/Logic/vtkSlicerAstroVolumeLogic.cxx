@@ -3176,7 +3176,7 @@ bool vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(vtkMRMLSegmentation
     {
     return false;
     }
-  std::string name = scene->GenerateUniqueName(std::string(volumeNode->GetName()) + "_SEG");
+  std::string name = scene->GenerateUniqueName(std::string(volumeNode->GetName()) + "_mask");
   segmentationNode->SetName(name.c_str());
   return true;
 }
@@ -3549,6 +3549,23 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskSegmentationForVolume
     }
   if (!mask && create)
     {
+    // a mask of this cube loaded before it (same geometry, no reference volume)
+    std::vector<vtkMRMLNode*> nodes;
+    scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
+    for (vtkMRMLNode* node : nodes)
+      {
+      vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+      if (segmentationNode && segmentationNode->GetSegmentation()->GetNumberOfSegments() > 0 &&
+          vtkSlicerAstroVolumeLogic::FindVolumeOfMask(scene, segmentationNode) == volumeNode)
+        {
+        segmentationNode->SetNodeReferenceID(geometryRole.c_str(), volumeNode->GetID());
+        mask = segmentationNode;
+        break;
+        }
+      }
+    }
+  if (!mask && create)
+    {
     // the empty default segmentation of Slicer ("Segmentation", e.g. created
     // by the Segment Editor before the data was loaded) becomes the mask
     std::vector<vtkMRMLNode*> nodes;
@@ -3563,6 +3580,10 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskSegmentationForVolume
         {
         vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(segmentationNode);
         vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
+        if (segmentationNode->GetDisplayNode())
+          {
+          segmentationNode->GetDisplayNode()->SetOpacity(vtkSlicerAstroVolumeLogic::GetDefaultMaskOpacity());
+          }
         mask = segmentationNode;
         break;
         }
@@ -3572,9 +3593,13 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskSegmentationForVolume
     {
     vtkSmartPointer<vtkMRMLSegmentationNode> newMask = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
       vtkMRMLSegmentationNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLSegmentationNode")));
-    newMask->SetName(scene->GetUniqueNameByString((std::string(volumeNode->GetName()) + "_SEG").c_str()));
+    newMask->SetName(scene->GetUniqueNameByString((std::string(volumeNode->GetName()) + "_mask").c_str()));
     scene->AddNode(newMask);
     newMask->CreateDefaultDisplayNodes();
+    if (newMask->GetDisplayNode())
+      {
+      newMask->GetDisplayNode()->SetOpacity(vtkSlicerAstroVolumeLogic::GetDefaultMaskOpacity());
+      }
     vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(newMask, volumeNode);
     vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(newMask);
     mask = newMask;
@@ -3740,6 +3765,7 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
     if (this->GetMRMLScene() && !this->GetMRMLScene()->IsImporting())
       {
       vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(segmentationNode);
+      this->ReplaceEmptyMaskOfReferenceVolume(segmentationNode);
       bool fitsMask = this->EnsureFITSMaskStorageNode(segmentationNode);
       // display node created after the FITS storage (e.g. AddNewNodeByClass
       // followed by CreateDefaultDisplayNodes): binary labelmap display in 2D
@@ -3754,6 +3780,111 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
     return;
     }
   this->Superclass::ProcessMRMLNodesEvents(caller, event, callData);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::HasGeometryOfVolume(vtkMRMLSegmentationNode* segmentationNode,
+                                                    vtkMRMLVolumeNode* volumeNode)
+{
+  if (!segmentationNode || !segmentationNode->GetSegmentation() || !volumeNode || !volumeNode->GetImageData())
+    {
+    return false;
+    }
+  const std::string geometry = segmentationNode->GetSegmentation()->GetConversionParameter(
+    vtkSegmentationConverter::GetReferenceImageGeometryParameterName());
+  vtkNew<vtkOrientedImageData> maskGeometry;
+  if (geometry.empty() || !vtkSegmentationConverter::DeserializeImageGeometry(geometry, maskGeometry, false))
+    {
+    return false;
+    }
+  int maskExtent[6] = { 0, -1, 0, -1, 0, -1 };
+  maskGeometry->GetExtent(maskExtent);
+  int volumeExtent[6] = { 0, -1, 0, -1, 0, -1 };
+  volumeNode->GetImageData()->GetExtent(volumeExtent);
+  for (int i = 0; i < 6; i++)
+    {
+    if (maskExtent[i] != volumeExtent[i])
+      {
+      return false;
+      }
+    }
+  vtkNew<vtkMatrix4x4> maskToWorld;
+  maskGeometry->GetImageToWorldMatrix(maskToWorld);
+  vtkNew<vtkMatrix4x4> volumeToWorld;
+  volumeNode->GetIJKToRASMatrix(volumeToWorld);
+  for (int i = 0; i < 3; i++)
+    {
+    for (int j = 0; j < 4; j++)
+      {
+      const double a = maskToWorld->GetElement(i, j);
+      const double b = volumeToWorld->GetElement(i, j);
+      if (fabs(a - b) > 1.e-6 * std::max(1., std::max(fabs(a), fabs(b))))
+        {
+        return false;
+        }
+      }
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::FindVolumeOfMask(vtkMRMLScene* scene,
+                                                                   vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!scene || !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode) ||
+      segmentationNode->GetNodeReference(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()))
+    {
+    return nullptr;
+    }
+  std::vector<vtkMRMLNode*> volumes;
+  scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+  for (vtkMRMLNode* node : volumes)
+    {
+    vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+    if (vtkSlicerAstroVolumeLogic::HasGeometryOfVolume(segmentationNode, volumeNode))
+      {
+      return volumeNode;
+      }
+    }
+  return nullptr;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ReplaceEmptyMaskOfReferenceVolume(vtkMRMLSegmentationNode* segmentationNode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene || scene->IsImporting() || scene->IsClosing() ||
+      !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
+    {
+    return false;
+    }
+  vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  if (!volumeNode)
+    {
+    return false;
+    }
+  const char* maskRole = vtkSlicerAstroVolumeLogic::GetMaskReferenceRole();
+  vtkMRMLSegmentationNode* currentMask = vtkMRMLSegmentationNode::SafeDownCast(volumeNode->GetNodeReference(maskRole));
+  if (!currentMask || currentMask == segmentationNode)
+    {
+    return false;
+    }
+  // the loaded (or filled) mask: segments or a file; the automatic mask:
+  // empty and never saved
+  vtkMRMLStorageNode* storageNode = segmentationNode->GetStorageNode();
+  const bool hasData = segmentationNode->GetSegmentation()->GetNumberOfSegments() > 0 ||
+                       (storageNode && storageNode->GetFileName() && *storageNode->GetFileName());
+  vtkMRMLStorageNode* currentStorage = currentMask->GetStorageNode();
+  const bool currentEmpty = currentMask->GetSegmentation()->GetNumberOfSegments() == 0 &&
+                            !(currentStorage && currentStorage->GetFileName() && *currentStorage->GetFileName());
+  if (!hasData || !currentEmpty)
+    {
+    return false;
+    }
+  volumeNode->SetNodeReferenceID(maskRole, segmentationNode->GetID());
+  scene->RemoveNode(currentMask);
+  return true;
 }
 
 //----------------------------------------------------------------------------

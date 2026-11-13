@@ -236,6 +236,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         newSegment.AddRepresentation(slicer.vtkSegmentationConverter.GetBinaryLabelmapRepresentationName(), newLabelmap)
         segmentation.AddSegment(newSegment, "NewSource")
 
+        # the display opacity is saved with the mask (SEGOPAC)
+        segmentationNode.GetDisplayNode().SetOpacity(0.45)
         editedPath = os.path.join(self.directory, "edited.fits")
         self.assertTrue(slicer.util.saveNode(segmentationNode, editedPath))
         _, edited = readFITS(editedPath)
@@ -250,6 +252,7 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         ids = sorted(int(sourceIDTag(reloaded.GetSegmentation().GetSegment(segmentID)))
                      for segmentID in reloaded.GetSegmentation().GetSegmentIDs())
         self.assertEqual(ids, [1, 5, 40000, 40001])
+        self.assertAlmostEqual(reloaded.GetDisplayNode().GetOpacity(), 0.45)
 
     def test_SegmentationOnAstroVolume(self):
         import AstroSampleData
@@ -430,24 +433,24 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         segmentations of non-astronomical volumes)."""
         import AstroSampleData
 
-        # AstroVolume opened before loading the data: its mask is created
-        # without astronomical data, and becomes a FITS mask of the cube
+        # AstroVolume opened before loading the data: no mask without data;
+        # the loaded cube gets its mask (a FITS mask), shown by the module
         slicer.util.selectModule("Data")
         slicer.util.selectModule("AstroVolume")
         widget = slicer.modules.astrovolume.widgetRepresentation()
         selector = slicer.util.findChild(widget, "SegmentationNodeComboBox")
         referenceRole = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
         slicer.app.processEvents()
-        moduleMask = selector.currentNode()
-        self.assertIsNotNone(moduleMask)
         self.assertIsNone(slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroVolumeNode"))
-        self.assertIsNone(moduleMask.GetStorageNode())
 
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
         slicer.app.processEvents()
-        self.assertIs(selector.currentNode(), moduleMask)
+        moduleMask = selector.currentNode()
+        self.assertIsNotNone(moduleMask)
+        self.assertIs(moduleMask, slicer.modules.astrovolume.logic().GetMaskSegmentationForVolume(volumeNode, False))
         self.assertIs(moduleMask.GetNodeReference(referenceRole), volumeNode)
-        self.assertEqual(moduleMask.GetName(), "WEIN069_SEG")
+        self.assertEqual(moduleMask.GetName(), "WEIN069_mask")
         self.assertShownIn3D(moduleMask)
 
         # Edit: the Segment Editor edits the mask with the active cube as source volume
@@ -466,7 +469,7 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         maskNode = selector.addNode()
         slicer.app.processEvents()
         self.assertIs(maskNode.GetNodeReference(referenceRole), volumeNode)
-        self.assertEqual(maskNode.GetName(), "WEIN069_SEG_1")  # unique name
+        self.assertEqual(maskNode.GetName(), "WEIN069_mask_1")  # unique name
         # names given by the user are kept
         namedNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "Galaxy core")
         namedNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)

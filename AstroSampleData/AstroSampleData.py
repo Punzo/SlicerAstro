@@ -81,6 +81,25 @@ This work was supported by ERC grant nr. 291531 and the Slicer Community.
         slicer.app.connect("startupCompleted()", registerSampleData)
 
 
+def loadSoFiASample(source):
+    """Download and load a SoFiA sample (mask and catalogue), then show the
+    catalogue in the AstroSoFiACatalog module."""
+    import SampleData
+
+    nodes = SampleData.SampleDataLogic().downloadFromSource(source)
+    tables = [node for node in slicer.util.getNodesByClass("vtkMRMLTableNode")
+              if node.GetAttribute("SlicerAstro.SoFiASources")]
+    if tables and hasattr(slicer.modules, "astrosofiacatalog"):
+        slicer.util.selectModule("AstroSoFiACatalog")
+        widget = slicer.modules.astrosofiacatalog.widgetRepresentation().self()
+        widget.catalogSelector.setCurrentNode(tables[-1])
+    return nodes
+
+
+# samples loaded with a custom function (Sample Data module buttons)
+CUSTOM_DOWNLOADERS = {"WEIN069_MASK": loadSoFiASample}
+
+
 def registerSampleData():
     """Add the SlicerAstro data sets to the Sample Data module."""
     import SampleData
@@ -99,6 +118,7 @@ def registerSampleData():
             nodeNames=[nodeName for _, nodeName, _, _ in files],
             checksums=[f"SHA256:{checksum}" for _, _, _, checksum in files],
             thumbnailFileName=os.path.join(iconsPath, thumbnail),
+            customDownloader=CUSTOM_DOWNLOADERS.get(sampleName),
             loadFileTypes=[fileType for _, _, fileType, _ in files],
             # center: as the data cubes, so that masks and cubes overlap
             loadFileProperties={"center": True},

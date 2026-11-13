@@ -44,6 +44,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_VolumeSegmentations()
         self.setUp()
+        self.test_LoadedMaskReplacesEmptyMask()
+        self.setUp()
         self.test_Contours()
 
     def loadWEIN069(self):
@@ -64,7 +66,7 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(maskNode, volumeNode.GetName())
         self.assertIsNot(contoursNode, maskNode)
         self.assertEqual(contoursNode.GetName(), volumeNode.GetName() + "_Contours")
-        self.assertEqual(maskNode.GetName(), volumeNode.GetName() + "_SEG")
+        self.assertEqual(maskNode.GetName(), volumeNode.GetName() + "_mask")
         self.assertIs(volumeNode.GetNodeReference(self.logic.GetContoursReferenceRole()), contoursNode)
         self.assertIs(volumeNode.GetNodeReference(self.logic.GetMaskReferenceRole()), maskNode)
         self.assertTrue(self.logic.IsContoursSegmentation(contoursNode))
@@ -83,6 +85,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         volumeNode = self.loadWEIN069()
         contoursNode, maskNode = self.assertSegmentationsOfVolume(volumeNode)
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLSegmentationNode"), 2)
+        # new masks: default opacity
+        self.assertAlmostEqual(maskNode.GetDisplayNode().GetOpacity(), self.logic.GetDefaultMaskOpacity())
 
         # a copy of the volume (e.g. the output of a module) has its own segmentations
         copyNode = self.logic.CloneAstroVolume(slicer.mrmlScene, volumeNode, None, "_copy", "WEIN069_copy")
@@ -168,4 +172,24 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         deleteButton.click()
         self.assertEqual(contours.GetNumberOfSegments(), 0)
         self.assertIs(self.logic.GetContoursSegmentationForVolume(volumeNode, False), contoursNode)
+        self.delayDisplay("Test passed")
+
+    def test_LoadedMaskReplacesEmptyMask(self):
+        """The mask of a cube loaded after the cube replaces the empty automatic mask."""
+        import AstroSampleData
+
+        self.delayDisplay("Mask loaded after its data cube")
+        volumeNode = self.loadWEIN069()
+        emptyMask = self.logic.GetMaskSegmentationForVolume(volumeNode, False)
+        self.assertEqual(emptyMask.GetSegmentation().GetNumberOfSegments(), 0)
+        AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069_MASK")
+        slicer.app.processEvents()
+        maskNode = self.logic.GetMaskSegmentationForVolume(volumeNode, False)
+        self.assertIsNotNone(maskNode)
+        self.assertGreater(maskNode.GetSegmentation().GetNumberOfSegments(), 0)
+        self.assertEqual(maskNode.GetName(), "WEIN069_mask")
+        self.assertIsNone(slicer.mrmlScene.GetNodeByID(emptyMask.GetID()))
+        masks = [node for node in slicer.util.getNodesByClass("vtkMRMLSegmentationNode")
+                 if not self.logic.IsContoursSegmentation(node)]
+        self.assertEqual(len(masks), 1)
         self.delayDisplay("Test passed")

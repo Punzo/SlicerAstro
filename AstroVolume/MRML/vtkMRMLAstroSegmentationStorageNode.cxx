@@ -20,6 +20,7 @@
 // MRML includes
 #include <vtkMRMLAstroSegmentationStorageNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLDisplayNode.h>
 #include <vtkMRMLMessageCollection.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSegmentationNode.h>
@@ -195,6 +196,24 @@ void vtkMRMLAstroSegmentationStorageNode::Copy(vtkMRMLNode* anode)
 bool vtkMRMLAstroSegmentationStorageNode::CanReadInReferenceNode(vtkMRMLNode* refNode)
 {
   return refNode && refNode->IsA("vtkMRMLSegmentationNode");
+}
+
+//----------------------------------------------------------------------------
+bool vtkMRMLAstroSegmentationStorageNode::ApplySavedOpacity(vtkMRMLSegmentationNode* segmentationNode)
+{
+  const char* value = segmentationNode ? segmentationNode->GetAttribute("SlicerAstro.SEGOPAC") : nullptr;
+  if (!value || !*value || !segmentationNode->GetDisplayNode())
+    {
+    return false;
+    }
+  char* end = nullptr;
+  const double opacity = strtod(value, &end);
+  if (end == value || opacity < 0. || opacity > 1.)
+    {
+    return false;
+    }
+  segmentationNode->GetDisplayNode()->SetOpacity(opacity);
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -578,7 +597,8 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
   for (std::map<std::string, std::string>::iterator it = header.begin(); it != header.end();)
     {
     const bool segmentKeyword = it->first.compare(0, 18, "SlicerAstro.SEGNAM") == 0 ||
-                                it->first.compare(0, 18, "SlicerAstro.SEGCOL") == 0;
+                                it->first.compare(0, 18, "SlicerAstro.SEGCOL") == 0 ||
+                                it->first == "SlicerAstro.SEGOPAC";
     it = segmentKeyword ? header.erase(it) : std::next(it);
     }
   for (size_t i = 0; i < segmentIDs.size(); ++i)
@@ -600,6 +620,13 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
              static_cast<unsigned int>(std::lround(std::clamp(color[1], 0., 1.) * 255.)),
              static_cast<unsigned int>(std::lround(std::clamp(color[2], 0., 1.) * 255.)));
     header["SlicerAstro.SEGCOL" + std::to_string(sourceIDs[i])] = hexColor;
+    }
+  // opacity of the display of the mask (read back with the mask)
+  if (segmentationNode->GetDisplayNode())
+    {
+    std::ostringstream opacity;
+    opacity << segmentationNode->GetDisplayNode()->GetOpacity();
+    header["SlicerAstro.SEGOPAC"] = opacity.str();
     }
 
   // Merge the segments: one pass per binary labelmap (segments created by

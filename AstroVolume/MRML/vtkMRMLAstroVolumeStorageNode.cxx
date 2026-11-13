@@ -477,11 +477,14 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
         }
       }
 
-    // set range in display
+    // set range in display: the data range, without isolated outliers
+    // (e.g. stars in optical data) for the 2D display
     double min = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMIN"));
     double max = StringToDouble(volNode->GetAttribute("SlicerAstro.DATAMAX"));
-    double window = max - min;
-    double level = 0.5 * (max + min);
+    double displayRange[2] = { min, max };
+    volNode->GetDisplayRange(displayRange);
+    double window = displayRange[1] - displayRange[0];
+    double level = 0.5 * (displayRange[1] + displayRange[0]);
 
     int disabledModify = disNode->StartModify();
     disNode->SetWindowLevel(window, level);

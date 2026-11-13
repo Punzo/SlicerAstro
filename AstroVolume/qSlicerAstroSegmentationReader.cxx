@@ -30,6 +30,7 @@
 #include <vtkMRMLSegmentationNode.h>
 
 // Logic includes
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkSlicerAstroVolumeLogic.h>
 
 // vtkFits includes
@@ -121,6 +122,16 @@ bool qSlicerAstroSegmentationReader::load(const IOProperties& properties)
 
   segmentationNode->CreateDefaultDisplayNodes();
   vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
+  // opacity saved with the mask (SEGOPAC keyword)
+  vtkMRMLAstroSegmentationStorageNode::ApplySavedOpacity(segmentationNode);
+  // mask of a loaded data cube (same geometry): it becomes the mask of the
+  // cube (replacing the empty mask created with the cube)
+  vtkMRMLAstroVolumeNode* volumeNode = vtkSlicerAstroVolumeLogic::FindVolumeOfMask(scene, segmentationNode);
+  if (volumeNode)
+    {
+    segmentationNode->SetNodeReferenceID(
+      vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str(), volumeNode->GetID());
+    }
   this->setLoadedNodes(QStringList() << QString(segmentationNode->GetID()));
   return true;
 }

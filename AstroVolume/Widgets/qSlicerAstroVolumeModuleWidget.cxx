@@ -1658,8 +1658,9 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
     }
   else
     {
+    // default 3D color function
     d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-    d->PresetsNodeComboBox->setCurrentNodeIndex(0);
+    d->PresetsNodeComboBox->setCurrentNodeIndex(vtkMRMLAstroVolumeNode::ThreeSurfacesPreset);
     }
 
   d->PresetsNodeComboBox->update();
@@ -2672,7 +2673,7 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   // FITS mask) on the grid of the input data, e.g. for the other modules
   vtkSmartPointer<vtkMRMLSegmentationNode> maskNode = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
     vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode")));
-  maskNode->SetName(this->mrmlScene()->GetUniqueNameByString((std::string(volumeTwo->GetName()) + "_SEG").c_str()));
+  maskNode->SetName(this->mrmlScene()->GetUniqueNameByString((std::string(volumeTwo->GetName()) + "_mask").c_str()));
   this->mrmlScene()->AddNode(maskNode);
   maskNode->CreateDefaultDisplayNodes();
   vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(maskNode, volumeOne);

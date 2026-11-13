@@ -37,6 +37,9 @@
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vector>
+#include <cmath>
+#include <algorithm>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLTransformNode.h>
@@ -178,6 +181,81 @@ vtkMRMLVolumeRenderingDisplayNode *vtkMRMLAstroVolumeNode::GetAstroVolumeRenderi
 }
 
 //---------------------------------------------------------------------------
+namespace
+{
+template <typename T>
+void SampleFiniteValues(const T* values, vtkIdType count, vtkIdType stride, std::vector<double>& samples)
+{
+  for (vtkIdType index = 0; index < count; index += stride)
+    {
+    const double value = static_cast<double>(values[index]);
+    if (std::isfinite(value))
+      {
+      samples.push_back(value);
+      }
+    }
+}
+}
+
+//---------------------------------------------------------------------------
+bool vtkMRMLAstroVolumeNode::GetDisplayRange(double range[2])
+{
+  vtkImageData* imageData = this->GetImageData();
+  if (!imageData || !imageData->GetPointData() || !imageData->GetPointData()->GetScalars())
+    {
+    return false;
+    }
+  vtkDataArray* scalars = imageData->GetPointData()->GetScalars();
+  const vtkIdType count = scalars->GetNumberOfTuples() * scalars->GetNumberOfComponents();
+  const vtkIdType maximumSamples = 1000000;
+  const vtkIdType stride = std::max<vtkIdType>(1, count / maximumSamples);
+  std::vector<double> samples;
+  samples.reserve(static_cast<size_t>(std::min(count, maximumSamples + 1)));
+  switch (scalars->GetDataType())
+    {
+    vtkTemplateMacro(SampleFiniteValues(static_cast<const VTK_TT*>(scalars->GetVoidPointer(0)), count, stride, samples));
+    default:
+      return false;
+    }
+  if (samples.empty())
+    {
+    return false;
+    }
+  // extremes of all the voxels (the sample may miss them)
+  double dataRange[2] = { VTK_DOUBLE_MAX, VTK_DOUBLE_MIN };
+  scalars->GetFiniteRange(dataRange, 0);
+  if (dataRange[0] > dataRange[1])
+    {
+    dataRange[0] = samples.front();
+    dataRange[1] = samples.front();
+    }
+  const size_t last = samples.size() - 1;
+  const size_t highIndex = static_cast<size_t>(0.999 * last);
+  const size_t lowIndex = static_cast<size_t>(0.001 * last);
+  std::nth_element(samples.begin(), samples.begin() + highIndex, samples.end());
+  const double high = samples[highIndex];
+  std::nth_element(samples.begin(), samples.begin() + lowIndex, samples.begin() + highIndex);
+  const double low = samples[lowIndex];
+  range[0] = dataRange[0];
+  range[1] = dataRange[1];
+  // isolated outliers (bright point sources): the percentiles
+  if (high > 0. && dataRange[1] > 10. * high)
+    {
+    range[1] = high;
+    }
+  if (low < 0. && dataRange[0] < 10. * low)
+    {
+    range[0] = low;
+    }
+  if (range[1] <= range[0])
+    {
+    range[0] = dataRange[0];
+    range[1] = dataRange[1];
+    }
+  return true;
+}
+
+//---------------------------------------------------------------------------
 bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
 {     
   if (!this->GetImageData())
@@ -217,8 +295,10 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
   vtkMRMLAstroVolumeDisplayNode* displayNode = this->GetAstroVolumeDisplayNode();
   if (displayNode)
     {
-    double window = max_val - min_val;
-    double level = 0.5 * (max_val + min_val);
+    double displayRange[2] = { min_val, max_val };
+    this->GetDisplayRange(displayRange);
+    double window = displayRange[1] - displayRange[0];
+    double level = 0.5 * (displayRange[1] + displayRange[0]);
     int disModify = displayNode->StartModify();
     displayNode->SetWindowLevel(window, level);
     displayNode->SetThreshold(min_val, max_val);
@@ -395,7 +475,7 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
   vtkMRMLNode* presetNode = this->GetPresetNode();
   if (!presetNode)
     {
-    return vtkMRMLAstroVolumeNode::LowConstantOpacityPreset;
+    return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
     }
 
   std::string presetName = presetNode->GetName();

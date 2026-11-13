@@ -136,7 +136,7 @@ public:
 
   /// Name a mask with the default name of Slicer ("Segmentation",
   /// "Segmentation_1", ...) after its reference astronomical volume:
-  /// "<volume>_SEG", unique in the scene. Returns true if renamed.
+  /// "<volume>_mask", unique in the scene. Returns true if renamed.
   static bool NameMaskAfterReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
 
   /// Estimate the beam of a radio data cube from its noise. The noise of
@@ -162,7 +162,7 @@ public:
 
   /// Segmentations associated with an astronomical volume: its contours
   /// ("<volume>_Contours": contours drawn over the volume, of the volume or of
-  /// other data reprojected on it; not a mask) and its mask ("<volume>_SEG",
+  /// other data reprojected on it; not a mask) and its mask ("<volume>_mask",
   /// binary labelmap, FITS mask). Both have the volume as reference geometry
   /// and are referenced by the volume (roles GetContoursReferenceRole and
   /// GetMaskReferenceRole). An existing segmentation of the scene is used
@@ -175,6 +175,23 @@ public:
   /// EnsureVolumeSegmentations for a volume loaded from a file (data and a
   /// storage node with a file name), outside of scene imports
   void EnsureSegmentationsOfLoadedVolume(vtkMRMLAstroVolumeNode* volumeNode);
+  /// Opacity of the masks created by SlicerAstro (the opacity of a mask read
+  /// from a FITS file is the one saved in the file, keyword SEGOPAC)
+  static double GetDefaultMaskOpacity() { return 0.3; }
+
+  /// A mask with segments (or read from a file) whose reference geometry is
+  /// an astronomical volume replaces the empty mask created automatically for
+  /// that volume (e.g. the mask of a data cube loaded after the cube).
+  /// Returns true if replaced.
+  bool ReplaceEmptyMaskOfReferenceVolume(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// True if the segmentation has the geometry (voxel grid) of the volume.
+  static bool HasGeometryOfVolume(vtkMRMLSegmentationNode* segmentationNode, vtkMRMLVolumeNode* volumeNode);
+
+  /// The astronomical volume with the geometry of a mask without reference
+  /// volume (e.g. a FITS mask loaded after its data cube), nullptr if none.
+  static vtkMRMLAstroVolumeNode* FindVolumeOfMask(vtkMRMLScene* scene, vtkMRMLSegmentationNode* segmentationNode);
+
   static const char* GetContoursReferenceRole() { return "SlicerAstroContours"; }
   static const char* GetMaskReferenceRole() { return "SlicerAstroMask"; }
 
