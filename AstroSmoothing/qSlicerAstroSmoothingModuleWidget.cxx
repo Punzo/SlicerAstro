@@ -2154,12 +2154,10 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
   outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
-  // Necessary to guarantee that the renderWindow is initialized
-  d->GaussianKernelView->show();
-  d->GaussianKernelView->hide();
-
-  // Run calculation
-  if (logic->Apply(d->parametersNode, d->GaussianKernelView->renderWindow()))
+  // Run calculation. The OpenGL filters create their own offscreen OpenGL
+  // context (the context of a Qt view, e.g. of a hidden widget, is not
+  // current when the filters render)
+  if (logic->Apply(d->parametersNode, nullptr))
     {
     if (!strcmp(d->parametersNode->GetMasksCommand(), "Generate"))
       {

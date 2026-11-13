@@ -100,8 +100,11 @@ public:
 protected:
   /// Run a smoothing filter (CPU or GPU) on the input volume of \a pnode and
   /// set its output (without copying the voxels) as the output volume image.
+  /// inBackground: the filter runs in the background runner of the AstroVolume
+  /// logic (worker thread). The OpenGL filters run in the calling (GUI)
+  /// thread: their OpenGL context can not be made current in another thread.
   int RunSmoothingFilter(vtkMRMLAstroSmoothingParametersNode* pnode,
-                         vtkImageAlgorithm* filter, const char* filterName);
+                         vtkImageAlgorithm* filter, const char* filterName, bool inBackground = true);
 
   vtkSlicerAstroSmoothingLogic();
   virtual ~vtkSlicerAstroSmoothingLogic();

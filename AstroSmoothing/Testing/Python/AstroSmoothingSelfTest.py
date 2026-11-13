@@ -93,6 +93,8 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         self.setUp()
         self.test_AstroSmoothingSelfTest()
+        self.setUp()
+        self.test_AstroSmoothingGPU()
 
     def smooth(self, parametersNode, configure, hardware=0):
         """Configure the parameters node, run the module (0: CPU, 1: GPU) and return the output voxels."""
@@ -215,4 +217,59 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(tuple(volumeNode.GetImageData().GetSpacing()), (1.0, 1.0, 1.0))
         self.assertTrue(np.array_equal(voxelArray(volumeNode), cube, equal_nan=True))
 
+        self.delayDisplay("Test passed")
+
+    def test_AstroSmoothingGPU(self):
+        """The GPU filters (OpenGL, or WebGPU if available) through the module
+        (the Apply button: as the users run them), against the references."""
+        import AstroSampleData
+        from vtk.util.numpy_support import vtk_to_numpy
+
+        backend = slicer.modules.astrosmoothing.logic().GetGPUBackend()
+        if not backend:
+            self.skipTest("no GPU backend")
+        self.delayDisplay("GPU smoothing (%s)" % backend)
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(volumeNode)
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroSmoothing")
+        parametersNode = slicer.util.getNode("AstroSmoothingParameters")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+        cube = voxelArray(volumeNode).astype(np.float64)
+        scale = np.nanmax(np.abs(cube))
+
+        def isotropicBox(p):
+            p.SetFilter(BOX)
+            p.SetParameterX(5)
+            p.SetParameterY(5)
+            p.SetParameterZ(5)
+        computed = self.smooth(parametersNode, isotropicBox, hardware=1)
+        expected = referenceSeparable(cube, np.full(5, 1.0 / 5), (True, True, True))
+        self.assertClose(computed, expected, scale, "GPU isotropic box", relativeTolerance=1e-4)
+
+        def isotropicGaussian(p):
+            p.SetFilter(GAUSSIAN)
+            p.SetParameterX(3)
+            p.SetParameterY(3)
+            p.SetParameterZ(3)
+            p.SetRx(0)
+            p.SetRy(0)
+            p.SetRz(0)
+        computed = self.smooth(parametersNode, isotropicGaussian, hardware=1)
+        kernel1D = vtk_to_numpy(parametersNode.GetGaussianKernel1D()).astype(np.float64)
+        expected = referenceSeparable(cube, kernel1D, (True, True, True))
+        self.assertClose(computed, expected, scale, "GPU isotropic Gaussian", relativeTolerance=1e-4)
+
+        def gradient(p):
+            p.SetFilter(GRADIENT)
+            p.SetParameterX(0.5)
+            p.SetParameterY(0.5)
+            p.SetParameterZ(0.3)
+            p.SetAccuracy(10)
+        computed = self.smooth(parametersNode, gradient, hardware=1)
+        expected = referenceGradient(cube, (0.5, 0.5, 0.3), parametersNode.GetTimeStep(), parametersNode.GetK(),
+                                     float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold")),
+                                     parametersNode.GetAccuracy())
+        self.assertClose(computed, expected, scale, "GPU gradient", relativeTolerance=1e-3)
         self.delayDisplay("Test passed")

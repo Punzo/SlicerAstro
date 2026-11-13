@@ -281,7 +281,8 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParametersNode* pnode,
                                                      vtkImageAlgorithm* filter,
-                                                  const char* filterName)
+                                                     const char* filterName,
+                                                     bool inBackground)
 {
   if (!pnode || !filter || !this->GetMRMLScene())
     {
@@ -339,7 +340,7 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
   const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   filter->SetInputData(inputVolume->GetImageData());
   std::function<void()> update = [filter]() { filter->Update(); };
-  if (this->Internal->AstroVolumeLogic)
+  if (inBackground && this->Internal->AstroVolumeLogic)
     {
     this->Internal->AstroVolumeLogic->RunInBackground("Smoothing the data...", update,
       [this]() { return this->GetSmoothingProgress(); },
@@ -484,7 +485,7 @@ int vtkSlicerAstroSmoothingLogic::BoxGPUFilter(vtkMRMLAstroSmoothingParametersNo
   filter->SetKernelLength(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
   // a null render window lets the filter create its own offscreen context
   filter->SetRenderWindow(renderWindow);
-  return this->RunSmoothingFilter(pnode, filter, "Box Filter (GPU, OpenGL)");
+  return this->RunSmoothingFilter(pnode, filter, "Box Filter (GPU, OpenGL)", false);
 #endif
 }
 
@@ -538,7 +539,7 @@ int vtkSlicerAstroSmoothingLogic::GaussianGPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetFWHM(pnode->GetParameterX(), pnode->GetParameterY(), pnode->GetParameterZ());
   filter->SetRotationAngles(pnode->GetRx(), pnode->GetRy(), pnode->GetRz());
   filter->SetRenderWindow(renderWindow);
-  return this->RunSmoothingFilter(pnode, filter, "Gaussian Filter (GPU, OpenGL)");
+  return this->RunSmoothingFilter(pnode, filter, "Gaussian Filter (GPU, OpenGL)", false);
 #endif
 }
 
@@ -589,6 +590,6 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetTimeStep(pnode->GetTimeStep());
   filter->SetRMS(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DisplayThreshold")));
   filter->SetRenderWindow(renderWindow);
-  return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (GPU, OpenGL)");
+  return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (GPU, OpenGL)", false);
 #endif
 }
