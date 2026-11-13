@@ -29,6 +29,9 @@
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroReprojectLogic.h>
 
+// VTK includes
+#include <vtkWeakPointer.h>
+
 
 // AstroReproject includes
 #include "qSlicerAstroReprojectModule.h"
@@ -148,6 +151,20 @@ void qSlicerAstroReprojectModule::setup()
     }
 
   AstroReprojectLogic->SetAstroVolumeLogic(astroVolumeLogic);
+  // reprojection service of the AstroVolume module (contours of other data)
+  vtkWeakPointer<vtkSlicerAstroReprojectLogic> weakLogic = AstroReprojectLogic;
+  astroVolumeLogic->SetReprojectFunction(
+    [weakLogic](vtkMRMLAstroReprojectParametersNode* pnode, std::string& error) -> bool
+    {
+    if (!weakLogic)
+      {
+      error = "the AstroReproject logic was deleted";
+      return false;
+      }
+    const bool success = weakLogic->Reproject(pnode);
+    error = weakLogic->GetLastError();
+    return success;
+    });
 }
 
 //-----------------------------------------------------------------------------

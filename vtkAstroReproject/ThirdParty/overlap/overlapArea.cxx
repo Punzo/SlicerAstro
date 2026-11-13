@@ -1,0 +1,1337 @@
+// Spherical polygon overlap of two pixels (exact-overlap reprojection).
+//
+// Vendored in SlicerAstro from astropy reproject (commit 7a9dcb4,
+// reproject/spherical_intersect/overlapArea.c and mNaN.h, BSD-3, see
+// LICENSE.reproject.txt), itself derived from Montage (Caltech/IPAC, John
+// Good, BSD-3, see LICENSE.Montage.txt). Changes for SlicerAstro: compiled
+// as C++, internal functions and constants made static and the entry point
+// renamed SlicerAstroComputeOverlap (no global symbols such as Dot or Cross).
+// Note: energyMode != 0 uses the vertices of the previous call (as in
+// Montage); SlicerAstro calls it with energyMode = 0 only.
+//
+/* Methods to compute pixel overlap areas on the sphere.
+ *
+ * Originally developed in 2003 / 2004 by John Good.
+ */
+
+#include <stdio.h>
+#if defined(_MSC_VER)
+  #define _USE_MATH_DEFINES
+#endif
+#include <math.h>
+#include "overlapArea.h"
+
+// mNaN.h of reproject
+#ifndef _BSD_SOURCE
+#define _BSD_SOURCE
+#endif
+#include <math.h>
+#if defined(_MSC_VER)
+  #define mNaN(x) _isnan(x) || !_finite(x)
+#else
+  #define mNaN(x) isnan(x) || !isfinite(x)
+#endif
+
+// Constants
+
+#define FALSE             0
+#define TRUE              1
+#define FOREVER           1
+
+#define COLINEAR_SEGMENTS 0
+#define ENDPOINT_ONLY     1
+#define NORMAL_INTERSECT  2
+#define NO_INTERSECTION   3
+
+#define CLOCKWISE         1
+#define PARALLEL          0
+#define COUNTERCLOCKWISE -1
+
+#define UNKNOWN           0
+#define P_IN_Q            1
+#define Q_IN_P            2
+
+#if defined(DEBUG_OVERLAP_AREA)
+    const int DEBUG = 10;
+#else
+    const int DEBUG = 0;
+#endif
+
+static const double DEG_TO_RADIANS = M_PI / 180.;
+// sin(x) where x = 5e-4 arcsec or cos(x) when x is within 1e-5 arcsec of 90 degrees
+static const double TOLERANCE = 4.424e-9;
+static const int NP = 4;
+static const int NQ = 4;
+
+typedef struct vec {
+  double x;
+  double y;
+  double z;
+} Vec;
+
+// Function prototypes
+
+static int DirectionCalculator(Vec *a, Vec *b, Vec *c);
+static int SegSegIntersect(Vec *a, Vec *b, Vec *c, Vec *d, Vec *e, Vec *f, Vec *p,
+                    Vec *q);
+static int Between(Vec *a, Vec *b, Vec *c);
+static int Cross(Vec *a, Vec *b, Vec *c);
+static double Dot(Vec *a, Vec *b);
+static double Normalize(Vec *a);
+static void Reverse(Vec *a);
+static void SaveVertex(Vec *a, Vec *P, Vec *Q, Vec *V, int *nv);
+static void SaveSharedSeg(Vec *p, Vec *q, Vec *P, Vec *Q, Vec *V, int *nv);
+
+static void ComputeIntersection(Vec *P, Vec *Q, Vec *V, int *nv);
+static void EnsureCounterClockWise(Vec *V);
+
+static int UpdateInteriorFlag(Vec *p, int interiorFlag, int pEndpointFromQdir,
+                       int qEndpointFromPdir, Vec *P, Vec *Q, Vec *V, int *nv);
+
+static int Advance(int i, int *i_advances, int n, int inside, Vec *v, Vec *P, Vec *Q, Vec *V, int *nv);
+
+static double Girard(int nv, Vec *V);
+static void RemoveDups(int *nv, Vec *V);
+
+static int printDir(const char *point, const char *vector, int dir);
+
+/*
+ * 2D polygon helpers for the planar approximation path.
+ */
+
+static double cross2d(double ax, double ay, double bx, double by) {
+  return ax * by - ay * bx;
+}
+
+static double polyArea2D(const double *x, const double *y, int n) {
+  int i, j;
+  double area = 0;
+  for (i = 0; i < n; ++i) {
+    j = (i + 1) % n;
+    area += x[i] * y[j] - x[j] * y[i];
+  }
+  return fabs(area) / 2.0;
+}
+
+static void ensureCCW2D(double *x, double *y, int n) {
+  int i, j;
+  double area = 0;
+  double tmp;
+  for (i = 0; i < n; ++i) {
+    j = (i + 1) % n;
+    area += x[i] * y[j] - x[j] * y[i];
+  }
+  if (area < 0) {
+    for (i = 0; i < n / 2; ++i) {
+      j = n - 1 - i;
+      tmp = x[i]; x[i] = x[j]; x[j] = tmp;
+      tmp = y[i]; y[i] = y[j]; y[j] = tmp;
+    }
+  }
+}
+
+/*
+ * Build an orthonormal tangent plane basis at a point on the unit sphere,
+ * then project vertices onto that plane.
+ *
+ * center: unit vector defining the tangent point
+ * V:      array of nv unit vectors to project
+ * nv:     number of vertices
+ * px, py: output arrays for the 2D projected coordinates (must have room for nv)
+ */
+static void projectToTangentPlane(Vec *center, Vec *V, int nv,
+                                  double *px, double *py) {
+  int i;
+  Vec east, north;
+
+  if (fabs(center->z) < 0.9) {
+    east.x = -center->y;
+    east.y = center->x;
+    east.z = 0.0;
+  } else {
+    east.x = 0.0;
+    east.y = center->z;
+    east.z = -center->y;
+  }
+  Normalize(&east);
+  Cross(center, &east, &north);
+  Normalize(&north);
+
+  for (i = 0; i < nv; ++i) {
+    px[i] = Dot(&V[i], &east);
+    py[i] = Dot(&V[i], &north);
+  }
+}
+
+/*
+ * Check if all vertices are close enough to use the planar approximation,
+ * and if so, compute the polygon area via tangent plane projection + shoelace.
+ * Returns 1 if the planar path was used (result stored in *area), 0 otherwise.
+ */
+static int planarArea(int nv, Vec *V, double *area) {
+  int i;
+  Vec centroid;
+  double max_dist_sq, dx, dy, dz, d2;
+  double px[16], py[16];
+
+  centroid.x = centroid.y = centroid.z = 0;
+  for (i = 0; i < nv; ++i) {
+    centroid.x += V[i].x;
+    centroid.y += V[i].y;
+    centroid.z += V[i].z;
+  }
+  Normalize(&centroid);
+
+  max_dist_sq = 0;
+  for (i = 0; i < nv; ++i) {
+    dx = V[i].x - centroid.x;
+    dy = V[i].y - centroid.y;
+    dz = V[i].z - centroid.z;
+    d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 > max_dist_sq)
+      max_dist_sq = d2;
+  }
+
+  // For unit vectors, |V - C|^2 = 2(1 - cos(theta)) ~ theta^2.
+  // Threshold of 1e-8 corresponds to theta ~ 1e-4 rad (~20 arcsec),
+  // the crossover point where the planar approximation becomes more
+  // accurate than Girard's theorem in double precision.
+  if (max_dist_sq >= 1e-8)
+    return 0;
+
+  projectToTangentPlane(&centroid, V, nv, px, py);
+  *area = polyArea2D(px, py, nv);
+  return 1;
+}
+
+/*
+ * Sutherland-Hodgman polygon clipping in 2D.
+ * Clips subject polygon (sx, sy, sn) against clip polygon (cx, cy, cn).
+ * Both must be convex and counter-clockwise.
+ * Returns the number of output vertices in (ox, oy).
+ */
+static int clipPolygon2D(
+    const double *sx, const double *sy, int sn,
+    const double *cx, const double *cy, int cn,
+    double *ox, double *oy) {
+  double tmpx[2][16], tmpy[2][16];
+  int cur = 0, nxt, n, nout, i, j, jnext, inext;
+  double ex, ey, s1, s2, t;
+
+  for (i = 0; i < sn; ++i) {
+    tmpx[0][i] = sx[i];
+    tmpy[0][i] = sy[i];
+  }
+  n = sn;
+
+  for (j = 0; j < cn; ++j) {
+    if (n == 0)
+      break;
+    jnext = (j + 1) % cn;
+    ex = cx[jnext] - cx[j];
+    ey = cy[jnext] - cy[j];
+    nxt = 1 - cur;
+    nout = 0;
+
+    for (i = 0; i < n; ++i) {
+      inext = (i + 1) % n;
+      s1 = cross2d(ex, ey, tmpx[cur][i] - cx[j], tmpy[cur][i] - cy[j]);
+      s2 = cross2d(ex, ey, tmpx[cur][inext] - cx[j], tmpy[cur][inext] - cy[j]);
+
+      if (s1 >= 0) {
+        tmpx[nxt][nout] = tmpx[cur][i];
+        tmpy[nxt][nout] = tmpy[cur][i];
+        ++nout;
+        if (s2 < 0) {
+          t = s1 / (s1 - s2);
+          tmpx[nxt][nout] = tmpx[cur][i] + t * (tmpx[cur][inext] - tmpx[cur][i]);
+          tmpy[nxt][nout] = tmpy[cur][i] + t * (tmpy[cur][inext] - tmpy[cur][i]);
+          ++nout;
+        }
+      } else if (s2 > 0) {
+        t = s1 / (s1 - s2);
+        tmpx[nxt][nout] = tmpx[cur][i] + t * (tmpx[cur][inext] - tmpx[cur][i]);
+        tmpy[nxt][nout] = tmpy[cur][i] + t * (tmpy[cur][inext] - tmpy[cur][i]);
+        ++nout;
+      }
+    }
+
+    cur = nxt;
+    n = nout;
+  }
+
+  for (i = 0; i < n; ++i) {
+    ox[i] = tmpx[cur][i];
+    oy[i] = tmpy[cur][i];
+  }
+  return n;
+}
+
+/*
+ * Sets up the polygons, runs the overlap computation, and returns the area of overlap.
+ */
+double SlicerAstroComputeOverlap(double *ilon, double *ilat, double *olon, double *olat,
+                      int energyMode, double refArea, double *areaRatio) {
+  int i;
+  double thisPixelArea;
+  Vec P[8], Q[8], V[16];
+  int nv;
+
+  *areaRatio = 1.;
+
+  if (energyMode) {
+    nv = 0;
+
+    for (i = 0; i < 4; ++i)
+      SaveVertex(&P[i], P, Q, V, &nv);
+
+    thisPixelArea = Girard(nv, V);
+
+    *areaRatio = thisPixelArea / refArea;
+  }
+
+  nv = 0;
+
+  if (DEBUG >= 4) {
+    printf("Input (P):\n");
+    for (i = 0; i < 4; ++i)
+      printf("%10.6f %10.6f\n", ilon[i], ilat[i]);
+
+    printf("\nOutput (Q):\n");
+    for (i = 0; i < 4; ++i)
+      printf("%10.6f %10.6f\n", olon[i], olat[i]);
+
+    printf("\n");
+    fflush(stdout);
+  }
+
+  for (i = 0; i < 4; ++i) {
+    P[i].x = cos(ilon[i]) * cos(ilat[i]);
+    P[i].y = sin(ilon[i]) * cos(ilat[i]);
+    P[i].z = sin(ilat[i]);
+  }
+
+  for (i = 0; i < 4; ++i) {
+    Q[i].x = cos(olon[i]) * cos(olat[i]);
+    Q[i].y = sin(olon[i]) * cos(olat[i]);
+    Q[i].z = sin(olat[i]);
+  }
+
+  // For small pixels, the spherical intersection and Girard's theorem both
+  // suffer from numerical precision loss. Instead, project onto a local
+  // tangent plane and do the entire overlap computation in 2D.
+  {
+    Vec all[8];
+    Vec centroid;
+    double max_dist_sq, dx, dy, dz, d2;
+
+    for (i = 0; i < 4; ++i) {
+      all[i] = P[i];
+      all[i + 4] = Q[i];
+    }
+    centroid.x = centroid.y = centroid.z = 0;
+    for (i = 0; i < 8; ++i) {
+      centroid.x += all[i].x;
+      centroid.y += all[i].y;
+      centroid.z += all[i].z;
+    }
+    Normalize(&centroid);
+
+    max_dist_sq = 0;
+    for (i = 0; i < 8; ++i) {
+      dx = all[i].x - centroid.x;
+      dy = all[i].y - centroid.y;
+      dz = all[i].z - centroid.z;
+      d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 > max_dist_sq)
+        max_dist_sq = d2;
+    }
+
+    if (max_dist_sq < 1e-8) {
+      double px[4], py[4], qx[4], qy[4];
+      double ox[16], oy[16];
+      int noverlap;
+
+      projectToTangentPlane(&centroid, P, 4, px, py);
+      projectToTangentPlane(&centroid, Q, 4, qx, qy);
+
+      ensureCCW2D(px, py, 4);
+      ensureCCW2D(qx, qy, 4);
+
+      if (energyMode) {
+        *areaRatio = polyArea2D(px, py, 4) / refArea;
+      }
+
+      noverlap = clipPolygon2D(px, py, 4, qx, qy, 4, ox, oy);
+
+      if (DEBUG >= 4) {
+        printf("computeOverlap(): using planar approximation, "
+               "noverlap = %d\n", noverlap);
+        fflush(stdout);
+      }
+
+      {
+        double parea = polyArea2D(ox, oy, noverlap);
+        if (mNaN(parea) || parea < 0.)
+          parea = 0.;
+        return parea;
+      }
+    }
+  }
+
+  EnsureCounterClockWise(P);
+  EnsureCounterClockWise(Q);
+
+  ComputeIntersection(P, Q, V, &nv);
+
+  return (Girard(nv, V));
+}
+
+static void EnsureCounterClockWise(Vec *V) {
+
+  // Make sure that the polygon is counter-clockwise. For now we assume that we
+  // are dealing with convex quadrilaterals, and therefore we can just check
+  // the two first sides of the polygon.
+
+  Vec S1, S2, C;
+  double dir;
+  double tmp;
+
+  S1.x = V[1].x - V[0].x;
+  S1.y = V[1].y - V[0].y;
+  S1.z = V[1].z - V[0].z;
+
+  S2.x = V[2].x - V[1].x;
+  S2.y = V[2].y - V[1].y;
+  S2.z = V[2].z - V[1].z;
+
+  Cross(&S1, &S2, &C);
+
+  dir = Dot(&V[1], &C);
+
+  if (dir < 0) {
+    tmp = V[2].x;
+    V[2].x = V[0].x;
+    V[0].x = tmp;
+    tmp = V[2].y;
+    V[2].y = V[0].y;
+    V[0].y = tmp;
+    tmp = V[2].z;
+    V[2].z = V[0].z;
+    V[0].z = tmp;
+  }
+
+}
+
+/*
+ * Find the polygon defining the area of overlap
+ * between the two input polygons P and Q.
+ */
+static void ComputeIntersection(Vec *P, Vec *Q, Vec *V, int *nv) {
+  Vec Pdir, Qdir;              // "Current" directed edges on P and Q
+  Vec other;                   // Temporary "edge-like" variable
+  int ip, iq;                  // Indices of ends of Pdir, Qdir
+  int ip_begin, iq_begin;      // Indices of beginning of Pdir, Qdir
+  int PToQDir;                 // Qdir direction relative to Pdir
+                               // (e.g. CLOCKWISE)
+  int qEndpointFromPdir;       // End P vertex as viewed from beginning
+                               // of Qdir relative to Qdir
+  int pEndpointFromQdir;       // End Q vertex as viewed from beginning
+                               // of Pdir relative to Pdir
+  Vec firstIntersection;       // Point of intersection of Pdir, Qdir
+  Vec secondIntersection;      // Second point of intersection
+                               // (if there is one)
+  int interiorFlag;            // Which polygon is inside the other
+  int contained;               // Used for "completely contained" check
+  int p_advances, q_advances;  // Number of times we've advanced
+                               // P and Q indices
+  int isFirstPoint;            // Is this the first point?
+  int intersectionCode;        // SegSegIntersect() return code.
+
+  // Check for Q contained in P
+
+  contained = TRUE;
+
+  for (ip = 0; ip < NP; ++ip) {
+    ip_begin = (ip + NP - 1) % NP;
+
+    Cross(&P[ip_begin], &P[ip], &Pdir);
+    Normalize(&Pdir);
+
+    for (iq = 0; iq < NQ; ++iq) {
+      if (DEBUG >= 4) {
+        printf("Q in P: Dot%d%d = %12.5e\n", ip, iq, Dot(&Pdir, &Q[iq]));
+        fflush(stdout);
+      }
+
+      if (Dot(&Pdir, &Q[iq]) < -TOLERANCE) {
+        contained = FALSE;
+        break;
+      }
+    }
+
+    if (!contained)
+      break;
+  }
+
+  if (contained) {
+    if (DEBUG >= 4) {
+      printf("Q is entirely contained in P (output pixel is in input pixel)\n");
+      fflush(stdout);
+    }
+
+    for (iq = 0; iq < NQ; ++iq)
+      SaveVertex(&Q[iq], P, Q, V, nv);
+
+    return;
+  }
+
+  // Check for P contained in Q
+
+  contained = TRUE;
+
+  for (iq = 0; iq < NQ; ++iq) {
+    iq_begin = (iq + NQ - 1) % NQ;
+
+    Cross(&Q[iq_begin], &Q[iq], &Qdir);
+    Normalize(&Qdir);
+
+    for (ip = 0; ip < NP; ++ip) {
+      if (DEBUG >= 4) {
+        printf("P in Q: Dot%d%d = %12.5e\n", iq, ip, Dot(&Qdir, &P[ip]));
+        fflush(stdout);
+      }
+
+      if (Dot(&Qdir, &P[ip]) < -TOLERANCE) {
+        contained = FALSE;
+        break;
+      }
+    }
+
+    if (!contained)
+      break;
+  }
+
+  if (contained) {
+    if (DEBUG >= 4) {
+      printf("P is entirely contained in Q (input pixel is in output pixel)\n");
+      fflush(stdout);
+    }
+
+    *nv = 0;
+    for (ip = 0; ip < NP; ++ip)
+      SaveVertex(&P[ip], P, Q, V, nv);
+
+    return;
+  }
+
+  // Then check for polygon overlap
+
+  ip = 0;
+  iq = 0;
+
+  p_advances = 0;
+  q_advances = 0;
+
+  interiorFlag = UNKNOWN;
+  isFirstPoint = TRUE;
+
+  while (FOREVER) {
+    if (p_advances >= 2 * NP)
+      break;
+    if (q_advances >= 2 * NQ)
+      break;
+    if (p_advances >= NP && q_advances >= NQ)
+      break;
+
+    if (DEBUG >= 4) {
+      printf("-----\n");
+
+      if (interiorFlag == UNKNOWN) {
+        printf("Before advances (UNKNOWN interiorFlag): ip=%d, iq=%d ", ip, iq);
+        printf("(p_advances=%d, q_advances=%d)\n", p_advances, q_advances);
+      }
+
+      else if (interiorFlag == P_IN_Q) {
+        printf("Before advances (P_IN_Q): ip=%d, iq=%d ", ip, iq);
+        printf("(p_advances=%d, q_advances=%d)\n", p_advances, q_advances);
+      }
+
+      else if (interiorFlag == Q_IN_P) {
+        printf("Before advances (Q_IN_P): ip=%d, iq=%d ", ip, iq);
+        printf("(p_advances=%d, q_advances=%d)\n", p_advances, q_advances);
+      } else
+        printf("\nBAD INTERIOR FLAG.  Shouldn't get here\n");
+
+      fflush(stdout);
+    }
+
+    // Previous point in the polygon
+
+    ip_begin = (ip + NP - 1) % NP;
+    iq_begin = (iq + NQ - 1) % NQ;
+
+    // The current polygon edges are given by
+    // the cross product of the vertex vectors
+
+    Cross(&P[ip_begin], &P[ip], &Pdir);
+    Cross(&Q[iq_begin], &Q[iq], &Qdir);
+
+    PToQDir = DirectionCalculator(&P[ip], &Pdir, &Qdir);
+
+    Cross(&Q[iq_begin], &P[ip], &other);
+    pEndpointFromQdir = DirectionCalculator(&Q[iq_begin], &Qdir, &other);
+
+    Cross(&P[ip_begin], &Q[iq], &other);
+    qEndpointFromPdir = DirectionCalculator(&P[ip_begin], &Pdir, &other);
+
+    if (DEBUG >= 4) {
+      printf("   ");
+      printDir("P", "Q", PToQDir);
+      printDir("pEndpoint", "Q", pEndpointFromQdir);
+      printDir("qEndpoint", "P", qEndpointFromPdir);
+      printf("\n");
+      fflush(stdout);
+    }
+
+    // Find point(s) of intersection between edges
+
+    intersectionCode = SegSegIntersect(&Pdir, &Qdir, &P[ip_begin], &P[ip],
+                                       &Q[iq_begin], &Q[iq], &firstIntersection,
+                                       &secondIntersection);
+
+    if (intersectionCode == NORMAL_INTERSECT
+        || intersectionCode == ENDPOINT_ONLY) {
+      if (interiorFlag == UNKNOWN && isFirstPoint) {
+        p_advances = 0;
+        q_advances = 0;
+
+        isFirstPoint = FALSE;
+      }
+
+      interiorFlag = UpdateInteriorFlag(&firstIntersection, interiorFlag,
+                                        pEndpointFromQdir, qEndpointFromPdir, P, Q, V, nv);
+
+      if (DEBUG >= 4) {
+        if (interiorFlag == UNKNOWN)
+          printf("   interiorFlag -> UNKNOWN\n");
+
+        else if (interiorFlag == P_IN_Q)
+          printf("   interiorFlag -> P_IN_Q\n");
+
+        else if (interiorFlag == Q_IN_P)
+          printf("   interiorFlag -> Q_IN_P\n");
+
+        else
+          printf("   BAD interiorFlag.  Shouldn't get here\n");
+
+        fflush(stdout);
+      }
+    }
+
+    // Advance rules
+
+    // Special case: Pdir & Qdir overlap and oppositely oriented.
+
+    if ((intersectionCode == COLINEAR_SEGMENTS) && (Dot(&Pdir, &Qdir) < 0)) {
+      if (DEBUG >= 4) {
+        printf("   ADVANCE: Pdir and Qdir are colinear.\n");
+        fflush(stdout);
+      }
+
+      SaveSharedSeg(&firstIntersection, &secondIntersection, P, Q, V, nv);
+
+      RemoveDups(nv, V);
+      return;
+    }
+
+    // Special case: Pdir & Qdir parallel and separated.
+
+    if ((PToQDir == PARALLEL) && (pEndpointFromQdir == CLOCKWISE)
+        && (qEndpointFromPdir == CLOCKWISE)) {
+      if (DEBUG >= 4) {
+        printf("   ADVANCE: Pdir and Qdir are disjoint.\n");
+        fflush(stdout);
+      }
+
+      RemoveDups(nv, V);
+      return;
+    }
+
+    // Special case: Pdir & Qdir colinear.
+
+    else if ((PToQDir == PARALLEL) && (pEndpointFromQdir == PARALLEL)
+        && (qEndpointFromPdir == PARALLEL)) {
+      if (DEBUG >= 4) {
+        printf("   ADVANCE: Pdir and Qdir are colinear.\n");
+        fflush(stdout);
+      }
+
+      // Advance but do not output point.
+
+      if (interiorFlag == P_IN_Q)
+        iq = Advance(iq, &q_advances, NQ, interiorFlag == Q_IN_P, &Q[iq], P, Q, V, nv);
+      else
+        ip = Advance(ip, &p_advances, NP, interiorFlag == P_IN_Q, &P[ip], P, Q, V, nv);
+    }
+
+    // Generic cases.
+
+    else if (PToQDir == COUNTERCLOCKWISE || PToQDir == PARALLEL) {
+      if (qEndpointFromPdir == COUNTERCLOCKWISE) {
+        if (DEBUG >= 4) {
+          printf("   ADVANCE: Generic: PToQDir is COUNTERCLOCKWISE ");
+          printf("|| PToQDir is PARALLEL, ");
+          printf("qEndpointFromPdir is COUNTERCLOCKWISE\n");
+          fflush(stdout);
+        }
+
+        ip = Advance(ip, &p_advances, NP, interiorFlag == P_IN_Q, &P[ip], P, Q, V, nv);
+      } else {
+        if (DEBUG >= 4) {
+          printf("   ADVANCE: Generic: PToQDir is COUNTERCLOCKWISE ");
+          printf("|| PToQDir is PARALLEL, qEndpointFromPdir is CLOCKWISE\n");
+          fflush(stdout);
+        }
+
+        iq = Advance(iq, &q_advances, NQ, interiorFlag == Q_IN_P, &Q[iq], P, Q, V, nv);
+      }
+    }
+
+    else {
+      if (pEndpointFromQdir == COUNTERCLOCKWISE) {
+        if (DEBUG >= 4) {
+          printf("   ADVANCE: Generic: PToQDir is CLOCKWISE, ");
+          printf("pEndpointFromQdir is COUNTERCLOCKWISE\n");
+          fflush(stdout);
+        }
+
+        iq = Advance(iq, &q_advances, NQ, interiorFlag == Q_IN_P, &Q[iq], P, Q, V, nv);
+      } else {
+        if (DEBUG >= 4) {
+          printf("   ADVANCE: Generic: PToQDir is CLOCKWISE, ");
+          printf("pEndpointFromQdir is CLOCKWISE\n");
+          fflush(stdout);
+        }
+
+        ip = Advance(ip, &p_advances, NP, interiorFlag == P_IN_Q, &P[ip], P, Q, V, nv);
+      }
+    }
+
+    if (DEBUG >= 4) {
+      if (interiorFlag == UNKNOWN) {
+        printf("After  advances: ip=%d, iq=%d ", ip, iq);
+        printf("(p_advances=%d, q_advances=%d) interiorFlag=UNKNOWN\n",
+               p_advances, q_advances);
+      }
+
+      else if (interiorFlag == P_IN_Q) {
+        printf("After  advances: ip=%d, iq=%d ", ip, iq);
+        printf("(p_advances=%d, q_advances=%d) interiorFlag=P_IN_Q\n",
+               p_advances, q_advances);
+      }
+
+      else if (interiorFlag == Q_IN_P) {
+        printf("After  advances: ip=%d, iq=%d ", ip, iq);
+        printf("(p_advances=%d, q_advances=%d) interiorFlag=Q_IN_P\n",
+               p_advances, q_advances);
+      } else
+        printf("BAD INTERIOR FLAG.  Shouldn't get here\n");
+
+      printf("-----\n\n");
+      fflush(stdout);
+    }
+  }
+
+  RemoveDups(nv, V);
+  return;
+}
+
+/*
+ * Print out the second point of intersection and toggle in/out flag.
+ */
+static int UpdateInteriorFlag(Vec *p, int interiorFlag, int pEndpointFromQdir,
+                       int qEndpointFromPdir, Vec *P, Vec *Q, Vec *V, int *nv) {
+  double lon, lat;
+
+  if (DEBUG >= 4) {
+    lon = atan2(p->y, p->x) / DEG_TO_RADIANS;
+    lat = asin(p->z) / DEG_TO_RADIANS;
+
+    printf("   intersection [%13.6e,%13.6e,%13.6e]  "
+           "-> (%10.6f,%10.6f) (UpdateInteriorFlag)\n",
+           p->x, p->y, p->z, lon, lat);
+    fflush(stdout);
+  }
+
+  SaveVertex(p, P, Q, V, nv);
+
+  // Update interiorFlag.
+
+  if (pEndpointFromQdir == COUNTERCLOCKWISE)
+    return P_IN_Q;
+
+  else if (qEndpointFromPdir == COUNTERCLOCKWISE)
+    return Q_IN_P;
+
+  else
+    // Keep status quo.
+    return interiorFlag;
+}
+
+/*
+ * Save the endpoints of a shared segment.
+ */
+static void SaveSharedSeg(Vec *p, Vec *q, Vec *P, Vec *Q, Vec *V, int *nv) {
+  if (DEBUG >= 4) {
+    printf("\n   SaveSharedSeg():  from "
+           "[%13.6e,%13.6e,%13.6e]\n",
+           p->x, p->y, p->z);
+
+    printf("   SaveSharedSeg():  to   "
+           "[%13.6e,%13.6e,%13.6e]\n\n",
+           q->x, q->y, q->z);
+
+    fflush(stdout);
+  }
+
+  SaveVertex(p, P, Q, V, nv);
+  SaveVertex(q, P, Q, V, nv);
+
+}
+
+/*
+ * Advances and prints out an inside vertex if appropriate.
+ */
+static int Advance(int ip, int *p_advances, int n, int inside, Vec *v, Vec *P, Vec *Q, Vec *V, int *nv) {
+  double lon, lat;
+
+  lon = atan2(v->y, v->x) / DEG_TO_RADIANS;
+  lat = asin(v->z) / DEG_TO_RADIANS;
+
+  if (inside) {
+    if (DEBUG >= 4) {
+      printf("   Advance(): inside vertex "
+             "[%13.6e,%13.6e,%13.6e] -> (%10.6f,%10.6f)n",
+             v->x, v->y, v->z, lon, lat);
+
+      fflush(stdout);
+    }
+
+    SaveVertex(v, P, Q, V, nv);
+  }
+
+  (*p_advances)++;
+
+  return (ip + 1) % n;
+}
+
+/*
+ * Save the intersection polygon vertices
+ */
+static void SaveVertex(Vec *a, Vec *P, Vec *Q, Vec *V, int *nv) {
+  int i, i_begin;
+  Vec Dir;
+
+  if (DEBUG >= 4)
+    printf("   SaveVertex ... ");
+
+  // What with TOLERANCE and roundoff problems, we need to double-check
+  // that the point to be save is really in or on the edge of both pixels P and Q.
+
+  for (i = 0; i < NP; ++i) {
+    i_begin = (i + NP - 1) % NP;
+
+    Cross(&P[i_begin], &P[i], &Dir);
+    Normalize(&Dir);
+
+    if (Dot(&Dir, a) < -1000. * TOLERANCE) {
+      if (DEBUG >= 4) {
+        printf("rejected (not in P)\n");
+        fflush(stdout);
+      }
+
+      return;
+    }
+  }
+
+  for (i = 0; i < NQ; ++i) {
+    i_begin = (i + NQ - 1) % NQ;
+
+    Cross(&Q[i_begin], &Q[i], &Dir);
+    Normalize(&Dir);
+
+    if (Dot(&Dir, a) < -1000. * TOLERANCE) {
+      if (DEBUG >= 4) {
+        printf("rejected (not in Q)\n");
+        fflush(stdout);
+      }
+
+      return;
+    }
+  }
+
+  if (*nv < 15) {
+    V[*nv].x = a->x;
+    V[*nv].y = a->y;
+    V[*nv].z = a->z;
+    *nv += 1;
+  }
+
+  if (DEBUG >= 4) {
+    printf("accepted (%d)\n", *nv);
+    fflush(stdout);
+  }
+}
+
+/*
+ * Computes whether ac is CLOCKWISE, etc. of ab.
+ */
+static int DirectionCalculator(Vec *a, Vec *b, Vec *c) {
+  Vec cross;
+  int len;
+
+  len = Cross(b, c, &cross);
+
+  if (len == 0)
+    return PARALLEL;
+  else if (Dot(a, &cross) < 0.)
+    return CLOCKWISE;
+  else
+    return COUNTERCLOCKWISE;
+}
+
+/*
+ * Finds the point of intersection p between two closed segments ab and cd.
+ *
+ * Returns p and a char with the following meaning:
+ *
+ *   COLINEAR_SEGMENTS: The segments colinearly overlap, sharing a point.
+ *
+ *   ENDPOINT_ONLY:     An endpoint (vertex) of one segment is on the other
+ *                      segment, but COLINEAR_SEGMENTS doesn't hold.
+ *
+ *   NORMAL_INTERSECT:  The segments intersect properly (i.e., they share
+ *                      a point and neither ENDPOINT_ONLY nor
+ *                      COLINEAR_SEGMENTS holds).
+ *
+ *   NO_INTERSECTION:   The segments do not intersect (i.e., they share
+ *                      no points).
+ *
+ * Note that two colinear segments that share just one point, an endpoint
+ * of each, returns COLINEAR_SEGMENTS rather than ENDPOINT_ONLY as one
+ * might expect.
+ */
+static int SegSegIntersect(Vec *pEdge, Vec *qEdge, Vec *p0, Vec *p1, Vec *q0, Vec *q1,
+                    Vec *intersect1, Vec *intersect2) {
+  double pDot, qDot;   // Dot product [cos(length)] of the edge vertices
+  double p0Dot, p1Dot;  // Dot product from vertices to intersection
+  double q0Dot, q1Dot;  // Dot pro}duct from vertices to intersection
+  int len;
+
+  // Get the edge lengths (actually cos(length))
+
+  pDot = Dot(p0, p1);
+  qDot = Dot(q0, q1);
+
+  // Find the point of intersection
+
+  len = Cross(pEdge, qEdge, intersect1);
+
+  // If the two edges are colinear, check to see if they overlap
+
+  if (len == 0) {
+    if (Between(q0, p0, p1) && Between(q1, p0, p1)) {
+      intersect1 = q0;
+      intersect2 = q1;
+      return COLINEAR_SEGMENTS;
+    }
+
+    if (Between(p0, q0, q1) && Between(p1, q0, q1)) {
+      intersect1 = p0;
+      intersect2 = p1;
+      return COLINEAR_SEGMENTS;
+    }
+
+    if (Between(q0, p0, p1) && Between(p1, q0, q1)) {
+      intersect1 = q0;
+      intersect2 = p1;
+      return COLINEAR_SEGMENTS;
+    }
+
+    if (Between(p0, q0, q1) && Between(q1, p0, p1)) {
+      intersect1 = p0;
+      intersect2 = q1;
+      return COLINEAR_SEGMENTS;
+    }
+
+    if (Between(q1, p0, p1) && Between(p1, q0, q1)) {
+      intersect1 = p0;
+      intersect2 = p1;
+      return COLINEAR_SEGMENTS;
+    }
+
+    if (Between(q0, p0, p1) && Between(p0, q0, q1)) {
+      intersect1 = p0;
+      intersect2 = q0;
+      return COLINEAR_SEGMENTS;
+    }
+
+    return NO_INTERSECTION;
+  }
+
+  // If this is the wrong one of the two
+  // (other side of the sky) reverse it
+
+  Normalize(intersect1);
+
+  if (Dot(intersect1, p0) < 0.)
+    Reverse(intersect1);
+
+  // Point has to be inside both sides to be an intersection
+
+  if ((p0Dot = Dot(intersect1, p0)) < pDot)
+    return NO_INTERSECTION;
+  if ((p1Dot = Dot(intersect1, p1)) < pDot)
+    return NO_INTERSECTION;
+  if ((q0Dot = Dot(intersect1, q0)) < qDot)
+    return NO_INTERSECTION;
+  if ((q1Dot = Dot(intersect1, q1)) < qDot)
+    return NO_INTERSECTION;
+
+  // Otherwise, if the intersection is at an endpoint
+
+  if (p0Dot == pDot)
+    return ENDPOINT_ONLY;
+  if (p1Dot == pDot)
+    return ENDPOINT_ONLY;
+  if (q0Dot == qDot)
+    return ENDPOINT_ONLY;
+  if (q1Dot == qDot)
+    return ENDPOINT_ONLY;
+
+  // Otherwise, it is a normal intersection
+
+  return NORMAL_INTERSECT;
+}
+
+/*
+ * Formats a message about relative directions.
+ */
+static int printDir(const char *point, const char *vector, int dir) {
+  if (dir == CLOCKWISE)
+    printf("%s is CLOCKWISE of %s; ", point, vector);
+
+  else if (dir == COUNTERCLOCKWISE)
+    printf("%s is COUNTERCLOCKWISE of %s; ", point, vector);
+
+  else if (dir == PARALLEL)
+    printf("%s is PARALLEL to %s; ", point, vector);
+
+  else
+    printf("Bad comparison (shouldn't get this; ");
+
+  return 0;
+}
+
+/*
+ * Tests whether whether a point on an arc is
+ * between two other points.
+ */
+static int Between(Vec *v, Vec *a, Vec *b) {
+  double abDot, avDot, bvDot;
+
+  abDot = Dot(a, b);
+  avDot = Dot(a, v);
+  bvDot = Dot(b, v);
+
+  if (avDot > abDot && bvDot > abDot)
+    return TRUE;
+  else
+    return FALSE;
+}
+
+/*
+ * Vector cross product.
+ */
+static int Cross(Vec *v1, Vec *v2, Vec *v3) {
+  v3->x = v1->y * v2->z - v2->y * v1->z;
+  v3->y = -v1->x * v2->z + v2->x * v1->z;
+  v3->z = v1->x * v2->y - v2->x * v1->y;
+
+  if (fabs(v3->x) < 1.e-18 && fabs(v3->y) < 1.e-18 && fabs(v3->z) < 1.e-18)
+    return 0;
+
+  return 1;
+}
+
+/*
+ * Vector dot product.
+ */
+static double Dot(Vec *a, Vec *b) {
+  double sum = 0.0;
+
+  sum = a->x * b->x + a->y * b->y + a->z * b->z;
+
+  return sum;
+}
+
+/*
+ * Normalize the vector
+ */
+static double Normalize(Vec *v) {
+  double len;
+
+  len = sqrt(v->x * v->x + v->y * v->y + v->z * v->z);
+
+  if (len == 0.)
+    len = 1.;
+
+  v->x = v->x / len;
+  v->y = v->y / len;
+  v->z = v->z / len;
+
+  return len;
+}
+
+/*
+ * Reverse the vector.
+ */
+static void Reverse(Vec *v) {
+  v->x = -v->x;
+  v->y = -v->y;
+  v->z = -v->z;
+}
+
+/*
+ * Use Girard's theorem to compute the area of a sky polygon.
+ */
+static double Girard(int nv, Vec *V) {
+  int i, j, ibad;
+
+  double area;
+  double lon, lat;
+
+  Vec side[16];
+  double ang[16];
+
+  Vec tmp;
+
+  double sumang, cosAng, sinAng;
+
+  sumang = 0;
+
+  if (nv < 3)
+    return 0;
+
+  if (DEBUG >= 4) {
+    for (i = 0; i < nv; ++i) {
+      lon = atan2(V[i].y, V[i].x) / DEG_TO_RADIANS;
+      lat = asin(V[i].z) / DEG_TO_RADIANS;
+
+      printf("Girard(): %3d [%13.6e,%13.6e,%13.6e] -> (%10.6f,%10.6f)\n", i,
+             V[i].x, V[i].y, V[i].z, lon, lat);
+
+      fflush(stdout);
+    }
+  }
+
+  for (i = 0; i < nv; ++i) {
+    Cross(&V[i], &V[(i + 1) % nv], &side[i]);
+  }
+
+  // De-duplicate vertices that are extremely close to each other otherwise
+  // the angles determined in the next steps are not accurate. Need to loop
+  // backwards to avoid affecting future sides that need to be checked.
+
+  for (i = nv - 1; i >= 0; --i) {
+
+    // We don't use TOLERANCE here since it is too large for our purposes here
+
+    if (Dot(&side[i], &side[i]) < 1e-30) {
+
+      if (DEBUG >= 4) {
+        printf("Girard(): ---------- Corner %d duplicate; "
+               "Remove point %d -------------\n",
+               i, i);
+        fflush(stdout);
+      }
+
+      --nv;
+
+      for (j = i; j < nv; ++j) {
+        V[j].x = V[j + 1].x;
+        V[j].y = V[j + 1].y;
+        V[j].z = V[j + 1].z;
+        side[j].x = side[j + 1].x;
+        side[j].y = side[j + 1].y;
+        side[j].z = side[j + 1].z;
+      }
+
+    }
+  }
+
+  if (nv < 3)
+    return 0;
+
+  // For very small polygons, Girard's theorem suffers from catastrophic
+  // cancellation: area = sum_of_angles - (N-2)*pi, and for tiny polygons
+  // the sum is extremely close to (N-2)*pi. Instead, project onto a local
+  // tangent plane and use the shoelace formula (planar approximation).
+
+  if (planarArea(nv, V, &area)) {
+    if (mNaN(area) || area < 0.)
+      area = 0.;
+    if (DEBUG >= 4) {
+      printf("\nGirard(): using planar approximation, area = %13.6e [%d]\n\n",
+             area, nv);
+      fflush(stdout);
+    }
+    return area;
+  }
+
+  for (i = 0; i < nv; ++i) {
+    Normalize(&side[i]);
+  }
+
+  for (i = 0; i < nv; ++i) {
+    Cross(&side[i], &side[(i + 1) % nv], &tmp);
+
+    sinAng = Normalize(&tmp);
+    cosAng = -Dot(&side[i], &side[(i + 1) % nv]);
+
+    // Remove center point of colinear segments
+
+    ang[i] = atan2(sinAng, cosAng);
+
+    if (DEBUG >= 4) {
+      if (i == 0)
+        printf("\n");
+
+      printf("Girard(): angle[%d] = %13.6e -> %13.6e (from %13.6e / %13.6e)\n",
+             i, ang[i], ang[i] - M_PI / 2., sinAng, cosAng);
+      fflush(stdout);
+    }
+
+    // Direction changes of less than a degree can be tricky
+    if (ang[i] > M_PI - 0.0175) {
+      ibad = (i + 1) % nv;
+
+      if (DEBUG >= 4) {
+        printf("Girard(): ---------- Corner %d bad; "
+               "Remove point %d -------------\n",
+               i, ibad);
+        fflush(stdout);
+      }
+
+      --nv;
+
+      for (j = ibad; j < nv; ++j) {
+        V[j].x = V[j + 1].x;
+        V[j].y = V[j + 1].y;
+        V[j].z = V[j + 1].z;
+      }
+
+      return (Girard(nv, V));
+    }
+
+    sumang += ang[i];
+  }
+
+  area = sumang - (nv - 2.) * M_PI;
+
+  if (mNaN(area) || area < 0.)
+    area = 0.;
+
+  if (DEBUG >= 4) {
+    printf("\nGirard(): area = %13.6e [%d]\n\n", area, nv);
+    fflush(stdout);
+  }
+
+  return area;
+}
+
+/*
+ * Check the vertex list for adjacent pairs of
+ * points which are too close together for the
+ * subsequent dot- and cross-product calculations
+ * of Girard's theorem.
+ */
+static void RemoveDups(int *nv, Vec *V) {
+  int i, nvnew;
+  Vec Vnew[16];
+  Vec tmp;
+  double lon, lat;
+
+  double separation;
+
+  if (DEBUG >= 4) {
+    printf("RemoveDups() TOLERANCE = %13.6e [%13.6e arcsec]\n\n", TOLERANCE,
+           TOLERANCE / DEG_TO_RADIANS * 3600.);
+
+    for (i = 0; i < *nv; ++i) {
+      lon = atan2(V[i].y, V[i].x) / DEG_TO_RADIANS;
+      lat = asin(V[i].z) / DEG_TO_RADIANS;
+
+      printf("RemoveDups() orig: %3d [%13.6e,%13.6e,%13.6e] "
+             "-> (%10.6f,%10.6f)\n",
+             i, V[i].x, V[i].y, V[i].z, lon, lat);
+
+      fflush(stdout);
+    }
+
+    printf("\n");
+  }
+
+  Vnew[0].x = V[0].x;
+  Vnew[0].y = V[0].y;
+  Vnew[0].z = V[0].z;
+
+  nvnew = 0;
+
+  for (i = 0; i < *nv; ++i) {
+    ++nvnew;
+
+    Vnew[nvnew].x = V[(i + 1) % *nv].x;
+    Vnew[nvnew].y = V[(i + 1) % *nv].y;
+    Vnew[nvnew].z = V[(i + 1) % *nv].z;
+
+    Cross(&V[i], &V[(i + 1) % *nv], &tmp);
+
+    separation = Normalize(&tmp);
+
+    if (DEBUG >= 4) {
+      printf("RemoveDups(): %3d x %3d: distance = %13.6e "
+             "[%13.6e arcsec] (would become %d)\n",
+             (i + 1) % *nv, i, separation, separation / DEG_TO_RADIANS * 3600.,
+             nvnew);
+
+      fflush(stdout);
+    }
+
+    if (separation < TOLERANCE) {
+      --nvnew;
+
+      if (DEBUG >= 4) {
+        printf("RemoveDups(): %3d is a duplicate (nvnew -> %d)\n", i, nvnew);
+
+        fflush(stdout);
+      }
+    }
+  }
+
+  if (DEBUG >= 4) {
+    printf("\n");
+    fflush(stdout);
+  }
+
+  if (nvnew < *nv) {
+    for (i = 0; i < nvnew; ++i) {
+      V[i].x = Vnew[i].x;
+      V[i].y = Vnew[i].y;
+      V[i].z = Vnew[i].z;
+    }
+
+    *nv = nvnew;
+  }
+}

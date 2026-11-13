@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 #include <algorithm>
+#include <cctype>
 #include <vtkAstroWCSErrors.h>
 #include <vtkAstroFITSErrors.h>
 #include <atomic>
@@ -828,66 +829,15 @@ void vtkFITSReader::ExecuteInformation()
     spacings[axii] = 1.0;
     }
 
-  double theta1 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) >= 0.) ? 0. : vtkMath::Pi();
-  double theta2 = 0.;
-  if (naxes > 1)
-    {
-    theta2 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT2")) >= 0.) ? 0. : vtkMath::Pi();
-    }
-  double theta3 = 0.;
-  if (naxes > 2)
-    {
-    theta3 = (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) >= 0.) ? 0. : vtkMath::Pi();
-    }
-  theta1 += vtkMath::Pi()/2.;
-
-  if (naxes == 2)
-    {
-    if (StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")) < 0.)
-      {
-      theta3 += vtkMath::Pi();
-      }
-    }
-
-  if (naxes > 2)
-    {
-    if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) < 0. &&
-        StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.)
-      {
-      theta3 += vtkMath::Pi();
-      }
-
-    if (StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")) > 0. &&
-        StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) > 0.)
-      {
-      theta3 += vtkMath::Pi();
-      }
-    }
-
-  this->RasToIjkMatrix->SetElement(0, 0, cos(theta2) * cos(theta3));
-  this->RasToIjkMatrix->SetElement(0, 1, 0.);
-  this->RasToIjkMatrix->SetElement(0, 2, 0.);
-  this->RasToIjkMatrix->SetElement(1, 0, 0.);
-  this->RasToIjkMatrix->SetElement(1, 1, 0.);
-  this->RasToIjkMatrix->SetElement(1, 2, sin(theta1) * cos(theta3));
-  this->RasToIjkMatrix->SetElement(2, 0, 0.);
-  this->RasToIjkMatrix->SetElement(2, 1, -sin(theta1) * cos(theta2));
-  this->RasToIjkMatrix->SetElement(2, 2, 0.);
-
-  if (this->UseNativeOrigin)
-    {
-    for (unsigned int ii = 0; ii < 3; ii++)
-      {
-      this->RasToIjkMatrix->SetElement(ii, 3, origin[ii]);
-      }
-    }
-  else
-    {
-    for (unsigned int ii = 0; ii < 3; ii++)
-      {
-      this->RasToIjkMatrix->SetElement(ii, 3, (dataExtent[2*ii+1] - dataExtent[2*ii])/2.0);
-      }
-    }
+  const double cdelt[3] = {
+    StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT1")),
+    naxes > 1 ? StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT2")) : 0.,
+    naxes > 2 ? StringToDouble(this->GetHeaderValue("SlicerAstro.CDELT3")) : 0.};
+  const int dimensions[3] = {dataExtent[1] - dataExtent[0] + 1, dataExtent[3] - dataExtent[2] + 1,
+                             dataExtent[5] - dataExtent[4] + 1};
+  vtkFITSReader::ComputeRasToIjkMatrix(naxes, dimensions, cdelt,
+                                       StringToDouble(this->GetHeaderValue("SlicerAstro.CRVAL2")),
+                                       !this->UseNativeOrigin, this->RasToIjkMatrix);
 
   this->SetDataExtent(dataExtent);
   this->SetDataSpacing(spacings);
@@ -1109,6 +1059,44 @@ bool vtkFITSReader::AllocateHeader()
      }
 
    int n = StringToInt((this->HeaderKeyValue.at("SlicerAstro.NAXIS")).c_str());
+
+   // observed frequency of a single-channel frequency axis (continuum images,
+   // e.g. RA, DEC, FREQ, STOKES): the axis is removed below, the frequency is
+   // kept for the primary beam of mosaics (SlicerAstro attribute, not written)
+   for (int axis = 3; axis <= 4 && axis <= n; axis++)
+     {
+     const std::string suffix = std::to_string(axis);
+     std::map<std::string, std::string>::const_iterator size = this->HeaderKeyValue.find("SlicerAstro.NAXIS" + suffix);
+     std::map<std::string, std::string>::const_iterator ctype = this->HeaderKeyValue.find("SlicerAstro.CTYPE" + suffix);
+     std::map<std::string, std::string>::const_iterator crval = this->HeaderKeyValue.find("SlicerAstro.CRVAL" + suffix);
+     if (size == this->HeaderKeyValue.end() || StringToInt(size->second.c_str()) != 1 ||
+         ctype == this->HeaderKeyValue.end() || crval == this->HeaderKeyValue.end())
+       {
+       continue;
+       }
+     std::string type = ctype->second;
+     type.erase(std::remove_if(type.begin(), type.end(), [](char c) { return c == '\'' || c == ' '; }), type.end());
+     if (type.compare(0, 4, "FREQ"))
+       {
+       continue;
+       }
+     std::map<std::string, std::string>::const_iterator cdelt = this->HeaderKeyValue.find("SlicerAstro.CDELT" + suffix);
+     std::map<std::string, std::string>::const_iterator crpix = this->HeaderKeyValue.find("SlicerAstro.CRPIX" + suffix);
+     std::map<std::string, std::string>::const_iterator cunit = this->HeaderKeyValue.find("SlicerAstro.CUNIT" + suffix);
+     double frequency = StringToDouble(crval->second.c_str());
+     if (cdelt != this->HeaderKeyValue.end() && crpix != this->HeaderKeyValue.end())
+       {
+       frequency += (1. - StringToDouble(crpix->second.c_str())) * StringToDouble(cdelt->second.c_str());
+       }
+     std::string unit = cunit != this->HeaderKeyValue.end() ? cunit->second : std::string("Hz");
+     unit.erase(std::remove_if(unit.begin(), unit.end(), [](char c) { return c == '\'' || c == ' '; }), unit.end());
+     std::transform(unit.begin(), unit.end(), unit.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+     const double scale = unit == "KHZ" ? 1.e3 : unit == "MHZ" ? 1.e6 : unit == "GHZ" ? 1.e9 : 1.;
+     if (frequency * scale > 0.)
+       {
+       this->HeaderKeyValue["SlicerAstro.ObservedFrequency"] = DoubleToString(frequency * scale);
+       }
+     }
 
    if (n == 4 && this->HeaderKeyValue.find("SlicerAstro.NAXIS4") != this->HeaderKeyValue.end())
      {
@@ -3433,6 +3421,75 @@ std::string vtkFITSReader::GetNthHeaderMessage(int n)
     return std::string();
     }
   return this->HeaderMessages[n].second;
+}
+
+//----------------------------------------------------------------------------
+double vtkFITSReader::ComputeCelestialRotation(double m11, double m12, double m21, double m22)
+{
+  const double det = m11 * m22 - m12 * m21;
+  const double cdelt1 = (det < 0. ? -1. : 1.) * sqrt(m11 * m11 + m21 * m21);
+  const double cdelt2 = sqrt(m12 * m12 + m22 * m22);
+  return CelestialRotation(m11, m12, m21, m22, cdelt1, cdelt2);
+}
+
+//----------------------------------------------------------------------------
+void vtkFITSReader::ComputeRasToIjkMatrix(int naxes, const int dimensions[3], const double cdelt[3],
+                                          double crval2, bool center, vtkMatrix4x4* rasToIjk)
+{
+  if (!rasToIjk)
+    {
+    return;
+    }
+  rasToIjk->Identity();
+  double theta1 = (cdelt[0] >= 0.) ? 0. : vtkMath::Pi();
+  double theta2 = 0.;
+  if (naxes > 1)
+    {
+    theta2 = (cdelt[1] >= 0.) ? 0. : vtkMath::Pi();
+    }
+  double theta3 = 0.;
+  if (naxes > 2)
+    {
+    theta3 = (cdelt[2] >= 0.) ? 0. : vtkMath::Pi();
+    }
+  theta1 += vtkMath::Pi()/2.;
+
+  if (naxes == 2)
+    {
+    if (cdelt[0] < 0.)
+      {
+      theta3 += vtkMath::Pi();
+      }
+    }
+
+  if (naxes > 2)
+    {
+    if (crval2 < 0. && cdelt[2] > 0.)
+      {
+      theta3 += vtkMath::Pi();
+      }
+
+    if (crval2 > 0. && cdelt[2] > 0.)
+      {
+      theta3 += vtkMath::Pi();
+      }
+    }
+
+  rasToIjk->SetElement(0, 0, cos(theta2) * cos(theta3));
+  rasToIjk->SetElement(0, 1, 0.);
+  rasToIjk->SetElement(0, 2, 0.);
+  rasToIjk->SetElement(1, 0, 0.);
+  rasToIjk->SetElement(1, 1, 0.);
+  rasToIjk->SetElement(1, 2, sin(theta1) * cos(theta3));
+  rasToIjk->SetElement(2, 0, 0.);
+  rasToIjk->SetElement(2, 1, -sin(theta1) * cos(theta2));
+  rasToIjk->SetElement(2, 2, 0.);
+
+  for (unsigned int ii = 0; ii < 3; ii++)
+    {
+    // centred: the origin of RAS at the centre of the data
+    rasToIjk->SetElement(ii, 3, center ? (dimensions[ii] - 1) / 2.0 : 0.);
+    }
 }
 
 //----------------------------------------------------------------------------

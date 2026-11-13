@@ -298,33 +298,17 @@ public:
                                   double binSpacing,
                                   int numberOfBins);
 
-  /// Reproject an astroVolumeNode over another
+  /// Reprojection with the parameters (service of the AstroReproject module,
+  /// which sets the function: the AstroVolume module does not depend on it).
+  /// The output volume ID is set in the parameters node. On failure the
+  /// reason is in GetLastReprojectError ("cancelled" if cancelled).
   bool Reproject(vtkMRMLAstroReprojectParametersNode *pnode);
+  std::string GetLastReprojectError() { return this->LastReprojectError; }
 
-  /// Problems of a reprojection (CheckReprojection)
-  enum ReprojectionIssue
-  {
-    ReprojectionOK = 0,
-    ReprojectionNoData,              ///< input or reference volume not found
-    ReprojectionNoWCS,               ///< no valid WCS, or not 2D/3D data
-    ReprojectionDifferentSystems,    ///< different equinox: no conversion available
-    ReprojectionSameGrid,            ///< already on the grid of the reference
-    ReprojectionAlreadyNorthAligned, ///< alignment to the north requested, not rotated
-    ReprojectionInputRotated,        ///< input to align to the north first
-    ReprojectionReferenceRotated     ///< reference to align to the north first
-  };
-
-  /// Check a reprojection without doing it: the first problem found (one of
-  /// ReprojectionIssue) and a message for the user. The rotated cases can be
-  /// fixed with CreateNorthAlignedVolume.
-  int CheckReprojection(vtkMRMLAstroReprojectParametersNode* pnode, std::string& message);
-
-  /// New volume with the data of inputVolume reprojected on a north-aligned
-  /// grid (same pixel steps; inputVolume is not modified). Name: name, or
-  /// "<input>_North" (unique). Returns nullptr if the reprojection failed.
-  vtkMRMLAstroVolumeNode* CreateNorthAlignedVolume(vtkMRMLAstroVolumeNode* inputVolume,
-                                                   int interpolationOrder,
-                                                   const char* name = nullptr);
+#ifndef __VTK_WRAP__
+  typedef std::function<bool(vtkMRMLAstroReprojectParametersNode* pnode, std::string& error)> ReprojectFunctionType;
+  void SetReprojectFunction(const ReprojectFunctionType& function);
+#endif
 
 #ifndef __VTK_WRAP__
   /// Runner of long computations (e.g. a worker thread, the GUI responsive
@@ -398,7 +382,9 @@ protected:
   bool EnsuringVolumeSegmentations{false};
 #ifndef __VTK_WRAP__
   BackgroundRunnerType BackgroundRunner;
+  ReprojectFunctionType ReprojectFunction;
 #endif
+  std::string LastReprojectError;
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;

@@ -22,7 +22,8 @@ Contours and mask segmentations of the astronomical volumes: one of each per
 volume (created when the data are loaded, kept when a scene is saved and
 loaded, not shared by copies of the volume), and the contours of the
 AstroVolume module (one layer per level, replaced when created again, show,
-smooth and delete buttons).
+smooth and delete buttons; contours of other data, reprojected on the grid
+of the active volume).
 """
         self.parent.hidden = True
 
@@ -47,6 +48,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.test_LoadedMaskReplacesEmptyMask()
         self.setUp()
         self.test_Contours()
+        self.setUp()
+        self.test_ContoursOfOtherData()
 
     def loadWEIN069(self):
         import AstroSampleData
@@ -192,4 +195,70 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         masks = [node for node in slicer.util.getNodesByClass("vtkMRMLSegmentationNode")
                  if not self.logic.IsContoursSegmentation(node)]
         self.assertEqual(len(masks), 1)
+        self.delayDisplay("Test passed")
+
+    def test_ContoursOfOtherData(self):
+        """Contours of an image (Gaussian source, SIN grid) over another image
+        (rotated TAN grid, other pixel size): the data of the contours are
+        reprojected (AstroReproject module) on the grid of the active volume,
+        and the areas of the levels are those of the source."""
+        import math
+        import numpy as np
+        from AstroFITSIOTest import celestialWCS, voxelArray, writeFITS
+
+        self.delayDisplay("Contours of other data")
+        directory = os.path.join(slicer.app.temporaryPath, "AstroVolumeSegmentationsTest")
+        os.makedirs(directory, exist_ok=True)
+        fwhm = 0.03
+        # the source, on a SIN grid
+        size = 64
+        sourcePath = os.path.join(directory, "source.fits")
+        writeFITS(sourcePath, np.zeros((size, size), dtype=np.float32), -32,
+                  celestialWCS(crpix=(32.5, 32.5), cdelt=(-0.002, 0.002)))
+        sourceNode = slicer.util.loadVolume(sourcePath)
+        display = sourceNode.GetAstroVolumeDisplayNode()
+        voxels = voxelArray(sourceNode)
+        sigma = fwhm / (2. * math.sqrt(2. * math.log(2.)))
+        for j in range(size):
+            for i in range(size):
+                world = [0., 0., 0.]
+                display.GetReferenceSpace([float(i), float(j), 0.], world)
+                dx = (world[0] - 180.) * math.cos(math.radians(30.))
+                dy = world[1] - 30.
+                voxels[0, j, i] = math.exp(-0.5 * (dx * dx + dy * dy) / (sigma * sigma))
+        sourceNode.GetImageData().Modified()
+        sourceNode.UpdateRangeAttributes()
+
+        # the active image: rotated TAN grid, pixels 1.5 times larger
+        activePath = os.path.join(directory, "active.fits")
+        writeFITS(activePath, np.ones((48, 48), dtype=np.float32), -32,
+                  celestialWCS(projection="TAN", crpix=(24.5, 24.5), cdelt=(-0.003, 0.003)) + [("CROTA2", 35.)])
+        activeNode = slicer.util.loadVolume(activePath)
+        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        selectionNode.SetActiveVolumeID(activeNode.GetID())
+        slicer.util.selectModule("AstroVolume")
+        slicer.app.processEvents()
+        moduleWidget = slicer.modules.astrovolume.widgetRepresentation()
+        displayWidget = moduleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")
+        self.assertIsNotNone(displayWidget)
+        slicer.util.findChild(displayWidget, "ContoursVolumeNodeSelector").setCurrentNode(sourceNode)
+        slicer.util.findChild(displayWidget, "ContourLevelsLineEdit").text = "0.25; 0.5; 0.75"
+        numberOfVolumes = slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode")
+        displayWidget.onCreateContours()
+        slicer.app.processEvents()
+
+        # the reprojected copy was temporary
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), numberOfVolumes)
+        contoursNode = self.logic.GetContoursSegmentationForVolume(activeNode, False)
+        self.assertIsNotNone(contoursNode)
+        segmentation = contoursNode.GetSegmentation()
+        self.assertEqual(segmentation.GetNumberOfSegments(), 3)
+        pixelArea = 0.003 * 0.003
+        for index, level in enumerate((0.25, 0.5, 0.75)):
+            segmentID = segmentation.GetNthSegmentID(index)
+            mask = slicer.util.arrayFromSegmentBinaryLabelmap(contoursNode, segmentID, activeNode)
+            # area of the source above the level: pi r^2, exp(-r^2 / 2 sigma^2) = level
+            expected = math.pi * 2. * sigma * sigma * math.log(1. / level) / pixelArea
+            self.assertAlmostEqual(float(np.count_nonzero(mask)) / expected, 1., delta=0.2,
+                                   msg=f"level {level}")
         self.delayDisplay("Test passed")

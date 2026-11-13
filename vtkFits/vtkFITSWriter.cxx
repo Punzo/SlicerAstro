@@ -240,6 +240,7 @@ void vtkFITSWriter::WriteData()
     // masks), so these keywords must not be copied.
     if ((!tmp.compare(0,6,"SIMPLE")) ||
         (!tmp.compare(0,18,"DisplayThreshold")) ||
+        (!tmp.compare("ObservedFrequency")) ||
         (!tmp.compare(0,11,"HistoMinSel")) ||
         (!tmp.compare(0,11,"HistoMaxSel")) ||
         (!tmp.compare("BITPIX")) ||

@@ -6,6 +6,12 @@ if(Slicer_USE_QtTesting AND Slicer_USE_PYTHONQT)
   slicer_add_python_unittest(SCRIPT AstroReprojectSelfTest.py)
 
   slicerMacroBuildScriptedModule(
+    NAME AstroReprojectTest
+    SCRIPTS AstroReprojectTest.py
+    )
+  slicer_add_python_unittest(SCRIPT AstroReprojectTest.py)
+
+  slicerMacroBuildScriptedModule(
     NAME AstroFramesTest
     SCRIPTS AstroFramesTest.py
     )

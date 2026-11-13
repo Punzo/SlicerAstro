@@ -17,10 +17,11 @@ class AstroReprojectSelfTest(ScriptedLoadableModule):
         self.parent.dependencies = ["AstroVolume", "AstroReproject"]
         self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
         self.parent.helpText = """
-Self test of the AstroReproject module: the alignment of the NGC 2403 DSS image
-to the north and the reprojection of the NGC 2403 HI cube on the grid of the
-DSS image are compared, voxel by voxel, with the input data at the same world
-coordinates (nearest neighbour interpolation).
+Self test of the AstroReproject module on real data: the NGC 2403 DSS image
+reprojected on a north-up grid (manual grid from the input), and the NGC 2403
+HI cube reprojected on the (rotated) grid of the DSS image, are compared voxel
+by voxel with the input data at the same world coordinates (nearest neighbour
+interpolation).
 """
         self.parent.hidden = True
 
@@ -45,9 +46,8 @@ def compareWithInput(testCase, inputNode, outputNode, samples=400, margin=0.15, 
     """Output voxels against the input voxels at the same celestial coordinates.
 
     The reprojection is spatial only: channel k of the output is channel k of
-    the input. Nearest neighbour: the input pixel is the rounded WCS position
-    (as in vtkSlicerAstroVolumeLogic::Reproject). Returns the number of
-    compared voxels."""
+    the input. Nearest neighbour: the input pixel is the rounded WCS position.
+    Returns the number of compared voxels."""
     inputDisplay = inputNode.GetAstroVolumeDisplayNode()
     outputDisplay = outputNode.GetAstroVolumeDisplayNode()
     inputVoxels = voxelArray(inputNode)
@@ -98,8 +98,9 @@ class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
         mainWindow.moduleSelector().selectModule("AstroVolume")
         mainWindow.moduleSelector().selectModule("AstroReproject")
         widget = slicer.modules.astroreproject.widgetRepresentation()
-        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroReprojectParametersNode")
+        parametersNode = widget.mrmlAstroReprojectParametersNode()
         self.assertIsNotNone(parametersNode)
+        parametersNode.SetInputVolumeNodeIDs(inputNode.GetID())
         parametersNode.SetInputVolumeNodeID(inputNode.GetID())
         parametersNode.SetInterpolationOrder(slicer.vtkMRMLAstroReprojectParametersNode.NearestNeighbour)
         applyButton = slicer.util.findChild(widget, "ApplyButton")
@@ -112,7 +113,8 @@ class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
         return outputNode
 
     def test_NorthAlignment(self):
-        """The DSS image of NGC 2403 (CROTA2 of about -2.8 degrees) is aligned to the north."""
+        """The DSS image of NGC 2403 (CROTA2 of about -2.8 degrees) on a
+        north-up grid with its pixel size (manual grid from the input)."""
         import AstroSampleData
 
         self.delayDisplay("Aligning the NGC 2403 DSS image to the north")
@@ -120,30 +122,31 @@ class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(dssNode)
         self.assertGreater(abs(float(dssNode.GetAttribute("SlicerAstro.CROTA2") or 0.)), 1.)
 
+        P = slicer.vtkMRMLAstroReprojectParametersNode
         parametersNode, applyButton = self.reprojectModule(dssNode)
-        parametersNode.SetReferenceVolumeNodeID("")
-        parametersNode.SetReprojectData(False)
-        parametersNode.SetReprojectRotation(True)
+        parametersNode.SetSpatialGridMode(P.SpatialManual)
+        logic = slicer.modules.astroreproject.logic()
+        self.assertTrue(logic.SetManualGridFromInput(parametersNode, True, False, True), logic.GetLastError())
+        self.assertEqual(parametersNode.GetRotation(), 0.)
         applyButton.click()
         slicer.app.processEvents()
 
         northNode = self.outputVolume(parametersNode)
         self.assertNotEqual(northNode.GetID(), dssNode.GetID())
         self.assertEqual(float(northNode.GetAttribute("SlicerAstro.CROTA2")), 0.)
-        self.assertEqual(northNode.GetImageData().GetDimensions(), dssNode.GetImageData().GetDimensions())
+        # the north-up grid encloses the rotated image
+        northDims = northNode.GetImageData().GetDimensions()
+        dssDims = dssNode.GetImageData().GetDimensions()
+        self.assertGreaterEqual(northDims[0], dssDims[0])
+        self.assertGreaterEqual(northDims[1], dssDims[1])
         compareWithInput(self, dssNode, northNode)
-
-        # the input data are not modified, and an aligned image is not aligned again
+        # the input data are not modified
         self.assertGreater(abs(float(dssNode.GetAttribute("SlicerAstro.CROTA2"))), 1.)
-        parametersNode.SetInputVolumeNodeID(northNode.GetID())
-        numberOfVolumes = slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode")
-        applyButton.click()
-        slicer.app.processEvents()
-        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), numberOfVolumes)
         self.delayDisplay("Test passed")
 
     def test_ReprojectionOnReference(self):
-        """The HI cube of NGC 2403 is reprojected on the (north-aligned) grid of the DSS image."""
+        """The HI cube of NGC 2403 reprojected on the (rotated) grid of the DSS
+        image, with its own channels."""
         import AstroSampleData
 
         self.delayDisplay("Reprojecting the NGC 2403 HI cube on the DSS image")
@@ -153,24 +156,19 @@ class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(hiNode)
         self.assertIsNotNone(dssNode)
 
+        P = slicer.vtkMRMLAstroReprojectParametersNode
         parametersNode, applyButton = self.reprojectModule(hiNode)
-        parametersNode.SetReprojectRotation(False)
-        parametersNode.SetReprojectData(True)
+        parametersNode.SetSpatialGridMode(P.SpatialReference)
+        parametersNode.SetSpectralGridMode(P.SpectralInput)
         parametersNode.SetReferenceVolumeNodeID(dssNode.GetID())
         applyButton.click()
         slicer.app.processEvents()
 
-        # the DSS image is rotated: a north-aligned copy is the reference (in
-        # testing mode the question is answered with yes)
-        referenceNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetReferenceVolumeNodeID())
-        self.assertIsNotNone(referenceNode)
-        self.assertNotEqual(referenceNode.GetID(), dssNode.GetID())
-        self.assertEqual(float(referenceNode.GetAttribute("SlicerAstro.CROTA2")), 0.)
-
         outputNode = self.outputVolume(parametersNode)
         hiDims = hiNode.GetImageData().GetDimensions()
-        referenceDims = referenceNode.GetImageData().GetDimensions()
-        self.assertEqual(outputNode.GetImageData().GetDimensions(),
-                         (referenceDims[0], referenceDims[1], hiDims[2]))
+        dssDims = dssNode.GetImageData().GetDimensions()
+        self.assertEqual(outputNode.GetImageData().GetDimensions(), (dssDims[0], dssDims[1], hiDims[2]))
+        self.assertAlmostEqual(float(outputNode.GetAttribute("SlicerAstro.CROTA2")),
+                               float(dssNode.GetAttribute("SlicerAstro.CROTA2")), places=6)
         compareWithInput(self, hiNode, outputNode)
         self.delayDisplay("Test passed")

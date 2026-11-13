@@ -16,7 +16,6 @@
   and was supported through the European Research Council grant nr. 291531.
 
 ==============================================================================*/
-
 #ifndef __qSlicerAstroReprojectModuleWidget_h
 #define __qSlicerAstroReprojectModuleWidget_h
 
@@ -28,8 +27,15 @@
 class qSlicerAstroReprojectModuleWidgetPrivate;
 class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLNode;
+class vtkObject;
 
 /// \ingroup SlicerAstro_QtModules_AstroReproject
+/// Reprojection, regridding, resampling and mosaicking: inputs, output grid
+/// (celestial and spectral, from a reference, the inputs or manual),
+/// resampling methods, resolution (common or target beam) and mosaic
+/// options (primary beam and noise weights, weight, sensitivity and Sault
+/// outputs). The widgets are built in code (object names for scripts and
+/// tests).
 class Q_SLICERASTRO_QTMODULES_ASTROREPROJECT_EXPORT qSlicerAstroReprojectModuleWidget :
   public qSlicerAbstractModuleWidget
 {
@@ -48,9 +54,16 @@ public:
   Q_INVOKABLE vtkMRMLAstroReprojectParametersNode* mrmlAstroReprojectParametersNode()const;
 
 public slots:
-  /// Slots to reproject the data.
-  /// It creates the output volume and calls the logic.
+  /// Reproject the inputs with the parameters (creates the output volumes)
   void onApply();
+
+  /// Manual grid from the first input (north up: no rotation)
+  void setManualGridFromInput();
+  void setManualGridFromInputNorthUp();
+  void setManualSpectralGridFromInput();
+
+  /// Common beam of the inputs as the target beam
+  void setTargetBeamFromCommonBeam();
 
 protected:
   QScopedPointer<qSlicerAstroReprojectModuleWidgetPrivate> d_ptr;
@@ -65,16 +78,6 @@ protected:
   void initializeParameterNode(bool forceNew = false);
 
 protected slots:
-
-  /// Set the MRML input node
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML reference node
-  void onReferenceVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML output node
-  void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-
   /// Update widget GUI from MRML parameter node
   void onMRMLAstroReprojectParametersNodeModified();
 
@@ -85,18 +88,13 @@ protected slots:
   void onEndImportEvent();
   void onStartImportEvent();
 
-  void onInterpolationNearestNeighbour(bool toggled);
-  void onInterpolationBilinear(bool toggled);
-  void onInterpolationBicubic(bool toggled);
-  void onReprojectDataChanged(bool toggled);
-  void onReprojectRotationChanged(bool toggled);
-
   void onMRMLSelectionNodeModified(vtkObject* sender);
 
-  void onComputationCancelled();
-  void onComputationFinished();
-  void onComputationStarted();
-  void updateProgress(int value);
+  /// Inputs (checked volumes) to the parameters node
+  void onInputVolumesChanged();
+  /// Noise and primary beam volumes of the inputs table to the parameters node
+  void onInputsTableChanged();
+
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroReprojectModuleWidget);

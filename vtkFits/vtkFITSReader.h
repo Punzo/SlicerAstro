@@ -155,6 +155,20 @@ public:
   /// containing mask, seg or label. Only the header is read.
   static bool IsMaskFile(const char* fileName);
 
+  /// Rotation of the celestial axes (CROTA2, degrees, FITS convention) of the
+  /// linear transformation M_ij = CDELT_i PC_ij (or CD_ij), averaged over both
+  /// columns (skewed matrices, e.g. DSS plate solutions), as SlicerAstro.CROTA2
+  /// of the files read by this reader. Pixel steps: the column norms, CDELT1
+  /// with the sign of the determinant.
+  static double ComputeCelestialRotation(double m11, double m12, double m21, double m22);
+
+  /// RAS to IJK matrix of SlicerAstro data (orientation from the signs of
+  /// CDELT1-3 and of CRVAL2; origin at the centre of the data if center, at
+  /// the first voxel otherwise), as for files read by this reader: used also
+  /// for data created by SlicerAstro (e.g. reprojections).
+  static void ComputeRasToIjkMatrix(int naxes, const int dimensions[3], const double cdelt[3],
+                                    double crval2, bool center, vtkMatrix4x4* rasToIjk);
+
   ///
   /// Values of header keywords as they are in the file (string values
   /// without quotes); keywords not in the header are not in the map.

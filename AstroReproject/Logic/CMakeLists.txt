@@ -7,6 +7,10 @@ set(${KIT}_EXPORT_DIRECTIVE "VTK_SLICER_${MODULE_NAME_UPPER}_MODULE_LOGIC_EXPORT
 set(${KIT}_INCLUDE_DIRECTORIES
   ${SlicerAstro_BINARY_DIR}
   ${WCSLIB_INCLUDE_DIR}
+  ${CFITSIO_INCLUDE_DIR}
+  ${vtkFits_INCLUDE_DIRS}
+  ${vtkAstroCoordinates_INCLUDE_DIRS}
+  ${vtkAstroReproject_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -17,6 +21,10 @@ set(${KIT}_SRCS
 set(${KIT}_TARGET_LIBRARIES
   vtkSlicerAstroVolumeModuleMRML
   vtkSlicerAstroVolumeModuleLogic
+  vtkAstroReproject
+  vtkAstroCoordinates
+  vtkFits
+  ${WCSLIB_LIBRARIES}
   )
 
 

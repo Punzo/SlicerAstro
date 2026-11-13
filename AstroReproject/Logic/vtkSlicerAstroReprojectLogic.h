@@ -16,33 +16,41 @@
   and was supported through the European Research Council grant nr. 291531.
 
 ==============================================================================*/
-
 #ifndef __vtkSlicerAstroReprojectLogic_h
 #define __vtkSlicerAstroReprojectLogic_h
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
-class vtkMRMLVolumeNode;
-class vtkSlicerAstroVolumeLogic;
-// AstroReprojects includes
+
+// AstroReproject includes
 #include "vtkSlicerAstroReprojectModuleLogicExport.h"
+
+// STD includes
+#include <string>
+#include <vector>
+
+class vtkDoubleArray;
 class vtkMRMLAstroReprojectParametersNode;
+class vtkMRMLAstroVolumeNode;
+class vtkSlicerAstroVolumeLogic;
+struct wcsprm;
 
 /// \class vtkSlicerAstroReprojectLogic
-/// \brief Implements image reprojection (resampling) methods
-///  for astronomical datasets. Specifically, the methods have
-///  been designed to reproject the spatial axis, (e.g., 2D images
-///  or 3D datacubes over 2D images). For example in the case of
-///  datacubes, the algorithm reprojects each slice
-///  (spatial celestial axis) of the datacube with the reference data
-///  (treating each slice as independent). However, overlaying two
-///  3D astronomical datasets requires also to resample the
-///  velocity axes, which is not implemented in this module.
+/// \brief Reprojection, regridding, resampling and mosaicking of astronomical
+/// data cubes and images (vtkAstroReprojector).
 ///
-/// The AstroReproject module requires that the WCS information
-/// contained in the fits header are correct and that the two
-/// datasets have the same celestial system of reference
-/// (e.g., J2000/FK5).
+/// The output grid is defined by the parameters node, separately for the
+/// celestial axes (grid of a reference volume or of the input, the input
+/// with larger or smaller pixels, the union or the intersection of the
+/// inputs, or a manual grid: frame, projection, centre, pixel size,
+/// rotation, size) and for the spectral axis (channels of the input or of a
+/// reference, wider or narrower channels, the union or the intersection of
+/// the inputs, or manual channels: type, frame, rest frequency, start,
+/// width, number). The inputs can be convolved to a common or target beam,
+/// regridded in frequency or velocity with frame conversions, and combined
+/// in a linear mosaic with primary beam and noise weights. The outputs are
+/// new volumes (the result and optionally the weight, the sensitivity and
+/// the Sault-weighted result).
 ///
 /// \ingroup SlicerAstro_QtModules_AstroReproject
 class VTK_SLICER_ASTROREPROJECT_MODULE_LOGIC_EXPORT vtkSlicerAstroReprojectLogic
@@ -64,14 +72,44 @@ public:
   /// Gets called automatically when the MRMLScene is attached to this logic class
   virtual void RegisterNodes() override;
 
-  /// Run reprojection algorithm
-  /// \param MRML parameter node
-  /// \return Success flag
+  /// Run the reprojection (in the background runner of the AstroVolume
+  /// logic if set) and create or update the output volumes. Returns false on
+  /// error or cancellation (GetLastError).
   bool Reproject(vtkMRMLAstroReprojectParametersNode *pnode);
+
+  /// Description of the output grid of the parameters (size, pixel and
+  /// channel widths, frames, memory), or the reason why it can not be made
+  std::string DescribeOutputGrid(vtkMRMLAstroReprojectParametersNode* pnode);
+
+  /// Set the manual grid parameters (celestial and/or spectral) from the
+  /// grid of the first input. alignNorth: no rotation.
+  bool SetManualGridFromInput(vtkMRMLAstroReprojectParametersNode* pnode, bool celestial, bool spectral,
+                              bool alignNorth = false);
+
+  /// Common beam of the inputs (major and minor FWHM in arcsec, position
+  /// angle in degrees); false if an input has no beam
+  bool GetCommonBeam(vtkMRMLAstroReprojectParametersNode* pnode, double beam[3]);
+
+  /// Input volumes of the parameters node
+  std::vector<vtkMRMLAstroVolumeNode*> GetInputVolumes(vtkMRMLAstroReprojectParametersNode* pnode);
+
+  /// Error of the last Reproject or DescribeOutputGrid, and the warnings of
+  /// the last Reproject (one per line)
+  std::string GetLastError() { return this->LastError; }
+  std::string GetLastWarnings() { return this->LastWarnings; }
+
+#ifndef __VTK_WRAP__
+  /// Output grid of the parameters: WCS (free with
+  /// vtkAstroReprojector::FreeWCS) and dimensions; nullptr on error.
+  wcsprm* ComputeOutputGrid(vtkMRMLAstroReprojectParametersNode* pnode, int dimensions[3], std::string& error);
+#endif
 
 protected:
   vtkSlicerAstroReprojectLogic();
   virtual ~vtkSlicerAstroReprojectLogic();
+
+  std::string LastError;
+  std::string LastWarnings;
 
 private:
   vtkSlicerAstroReprojectLogic(const vtkSlicerAstroReprojectLogic&); // Not implemented
@@ -82,4 +120,3 @@ private:
 };
 
 #endif
-
