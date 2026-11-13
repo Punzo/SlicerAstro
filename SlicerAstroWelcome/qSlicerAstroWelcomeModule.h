@@ -35,9 +35,7 @@ class Q_SLICERASTRO_QTMODULES_ASTROWELCOME_EXPORT qSlicerAstroWelcomeModule :
   public qSlicerLoadableModule
 {
   Q_OBJECT
-#ifdef Slicer_HAVE_QT5
   Q_PLUGIN_METADATA(IID "org.slicer.modules.loadable.qSlicerLoadableModule/1.0");
-#endif
   Q_INTERFACES(qSlicerLoadableModule);
 
 public:

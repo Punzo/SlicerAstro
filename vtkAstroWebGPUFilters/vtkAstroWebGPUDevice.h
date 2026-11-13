@@ -45,9 +45,11 @@ public:
   /// if WebGPU is not available.
   static std::string GetDescription();
 
+#ifndef __VTK_WRAP__
   /// The device of this instance (created on first call), nullptr if WebGPU
   /// is not available.
-  vtkWebGPUConfiguration* GetConfiguration() VTK_WRAPEXCLUDE;
+  vtkWebGPUConfiguration* GetConfiguration();
+#endif
 
   /// Releases the device (it is created again when needed).
   void ReleaseDevice();

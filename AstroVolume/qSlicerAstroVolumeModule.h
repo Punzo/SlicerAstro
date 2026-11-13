@@ -39,9 +39,7 @@ class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_EXPORT qSlicerAstroVolumeModule :
 {
   Q_OBJECT
   QVTK_OBJECT
-#ifdef Slicer_HAVE_QT5
   Q_PLUGIN_METADATA(IID "org.slicer.modules.loadable.qSlicerLoadableModule/1.0");
-#endif
   Q_INTERFACES(qSlicerLoadableModule);
 
 public:
