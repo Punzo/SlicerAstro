@@ -135,6 +135,10 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         togglesLayout = qt.QHBoxLayout()
         self.showPointsCheckBox = qt.QCheckBox("Show points")
         self.showPointsCheckBox.checked = True
+        self.show2DCheckBox = qt.QCheckBox("Show in 2D views")
+        self.show2DCheckBox.checked = False
+        self.show2DCheckBox.toolTip = ("Show the source points also in the slice views, where a slice passes "
+                                       "through the centre of the source (by default only in the 3D views).")
         self.showNamesCheckBox = qt.QCheckBox("Show names")
         self.showNamesCheckBox.checked = True
         self.lockedCheckBox = qt.QCheckBox("Lock positions")
@@ -142,7 +146,7 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.lockedCheckBox.toolTip = "Unlock to move the source points with the mouse."
         self.markupsModuleButton = qt.QPushButton("Edit in Markups")
         self.markupsModuleButton.toolTip = "Open the source points in the Markups module."
-        for widget in (self.showPointsCheckBox, self.showNamesCheckBox, self.lockedCheckBox):
+        for widget in (self.showPointsCheckBox, self.show2DCheckBox, self.showNamesCheckBox, self.lockedCheckBox):
             togglesLayout.addWidget(widget)
         togglesLayout.addStretch(1)
         togglesLayout.addWidget(self.markupsModuleButton)
@@ -174,6 +178,7 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.loadButton.connect("clicked()", self.onLoad)
         self.catalogSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onCatalogChanged)
         self.showPointsCheckBox.connect("toggled(bool)", self.updatePointDisplay)
+        self.show2DCheckBox.connect("toggled(bool)", self.updatePointDisplay)
         self.showNamesCheckBox.connect("toggled(bool)", self.updatePointDisplay)
         self.lockedCheckBox.connect("toggled(bool)", self.updatePointDisplay)
         self.markupsModuleButton.connect("clicked()", self.onEditInMarkups)
@@ -211,7 +216,7 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.tableView.setMRMLTableNode(tableNode)
         pointListNode = self.pointListNode()
         self.markupsDisplayWidget.setMRMLMarkupsNode(pointListNode)
-        toggles = (self.showPointsCheckBox, self.showNamesCheckBox, self.lockedCheckBox,
+        toggles = (self.showPointsCheckBox, self.show2DCheckBox, self.showNamesCheckBox, self.lockedCheckBox,
                    self.colorButton, self.selectedColorButton)
         enabled = pointListNode is not None and pointListNode.GetDisplayNode() is not None
         for widget in toggles + (self.markupsModuleButton, self.markupsDisplayWidget,
@@ -225,6 +230,7 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
         self.colorButton.color = qt.QColor.fromRgbF(*displayNode.GetColor())
         self.selectedColorButton.color = qt.QColor.fromRgbF(*displayNode.GetSelectedColor())
         self.showPointsCheckBox.checked = displayNode.GetVisibility()
+        self.show2DCheckBox.checked = displayNode.GetVisibility2D()
         self.showNamesCheckBox.checked = displayNode.GetPointLabelsVisibility()
         self.lockedCheckBox.checked = pointListNode.GetLocked() or all(
             pointListNode.GetNthControlPointLocked(index) for index in range(pointListNode.GetNumberOfControlPoints()))
@@ -238,6 +244,7 @@ class AstroSoFiACatalogWidget(ScriptedLoadableModuleWidget):
             return
         wasModifying = displayNode.StartModify()
         displayNode.SetVisibility(self.showPointsCheckBox.checked)
+        displayNode.SetVisibility2D(self.show2DCheckBox.checked)
         displayNode.SetPointLabelsVisibility(self.showNamesCheckBox.checked)
         displayNode.EndModify(wasModifying)
         # the points are locked one by one by the catalogue reader
@@ -684,12 +691,15 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
         displayNode = pointListNode.GetDisplayNode()
         displayNode.SetGlyphScale(3)
         displayNode.SetTextScale(3)
-        displayNode.SliceProjectionOn()
-        displayNode.SliceProjectionUseFiducialColorOff()
+        # only in the 3D views by default; in the slice views (if enabled) only
+        # where a slice passes through the centre of a source: no projection
+        # of the points on all the slices
+        displayNode.SetVisibility2D(False)
+        displayNode.SetVisibility3D(True)
+        displayNode.SliceProjectionOff()
         # points of the sources selected in the table: selected color
         displayNode.SetColor(0.4, 1.0, 1.0)
         displayNode.SetSelectedColor(1.0, 0.733, 0.078)
-        displayNode.SetSliceProjectionColor(1.0, 0.733, 0.078)
 
         wasModifying = pointListNode.StartModify()
         nameColumn = catalog.column(("name", "id", "source", "object", "main_id"))
@@ -919,6 +929,18 @@ class AstroSoFiACatalogTest(ScriptedLoadableModuleTest):
         self.checkSources(pointListNode, maskNode)
         self.assertTrue(widget.showNamesCheckBox.checked)
         self.assertTrue(widget.lockedCheckBox.checked)
+
+        # only in the 3D views by default, never projected on all the slices
+        displayNode = pointListNode.GetDisplayNode()
+        self.assertFalse(widget.show2DCheckBox.checked)
+        self.assertFalse(displayNode.GetVisibility2D())
+        self.assertTrue(displayNode.GetVisibility3D())
+        self.assertFalse(displayNode.GetSliceProjection())
+        widget.show2DCheckBox.checked = True
+        self.assertTrue(displayNode.GetVisibility2D())
+        self.assertFalse(displayNode.GetSliceProjection())
+        widget.show2DCheckBox.checked = False
+        self.assertFalse(displayNode.GetVisibility2D())
 
         # display controls
         widget.showNamesCheckBox.checked = False
