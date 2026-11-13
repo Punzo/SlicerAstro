@@ -323,10 +323,18 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
             "wave": ([("CTYPE3", "WAVE"), ("CRVAL3", 0.2112), ("CDELT3", 1.0e-5), ("CRPIX3", 1.0),
                       ("CUNIT3", "m"), ("RESTWAV", lambda0)], "VOPT",
                      lambda k: c * ((0.2112 + 1.0e-5 * k) / lambda0 - 1.0)),
+            # pixel steps only in a CD matrix (e.g. the MUSE cubes: CD3_3, no CDELT3)
+            "wave_cd": ([("CTYPE3", "WAVE"), ("CRVAL3", 0.2112), ("CD3_3", 1.0e-5), ("CRPIX3", 1.0),
+                         ("CUNIT3", "m"), ("RESTWAV", lambda0)], "VOPT",
+                        lambda k: c * ((0.2112 + 1.0e-5 * k) / lambda0 - 1.0)),
         }
         for name, (spectral, definition, velocity) in cases.items():
             path = os.path.join(self.directory, f"spectral_{name}.fits")
-            writeFITS(path, data, -32, celestialWCS() + spectral + beamCards())
+            celestial = celestialWCS()
+            if name.endswith("_cd"):
+                celestial = [("CD1_1", value) if key == "CDELT1" else ("CD2_2", value) if key == "CDELT2"
+                             else (key, value) for key, value in celestial]
+            writeFITS(path, data, -32, celestial + spectral + beamCards())
             node = self.load(path)
             self.assertIsNotNone(node, name)
             displayNode = node.GetAstroVolumeDisplayNode()

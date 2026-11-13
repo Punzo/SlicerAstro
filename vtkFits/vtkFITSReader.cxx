@@ -2963,6 +2963,30 @@ bool vtkFITSReader::AllocateWCS()
     {
     std::string ctype2 = this->WCS->ctype[2];
     std::string velocityType = this->GetVelocityTypeForSpectralAxis(ctype2);
+    if (ctype2.compare(0, 4, velocityType) &&
+        (this->WCS->altlin & 2) && !(this->WCS->altlin & 1))
+      {
+      // wcssptr loses the spectral pixel step of a CDi_j matrix (e.g. the
+      // MUSE cubes: CD3_3 without CDELT3): the velocity would be the same in
+      // all the channels. The matrix is given in the equivalent PCi_j and
+      // CDELTi form (CDELTi = CDi_i) before the conversion.
+      const int n = this->WCS->naxis;
+      for (int i = 0; i < n; i++)
+        {
+        const double cdelt = fabs(this->WCS->cd[i * n + i]) > 0. ? this->WCS->cd[i * n + i] : 1.;
+        this->WCS->cdelt[i] = cdelt;
+        for (int j = 0; j < n; j++)
+          {
+          this->WCS->pc[i * n + j] = this->WCS->cd[i * n + j] / cdelt;
+          }
+        }
+      this->WCS->altlin = 1;
+      this->WCS->flag = 0;
+      if ((this->WCSStatus = wcsset(this->WCS)))
+        {
+        vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
+        }
+      }
     if (ctype2.compare(0, 4, velocityType))
       {
       int index = 2;
