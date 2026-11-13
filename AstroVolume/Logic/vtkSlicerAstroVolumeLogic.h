@@ -76,6 +76,15 @@ public:
   /// \sa vtkMRMLVolumePropertyNode, GetModuleShareDirectory()
   vtkMRMLScene *GetPresetsScene();
 
+  /// Return the node of the MRML scene that stands for a preset of the
+  /// presets scene (same name): the preset of an astro volume
+  /// (vtkMRMLAstroVolumeNode::SetPresetNode) refers to it, so that it is
+  /// saved and restored with the scene. These nodes are singletons
+  /// (tag "SlicerAstro.Preset.<name>"), hidden from the editors: the presets
+  /// of a loaded scene replace them instead of being duplicated.
+  /// Return nullptr if presetNode is not a volume property node.
+  vtkMRMLVolumePropertyNode* GetScenePresetNode(vtkMRMLNode* presetNode);
+
   /// \brief synchronizePresetsToVolumeNode
   /// \param astroVolumeNode,
   /// \return succees

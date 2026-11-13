@@ -727,6 +727,36 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
 }
 
 //----------------------------------------------------------------------------
+vtkMRMLVolumePropertyNode* vtkSlicerAstroVolumeLogic::GetScenePresetNode(vtkMRMLNode* presetNode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkMRMLVolumePropertyNode* preset = vtkMRMLVolumePropertyNode::SafeDownCast(presetNode);
+  if (!scene || !preset || !preset->GetName())
+    {
+    return nullptr;
+    }
+  if (preset->GetScene() == scene)
+    {
+    return preset;
+    }
+
+  std::string singletonTag = std::string("SlicerAstro.Preset.") + preset->GetName();
+  vtkMRMLVolumePropertyNode* scenePreset = vtkMRMLVolumePropertyNode::SafeDownCast(
+    scene->GetSingletonNode(singletonTag.c_str(), "vtkMRMLVolumePropertyNode"));
+  if (scenePreset)
+    {
+    return scenePreset;
+    }
+
+  vtkNew<vtkMRMLVolumePropertyNode> newScenePreset;
+  newScenePreset->Copy(preset);
+  newScenePreset->SetName(preset->GetName());
+  newScenePreset->SetSingletonTag(singletonTag.c_str());
+  newScenePreset->SetHideFromEditors(true);
+  return vtkMRMLVolumePropertyNode::SafeDownCast(scene->AddNode(newScenePreset));
+}
+
+//----------------------------------------------------------------------------
 vtkMRMLScene *vtkSlicerAstroVolumeLogic::GetPresetsScene()
 {
   if (!this->PresetsScene)
@@ -2944,14 +2974,12 @@ bool vtkSlicerAstroVolumeLogic::LoadPresets(vtkMRMLScene *scene)
   vtkSmartPointer<vtkCollection> presets = vtkSmartPointer<vtkCollection>::Take(
       this->PresetsScene->GetNodesByClass("vtkMRMLVolumePropertyNode"));
 
+  // the presets stay in the presets scene: the MRML scene gets its own nodes
+  // (a node in two scenes gets a new ID when added to the second one, which
+  // breaks the node ID cache of the first one)
   for(int i = 0; i < presets->GetNumberOfItems(); i++)
     {
-    vtkMRMLVolumePropertyNode* volumePropertyNode =
-        vtkMRMLVolumePropertyNode::SafeDownCast(presets->GetItemAsObject(i));
-    if (volumePropertyNode)
-      {
-      this->GetMRMLScene()->AddNode(volumePropertyNode);
-      }
+    this->GetScenePresetNode(vtkMRMLNode::SafeDownCast(presets->GetItemAsObject(i)));
     }
 
   return true;

@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QSignalBlocker>
 #include <QApplication>
 #include <QEvent>
 #include <QThread>
@@ -585,28 +586,26 @@ void qSlicerAstroVolumeModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceRemovedEvent,
                       this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
 
-  this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-
-  if(!d->PresetsNodeComboBox)
-    {
-    qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene error :"
-                   " PresetsNodeComboBox not found!";
-    return;
-    }
-
+  // the presets are set before the active volume: setMRMLVolumeNode applies
+  // the default preset to a new volume and keeps the 3D color function of a
+  // volume that has one (e.g. loaded from a scene). Selecting no preset here
+  // must not reset the color function of the active volume.
   vtkSlicerAstroVolumeLogic* astroVolumeLogic =
     vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
-  if (!astroVolumeLogic)
+  if (d->PresetsNodeComboBox && astroVolumeLogic)
+    {
+    const QSignalBlocker blocker(d->PresetsNodeComboBox);
+    d->PresetsNodeComboBox->setMRMLScene(astroVolumeLogic->GetPresetsScene());
+    d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
+    }
+  else
     {
     qCritical() << "qSlicerAstroVolumeModuleWidget::setMRMLScene error :"
-                   " astroVolumeLogic not found!";
-    return;
+                   " PresetsNodeComboBox or astroVolumeLogic not found!";
     }
-  vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
-  d->PresetsNodeComboBox->setMRMLScene(presetsScene);
-  d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-  this->onMRMLVolumeNodeDisplayThresholdModified(true);
+
+  this->onMRMLSelectionNodeModified(d->selectionNode);
+  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
 }
 
 //-----------------------------------------------------------------------------
@@ -680,6 +679,9 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     vtkNew<vtkMRMLColorTableNode> HeatColorTableNode;
     HeatColorTableNode->SetType(vtkMRMLColorTableNode::User);
     HeatColorTableNode->SetName("Heat");
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    // when loaded, instead of adding a copy
+    HeatColorTableNode->SetSingletonTag("SlicerAstro.Heat");
     HeatColorTableNode->SetDescription("A scale from red to yellow.");
     HeatColorTableNode->SetNumberOfColors(256);
 
@@ -760,6 +762,9 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     vtkNew<vtkMRMLColorTableNode> RonekersColorTableNode;
     RonekersColorTableNode->SetType(vtkMRMLColorTableNode::User);
     RonekersColorTableNode->SetName("Ronekers");
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    // when loaded, instead of adding a copy
+    RonekersColorTableNode->SetSingletonTag("SlicerAstro.Ronekers");
     RonekersColorTableNode->SetDescription("Discrete rainbow color function. Very useful to visualize for Astro HI datasets.");
     RonekersColorTableNode->SetNumberOfColors(256);
 
@@ -875,6 +880,9 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     vtkNew<vtkMRMLColorTableNode> VelocityFieldColorTableNode;
     VelocityFieldColorTableNode->SetType(vtkMRMLColorTableNode::User);
     VelocityFieldColorTableNode->SetName("VelocityField");
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    // when loaded, instead of adding a copy
+    VelocityFieldColorTableNode->SetSingletonTag("SlicerAstro.VelocityField");
     VelocityFieldColorTableNode->SetDescription("A scale from blue to red.");
     VelocityFieldColorTableNode->SetNumberOfColors(256);
 
@@ -1654,6 +1662,9 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
 
   if (inputVolume->GetPresetNode() != nullptr)
     {
+    // the preset of the volume (e.g. saved in a scene) is shown, not
+    // applied again (its shifts and edits are kept)
+    const QSignalBlocker blocker(d->PresetsNodeComboBox);
     d->PresetsNodeComboBox->setCurrentNodeIndex(inputVolume->GetPresetIndex());
     }
   else
@@ -3928,7 +3939,12 @@ void qSlicerAstroVolumeModuleWidget::resetAndApplyPreset(vtkMRMLNode *volumeProp
     return;
     }
 
-  d->astroVolumeNode->SetPresetNode(volumePropertyNode);
+  // the preset of the volume is saved with the scene: the node of the MRML
+  // scene that stands for the selected preset of the presets scene
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic =
+    vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  d->astroVolumeNode->SetPresetNode(astroVolumeLogic ?
+    astroVolumeLogic->GetScenePresetNode(volumePropertyNode) : nullptr);
 
   this->resetOffset(d->astroVolumeNode);
   this->resetStretch(d->astroVolumeNode);
@@ -4468,10 +4484,10 @@ void qSlicerAstroVolumeModuleWidget::onMRMLSceneEndCloseEvent()
                    " astroVolumeLogic not found!";
     return;
     }
-  vtkMRMLScene *presetsScene = astroVolumeLogic->GetPresetsScene();
-  d->PresetsNodeComboBox->setMRMLScene(presetsScene);
+  // no active volume after closing the scene: nothing to reset
+  const QSignalBlocker blocker(d->PresetsNodeComboBox);
+  d->PresetsNodeComboBox->setMRMLScene(astroVolumeLogic->GetPresetsScene());
   d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-  this->onMRMLVolumeNodeDisplayThresholdModified(true);
 }
 
 //---------------------------------------------------------------------------
@@ -5887,12 +5903,37 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
     }
   else if (d->astroVolumeNode->GetVolumePropertyNode())
     {
+    // the 3D color function of the volume (e.g. saved in a scene, with its
+    // preset, shift, stretch and opacity) is kept: shown, not reset
     this->resetOffsetStep(d->astroVolumeNode);
     this->resetStretchStep(d->astroVolumeNode);
+    this->updatePresets(d->astroVolumeNode);
+    vtkMRMLVolumeRenderingDisplayNode* renderingDisplay = this->volumeRenderingDisplay();
+    vtkMRMLNode* volumeProperty = d->astroVolumeNode->GetVolumePropertyNode();
+    if (renderingDisplay && renderingDisplay->GetVolumePropertyNode() != volumeProperty)
+      {
+      renderingDisplay->SetAndObserveVolumePropertyNodeID(volumeProperty->GetID());
+      }
+    vtkMRMLAstroVolumeDisplayNode* volumeDisplay = d->astroVolumeNode->GetAstroVolumeDisplayNode();
+    if (volumeDisplay)
+      {
+      const QSignalBlocker offsetBlocker(d->PresetOffsetSlider);
+      const QSignalBlocker stretchBlocker(d->PresetStretchSlider);
+      const QSignalBlocker opacityBlocker(d->OpacitySliderWidget);
+      d->PresetOffsetSlider->setValue(volumeDisplay->GetPresetOffset());
+      d->PresetStretchSlider->setValue(volumeDisplay->GetPresetStretch());
+      d->OpacitySliderWidget->setValue(volumeDisplay->GetOpacityShift());
+      }
+    return;
     }
 
   this->updatePresets(d->astroVolumeNode);
-  this->applyPreset(d->astroVolumeNode->GetPresetNode());
+  // the preset of the presets scene, adapted to the data range by
+  // updatePresets (the node of the MRML scene only identifies the preset)
+  if (d->astroVolumeNode->GetPresetNode())
+    {
+    this->applyPreset(d->PresetsNodeComboBox->currentNode());
+    }
 
   if (d->TableThresholdNode && forcePreset)
     {
@@ -5946,6 +5987,13 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
   if (d->AutoPropagateCheckBox->isChecked())
     {
     appLogic->PropagateBackgroundVolumeSelection(1);
+    }
+
+  if (volumeNode && this->mrmlScene() && this->mrmlScene()->IsImporting())
+    {
+    // set at the end of the import (onMRMLSceneEndImportEvent), when the
+    // references of the volume (e.g. its 3D color function) are restored
+    return;
     }
 
   if (!volumeNode)
@@ -6007,8 +6055,9 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
     bool forcePreset = false;
     if (d->astroVolumeNode->GetVolumePropertyNode() == nullptr)
       {
+      // default 3D color function of a new volume
       d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-      d->PresetsNodeComboBox->setCurrentNodeIndex(0);
+      d->PresetsNodeComboBox->setCurrentNodeIndex(vtkMRMLAstroVolumeNode::ThreeSurfacesPreset);
       forcePreset = true;
       }
 

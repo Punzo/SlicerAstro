@@ -68,6 +68,10 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.test_NoTextureSizeWarning()
         self.setUp()
         self.test_DisplayROIAndRMS()
+        self.setUp()
+        self.test_DefaultPreset()
+        self.setUp()
+        self.test_SceneRestoresColorFunctions()
 
     def test_EnsureMinimumTransferFunctionGap(self):
         # Points 1e-9 apart, as created by Slicer for a threshold equal to the
@@ -210,4 +214,96 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         expected = self.expectedRMS(roiNode, volumeNode)
         self.assertGreater(expected, 0.0)
         self.assertAlmostEqual(volumeNode.GetDisplayThreshold(), expected, delta=1e-5 * expected)
+        self.delayDisplay("Test passed")
+
+    def test_DefaultPreset(self):
+        """The 3D color function of a loaded cube is ThreeSurfaces."""
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(volumeNode)
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
+        slicer.app.processEvents()
+        presetNode = volumeNode.GetPresetNode()
+        self.assertIsNotNone(presetNode)
+        self.assertEqual(presetNode.GetName(), "ThreeSurfaces")
+        self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.ThreeSurfacesPreset)
+        self.delayDisplay("Test passed")
+
+    def displayState(self, volumeNode):
+        displayNode = volumeNode.GetAstroVolumeDisplayNode()
+        volumeProperty = volumeNode.GetVolumePropertyNode().GetVolumeProperty()
+        return {
+            "preset": volumeNode.GetPresetNode().GetName() if volumeNode.GetPresetNode() else None,
+            "offset": round(displayNode.GetPresetOffset(), 9),
+            "stretch": round(displayNode.GetPresetStretch(), 9),
+            "opacityShift": round(displayNode.GetOpacityShift(), 9),
+            "color": displayNode.GetColorNode().GetName(),
+            "autoWindowLevel": displayNode.GetAutoWindowLevel(),
+            "window": round(displayNode.GetWindow(), 9),
+            "level": round(displayNode.GetLevel(), 9),
+            "opacityPoints": [round(x, 9) for x in opacityPositions(volumeProperty)],
+            "colorPoints": [round(x, 9) for x in colorPositions(volumeProperty)],
+        }
+
+    def test_SceneRestoresColorFunctions(self):
+        """A saved scene restores the 2D (color table, window/level) and 3D
+        (preset, offset, stretch, opacity shift) color functions of a cube,
+        with the AstroVolume module open while the scene is loaded."""
+        import os
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
+        slicer.app.processEvents()
+        widget = slicer.modules.astrovolume.widgetRepresentation()
+        slicer.util.findChild(widget, "PresetsNodeComboBox").setCurrentNodeIndex(
+            slicer.vtkMRMLAstroVolumeNode.OneSurfaceWhitePreset)
+        slicer.app.processEvents()
+        for name, fraction in (("PresetOffsetSlider", 0.7), ("PresetStretchSlider", 0.6), ("OpacitySliderWidget", 0.3)):
+            slider = slicer.util.findChild(widget, name)
+            slider.value = slider.minimum + fraction * (slider.maximum - slider.minimum)
+            slicer.app.processEvents()
+        displayNode = volumeNode.GetAstroVolumeDisplayNode()
+        # 2D color table chosen in the selector, as by the user
+        import qt
+        displayWidget = slicer.util.findChildren(widget, className="qSlicerAstroScalarVolumeDisplayWidget")[0]
+        colorSelector = slicer.util.findChild(displayWidget, "ColorTableComboBox").findChild(qt.QComboBox)
+        heatIndex = [colorSelector.itemText(i) for i in range(colorSelector.count)].index("Heat")
+        colorSelector.setCurrentIndex(heatIndex)
+        colorSelector.activated(heatIndex)
+        slicer.app.processEvents()
+        self.assertEqual(displayNode.GetColorNode().GetName(), "Heat")
+        displayNode.SetAutoWindowLevel(0)
+        displayNode.SetWindowLevel(0.01, 0.004)
+        slicer.app.processEvents()
+        saved = self.displayState(volumeNode)
+        self.assertEqual(saved["preset"], "OneSurfaceWhite")
+        self.assertNotEqual(saved["offset"], 0.)
+        self.assertNotEqual(saved["opacityShift"], 0.)
+
+        sceneFile = os.path.join(slicer.app.temporaryPath, "AstroVolumeRenderingTestScene.mrb")
+        if os.path.exists(sceneFile):
+            os.remove(sceneFile)
+        self.assertTrue(slicer.util.saveScene(sceneFile))
+        try:
+            slicer.mrmlScene.Clear(0)
+            slicer.util.loadScene(sceneFile)
+            slicer.app.processEvents()
+            volumeNode = slicer.util.getFirstNodeByClassByName("vtkMRMLAstroVolumeNode", "WEIN069")
+            self.assertIsNotNone(volumeNode)
+            slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+            slicer.app.processEvents()
+            self.assertEqual(self.displayState(volumeNode), saved)
+            # the 3D view shows the restored color function
+            renderingDisplay = slicer.modules.volumerendering.logic().GetFirstVolumeRenderingDisplayNode(volumeNode)
+            self.assertIsNotNone(renderingDisplay)
+            self.assertIs(renderingDisplay.GetVolumePropertyNode(), volumeNode.GetVolumePropertyNode())
+            # one color table per name (singletons, not duplicated by the import)
+            self.assertEqual(len([node for node in slicer.util.getNodesByClass("vtkMRMLColorTableNode")
+                                  if node.GetName() == "Heat"]), 1)
+        finally:
+            os.remove(sceneFile)
         self.delayDisplay("Test passed")

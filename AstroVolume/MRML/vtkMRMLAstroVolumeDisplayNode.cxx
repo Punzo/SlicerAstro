@@ -201,12 +201,15 @@ void vtkMRMLAstroVolumeDisplayNode::WriteXML(ostream& of, int nIndent)
 
   of << indent << " SpaceQuantities=\"" << quantities << "\"";
   of << indent << " Space=\"" << (this->Space ? this->Space : "") << "\"";
+  // the 3D color function settings are restored exactly from the scene
+  std::streamsize precision = of.precision(std::numeric_limits<double>::max_digits10);
   of << indent << " OldOpacityShift=\"" << this->OldOpacityShift << "\"";
   of << indent << " OpacityShift=\"" << this->OpacityShift << "\"";
   of << indent << " OldPresetOffset=\"" << this->OldPresetOffset << "\"";
   of << indent << " PresetOffset=\"" << this->PresetOffset << "\"";
   of << indent << " OldPresetStretch=\"" << this->OldPresetStretch << "\"";
   of << indent << " PresetStretch=\"" << this->PresetStretch << "\"";
+  of.precision(precision);
 }
 
 //----------------------------------------------------------------------------

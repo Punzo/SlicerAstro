@@ -226,7 +226,11 @@ void qSlicerAstroScalarVolumeDisplayWidgetPrivate::init()
 
   this->setupUi(q);
 
-  QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  // only a color table chosen by the user is applied: the selector also
+  // changes its current node when its list is rebuilt (e.g. it selects the
+  // first color table while a scene is loaded, with Qt6), which must not
+  // replace the color table of the volume
+  QObject::connect(this->ColorTableComboBox, SIGNAL(nodeActivated(vtkMRMLNode*)),
                    q, SLOT(setColorNode(vtkMRMLNode*)));
   QObject::connect(this->ReversePushButton, SIGNAL(toggled(bool)),
                    q, SLOT(setReverse(bool)));

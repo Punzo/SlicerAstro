@@ -63,7 +63,9 @@ void qSlicerAstroLabelMapVolumeDisplayWidgetPrivate::init()
   Q_Q(qSlicerAstroLabelMapVolumeDisplayWidget);
 
   this->setupUi(q);
-  QObject::connect(this->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+  // only a color table chosen by the user is applied (the selector also
+  // changes its current node when its list is rebuilt, e.g. on scene load)
+  QObject::connect(this->ColorTableComboBox, SIGNAL(nodeActivated(vtkMRMLNode*)),
                    q, SLOT(setColorNode(vtkMRMLNode*)));
   QObject::connect(this->SliceIntersectionThicknessSpinBox, SIGNAL(valueChanged(int)),
                    q, SLOT(setSliceIntersectionThickness(int)));

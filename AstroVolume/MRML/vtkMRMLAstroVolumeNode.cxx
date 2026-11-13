@@ -293,7 +293,8 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
   this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());
 
   vtkMRMLAstroVolumeDisplayNode* displayNode = this->GetAstroVolumeDisplayNode();
-  if (displayNode)
+  // (the display of a volume of a scene is the saved one)
+  if (displayNode && !(this->GetScene() && this->GetScene()->IsImporting()))
     {
     double displayRange[2] = { min_val, max_val };
     this->GetDisplayRange(displayRange);
@@ -514,7 +515,7 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
     }
   else
     {
-    return vtkMRMLAstroVolumeNode::LowConstantOpacityPreset;
+    return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
     }
 }
 

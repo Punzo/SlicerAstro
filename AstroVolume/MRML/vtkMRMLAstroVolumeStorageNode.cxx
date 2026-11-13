@@ -486,10 +486,14 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     double window = displayRange[1] - displayRange[0];
     double level = 0.5 * (displayRange[1] + displayRange[0]);
 
-    int disabledModify = disNode->StartModify();
-    disNode->SetWindowLevel(window, level);
-    disNode->SetThreshold(min, max);
-    disNode->EndModify(disabledModify);
+    // (the display of a volume of a scene is the saved one)
+    if (!this->GetScene() || !this->GetScene()->IsImporting())
+      {
+      int disabledModify = disNode->StartModify();
+      disNode->SetWindowLevel(window, level);
+      disNode->SetThreshold(min, max);
+      disNode->EndModify(disabledModify);
+      }
     }
   else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
