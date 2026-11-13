@@ -83,8 +83,8 @@ vtkMRMLAstroReprojectParametersNode::vtkMRMLAstroReprojectParametersNode()
   this->Equinox = 2000.;
   this->CenterLongitude = 0.;
   this->CenterLatitude = 0.;
-  this->PixelSizeX = 1.;
-  this->PixelSizeY = 1.;
+  this->PixelSizeX = 0.; // 0: smallest pixel of the inputs (union, intersection)
+  this->PixelSizeY = 0.;
   this->Rotation = 0.;
   this->SpatialResampleFactor = 1.;
   this->RestFrequency = 1.420405751768e9;

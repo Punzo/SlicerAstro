@@ -72,15 +72,26 @@ qSlicerAstroReprojectModule::~qSlicerAstroReprojectModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroReprojectModule::helpText()const
 {
-  return  "The AstroReproject module implements image reprojection (resampling) methods "
-          "for astronomical datasets. Specifically, the methods have been designed to "
-          "reproject the spatial axis, (e.g., 2D images or 3D datacubes over 2D images)."
-          "For example in the case of datacubes, the algorithm reprojects each slice "
-          "(spatial celestial axis) of the datacube with the reference data (treating each slice as independent). "
-          "However, overlaying two 3D astronomical datasets requires also to resample the velocity axes, "
-          "which is not implemented in this module. "
-          "The AstroReproject module requires that the WCS information contained in the fits header are correct"
-          "and that the two datasets ahve the same celestial system of reference (e.g., J2000/FK5). ";
+  return tr(
+    "<p>Reprojection, resampling and mosaicking of astronomical images and data cubes: the input volumes are "
+    "put on a new grid of sky pixels and channels.</p>"
+    "<ul>"
+    "<li><b>Output grid</b>: sky pixels from a reference volume, from the input (optionally with larger or "
+    "smaller pixels), covering all the inputs (mosaic), their common area, or defined manually (celestial "
+    "frame, projection, centre, pixel size, rotation, size); channels from the input, a reference volume, "
+    "wider or narrower, covering the inputs, or manual (radio/optical velocity, frequency or wavelength, "
+    "spectral frame, rest frequency). Celestial frames (ICRS, FK5, FK4, Galactic, Supergalactic) and "
+    "spectral frames (topocentric to CMB) are converted.</li>"
+    "<li><b>Resampling</b>: nearest, bilinear, bicubic and Lanczos interpolation, or flux-conserving area "
+    "average and exact spherical overlap; channel interpolation or flux-conserving channel overlap.</li>"
+    "<li><b>Resolution</b>: the inputs can be smoothed to their common beam or to a target beam.</li>"
+    "<li><b>Mosaics</b>: several inputs are combined (mean, or linear mosaic with primary beam and noise "
+    "weights), with optional weight, sensitivity and Sault-weighted volumes.</li>"
+    "</ul>"
+    "<p>Open the <i>Quick guide</i> section of the module for the common tasks; each option has a tooltip "
+    "and the text under each choice explains the selected option.</p>"
+    "<p>The WCS of the FITS headers must be correct (celestial and spectral frames, rest frequency, "
+    "observation date and position for topocentric data).</p>");
 }
 
 //-----------------------------------------------------------------------------

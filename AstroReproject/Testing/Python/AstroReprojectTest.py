@@ -4,6 +4,7 @@ import shutil
 
 import numpy as np
 
+import qt
 import slicer
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
@@ -604,4 +605,18 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
         output = slicer.mrmlScene.GetNodeByID(pnode.GetOutputVolumeNodeID())
         self.assertIsNotNone(output)
         self.assertEqual(output.GetImageData().GetDimensions(), (16, 16, 1))
+
+        # explanations of the selected options, manual grid from the input
+        combo = slicer.util.findChild(widget, "SpatialGridModeComboBox")
+        explanation = slicer.util.findChild(widget, "SpatialGridModeComboBoxExplanation")
+        resampleText = explanation.text
+        self.assertTrue(resampleText)
+        combo.currentIndex = combo.findData(P.SpatialManual)
+        slicer.app.processEvents()
+        self.assertEqual(pnode.GetSpatialGridMode(), P.SpatialManual)
+        self.assertNotEqual(explanation.text, resampleText)
+        self.assertEqual((pnode.GetSizeX(), pnode.GetSizeY()), (32, 32))
+        self.assertAlmostEqual(pnode.GetPixelSizeX(), 7.2, places=5)
+        for item in range(combo.count):
+            self.assertTrue(combo.itemData(item, qt.Qt.ToolTipRole), f"tooltip of option {item}")
         self.delayDisplay("Test passed")
