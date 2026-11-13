@@ -50,9 +50,11 @@
 #include <vtkLine.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkTransform.h>
+#include <vtkMath.h>
 
 // STD includes
 #include <sstream>
+#include <vector>
 
 // SlicerQt includes
 #include <qSlicerApplication.h>
@@ -244,6 +246,8 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::SetupMarkerRenderer()
   this->MarkerRenderer->SetLayer(RENDERER_LAYER);
   renderWindow->AddRenderer(this->MarkerRenderer);
 
+  // updated before each render of the view (UpdateFromRenderer)
+  this->AddRendererUpdateObserver(renderer);
 }
 
 //---------------------------------------------------------------------------
@@ -257,10 +261,8 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::SetupBeam()
 void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
 {
   // clean the attributes before updating
-  this->beamPoints->Initialize();
-  this->beamPoints->Squeeze();
-  this->beamCellArray->Initialize();
-  this->beamCellArray->Squeeze();
+  this->beamPoints->Reset();
+  this->beamCellArray->Reset();
 
   vtkMRMLAbstractViewNode* viewNode =
       vtkMRMLAbstractViewNode::SafeDownCast
@@ -342,6 +344,9 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
     return;
     }
 
+  // the collection may still hold the layers of a previous update that
+  // returned early
+  this->col->RemoveAllItems();
   this->col->AddItem(sliceLogic->GetBackgroundLayer());
   this->col->AddItem(sliceLogic->GetForegroundLayer());
   this->col->AddItem(sliceLogic->GetLabelLayer());
@@ -384,84 +389,106 @@ void vtkMRMLAstroBeamDisplayableManager::vtkInternal::UpdateBeam()
 
     hasVolume = true;
 
-    sliceNode->UpdateMatrices();
-    sliceLayerLogic->UpdateTransforms();
-
-    vtkNew<vtkTransform> transform;
-    double BPA = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BPA"));
-    transform->RotateZ(BPA);
-    const double degtorad = atan(1.) / 45.;
-    vtkNew<vtkGeneralTransform> ijkToXY;
-    ijkToXY->DeepCopy(sliceLayerLogic->GetXYToIJKTransform());
-    ijkToXY->Inverse();
-
-    double BMAJ = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMAJ"));
-    double BMIN = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMIN"));
-    double CDELT1 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT1"));
-    double CDELT2 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT2"));
-    double NAXIS1 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.NAXIS1"));
-
-    double aCosPixel = BMIN * cos(BPA * degtorad) / CDELT1;
-    double aSinPixel = BMIN * sin(BPA * degtorad) / CDELT2;
-    double a = sqrt(aCosPixel * aCosPixel + aSinPixel * aSinPixel);
-
-    double bCosPixel = BMAJ * cos((BPA + 90) * degtorad) / CDELT1;
-    double bSinPixel = BMAJ * sin((BPA + 90) * degtorad) / CDELT2;
-    double b = sqrt(bCosPixel * bCosPixel + bSinPixel * bSinPixel);
-
-    double centerX = NAXIS1 - a * 3;
-    double centerY = b * 3;
-
-    double ijk[3], xy[3];
-    // add points
-    for (int ii = 0; ii <= 60; ii++)
+    // The beam ellipse, drawn on the sky: full axes BMAJ and BMIN (FWHM),
+    // major axis at the position angle BPA (from north through east), each
+    // point projected with the WCS of the volume (rotated axes, either
+    // direction of the right ascension and non-square pixels included).
+    // (the transforms of the slice layer are up to date: updating them here
+    // modified the slice logic, which rendered the view again)
+    vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode->GetAstroVolumeDisplayNode();
+    struct wcsprm* wcs = displayNode ? displayNode->GetWCSStruct() : nullptr;
+    vtkGeneralTransform* xyToIJK = sliceLayerLogic->GetXYToIJKTransform();
+    if (!wcs || wcs->lng != 0 || wcs->lat != 1 || wcs->naxis > 4 || !xyToIJK)
       {
-      double rot = ii * (2 * PI / 60.);
-      ijk[0] = a * cos(rot);
-      ijk[1] = b * sin(rot);
-      ijk[2] = 0.;
+      continue;
+      }
 
-      transform->TransformPoint(ijk, ijk);
+    const double BMAJ = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMAJ"));
+    const double BMIN = StringToDouble(volumeNode->GetAttribute("SlicerAstro.BMIN"));
+    const double BPA = vtkMath::RadiansFromDegrees(StringToDouble(volumeNode->GetAttribute("SlicerAstro.BPA")));
+    const double CDELT2 = fabs(StringToDouble(volumeNode->GetAttribute("SlicerAstro.CDELT2")));
+    const double NAXIS1 = StringToDouble(volumeNode->GetAttribute("SlicerAstro.NAXIS1"));
+    if (!(CDELT2 > 0.))
+      {
+      continue;
+      }
 
-      ijk[0] += centerX;
-      ijk[1] += centerY;
+    // center: in the bottom right corner of the data (two major axes from
+    // the sides), in the channel shown
+    const double majorPixels = 2. * BMAJ / CDELT2;
+    double viewCenter[3] = {sliceNode->GetDimensions()[0] / 2., sliceNode->GetDimensions()[1] / 2., 0.};
+    double channel[3] = {0., 0., 0.};
+    xyToIJK->TransformPoint(viewCenter, channel);
+    // FITS pixel coordinates (from 1)
+    double centerPixel[4] = {NAXIS1 - majorPixels, majorPixels + 1., channel[2] + 1., 1.};
+    double centerWorld[4] = {0., 0., 0., 0.}, imgcrd[4] = {0., 0., 0., 0.}, phi = 0., theta = 0.;
+    int centerStatus = 0;
+    if (wcsp2s(wcs, 1, 4, centerPixel, imgcrd, &phi, &theta, centerWorld, &centerStatus))
+      {
+      continue;
+      }
+    const double cosDeclination = cos(vtkMath::RadiansFromDegrees(centerWorld[1]));
+    if (!(cosDeclination > 1.E-6))
+      {
+      continue;
+      }
 
+    const int numberOfPoints = 61;
+    std::vector<double> world(numberOfPoints * 4), pixel(numberOfPoints * 4, 0.), imgcrds(numberOfPoints * 4, 0.);
+    std::vector<double> phis(numberOfPoints, 0.), thetas(numberOfPoints, 0.);
+    std::vector<int> stat(numberOfPoints, 0);
+    for (int point = 0; point < numberOfPoints; point++)
+      {
+      const double t = point * (2. * vtkMath::Pi() / (numberOfPoints - 1));
+      const double alongMajor = 0.5 * BMAJ * cos(t);
+      const double alongMinor = 0.5 * BMIN * sin(t);
+      // offsets (degrees) towards the east and the north
+      const double east = alongMajor * sin(BPA) + alongMinor * cos(BPA);
+      const double north = alongMajor * cos(BPA) - alongMinor * sin(BPA);
+      std::copy(centerWorld, centerWorld + 4, world.begin() + point * 4);
+      world[point * 4] = centerWorld[0] + east / cosDeclination;
+      world[point * 4 + 1] = centerWorld[1] + north;
+      }
+    const int status = wcss2p(wcs, numberOfPoints, 4, world.data(), phis.data(), thetas.data(),
+                              imgcrds.data(), pixel.data(), stat.data());
+    if (status && status != WCSERR_BAD_WORLD)
+      {
+      continue;
+      }
+
+    vtkAbstractTransform* ijkToXY = xyToIJK->GetInverse();
+    vtkIdType previousId = -1;
+    for (int point = 0; point < numberOfPoints; point++)
+      {
+      if (stat[point])
+        {
+        previousId = -1;
+        continue;
+        }
+      // FITS pixel coordinates (from 1) to IJK (voxel centers from 0)
+      double ijk[3] = {pixel[point * 4] - 1., pixel[point * 4 + 1] - 1., channel[2]}, xy[3] = {0., 0., 0.};
       ijkToXY->TransformPoint(ijk, xy);
-
-      this->beamPoints->InsertPoint(ii, xy[0], xy[1], 0);
-      }
-
-    int n = this->beamPoints->GetNumberOfPoints();
-    // unify the points with lines
-    std::vector<vtkSmartPointer<vtkLine> > lines;
-    for (int ii = 0; ii < n - 1; ii++)
-      {
-      vtkSmartPointer<vtkLine> line = vtkSmartPointer<vtkLine>::New();
-      lines.push_back(line);
-      }
-
-    for (int ii = 0; ii < n - 1; ii++)
-      {
-      lines[ii]->GetPointIds()->SetId(0, ii);
-      lines[ii]->GetPointIds()->SetId(1, ii + 1);
-      }
-
-    // create the cellArray
-    for (int ii = 0; ii < n - 1; ii++)
-      {
-      this->beamCellArray->InsertNextCell(lines[ii]);
+      const vtkIdType id = this->beamPoints->InsertNextPoint(xy[0], xy[1], 0.);
+      if (previousId >= 0)
+        {
+        vtkIdType ids[2] = {previousId, id};
+        this->beamCellArray->InsertNextCell(2, ids);
+        }
+      previousId = id;
       }
 
     // setup the mapper and actor
+    this->beamPoints->Modified();
+    this->beamCellArray->Modified();
     this->beamPolyData->SetPoints(this->beamPoints);
     this->beamPolyData->SetLines(this->beamCellArray);
+    this->beamPolyData->Modified();
     this->beamMapper->SetInputData(this->beamPolyData);
     this->beamActor->SetMapper(this->beamMapper);
     this->beamActor->GetProperty()->SetLineWidth(2);
     this->beamActor->GetProperty()->SetColor(this->Color->GetValue(0),
                                              this->Color->GetValue(1),
                                              this->Color->GetValue(2));
-    this->MarkerRenderer->AddViewProp(this->beamActor);
 
     this->ShowActors(true);
     break;
@@ -521,8 +548,9 @@ void vtkMRMLAstroBeamDisplayableManager::Create()
 //---------------------------------------------------------------------------
 void vtkMRMLAstroBeamDisplayableManager::UpdateFromViewNode()
 {
-  // View node is changed, which may mean that either the marker type (visibility), size, or orientation is changed
-  this->Internal->UpdateBeam();
+  // The view node is changed (e.g. on every mouse move while panning): the
+  // view is rendered again and the beam is updated before the render
+  // (UpdateFromRenderer), once per render
 }
 
 //---------------------------------------------------------------------------

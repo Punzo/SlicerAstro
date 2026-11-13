@@ -108,7 +108,7 @@ class AstroPVDiagramSelfTestTest(ScriptedLoadableModuleTest):
         # the line of the PV diagram is a Markups open curve (linear)
         sourceNode = slicer.util.getNode("PVDiagramLine")
         self.assertTrue(sourceNode.IsA("vtkMRMLMarkupsCurveNode"))
-        self.assertEqual(sourceNode.GetCurveType(), slicer.vtkCurveGenerator.CURVE_TYPE_LINEAR)
+        self.assertEqual(sourceNode.GetCurveType(), slicer.vtkCurveGenerator.CURVE_TYPE_LINEAR_SPLINE)
         self.assertNotIn("vtkMRMLSliceNodeYellow", sourceNode.GetDisplayNode().GetViewNodeIDs())
 
         self.delayDisplay("Adding source points and calculating the PV diagram")
