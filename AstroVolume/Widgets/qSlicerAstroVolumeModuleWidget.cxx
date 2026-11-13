@@ -3081,7 +3081,8 @@ void qSlicerAstroVolumeModuleWidget::runInBackground(QWidget* parent, const QStr
   dialog.setAutoClose(false);
   dialog.setAutoReset(false);
   dialog.setValue(0);
-  QObject::connect(&dialog, &QProgressDialog::canceled, [&dialog, cancel]()
+  const QMetaObject::Connection cancelConnection =
+    QObject::connect(&dialog, &QProgressDialog::canceled, [&dialog, cancel]()
     {
     dialog.setLabelText(tr("Cancelling..."));
     cancel();
@@ -3112,7 +3113,7 @@ void qSlicerAstroVolumeModuleWidget::runInBackground(QWidget* parent, const QStr
   thread->wait();
   delete thread;
   // closing a QProgressDialog emits canceled(): not a cancel request
-  QObject::disconnect(&dialog, nullptr, nullptr, nullptr);
+  QObject::disconnect(cancelConnection);
   dialog.close();
 }
 

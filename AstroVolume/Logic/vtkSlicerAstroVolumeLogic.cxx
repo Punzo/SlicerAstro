@@ -48,6 +48,7 @@
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLColorTableNode.h>
+#include <vtkMRMLDisplayNode.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLNode.h>
 #include <vtkMRMLPlotChartNode.h>
@@ -854,8 +855,49 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene
       }
     }
 
-  outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-     (this->CloneVolume(scene, inputVolume, name, cloneImageData));
+  if (cloneImageData)
+    {
+    outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+       (this->CloneVolume(scene, inputVolume, name, true));
+    }
+  else
+    {
+    // as vtkSlicerVolumesLogic::CloneVolume without the image data, but with a
+    // shallow copy of the content: CloneVolume copies the voxels (deep copy of
+    // the node) before removing them (temporary copy of the whole cube)
+    vtkSmartPointer<vtkMRMLAstroVolumeNode> clone;
+    clone.TakeReference(vtkMRMLAstroVolumeNode::SafeDownCast(scene->CreateNodeByClass(inputVolume->GetClassName())));
+    if (!clone)
+      {
+      vtkErrorMacro("vtkSlicerAstroVolumeLogic::CloneAstroVolume : the volume could not be cloned.");
+      return nullptr;
+      }
+    clone->SetScene(scene);
+    clone->CopyContent(inputVolume, false);
+    clone->SetAndObserveImageData(nullptr);
+    clone->CopyReferences(inputVolume);
+    clone->SetAndObserveStorageNodeID(nullptr);
+    while (clone->GetNumberOfDisplayNodes() > 0)
+      {
+      clone->RemoveNthDisplayNodeID(0);
+      }
+    vtkMRMLDisplayNode* originalDisplayNode = inputVolume->GetVolumeDisplayNode();
+    if (originalDisplayNode)
+      {
+      vtkSmartPointer<vtkMRMLDisplayNode> clonedDisplayNode;
+      clonedDisplayNode.TakeReference(vtkMRMLDisplayNode::SafeDownCast(
+        scene->CreateNodeByClass(originalDisplayNode->GetClassName())));
+      if (clonedDisplayNode)
+        {
+        clonedDisplayNode->CopyWithScene(originalDisplayNode);
+        scene->AddNode(clonedDisplayNode);
+        clone->SetAndObserveDisplayNodeID(clonedDisplayNode->GetID());
+        }
+      }
+    clone->SetName(scene->GetUniqueNameByString(name));
+    scene->AddNode(clone);
+    outputVolume = clone;
+    }
 
   int ndnodes = outputVolume->GetNumberOfDisplayNodes();
   for (int ii = 0; ii < ndnodes; ii++)

@@ -531,6 +531,13 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
                                                 TargetBeamPA=0.))
         self.assertAlmostEqual(float(np.nanmax(voxelArray(output))), 1., delta=0.02)
         self.assertAlmostEqual(float(output.GetAttribute("SlicerAstro.BMAJ")), 2. * beam, places=9)
+        slicer.mrmlScene.RemoveNode(output)
+        # target beam close to the beam of the data (kernel much smaller than
+        # a pixel): the data are almost unchanged
+        output = self.reproject(self.parameters([node], SpatialGridMode=P.SpatialInput, ResolutionMode=P.ResolutionTarget,
+                                                TargetBeamMajor=1.01 * beam * 3600., TargetBeamMinor=beam * 3600.,
+                                                TargetBeamPA=0.))
+        np.testing.assert_allclose(voxelArray(output), voxelArray(node), atol=0.02)
 
         pixels = self.volume("pixels", (1, 64, 64), celestialCards() + [("BUNIT", "JY/PIXEL")], source)
         total = float(np.nansum(voxelArray(pixels)))

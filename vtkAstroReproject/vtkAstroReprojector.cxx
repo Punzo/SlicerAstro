@@ -1217,9 +1217,11 @@ bool ConvolveToBeam(const vtkAstroReprojector::Input& input, const double target
       volume += w;
       }
     }
-  // scale factor (CASA): Jy/beam keeps the peak of point sources
-  // (pixel area / kernel area * target area / input area), Jy/pixel: unit
-  // peak kernel (Jy/beam result), other units: unit volume
+  // scale factor: Jy/beam keeps the peak of point sources (CASA: pixel area /
+  // kernel area * target area / input area; the sum of the sampled kernel is
+  // used for kernel area / pixel area, which is also right for kernels
+  // smaller than a pixel, e.g. a target beam close to the beam of the data),
+  // Jy/pixel: unit peak kernel (Jy/beam result), other units: unit volume
   double scale = 1. / volume;
   if (perPixel)
     {
@@ -1227,8 +1229,7 @@ bool ConvolveToBeam(const vtkAstroReprojector::Input& input, const double target
     }
   else if (perBeam)
     {
-    scale = pixelArea / vtkAstroBeams::Area(kernel[0], kernel[1]) * vtkAstroBeams::Area(target[0], target[1]) /
-            vtkAstroBeams::Area(input.Beam[0], input.Beam[1]);
+    scale = vtkAstroBeams::Area(target[0], target[1]) / vtkAstroBeams::Area(input.Beam[0], input.Beam[1]) / volume;
     }
 
   int dims[3];
