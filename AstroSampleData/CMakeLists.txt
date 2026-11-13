@@ -15,6 +15,10 @@ set(MODULE_PYTHON_RESOURCES
   Resources/Icons/NGC891.png
   Resources/Icons/NGC3198.png
   Resources/Icons/NGC4631.png
+  Resources/Icons/Antennae_HI.png
+  Resources/Icons/Antennae_CO.png
+  Resources/Icons/Antennae_MUSE.png
+  Resources/Icons/Antennae_R.png
   )
 
 #-----------------------------------------------------------------------------

@@ -30,14 +30,14 @@ SAMPLE_DATA_SOURCES = (
     # SoFiA 2 mask (segmentation) and source catalogue (table and source points) of WEIN069
     ("WEIN069_MASK", "WEIN069_mask.png", (
         ("WEIN069_mask.fits", "WEIN069_mask", "SegmentationFile",
-         "c7cd9c00180f78b664a7b9595559e3a2d2a4673507aa7e14f6231a38ea249fe4"),
+         "41384f6974ebc2ebfa1b57b78e8b5260bc937139f42b438a247dbf5fd52c7d60"),
         ("WEIN069_cat.txt", "WEIN069_catalogue", "SoFiACatalogFile",
          "ae5d212108a702a20476b8084da2172133355cd0c97de1d0a58b15d803a25322"),
     )),
     # HALOGAS-DR1 low-resolution (30 arcsec) VLA HI cube of NGC 2403 and DSS2 red image of the field
     ("NGC2403", "NGC2403.png", (
         ("NGC2403.fits", "NGC2403", "AstroVolumeFile",
-         "09959b45590be00dc98dcee07fd8b99d6dbd49de7651f7ad7d4ef543ee8d2005"),
+         "1da73e9bc141cbd1367a331d0ee047a9d4543123d4c8bd7c3922b8f6149991f7"),
     )),
     ("NGC2403_DSS", "NGC2403_DSS.png", (
         ("NGC2403_DSS.fits", "NGC2403_DSS", "AstroVolumeFile",
@@ -56,6 +56,23 @@ SAMPLE_DATA_SOURCES = (
     ("NGC4631", "NGC4631.png", (
         ("NGC4631.fits", "NGC4631", "AstroVolumeFile",
          "3a0d9e4ed2be1c85c9f3a485268de68aab852f98501071b614bdaa446c3c308d"),
+    )),
+    # Antennae galaxies (NGC 4038/4039): HI (VLA, Hibbard et al. 2001), CO(2-1)
+    # (ALMA Science Verification), Halpha and [NII] (VLT/MUSE, continuum
+    # subtracted) and optical image (CTIO R band)
+    ("Antennae_HI", "Antennae_HI.png", (
+        ("Antennae_HI.fits", "Antennae_HI", "AstroVolumeFile", "83a4555c33394ea41460716183a102272a9e59be6bc26e2565a612452b95defe"),
+    )),
+    ("Antennae_CO", "Antennae_CO.png", (
+        ("Antennae_CO_North.fits", "Antennae_CO_North", "AstroVolumeFile", "a6235fee40c7af33b25d75c415f4b29387175a688d03b0676cc359e89e29c8e1"),
+        ("Antennae_CO_South.fits", "Antennae_CO_South", "AstroVolumeFile", "25078257e0b868550e9a497b88f46099b8ef8b5a710cdd6b36f37a13184b4b3b"),
+    )),
+    ("Antennae_MUSE", "Antennae_MUSE.png", (
+        ("Antennae_MUSE_Center02.fits", "Antennae_MUSE_Center02", "AstroVolumeFile", "131c80ce5a949855168bef0d63f4f19aeaeae06f422ea791c7104c858d26c0f0"),
+        ("Antennae_MUSE_Center03.fits", "Antennae_MUSE_Center03", "AstroVolumeFile", "2c195045787fcffe2fd53fbee5c80405223d61f23337ff7146cdb67c3c827ea5"),
+    )),
+    ("Antennae_R", "Antennae_R.png", (
+        ("Antennae_R.fits", "Antennae_R", "AstroVolumeFile", "5fd68ff4c3cef27847afbd6abb2488d57d6129159dde646f78d91c3a37247d6a"),
     )),
 )
 
@@ -160,7 +177,8 @@ class AstroSampleDataTest(ScriptedLoadableModuleTest):
         sources = slicer.modules.sampleDataSources.get(SAMPLE_DATA_CATEGORY, [])
         self.assertEqual(len([s for s in sources if s.sampleName == "WEIN069"]), 1)
         self.assertIn("WEIN069_MASK", names)
-        for name in ("NGC2403", "NGC2403_DSS", "NGC891", "NGC3198", "NGC4631"):
+        for name in ("NGC2403", "NGC2403_DSS", "NGC891", "NGC3198", "NGC4631",
+                     "Antennae_HI", "Antennae_CO", "Antennae_MUSE", "Antennae_R"):
             self.assertIn(name, names)
         self.delayDisplay("Test passed")
 
