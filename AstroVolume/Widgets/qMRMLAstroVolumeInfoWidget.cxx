@@ -367,12 +367,6 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
   d->NumberOfScalarsSpinBox->setValue(
     image ? image->GetNumberOfScalarComponents() : 0);
 
-  qSlicerApplication* app = qSlicerApplication::application();
-  if (app && app->applicationLogic())
-    {
-    app->applicationLogic()->FitSliceToAll(true);
-    }
-
   vtkMRMLStorageNode* storageNode = d->VolumeNode->GetStorageNode();
   d->FileNameLineEdit->setText(storageNode ? storageNode->GetFileName() : "");
 
@@ -417,6 +411,19 @@ void qMRMLAstroVolumeInfoWidget::setImageOrigin(double* IJKOrigin)
   double RASOrigin[3];
   IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
   d->VolumeNode->SetOrigin(RASOrigin);
+  // the data moved by the user: the views are fitted to them (not at every
+  // modification of the volume, e.g. a channel map of contours)
+  this->fitSlicesToAll();
+}
+
+//------------------------------------------------------------------------------
+void qMRMLAstroVolumeInfoWidget::fitSlicesToAll()
+{
+  qSlicerApplication* app = qSlicerApplication::application();
+  if (app && app->applicationLogic())
+    {
+    app->applicationLogic()->FitSliceToAll(true);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -444,6 +451,7 @@ void qMRMLAstroVolumeInfoWidget::center()
     return;
     }
   d->VolumeNode->SetOrigin(origin);
+  this->fitSlicesToAll();
 }
 
 //------------------------------------------------------------------------------

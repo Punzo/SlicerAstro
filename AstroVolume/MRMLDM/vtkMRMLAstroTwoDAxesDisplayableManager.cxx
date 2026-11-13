@@ -164,7 +164,9 @@ public:
   void FinishTicks(int rulerType);
   /// Label of a tick: the text actors are reused between updates (creating
   /// them, with their textures, for every render was slow)
-  void AddAxisLabel(const std::string& text, int x, int y, int fontSize);
+  /// Label of a tick: centred below the tick of the horizontal axis (x: tick
+  /// position), or right of the vertical axis, centred on the tick (y: tick position)
+  void AddAxisLabel(const std::string& text, int x, int y, int fontSize, bool horizontalAxis);
   void HideUnusedLabels();
   void HideSlicerRuler();
   void ShowActors(bool show);
@@ -466,7 +468,8 @@ std::string FormatAngularOffset(double offsetDegrees, double stepDegrees)
 
 //---------------------------------------------------------------------------
 void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::AddAxisLabel(const std::string& text,
-                                                                       int x, int y, int fontSize)
+                                                                       int x, int y, int fontSize,
+                                                                       bool horizontalAxis)
 {
   if (this->NumberOfUsedLabels == this->Labels.size())
     {
@@ -482,6 +485,17 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::AddAxisLabel(const std
   // label is updated only if its text or style changed)
   vtkTextProperty* textProperty = textActor->GetTextProperty();
   textProperty->SetFontSize(fontSize);
+  // justified on the tick, whatever the length of the label
+  if (horizontalAxis)
+    {
+    textProperty->SetJustificationToCentered();
+    textProperty->SetVerticalJustificationToBottom();
+    }
+  else
+    {
+    textProperty->SetJustificationToLeft();
+    textProperty->SetVerticalJustificationToCentered();
+    }
   if (!this->fontStyle.compare("Courier"))
     {
     textProperty->SetFontFamilyToCourier();
@@ -497,7 +511,11 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::AddAxisLabel(const std
   textActor->GetProperty()->SetColor(this->Color->GetValue(0),
                                      this->Color->GetValue(1),
                                      this->Color->GetValue(2));
-  textActor->SetInput(text.c_str());
+  // without the padding of the coordinate strings (e.g. "  10h      "): the
+  // visible text is centred
+  const std::size_t first = text.find_first_not_of(' ');
+  const std::size_t last = text.find_last_not_of(' ');
+  textActor->SetInput(first == std::string::npos ? "" : text.substr(first, last - first + 1).c_str());
   textActor->SetDisplayPosition(x, y);
   textActor->VisibilityOn();
 }
@@ -625,7 +643,7 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
       continue;
       }
     std::string label = FormatAngularOffset(offset, offsetStep);
-    this->AddAxisLabel(label, static_cast<int>(labelX - fontSize * 2), 15, fontSize);
+    this->AddAxisLabel(label, static_cast<int>(labelX), 15, fontSize, true);
     }
 
   std::fill(oldOutputValues, oldOutputValues + 3, 0.);
@@ -656,7 +674,7 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdatePVDiagramAxes(
       }
     std::string label = displayNode->GetDisplayStringFromValueZ(velocity, oldOutputValues, outputValues, 0);
     std::copy(outputValues, outputValues + 3, oldOutputValues);
-    this->AddAxisLabel(label, 20, static_cast<int>(labelY - fontSize * 0.5), fontSize);
+    this->AddAxisLabel(label, 20, static_cast<int>(labelY), fontSize, false);
     }
 
   this->FinishTicks(rulerType);
@@ -1015,11 +1033,11 @@ bool vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateWCSAxes(
           std::copy(outputValues, outputValues + 3, oldOutputValues);
           if (horizontal)
             {
-            this->AddAxisLabel(label, static_cast<int>(position - fontSize * 2), 15, fontSize);
+            this->AddAxisLabel(label, static_cast<int>(position), 15, fontSize, true);
             }
           else
             {
-            this->AddAxisLabel(label, 20, static_cast<int>(position - fontSize * 0.5), fontSize);
+            this->AddAxisLabel(label, 20, static_cast<int>(position), fontSize, false);
             }
           }
         }

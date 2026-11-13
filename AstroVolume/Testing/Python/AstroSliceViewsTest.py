@@ -46,6 +46,8 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         self.test_AstroSliceViews()
         self.setUp()
         self.test_WCSAxes()
+        self.setUp()
+        self.test_MouseMoveCompression()
 
     def sliceWidgets(self):
         layoutManager = slicer.app.layoutManager()
@@ -205,6 +207,29 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
                 left.append(start[1])
         return sorted(bottom), sorted(left)
 
+    def assertLabelsOnTicks(self, view, bottom, left, message):
+        """The rendered labels are centred on a major tick: horizontally for
+        the bottom axis, vertically for the left axis (within 2 pixels)."""
+        displayableManager = view.displayableManagerByClassName("vtkMRMLAstroTwoDAxesDisplayableManager")
+        renderer = displayableManager.vtkMarkerRenderer()
+        actors = renderer.GetActors2D()
+        actors.InitTraversal()
+        for _ in range(actors.GetNumberOfItems()):
+            actor = actors.GetNextActor2D()
+            if not actor.IsA("vtkTextActor") or not actor.GetVisibility():
+                continue
+            # bounding box of the rendered text, relative to the anchor (position)
+            box = [0., 0., 0., 0.]
+            actor.GetBoundingBox(renderer, box)
+            x, y = actor.GetPosition()
+            if y <= 20.:
+                centre, ticks = x + 0.5 * (box[0] + box[1]), bottom
+            else:
+                centre, ticks = y + 0.5 * (box[2] + box[3]), left
+            self.assertTrue(ticks, f"{message}: label {actor.GetInput()} without ticks")
+            distance = min(abs(centre - tick) for tick in ticks)
+            self.assertLess(distance, 2., f"{message}: label {actor.GetInput()} {distance:.1f} px from its tick")
+
     def worldAt(self, sliceNode, volumeNode, x, y):
         """WCS coordinates of the point (x, y) of the slice view."""
         ras = sliceNode.GetXYToRAS().MultiplyPoint([x, y, 0., 1.])
@@ -222,6 +247,7 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         bottom, left = self.majorTicks(view)
         _, labels = self.axesActors(view)
         self.assertGreaterEqual(len(labels), 2, message)
+        self.assertLabelsOnTicks(view, bottom, left, message)
         for side, positions, axis in (("bottom", bottom, horizontalAxis), ("left", left, verticalAxis)):
             self.assertGreaterEqual(len(positions), 2, f"{message}: {side} ticks")
             def value(position):
@@ -239,6 +265,55 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
                 self.assertLess(abs(residual) / valuePerPixel, 0.5,
                                 f"{message}: {side} tick at {position:.1f} px, value {tickValue}, step {step}")
         return bottom, left
+
+    def test_MouseMoveCompression(self):
+        """Mouse moves of the slice views compressed (by default on Wayland): a
+        drag of queued moves pans once, to the same position as without
+        compression."""
+        import qt
+
+        volumeNode = slicer.util.loadVolume(self.writeRotatedCube())
+        layoutManager = slicer.app.layoutManager()
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView)
+        widget = layoutManager.sliceWidget("Red")
+        view = widget.sliceView()
+        sliceNode = widget.mrmlSliceNode()
+        widget.sliceLogic().GetSliceCompositeNode().SetBackgroundVolumeID(volumeNode.GetID())
+        sliceNode.SetOrientation("XY")
+        self.waitForRenders(view)
+        target = [child for child in view.children() if child.inherits("QVTKOpenGLNativeWidget")][0]
+        module = slicer.modules.astrovolume
+        enabled = module.mouseMoveCompression()
+
+        def post(kind, x, y, button, buttons):
+            event = qt.QMouseEvent(kind, qt.QPointF(x, y), qt.QPointF(target.mapToGlobal(qt.QPoint(int(x), int(y)))),
+                                   button, buttons, qt.Qt.NoModifier)
+            qt.QCoreApplication.postEvent(target, event)
+
+        def drag(moves=50):
+            widget.sliceLogic().FitSliceToAll()
+            slicer.app.processEvents()
+            x, y = view.width / 2, view.height / 2
+            post(qt.QEvent.MouseButtonPress, x, y, qt.Qt.MiddleButton, qt.Qt.MiddleButton)
+            for step in range(1, moves + 1):
+                post(qt.QEvent.MouseMove, x + step, y + 0.5 * step, qt.Qt.NoButton, qt.Qt.MiddleButton)
+            post(qt.QEvent.MouseButtonRelease, x + moves, y + 0.5 * moves, qt.Qt.MiddleButton, qt.Qt.NoButton)
+            for _ in range(5):
+                slicer.app.processEvents()
+            return [round(v, 6) for v in sliceNode.GetXYZOrigin()]
+
+        try:
+            module.setMouseMoveCompression(False)
+            uncompressed = drag()
+            self.assertNotEqual(uncompressed, [0., 0., 0.], "the drag pans")
+            module.setMouseMoveCompression(True)
+            self.assertTrue(module.mouseMoveCompression())
+            compressedBefore = module.compressedMouseMoves()
+            compressed = drag()
+            self.assertEqual(module.compressedMouseMoves() - compressedBefore, 49)
+            self.assertEqual(compressed, uncompressed)
+        finally:
+            module.setMouseMoveCompression(enabled)
 
     def test_WCSAxes(self):
         """WCS axes of a rotated cube: ticks where the sides of the view cross
@@ -291,6 +366,25 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
             widget.sliceLogic().FitSliceToAll()
             self.assertGreaterEqual(self.waitForRenders(view), 1, orientation + ": render")
             self.assertTicksOnWCS(view, volumeNode, horizontalAxis, verticalAxis, orientation)
+
+        # PV slice (reformatted, containing the spectral axis): angular offset
+        # along the slice (bottom) and velocity (left), labels on their ticks
+        sliceNode.SetOrientation("XZ")
+        transform = vtk.vtkTransform()
+        transform.SetMatrix(sliceNode.GetSliceToRAS())
+        transform.RotateY(30.)
+        sliceNode.GetSliceToRAS().DeepCopy(transform.GetMatrix())
+        sliceNode.UpdateMatrices()
+        widget.sliceLogic().FitSliceToAll()
+        self.assertGreaterEqual(self.waitForRenders(view), 1, "PV: render")
+        self.assertEqual(sliceNode.GetOrientation(), "Reformat")
+        pvBottom, pvLeft = self.majorTicks(view)
+        self.assertGreaterEqual(len(pvBottom), 2, "PV: offset ticks")
+        self.assertGreaterEqual(len(pvLeft), 2, "PV: velocity ticks")
+        self.assertLabelsOnTicks(view, pvBottom, pvLeft, "PV")
+        sliceNode.SetOrientation("XY")
+        widget.sliceLogic().FitSliceToAll()
+        self.waitForRenders(view)
 
         # The axes are updated once per render, not for every modification of
         # the slice node (e.g. every mouse move while panning)

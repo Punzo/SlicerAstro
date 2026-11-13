@@ -71,6 +71,13 @@ public:
   /// Define associated node types
   virtual QStringList associatedNodeTypes()const;
 
+  /// Compression of the mouse moves of the VTK views (by default on Wayland,
+  /// where Qt does not compress them; see qSlicerAstroMouseMoveCompressor)
+  Q_INVOKABLE void setMouseMoveCompression(bool enabled);
+  Q_INVOKABLE bool mouseMoveCompression()const;
+  /// Mouse moves not delivered (replaced by a later move)
+  Q_INVOKABLE int compressedMouseMoves()const;
+
 protected:
   /// Initialize the module. Register the AstroVolume reader/writer
   virtual void setup();

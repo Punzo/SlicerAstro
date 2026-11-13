@@ -50,6 +50,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.test_Contours()
         self.setUp()
         self.test_ContoursOfOtherData()
+        self.setUp()
+        self.test_ContoursChannelMap()
 
     def loadWEIN069(self):
         import AstroSampleData
@@ -261,4 +263,69 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
             expected = math.pi * 2. * sigma * sigma * math.log(1. / level) / pixelArea
             self.assertAlmostEqual(float(np.count_nonzero(mask)) / expected, 1., delta=0.2,
                                    msg=f"level {level}")
+        self.delayDisplay("Test passed")
+
+    def test_ContoursChannelMap(self):
+        """Contours of a cube over a 2D image (channel map): the channel slider
+        moves the image to the channel and the XY views to the image, without
+        changing their zoom and panning or the other views."""
+        import numpy as np
+        from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
+
+        self.delayDisplay("Channel map of contours")
+        directory = os.path.join(slicer.app.temporaryPath, "AstroVolumeSegmentationsTest")
+        os.makedirs(directory, exist_ok=True)
+        cubePath = os.path.join(directory, "cube.fits")
+        cube = np.zeros((20, 32, 32), dtype=np.float32)
+        cube[:, 12:20, 12:20] = 1.
+        writeFITS(cubePath, cube, -32, celestialWCS(crpix=(16.5, 16.5), cdelt=(-0.002, 0.002)) + radioVelocityWCS())
+        imagePath = os.path.join(directory, "image.fits")
+        writeFITS(imagePath, np.ones((32, 32), dtype=np.float32), -32,
+                  celestialWCS(crpix=(16.5, 16.5), cdelt=(-0.002, 0.002)))
+        cubeNode = slicer.util.loadVolume(cubePath)
+        imageNode = slicer.util.loadVolume(imagePath)
+        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        selectionNode.SetActiveVolumeID(imageNode.GetID())
+        slicer.app.applicationLogic().PropagateVolumeSelection()
+        slicer.util.selectModule("AstroVolume")
+        slicer.app.processEvents()
+        displayWidget = slicer.modules.astrovolume.widgetRepresentation().findChild("qSlicerAstroScalarVolumeDisplayWidget")
+        slicer.util.findChild(displayWidget, "ContoursVolumeNodeSelector").setCurrentNode(cubeNode)
+        slicer.util.findChild(displayWidget, "ContourLevelsLineEdit").text = "0.5"
+        displayWidget.onCreateContours()
+        slicer.app.processEvents()
+
+        # the user zooms and pans the views
+        layoutManager = slicer.app.layoutManager()
+        sliceNodes = {name: layoutManager.sliceWidget(name).mrmlSliceNode() for name in ("Red", "Green", "Yellow")}
+        for sliceNode in sliceNodes.values():
+            fieldOfView = sliceNode.GetFieldOfView()
+            sliceNode.SetFieldOfView(0.5 * fieldOfView[0], 0.5 * fieldOfView[1], fieldOfView[2])
+            sliceNode.SetXYZOrigin(4., 2., 0.)
+        slicer.app.processEvents()
+
+        def state(sliceNode):
+            matrix = sliceNode.GetSliceToRAS()
+            return (sliceNode.GetOrientation(), tuple(round(v, 6) for v in sliceNode.GetFieldOfView()),
+                    tuple(round(v, 6) for v in sliceNode.GetXYZOrigin()),
+                    tuple(round(matrix.GetElement(i, 3), 6) for i in range(3)))
+        before = {name: state(sliceNode) for name, sliceNode in sliceNodes.items()}
+        slider = slicer.util.findChild(displayWidget, "Contours2DSliderWidget")
+        slider.value = slider.value + 5
+        slicer.app.processEvents()
+
+        for name, sliceNode in sliceNodes.items():
+            after = state(sliceNode)
+            if after[0] == "XY":
+                # same zoom and panning, moved to the plane of the image
+                self.assertEqual(after[1:3], before[name][1:3], name)
+                ras = [0., 0., 0., 1.]
+                ijkToRAS = vtk.vtkMatrix4x4()
+                imageNode.GetIJKToRASMatrix(ijkToRAS)
+                ijkToRAS.MultiplyPoint([16., 16., 0., 1.], ras)
+                rasToXY = vtk.vtkMatrix4x4()
+                vtk.vtkMatrix4x4.Invert(sliceNode.GetXYToRAS(), rasToXY)
+                self.assertAlmostEqual(rasToXY.MultiplyPoint(ras)[2], 0., places=3, msg=f"{name}: image on the slice")
+            else:
+                self.assertEqual(after, before[name], f"{name}: unchanged")
         self.delayDisplay("Test passed")

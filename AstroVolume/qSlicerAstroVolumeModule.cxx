@@ -67,6 +67,7 @@
 // AstroVolume QtModule includes
 #include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
 #include <qSlicerAstroVolumeModule.h>
+#include "qSlicerAstroMouseMoveCompressor.h"
 #include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerAstroSegmentationReader.h>
 #include <qSlicerAstroVolumeReader.h>
@@ -234,6 +235,7 @@ protected:
 public:
   qSlicerApplication* app;
   qSlicerAbstractCoreModule *volumeRendering;
+  qSlicerAstroMouseMoveCompressor* mouseMoveCompressor{nullptr};
 
   qSlicerAstroVolumeModulePrivate(qSlicerAstroVolumeModule& object);
   virtual ~qSlicerAstroVolumeModulePrivate();
@@ -316,6 +318,42 @@ QStringList qSlicerAstroVolumeModule::dependencies() const
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroVolumeModule::setMouseMoveCompression(bool enabled)
+{
+  Q_D(qSlicerAstroVolumeModule);
+  if (enabled == (d->mouseMoveCompressor != nullptr) || !qApp)
+    {
+    return;
+    }
+  if (enabled)
+    {
+    d->mouseMoveCompressor = new qSlicerAstroMouseMoveCompressor(this);
+    qApp->installEventFilter(d->mouseMoveCompressor);
+    }
+  else
+    {
+    qApp->removeEventFilter(d->mouseMoveCompressor);
+    d->mouseMoveCompressor->flush();
+    delete d->mouseMoveCompressor;
+    d->mouseMoveCompressor = nullptr;
+    }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroVolumeModule::mouseMoveCompression()const
+{
+  Q_D(const qSlicerAstroVolumeModule);
+  return d->mouseMoveCompressor != nullptr;
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroVolumeModule::compressedMouseMoves()const
+{
+  Q_D(const qSlicerAstroVolumeModule);
+  return d->mouseMoveCompressor ? d->mouseMoveCompressor->compressedMoves() : 0;
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroVolumeModule::setup()
 {
   Q_D(qSlicerAstroVolumeModule);
@@ -333,6 +371,9 @@ void qSlicerAstroVolumeModule::setup()
     qCritical() << "qSlicerAstroVolumeModule::setup() : qSlicerApplication not found!";
     return;
     }
+
+  // mouse moves of the views compressed where Qt does not (Wayland)
+  this->setMouseMoveCompression(qSlicerAstroMouseMoveCompressor::isNeeded());
 
   // Register the IO module for loading AstroVolumes as a variant of fits files
   if(!d->app->mrmlScene())

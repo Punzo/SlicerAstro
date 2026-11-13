@@ -53,6 +53,8 @@ set(MODULE_SRCS
   qSlicer${MODULE_NAME}LayoutSliceViewFactory.cxx
   qSlicerAstroSegmentationReader.cxx
   qSlicerAstroSegmentationReader.h
+  qSlicerAstroMouseMoveCompressor.cxx
+  qSlicerAstroMouseMoveCompressor.h
   )
 
 set(MODULE_MOC_SRCS
@@ -60,6 +62,7 @@ set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}Reader.h
   qSlicer${MODULE_NAME}LayoutSliceViewFactory.h
   qSlicerAstroSegmentationReader.h
+  qSlicerAstroMouseMoveCompressor.h
   )
 
 set(MODULE_UI_SRCS

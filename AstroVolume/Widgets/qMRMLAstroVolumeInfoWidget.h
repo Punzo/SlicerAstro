@@ -77,6 +77,10 @@ protected slots:
   void updateWidgetFromMRML();
 
 protected:
+  /// Fit the slice views to the data (after the user moved the data)
+  void fitSlicesToAll();
+
+protected:
   QScopedPointer<qMRMLAstroVolumeInfoWidgetPrivate> d_ptr;
 
 private:

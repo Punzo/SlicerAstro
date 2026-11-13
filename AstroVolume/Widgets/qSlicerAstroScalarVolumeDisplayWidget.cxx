@@ -45,6 +45,7 @@
 #include <vtkSlicerApplicationLogic.h>
 #include <atomic>
 #include <cmath>
+#include <vector>
 #include <vtkSegmentationConverter.h>
 #include <vtkSegmentation.h>
 #include <vtkSegment.h>
@@ -641,6 +642,28 @@ void qSlicerAstroScalarVolumeDisplayWidget::onContours2DOriginChanged(double val
   IJKOrigin[2] = value - contoursDims[2] * 0.5;
   IJKtoRASTransform->TransformPoint(IJKOrigin, RASOrigin);
   astroVolume->SetOrigin(RASOrigin);
+
+  // the XY views follow the image (channel map): moved along their normal to
+  // the plane of the image, without changing the zoom, the panning and the
+  // other views
+  double imageCenterIJK[4] = {dims[0] * 0.5, dims[1] * 0.5, 0., 1.}, imageCenterRAS[4] = {0., 0., 0., 1.};
+  vtkNew<vtkMatrix4x4> imageIJKToRAS;
+  astroVolume->GetIJKToRASMatrix(imageIJKToRAS.GetPointer());
+  imageIJKToRAS->MultiplyPoint(imageCenterIJK, imageCenterRAS);
+  vtkMRMLScene* scene = this->mrmlScene();
+  std::vector<vtkMRMLNode*> sliceNodes;
+  if (scene)
+    {
+    scene->GetNodesByClass("vtkMRMLSliceNode", sliceNodes);
+    }
+  for (vtkMRMLNode* node : sliceNodes)
+    {
+    vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(node);
+    if (sliceNode && sliceNode->GetOrientation() == "XY")
+      {
+      sliceNode->JumpSliceByOffsetting(imageCenterRAS[0], imageCenterRAS[1], imageCenterRAS[2]);
+      }
+    }
   this->updateContoursChannelLabel();
 }
 
