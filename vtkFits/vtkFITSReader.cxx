@@ -3196,6 +3196,11 @@ bool vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
     return false;
     }
 
+  // number of voxels as a 64-bit value: cubes may exceed 2^31 voxels
+  const vtkIdType numberOfTuples = static_cast<vtkIdType>(Extent[1] - Extent[0] + 1) *
+                                   static_cast<vtkIdType>(Extent[3] - Extent[2] + 1) *
+                                   static_cast<vtkIdType>(Extent[5] - Extent[4] + 1);
+
   // if we currently have scalars then just adjust the size
   pd = out->GetPointData()->GetScalars();
 
@@ -3203,9 +3208,7 @@ bool vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
       && pd->GetReferenceCount() == 1)
     {
     pd->SetNumberOfComponents(this->GetNumberOfComponents());
-    pd->SetNumberOfTuples((Extent[1] - Extent[0] + 1)*
-                               (Extent[3] - Extent[2] + 1)*
-                               (Extent[5] - Extent[4] + 1));
+    pd->SetNumberOfTuples(numberOfTuples);
     // Since the execute method will be modifying the scalars
     // directly.
     pd->Modified();
@@ -3235,10 +3238,15 @@ bool vtkFITSReader::AllocatePointData(vtkImageData *out, vtkInformation* outInfo
     this->DataType, this->GetNumberOfComponents());
   pd->SetNumberOfComponents(this->GetNumberOfComponents());
 
-  // allocate enough memors
-  pd->SetNumberOfTuples((Extent[1] - Extent[0] + 1)*
-                      (Extent[3] - Extent[2] + 1)*
-                      (Extent[5] - Extent[4] + 1));
+  // allocate enough memory
+  pd->SetNumberOfTuples(numberOfTuples);
+  if (pd->GetNumberOfTuples() != numberOfTuples || (numberOfTuples > 0 && !pd->GetVoidPointer(0)))
+    {
+    vtkErrorMacro("vtkFITSReader::AllocatePointData: not enough memory for "
+                  << numberOfTuples << " voxels.");
+    pd->Delete();
+    return false;
+    }
 
   out->GetPointData()->SetScalars(pd);
   vtkDataObject::SetPointDataActiveScalarInfo(outInfo,

@@ -164,7 +164,8 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         for test in (self.test_DataTypes, self.test_WesterborkUnits, self.test_Projections,
                      self.test_CelestialFrames, self.test_SpectralAxes, self.test_Dimensions,
-                     self.test_MissingWCS, self.test_Extension, self.test_Compression, self.test_RoundTrip):
+                     self.test_MissingWCS, self.test_Extension, self.test_Compression, self.test_RoundTrip,
+                     self.test_Memory, self.test_LargeCube):
             self.setUp()
             test()
 
@@ -448,6 +449,88 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(set(glob.glob(os.path.join(tempfile.gettempdir(), "SlicerAstro-*"))), temporaryFiles)
         os.chmod(readOnlyDirectory, stat.S_IRWXU)
         self.delayDisplay("Test passed")
+
+    def peakMemoryOfLoad(self, path):
+        """Loaded node and the peak increase of the resident memory (MB) while
+        loading path (Linux: /proc/self/status, the peak reset with
+        /proc/self/clear_refs)."""
+        import gc
+
+        def status(key):
+            with open("/proc/self/status") as f:
+                for line in f:
+                    if line.startswith(key):
+                        return int(line.split()[1]) / 1024.
+        gc.collect()
+        before = status("VmRSS")
+        with open("/proc/self/clear_refs", "w") as f:
+            f.write("5")
+        node = self.load(path)
+        return node, status("VmHWM") - before
+
+    def test_Memory(self):
+        """Peak memory of loading a 256 MB cube (plain and gzip compressed):
+        at most 1.1 times the voxels (no copy of the cube); no temporary files
+        left (Linux only)."""
+        if not os.path.exists("/proc/self/clear_refs"):
+            self.skipTest("peak memory measured on Linux only")
+        self.delayDisplay("Memory")
+        shape = (128, 512, 1024)
+        data = np.zeros(shape, dtype=np.float32)
+        data[:, 200:300, 400:600] = 1.
+        data[-1, -1, -1] = 7.
+        wcs = celestialWCS(crpix=(512.5, 256.5)) + radioVelocityWCS()
+        voxelsMB = data.nbytes / 2. ** 20
+        for name in ("memory.fits", "memory.fits.gz"):
+            path = os.path.join(self.directory, name)
+            writeFITS(path, data, -32, wcs)
+            files = sorted(os.listdir(self.directory))
+            node, peak = self.peakMemoryOfLoad(path)
+            self.assertIsNotNone(node, name)
+            voxels = voxelArray(node)
+            self.assertEqual(voxels.shape, shape)
+            self.assertEqual(float(voxels[-1, -1, -1]), 7.)
+            self.assertEqual(float(voxels[0, 250, 500]), 1.)
+            self.assertLess(peak, 1.1 * voxelsMB + 32., f"{name}: peak memory {peak:.0f} MB for {voxelsMB:.0f} MB")
+            self.assertEqual(sorted(os.listdir(self.directory)), files, f"{name}: temporary files left")
+            del voxels, node
+            slicer.mrmlScene.Clear(0)
+            os.remove(path)
+
+    def test_LargeCube(self):
+        """A cube of more than 2^31 voxels (64-bit voxel indices): voxels at
+        the start and at the end, peak memory. Opt-in (8.7 GB of memory and
+        of disk): SLICERASTRO_LARGE_TESTS=1."""
+        if os.environ.get("SLICERASTRO_LARGE_TESTS") != "1" or not os.path.exists("/proc/self/clear_refs"):
+            self.skipTest("set SLICERASTRO_LARGE_TESTS=1 (Linux)")
+        self.delayDisplay("Cube of more than 2^31 voxels")
+        nz, ny, nx = 520, 2048, 2048
+        self.assertGreater(nx * ny * nz, 2 ** 31)
+        header = fitsHeader([("SIMPLE", True), ("BITPIX", -32), ("NAXIS", 3), ("NAXIS1", nx), ("NAXIS2", ny),
+                             ("NAXIS3", nz)] + celestialWCS(crpix=(1024.5, 1024.5)) + radioVelocityWCS())
+        path = os.path.join(self.directory, "large.fits")
+        voxels = nx * ny * nz
+        # sparse file: zeros, except the first and the last voxels
+        with open(path, "wb") as f:
+            f.write(header)
+            f.write(np.array([3.], dtype=">f4").tobytes())
+            f.seek(len(header) + 4 * (voxels - 1))
+            f.write(np.array([5.], dtype=">f4").tobytes())
+            f.truncate(len(header) + 4 * voxels + (-4 * voxels) % 2880)
+        try:
+            node, peak = self.peakMemoryOfLoad(path)
+            self.assertIsNotNone(node)
+            self.assertEqual(node.GetImageData().GetDimensions(), (nx, ny, nz))
+            values = voxelArray(node)
+            self.assertEqual(float(values[0, 0, 0]), 3.)
+            self.assertEqual(float(values[-1, -1, -1]), 5.)
+            self.assertEqual(float(values[nz // 2, ny // 2, nx // 2]), 0.)
+            voxelsMB = 4. * voxels / 2. ** 20
+            self.assertLess(peak, 1.1 * voxelsMB + 32., f"peak memory {peak:.0f} MB for {voxelsMB:.0f} MB")
+            del values, node
+        finally:
+            slicer.mrmlScene.Clear(0)
+            os.remove(path)
 
     def test_RoundTrip(self):
         """Saved and loaded again (.fits and .fits.gz, float and double): same voxels and header."""

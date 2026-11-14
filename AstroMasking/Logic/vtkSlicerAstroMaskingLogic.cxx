@@ -250,8 +250,9 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numSlice = dims[0] * dims[1] * numComponents;
-  const int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  // 64-bit counts: cubes may exceed 2^31 voxels
+  const vtkIdType numSlice = static_cast<vtkIdType>(dims[0]) * dims[1] * numComponents;
+  const vtkIdType numElements = numSlice * dims[2];
 
   float *inFPixel = nullptr;
   float *outFPixel = nullptr;

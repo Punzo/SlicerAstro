@@ -1149,7 +1149,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     }
 
   // Create empty segment in current segmentation
-  int LevelDim = 0;
+  vtkIdType LevelDim = 0;
 
   for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
     {
@@ -1235,9 +1235,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
 
     int dims[3];
     modifierLabelmap->GetDimensions(dims);
-    if (LevelDim < dims[0] * dims[1] * dims[2])
+    const vtkIdType levelVoxels = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2];
+    if (LevelDim < levelVoxels)
       {
-      LevelDim = dims[0] * dims[1] * dims[2];
+      LevelDim = levelVoxels;
       }
     }
 

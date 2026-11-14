@@ -284,15 +284,16 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
   const int numComponents = inputVolume->GetImageData()->GetNumberOfScalarComponents();
-  const int numSlice = dims[0] * dims[1] * numComponents;
-  int numElements = dims[0] * dims[1] * dims[2] * numComponents;
+  // 64-bit counts: cubes may exceed 2^31 voxels
+  const vtkIdType numSlice = static_cast<vtkIdType>(dims[0]) * dims[1] * numComponents;
+  vtkIdType numElements = numSlice * dims[2];
 
   float *inFPixel = nullptr;
   double *inDPixel = nullptr;
   short *maskPixel = nullptr;
   double Max = inputVolume->GetImageData()->GetScalarTypeMin(), Min = inputVolume->GetImageData()->GetScalarTypeMax();
   double Mean = 0., Median = 0., Std = 0., Sum = 0., TotalFlux = 0.;
-  int Npixels = 0;
+  vtkIdType Npixels = 0;
 
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
@@ -342,7 +343,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       vtkSMPThreadLocal<double> MaxLocal(Max);
       vtkSMPThreadLocal<double> MinLocal(Min);
       vtkSMPThreadLocal<double> SumLocal(0);
-      vtkSMPThreadLocal<int> NpixelsLocal(0);
+      vtkSMPThreadLocal<vtkIdType> NpixelsLocal(0);
       vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
         if (progress.IsCancelled())
@@ -352,7 +353,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         double& Max = MaxLocal.Local();
         double& Min = MinLocal.Local();
         double& Sum = SumLocal.Local();
-        int& Npixels = NpixelsLocal.Local();
+        vtkIdType& Npixels = NpixelsLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
           if (*(maskPixel + elementCnt) < 1)
@@ -401,7 +402,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       for (double value : MaxLocal) { Max = std::max(Max, value); }
       for (double value : MinLocal) { Min = std::min(Min, value); }
       for (double value : SumLocal) { Sum += value; }
-      for (int value : NpixelsLocal) { Npixels += value; }
+      for (vtkIdType value : NpixelsLocal) { Npixels += value; }
       cancel = progress.IsCancelled();
       }
 
@@ -540,11 +541,11 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     double roiBounds[6];
     this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
 
-    int firstElement = (roiBounds[0] + roiBounds[2] * dims[0] +
-                       roiBounds[4] * numSlice);
+    const vtkIdType firstElement = static_cast<vtkIdType>(roiBounds[0] + roiBounds[2] * dims[0] +
+                                                          roiBounds[4] * numSlice);
 
-    int lastElement = (roiBounds[1] + roiBounds[3] * dims[0] +
-                      roiBounds[5] * numSlice) + 1;
+    const vtkIdType lastElement = static_cast<vtkIdType>(roiBounds[1] + roiBounds[3] * dims[0] +
+                                                         roiBounds[5] * numSlice) + 1;
 
     numElements = lastElement - firstElement;
 
@@ -559,7 +560,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       vtkSMPThreadLocal<double> MaxLocal(Max);
       vtkSMPThreadLocal<double> MinLocal(Min);
       vtkSMPThreadLocal<double> SumLocal(0);
-      vtkSMPThreadLocal<int> NpixelsLocal(0);
+      vtkSMPThreadLocal<vtkIdType> NpixelsLocal(0);
       vtkSMPTools::For(firstElement, lastElement, [&](vtkIdType firstIndex, vtkIdType lastIndex)
         {
         if (progress.IsCancelled())
@@ -569,16 +570,12 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         double& Max = MaxLocal.Local();
         double& Min = MinLocal.Local();
         double& Sum = SumLocal.Local();
-        int& Npixels = NpixelsLocal.Local();
+        vtkIdType& Npixels = NpixelsLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
-          int ref  = (int) floor(elementCnt / dims[0]);
-          ref *= dims[0];
-          int x = elementCnt - ref;
-          ref = (int) floor(elementCnt / numSlice);
-          ref *= numSlice;
-          ref = elementCnt - ref;
-          int y = (int) floor(ref / dims[0]);
+          // position in the plane (64-bit indices)
+          const vtkIdType x = elementCnt % dims[0];
+          const vtkIdType y = (elementCnt % numSlice) / dims[0];
           if (x < roiBounds[0] || x > roiBounds[1] ||
               y < roiBounds[2] || y > roiBounds[3])
             {
@@ -626,7 +623,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       for (double value : MaxLocal) { Max = std::max(Max, value); }
       for (double value : MinLocal) { Min = std::min(Min, value); }
       for (double value : SumLocal) { Sum += value; }
-      for (int value : NpixelsLocal) { Npixels += value; }
+      for (vtkIdType value : NpixelsLocal) { Npixels += value; }
       cancel = progress.IsCancelled();
       }
 
@@ -673,13 +670,9 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
         double& Std = StdLocal.Local();
         for (vtkIdType elementCnt = firstIndex; elementCnt < lastIndex; elementCnt++)
           {
-          int ref  = (int) floor(elementCnt / dims[0]);
-          ref *= dims[0];
-          int x = elementCnt - ref;
-          ref = (int) floor(elementCnt / numSlice);
-          ref *= numSlice;
-          ref = elementCnt - ref;
-          int y = (int) floor(ref / dims[0]);
+          // position in the plane (64-bit indices)
+          const vtkIdType x = elementCnt % dims[0];
+          const vtkIdType y = (elementCnt % numSlice) / dims[0];
           if (x < roiBounds[0] || x > roiBounds[1] ||
               y < roiBounds[2] || y > roiBounds[3])
             {
