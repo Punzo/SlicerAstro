@@ -223,6 +223,11 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
             mainWindow.activateWindow()
             slicer.app.processEvents()
             time.sleep(0.05)
+        if qt.QApplication.activeWindow() != mainWindow and hasattr(qt.QApplication, "setActiveWindow"):
+            # Qt 6 on X11 without a window manager (Xvfb in CI) does not
+            # activate windows: make it the active window of the application
+            qt.QApplication.setActiveWindow(mainWindow)
+            slicer.app.processEvents()
         self.assertEqual(qt.QApplication.activeWindow(), mainWindow)
 
         # select Erase inside, then Fill inside: the focus is on the option

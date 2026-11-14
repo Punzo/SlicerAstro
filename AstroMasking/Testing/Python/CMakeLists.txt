@@ -1,4 +1,5 @@
-if(Slicer_USE_QtTesting AND Slicer_USE_PYTHONQT)
+# (the tests are scripted module tests: QtTesting is not needed)
+if(Slicer_USE_PYTHONQT)
   slicerMacroBuildScriptedModule(
     NAME AstroMaskingSelfTest
     SCRIPTS AstroMaskingSelfTest.py
