@@ -10,9 +10,12 @@ log=$1
 title=${2:-Errors}
 [ -f "$log" ] || exit 0
 pattern='error[: ]|Error[: ]|ERROR|FAILED|\*\*\*Failed|FAIL:|fatal|undefined reference|unresolved external|Traceback|Assertion|Segmentation|exit abnormally|No such file|exit code'
+# a CMake error explains itself in the lines that follow it
+cmake_errors=$(grep -A10 -- 'CMake Error' "$log" | grep -v -E '^\s*$|^--$' | cut -c1-300 | head -n 40)
 lines=$(grep -E -- "$pattern" "$log" \
   | grep -v -E -i '(cl|link|c\+\+|g\+\+|gcc|cc|clang\+\+|clang)(\.exe)?"? .*(-c |/c |-o |/out:|/nologo)|^LINK: command|cmd\.exe /C' \
   | cut -c1-300 | awk '!seen[$0]++' | head -n 120)
+[ -n "$cmake_errors" ] && lines="${cmake_errors}"$'\n'"${lines}"
 [ -n "$lines" ] || lines=$(tail -n 40 "$log" | cut -c1-300)
 
 emit() {

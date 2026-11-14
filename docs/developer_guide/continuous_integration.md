@@ -22,7 +22,8 @@ the 3D Slicer extensions factory once SlicerAstro is in the
    - compilers, CMake, ccache, Mesa (OpenGL), the X11/xcb libraries, OpenSSL
      and Xvfb from apt;
    - Qt 6.10.1 with [aqtinstall](https://github.com/miurahr/aqtinstall),
-     including the `qt5compat` and `qtscxml` modules that 3D Slicer needs.
+     including the `qt5compat`, `qtscxml` and `qtmultimedia` modules that 3D Slicer
+     and CTK (PythonQt) need.
 2. **3D Slicer** (`.github/ci/build-extension.sh`):
    - Checks out the pinned commit (`SLICER_SHA` in the script).
    - Configures a Release superbuild with Qt 6, without the parts SlicerAstro

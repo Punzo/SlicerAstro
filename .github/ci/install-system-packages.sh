@@ -17,5 +17,5 @@ $SUDO apt-get install -y -q --no-install-recommends \
 QT_ROOT=${1:-$HOME/Qt}
 python3 -m venv "$HOME/aqt-venv"
 "$HOME/aqt-venv/bin/pip" install -q aqtinstall==3.3.0
-"$HOME/aqt-venv/bin/aqt" install-qt linux desktop 6.10.1 linux_gcc_64 -m qt5compat qtscxml --outputdir "$QT_ROOT"
+"$HOME/aqt-venv/bin/aqt" install-qt linux desktop 6.10.1 linux_gcc_64 -m qt5compat qtscxml qtmultimedia --outputdir "$QT_ROOT"
 echo "Qt6_DIR=$QT_ROOT/6.10.1/gcc_64/lib/cmake/Qt6"
