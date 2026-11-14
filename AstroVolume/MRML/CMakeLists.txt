@@ -28,8 +28,8 @@ set(${KIT}_SRCS
     vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroMaskingParametersNode.cxx
     vtkMRMLAstroMaskingParametersNode.h
-    vtkMRMLAstroMeasurementLine.cxx
-    vtkMRMLAstroMeasurementLine.h
+    vtkMRMLAstroMeasurement.cxx
+    vtkMRMLAstroMeasurement.h
     vtkMRMLAstroModelingParametersNode.cxx
     vtkMRMLAstroModelingParametersNode.h
     vtkMRMLAstroMomentMapsParametersNode.cxx

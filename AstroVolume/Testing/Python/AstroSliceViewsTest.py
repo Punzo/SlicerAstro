@@ -269,9 +269,11 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         return bottom, left
 
     def test_LineMeasurements(self):
-        """Markups lines measure the angular separation on the sky and the
-        velocity difference with the WCS of the active volume (not the length
-        in millimetres), also after saving and loading the scene."""
+        """Markups measure with the WCS of the active volume (not millimetres or
+        angles in the slice plane): lines the separation and the velocity
+        difference, curves the length on the sky, closed curves the solid
+        angle, angles the angle on the sky; also after saving and loading the
+        scene."""
         import math
         volumeNode = slicer.util.loadVolume(self.writeRotatedCube())
         selectionNode = slicer.app.applicationLogic().GetSelectionNode()
@@ -301,7 +303,7 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
 
         measurement = line.GetMeasurement("separation")
         self.assertIsNotNone(measurement)
-        self.assertTrue(measurement.IsA("vtkMRMLAstroMeasurementLine"))
+        self.assertTrue(measurement.IsA("vtkMRMLAstroMeasurement"))
         expected = separation(world(start), world(end))
         self.assertAlmostEqual(measurement.GetValue(), expected, delta=1.e-9)
         self.assertEqual(measurement.GetUnits(), "'")  # 0.1 deg: arcmin
@@ -318,6 +320,39 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         self.assertAlmostEqual(line.GetMeasurement("separation").GetValue(),
                                separation(world(start), world((130., 95., 1.))), delta=1.e-9)
 
+        # open curve: length on the sky along the curve (2 points: the
+        # separation), velocity difference of its ends
+        curve = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsCurveNode", "C")
+        curve.AddControlPointWorld(vtk.vtkVector3d(*ras(start)))
+        curve.AddControlPointWorld(vtk.vtkVector3d(*ras(end)))
+        self.assertAlmostEqual(curve.GetMeasurement("sky length").GetValue() / separation(world(start), world(end)), 1.,
+                               delta=1.e-6)
+        self.assertAlmostEqual(curve.GetMeasurement("velocity difference").GetValue(), world(end)[2] - world(start)[2],
+                               delta=1.e-6)
+        self.assertFalse(curve.GetMeasurement("length").GetEnabled())
+
+        # closed curve (square of 40 pixels in one channel): perimeter and solid angle
+        pixel = 0.000833333
+        closed = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsClosedCurveNode", "CC")
+        closed.SetCurveTypeToLinear()
+        for corner in ((60., 40., 2.), (100., 40., 2.), (100., 80., 2.), (60., 80., 2.)):
+            closed.AddControlPointWorld(vtk.vtkVector3d(*ras(corner)))
+        self.assertAlmostEqual(closed.GetMeasurement("sky length").GetValue() / (4. * 40. * pixel), 1., delta=2.e-3)
+        area = closed.GetMeasurement("sky area")
+        self.assertAlmostEqual(area.GetValue() / (40. * pixel) ** 2, 1., delta=2.e-3)
+        self.assertIn("arcmin", area.GetUnits())
+        self.assertFalse(closed.GetMeasurement("area").GetEnabled())
+
+        # angle: right angle in pixels on the sky (conformal projection near the
+        # centre); points in different channels: not defined
+        angle = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsAngleNode", "A")
+        for point in ((100., 60., 3.), (80., 60., 3.), (80., 85., 3.)):
+            angle.AddControlPointWorld(vtk.vtkVector3d(*ras(point)))
+        self.assertAlmostEqual(angle.GetMeasurement("sky angle").GetValue(), 90., delta=0.05)
+        self.assertFalse(angle.GetMeasurement("angle").GetEnabled())
+        angle.SetNthControlPointPositionWorld(2, ras((80., 85., 6.)))
+        self.assertFalse(angle.GetMeasurement("sky angle").GetValueDefined())
+
         # saved and loaded: computed again with the WCS
         scenePath = os.path.join(slicer.app.temporaryPath, "AstroSliceViewsTestMeasurements.mrb")
         if os.path.exists(scenePath):
@@ -330,7 +365,7 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         selectionNode.SetActiveVolumeID(slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroVolumeNode").GetID())
         slicer.app.processEvents()
         measurement = line.GetMeasurement("separation")
-        self.assertTrue(measurement.IsA("vtkMRMLAstroMeasurementLine"))
+        self.assertTrue(measurement.IsA("vtkMRMLAstroMeasurement"))
         self.assertAlmostEqual(measurement.GetValue(), separation(world(start), world((130., 95., 1.))), delta=1.e-9)
 
     def test_MouseMoveCompression(self):

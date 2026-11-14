@@ -38,7 +38,7 @@
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
 class vtkMRMLCameraNode;
-class vtkMRMLMarkupsLineNode;
+class vtkMRMLMarkupsNode;
 class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroReprojectParametersNode;
@@ -124,12 +124,14 @@ public:
   /// The orientation and the default orientation of the node are converted.
   static void SetAstroSliceOrientationPresets(vtkMRMLSliceNode* sliceNode);
 
-  /// Astronomical measurements of a markups line with the WCS of the active
-  /// volume (vtkMRMLAstroMeasurementLine: separation on the sky, velocity
-  /// difference): added if missing (also in place of the static copies of a
-  /// loaded scene); the length (in millimetres) is used only when the active
-  /// volume is not astronomical. The measurements are computed again.
-  static void UpdateAstroLineMeasurements(vtkMRMLMarkupsLineNode* lineNode);
+  /// Astronomical measurements of markups (lines, open and closed curves,
+  /// angles) with the WCS of the active volume (vtkMRMLAstroMeasurement:
+  /// separation, velocity difference, sky length, sky area, sky angle): added
+  /// if missing (also in place of the static copies of a loaded scene); the
+  /// geometric measurements (millimetres, angles in the slice plane) are used
+  /// only when the active volume is not astronomical. The measurements are
+  /// computed again.
+  static void UpdateAstroMeasurements(vtkMRMLMarkupsNode* markupsNode);
 
   /// Return true if the segmentation is an astronomical mask (binary labelmap
   /// source, not contours): read from a FITS mask (it has the FITS header),
@@ -394,9 +396,9 @@ protected:
 #endif
   std::string LastReprojectError;
 
-  /// Measurements of the markups lines computed again when the active volume
+  /// Measurements of the markups computed again when the active volume
   /// changes (its WCS is used)
-  void UpdateAllAstroLineMeasurements();
+  void UpdateAllAstroMeasurements();
   void ObserveSelectionNode();
   std::string MeasurementsActiveVolumeID;
 

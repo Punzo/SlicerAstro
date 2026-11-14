@@ -38,7 +38,7 @@
 #include <vtkSlicerAstroSMPTools.h>
 
 // MRML nodes includes
-#include <vtkMRMLAstroMeasurementLine.h>
+#include <vtkMRMLAstroMeasurement.h>
 #include <vtkMRMLMarkupsLineNode.h>
 #include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
@@ -192,73 +192,99 @@ void vtkSlicerAstroVolumeLogic::ObserveSelectionNode()
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::UpdateAstroLineMeasurements(vtkMRMLMarkupsLineNode* lineNode)
+void vtkSlicerAstroVolumeLogic::UpdateAstroMeasurements(vtkMRMLMarkupsNode* markupsNode)
 {
-  if (!lineNode)
+  if (!markupsNode)
     {
     return;
     }
-  const int quantities[2] = {vtkMRMLAstroMeasurementLine::AngularSeparation,
-                             vtkMRMLAstroMeasurementLine::VelocityDifference};
-  bool found[2] = {false, false};
-  for (int index = lineNode->GetNumberOfMeasurements() - 1; index >= 0; index--)
+  // astronomical quantities and the geometric measurements they replace
+  std::vector<int> quantities;
+  std::vector<std::string> geometric;
+  if (markupsNode->IsA("vtkMRMLMarkupsLineNode"))
     {
-    vtkMRMLMeasurement* measurement = lineNode->GetNthMeasurement(index);
+    quantities = {vtkMRMLAstroMeasurement::Separation, vtkMRMLAstroMeasurement::VelocityDifference};
+    geometric = {"length"};
+    }
+  else if (markupsNode->IsA("vtkMRMLMarkupsClosedCurveNode"))
+    {
+    quantities = {vtkMRMLAstroMeasurement::SkyLength, vtkMRMLAstroMeasurement::SkyArea};
+    geometric = {"length", "area"};
+    }
+  else if (markupsNode->IsA("vtkMRMLMarkupsCurveNode"))
+    {
+    quantities = {vtkMRMLAstroMeasurement::SkyLength, vtkMRMLAstroMeasurement::VelocityDifference};
+    geometric = {"length"};
+    }
+  else if (markupsNode->IsA("vtkMRMLMarkupsAngleNode"))
+    {
+    quantities = {vtkMRMLAstroMeasurement::SkyAngle};
+    geometric = {"angle"};
+    }
+  else
+    {
+    return;
+    }
+  std::vector<bool> found(quantities.size(), false);
+  for (int index = markupsNode->GetNumberOfMeasurements() - 1; index >= 0; index--)
+    {
+    vtkMRMLMeasurement* measurement = markupsNode->GetNthMeasurement(index);
     if (!measurement)
       {
       continue;
       }
-    vtkMRMLAstroMeasurementLine* astroMeasurement = vtkMRMLAstroMeasurementLine::SafeDownCast(measurement);
-    for (int quantity = 0; quantity < 2; quantity++)
+    for (std::size_t quantity = 0; quantity < quantities.size(); quantity++)
       {
-      vtkNew<vtkMRMLAstroMeasurementLine> reference;
-      reference->SetQuantity(quantities[quantity]);
-      if (measurement->GetName() != reference->GetName())
+      if (measurement->GetName() != vtkMRMLAstroMeasurement::GetQuantityName(quantities[quantity]))
         {
         continue;
         }
-      if (astroMeasurement)
+      if (vtkMRMLAstroMeasurement::SafeDownCast(measurement))
         {
         found[quantity] = true;
         }
       else
         {
         // static copy of a loaded scene: replaced by the computed measurement
-        lineNode->RemoveNthMeasurement(index);
+        markupsNode->RemoveNthMeasurement(index);
         }
       }
     }
-  for (int quantity = 0; quantity < 2; quantity++)
+  for (std::size_t quantity = 0; quantity < quantities.size(); quantity++)
     {
     if (!found[quantity])
       {
-      vtkNew<vtkMRMLAstroMeasurementLine> measurement;
+      vtkNew<vtkMRMLAstroMeasurement> measurement;
       measurement->SetQuantity(quantities[quantity]);
-      measurement->SetInputMRMLNode(lineNode);
-      lineNode->AddMeasurement(measurement);
+      measurement->SetInputMRMLNode(markupsNode);
+      markupsNode->AddMeasurement(measurement);
       }
     }
-  // the length (mm) only for data without WCS
-  vtkMRMLMeasurement* length = lineNode->GetMeasurement("length");
-  if (length)
+  // the geometric measurements only for data without WCS
+  const bool astronomical = vtkMRMLAstroMeasurement::GetMeasurementVolume(markupsNode) != nullptr;
+  for (const std::string& name : geometric)
     {
-    length->SetEnabled(vtkMRMLAstroMeasurementLine::GetMeasurementVolume(lineNode) == nullptr);
+    vtkMRMLMeasurement* measurement = markupsNode->GetMeasurement(name.c_str());
+    if (measurement)
+      {
+      measurement->SetEnabled(!astronomical);
+      }
     }
-  lineNode->UpdateAllMeasurements();
+  markupsNode->UpdateAllMeasurements();
 }
 
 //----------------------------------------------------------------------------
-void vtkSlicerAstroVolumeLogic::UpdateAllAstroLineMeasurements()
+void vtkSlicerAstroVolumeLogic::UpdateAllAstroMeasurements()
 {
   if (!this->GetMRMLScene())
     {
     return;
     }
-  std::vector<vtkMRMLNode*> lineNodes;
-  this->GetMRMLScene()->GetNodesByClass("vtkMRMLMarkupsLineNode", lineNodes);
-  for (vtkMRMLNode* lineNode : lineNodes)
+  std::vector<vtkMRMLNode*> markupsNodes;
+  this->GetMRMLScene()->GetNodesByClass("vtkMRMLMarkupsNode", markupsNodes);
+  for (vtkMRMLNode* markupsNode : markupsNodes)
     {
-    vtkSlicerAstroVolumeLogic::UpdateAstroLineMeasurements(vtkMRMLMarkupsLineNode::SafeDownCast(lineNode));
+    vtkSlicerAstroVolumeLogic::UpdateAstroMeasurements(vtkMRMLMarkupsNode::SafeDownCast(markupsNode));
     }
 }
 
@@ -358,8 +384,8 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
 {
   this->UpdateSliceOrientationPresets();
-  // lines of the scene (their measurements were read as static copies)
-  this->UpdateAllAstroLineMeasurements();
+  // markups of the scene (their measurements were read as static copies)
+  this->UpdateAllAstroMeasurements();
 
   std::vector<vtkMRMLNode*> segmentationNodes;
   this->GetMRMLScene()->GetNodesByClass("vtkMRMLSegmentationNode", segmentationNodes);
@@ -406,10 +432,10 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode::SafeDownCast(node));
     }
 
-  // markups lines: separation and velocity difference with the WCS
-  if (vtkMRMLMarkupsLineNode* lineNode = vtkMRMLMarkupsLineNode::SafeDownCast(node))
+  // markups: astronomical measurements with the WCS
+  if (vtkMRMLMarkupsNode* markupsNode = vtkMRMLMarkupsNode::SafeDownCast(node))
     {
-    vtkSlicerAstroVolumeLogic::UpdateAstroLineMeasurements(lineNode);
+    vtkSlicerAstroVolumeLogic::UpdateAstroMeasurements(markupsNode);
     }
   if (node->IsA("vtkMRMLSelectionNode"))
     {
@@ -2858,7 +2884,7 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
     if (activeVolumeID != this->MeasurementsActiveVolumeID)
       {
       this->MeasurementsActiveVolumeID = activeVolumeID;
-      this->UpdateAllAstroLineMeasurements();
+      this->UpdateAllAstroMeasurements();
       }
     return;
     }
