@@ -41,6 +41,13 @@ if(${EXTENSION_NAME}_SUPERBUILD)
 endif()
 
 #-----------------------------------------------------------------------------
+# MSVC: the Microsoft C runtime declares a non-standard wcsset() that conflicts
+# with WCSLIB's wcsset(): no non-standard C runtime names (as WCSLIB and BBarolo)
+if(MSVC)
+  add_compile_definitions(_CRT_DECLARE_NONSTDC_NAMES=0)
+endif()
+
+#-----------------------------------------------------------------------------
 # Configuration header
 # Multi-threading uses vtkSMPTools (TBB backend in Slicer): no OpenMP.
 #
