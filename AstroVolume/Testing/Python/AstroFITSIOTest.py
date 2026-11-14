@@ -473,7 +473,9 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         at most 1.1 times the voxels (no copy of the cube); no temporary files
         left (Linux only)."""
         if not os.path.exists("/proc/self/clear_refs"):
-            self.skipTest("peak memory measured on Linux only")
+            # (runTest calls the tests directly: no unittest skip)
+            self.delayDisplay("Memory: skipped (peak memory measured on Linux only)")
+            return
         self.delayDisplay("Memory")
         shape = (128, 512, 1024)
         data = np.zeros(shape, dtype=np.float32)
@@ -502,7 +504,8 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         the start and at the end, peak memory. Opt-in (8.7 GB of memory and
         of disk): SLICERASTRO_LARGE_TESTS=1."""
         if os.environ.get("SLICERASTRO_LARGE_TESTS") != "1" or not os.path.exists("/proc/self/clear_refs"):
-            self.skipTest("set SLICERASTRO_LARGE_TESTS=1 (Linux)")
+            self.delayDisplay("Cube of more than 2^31 voxels: skipped (set SLICERASTRO_LARGE_TESTS=1, Linux)")
+            return
         self.delayDisplay("Cube of more than 2^31 voxels")
         nz, ny, nx = 520, 2048, 2048
         self.assertGreater(nx * ny * nz, 2 ** 31)
