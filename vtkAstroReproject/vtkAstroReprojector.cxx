@@ -727,6 +727,23 @@ double Interpolate(const double* plane, int nx, int ny, double x, double y, int 
     {
     return NaN;
     }
+  // positions at a pixel within the rounding of the WCS transformations (e.g.
+  // the same grid): the pixel value, no weight for the neighbours (a blank
+  // neighbour must not blank it)
+  const double xr = std::round(x), yr = std::round(y);
+  if (std::fabs(x - xr) < 1.e-6)
+    {
+    x = xr;
+    }
+  if (std::fabs(y - yr) < 1.e-6)
+    {
+    y = yr;
+    }
+  if (x == xr && y == yr && xr >= 0. && yr >= 0. && xr <= nx - 1. && yr <= ny - 1.)
+    {
+    // all the kernels interpolate: the value of the pixel
+    return plane[static_cast<std::size_t>(xr) + static_cast<std::size_t>(nx) * static_cast<std::size_t>(yr)];
+    }
   const double xc = std::min(std::max(x, 0.), nx - 1.);
   const double yc = std::min(std::max(y, 0.), ny - 1.);
   if (method == vtkAstroReprojector::Nearest)
@@ -777,11 +794,16 @@ double Interpolate(const double* plane, int nx, int ny, double x, double y, int 
       const double* row = plane + static_cast<std::size_t>(nx) * (j0 - 1 + b) + (i0 - 1);
       for (int a = 0; a < 4; a++)
         {
+        const double w = wx[a] * wy[b];
+        if (w == 0.)
+          {
+          continue; // (e.g. at a pixel: a blank neighbour does not blank it)
+          }
         if (std::isnan(row[a]))
           {
           return NaN;
           }
-        sum += wx[a] * wy[b] * row[a];
+        sum += w * row[a];
         }
       }
     return sum;

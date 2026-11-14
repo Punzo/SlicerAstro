@@ -214,13 +214,16 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Identity")
         model = gaussianSource(180.01, 30.005, 0.02)
         node = self.volume("identity", (1, 40, 48), celestialCards(crpix=(24.5, 20.5)), model)
+        # blank pixels: blank in the output, their neighbours unchanged
+        voxelArray(node)[0, 18:22, 20:25] = np.nan
+        node.GetImageData().Modified()
         P = slicer.vtkMRMLAstroReprojectParametersNode
         for method in (P.NearestNeighbour, P.Bilinear, P.Bicubic, P.Lanczos3, P.AreaAverage, P.ExactOverlap):
             pnode = self.parameters([node], ReferenceVolumeNodeID=node.GetID(),
                                     SpatialGridMode=P.SpatialReference, InterpolationOrder=method)
             output = self.reproject(pnode)
             self.assertEqual(output.GetImageData().GetDimensions(), node.GetImageData().GetDimensions())
-            np.testing.assert_allclose(voxelArray(output), voxelArray(node), rtol=0., atol=2.e-6,
+            np.testing.assert_allclose(voxelArray(output), voxelArray(node), rtol=0., atol=2.e-6, equal_nan=True,
                                        err_msg=f"method {method}")
             slicer.mrmlScene.RemoveNode(output)
 
