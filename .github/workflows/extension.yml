@@ -55,7 +55,13 @@ jobs:
           restore-keys: ccache-linux-qt6-
 
       - name: Build and test
-        run: .github/ci/build-extension.sh "$GITHUB_WORKSPACE" "$WORK/build"
+        run: |
+          set -o pipefail
+          .github/ci/build-extension.sh "$GITHUB_WORKSPACE" "$WORK/build" 2>&1 | tee "$WORK/build.log"
+
+      - name: Errors
+        if: failure()
+        run: bash .github/ci/annotate-errors.sh "$WORK/build.log" "Build and test errors"
 
       - name: Save the compiler cache
         if: always()

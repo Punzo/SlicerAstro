@@ -47,7 +47,15 @@ jobs:
         run: cmake -S .github/ci/dependencies -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 
       - name: Build
-        run: cmake --build build --parallel
+        shell: bash
+        run: |
+          set -o pipefail
+          cmake --build build --parallel 2>&1 | tee build.log
+
+      - name: Build errors
+        if: failure()
+        shell: bash
+        run: bash .github/ci/annotate-errors.sh build.log "Build errors (${{ matrix.os }})"
 
       - name: Smoke test (Linux, macOS)
         if: runner.os != 'Windows'
