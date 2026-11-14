@@ -1,0 +1,73 @@
+# Build 3D Slicer (Release, Qt 6, without the parts SlicerAstro does not use)
+# and SlicerAstro on a GitHub Linux runner, and run the tests of SlicerAstro.
+#
+# 3D Slicer is built from source (about 3-5 hours the first time on the 4
+# cores of a runner); the compiler cache (ccache, in the GitHub cache) makes
+# the next runs much faster. If a first run stops at the time limit of the
+# 3D Slicer build, run the workflow again: it continues from the cache.
+name: Extension (Linux)
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"   # weekly, Sunday 03:00 UTC
+  workflow_dispatch:
+  push:
+    branches: [master, update-slicer-5.13]
+    paths-ignore: ["docs/**", "**.md"]
+
+concurrency:
+  group: extension-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    env:
+      WORK: /mnt/work
+      CCACHE_DIR: /mnt/work/ccache
+      CCACHE_MAXSIZE: 8G
+      JOBS: 4
+      # 3D Slicer build stopped in time to save the compiler cache
+      SLICER_TIME_LIMIT: 290
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          sudo mkdir -p "$WORK" && sudo chown "$USER" "$WORK"
+          df -h / /mnt
+
+      - name: System packages and Qt
+        run: |
+          .github/ci/install-system-packages.sh "$HOME/Qt" | tee qt.txt
+          grep '^Qt6_DIR=' qt.txt >> "$GITHUB_ENV"
+
+      - name: Restore the compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /mnt/work/ccache
+          key: ccache-linux-qt6-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-qt6-
+
+      - name: Build and test
+        run: .github/ci/build-extension.sh "$GITHUB_WORKSPACE" "$WORK/build"
+
+      - name: Save the compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /mnt/work/ccache
+          key: ccache-linux-qt6-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: /mnt/work/build/SlicerAstro-build/inner-build/Testing/Temporary/
+          if-no-files-found: ignore
