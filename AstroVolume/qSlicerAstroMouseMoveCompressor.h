@@ -30,13 +30,19 @@
 class QMouseEvent;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume
-/// Application event filter compressing the mouse moves of the VTK views
-/// (slice and 3D views): consecutive moves are replaced by the last one,
-/// delivered once per pass of the event loop, as Qt does on X11
-/// (Qt::AA_CompressHighFrequencyEvents). On Wayland every pointer event is
-/// delivered (up to 1000 per second), and each one pans, zooms or updates
-/// the views. Other input events (buttons, wheel, keys, enter and leave)
-/// deliver the pending move first, so the order of the events is kept.
+/// Application event filter for the mouse moves of the VTK views (slice and
+/// 3D views):
+/// - hover moves are dropped: QVTKOpenGLNativeWidget has mouse tracking and
+///   Qt::WA_Hover, and QVTKInteractorAdapter turns both QEvent::MouseMove and
+///   QEvent::HoverMove into a vtkCommand::MouseMoveEvent. Qt 6 sends a hover
+///   move with every mouse move, so every pointer motion was processed twice
+///   (interaction, displayable managers and a render of all the views).
+/// - optionally (by default on Wayland) consecutive mouse moves are replaced
+///   by the last one, delivered once per pass of the event loop, as Qt does on
+///   X11 (Qt::AA_CompressHighFrequencyEvents). On Wayland every pointer event
+///   is delivered (up to 1000 per second). Other input events (buttons, wheel,
+///   keys, enter and leave) deliver the pending move first, so the order of
+///   the events is kept.
 class qSlicerAstroMouseMoveCompressor : public QObject
 {
   Q_OBJECT
@@ -52,8 +58,13 @@ public:
 
   bool eventFilter(QObject* watched, QEvent* event) override;
 
-  /// Moves not delivered (replaced by a later move)
+  /// Compression of the mouse moves (hover moves are always dropped)
+  void setCompressMoves(bool compress);
+  bool compressMoves() const;
+
+  /// Moves not delivered (replaced by a later move), hover moves dropped
   int compressedMoves() const;
+  int droppedHoverMoves() const;
 
 public slots:
   /// Deliver the pending move
@@ -65,6 +76,8 @@ protected:
   bool Replaying{false};
   bool FlushScheduled{false};
   int CompressedMoves{0};
+  int DroppedHoverMoves{0};
+  bool CompressMoves{true};
 };
 
 #endif

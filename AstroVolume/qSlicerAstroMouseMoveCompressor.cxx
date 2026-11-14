@@ -88,13 +88,45 @@ int qSlicerAstroMouseMoveCompressor::compressedMoves() const
 }
 
 //-----------------------------------------------------------------------------
+int qSlicerAstroMouseMoveCompressor::droppedHoverMoves() const
+{
+  return this->DroppedHoverMoves;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMouseMoveCompressor::setCompressMoves(bool compress)
+{
+  if (!compress)
+    {
+    this->flush();
+    }
+  this->CompressMoves = compress;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroMouseMoveCompressor::compressMoves() const
+{
+  return this->CompressMoves;
+}
+
+//-----------------------------------------------------------------------------
 bool qSlicerAstroMouseMoveCompressor::eventFilter(QObject* watched, QEvent* event)
 {
-  if (this->Replaying || !watched || !event)
+  if (!watched || !event)
     {
     return false;
     }
   const QEvent::Type type = event->type();
+  // hover moves duplicate the mouse moves (also those replayed here)
+  if (type == QEvent::HoverMove && watched->inherits("QVTKOpenGLNativeWidget"))
+    {
+    this->DroppedHoverMoves++;
+    return true;
+    }
+  if (this->Replaying || !this->CompressMoves)
+    {
+    return false;
+    }
   if (type == QEvent::MouseMove && watched->inherits("QVTKOpenGLNativeWidget"))
     {
     if (this->PendingEvent && this->PendingReceiver != watched)

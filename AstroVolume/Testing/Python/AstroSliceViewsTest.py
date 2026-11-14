@@ -267,9 +267,9 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         return bottom, left
 
     def test_MouseMoveCompression(self):
-        """Mouse moves of the slice views compressed (by default on Wayland): a
-        drag of queued moves pans once, to the same position as without
-        compression."""
+        """Mouse moves of the slice views: hover moves dropped (duplicates of the
+        mouse moves), moves compressed (by default on Wayland): a drag of queued
+        moves pans once, to the same position as without compression."""
         import qt
 
         volumeNode = slicer.util.loadVolume(self.writeRotatedCube())
@@ -304,7 +304,11 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
 
         try:
             module.setMouseMoveCompression(False)
+            droppedBefore = module.droppedHoverMoves()
             uncompressed = drag()
+            # Qt sends a hover move with every mouse move: dropped (VTK turns both
+            # into a mouse move of the interactor)
+            self.assertGreaterEqual(module.droppedHoverMoves() - droppedBefore, 50)
             self.assertNotEqual(uncompressed, [0., 0., 0.], "the drag pans")
             module.setMouseMoveCompression(True)
             self.assertTrue(module.mouseMoveCompression())

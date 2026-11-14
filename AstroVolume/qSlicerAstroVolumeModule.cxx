@@ -321,21 +321,9 @@ QStringList qSlicerAstroVolumeModule::dependencies() const
 void qSlicerAstroVolumeModule::setMouseMoveCompression(bool enabled)
 {
   Q_D(qSlicerAstroVolumeModule);
-  if (enabled == (d->mouseMoveCompressor != nullptr) || !qApp)
+  if (d->mouseMoveCompressor)
     {
-    return;
-    }
-  if (enabled)
-    {
-    d->mouseMoveCompressor = new qSlicerAstroMouseMoveCompressor(this);
-    qApp->installEventFilter(d->mouseMoveCompressor);
-    }
-  else
-    {
-    qApp->removeEventFilter(d->mouseMoveCompressor);
-    d->mouseMoveCompressor->flush();
-    delete d->mouseMoveCompressor;
-    d->mouseMoveCompressor = nullptr;
+    d->mouseMoveCompressor->setCompressMoves(enabled);
     }
 }
 
@@ -343,7 +331,7 @@ void qSlicerAstroVolumeModule::setMouseMoveCompression(bool enabled)
 bool qSlicerAstroVolumeModule::mouseMoveCompression()const
 {
   Q_D(const qSlicerAstroVolumeModule);
-  return d->mouseMoveCompressor != nullptr;
+  return d->mouseMoveCompressor && d->mouseMoveCompressor->compressMoves();
 }
 
 //-----------------------------------------------------------------------------
@@ -351,6 +339,13 @@ int qSlicerAstroVolumeModule::compressedMouseMoves()const
 {
   Q_D(const qSlicerAstroVolumeModule);
   return d->mouseMoveCompressor ? d->mouseMoveCompressor->compressedMoves() : 0;
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroVolumeModule::droppedHoverMoves()const
+{
+  Q_D(const qSlicerAstroVolumeModule);
+  return d->mouseMoveCompressor ? d->mouseMoveCompressor->droppedHoverMoves() : 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -372,8 +367,14 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
-  // mouse moves of the views compressed where Qt does not (Wayland)
-  this->setMouseMoveCompression(qSlicerAstroMouseMoveCompressor::isNeeded());
+  // mouse moves of the views: no duplicated hover moves (Qt 6), compressed
+  // where Qt does not compress them (Wayland)
+  if (qApp && !d->mouseMoveCompressor)
+    {
+    d->mouseMoveCompressor = new qSlicerAstroMouseMoveCompressor(this);
+    d->mouseMoveCompressor->setCompressMoves(qSlicerAstroMouseMoveCompressor::isNeeded());
+    qApp->installEventFilter(d->mouseMoveCompressor);
+    }
 
   // Register the IO module for loading AstroVolumes as a variant of fits files
   if(!d->app->mrmlScene())
