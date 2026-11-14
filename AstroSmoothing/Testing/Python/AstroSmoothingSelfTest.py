@@ -227,7 +227,9 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
 
         backend = slicer.modules.astrosmoothing.logic().GetGPUBackend()
         if not backend:
-            self.skipTest("no GPU backend")
+            # (runTest calls the tests directly: no unittest skip)
+            self.delayDisplay("GPU smoothing: skipped (no GPU backend)")
+            return
         self.delayDisplay("GPU smoothing (%s)" % backend)
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
         self.assertIsNotNone(volumeNode)
