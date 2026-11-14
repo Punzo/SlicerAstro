@@ -48,6 +48,8 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
         self.test_WCSAxes()
         self.setUp()
         self.test_MouseMoveCompression()
+        self.setUp()
+        self.test_LineMeasurements()
 
     def sliceWidgets(self):
         layoutManager = slicer.app.layoutManager()
@@ -265,6 +267,71 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
                 self.assertLess(abs(residual) / valuePerPixel, 0.5,
                                 f"{message}: {side} tick at {position:.1f} px, value {tickValue}, step {step}")
         return bottom, left
+
+    def test_LineMeasurements(self):
+        """Markups lines measure the angular separation on the sky and the
+        velocity difference with the WCS of the active volume (not the length
+        in millimetres), also after saving and loading the scene."""
+        import math
+        volumeNode = slicer.util.loadVolume(self.writeRotatedCube())
+        selectionNode = slicer.app.applicationLogic().GetSelectionNode()
+        selectionNode.SetActiveVolumeID(volumeNode.GetID())
+        display = volumeNode.GetAstroVolumeDisplayNode()
+        ijkToRAS = vtk.vtkMatrix4x4()
+        volumeNode.GetIJKToRASMatrix(ijkToRAS)
+
+        def ras(ijk):
+            return ijkToRAS.MultiplyPoint(list(ijk) + [1.])[:3]
+
+        def world(ijk):
+            w = [0., 0., 0.]
+            self.assertTrue(display.GetReferenceSpace([float(v) for v in ijk], w))
+            return w
+
+        def separation(w1, w2):
+            l1, b1, l2, b2 = (math.radians(v) for v in (w1[0], w1[1], w2[0], w2[1]))
+            c = math.sin(b1) * math.sin(b2) + math.cos(b1) * math.cos(b2) * math.cos(l2 - l1)
+            return math.degrees(math.acos(min(1., c)))
+
+        start, end = (20., 30., 1.), (130., 95., 6.)
+        line = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLMarkupsLineNode", "L")
+        line.AddControlPointWorld(vtk.vtkVector3d(*ras(start)))
+        line.AddControlPointWorld(vtk.vtkVector3d(*ras(end)))
+        slicer.app.processEvents()
+
+        measurement = line.GetMeasurement("separation")
+        self.assertIsNotNone(measurement)
+        self.assertTrue(measurement.IsA("vtkMRMLAstroMeasurementLine"))
+        expected = separation(world(start), world(end))
+        self.assertAlmostEqual(measurement.GetValue(), expected, delta=1.e-9)
+        self.assertEqual(measurement.GetUnits(), "'")  # 0.1 deg: arcmin
+        velocity = line.GetMeasurement("velocity difference")
+        self.assertTrue(velocity.GetValueDefined())
+        self.assertAlmostEqual(velocity.GetValue(), world(end)[2] - world(start)[2], delta=1.e-6)
+        self.assertIn("km/s", velocity.GetUnits())
+        self.assertFalse(line.GetMeasurement("length").GetEnabled())
+        self.assertIn("separation", line.GetPropertiesLabelText())
+
+        # a line in one channel (sky plane): no velocity difference
+        line.SetNthControlPointPositionWorld(1, ras((130., 95., 1.)))
+        self.assertFalse(line.GetMeasurement("velocity difference").GetValueDefined())
+        self.assertAlmostEqual(line.GetMeasurement("separation").GetValue(),
+                               separation(world(start), world((130., 95., 1.))), delta=1.e-9)
+
+        # saved and loaded: computed again with the WCS
+        scenePath = os.path.join(slicer.app.temporaryPath, "AstroSliceViewsTestMeasurements.mrb")
+        if os.path.exists(scenePath):
+            os.remove(scenePath)
+        self.assertTrue(slicer.util.saveScene(scenePath))
+        slicer.mrmlScene.Clear(0)
+        slicer.util.loadScene(scenePath)
+        os.remove(scenePath)
+        line = slicer.util.getNode("L")
+        selectionNode.SetActiveVolumeID(slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroVolumeNode").GetID())
+        slicer.app.processEvents()
+        measurement = line.GetMeasurement("separation")
+        self.assertTrue(measurement.IsA("vtkMRMLAstroMeasurementLine"))
+        self.assertAlmostEqual(measurement.GetValue(), separation(world(start), world((130., 95., 1.))), delta=1.e-9)
 
     def test_MouseMoveCompression(self):
         """Mouse moves of the slice views: hover moves dropped (duplicates of the

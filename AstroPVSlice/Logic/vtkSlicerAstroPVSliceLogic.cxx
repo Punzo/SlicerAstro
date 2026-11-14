@@ -32,6 +32,7 @@
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLMarkupsDisplayNode.h>
 #include <vtkMRMLMarkupsLineNode.h>
+#include <vtkMRMLMeasurement.h>
 #include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLSliceNode.h>
 #include <vtkMRMLSliceCompositeNode.h>
@@ -428,6 +429,13 @@ bool vtkSlicerAstroPVSliceLogic::CreateAndSetLine(vtkMRMLAstroPVSliceParametersN
   vtkNew<vtkMRMLMarkupsLineNode> LineNode;
   std::string name = this->GetMRMLScene()->GetUniqueNameByString("PVSliceLine");
   LineNode->SetName(name.c_str());
+  // the length (mm) needs the scene for its units: not computed for the
+  // points added before the line is in the scene (the AstroVolume logic sets
+  // the measurements of the lines when they are added)
+  if (vtkMRMLMeasurement* length = LineNode->GetMeasurement("length"))
+    {
+    length->SetEnabled(false);
+    }
 
   // Set control points
   vtkImageData* image = PVMomentMap->GetImageData();

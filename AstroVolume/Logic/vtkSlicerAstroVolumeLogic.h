@@ -38,6 +38,7 @@
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
 class vtkMRMLCameraNode;
+class vtkMRMLMarkupsLineNode;
 class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroReprojectParametersNode;
@@ -122,6 +123,13 @@ public:
   /// (Axial, Sagittal, Coronal) with the astronomical ones (XZ, ZY, XY).
   /// The orientation and the default orientation of the node are converted.
   static void SetAstroSliceOrientationPresets(vtkMRMLSliceNode* sliceNode);
+
+  /// Astronomical measurements of a markups line with the WCS of the active
+  /// volume (vtkMRMLAstroMeasurementLine: separation on the sky, velocity
+  /// difference): added if missing (also in place of the static copies of a
+  /// loaded scene); the length (in millimetres) is used only when the active
+  /// volume is not astronomical. The measurements are computed again.
+  static void UpdateAstroLineMeasurements(vtkMRMLMarkupsLineNode* lineNode);
 
   /// Return true if the segmentation is an astronomical mask (binary labelmap
   /// source, not contours): read from a FITS mask (it has the FITS header),
@@ -385,6 +393,12 @@ protected:
   ReprojectFunctionType ReprojectFunction;
 #endif
   std::string LastReprojectError;
+
+  /// Measurements of the markups lines computed again when the active volume
+  /// changes (its WCS is used)
+  void UpdateAllAstroLineMeasurements();
+  void ObserveSelectionNode();
+  std::string MeasurementsActiveVolumeID;
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;

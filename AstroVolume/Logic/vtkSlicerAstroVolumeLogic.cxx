@@ -38,6 +38,8 @@
 #include <vtkSlicerAstroSMPTools.h>
 
 // MRML nodes includes
+#include <vtkMRMLAstroMeasurementLine.h>
+#include <vtkMRMLMarkupsLineNode.h>
 #include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
@@ -173,6 +175,91 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   events->InsertNextValue(vtkMRMLScene::EndImportEvent);
   events->InsertNextValue(vtkMRMLScene::EndCloseEvent);
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
+  this->ObserveSelectionNode();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::ObserveSelectionNode()
+{
+  vtkMRMLSelectionNode* selectionNode = this->GetMRMLScene() ? vtkMRMLSelectionNode::SafeDownCast(
+    this->GetMRMLScene()->GetNodeByID("vtkMRMLSelectionNodeSingleton")) : nullptr;
+  if (selectionNode)
+    {
+    vtkNew<vtkIntArray> events;
+    events->InsertNextValue(vtkCommand::ModifiedEvent);
+    vtkObserveMRMLNodeEventsMacro(selectionNode, events.GetPointer());
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::UpdateAstroLineMeasurements(vtkMRMLMarkupsLineNode* lineNode)
+{
+  if (!lineNode)
+    {
+    return;
+    }
+  const int quantities[2] = {vtkMRMLAstroMeasurementLine::AngularSeparation,
+                             vtkMRMLAstroMeasurementLine::VelocityDifference};
+  bool found[2] = {false, false};
+  for (int index = lineNode->GetNumberOfMeasurements() - 1; index >= 0; index--)
+    {
+    vtkMRMLMeasurement* measurement = lineNode->GetNthMeasurement(index);
+    if (!measurement)
+      {
+      continue;
+      }
+    vtkMRMLAstroMeasurementLine* astroMeasurement = vtkMRMLAstroMeasurementLine::SafeDownCast(measurement);
+    for (int quantity = 0; quantity < 2; quantity++)
+      {
+      vtkNew<vtkMRMLAstroMeasurementLine> reference;
+      reference->SetQuantity(quantities[quantity]);
+      if (measurement->GetName() != reference->GetName())
+        {
+        continue;
+        }
+      if (astroMeasurement)
+        {
+        found[quantity] = true;
+        }
+      else
+        {
+        // static copy of a loaded scene: replaced by the computed measurement
+        lineNode->RemoveNthMeasurement(index);
+        }
+      }
+    }
+  for (int quantity = 0; quantity < 2; quantity++)
+    {
+    if (!found[quantity])
+      {
+      vtkNew<vtkMRMLAstroMeasurementLine> measurement;
+      measurement->SetQuantity(quantities[quantity]);
+      measurement->SetInputMRMLNode(lineNode);
+      lineNode->AddMeasurement(measurement);
+      }
+    }
+  // the length (mm) only for data without WCS
+  vtkMRMLMeasurement* length = lineNode->GetMeasurement("length");
+  if (length)
+    {
+    length->SetEnabled(vtkMRMLAstroMeasurementLine::GetMeasurementVolume(lineNode) == nullptr);
+    }
+  lineNode->UpdateAllMeasurements();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::UpdateAllAstroLineMeasurements()
+{
+  if (!this->GetMRMLScene())
+    {
+    return;
+    }
+  std::vector<vtkMRMLNode*> lineNodes;
+  this->GetMRMLScene()->GetNodesByClass("vtkMRMLMarkupsLineNode", lineNodes);
+  for (vtkMRMLNode* lineNode : lineNodes)
+    {
+    vtkSlicerAstroVolumeLogic::UpdateAstroLineMeasurements(vtkMRMLMarkupsLineNode::SafeDownCast(lineNode));
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -271,6 +358,8 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
 {
   this->UpdateSliceOrientationPresets();
+  // lines of the scene (their measurements were read as static copies)
+  this->UpdateAllAstroLineMeasurements();
 
   std::vector<vtkMRMLNode*> segmentationNodes;
   this->GetMRMLScene()->GetNodesByClass("vtkMRMLSegmentationNode", segmentationNodes);
@@ -315,6 +404,16 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   if (node->IsA("vtkMRMLSliceNode"))
     {
     vtkSlicerAstroVolumeLogic::SetAstroSliceOrientationPresets(vtkMRMLSliceNode::SafeDownCast(node));
+    }
+
+  // markups lines: separation and velocity difference with the WCS
+  if (vtkMRMLMarkupsLineNode* lineNode = vtkMRMLMarkupsLineNode::SafeDownCast(node))
+    {
+    vtkSlicerAstroVolumeLogic::UpdateAstroLineMeasurements(lineNode);
+    }
+  if (node->IsA("vtkMRMLSelectionNode"))
+    {
+    this->ObserveSelectionNode();
     }
 
   // astronomical volumes loaded from a file (storage node with a file name,
@@ -2751,6 +2850,18 @@ void vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(vtkMRMLSegmentationNode
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsigned long event, void* callData)
 {
+  vtkMRMLSelectionNode* selectionNode = vtkMRMLSelectionNode::SafeDownCast(caller);
+  if (selectionNode && event == vtkCommand::ModifiedEvent)
+    {
+    // measurements of the lines with the WCS of the new active volume
+    const std::string activeVolumeID = selectionNode->GetActiveVolumeID() ? selectionNode->GetActiveVolumeID() : "";
+    if (activeVolumeID != this->MeasurementsActiveVolumeID)
+      {
+      this->MeasurementsActiveVolumeID = activeVolumeID;
+      this->UpdateAllAstroLineMeasurements();
+      }
+    return;
+    }
   vtkMRMLVolumePropertyNode* volumePropertyNode = vtkMRMLVolumePropertyNode::SafeDownCast(caller);
   if (volumePropertyNode && event == vtkCommand::ModifiedEvent)
     {
