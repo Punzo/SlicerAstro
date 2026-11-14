@@ -29,5 +29,8 @@ Some tests are opt-in or need hardware:
 | `AstroFITSIOTest.test_Memory` | Linux (peak memory from `/proc`) |
 | `AstroSmoothingSelfTest.test_AstroSmoothingGPU` | a GPU backend (OpenGL or WebGPU) |
 
+The tests also run in GitHub Actions: see
+[Continuous integration](continuous_integration.md).
+
 The validation of the reprojection against other software is described in
 [Validation of the reprojection](reprojection_validation.md).

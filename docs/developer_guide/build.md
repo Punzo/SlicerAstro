@@ -42,7 +42,7 @@ cd inner-build && make package
 
 The pinned versions are in `SuperBuild/External_*.cmake`. The workflow
 `.github/workflows/dependencies.yml` builds and tests these libraries on
-Linux, Windows and macOS.
+Linux, Windows and macOS (see [Continuous integration](continuous_integration.md)).
 
 ## Optional: WebGPU smoothing
 

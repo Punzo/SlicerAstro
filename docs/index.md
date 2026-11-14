@@ -54,6 +54,7 @@ user_guide/troubleshooting
 developer_guide/build
 developer_guide/architecture
 developer_guide/testing
+developer_guide/continuous_integration
 developer_guide/reprojection_validation
 ```
 
