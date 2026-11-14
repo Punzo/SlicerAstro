@@ -25,6 +25,7 @@
 
 // VTK includes
 #include <vtkDoubleArray.h>
+#include <vtkFFT.h>
 #include <vtkImageData.h>
 #include <vtkMath.h>
 #include <vtkNew.h>
@@ -41,6 +42,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -1139,6 +1141,81 @@ bool PixelJacobian(const wcsprm* wcs, double M[2][2], double& pixelArea)
 }
 
 //----------------------------------------------------------------------------
+/// Smallest size >= n with the prime factors 2, 3 and 5 (fast FFT)
+std::size_t NextFastFFTSize(std::size_t n)
+{
+  const std::size_t factors[3] = {2, 3, 5};
+  for (std::size_t m = std::max<std::size_t>(n, 1);; m++)
+    {
+    std::size_t rest = m;
+    for (std::size_t factor : factors)
+      {
+      while (rest % factor == 0)
+        {
+        rest /= factor;
+        }
+      }
+    if (rest == 1)
+      {
+      return m;
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+/// In-place 2D FFT of a complex array of px x py values (rows of px). Only
+/// the first rows rows are nonzero (forward) or needed (inverse). The inverse
+/// is not normalized (divide by px * py).
+void FFT2D(std::vector<vtkFFT::ComplexNumber>& values, std::size_t px, std::size_t py, std::size_t rows,
+           bool inverse)
+{
+  std::function<void(vtkIdType, vtkIdType)> rowPass = [&](vtkIdType first, vtkIdType last)
+    {
+    std::vector<vtkFFT::ComplexNumber> buffer(px);
+    for (vtkIdType j = first; j < last; j++)
+      {
+      vtkFFT::ComplexNumber* row = values.data() + static_cast<std::size_t>(j) * px;
+      vtkFFT::Fft(row, px, buffer.data());
+      std::copy(buffer.begin(), buffer.end(), row);
+      }
+    };
+  std::function<void(vtkIdType, vtkIdType)> columnPass = [&](vtkIdType first, vtkIdType last)
+    {
+    std::vector<vtkFFT::ComplexNumber> column(py), buffer(py);
+    for (vtkIdType i = first; i < last; i++)
+      {
+      for (std::size_t j = 0; j < py; j++)
+        {
+        column[j] = values[static_cast<std::size_t>(i) + j * px];
+        }
+      vtkFFT::Fft(column.data(), py, buffer.data());
+      for (std::size_t j = 0; j < py; j++)
+        {
+        values[static_cast<std::size_t>(i) + j * px] = buffer[j];
+        }
+      }
+    };
+  std::function<void(std::size_t)> conjugate = [&](std::size_t count)
+    {
+    for (std::size_t index = 0; index < count; index++)
+      {
+      values[index].i = -values[index].i;
+      }
+    };
+  if (!inverse)
+    {
+    vtkSMPTools::For(0, static_cast<vtkIdType>(rows), rowPass);
+    vtkSMPTools::For(0, static_cast<vtkIdType>(px), columnPass);
+    return;
+    }
+  // inverse FFT = conjugate of the FFT of the conjugate
+  conjugate(values.size());
+  vtkSMPTools::For(0, static_cast<vtkIdType>(px), columnPass);
+  vtkSMPTools::For(0, static_cast<vtkIdType>(rows), rowPass);
+  conjugate(rows * px);
+}
+
+//----------------------------------------------------------------------------
 /// Convolve an input to a target beam (CASA Image2DConvolver targetres):
 /// a new float image, or the input if no convolution is needed
 bool ConvolveToBeam(const vtkAstroReprojector::Input& input, const double target[3],
@@ -1260,62 +1337,212 @@ bool ConvolveToBeam(const vtkAstroReprojector::Input& input, const double target
   output->SetDimensions(dims);
   output->AllocateScalars(VTK_FLOAT, 1);
   float* out = static_cast<float*>(output->GetScalarPointer());
-  const std::size_t planeSize = static_cast<std::size_t>(dims[0]) * dims[1];
+  const std::size_t nx = static_cast<std::size_t>(dims[0]), ny = static_cast<std::size_t>(dims[1]);
+  const std::size_t planeSize = nx * ny;
   vtkImageData* data = input.Data;
+
+  // Convolution of the data and of the mask of the valid voxels (normalized
+  // convolution, blanks and edges): with the 2D kernel (small kernels), with
+  // two 1D kernels if the axes of the kernel are along the pixel axes (the
+  // kernel is exactly their product), with the FFT for large rotated kernels
+  // (the kernel is even: its FFT is real; data and mask are the real and
+  // imaginary parts of one complex FFT).
+  const bool separable = std::fabs(pix[0][1]) <= 1.e-12 * std::max(pix[0][0], pix[1][1]);
+  const bool useFFT = !separable && size > 15;
+  std::vector<double> kernelX, kernelY;
+  if (separable)
+    {
+    kernelX.resize(size);
+    kernelY.resize(size);
+    for (int a = -half; a <= half; a++)
+      {
+      kernelX[a + half] = std::exp(-0.5 * inverse[0][0] * a * a);
+      kernelY[a + half] = std::exp(-0.5 * inverse[1][1] * a * a);
+      }
+    }
+  std::size_t px = 0, py = 0;
+  std::vector<double> kernelFFT;
+  std::vector<vtkFFT::ComplexNumber> planeFFT;
+  if (useFFT)
+    {
+    // padding: no wrap-around of the kernel into the data
+    px = NextFastFFTSize(nx + half);
+    py = NextFastFFTSize(ny + half);
+    std::vector<vtkFFT::ComplexNumber> kernel(px * py);
+    for (vtkFFT::ComplexNumber& value : kernel)
+      {
+      value.r = 0.;
+      value.i = 0.;
+      }
+    for (int b = -half; b <= half; b++)
+      {
+      for (int a = -half; a <= half; a++)
+        {
+        const std::size_t x = static_cast<std::size_t>((a + static_cast<long long>(px)) % static_cast<long long>(px));
+        const std::size_t y = static_cast<std::size_t>((b + static_cast<long long>(py)) % static_cast<long long>(py));
+        kernel[x + px * y].r = weights[(a + half) + static_cast<std::size_t>(size) * (b + half)];
+        }
+      }
+    FFT2D(kernel, px, py, py, false);
+    kernelFFT.resize(px * py);
+    for (std::size_t index = 0; index < px * py; index++)
+      {
+      kernelFFT[index] = kernel[index].r;
+      }
+    planeFFT.resize(px * py);
+    }
+  std::vector<double> plane(planeSize), sums(planeSize), valids(planeSize), rowSums, rowValids;
+  if (separable)
+    {
+    rowSums.resize(planeSize);
+    rowValids.resize(planeSize);
+    }
+
   for (int k = 0; k < dims[2]; k++)
     {
     if (cancel && *cancel)
       {
       return false;
       }
-    std::vector<double> plane(planeSize);
     for (std::size_t index = 0; index < planeSize; index++)
       {
       plane[index] = VoxelValue(data, planeSize * k + index);
       }
-    vtkSMPTools::For(0, dims[1], [&](vtkIdType firstRow, vtkIdType lastRow)
+    if (separable)
       {
-      for (vtkIdType j = firstRow; j < lastRow; j++)
+      // along x, then along y
+      vtkSMPTools::For(0, static_cast<vtkIdType>(ny), [&](vtkIdType firstRow, vtkIdType lastRow)
         {
-        for (int i = 0; i < dims[0]; i++)
+        for (vtkIdType j = firstRow; j < lastRow; j++)
           {
-          const std::size_t index = i + static_cast<std::size_t>(dims[0]) * j;
-          if (std::isnan(plane[index]))
+          for (std::size_t i = 0; i < nx; i++)
             {
-            out[planeSize * k + index] = std::numeric_limits<float>::quiet_NaN();
-            continue;
-            }
-          double sum = 0., valid = 0.;
-          for (int b = -half; b <= half; b++)
-            {
-            const int y = static_cast<int>(j) - b;
-            if (y < 0 || y >= dims[1])
-              {
-              continue;
-              }
+            double sum = 0., valid = 0.;
             for (int a = -half; a <= half; a++)
               {
-              const int x = i - a;
-              if (x < 0 || x >= dims[0])
+              const long long x = static_cast<long long>(i) - a;
+              if (x < 0 || x >= static_cast<long long>(nx))
                 {
                 continue;
                 }
-              const double value = plane[x + static_cast<std::size_t>(dims[0]) * y];
+              const double value = plane[static_cast<std::size_t>(x) + nx * j];
               if (std::isnan(value))
                 {
                 continue;
                 }
-              const double w = weights[(a + half) + static_cast<std::size_t>(size) * (b + half)];
-              sum += w * value;
-              valid += w;
+              sum += kernelX[a + half] * value;
+              valid += kernelX[a + half];
               }
+            rowSums[i + nx * j] = sum;
+            rowValids[i + nx * j] = valid;
             }
-          // blanks and edges: normalized convolution (at least half of the kernel)
-          out[planeSize * k + index] = valid >= 0.5 * volume ?
-            static_cast<float>(scale * sum * volume / valid) : std::numeric_limits<float>::quiet_NaN();
+          }
+        });
+      vtkSMPTools::For(0, static_cast<vtkIdType>(ny), [&](vtkIdType firstRow, vtkIdType lastRow)
+        {
+        for (vtkIdType j = firstRow; j < lastRow; j++)
+          {
+          for (std::size_t i = 0; i < nx; i++)
+            {
+            double sum = 0., valid = 0.;
+            for (int b = -half; b <= half; b++)
+              {
+              const long long y = static_cast<long long>(j) - b;
+              if (y < 0 || y >= static_cast<long long>(ny))
+                {
+                continue;
+                }
+              sum += kernelY[b + half] * rowSums[i + nx * static_cast<std::size_t>(y)];
+              valid += kernelY[b + half] * rowValids[i + nx * static_cast<std::size_t>(y)];
+              }
+            sums[i + nx * j] = sum;
+            valids[i + nx * j] = valid;
+            }
+          }
+        });
+      }
+    else if (useFFT)
+      {
+      for (vtkFFT::ComplexNumber& value : planeFFT)
+        {
+        value.r = 0.;
+        value.i = 0.;
+        }
+      for (std::size_t j = 0; j < ny; j++)
+        {
+        for (std::size_t i = 0; i < nx; i++)
+          {
+          const double value = plane[i + nx * j];
+          if (!std::isnan(value))
+            {
+            planeFFT[i + px * j].r = value;
+            planeFFT[i + px * j].i = 1.;
+            }
           }
         }
-      });
+      FFT2D(planeFFT, px, py, ny, false);
+      for (std::size_t index = 0; index < px * py; index++)
+        {
+        planeFFT[index].r *= kernelFFT[index];
+        planeFFT[index].i *= kernelFFT[index];
+        }
+      FFT2D(planeFFT, px, py, ny, true);
+      const double normalization = 1. / static_cast<double>(px * py);
+      for (std::size_t j = 0; j < ny; j++)
+        {
+        for (std::size_t i = 0; i < nx; i++)
+          {
+          sums[i + nx * j] = planeFFT[i + px * j].r * normalization;
+          valids[i + nx * j] = planeFFT[i + px * j].i * normalization;
+          }
+        }
+      }
+    else
+      {
+      vtkSMPTools::For(0, static_cast<vtkIdType>(ny), [&](vtkIdType firstRow, vtkIdType lastRow)
+        {
+        for (vtkIdType j = firstRow; j < lastRow; j++)
+          {
+          for (std::size_t i = 0; i < nx; i++)
+            {
+            double sum = 0., valid = 0.;
+            for (int b = -half; b <= half; b++)
+              {
+              const long long y = static_cast<long long>(j) - b;
+              if (y < 0 || y >= static_cast<long long>(ny))
+                {
+                continue;
+                }
+              for (int a = -half; a <= half; a++)
+                {
+                const long long x = static_cast<long long>(i) - a;
+                if (x < 0 || x >= static_cast<long long>(nx))
+                  {
+                  continue;
+                  }
+                const double value = plane[static_cast<std::size_t>(x) + nx * static_cast<std::size_t>(y)];
+                if (std::isnan(value))
+                  {
+                  continue;
+                  }
+                const double w = weights[(a + half) + static_cast<std::size_t>(size) * (b + half)];
+                sum += w * value;
+                valid += w;
+                }
+              }
+            sums[i + nx * j] = sum;
+            valids[i + nx * j] = valid;
+            }
+          }
+        });
+      }
+    // blanks stay blank; elsewhere at least half of the kernel on valid data
+    for (std::size_t index = 0; index < planeSize; index++)
+      {
+      const double valid = valids[index];
+      out[planeSize * k + index] = (!std::isnan(plane[index]) && valid >= 0.5 * volume) ?
+        static_cast<float>(scale * sums[index] * volume / valid) : std::numeric_limits<float>::quiet_NaN();
+      }
     }
   result = output;
   return true;

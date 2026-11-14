@@ -542,6 +542,36 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
                                                 TargetBeamMajor=1.01 * beam * 3600., TargetBeamMinor=beam * 3600.,
                                                 TargetBeamPA=0.))
         np.testing.assert_allclose(voxelArray(output), voxelArray(node), atol=0.02)
+        slicer.mrmlScene.RemoveNode(output)
+
+        # rotated elliptical beam (rotated kernel: FFT convolution) to a large
+        # circular beam: a point source becomes the circular target beam
+        major, minor, pa = 0.012, 0.006, 30.
+        def ellipse(lon, lat):
+            east = (lon - 180.) * math.cos(math.radians(30.))
+            north = lat - 30.
+            along = east * math.sin(math.radians(pa)) + north * math.cos(math.radians(pa))
+            across = east * math.cos(math.radians(pa)) - north * math.sin(math.radians(pa))
+            s1, s2 = (v / (2. * math.sqrt(2. * math.log(2.))) for v in (major, minor))
+            return math.exp(-0.5 * ((along / s1) ** 2 + (across / s2) ** 2))
+        rotated = self.volume("rotatedbeam", (1, 96, 96), celestialCards(crpix=(48.5, 48.5)) +
+                              [("BUNIT", "JY/BEAM"), ("BMAJ", major), ("BMIN", minor), ("BPA", pa)], ellipse)
+        target = 0.04
+        output = self.reproject(self.parameters([rotated], SpatialGridMode=P.SpatialInput,
+                                                ResolutionMode=P.ResolutionTarget, TargetBeamMajor=target * 3600.,
+                                                TargetBeamMinor=target * 3600., TargetBeamPA=0.))
+        result = np.nan_to_num(voxelArray(output)[0].astype(float))
+        self.assertAlmostEqual(float(result.max()), 1., delta=0.02)
+        y, x = np.mgrid[0:result.shape[0], 0:result.shape[1]]
+        total = result.sum()
+        cx, cy = (result * x).sum() / total, (result * y).sum() / total
+        sxx = (result * (x - cx) ** 2).sum() / total
+        syy = (result * (y - cy) ** 2).sum() / total
+        sxy = (result * (x - cx) * (y - cy)).sum() / total
+        expected = (target / 0.002 / (2. * math.sqrt(2. * math.log(2.)))) ** 2
+        self.assertAlmostEqual(sxx / expected, 1., delta=0.03)
+        self.assertAlmostEqual(syy / expected, 1., delta=0.03)
+        self.assertLess(abs(sxy) / expected, 0.01)
 
         pixels = self.volume("pixels", (1, 64, 64), celestialCards() + [("BUNIT", "JY/PIXEL")], source)
         total = float(np.nansum(voxelArray(pixels)))
