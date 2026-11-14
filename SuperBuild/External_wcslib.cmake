@@ -28,7 +28,7 @@ if((NOT DEFINED WCSLIB_INCLUDE_DIR OR NOT DEFINED WCSLIB_LIBRARY_DIR)
 
   ExternalProject_SetIfNotDefined(
     ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
-    "06494ca3e13e9d0503b77507c7e7025d380d4c9c" # branch wcslib-8.10-cmake (WCSLIB 8.10)
+    "31657edff1cfe3235854ce214248fc329912f5f3" # branch wcslib-8.10-cmake (WCSLIB 8.10 + SIP fix)
     QUIET
     )
 

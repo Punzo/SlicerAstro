@@ -767,6 +767,21 @@ wcsprm* vtkSlicerAstroReprojectLogic::ComputeOutputGrid(vtkMRMLAstroReprojectPar
     celestial = ExtractAxes(source, {source->lng + 1, source->lat + 1});
     sizes[0] = sourceDims[source->lng];
     sizes[1] = sourceDims[source->lat];
+    if (celestial && (source->lin.dispre || source->lin.disseq))
+      {
+      // distorted WCS (SIP, DSS plate solution): the linear part alone is not
+      // the grid of the image (and the distortion belongs to its pixels): the
+      // new grid is a linear approximation at the centre of the image (same
+      // projection, pixel sizes, rotation and size)
+      vtkAstroReprojector::CelestialGrid approximation;
+      const int celestialDims[2] = {sizes[0], sizes[1]};
+      if (vtkAstroReprojector::GetCelestialGrid(source, celestialDims, approximation))
+        {
+        approximation.Size[0] = sizes[0];
+        approximation.Size[1] = sizes[1];
+        celestial = WCSPointer(vtkAstroReprojector::MakeWCS(approximation, nullptr, source));
+        }
+      }
     if (celestial && spatialMode == vtkMRMLAstroReprojectParametersNode::SpatialResample)
       {
       const double factor = pnode->GetSpatialResampleFactor();

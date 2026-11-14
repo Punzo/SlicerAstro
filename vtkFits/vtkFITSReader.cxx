@@ -2596,7 +2596,12 @@ bool vtkFITSReader::AllocateWCS()
     return false;
     }
 
-  if (!strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1"))
+  // DSS plate solution (PPO, AMDX, AMDY) translated by WCSLIB into a
+  // distortion with its own linear transformation: kept as it is (the exact
+  // astrometry of the plate). The standard WCS of the header (an approximation
+  // of the plate solution) is used only when WCSLIB could not translate it.
+  const bool dssDistortion = this->WCS->lin.dispre != nullptr || this->WCS->lin.disseq != nullptr;
+  if (!strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1") && !dssDistortion)
     {
     if (this->WCS->naxis != 2)
       {
@@ -2740,12 +2745,6 @@ bool vtkFITSReader::AllocateWCS()
       return false;
       }
 
-    // the standard WCS of the header is used: WCSLIB translates the DSS
-    // plate solution (PPO, AMDX, AMDY) into a distortion, which would be
-    // applied on top of it (and inherited by the copies of the image, e.g.
-    // aligned to the north)
-    lindist(1, &this->WCS->lin, nullptr, 0);
-    lindist(2, &this->WCS->lin, nullptr, 0);
     this->WCS->flag = 0;
     }
 
@@ -2951,6 +2950,29 @@ bool vtkFITSReader::AllocateWCS()
   if ((this->WCSStatus = wcsset(this->WCS)))
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
+    }
+
+  // DSS plate solution: its rotation is in the distortion (the matrix of the
+  // translation of WCSLIB is in plate coordinates): CROTA2 measured from the
+  // mapping at the centre of the image (the +y axis is at -CROTA2 from north
+  // through east)
+  if (dssDistortion && !this->WCSStatus && this->WCS->naxis == 2 &&
+      this->HeaderKeyValue.find("SlicerAstro.NAXIS1") != this->HeaderKeyValue.end() &&
+      this->HeaderKeyValue.find("SlicerAstro.NAXIS2") != this->HeaderKeyValue.end())
+    {
+    const double cx = 0.5 * (StringToDouble(this->HeaderKeyValue.at("SlicerAstro.NAXIS1").c_str()) + 1.);
+    const double cy = 0.5 * (StringToDouble(this->HeaderKeyValue.at("SlicerAstro.NAXIS2").c_str()) + 1.);
+    double pixels[4] = {cx, cy - 0.5, cx, cy + 0.5};
+    double imgcrd[4], phi[2], theta[2], world[4];
+    int stat[2] = {0, 0};
+    if (!wcsp2s(this->WCS, 2, 2, pixels, imgcrd, phi, theta, world, stat))
+      {
+      double dlon = world[2] - world[0];
+      dlon -= 360. * std::round(dlon / 360.);
+      const double yEast = dlon * cos(0.5 * (world[1] + world[3]) * PI / 180.);
+      const double yNorth = world[3] - world[1];
+      this->HeaderKeyValue["SlicerAstro.CROTA2"] = DoubleToString(-atan2(yEast, yNorth) * 180. / PI);
+      }
     }
 
   // project third axes always as a velocity: radio velocity for radio data

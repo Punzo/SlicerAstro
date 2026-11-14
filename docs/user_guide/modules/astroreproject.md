@@ -36,6 +36,12 @@ be created.
 - **Match channels by** frequency, or by velocity: each input with its own
   rest frequency (as CASA `imregrid`).
 
+Images with distortions (SIP polynomials, e.g. HST exposures; the DSS
+plate solution) are reprojected with their exact coordinates. A grid derived
+from such an image (its grid, larger or smaller pixels) is a linear
+approximation of its grid at the centre of the image, as the distortion
+belongs to its own pixels.
+
 ## Resampling
 
 | Sky | |

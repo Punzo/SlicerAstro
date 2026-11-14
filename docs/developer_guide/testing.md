@@ -13,6 +13,14 @@ ctest -R AstroReproject              # the tests of a module
   synthetic FITS files or the sample data (downloaded and cached) and compare
   the results with references (analytic models, numpy/scipy).
 
+`AstroFITSRealDataTest` reads FITS files of real instruments and archives
+(NVSS, 2MASS, SDSS, HST, Chandra from the `TestingData-v1` release; WSRT,
+VLA, ALMA, VLT/MUSE, DSS and CTIO data of `SampleData-v2`) and compares the
+dimensions, the voxels and the world coordinates with the values of astropy
+(`AstroVolume/Testing/Python/RealData/*.json`, written by
+`RealData/prepare_real_data.py`). `SLICERASTRO_TESTING_DATA_DIR` reads the
+files from a directory instead of downloading them.
+
 Some tests are opt-in or need hardware:
 
 | Test | Condition |
