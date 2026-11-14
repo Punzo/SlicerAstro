@@ -21,5 +21,6 @@ target_include_directories(smoke PRIVATE
   ${CFITSIO_INCLUDE_DIR} ${WCSLIB_INCLUDE_DIR} ${FFTW3_INCLUDE_DIR} ${ERFA_INCLUDE_DIR} ${BBAROLO_INCLUDE_DIR}/bbarolo)
 target_link_libraries(smoke PRIVATE ${BBAROLO_LIBRARY} ${WCSLIB_LIBRARY} ${CFITSIO_LIBRARY} ${FFTW3_LIBRARY} ${ERFA_LIBRARY})
 if(MSVC)
-  target_compile_definitions(smoke PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS _CRT_DECLARE_NONSTDC_NAMES=0)
+  target_compile_definitions(smoke PRIVATE _USE_MATH_DEFINES _CRT_SECURE_NO_WARNINGS _CRT_DECLARE_NONSTDC_NAMES=0
+    FFTW_DLL) # fftw_version is data: declared dllimport with FFTW_DLL
 endif()
