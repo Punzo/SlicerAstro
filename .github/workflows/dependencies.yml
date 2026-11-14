@@ -9,11 +9,13 @@ on:
     paths:
       - "SuperBuild/**"
       - ".github/ci/dependencies/**"
+      - ".github/ci/annotate-errors.sh"
       - ".github/workflows/dependencies.yml"
   pull_request:
     paths:
       - "SuperBuild/**"
       - ".github/ci/dependencies/**"
+      - ".github/ci/annotate-errors.sh"
       - ".github/workflows/dependencies.yml"
   workflow_dispatch:
 
