@@ -10,7 +10,7 @@ set(SLICERASTRO_VERSION ${SLICERASTRO_VERSION_MAJOR}.${SLICERASTRO_VERSION_MINOR
 
 #-----------------------------------------------------------------------------
 # Extension meta-information
-set(EXTENSION_HOMEPAGE "https://github.com/Punzo/SlicerAstro/wiki")
+set(EXTENSION_HOMEPAGE "https://github.com/Punzo/SlicerAstro")
 set(EXTENSION_CATEGORY "Astronomy")
 set(EXTENSION_CONTRIBUTORS "Davide Punzo (Kapteyn Astronomical Institute), Thijs van der Hulst (Kapteyn Astronomical institute), Jos Roerdink (Johann Bernoulli Institute), Jean-Christophe Fillion-Robin (Kitware)")
 set(EXTENSION_DESCRIPTION "SlicerAstro, an Astronomy (HI) extension for 3D Slicer")
@@ -107,7 +107,6 @@ add_subdirectory(AstroModeling)
 add_subdirectory(AstroSampleData)
 add_subdirectory(AstroSoFiACatalog)
 add_subdirectory(SlicerAstroDataProbe)
-add_subdirectory(Doxygen)
 
 #-----------------------------------------------------------------------------
 # The Python tests download the sample data into the cache of Slicer: they

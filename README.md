@@ -1,22 +1,44 @@
 # SlicerAstro
-Astronomy (HI) extension for [3DSlicer](https://www.slicer.org/)
 
-Upcoming HI (neutral Hydrogen) surveys will deliver large datasets, and automated processing using the full 3D information (two positional dimensions and one spectral dimension) to find and characterize HI objects is imperative.
+SlicerAstro is an extension of [3D Slicer](https://www.slicer.org) for the
+visualization and analysis of astronomical data cubes and images, in
+particular of neutral hydrogen (HI) observations.
 
-In this context, visualization is an essential tool for enabling qualitative and quantitative human control on an automated source finding and analysis pipeline. Visual Analytics, the combination of automated data processing and human reasoning, creativity and intuition, supported by interactive visualization, enables flexible and fast interaction with the 3D data, helping the astronomer to deal with the analysis of complex sources. 3D visualization, coupled to modeling, provides additional capabilities helping the discovery and analysis of subtle structures in the 3D domain.
+- **Data**: FITS images and data cubes (also `.fits.gz` and `.fz`) with
+  their world coordinates (WCS), FITS masks (SoFiA), source catalogues.
+- **Visualization**: 2D views with WCS axes and beam, 3D volume rendering,
+  contours, masks, channel maps, measurements on the sky.
+- **Analysis**: smoothing (CPU and GPU), masking, statistics, profiles,
+  moment maps, position-velocity slices and diagrams, kinematic modelling
+  with [3DBarolo](https://github.com/editeodoro/Bbarolo).
+- **Reprojection**: regridding on the sky and in frequency/velocity with
+  celestial and spectral reference frames, flux-conserving resampling,
+  common and target beams, mosaics (validated against astropy, CASA and
+  Montage).
 
-### Objective: general description</h3>
-* [x] 1) Proper visualization of astronomical data cubes: using data astronomical data formats, such as FITS, and astronomical world coordinates system (WCS);
-* [x] 2) Quantification: visualization of the beam, interactive histograms, contours, statistics linked with the 2D/3D views, masking volumes with segmentations, flux density profiles, moment maps and position-velocity diagrams;
-* [x] 3) Enabling interactive smoothing in all three dimensions;
-* [x] 4) Interactive HI data modeling coupled to visualization;
-* [x] 5) Skill to overlay observations at different wavelength and to plot catalogs info on data;
-* [ ] 6) Interoperability with Topcat, and other virtual observatory (VO) tools and catalogs.
+## Documentation
 
+The documentation (user guide, modules, developer guide) is in
+[`docs/`](docs/index.md); it is built with Sphinx:
 
-For more information regarding the project, its status and License, please check the following links: 
+```bash
+pip install -r docs/requirements.txt
+sphinx-build docs docs/_build/html
+```
 
-* https://github.com/Punzo/SlicerAstro/wiki
-* https://www.slicer.org/slicerWiki/index.php/Documentation/Nightly/Extensions/SlicerAstro
+## Installation
 
+Install SlicerAstro from the Extensions Manager of 3D Slicer (category
+*Astronomy*). To build it from source, see the
+[developer guide](docs/developer_guide/build.md).
 
+## Citing
+
+If you use SlicerAstro, please cite Punzo et al. 2017, Astronomy and
+Computing, 19, 45 ([arXiv:1703.06651](https://arxiv.org/abs/1703.06651)); see
+[Citing SlicerAstro](docs/about/citing.md).
+
+## Licence
+
+BSD 3-Clause (see [LICENSE](LICENSE)). The packages include third-party
+libraries with their own licences (see [Licence](docs/about/license.md)).

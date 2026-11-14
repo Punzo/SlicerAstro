@@ -31,3 +31,4 @@
 CMakeLists.txt.user*
 __pycache__/
 *.pyc
+docs/_build/

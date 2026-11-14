@@ -69,10 +69,9 @@ qSlicerAstroPVDiagramModule::~qSlicerAstroPVDiagramModule()
 //-----------------------------------------------------------------------------
 QString qSlicerAstroPVDiagramModule::helpText()const
 {
-  return "The AstroPVDiagram module generates a Position Velocity (PV) diagram. "
-         "The user can manually place fiducials in the 3D view or on a moment map "
-         "in the red 2D view. Such fiducials will be connected and a PV Diagram from "
-         "this selection will be generated.";
+  return "The AstroPVDiagram module generates a Position Velocity (PV) diagram along a curve: "
+         "place the points of the curve on the moment map in the red 2D view (or in the 3D view); "
+         "the PV diagram is generated, and updated when the points move.";
 }
 
 //-----------------------------------------------------------------------------

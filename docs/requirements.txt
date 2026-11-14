@@ -1,0 +1,5 @@
+# Build the documentation: pip install -r requirements.txt; sphinx-build -W docs docs/_build/html
+sphinx==8.2.3
+myst-parser==4.0.1
+sphinx-rtd-theme==3.0.2
+sphinx-design==0.6.1
