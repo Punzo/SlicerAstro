@@ -101,6 +101,7 @@ public:
   void updateExplanations();
   QHash<QComboBox*, QLabel*> Explanations;
   QHash<QComboBox*, QStringList> ExplanationTexts;
+  QHash<QComboBox*, QWidget*> ExplanationContainers;
   void updateVisibility();
   void updateInputsTable();
   void updateSummary();
@@ -272,17 +273,23 @@ QSpinBox* qSlicerAstroReprojectModuleWidgetPrivate::addSpinBox(QFormLayout* layo
 //-----------------------------------------------------------------------------
 void qSlicerAstroReprojectModuleWidgetPrivate::setRowVisible(QFormLayout* layout, QWidget* field, bool visible)
 {
+  // a combo box with an explanation is in a container (the field of the row)
+  QComboBox* combo = qobject_cast<QComboBox*>(field);
+  if (combo && this->ExplanationContainers.contains(combo))
+    {
+    field = this->ExplanationContainers[combo];
+    }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 4, 0)
+  // hidden rows take no space (no spacing either)
+  layout->setRowVisible(field, visible);
+#else
   field->setVisible(visible);
   QWidget* label = layout->labelForField(field);
   if (label)
     {
     label->setVisible(visible);
     }
-  QComboBox* combo = qobject_cast<QComboBox*>(field);
-  if (combo && this->Explanations.contains(combo))
-    {
-    this->Explanations[combo]->setVisible(visible);
-    }
+#endif
 }
 
 //-----------------------------------------------------------------------------
@@ -297,11 +304,35 @@ void qSlicerAstroReprojectModuleWidgetPrivate::explain(QFormLayout* layout, QCom
   QLabel* explanation = new QLabel;
   explanation->setObjectName(combo->objectName() + "Explanation");
   explanation->setWordWrap(true);
+  explanation->setAlignment(Qt::AlignLeft | Qt::AlignTop);
   QFont font = explanation->font();
   font.setItalic(true);
+  if (font.pointSizeF() > 0.)
+    {
+    font.setPointSizeF(0.9 * font.pointSizeF());
+    }
   explanation->setFont(font);
-  explanation->setForegroundRole(QPalette::PlaceholderText);
-  layout->addRow(QString(), explanation);
+  // grey text (between the text and the background), readable with light and dark styles
+  QPalette palette = explanation->palette();
+  const QColor text = palette.color(QPalette::WindowText), background = palette.color(QPalette::Window);
+  palette.setColor(QPalette::WindowText, QColor((2 * text.red() + background.red()) / 3,
+                                                (2 * text.green() + background.green()) / 3,
+                                                (2 * text.blue() + background.blue()) / 3));
+  explanation->setPalette(palette);
+  // the explanation below the combo box, in the same field of the form
+  QWidget* container = new QWidget;
+  QVBoxLayout* containerLayout = new QVBoxLayout;
+  containerLayout->setContentsMargins(0, 0, 0, 0);
+  containerLayout->setSpacing(1);
+  layout->replaceWidget(combo, container);
+  containerLayout->addWidget(combo);
+  containerLayout->addWidget(explanation);
+  container->setLayout(containerLayout);
+  // moved into the container: shown with it (a combo box hidden by a collapsed
+  // section would stay hidden)
+  combo->setVisible(true);
+  explanation->setVisible(true);
+  this->ExplanationContainers[combo] = container;
   this->Explanations[combo] = explanation;
   this->ExplanationTexts[combo] = texts;
   QObject::connect(combo, QOverload<int>::of(&QComboBox::currentIndexChanged), explanation,
@@ -982,6 +1013,14 @@ void qSlicerAstroReprojectModuleWidgetPrivate::updateInputsTable()
     beam->setCurrentNodeID(row < static_cast<int>(beams.size()) ? QString::fromStdString(beams[row]) : QString());
     }
     }
+  // as high as its rows (no empty area)
+  this->InputsTable->resizeRowsToContents();
+  int height = this->InputsTable->horizontalHeader()->height() + 2 * this->InputsTable->frameWidth();
+  for (int row = 0; row < this->InputsTable->rowCount(); row++)
+    {
+    height += this->InputsTable->rowHeight(row);
+    }
+  this->InputsTable->setFixedHeight(height);
   this->InputsTable->setVisible(volumes.size() > 1 || this->parametersNode->GetPrimaryBeamModel() == 3);
 }
 
