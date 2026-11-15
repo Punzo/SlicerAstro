@@ -116,23 +116,29 @@ add_subdirectory(AstroSoFiACatalog)
 add_subdirectory(SlicerAstroDataProbe)
 
 #-----------------------------------------------------------------------------
-# The Python tests download the sample data into the cache of Slicer: they
-# are not run at the same time (concurrent downloads of a file conflict).
+# Properties of all the tests:
+# - the Python tests download the sample data into the cache of Slicer: they
+#   are not run at the same time (concurrent downloads of a file conflict);
+# - every test fails when VTK reports leaked objects at exit (3D Slicer builds
+#   with VTK_DEBUG_LEAKS, the default for Debug builds); the exit code of the
+#   application does not change when objects leak.
 if(BUILD_TESTING)
-  function(slicerastro_lock_python_tests directory)
+  function(slicerastro_configure_tests directory)
     get_property(_tests DIRECTORY ${directory} PROPERTY TESTS)
     foreach(_test IN LISTS _tests)
       if(_test MATCHES "^py_")
         set_tests_properties(${_test} DIRECTORY ${directory}
           PROPERTIES RESOURCE_LOCK SlicerAstroSampleDataCache)
       endif()
+      set_property(TEST ${_test} DIRECTORY ${directory} APPEND
+        PROPERTY FAIL_REGULAR_EXPRESSION "vtkDebugLeaks has detected LEAKS")
     endforeach()
     get_property(_subdirectories DIRECTORY ${directory} PROPERTY SUBDIRECTORIES)
     foreach(_subdirectory IN LISTS _subdirectories)
-      slicerastro_lock_python_tests(${_subdirectory})
+      slicerastro_configure_tests(${_subdirectory})
     endforeach()
   endfunction()
-  slicerastro_lock_python_tests(${CMAKE_CURRENT_SOURCE_DIR})
+  slicerastro_configure_tests(${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
 #-----------------------------------------------------------------------------
