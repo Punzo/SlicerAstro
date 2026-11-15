@@ -232,7 +232,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   vtkStringArray* SelectionArray = vtkStringArray::SafeDownCast
     (tableNode->GetTable()->GetColumnByName("Selection"));
-  vtkIntArray* NpixelsArray = vtkIntArray::SafeDownCast
+  // double in new tables, int in tables of older scenes
+  vtkDataArray* NpixelsArray = vtkDataArray::SafeDownCast
     (tableNode->GetTable()->GetColumnByName("Npixels"));
   vtkDoubleArray* MinArray = vtkDoubleArray::SafeDownCast
     (tableNode->GetTable()->GetColumnByName("Min"));
@@ -810,11 +811,11 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   if (!pnode->GetNpixels())
     {
-    NpixelsArray->SetValue(serial, NaN);
+    NpixelsArray->SetTuple1(serial, vtkDoubleArray::SafeDownCast(NpixelsArray) ? NaN : 0.);
     }
   else
     {
-    NpixelsArray->SetValue(serial, Npixels);
+    NpixelsArray->SetTuple1(serial, static_cast<double>(Npixels));
     }
 
   if (!pnode->GetMin())

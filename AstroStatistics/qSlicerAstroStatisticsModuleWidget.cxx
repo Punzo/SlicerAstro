@@ -626,15 +626,11 @@ void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= f
   d->astroTableNode->SetColumnUnitLabel("Selection", "");
   d->astroTableNode->SetColumnTitle("Selection", "Selection");
 
-  d->astroTableNode->SetDefaultColumnType("int");
-  vtkIntArray* Npixels = vtkIntArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Npixels)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Npixels Column.";
-    return;
-    }
+  // double: exact counts up to 2^53 voxels (cubes larger than 2^31 voxels)
+  // and NaN when the quantity is not computed
+  vtkNew<vtkDoubleArray> Npixels;
   Npixels->SetName("Npixels");
+  d->astroTableNode->AddColumn(Npixels.GetPointer());
   d->astroTableNode->SetColumnUnitLabel("Npixels", "#");
   d->astroTableNode->SetColumnTitle("Npixels", "Number of pixels");
 
