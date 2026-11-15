@@ -63,6 +63,10 @@ cmake -S Slicer -B Slicer-build \
   -DSlicer_USE_SimpleITK:BOOL=OFF \
   -DSlicer_USE_VTK_DEBUG_LEAKS:BOOL=OFF
 
+# summary lines as GitHub annotations (readable without the job log)
+notice() { [ -n "${GITHUB_ACTIONS:-}" ] && echo "::notice title=$1::$2" || echo "== $1: $2"; }
+start=$SECONDS
+
 if [ -n "${SLICER_TIME_LIMIT:-}" ]; then
   timeout --signal=TERM "${SLICER_TIME_LIMIT}m" cmake --build Slicer-build -j "$JOBS" || {
     status=$?
@@ -72,6 +76,7 @@ if [ -n "${SLICER_TIME_LIMIT:-}" ]; then
 else
   cmake --build Slicer-build -j "$JOBS"
 fi
+notice "3D Slicer" "built in $(( (SECONDS - start) / 60 )) min"
 
 # numpy/scipy references of the smoothing tests (scipy is not part of 3D Slicer)
 "$WORK/Slicer-build/python-install/bin/PythonSlicer" -m pip install -q scipy
@@ -82,13 +87,19 @@ cmake -S "$SOURCE" -B SlicerAstro-build \
   -DSlicer_DIR:PATH="$WORK/Slicer-build/Slicer-build" \
   -DBUILD_TESTING:BOOL=ON
 cmake --build SlicerAstro-build -j "$JOBS"
+notice "SlicerAstro" "built, $(( (SECONDS - start) / 60 )) min since the start"
 
 if command -v ccache > /dev/null; then
   ccache --show-stats || true
+  notice "ccache" "$(ccache --print-stats 2>/dev/null | grep -E '^(direct_cache_hit|preprocessed_cache_hit|cache_miss|files_in_cache|cache_size_kibibyte)' | tr '\t\n' '= ' )"
 fi
 
 echo "== Tests"
 cd SlicerAstro-build/inner-build
 export SLICERASTRO_COMPRESS_MOUSE_MOVES=0
+status=0
 xvfb-run -a -s "-screen 0 1600x1000x24" \
-  ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"}
+  ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
+cat ctest.log
+notice "Tests" "$(grep -E 'tests passed|No tests were found' ctest.log | tail -1) $(grep -E '^\s+[0-9]+ - .*\((Failed|Timeout|Not Run|SEGFAULT|Exception)' ctest.log | tr -s ' ' | tr '\n' ';')"
+exit $status
