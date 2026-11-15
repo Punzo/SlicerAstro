@@ -62,11 +62,15 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetSystemicVelocity(-1.)
 
         parametersNode.SetNumberOfRings(20)
+        parametersNode.SetStatus(0)
         widget.onEstimateInitialParameters()
 
-        # the estimate runs in a worker thread: wait for the results
-        timeout = time.time() + 120
-        while parametersNode.GetSystemicVelocity() < 0 and time.time() < timeout:
+        # the estimate runs in a worker thread: wait until it ends (status 100,
+        # also on errors). Debug, coverage and sanitizer builds are many times
+        # slower than Release, so the safety limit is generous.
+        timeout = time.time() + 900
+        while (parametersNode.GetSystemicVelocity() < 0 and parametersNode.GetStatus() != 100
+               and time.time() < timeout):
             slicer.app.processEvents()
             time.sleep(0.1)
 
