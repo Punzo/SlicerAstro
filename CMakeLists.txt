@@ -17,7 +17,7 @@ set(EXTENSION_DESCRIPTION "SlicerAstro, an Astronomy (HI) extension for 3D Slice
 set(EXTENSION_ICONURL "https://raw.githubusercontent.com/Punzo/SlicerAstro/master/SlicerAstroIcon.png")
 set(EXTENSION_SCREENSHOTURLS "https://raw.githubusercontent.com/Punzo/SlicerAstroWikiImages/master/Screenshot.png")
 set(EXTENSION_STATUS "Release")
-set(EXTENSION_DEPENDS "NA") # Specified as a list or "NA" if no dependencies
+set(EXTENSION_DEPENDS SlicerVirtualReality) # immersive view of the 3D rendering (installed with SlicerAstro)
 set(EXTENSION_BUILD_SUBDIRECTORY inner-build)
 
 set(SUPERBUILD_TOPLEVEL_PROJECT inner)

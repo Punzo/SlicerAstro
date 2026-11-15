@@ -9,6 +9,10 @@
 3. Restart 3D Slicer. The SlicerAstro modules are in the **Astronomy**
    category of the module selector.
 
+The Extensions Manager also installs **SlicerVirtualReality**, which
+SlicerAstro uses to show the 3D rendering in a virtual reality headset
+(OpenXR). It is not needed for anything else.
+
 SlicerAstro packages include the libraries it needs (CFITSIO, WCSLIB, ERFA,
 FFTW and 3DBarolo): nothing else has to be installed.
 
