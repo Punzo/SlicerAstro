@@ -34,6 +34,9 @@
 // Segmentation includes
 #include "vtkMRMLSegmentationNode.h"
 
+// VTK includes
+#include <vtkWeakPointer.h>
+
 class qMRMLAstroVolumeInfoWidget;
 class qSlicerAstroVolumeDisplayWidget;
 class qSlicerAstroVolumeModuleWidgetPrivate;
@@ -246,7 +249,6 @@ protected:
   /// \return False only if user chose not to change master representation on option 3, or if error occurred, otherwise true
   bool updateMasterRepresentationInSegmentation(vtkSegmentation* segmentation, QString representation);
 
-  vtkMRMLSegmentationNode* contoursSegNodeSmoothing;
   /// Contours of the Modeling module: create or recompute in place the
   /// segment segmentID (voxels of volume in [lower, upper]), named name
   bool updateModelingContourSegment(const char* segmentID, const std::string& name,
@@ -256,7 +258,8 @@ protected:
   /// not the data contours, the model contours or the region of the model
   void removeObsoleteModelingContourSegments();
 
-  vtkMRMLSegmentationNode* contoursSegNodeModeling;
+  /// Contours of the Modeling module (owned by the scene)
+  vtkWeakPointer<vtkMRMLSegmentationNode> contoursSegNodeModeling;
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroVolumeModuleWidget);

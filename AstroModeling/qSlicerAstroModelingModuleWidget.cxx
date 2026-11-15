@@ -281,15 +281,20 @@ qSlicerAstroModelingModuleWidgetPrivate::~qSlicerAstroModelingModuleWidgetPrivat
     delete this->astroVolumeWidget;
     }
 
+  // the thread first: the worker runs in it
+  if (this->thread)
+    {
+    this->thread->quit();
+    this->thread->wait();
+    }
+
   if (this->worker)
     {
-    this->worker->abort();
     delete this->worker;
     }
 
   if (this->thread)
     {
-    this->thread->wait();
     delete this->thread;
     }
 }
@@ -1081,6 +1086,27 @@ qSlicerAstroModelingModuleWidget::qSlicerAstroModelingModuleWidget(QWidget* _par
 //-----------------------------------------------------------------------------
 qSlicerAstroModelingModuleWidget::~qSlicerAstroModelingModuleWidget()
 {
+  Q_D(qSlicerAstroModelingModuleWidget);
+  // A 3DBarolo operation still running (e.g. the application is closed during
+  // a fit): request its end as the Cancel button does, then wait for the
+  // worker thread, so the worker is not deleted while it runs.
+  if (d->workerRunning())
+    {
+    if (d->logic())
+      {
+      d->logic()->RequestAbort();
+      }
+    d->workerParametersNode->SetStatus(-1);
+    if (d->worker)
+      {
+      d->worker->abort();
+      }
+    }
+  if (d->thread)
+    {
+    d->thread->quit();
+    d->thread->wait();
+    }
 }
 
 //-----------------------------------------------------------------------------

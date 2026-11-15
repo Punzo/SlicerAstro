@@ -520,26 +520,13 @@ qSlicerAstroVolumeModuleWidget::qSlicerAstroVolumeModuleWidget(QWidget* _parent)
   : Superclass(_parent)
   , d_ptr(new qSlicerAstroVolumeModuleWidgetPrivate(*this))
 {
-  this->contoursSegNodeSmoothing = nullptr;
   this->contoursSegNodeModeling = nullptr;
 }
 
 //-----------------------------------------------------------------------------
 qSlicerAstroVolumeModuleWidget::~qSlicerAstroVolumeModuleWidget()
 {
-  if (this->contoursSegNodeSmoothing)
-    {
-    this->mrmlScene()->RemoveNode(this->contoursSegNodeSmoothing);
-    this->contoursSegNodeSmoothing->Delete();
-    }
-  this->contoursSegNodeSmoothing = nullptr;
-
-  if (this->contoursSegNodeModeling)
-    {
-    this->mrmlScene()->RemoveNode(this->contoursSegNodeModeling);
-    this->contoursSegNodeModeling->Delete();
-    }
-  this->contoursSegNodeModeling = nullptr;
+  // contoursSegNodeModeling: owned by the scene
 }
 
 //-----------------------------------------------------------------------------
@@ -2678,7 +2665,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     {
     this->mrmlScene()->RemoveNode(vtkMRMLNode::SafeDownCast(segNodes->GetItemAsObject(ii)));
     }
-  this->contoursSegNodeSmoothing = nullptr;
 
   // Mask of the smoothed data at 3 RMS: a mask (binary labelmap in 2D and 3D,
   // FITS mask) on the grid of the input data, e.g. for the other modules
@@ -3396,11 +3382,14 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
   this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
   if (!this->contoursSegNodeModeling)
     {
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
-    this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
-    this->contoursSegNodeModeling->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
-    this->mrmlScene()->AddNode(this->contoursSegNodeModeling);
+    // owned by the scene: the widget keeps a weak pointer (a new scene, e.g.
+    // after a scene close, gets a new node)
+    vtkSmartPointer<vtkMRMLSegmentationNode> contours = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
+      vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode")));
+    contours->SetName("AstroModelingContoursSeg");
+    contours->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
+    this->mrmlScene()->AddNode(contours);
+    this->contoursSegNodeModeling = contours;
     }
 
   // the contours are not edited: the Segment Editor keeps its segmentation (mask)
@@ -3671,11 +3660,13 @@ void qSlicerAstroVolumeModuleWidget::updateQuantitative3DView(const char *volume
   this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(segNodes->GetItemAsObject(0));
   if (!this->contoursSegNodeModeling)
     {
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode");
-    this->contoursSegNodeModeling = vtkMRMLSegmentationNode::SafeDownCast(foo);
-    this->contoursSegNodeModeling->SetName("AstroModelingContoursSeg");
-    this->contoursSegNodeModeling->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
-    this->mrmlScene()->AddNode(this->contoursSegNodeModeling);
+    // owned by the scene (weak pointer in the widget)
+    vtkSmartPointer<vtkMRMLSegmentationNode> contours = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
+      vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode")));
+    contours->SetName("AstroModelingContoursSeg");
+    contours->SetAttribute(vtkSlicerAstroVolumeLogic::GetContoursAttributeName(), "true");
+    this->mrmlScene()->AddNode(contours);
+    this->contoursSegNodeModeling = contours;
     }
 
   // the contours are not edited: the Segment Editor keeps its segmentation (mask)

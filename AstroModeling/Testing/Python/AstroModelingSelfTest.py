@@ -1,5 +1,7 @@
 import time
 
+import numpy as np
+
 import slicer
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
@@ -32,13 +34,144 @@ class AstroModelingSelfTestLogic(ScriptedLoadableModuleLogic):
     pass
 
 
+def voxelArray(volumeNode):
+    """Zero-copy (z, y, x) view on the voxels of an (astro) volume node."""
+    from vtk.util.numpy_support import vtk_to_numpy
+    imageData = volumeNode.GetImageData()
+    dims = imageData.GetDimensions()
+    return vtk_to_numpy(imageData.GetPointData().GetScalars()).reshape(dims[2], dims[1], dims[0])
+
+
 class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
     def setUp(self):
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        self.setUp()
-        self.test_EstimateInitialParameters()
+        for test in (self.test_EstimateInitialParameters, self.test_CreateFitAndUpdate,
+                     self.test_CancelFit):
+            self.setUp()
+            test()
+
+    #
+    # helpers
+    #
+
+    def openModule(self):
+        """NGC 2403 in the AstroModeling module; parameters estimated by 3DBarolo."""
+        import AstroSampleData
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("NGC2403")
+        self.assertIsNotNone(volumeNode)
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroModeling")
+        widget = slicer.modules.astromodeling.widgetRepresentation()
+        parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroModelingParametersNode")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+        return volumeNode, widget, parametersNode
+
+    def runOperation(self, parametersNode, start, cancelAfter=None, timeout=1500):
+        """Run a 3DBarolo operation of the widget (worker thread) and wait
+        for its end; returns the seconds it took. The widget sets the status
+        to 1 when it starts the worker, to 100 when the worker ends and back
+        to 0 (idle) once the results are applied, both within one event: the
+        end is a return to 0 or 100 after the start."""
+        parametersNode.SetStatus(0)
+        begin = time.time()
+        start()
+        self.assertNotEqual(parametersNode.GetStatus(), 0, "the operation did not start")
+        cancelled = False
+        while parametersNode.GetStatus() not in (0, 100) and time.time() < begin + timeout:
+            if cancelAfter is not None and not cancelled and time.time() > begin + cancelAfter:
+                slicer.util.findChild(slicer.modules.astromodeling.widgetRepresentation(), "CancelPushButton").click()
+                cancelled = True
+            slicer.app.processEvents()
+            time.sleep(0.05)
+        self.assertIn(parametersNode.GetStatus(), (0, 100), "the operation did not end")
+        for _ in range(10):
+            slicer.app.processEvents()
+            time.sleep(0.05)
+        return time.time() - begin
+
+    def ringColumn(self, parametersNode, name):
+        table = parametersNode.GetParamsTableNode().GetTable()
+        column = table.GetColumnByName(name)
+        self.assertIsNotNone(column, name)
+        return np.array([column.GetValue(row) for row in range(table.GetNumberOfRows())])
+
+    def estimate(self, widget, parametersNode):
+        parametersNode.SetSystemicVelocity(-1.)
+        self.runOperation(parametersNode, widget.onEstimateInitialParameters)
+        self.assertLess(abs(parametersNode.GetSystemicVelocity() - 133.), 3.)
+
+    #
+    # tests
+    #
+
+    def test_CreateFitAndUpdate(self):
+        """Model from the estimated parameters, a short fit of the rotation
+        and dispersion, and a model recomputed from an edited ring table."""
+        volumeNode, widget, parametersNode = self.openModule()
+        self.estimate(widget, parametersNode)
+
+        # few rings and two free parameters: a short fit (Manual: the values
+        # of the parameters node, not a new estimate)
+        parametersNode.SetMode("Manual")
+        parametersNode.SetNumberOfRings(4)
+        parametersNode.SetRadSep(120.)
+        for name in ("Inclination", "PositionAngle", "SystemicVelocity", "XCenter", "YCenter",
+                     "RadialVelocity", "ScaleHeight"):
+            getattr(parametersNode, "Set" + name + "Fit")(False)
+        parametersNode.SetRotationVelocityFit(True)
+        parametersNode.SetVelocityDispersionFit(True)
+        parametersNode.SetTwoStage(False)
+
+        self.runOperation(parametersNode, widget.onCreate)
+        modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertIsNotNone(modelNode)
+        model = voxelArray(modelNode)
+        self.assertEqual(model.shape, voxelArray(volumeNode).shape)
+        self.assertGreater(np.nansum(model), 0.)
+
+        self.runOperation(parametersNode, widget.onFit)
+        self.assertTrue(parametersNode.GetFitSuccess())
+        rotation = self.ringColumn(parametersNode, "VRot")
+        dispersion = self.ringColumn(parametersNode, "VDisp")
+        self.assertEqual(len(rotation), 4)
+        # NGC 2403 (Fraternali et al. 2002): flat rotation curve at about
+        # 130 km/s outside the inner arcminutes, dispersion about 10 km/s
+        self.assertTrue(np.all(rotation > 40.) and np.all(rotation < 180.), rotation)
+        self.assertGreater(rotation[-1], rotation[0])
+        self.assertTrue(np.all(dispersion > 2.) and np.all(dispersion < 40.), dispersion)
+        residualNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetResidualVolumeNodeID() or "")
+        self.assertIsNotNone(residualNode)
+
+        # edit the rings and recompute the model from the table
+        before = voxelArray(
+            slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())).copy()
+        column = parametersNode.GetParamsTableNode().GetTable().GetColumnByName("VRot")
+        for row in range(column.GetNumberOfTuples()):
+            column.SetValue(row, column.GetValue(row) * 0.5)
+        parametersNode.GetParamsTableNode().GetTable().Modified()
+        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        after = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
+        self.assertEqual(after.shape, before.shape)
+        self.assertFalse(np.allclose(np.nan_to_num(after), np.nan_to_num(before)),
+                         "the model did not change with the rotation velocities")
+
+    def test_CancelFit(self):
+        """A fit is cancelled within seconds and leaves the module usable."""
+        volumeNode, widget, parametersNode = self.openModule()
+        self.estimate(widget, parametersNode)
+        parametersNode.SetMode("Manual")
+        parametersNode.SetNumberOfRings(10)
+        parametersNode.SetTwoStage(True)
+        seconds = self.runOperation(parametersNode, widget.onFit, cancelAfter=3., timeout=600)
+        self.assertFalse(parametersNode.GetFitSuccess())
+        print("fit cancelled after %.1f s" % seconds)
+        # the module runs again after a cancel
+        parametersNode.SetNumberOfRings(2)
+        self.runOperation(parametersNode, widget.onCreate)
 
     def test_EstimateInitialParameters(self):
         """Only the estimate of the initial parameters is tested: it is fast,
