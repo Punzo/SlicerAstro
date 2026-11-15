@@ -86,6 +86,7 @@
 #include <vtkSegmentationConverter.h>
 #include <vtkPolyData.h>
 #include <vtkOrientedImageData.h>
+#include <vtkOrientedImageDataResample.h>
 #include <vtkVolumeProperty.h>
 #include <vtkPointData.h>
 #include <vtkSegment.h>
@@ -1450,8 +1451,36 @@ bool vtkSlicerAstroVolumeLogic::CalculateSegmentCropVolumeBounds(vtkMRMLSegmenta
   vtkMatrix4x4::Multiply4x4(rasToIJK.GetPointer(), segmentToVolumeTransformMatrix.GetPointer(),
     segmentToVolumeIJKTransformMatrix.GetPointer());
 
-  double SegmentExtent[6] = {0};
-  segment->GetBounds(SegmentExtent);
+  // Voxels of the segment (effective extent of its binary labelmap: the
+  // labelmap image itself can cover the whole reference geometry)
+  const std::string segmentID = segmentationNode->GetSegmentation() ?
+    segmentationNode->GetSegmentation()->GetSegmentIdBySegment(segment) : std::string();
+  vtkNew<vtkOrientedImageData> segmentLabelmap;
+  if (segmentID.empty() ||
+      !segmentationNode->GetBinaryLabelmapRepresentation(segmentID, segmentLabelmap.GetPointer()))
+    {
+    return false;
+    }
+  int effectiveExtent[6] = {0, -1, 0, -1, 0, -1};
+  if (!vtkOrientedImageDataResample::CalculateEffectiveExtent(segmentLabelmap.GetPointer(), effectiveExtent) ||
+      effectiveExtent[0] > effectiveExtent[1] || effectiveExtent[2] > effectiveExtent[3] ||
+      effectiveExtent[4] > effectiveExtent[5])
+    {
+    // empty segment
+    return false;
+    }
+
+  // labelmap voxel edges -> volume IJK
+  vtkNew<vtkMatrix4x4> labelmapToSegment;
+  segmentLabelmap->GetImageToWorldMatrix(labelmapToSegment.GetPointer());
+  vtkMatrix4x4::Multiply4x4(segmentToVolumeIJKTransformMatrix.GetPointer(), labelmapToSegment.GetPointer(),
+    segmentToVolumeIJKTransformMatrix.GetPointer());
+  const double SegmentExtent[6] =
+    {
+    effectiveExtent[0] - 0.5, effectiveExtent[1] + 0.5,
+    effectiveExtent[2] - 0.5, effectiveExtent[3] + 0.5,
+    effectiveExtent[4] - 0.5, effectiveExtent[5] + 0.5
+    };
 
   const int numberOfCorners = 8;
   double volumeCorners_Segment[numberOfCorners][4] =
