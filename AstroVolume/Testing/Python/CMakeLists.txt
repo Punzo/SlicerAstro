@@ -50,4 +50,10 @@ if(Slicer_USE_PYTHONQT)
     SCRIPTS AstroVolumeSegmentationsTest.py
     )
   slicer_add_python_unittest(SCRIPT AstroVolumeSegmentationsTest.py)
+
+  slicerMacroBuildScriptedModule(
+    NAME AstroParametersNodesTest
+    SCRIPTS AstroParametersNodesTest.py
+    )
+  slicer_add_python_unittest(SCRIPT AstroParametersNodesTest.py)
 endif()
