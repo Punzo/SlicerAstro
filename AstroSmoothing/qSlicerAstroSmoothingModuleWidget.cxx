@@ -1073,7 +1073,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           if (StringToInt(inputVolumeNode->GetAttribute("SlicerAstro.NAXIS")) == 3)
             {
-            double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
+            // -1: no previous value, every field is shown
+            double outputValues[3] = {0.}, oldOutputValues[3] = {-1., -1., -1.};
             double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
             d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
               ->GetDisplayStringFromValueX(cdelt1, oldOutputValues, outputValues, 3).c_str());
@@ -1166,7 +1167,8 @@ void qSlicerAstroSmoothingModuleWidget::onMRMLAstroSmoothingParametersNodeModifi
           {
           if (StringToInt(inputVolumeNode->GetAttribute("SlicerAstro.NAXIS")) == 3)
             {
-            double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
+            // -1: no previous value, every field is shown
+            double outputValues[3] = {0.}, oldOutputValues[3] = {-1., -1., -1.};
             double cdelt1 = StringToDouble(inputVolumeNode->GetAttribute("SlicerAstro.CDELT1"));
             d->CDELT1LabelValue->setText(inputVolumeNode->GetAstroVolumeDisplayNode()
               ->GetDisplayStringFromValueY(cdelt1, oldOutputValues, outputValues, 3).c_str());

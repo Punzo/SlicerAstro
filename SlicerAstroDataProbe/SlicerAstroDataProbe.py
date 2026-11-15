@@ -212,7 +212,135 @@ class SlicerAstroDataProbeTest(ScriptedLoadableModuleTest):
   def runTest(self):
     """Run as few or as many tests as needed here.
     """
-    self.setUp()
+    for test in (self.test_Override, self.test_CubeReadout, self.test_ImageReadout,
+                 self.test_NoWCS, self.test_ScalarVolume):
+      self.setUp()
+      test()
+
+  #
+  # helpers
+  #
+
+  def writeFITS(self, name, data, cards):
+    """Single float image HDU with the header cards (list of (key, value))."""
+    import os
+    import numpy as np
+
+    def card(key, value):
+      if isinstance(value, bool):
+        text = ("T" if value else "F").rjust(20)
+      elif isinstance(value, int):
+        text = str(value).rjust(20)
+      elif isinstance(value, float):
+        text = repr(value).upper().rjust(20)
+      else:
+        text = ("'" + str(value).ljust(8) + "'").ljust(20)
+      return ("%-8s= %s" % (key, text))[:80].ljust(80)
+
+    header = [("SIMPLE", True), ("BITPIX", -32), ("NAXIS", data.ndim)]
+    header += [("NAXIS%d" % axis, size) for axis, size in enumerate(reversed(data.shape), start=1)]
+    text = "".join(card(*c) for c in header + list(cards)) + "END".ljust(80)
+    text += " " * (-len(text) % 2880)
+    payload = np.ascontiguousarray(data, dtype=">f4").tobytes()
+    path = os.path.join(slicer.app.temporaryPath, name)
+    with open(path, "wb") as f:
+      f.write(text.encode("ascii") + payload + b"\0" * (-len(payload) % 2880))
+    node = slicer.util.loadVolume(path)
+    self.assertIsNotNone(node)
+    return node
+
+  CELESTIAL = [("CTYPE1", "RA---SIN"), ("CRVAL1", 114.21417), ("CDELT1", -0.002), ("CRPIX1", 16.),
+               ("CUNIT1", "deg"), ("CTYPE2", "DEC--SIN"), ("CRVAL2", 65.6025), ("CDELT2", 0.002),
+               ("CRPIX2", 12.), ("CUNIT2", "deg"), ("RADESYS", "FK5"), ("EQUINOX", 2000.),
+               ("BUNIT", "JY/BEAM"), ("BMAJ", 0.006), ("BMIN", 0.006), ("BPA", 0.)]
+  SPECTRAL = [("CTYPE3", "VRAD"), ("CRVAL3", 133400.), ("CDELT3", 2580.), ("CRPIX3", 6.),
+              ("CUNIT3", "m/s"), ("RESTFREQ", 1.420405752E9), ("SPECSYS", "BARYCENT")]
+
+  def showInRedView(self, volumeNode):
+    """Volume in the background of the red slice view; returns the slice
+    node, its logic and the XY position of the centre of the view."""
+    layoutManager = slicer.app.layoutManager()
+    sliceWidget = layoutManager.sliceWidget("Red")
+    sliceLogic = sliceWidget.sliceLogic()
+    sliceLogic.GetSliceCompositeNode().SetBackgroundVolumeID(volumeNode.GetID())
+    sliceLogic.FitSliceToAll()
+    slicer.app.processEvents()
+    sliceNode = sliceLogic.GetSliceNode()
+    dimensions = sliceNode.GetDimensions()
+    return sliceNode, sliceLogic, [dimensions[0] / 2., dimensions[1] / 2., 0.]
+
+  #
+  # tests
+  #
+
+  def test_Override(self):
+    """The Data Probe of 3D Slicer uses the functions of this module."""
+    infoWidget = slicer.modules.DataProbeInstance.infoWidget
+    self.assertIs(infoWidget.generateViewDescription.__func__, generateViewDescriptionAstro)
+    self.assertIs(infoWidget.generateLayerName.__func__, generateLayerNameAstro)
+    self.assertIs(infoWidget.generateIJKPixelDescription.__func__, generateIJKPixelDescriptionAstro)
+    self.assertIs(infoWidget.generateIJKPixelValueDescription.__func__, generateIJKPixelValueDescriptionAstro)
+
+  def test_CubeReadout(self):
+    import numpy as np
+    data = np.arange(11 * 23 * 31, dtype=np.float32).reshape(11, 23, 31) * 0.001
+    volumeNode = self.writeFITS("probe_cube.fits", data, self.CELESTIAL + self.SPECTRAL)
+    sliceNode, sliceLogic, xyz = self.showInRedView(volumeNode)
+    infoWidget = slicer.modules.DataProbeInstance.infoWidget
+    description = infoWidget.generateViewDescription(xyz, [0., 0., 0.], sliceNode, sliceLogic)
+    print(description)
+    self.assertIn("WCS[", description)
+    self.assertIn("J2000", description)
+    # sexagesimal right ascension and declination near the reference values
+    self.assertRegex(description, r"7h\s*36m")
+    # all the fields, also when the arcminutes equal the minutes of the RA
+    self.assertRegex(description, "65°\\s*36'\\s*9")
+    self.assertIn("km/s", description)
+
+    layerLogic = sliceLogic.GetBackgroundLayer()
+    self.assertIn("probe_cube", infoWidget.generateLayerName(layerLogic))
+    self.assertEqual(infoWidget.generateIJKPixelDescription([3, 4, 5], layerLogic), "(   3,    4,    5)")
+    value = infoWidget.generateIJKPixelValueDescription([3, 4, 5], layerLogic)
+    print(value)
+    self.assertIn("JY/BEAM".lower(), value.lower())
+    number = float(value.replace("<b>", "").split()[0])
+    self.assertAlmostEqual(number, float(data[5, 4, 3]), delta=1e-6 + 1e-4 * abs(float(data[5, 4, 3])))
+
+  def test_ImageReadout(self):
+    """2D image: no spectral coordinate in the readout."""
+    import numpy as np
+    data = np.ones((23, 31), dtype=np.float32)
+    volumeNode = self.writeFITS("probe_image.fits", data, self.CELESTIAL)
+    sliceNode, sliceLogic, xyz = self.showInRedView(volumeNode)
+    description = slicer.modules.DataProbeInstance.infoWidget.generateViewDescription(
+      xyz, [0., 0., 0.], sliceNode, sliceLogic)
+    print(description)
+    self.assertIn("WCS[", description)
+    self.assertNotIn("km/s", description)
+
+  def test_NoWCS(self):
+    """A cube without world coordinates is described in voxel coordinates."""
+    import numpy as np
+    data = np.ones((5, 7, 9), dtype=np.float32)
+    volumeNode = self.writeFITS("probe_nowcs.fits", data, [("BUNIT", "JY/BEAM")])
+    sliceNode, sliceLogic, xyz = self.showInRedView(volumeNode)
+    description = slicer.modules.DataProbeInstance.infoWidget.generateViewDescription(
+      xyz, [0., 0., 0.], sliceNode, sliceLogic)
+    print(description)
+    self.assertNotIn("WCS[", description)
+    self.assertIn("not found", description)
+
+  def test_ScalarVolume(self):
+    """Volumes that are not astronomical use the standard descriptions."""
+    import numpy as np
+    volumeNode = slicer.util.addVolumeFromArray(np.full((4, 5, 6), 7., dtype=np.float32), name="scalar")
+    sliceNode, sliceLogic, xyz = self.showInRedView(volumeNode)
+    infoWidget = slicer.modules.DataProbeInstance.infoWidget
+    layerLogic = sliceLogic.GetBackgroundLayer()
+    value = infoWidget.generateIJKPixelValueDescription([1, 2, 3], layerLogic)
+    self.assertIn("7", value)
+    description = infoWidget.generateViewDescription(xyz, [0., 0., 0.], sliceNode, sliceLogic)
+    self.assertIn("not found", description)
 
 
 def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
@@ -242,17 +370,20 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
         if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
-          worldTemp = [0., 0., 0.]
-          worldX = displayNode.GetDisplayStringFromValueX(world[0], worldTemp, worldTemp, 3)
+          # the formatter leaves out the fields equal to the previous value
+          # (labels of the WCS axes): -1 never equals a field, all are shown
+          noPrevious = [-1., -1., -1.]
+          output = [0., 0., 0.]
+          worldX = displayNode.GetDisplayStringFromValueX(world[0], noPrevious, output, 3)
           equinox = float(volumeNode.GetAttribute("SlicerAstro.EQUINOX"))
           if equinox > 1975:
             equinoxString = "J" + str(equinox)[:4]
           elif equinox < 1975:
             equinoxString = "B" + str(equinox)[:4]
           if dimensionality > 1:
-            worldY = displayNode.GetDisplayStringFromValueY(world[1], worldTemp, worldTemp, 3)
+            worldY = displayNode.GetDisplayStringFromValueY(world[1], noPrevious, output, 3)
           if dimensionality > 2:
-            worldZ = displayNode.GetDisplayStringFromValueZ(world[2], worldTemp, worldTemp, 3)
+            worldZ = displayNode.GetDisplayStringFromValueZ(world[2], noPrevious, output, 3)
             worldZ = displayNode.AddVelocityInfoToDisplayStringZ(worldZ)
           break
 

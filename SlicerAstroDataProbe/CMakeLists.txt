@@ -16,3 +16,9 @@ slicerMacroBuildScriptedModule(
   SCRIPTS ${MODULE_PYTHON_SCRIPTS}
   RESOURCES ${MODULE_PYTHON_RESOURCES}
   )
+
+#-----------------------------------------------------------------------------
+if(BUILD_TESTING)
+  # the unittest subclass in the main script, as a ctest
+  slicer_add_python_unittest(SCRIPT ${MODULE_NAME}.py)
+endif()

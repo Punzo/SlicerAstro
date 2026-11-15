@@ -433,7 +433,8 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
         displayNode->GetReferenceSpace(ijk, world);
         d->WCSDisplay->setFixedWidth(115);
 
-        double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
+        // -1: no previous value, every field is shown
+            double outputValues[3] = {0.}, oldOutputValues[3] = {-1., -1., -1.};
         if(!orientation.compare("XZ"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroVolume->GetAstroVolumeDisplayNode()
@@ -514,7 +515,8 @@ void qMRMLSliceAstroControllerWidget::setWCSDisplay()
         astroLabelMapDisplay->GetReferenceSpace(ijk, world);
         d->WCSDisplay->setFixedWidth(115);
 
-        double outputValues[3] = {0.}, oldOutputValues[3] = {0.};
+        // -1: no previous value, every field is shown
+            double outputValues[3] = {0.}, oldOutputValues[3] = {-1., -1., -1.};
         if(!orientation.compare("XZ"))
           {
           d->WCSDisplay->setText(QString::fromStdString(astroLabelMapVolume->GetAstroLabelMapVolumeDisplayNode()
