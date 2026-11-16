@@ -104,6 +104,7 @@
 #include <vtkMRMLStorageNode.h>
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
+#include <vtkMRMLAstroTerminology.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
@@ -2678,6 +2679,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   const std::string SegmentTwoName = std::string(volumeTwo->GetName()) + "_3RMS";
   double maskColor[3] = {1., 0.9, 0.13};
   const std::string SegmentTwoID = maskNode->GetSegmentation()->AddEmptySegment(SegmentTwoName, SegmentTwoName, maskColor);
+  if (vtkSegment* maskSegment = maskNode->GetSegmentation()->GetSegment(SegmentTwoID))
+    {
+    maskSegment->SetTerminology(vtkMRMLAstroTerminology::GetMaskEntry());
+    }
     {
     vtkNew<vtkImageThreshold> imageThreshold;
     imageThreshold->SetInputData(volumeTwo->GetImageData());
@@ -2705,9 +2710,9 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     vtkMRMLSegmentationDisplayNode::SafeDownCast(maskNode->GetDisplayNode());
   if (maskDisplayNode)
     {
-    // shown with the input data (first 3D view, semi-transparent) and in the
-    // slice views; not with the smoothed data (second 3D view)
-    maskDisplayNode->SetSegmentOpacity3D(SegmentTwoID, 0.3);
+    // shown with the input data (first 3D view) and in the slice views; not
+    // with the smoothed data (second 3D view). Slicer's default opacities
+    // (the ones shown and edited in the Segment Editor)
     maskDisplayNode->RemoveAllViewNodeIDs();
     vtkMRMLViewNode* inputDataView = col->GetNumberOfItems() > 0 ?
       vtkMRMLViewNode::SafeDownCast(col->GetItemAsObject(0)) : nullptr;
@@ -3141,6 +3146,15 @@ bool qSlicerAstroVolumeModuleWidget::updateModelingContourSegment(const char* se
     {
     double segmentColor[3] = {color[0], color[1], color[2]};
     segmentation->AddEmptySegment(segmentID, name, segmentColor);
+    // astronomical terminology: contours of the data, or of the model
+    segment = segmentation->GetSegment(segmentID);
+    const bool model = !strcmp(segmentID, qSlicerAstroVolumeModuleWidget::modelingModelContoursSegmentID()) ||
+                       !strcmp(segmentID, qSlicerAstroVolumeModuleWidget::modelingModelMaskSegmentID());
+    if (segment)
+      {
+      segment->SetTerminology(model ? vtkMRMLAstroTerminology::GetModelEntry() :
+                                      vtkMRMLAstroTerminology::GetContourEntry());
+      }
     }
   else
     {

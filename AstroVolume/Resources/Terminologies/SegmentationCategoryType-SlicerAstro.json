@@ -1,0 +1,384 @@
+{
+  "SegmentationCategoryTypeContextName": "Segmentation category and type - SlicerAstro",
+  "@schema": "https://raw.githubusercontent.com/qiicr/dcmqi/master/doc/segment-context-schema.json#",
+  "SegmentationCodes": {
+    "Category": [
+      {
+        "CodeMeaning": "Source detection",
+        "CodingSchemeDesignator": "99SLICERASTRO",
+        "CodeValue": "SA-C1",
+        "showAnatomy": false,
+        "Type": [
+          {
+            "CodeMeaning": "Source",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T101",
+            "recommendedDisplayRGBValue": [
+              255,
+              193,
+              7
+            ],
+            "3dSlicerLabel": "source",
+            "3dSlicerIntegerLabel": 1
+          },
+          {
+            "CodeMeaning": "Source candidate",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T102",
+            "recommendedDisplayRGBValue": [
+              255,
+              152,
+              0
+            ],
+            "3dSlicerLabel": "source_candidate",
+            "3dSlicerIntegerLabel": 2
+          },
+          {
+            "CodeMeaning": "Continuum source",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T103",
+            "recommendedDisplayRGBValue": [
+              233,
+              30,
+              99
+            ],
+            "3dSlicerLabel": "continuum_source",
+            "3dSlicerIntegerLabel": 3
+          },
+          {
+            "CodeMeaning": "Absorption feature",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T104",
+            "recommendedDisplayRGBValue": [
+              156,
+              39,
+              176
+            ],
+            "3dSlicerLabel": "absorption_feature",
+            "3dSlicerIntegerLabel": 4
+          },
+          {
+            "CodeMeaning": "Artefact",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T105",
+            "recommendedDisplayRGBValue": [
+              158,
+              158,
+              158
+            ],
+            "3dSlicerLabel": "artefact",
+            "3dSlicerIntegerLabel": 5
+          },
+          {
+            "CodeMeaning": "Noise peak",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T106",
+            "recommendedDisplayRGBValue": [
+              96,
+              125,
+              139
+            ],
+            "3dSlicerLabel": "noise_peak",
+            "3dSlicerIntegerLabel": 6
+          }
+        ]
+      },
+      {
+        "CodeMeaning": "Galaxy",
+        "CodingSchemeDesignator": "99SLICERASTRO",
+        "CodeValue": "SA-C2",
+        "showAnatomy": false,
+        "Type": [
+          {
+            "CodeMeaning": "Target galaxy",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T201",
+            "recommendedDisplayRGBValue": [
+              3,
+              169,
+              244
+            ],
+            "3dSlicerLabel": "target_galaxy",
+            "3dSlicerIntegerLabel": 7
+          },
+          {
+            "CodeMeaning": "Companion galaxy",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T202",
+            "recommendedDisplayRGBValue": [
+              0,
+              188,
+              212
+            ],
+            "3dSlicerLabel": "companion_galaxy",
+            "3dSlicerIntegerLabel": 8
+          },
+          {
+            "CodeMeaning": "Background galaxy",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T203",
+            "recommendedDisplayRGBValue": [
+              121,
+              134,
+              203
+            ],
+            "3dSlicerLabel": "background_galaxy",
+            "3dSlicerIntegerLabel": 9
+          },
+          {
+            "CodeMeaning": "Foreground star",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T204",
+            "recommendedDisplayRGBValue": [
+              255,
+              235,
+              59
+            ],
+            "3dSlicerLabel": "foreground_star",
+            "3dSlicerIntegerLabel": 10
+          }
+        ]
+      },
+      {
+        "CodeMeaning": "Gas structure",
+        "CodingSchemeDesignator": "99SLICERASTRO",
+        "CodeValue": "SA-C3",
+        "showAnatomy": false,
+        "Type": [
+          {
+            "CodeMeaning": "Gas disk",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T301",
+            "recommendedDisplayRGBValue": [
+              76,
+              175,
+              80
+            ],
+            "3dSlicerLabel": "gas_disk",
+            "3dSlicerIntegerLabel": 11
+          },
+          {
+            "CodeMeaning": "Warp",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T302",
+            "recommendedDisplayRGBValue": [
+              139,
+              195,
+              74
+            ],
+            "3dSlicerLabel": "warp",
+            "3dSlicerIntegerLabel": 12
+          },
+          {
+            "CodeMeaning": "Extraplanar gas",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T303",
+            "recommendedDisplayRGBValue": [
+              205,
+              220,
+              57
+            ],
+            "3dSlicerLabel": "extraplanar_gas",
+            "3dSlicerIntegerLabel": 13
+          },
+          {
+            "CodeMeaning": "Tidal tail",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T304",
+            "recommendedDisplayRGBValue": [
+              255,
+              87,
+              34
+            ],
+            "3dSlicerLabel": "tidal_tail",
+            "3dSlicerIntegerLabel": 14
+          },
+          {
+            "CodeMeaning": "Bridge",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T305",
+            "recommendedDisplayRGBValue": [
+              255,
+              138,
+              101
+            ],
+            "3dSlicerLabel": "bridge",
+            "3dSlicerIntegerLabel": 15
+          },
+          {
+            "CodeMeaning": "Gas cloud",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T306",
+            "recommendedDisplayRGBValue": [
+              0,
+              150,
+              136
+            ],
+            "3dSlicerLabel": "gas_cloud",
+            "3dSlicerIntegerLabel": 16
+          },
+          {
+            "CodeMeaning": "High-velocity cloud",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T307",
+            "recommendedDisplayRGBValue": [
+              244,
+              67,
+              54
+            ],
+            "3dSlicerLabel": "high_velocity_cloud",
+            "3dSlicerIntegerLabel": 17
+          },
+          {
+            "CodeMeaning": "Ring",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T308",
+            "recommendedDisplayRGBValue": [
+              129,
+              199,
+              132
+            ],
+            "3dSlicerLabel": "ring",
+            "3dSlicerIntegerLabel": 18
+          },
+          {
+            "CodeMeaning": "Anomalous gas",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T309",
+            "recommendedDisplayRGBValue": [
+              186,
+              104,
+              200
+            ],
+            "3dSlicerLabel": "anomalous_gas",
+            "3dSlicerIntegerLabel": 19
+          }
+        ]
+      },
+      {
+        "CodeMeaning": "Kinematics",
+        "CodingSchemeDesignator": "99SLICERASTRO",
+        "CodeValue": "SA-C4",
+        "showAnatomy": false,
+        "Type": [
+          {
+            "CodeMeaning": "Approaching side",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T401",
+            "recommendedDisplayRGBValue": [
+              33,
+              150,
+              243
+            ],
+            "3dSlicerLabel": "approaching_side",
+            "3dSlicerIntegerLabel": 20
+          },
+          {
+            "CodeMeaning": "Receding side",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T402",
+            "recommendedDisplayRGBValue": [
+              229,
+              57,
+              53
+            ],
+            "3dSlicerLabel": "receding_side",
+            "3dSlicerIntegerLabel": 21
+          },
+          {
+            "CodeMeaning": "Non-circular motion",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T403",
+            "recommendedDisplayRGBValue": [
+              255,
+              214,
+              0
+            ],
+            "3dSlicerLabel": "non_circular_motion",
+            "3dSlicerIntegerLabel": 22
+          }
+        ]
+      },
+      {
+        "CodeMeaning": "Analysis region",
+        "CodingSchemeDesignator": "99SLICERASTRO",
+        "CodeValue": "SA-C5",
+        "showAnatomy": false,
+        "Type": [
+          {
+            "CodeMeaning": "Mask",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T501",
+            "recommendedDisplayRGBValue": [
+              255,
+              230,
+              33
+            ],
+            "3dSlicerLabel": "mask",
+            "3dSlicerIntegerLabel": 23
+          },
+          {
+            "CodeMeaning": "Region of interest",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T502",
+            "recommendedDisplayRGBValue": [
+              77,
+              208,
+              225
+            ],
+            "3dSlicerLabel": "region_of_interest",
+            "3dSlicerIntegerLabel": 24
+          },
+          {
+            "CodeMeaning": "Noise region",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T503",
+            "recommendedDisplayRGBValue": [
+              144,
+              164,
+              174
+            ],
+            "3dSlicerLabel": "noise_region",
+            "3dSlicerIntegerLabel": 25
+          },
+          {
+            "CodeMeaning": "Exclusion region",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T504",
+            "recommendedDisplayRGBValue": [
+              84,
+              110,
+              122
+            ],
+            "3dSlicerLabel": "exclusion_region",
+            "3dSlicerIntegerLabel": 26
+          },
+          {
+            "CodeMeaning": "Contour",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T505",
+            "recommendedDisplayRGBValue": [
+              255,
+              255,
+              255
+            ],
+            "3dSlicerLabel": "contour",
+            "3dSlicerIntegerLabel": 27
+          },
+          {
+            "CodeMeaning": "Model",
+            "CodingSchemeDesignator": "99SLICERASTRO",
+            "CodeValue": "SA-T506",
+            "recommendedDisplayRGBValue": [
+              0,
+              229,
+              255
+            ],
+            "3dSlicerLabel": "model",
+            "3dSlicerIntegerLabel": 28
+          }
+        ]
+      }
+    ]
+  }
+}

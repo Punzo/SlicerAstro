@@ -27,6 +27,8 @@
 
 // Slicer includes
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkSlicerTerminologiesModuleLogic.h>
+#include <vtkSlicerTerminologyType.h>
 #include <cmath>
 #include <limits>
 #include <vtkMath.h>
@@ -47,6 +49,7 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroSegmentationStorageNode.h>
+#include <vtkMRMLAstroTerminology.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLColorTableNode.h>
@@ -379,6 +382,8 @@ void vtkSlicerAstroVolumeLogic::UpdateSliceOrientationPresets()
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
 {
   this->UpdateSliceOrientationPresets();
+  // the closing of the scene emptied the singleton color table
+  this->AddAstroTerminologyColorTable();
 }
 
 //----------------------------------------------------------------------------
@@ -393,6 +398,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
   for (vtkMRMLNode* node : segmentationNodes)
     {
     this->EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode::SafeDownCast(node));
+    vtkSlicerAstroVolumeLogic::EnsureAstroTerminology(vtkMRMLSegmentationNode::SafeDownCast(node));
     }
 
   // contours and mask segmentations of the astronomical volumes (existing
@@ -480,6 +486,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     for (vtkMRMLNode* segmentationNode : segmentationNodes)
       {
       this->EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
+      vtkSlicerAstroVolumeLogic::EnsureAstroTerminology(vtkMRMLSegmentationNode::SafeDownCast(segmentationNode));
       }
     }
 
@@ -503,6 +510,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
     if (!this->GetMRMLScene()->IsImporting())
       {
       this->EnsureFITSMaskStorageNode(segmentationNode);
+      vtkSlicerAstroVolumeLogic::EnsureAstroTerminology(segmentationNode);
       }
     }
 
@@ -2300,6 +2308,120 @@ bool vtkSlicerAstroVolumeLogic::EnsureFITSMaskStorageNode(vtkMRMLSegmentationNod
 }
 
 //----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::EnsureAstroTerminology(vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!segmentationNode || !segmentationNode->GetSegmentation())
+    {
+    return false;
+    }
+  const std::string maskEntry = vtkMRMLAstroTerminology::GetMaskEntry();
+  const std::string contourEntry = vtkMRMLAstroTerminology::GetContourEntry();
+  const std::string currentEntry = vtkSlicerTerminologiesModuleLogic::GetDefaultTerminologyEntryAsString(segmentationNode);
+  const bool setByAstro = currentEntry == maskEntry || currentEntry == contourEntry;
+  const bool contours = vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode);
+  if (!contours && !vtkSlicerAstroVolumeLogic::IsAstroSegmentation(segmentationNode))
+    {
+    // e.g. the reference volume is a medical image: Slicer's default
+    if (setByAstro)
+      {
+      vtkSlicerTerminologiesModuleLogic::SetDefaultTerminologyEntryAsString(segmentationNode, std::string());
+      }
+    return false;
+    }
+  const std::string astroEntry = contours ? contourEntry : maskEntry;
+  if ((currentEntry.empty() || setByAstro) && currentEntry != astroEntry)
+    {
+    vtkSlicerTerminologiesModuleLogic::SetDefaultTerminologyEntryAsString(segmentationNode, astroEntry);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetTerminologiesLogic(vtkSlicerTerminologiesModuleLogic* terminologiesLogic)
+{
+  this->TerminologiesLogic = terminologiesLogic;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLColorTableNode* vtkSlicerAstroVolumeLogic::AddAstroTerminologyColorTable()
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkSlicerTerminologiesModuleLogic* terminologiesLogic = this->TerminologiesLogic;
+  if (!scene || !terminologiesLogic)
+    {
+    return nullptr;
+    }
+
+  // the types of the terminology, category by category
+  const std::string contextName = vtkMRMLAstroTerminology::GetContextName();
+  std::vector<vtkSlicerTerminologiesModuleLogic::CodeIdentifier> categories;
+  if (!terminologiesLogic->GetCategoriesInTerminology(contextName, categories) || categories.empty())
+    {
+    vtkErrorMacro("AddAstroTerminologyColorTable: the terminology '" << contextName << "' is not loaded.");
+    return nullptr;
+    }
+  std::vector<vtkSlicerTerminologiesModuleLogic::CodeIdentifier> typeCategories;
+  std::vector<vtkSlicerTerminologiesModuleLogic::CodeIdentifier> types;
+  for (const vtkSlicerTerminologiesModuleLogic::CodeIdentifier& category : categories)
+    {
+    std::vector<vtkSlicerTerminologiesModuleLogic::CodeIdentifier> categoryTypes;
+    terminologiesLogic->GetTypesInTerminologyCategory(contextName, category, categoryTypes);
+    for (const vtkSlicerTerminologiesModuleLogic::CodeIdentifier& type : categoryTypes)
+      {
+      typeCategories.push_back(category);
+      types.push_back(type);
+      }
+    }
+
+  // the singleton table of the scene (emptied when a scene is closed), else a new one
+  vtkSmartPointer<vtkMRMLColorTableNode> colorTable = vtkMRMLColorTableNode::SafeDownCast(scene->GetSingletonNode(
+    vtkSlicerAstroVolumeLogic::GetAstroTerminologyColorTableSingletonTag(), "vtkMRMLColorTableNode"));
+  const bool inScene = colorTable != nullptr;
+  if (inScene && colorTable->GetNumberOfColors() == static_cast<int>(types.size()) + 1 &&
+      colorTable->GetContainsTerminology())
+    {
+    return colorTable;
+    }
+  if (!inScene)
+    {
+    colorTable = vtkSmartPointer<vtkMRMLColorTableNode>::Take(
+      vtkMRMLColorTableNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLColorTableNode")));
+    }
+  MRMLNodeModifyBlocker blocker(colorTable);
+  colorTable->SetType(vtkMRMLColorTableNode::User);
+  colorTable->SetName("SlicerAstro");
+  colorTable->SetSingletonTag(vtkSlicerAstroVolumeLogic::GetAstroTerminologyColorTableSingletonTag());
+  colorTable->SetDescription("Astronomical terminology of the segments (sources, galaxies, gas structures, "
+                             "kinematic and analysis regions) with their recommended colors.");
+  colorTable->SetNumberOfColors(static_cast<int>(types.size()) + 1);
+  colorTable->SetColor(0, "Background", 0., 0., 0., 0.);
+  for (size_t ii = 0; ii < types.size(); ++ii)
+    {
+    const int index = static_cast<int>(ii) + 1;
+    vtkNew<vtkSlicerTerminologyType> typeObject;
+    double rgb[3] = { 0.5, 0.5, 0.5 };
+    if (terminologiesLogic->GetTypeInTerminologyCategory(contextName, typeCategories[ii], types[ii], typeObject))
+      {
+      unsigned char recommended[3] = { 128, 128, 128 };
+      typeObject->GetRecommendedDisplayRGBValue(recommended);
+      for (int c = 0; c < 3; ++c)
+        {
+        rgb[c] = recommended[c] / 255.;
+        }
+      }
+    colorTable->SetColor(index, types[ii].CodeMeaning.c_str(), rgb[0], rgb[1], rgb[2], 1.);
+    colorTable->SetTerminology(index,
+      typeCategories[ii].CodingSchemeDesignator, typeCategories[ii].CodeValue, typeCategories[ii].CodeMeaning,
+      types[ii].CodingSchemeDesignator, types[ii].CodeValue, types[ii].CodeMeaning);
+    }
+  if (!inScene)
+    {
+    scene->AddNode(colorTable);
+    }
+  return colorTable;
+}
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(vtkMRMLSegmentationNode* segmentationNode,
                                                        vtkMRMLAstroVolumeNode* volumeNode)
 {
@@ -2940,6 +3062,7 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
       vtkSlicerAstroVolumeLogic::NameMaskAfterReferenceVolume(segmentationNode);
       this->ReplaceEmptyMaskOfReferenceVolume(segmentationNode);
       bool fitsMask = this->EnsureFITSMaskStorageNode(segmentationNode);
+      vtkSlicerAstroVolumeLogic::EnsureAstroTerminology(segmentationNode);
       // display node created after the FITS storage (e.g. AddNewNodeByClass
       // followed by CreateDefaultDisplayNodes): binary labelmap display in 2D
       // and 3D. A representation already chosen is kept.

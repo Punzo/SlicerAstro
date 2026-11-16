@@ -31,6 +31,7 @@
 #include <functional>
 #include <string>
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkWeakPointer.h>
 
 // STD includes
 #include <cstdlib>
@@ -38,6 +39,7 @@
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
 class vtkMRMLCameraNode;
+class vtkMRMLColorTableNode;
 class vtkMRMLMarkupsNode;
 class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroLabelMapVolumeNode;
@@ -48,6 +50,7 @@ class vtkMRMLSliceNode;
 class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeNode;
 class vtkSegment;
+class vtkSlicerTerminologiesModuleLogic;
 class vtkVolumeProperty;
 class vtkIntArray;
 
@@ -146,6 +149,28 @@ public:
   /// astronomical). Returns true if the segmentation is stored as a FITS mask.
   bool EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Astronomical terminology (vtkMRMLAstroTerminology) for the new segments
+  /// of an astronomical segmentation: default terminology entry of the node
+  /// (Mask for masks, Contour for contours), used by the Segment Editor. An
+  /// entry chosen by the user is kept; the default set by SlicerAstro is
+  /// removed from a segmentation that is no longer astronomical. Returns true
+  /// if the segmentation is astronomical.
+  static bool EnsureAstroTerminology(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Color table of the astronomical terminology (singleton, name
+  /// "SlicerAstro"): one color per type of the terminology loaded in the
+  /// Terminologies module, with its recommended color and its terminology, so
+  /// that it is listed in the terminology selector. Returns the table (the
+  /// existing one if it is already in the scene, filled again if it was
+  /// emptied by the closing of a scene), nullptr if the terminology is not
+  /// loaded.
+  vtkMRMLColorTableNode* AddAstroTerminologyColorTable();
+  /// Terminologies module logic, with the astronomical terminology loaded
+  /// (set by the AstroVolume module): the color table is added again to the
+  /// scene after it is closed
+  void SetTerminologiesLogic(vtkSlicerTerminologiesModuleLogic* terminologiesLogic);
+  static const char* GetAstroTerminologyColorTableSingletonTag() { return "SlicerAstro.Terminology"; }
+
   /// Use the astronomical volume as reference geometry of a new mask (no
   /// segments and no reference volume yet; not the contours). Then the mask
   /// is saved as a FITS mask with the header of the volume. Returns true if
@@ -194,9 +219,11 @@ public:
   /// EnsureVolumeSegmentations for a volume loaded from a file (data and a
   /// storage node with a file name), outside of scene imports
   void EnsureSegmentationsOfLoadedVolume(vtkMRMLAstroVolumeNode* volumeNode);
-  /// Opacity of the masks created by SlicerAstro (the opacity of a mask read
-  /// from a FITS file is the one saved in the file, keyword SEGOPAC)
-  static double GetDefaultMaskOpacity() { return 0.3; }
+  /// Opacity of the masks created by SlicerAstro: Slicer's default (the
+  /// opacities of the segments, shown and edited in the Segment Editor, are
+  /// the ones displayed). The opacity of a mask read from a FITS file is the
+  /// one saved in the file (keyword SEGOPAC).
+  static double GetDefaultMaskOpacity() { return 1.; }
 
   /// A mask with segments (or read from a file) whose reference geometry is
   /// an astronomical volume replaces the empty mask created automatically for
@@ -411,6 +438,7 @@ protected:
 
   vtkMRMLScene* PresetsScene;
   bool Init;
+  vtkWeakPointer<vtkSlicerTerminologiesModuleLogic> TerminologiesLogic;
 
 private:
 

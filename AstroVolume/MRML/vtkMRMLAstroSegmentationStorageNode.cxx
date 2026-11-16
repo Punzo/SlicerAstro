@@ -20,6 +20,7 @@
 // MRML includes
 #include <vtkMRMLAstroSegmentationStorageNode.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
+#include <vtkMRMLAstroTerminology.h>
 #include <vtkMRMLDisplayNode.h>
 #include <vtkMRMLMessageCollection.h>
 #include <vtkMRMLScene.h>
@@ -418,6 +419,12 @@ int vtkMRMLAstroSegmentationStorageNode::ReadDataInternal(vtkMRMLNode* refNode)
         }
       }
     segment->SetColor(color);
+    // astronomical terminology: saved by SlicerAstro in the header, else a
+    // detected source (e.g. SoFiA)
+    const char* headerTerminology = reader->GetHeaderValue(("SlicerAstro.SEGTRM" + std::to_string(label)).c_str());
+    const std::string savedEntry = headerTerminology ?
+      vtkMRMLAstroTerminology::GetEntryFromCompact(headerTerminology) : std::string();
+    segment->SetTerminology(savedEntry.empty() ? vtkMRMLAstroTerminology::GetSourceEntry() : savedEntry);
     segment->SetLabelValue(label);
     segment->SetTag(vtkMRMLAstroSegmentationStorageNode::GetSourceIDTagName(), std::to_string(label));
     segment->AddRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName(), labelmap);
@@ -598,6 +605,7 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
     {
     const bool segmentKeyword = it->first.compare(0, 18, "SlicerAstro.SEGNAM") == 0 ||
                                 it->first.compare(0, 18, "SlicerAstro.SEGCOL") == 0 ||
+                                it->first.compare(0, 18, "SlicerAstro.SEGTRM") == 0 ||
                                 it->first == "SlicerAstro.SEGOPAC";
     it = segmentKeyword ? header.erase(it) : std::next(it);
     }
@@ -620,6 +628,12 @@ int vtkMRMLAstroSegmentationStorageNode::WriteDataInternal(vtkMRMLNode* refNode)
              static_cast<unsigned int>(std::lround(std::clamp(color[1], 0., 1.) * 255.)),
              static_cast<unsigned int>(std::lround(std::clamp(color[2], 0., 1.) * 255.)));
     header["SlicerAstro.SEGCOL" + std::to_string(sourceIDs[i])] = hexColor;
+    // astronomical terminology (not the entries of other terminologies)
+    const std::string compactEntry = vtkMRMLAstroTerminology::GetCompactEntry(segment->GetTerminology());
+    if (!compactEntry.empty() && compactEntry.size() <= 68)
+      {
+      header["SlicerAstro.SEGTRM" + std::to_string(sourceIDs[i])] = compactEntry;
+      }
     }
   // opacity of the display of the mask (read back with the mask)
   if (segmentationNode->GetDisplayNode())

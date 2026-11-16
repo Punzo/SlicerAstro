@@ -21,7 +21,8 @@ Qt 6) with new features.
   velocity slices), the beam drawn on the sky; faster interaction (also on
   Qt 6 and Wayland).
 - Masks and contours of each volume as segmentations; FITS masks; the Cloud
-  Lasso effect.
+  Lasso effect; an astronomical terminology of the segments (sources,
+  galaxies, gas structures, kinematic and analysis regions).
 - Measurements of markups on the sky: separations, lengths, areas, angles,
   velocity differences.
 - Scenes restore the colour functions of the data.

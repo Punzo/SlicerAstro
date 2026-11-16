@@ -49,3 +49,23 @@ Each data volume has a mask (a segmentation of its grid), edited with the
 Segment Editor (also the *Cloud Lasso* effect of SlicerAstro) and saved as a
 FITS mask. FITS masks (e.g. from SoFiA) are loaded as segmentations, one
 segment per source.
+
+### Astronomical terminology
+
+The segments of astronomical masks and contours are described with an
+astronomical terminology instead of Slicer's medical ones. In the Segment
+Editor, double-click the color of a segment to choose its category and type:
+
+| Category | Types |
+|---|---|
+| Source detection | source, source candidate, continuum source, absorption feature, artefact, noise peak |
+| Galaxy | target galaxy, companion galaxy, background galaxy, foreground star |
+| Gas structure | gas disk, warp, extraplanar gas, tidal tail, bridge, gas cloud, high-velocity cloud, ring, anomalous gas |
+| Kinematics | approaching side, receding side, non-circular motion |
+| Analysis region | mask, region of interest, noise region, exclusion region, contour, model |
+
+New segments of a mask are *Mask*, the sources of a FITS mask (e.g. SoFiA)
+*Source*, contours *Contour*, the outputs of 3DBarolo *Model*. The type of
+each segment is saved in the FITS mask (keyword `SEGTRMn`) and read back. The
+*SlicerAstro* color table has one color per type, with the recommended
+colors of the terminology.

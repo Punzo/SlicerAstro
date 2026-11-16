@@ -19,6 +19,8 @@
 
 // Qt includes
 #include <QApplication>
+#include <QDir>
+#include <QFile>
 #include <QLabel>
 #include <QtPlugin>
 #include <QSettings>
@@ -38,6 +40,7 @@
 #include <vtkSlicerConfigure.h>
 #include <vtkSlicerVolumesLogic.h>
 #include <vtkSlicerUnitsLogic.h>
+#include <vtkSlicerTerminologiesModuleLogic.h>
 
 // SlicerQt includes
 #include <qMRMLLayoutManager.h>
@@ -63,6 +66,7 @@
 
 // AstroVolume Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkMRMLAstroTerminology.h>
 
 // AstroVolume QtModule includes
 #include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
@@ -314,7 +318,8 @@ QStringList qSlicerAstroVolumeModule::categories() const
 //-----------------------------------------------------------------------------
 QStringList qSlicerAstroVolumeModule::dependencies() const
 {
-  return QStringList() << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor";
+  return QStringList() << "Data" << "Volumes" << "VolumeRendering" << "Segmentations" << "SegmentEditor"
+                       << "Terminologies";
 }
 
 //-----------------------------------------------------------------------------
@@ -414,6 +419,32 @@ void qSlicerAstroVolumeModule::setup()
       application ? application->mainWindow() : nullptr,
       qSlicerAstroVolumeModuleWidget::tr(label.c_str()), work, progress, cancel);
     });
+
+  // Astronomical terminology of the segments (instead of the medical ones as
+  // default of the astronomical segmentations) and its color table. The
+  // Terminologies module loads contexts from files: the one of the module
+  // resources is copied to the temporary folder.
+  vtkSlicerTerminologiesModuleLogic* terminologiesLogic =
+    vtkSlicerTerminologiesModuleLogic::SafeDownCast(d->app->moduleLogic("Terminologies"));
+  if (terminologiesLogic &&
+      !terminologiesLogic->IsTerminologyContextLoaded(vtkMRMLAstroTerminology::GetContextName()))
+    {
+    QFile resource(":/Terminologies/SegmentationCategoryType-SlicerAstro.json");
+    const QString path = QDir(d->app->temporaryPath()).filePath("SegmentationCategoryType-SlicerAstro.json");
+    QFile file(path);
+    if (!resource.open(QIODevice::ReadOnly) || !file.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
+        file.write(resource.readAll()) < 0)
+      {
+      qCritical() << Q_FUNC_INFO << ": the astronomical terminology could not be written to" << path;
+      }
+    file.close();
+    if (terminologiesLogic->LoadTerminologyFromFile(path.toStdString()).empty())
+      {
+      qCritical() << Q_FUNC_INFO << ": the astronomical terminology could not be loaded from" << path;
+      }
+    }
+  logic->SetTerminologiesLogic(terminologiesLogic);
+  logic->AddAstroTerminologyColorTable();
 
   // Register I/O manager
   logic->RegisterArchetypeVolumeNodeSetFactory( volumesLogic );

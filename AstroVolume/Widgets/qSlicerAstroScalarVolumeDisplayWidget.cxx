@@ -54,6 +54,7 @@
 // MRML includes
 #include <vtkMRMLAstroReprojectParametersNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLAstroTerminology.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLColorNode.h>
 #include <vtkMRMLScene.h>
@@ -1223,6 +1224,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     Segment->SetColor(ContoursColor->GetValue(0),
                       ContoursColor->GetValue(1),
                       ContoursColor->GetValue(2));
+    Segment->SetTerminology(vtkMRMLAstroTerminology::GetContourEntry());
     // data of the contours: color changes and replacement of the contours
     Segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), contoursVolume->GetID());
     Segment->SetLabelValue(1);
