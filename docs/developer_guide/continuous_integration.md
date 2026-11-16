@@ -21,7 +21,7 @@ the 3D Slicer extensions factory once SlicerAstro is in the
 1. **System packages and Qt** (`.github/ci/install-system-packages.sh`):
    - compilers, CMake, ccache, Mesa (OpenGL), the X11/xcb libraries, OpenSSL
      and Xvfb from apt;
-   - Qt 6.10.1 with [aqtinstall](https://github.com/miurahr/aqtinstall),
+   - Qt 6.11.3 with [aqtinstall](https://github.com/miurahr/aqtinstall),
      including the `qt5compat`, `qtscxml` and `qtmultimedia` modules that 3D Slicer
      and CTK (PythonQt) need.
 2. **3D Slicer** (`.github/ci/build-extension.sh`):
@@ -92,7 +92,7 @@ The scripts work on any Ubuntu 24.04 system, for example a container:
 docker run --rm -it -v $PWD:/src:ro -v $HOME/ci-work:/work ubuntu:24.04 bash
 # inside the container
 /src/.github/ci/install-system-packages.sh /work/Qt     # prints Qt6_DIR=...
-export Qt6_DIR=/work/Qt/6.10.1/gcc_64/lib/cmake/Qt6 JOBS=$(nproc)
+export Qt6_DIR=/work/Qt/6.11.3/gcc_64/lib/cmake/Qt6 JOBS=$(nproc)
 /src/.github/ci/build-extension.sh /src /work/build
 ```
 
