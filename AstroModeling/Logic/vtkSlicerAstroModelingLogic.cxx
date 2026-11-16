@@ -375,6 +375,27 @@ void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* p
 }
 
 //----------------------------------------------------------------------------
+// Numbers (from 1) of the rings with a null column density, i.e. the rings
+// whose fit did not converge (Galfit::galfit)
+template <class T>
+std::string UnconvergedRings(Rings<T>* rings, int numberOfRings)
+{
+  std::string numbers;
+  if (!rings)
+    {
+    return numbers;
+    }
+  for (int ii = 0; ii < numberOfRings && ii < static_cast<int>(rings->dens.size()); ii++)
+    {
+    if (rings->dens[ii] == 0)
+      {
+      numbers += (numbers.empty() ? "" : ", ") + std::to_string(ii + 1);
+      }
+    }
+  return numbers;
+}
+
+//----------------------------------------------------------------------------
 // Value of a cell of the rings table, with full precision (the cell text has
 // 6 significant digits)
 double TableValue(vtkMRMLTableNode* tableNode, int row, int column)
@@ -1824,6 +1845,21 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     vtkModelingWarningMacro("vtkSlicerAstroModelingLogic::OperateModel : 3DBarolo returned "
                             << numberOfRings << " rings (" << pnode->GetNumberOfRings() << " requested).");
     pnode->SetNumberOfRings(numberOfRings);
+    }
+
+  // rings whose fit did not converge: 3DBarolo sets their density to 0 (no
+  // emission in the model) and leaves them out of its ring files
+  if (pnode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT)
+    {
+    const std::string unconverged = this->Internal->fitF ?
+      UnconvergedRings(this->Internal->fitF->Outrings(), pnode->GetNumberOfRings()) :
+      (this->Internal->fitD ? UnconvergedRings(this->Internal->fitD->Outrings(), pnode->GetNumberOfRings()) : std::string());
+    if (!unconverged.empty())
+      {
+      vtkModelingWarningMacro("vtkSlicerAstroModelingLogic::OperateModel : the fit of ring(s) "
+                              << unconverged << " did not converge: their column density is 0"
+                              " (no emission in the model).");
+      }
     }
 
   for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
