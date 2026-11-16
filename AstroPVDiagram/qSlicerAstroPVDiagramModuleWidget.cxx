@@ -523,10 +523,13 @@ void qSlicerAstroPVDiagramModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onStartImportEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
                       this, SLOT(onEndImportEvent()));
-  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-
-  this->onMRMLSelectionNodeModified(d->selectionNode);
+  // the active volume is followed only while the module is shown (enter/exit)
+  if (this->isEntered())
+    {
+    this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
+    this->onMRMLSelectionNodeModified(d->selectionNode);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -568,12 +571,19 @@ void qSlicerAstroPVDiagramModuleWidget::onEndCloseEvent()
     return;
     }
 
-  d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsFiducialNode");
-  interactionNode->SetPlaceModePersistence(1);
+  // the module follows the active volume (and places the points of its line)
+  // only while it is shown, as in enter()/exit(): not after the closing of a
+  // scene while another module is shown (a scene loaded next would change the
+  // input of its PV diagram)
+  if (this->isEntered())
+    {
+    d->selectionNode->SetReferenceActivePlaceNodeClassName("vtkMRMLMarkupsCurveNode");
+    interactionNode->SetPlaceModePersistence(1);
 
-  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-  this->onMRMLSelectionNodeModified(d->selectionNode);
+    this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
+    this->onMRMLSelectionNodeModified(d->selectionNode);
+    }
 
   this->initializeNodes(true);
   this->onMRMLAstroPVDiagramParametersNodeModified();
@@ -801,6 +811,8 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
     vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole()));
 
   logic->SetMomentMapsOnViews(d->parametersNode);
+  // the points of the line on the (new) moment map
+  this->onMRMLSourcePointsNodeModified();
 }
 
 //--------------------------------------------------------------------------
@@ -836,6 +848,24 @@ void qSlicerAstroPVDiagramModuleWidget::initializeLineNode(bool forceNew)
     scene->RemoveNode(lineNode);
     lineNode = nullptr;
     }
+  // an empty line (e.g. created when the scene was closed) and a loaded line
+  // with points: the loaded one (the reference of a singleton parameters node
+  // merged by a scene import can keep the ID of the empty line)
+  if (lineNode && lineNode->GetNumberOfControlPoints() == 0)
+    {
+    std::vector<vtkMRMLNode*> loadedCurveNodes;
+    scene->GetNodesByClass("vtkMRMLMarkupsCurveNode", loadedCurveNodes);
+    for (vtkMRMLNode* node : loadedCurveNodes)
+      {
+      vtkMRMLMarkupsCurveNode* loadedLine = vtkMRMLMarkupsCurveNode::SafeDownCast(node);
+      if (loadedLine && loadedLine != lineNode && loadedLine->GetName() &&
+          std::string(loadedLine->GetName()) == "PVDiagramLine" && loadedLine->GetNumberOfControlPoints() > 0)
+        {
+        lineNode = loadedLine;
+        break;
+        }
+      }
+    }
   if (!lineNode)
     {
     lineNode = vtkMRMLMarkupsCurveNode::SafeDownCast(
@@ -844,6 +874,23 @@ void qSlicerAstroPVDiagramModuleWidget::initializeLineNode(bool forceNew)
   if (!lineNode)
     {
     return;
+    }
+  // the empty line created when the scene was closed, before a scene with its
+  // own line was loaded: removed (lines with points are kept)
+  std::vector<vtkMRMLNode*> otherCurveNodes;
+  scene->GetNodesByClass("vtkMRMLMarkupsCurveNode", otherCurveNodes);
+  for (vtkMRMLNode* node : otherCurveNodes)
+    {
+    vtkMRMLMarkupsCurveNode* otherLine = vtkMRMLMarkupsCurveNode::SafeDownCast(node);
+    if (otherLine && otherLine != lineNode && otherLine->GetName() &&
+        std::string(otherLine->GetName()) == "PVDiagramLine" && otherLine->GetNumberOfControlPoints() == 0)
+      {
+      if (otherLine == referencedNode)
+        {
+        referencedNode = nullptr;
+        }
+      scene->RemoveNode(otherLine);
+      }
     }
 
   // scenes of the previous versions: source points (fiducials) and line model
@@ -1401,6 +1448,8 @@ void qSlicerAstroPVDiagramModuleWidget::onMomentMapChanged(vtkMRMLNode *mrmlNode
       {
       logic->SetMomentMapsOnViews(d->parametersNode);
       }
+    // the points of the line on the new moment map
+    this->onMRMLSourcePointsNodeModified();
     }
   else
     {
