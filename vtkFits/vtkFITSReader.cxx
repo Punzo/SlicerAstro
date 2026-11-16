@@ -893,56 +893,73 @@ bool vtkFITSReader::AllocateHeader()
        }
 
      std::string str(val);
-     size_t pos = str.find("D+");
+     // string values (quoted): the quotes removed, doubled quotes unescaped,
+     // leading and trailing spaces removed; the spaces inside are kept (e.g.
+     // OBJECT = 'NGC 2403', segment names) and no exponent is converted
+     const bool quoted = !str.empty() && str[0] == '\'';
+     if (quoted)
+       {
+       const std::string::size_type last = str.find_last_of('\'');
+       str = last > 0 ? str.substr(1, last - 1) : str.substr(1);
+       std::string::size_type doubled = str.find("''");
+       while (doubled != std::string::npos)
+         {
+         str.erase(doubled, 1);
+         doubled = str.find("''", doubled + 1);
+         }
+       const std::string::size_type first = str.find_first_not_of(' ');
+       str = first == std::string::npos ? std::string() : str.substr(first, str.find_last_not_of(' ') - first + 1);
+       }
+     size_t pos = quoted ? std::string::npos : str.find("D+");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, exponent));
        }
-     pos = str.find("d+");
+     pos = quoted ? std::string::npos : str.find("d+");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, exponent));
        }
-     pos = str.find("D-");
+     pos = quoted ? std::string::npos : str.find("D-");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, -exponent));
        }
-     pos = str.find("d-");
+     pos = quoted ? std::string::npos : str.find("d-");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, -exponent));
        }
-     pos = str.find("E+");
+     pos = quoted ? std::string::npos : str.find("E+");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, exponent));
        }
-     pos = str.find("e+");
+     pos = quoted ? std::string::npos : str.find("e+");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, exponent));
        }
-     pos = str.find("E-");
+     pos = quoted ? std::string::npos : str.find("E-");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
        double exponent = StringToDouble(str.substr(pos + 2).c_str());
        str = DoubleToString(value * pow(10, -exponent));
        }
-     pos = str.find("e-");
+     pos = quoted ? std::string::npos : str.find("e-");
      if (pos != std::string::npos)
        {
        double value = StringToDouble(str.substr(0, pos).c_str());
@@ -950,11 +967,6 @@ bool vtkFITSReader::AllocateHeader()
        str = DoubleToString(value * pow(10, -exponent));
        }
 
-     if (std::string::npos != str.find_first_of("'"))
-       {
-       str.erase(0,1);
-       str.erase(str.size()-1, str.size());
-       }
 
      // WCSLIB can not deal with PPO, AMDX or AMDY matrices
      if(strkey.find("PPO") != std::string::npos ||
@@ -1040,7 +1052,10 @@ bool vtkFITSReader::AllocateHeader()
        }
      else
        {
-       str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
+       if (!quoted)
+         {
+         str.erase(std::remove_if(str.begin(), str.end(), isspace), str.end());
+         }
        if (str.empty())
          {
          continue;
