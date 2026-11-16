@@ -109,13 +109,20 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
             view = widget.sliceView()
             sliceNode = widget.mrmlSliceNode()
             interactor = view.interactor()
+            # the view laid out and rendered (with other tests running on the
+            # same display the layout can be late): events at its centre
+            self.waitForView(view)
             x, y = view.width // 2, view.height // 2
 
             offset = sliceNode.GetSliceOffset()
-            interactor.SetEventInformation(x, y, 0, 0, chr(0), 0, None)
-            interactor.MouseMoveEvent()
-            interactor.MouseWheelForwardEvent()
-            slicer.app.processEvents()
+            for _ in range(20):
+                interactor.SetEventInformation(x, y, 0, 0, chr(0), 0, None)
+                interactor.MouseMoveEvent()
+                interactor.MouseWheelForwardEvent()
+                slicer.app.processEvents()
+                if abs(sliceNode.GetSliceOffset() - offset) > 1e-7:
+                    break
+                self.waitForView(view)
             self.assertNotAlmostEqual(sliceNode.GetSliceOffset(), offset, msg=name + ": scroll")
 
             fieldOfView = np.array(sliceNode.GetFieldOfView())
@@ -144,6 +151,18 @@ class AstroSliceViewsTestTest(ScriptedLoadableModuleTest):
             self.assertEqual(appLogic.GetSliceLogic(widget.mrmlSliceNode()), widget.sliceLogic(), name)
 
         self.delayDisplay("Test passed")
+
+    def waitForView(self, view, timeout=10.0):
+        """Wait until a slice view has a size and has been rendered."""
+        import time
+
+        end = time.time() + timeout
+        while (view.width < 10 or view.height < 10) and time.time() < end:
+            slicer.app.processEvents()
+            time.sleep(0.05)
+        self.assertGreater(view.width, 10)
+        view.forceRender()
+        slicer.app.processEvents()
 
     #
     # WCS axes

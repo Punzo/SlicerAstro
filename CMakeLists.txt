@@ -127,8 +127,15 @@ if(BUILD_TESTING)
     get_property(_tests DIRECTORY ${directory} PROPERTY TESTS)
     foreach(_test IN LISTS _tests)
       if(_test MATCHES "^py_")
-        set_tests_properties(${_test} DIRECTORY ${directory}
-          PROPERTIES RESOURCE_LOCK SlicerAstroSampleDataCache)
+        set_property(TEST ${_test} DIRECTORY ${directory} APPEND
+          PROPERTY RESOURCE_LOCK SlicerAstroSampleDataCache)
+      endif()
+      # tests with windows on the display (the Slicer application, Qt
+      # widgets, OpenGL): one at a time, so that another application does not
+      # take the active window, the focus or the input events of a test
+      if(_test MATCHES "^(py_|qSlicer|qMRML|vtkAstroOpenGL)")
+        set_property(TEST ${_test} DIRECTORY ${directory} APPEND
+          PROPERTY RESOURCE_LOCK SlicerAstroDisplay)
       endif()
       set_property(TEST ${_test} DIRECTORY ${directory} APPEND
         PROPERTY FAIL_REGULAR_EXPRESSION "vtkDebugLeaks has detected LEAKS")

@@ -182,9 +182,31 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         self.assertFalse(editorNode.GetSourceVolumeIntensityMask())
         self.delayDisplay("Test passed")
 
+    def activateMainWindow(self):
+        """Window shortcuts need the active window: activation is asynchronous
+        under Xvfb, and another application on the same display (tests run in
+        parallel) can take it."""
+        import time
+        import qt
+
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.activateWindow()
+        timeout = time.time() + 10.0
+        while qt.QApplication.activeWindow() != mainWindow and time.time() < timeout:
+            mainWindow.activateWindow()
+            slicer.app.processEvents()
+            time.sleep(0.05)
+        if qt.QApplication.activeWindow() != mainWindow and hasattr(qt.QApplication, "setActiveWindow"):
+            # Qt 6 on X11 without a window manager (Xvfb in CI) does not
+            # activate windows: make it the active window of the application
+            qt.QApplication.setActiveWindow(mainWindow)
+            slicer.app.processEvents()
+        self.assertEqual(qt.QApplication.activeWindow(), mainWindow)
+
     def pressKey(self, widget, key, text):
         import qt
 
+        self.activateMainWindow()
         for eventType in (qt.QEvent.KeyPress, qt.QEvent.KeyRelease):
             slicer.app.sendEvent(widget, qt.QKeyEvent(eventType, key, qt.Qt.NoModifier, text))
         slicer.app.processEvents()
@@ -215,20 +237,8 @@ class AstroCloudLassoTestTest(ScriptedLoadableModuleTest):
         editor.setActiveEffectByName("AstroCloudLasso")
         effect = editor.activeEffect()
         self.assertIsNotNone(effect)
-        # window shortcuts need the active window (asynchronous under Xvfb)
-        import time
-        mainWindow.activateWindow()
-        timeout = time.time() + 10.0
-        while qt.QApplication.activeWindow() != mainWindow and time.time() < timeout:
-            mainWindow.activateWindow()
-            slicer.app.processEvents()
-            time.sleep(0.05)
-        if qt.QApplication.activeWindow() != mainWindow and hasattr(qt.QApplication, "setActiveWindow"):
-            # Qt 6 on X11 without a window manager (Xvfb in CI) does not
-            # activate windows: make it the active window of the application
-            qt.QApplication.setActiveWindow(mainWindow)
-            slicer.app.processEvents()
-        self.assertEqual(qt.QApplication.activeWindow(), mainWindow)
+        # window shortcuts need the active window
+        self.activateMainWindow()
 
         # select Erase inside, then Fill inside: the focus is on the option
         buttons = {button.text: button for button in effect.optionsFrame().findChildren(qt.QRadioButton)}
