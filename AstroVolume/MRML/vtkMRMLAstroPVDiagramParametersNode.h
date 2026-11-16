@@ -50,6 +50,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroPVDiagramParametersNode : public vtkMRML
   /// Copy the node's attributes to this object
   virtual void Copy(vtkMRMLNode *node) override;
 
+  /// Update the IDs of the referenced nodes (stored as strings) when they
+  /// change, e.g. when a scene is imported and node IDs are renamed
+  virtual void UpdateReferenceID(const char *oldID, const char *newID) override;
+
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() override {return "AstroPVDiagramParameters";};
 

@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 
 #include <vtkCollection.h>
@@ -252,4 +255,26 @@ void vtkMRMLAstroPVSliceParametersNode::PrintSelf(ostream& os, vtkIndent indent)
     os << indent << " " << this->LineCenter[jj];
     }
   os << "\n";
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroPVSliceParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->MomentMapNodeID && !strcmp(this->MomentMapNodeID, oldID))
+    {
+    this->SetMomentMapNodeID(newID);
+    }
+  if (this->LineNodeID && !strcmp(this->LineNodeID, oldID))
+    {
+    this->SetLineNodeID(newID);
+    }
 }

@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 
 #include <vtkCollection.h>
@@ -332,5 +335,23 @@ void vtkMRMLAstroStatisticsParametersNode::PrintSelf(ostream& os, vtkIndent inde
   if (this->Cores != 0)
     {
     os << indent << "Number of CPU cores: "<< this->Cores<< "\n";
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroStatisticsParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->MaskVolumeNodeID && !strcmp(this->MaskVolumeNodeID, oldID))
+    {
+    this->SetMaskVolumeNodeID(newID);
     }
 }

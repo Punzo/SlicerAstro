@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 
 #include <vtkCollection.h>
@@ -299,4 +302,26 @@ void vtkMRMLAstroMaskingParametersNode::PrintSelf(ostream& os, vtkIndent indent)
   os << indent << "BlankValue: " << ( (this->BlankValue) ? this->BlankValue : "None" ) << "\n";
   os << indent << "OutputSerial: " << this->OutputSerial << "\n";
   os << indent << "Status: " << this->Status << "\n";
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroMaskingParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->MaskVolumeNodeID && !strcmp(this->MaskVolumeNodeID, oldID))
+    {
+    this->SetMaskVolumeNodeID(newID);
+    }
+  if (this->OutputVolumeNodeID && !strcmp(this->OutputVolumeNodeID, oldID))
+    {
+    this->SetOutputVolumeNodeID(newID);
+    }
 }

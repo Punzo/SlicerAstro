@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 
 #include <vtkCollection.h>
@@ -684,4 +687,78 @@ void vtkMRMLAstroReprojectParametersNode::PrintSelf(ostream& os, vtkIndent inden
   os << indent << "TargetBeamMinor: " << this->TargetBeamMinor << "\n";
   os << indent << "TargetBeamPA: " << this->TargetBeamPA << "\n";
   os << indent << "SaultFraction: " << this->SaultFraction << "\n";
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroReprojectParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->ReferenceVolumeNodeID && !strcmp(this->ReferenceVolumeNodeID, oldID))
+    {
+    this->SetReferenceVolumeNodeID(newID);
+    }
+  if (this->OutputVolumeNodeID && !strcmp(this->OutputVolumeNodeID, oldID))
+    {
+    this->SetOutputVolumeNodeID(newID);
+    }
+  // list of IDs separated by ';'
+  {
+  std::string updated;
+  std::string::size_type start = 0;
+  bool changed = false;
+  while (start <= this->InputVolumeNodeIDs.size())
+    {
+    std::string::size_type end = this->InputVolumeNodeIDs.find(';', start);
+    if (end == std::string::npos)
+      {
+      end = this->InputVolumeNodeIDs.size();
+      }
+    std::string id = this->InputVolumeNodeIDs.substr(start, end - start);
+    if (id == oldID)
+      {
+      id = newID;
+      changed = true;
+      }
+    updated += (start > 0 ? ";" : "") + id;
+    start = end + 1;
+    }
+  if (changed)
+    {
+    this->SetInputVolumeNodeIDs(updated.c_str());
+    }
+  }
+  // list of IDs separated by ';'
+  {
+  std::string updated;
+  std::string::size_type start = 0;
+  bool changed = false;
+  while (start <= this->PrimaryBeamVolumeNodeIDs.size())
+    {
+    std::string::size_type end = this->PrimaryBeamVolumeNodeIDs.find(';', start);
+    if (end == std::string::npos)
+      {
+      end = this->PrimaryBeamVolumeNodeIDs.size();
+      }
+    std::string id = this->PrimaryBeamVolumeNodeIDs.substr(start, end - start);
+    if (id == oldID)
+      {
+      id = newID;
+      changed = true;
+      }
+    updated += (start > 0 ? ";" : "") + id;
+    start = end + 1;
+    }
+  if (changed)
+    {
+    this->SetPrimaryBeamVolumeNodeIDs(updated.c_str());
+    }
+  }
 }

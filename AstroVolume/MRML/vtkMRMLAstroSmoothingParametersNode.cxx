@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 #include <vtkCommand.h>
 #include <vtkDoubleArray.h>
@@ -705,5 +708,23 @@ void vtkMRMLAstroSmoothingParametersNode::PrintSelf(ostream& os, vtkIndent inden
         os << indent <<"\n";
         }
       }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroSmoothingParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->OutputVolumeNodeID && !strcmp(this->OutputVolumeNodeID, oldID))
+    {
+    this->SetOutputVolumeNodeID(newID);
     }
 }

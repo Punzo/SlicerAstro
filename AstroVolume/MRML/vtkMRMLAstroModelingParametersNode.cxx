@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 
 #include <vtkCollection.h>
@@ -992,4 +995,30 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "YellowRotValue: " << this->YellowRotValue << "\n";
   os << "GreenRotOldValue: " << this->GreenRotOldValue << "\n";
   os << "GreenRotValue: " << this->GreenRotValue << "\n";
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroModelingParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->OutputVolumeNodeID && !strcmp(this->OutputVolumeNodeID, oldID))
+    {
+    this->SetOutputVolumeNodeID(newID);
+    }
+  if (this->ResidualVolumeNodeID && !strcmp(this->ResidualVolumeNodeID, oldID))
+    {
+    this->SetResidualVolumeNodeID(newID);
+    }
+  if (this->MaskVolumeNodeID && !strcmp(this->MaskVolumeNodeID, oldID))
+    {
+    this->SetMaskVolumeNodeID(newID);
+    }
 }

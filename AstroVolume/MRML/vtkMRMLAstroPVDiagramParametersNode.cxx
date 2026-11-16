@@ -17,6 +17,9 @@
 
 ==============================================================================*/
 
+// STD includes
+#include <cstring>
+
 // VTK includes
 
 #include <vtkCollection.h>
@@ -252,5 +255,35 @@ void vtkMRMLAstroPVDiagramParametersNode::PrintSelf(ostream& os, vtkIndent inden
   else
     {
     os << indent << "AutoUpdate: Inactive\n";
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkMRMLAstroPVDiagramParametersNode::UpdateReferenceID(const char *oldID, const char *newID)
+{
+  this->Superclass::UpdateReferenceID(oldID, newID);
+  if (!oldID || !newID)
+    {
+    return;
+    }
+  if (this->InputVolumeNodeID && !strcmp(this->InputVolumeNodeID, oldID))
+    {
+    this->SetInputVolumeNodeID(newID);
+    }
+  if (this->MomentMapNodeID && !strcmp(this->MomentMapNodeID, oldID))
+    {
+    this->SetMomentMapNodeID(newID);
+    }
+  if (this->OutputVolumeNodeID && !strcmp(this->OutputVolumeNodeID, oldID))
+    {
+    this->SetOutputVolumeNodeID(newID);
+    }
+  if (this->FiducialsMarkupsID && !strcmp(this->FiducialsMarkupsID, oldID))
+    {
+    this->SetFiducialsMarkupsID(newID);
+    }
+  if (this->ModelID && !strcmp(this->ModelID, oldID))
+    {
+    this->SetModelID(newID);
     }
 }
