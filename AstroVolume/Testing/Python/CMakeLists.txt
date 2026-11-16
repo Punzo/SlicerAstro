@@ -25,6 +25,12 @@ if(Slicer_USE_PYTHONQT)
   slicer_add_python_unittest(SCRIPT AstroSegmentationMaskTest.py)
 
   slicerMacroBuildScriptedModule(
+    NAME AstroSceneTest
+    SCRIPTS AstroSceneTest.py
+    )
+  slicer_add_python_unittest(SCRIPT AstroSceneTest.py)
+
+  slicerMacroBuildScriptedModule(
     NAME AstroTerminologyTest
     SCRIPTS AstroTerminologyTest.py
     )
