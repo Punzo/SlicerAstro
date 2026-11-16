@@ -82,8 +82,6 @@ qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* pa
 
   connect(d->NameLineEdit, SIGNAL(textChanged(QString)),
           this, SLOT(updateProperties()));
-  connect(d->CenteredCheckBox, SIGNAL(toggled(bool)),
-          this, SLOT(updateProperties()));
   connect(d->SingleFileCheckBox, SIGNAL(toggled(bool)),
           this, SLOT(updateProperties()));
   connect(d->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
@@ -92,7 +90,6 @@ qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* pa
 
   // Single file by default
   d->SingleFileCheckBox->setChecked(true);
-  d->CenteredCheckBox->setChecked(true);
 }
 
 //-----------------------------------------------------------------------------
@@ -117,7 +114,6 @@ void qSlicerAstroVolumeIOOptionsWidget::updateProperties()
     {
     d->Properties.remove("name");
     }
-  d->Properties["center"] = d->CenteredCheckBox->isChecked();
   d->Properties["singleFile"] = d->SingleFileCheckBox->isChecked();
   d->Properties["colorNodeID"] = d->ColorTableComboBox->currentNodeID();
 }

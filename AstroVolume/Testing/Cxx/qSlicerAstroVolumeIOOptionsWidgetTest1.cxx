@@ -41,9 +41,10 @@ int qSlicerAstroVolumeIOOptionsWidgetTest1( int argc, char * argv[] )
     std::cerr << "The volume options must not have a labelmap property" << std::endl;
     return EXIT_FAILURE;
     }
-  if (!optionsWidget.properties().contains("center") || !optionsWidget.properties().contains("singleFile"))
+  // astronomical data are always centered: no option
+  if (optionsWidget.properties().contains("center") || !optionsWidget.properties().contains("singleFile"))
     {
-    std::cerr << "The volume options must have the center and singleFile properties" << std::endl;
+    std::cerr << "The volume options must have the singleFile property and no center property" << std::endl;
     return EXIT_FAILURE;
     }
 

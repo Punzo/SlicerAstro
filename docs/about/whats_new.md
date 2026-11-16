@@ -26,7 +26,10 @@ Qt 6) with new features.
   Qt 6 and Wayland).
 - Masks and contours of each volume as segmentations (no label map
   volumes: the modules read their input mask from the segment); FITS masks,
-  also loaded or saved on their own; the Cloud Lasso effect; an astronomical terminology of the segments (sources,
+  also loaded or saved on their own, attached to their data cube by the WCS
+  (also masks of a part of the cube); masks copied or moved to other volumes
+  (smoothed copies, cutouts, moment maps, other grids); the Cloud Lasso
+  effect; an astronomical terminology of the segments (sources,
   galaxies, gas structures, kinematic and analysis regions).
 - Measurements of markups on the sky: separations, lengths, areas, angles,
   velocity differences.

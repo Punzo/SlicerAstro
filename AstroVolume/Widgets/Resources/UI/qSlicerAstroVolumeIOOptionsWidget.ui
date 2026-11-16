@@ -28,13 +28,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="CenteredCheckBox">
-     <property name="text">
-      <string>Centered</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QCheckBox" name="SingleFileCheckBox">
      <property name="text">
       <string>Single File</string>

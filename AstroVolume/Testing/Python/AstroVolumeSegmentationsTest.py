@@ -54,6 +54,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.test_ContoursChannelMap()
         self.setUp()
         self.test_ContoursOfOtherCube()
+        self.setUp()
+        self.test_CopyMoveMask()
 
     def loadWEIN069(self):
         import AstroSampleData
@@ -298,6 +300,120 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
             for column in range(4):
                 self.assertEqual(after.GetElement(row, column), before.GetElement(row, column))
         self.assertFalse(slicer.util.findChild(displayWidget, "Contours2DSliderWidget").isVisibleTo(displayWidget))
+        self.delayDisplay("Test passed")
+
+    def test_CopyMoveMask(self):
+        """Segments of a mask copied or moved to the masks of other volumes:
+        voxel by voxel on the same lattice (a copy, a cutout), projected on a
+        2D image of the same sky grid, reprojected (WCS, nearest neighbour)
+        on another grid; masks on another grid are refused as module inputs."""
+        import numpy as np
+        import vtk
+        from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
+        from AstroVolumeLogicTest import doublePrecisionCopy, maskSegmentation, segmentMask
+
+        directory = os.path.join(slicer.app.temporaryPath, "AstroVolumeSegmentationsTest")
+        os.makedirs(directory, exist_ok=True)
+        shape = (12, 20, 24)
+
+        def load(name, data, cards):
+            path = os.path.join(directory, name + ".fits")
+            writeFITS(path, data, -32, cards + [("BUNIT", "JY/BEAM")])
+            return slicer.util.loadVolume(path)
+
+        cube = load("copy_cube", np.ones(shape, dtype=np.float32),
+                    celestialWCS(crpix=(12.5, 10.5)) + radioVelocityWCS(crpix=1.0))
+        z, y, x = np.indices(shape)
+        source = ((x - 11.) ** 2 / 25. + (y - 9.) ** 2 / 16. + (z - 6.) ** 2 / 9.) <= 1.
+        corner = np.zeros(shape, dtype=bool)
+        corner[1:4, 2:5, 3:7] = True
+        maskNode = self.logic.GetMaskSegmentationForVolume(cube, True)
+        for name, mask in (("Source", source), ("Corner", corner)):
+            segmentID = maskNode.GetSegmentation().AddEmptySegment(name, name)
+            slicer.util.updateSegmentBinaryLabelmapFromArray(mask.astype(np.uint8), maskNode, segmentID, cube)
+
+        def copy(target, ids, move=False):
+            array = vtk.vtkStringArray()
+            for segmentID in ids:
+                array.InsertNextValue(segmentID)
+            targetMask = self.logic.CopyMaskSegmentsToVolume(maskNode, array, target, move)
+            self.assertIsNotNone(targetMask, self.logic.GetLastMaskCopyError())
+            self.assertEqual(targetMask, self.logic.GetMaskSegmentationForVolume(target, False))
+            return targetMask
+
+        # a copy of the cube (same grid): voxel by voxel
+        smoothed = doublePrecisionCopy(cube, "copy_cube_smoothed")
+        targetMask = copy(smoothed, ["Source"])
+        np.testing.assert_array_equal(segmentMask(targetMask, "Source", smoothed), source.astype(np.uint8))
+        self.assertEqual(targetMask.GetSegmentation().GetSegment("Source").GetName(), "Source")
+
+        # a cutout of the cube (voxels [2:10, 3:15, 4:20]): offset
+        cutout = load("copy_cutout", np.ones((8, 12, 16), dtype=np.float32),
+                      celestialWCS(crpix=(12.5 - 4, 10.5 - 3)) + radioVelocityWCS(crpix=1.0 - 2))
+        self.assertEqual(slicer.vtkSlicerAstroVolumeLogic.GetGridOffset(cube, cutout, [0, 0, 0]), True)
+        targetMask = copy(cutout, ["Source", "Corner"])
+        np.testing.assert_array_equal(segmentMask(targetMask, "Source", cutout),
+                                      source[2:10, 3:15, 4:20].astype(np.uint8))
+        np.testing.assert_array_equal(segmentMask(targetMask, "Corner", cutout),
+                                      corner[2:10, 3:15, 4:20].astype(np.uint8))
+        # the mask of the cube used directly on the cutout (module input)
+        np.testing.assert_array_equal(segmentMask(maskNode, "Source", cutout), source[2:10, 3:15, 4:20].astype(np.uint8))
+
+        # a 2D image of the same sky grid (e.g. a moment map): projection
+        image = load("copy_image", np.ones(shape[1:], dtype=np.float32), celestialWCS(crpix=(12.5, 10.5)))
+        targetMask = copy(image, ["Source"])
+        np.testing.assert_array_equal(segmentMask(targetMask, "Source", image)[0],
+                                      source.any(axis=0).astype(np.uint8))
+
+        # another grid (pixels twice larger, same channels): reprojected
+        rebinned = load("copy_rebinned", np.ones((12, 10, 12), dtype=np.float32),
+                        # shifted by 0.1 rebinned pixel: no ties of the nearest neighbour
+                        celestialWCS(crpix=(6.6, 5.6), cdelt=(-0.002, 0.002)) + radioVelocityWCS(crpix=1.0))
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetGridOffset(cube, rebinned, [0, 0, 0]))
+        # refused as module input
+        self.assertIsNone(segmentMask(maskNode, "Source", rebinned))
+        targetMask = copy(rebinned, ["Source"])
+        computed = segmentMask(targetMask, "Source", rebinned)
+        # nearest voxel of the cube for each voxel of the rebinned cube (WCS)
+        expected = np.zeros(computed.shape, dtype=np.uint8)
+        targetDisplay = rebinned.GetAstroVolumeDisplayNode()
+        sourceDisplay = cube.GetAstroVolumeDisplayNode()
+        for k in range(computed.shape[0]):
+            for j in range(computed.shape[1]):
+                for i in range(computed.shape[2]):
+                    world = [0., 0., 0.]
+                    targetDisplay.GetReferenceSpace([float(i), float(j), float(k)], world)
+                    ijk = [0., 0., 0.]
+                    sourceDisplay.GetIJKSpace(world, ijk)
+                    si, sj, sk = (int(round(v)) for v in ijk)
+                    if 0 <= sk < shape[0] and 0 <= sj < shape[1] and 0 <= si < shape[2]:
+                        expected[k, j, i] = source[sk, sj, si]
+        self.assertGreater(np.count_nonzero(expected), 0)
+        np.testing.assert_array_equal(computed, expected)
+
+        # move (Copy and Move buttons of the AstroVolume module): the segments
+        # leave the mask
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(cube.GetID())
+        slicer.util.selectModule("AstroVolume")
+        slicer.app.processEvents()
+        widget = slicer.modules.astrovolume.widgetRepresentation()
+        slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(maskNode)
+        slicer.app.processEvents()
+        slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs(["Corner"])
+        slicer.util.findChild(widget, "CopyMaskTargetSelector").setCurrentNode(smoothed)
+        slicer.util.findChild(widget, "MoveMaskPushButton").click()
+        slicer.app.processEvents()
+        self.assertIsNone(maskNode.GetSegmentation().GetSegment("Corner"))
+        smoothedMask = self.logic.GetMaskSegmentationForVolume(smoothed, False)
+        np.testing.assert_array_equal(segmentMask(smoothedMask, "Corner", smoothed), corner.astype(np.uint8))
+        # nothing selected: all the segments are copied
+        slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([])
+        slicer.util.findChild(widget, "CopyMaskTargetSelector").setCurrentNode(image)
+        slicer.util.findChild(widget, "CopyMaskPushButton").click()
+        imageMask = self.logic.GetMaskSegmentationForVolume(image, False)
+        self.assertEqual(imageMask.GetSegmentation().GetNumberOfSegments(), 2)
+        self.assertIsNotNone(maskNode.GetSegmentation().GetSegment("Source"))
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
         self.delayDisplay("Test passed")
 
     def test_ContoursChannelMap(self):

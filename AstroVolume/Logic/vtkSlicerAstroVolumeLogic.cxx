@@ -79,6 +79,10 @@
 #include <vtkGeneralTransform.h>
 #include <vtkTransform.h>
 #include <vtkImageData.h>
+#include <set>
+#include <vtkStringArray.h>
+#include <vtksys/SystemTools.hxx>
+#include <vtkFITSReader.h>
 #include <vtkSMPTools.h>
 #include <vtkSegmentation.h>
 #include <vtkIntArray.h>
@@ -140,6 +144,12 @@ template <typename T> T StringToNumber(const char* num)
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return str ? StringToNumber<int>(str) : 0;
 }
 
 //----------------------------------------------------------------------------
@@ -811,7 +821,11 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
   vtkMRMLAstroVolumeStorageNode* storageNode =
       vtkMRMLAstroVolumeStorageNode::SafeDownCast(
         nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroVolumeStorageNode"));
-  storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
+  // astronomical data are always centered on their voxel grid (the RAS
+  // coordinates are the voxel coordinates around the center): cubes and
+  // masks overlap whatever the order and the way of loading
+  (void)options;
+  storageNode->SetCenterImage(1);
   astroNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
   nodeSet.StorageNode = storageNode;
@@ -1682,6 +1696,70 @@ bool vtkSlicerAstroVolumeLogic::CreateSegmentMask(vtkMRMLSegmentationNode* segme
   mask->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
   unsigned char* maskVoxels = static_cast<unsigned char*>(mask->GetScalarPointer());
   std::fill(maskVoxels, maskVoxels + mask->GetNumberOfPoints(), static_cast<unsigned char>(0));
+
+  // mask of another data volume (its reference geometry): placed with the
+  // WCS when the two volumes are on the same voxel lattice (e.g. a cube and
+  // its cutout, a 2D image of the same sky grid), otherwise refused (the
+  // positions in the 3D views of independently loaded data do not match)
+  vtkMRMLAstroVolumeNode* referenceVolume = vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(volumeNode);
+  if (referenceVolume && astroVolume && referenceVolume != astroVolume && referenceVolume->GetImageData())
+    {
+    int offset[3] = {0, 0, 0};
+    const int referenceAxes = StringToInt(referenceVolume->GetAttribute("SlicerAstro.NAXIS"));
+    const int volumeAxes = StringToInt(astroVolume->GetAttribute("SlicerAstro.NAXIS"));
+    if (!vtkSlicerAstroVolumeLogic::GetGridOffset(referenceVolume, astroVolume, offset) ||
+        !(referenceAxes == volumeAxes || (referenceAxes == 3 && volumeAxes == 2)))
+      {
+      error = std::string("the mask ") + (segmentationNode->GetName() ? segmentationNode->GetName() : "") +
+              " is on the grid of " + referenceVolume->GetName() + ", which is not the voxel grid of " +
+              astroVolume->GetName() + ": copy the mask to " + astroVolume->GetName() +
+              " (AstroVolume module, Masks, Copy).";
+      return false;
+      }
+    vtkNew<vtkImageData> referenceMask;
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentID, referenceVolume,
+                                                      referenceMask, error))
+      {
+      return false;
+      }
+    int referenceDimensions[3] = {0, 0, 0};
+    referenceMask->GetDimensions(referenceDimensions);
+    int dimensions[3] = {0, 0, 0};
+    mask->GetDimensions(dimensions);
+    const bool projection = referenceAxes == 3 && volumeAxes == 2;
+    const unsigned char* referenceVoxels = static_cast<unsigned char*>(referenceMask->GetScalarPointer());
+    for (int k = 0; k < referenceDimensions[2]; k++)
+      {
+      const int vk = projection ? 0 : k + offset[2];
+      if (vk < 0 || vk >= dimensions[2])
+        {
+        continue;
+        }
+      for (int j = 0; j < referenceDimensions[1]; j++)
+        {
+        const int vj = j + offset[1];
+        if (vj < 0 || vj >= dimensions[1])
+          {
+          continue;
+          }
+        const unsigned char* row = referenceVoxels +
+          (static_cast<vtkIdType>(k) * referenceDimensions[1] + j) * referenceDimensions[0];
+        unsigned char* maskRow = maskVoxels + (static_cast<vtkIdType>(vk) * dimensions[1] + vj) * dimensions[0];
+        for (int i = 0; i < referenceDimensions[0]; i++)
+          {
+          const int vi = i + offset[0];
+          if (row[i] && vi >= 0 && vi < dimensions[0])
+            {
+            maskRow[vi] = 1;
+            }
+          }
+        }
+      }
+    mask->Modified();
+    return true;
+    }
 
   // binary labelmap of the segment: the one of the segmentation (shared by
   // the segments of a layer, each with its label value), or converted for
@@ -2869,22 +2947,10 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetMaskSegmentationForVolume
     mask = referencedMask;
     mask->SetReferenceImageGeometryParameterFromVolumeNode(volumeNode);
     }
-  if (!mask && create)
+  if (!mask && create && this->AttachMasksToVolume(volumeNode) > 0)
     {
-    // a mask of this cube loaded before it (same geometry, no reference volume)
-    std::vector<vtkMRMLNode*> nodes;
-    scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
-    for (vtkMRMLNode* node : nodes)
-      {
-      vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
-      if (segmentationNode && segmentationNode->GetSegmentation()->GetNumberOfSegments() > 0 &&
-          vtkSlicerAstroVolumeLogic::FindVolumeOfMask(scene, segmentationNode) == volumeNode)
-        {
-        segmentationNode->SetNodeReferenceID(geometryRole.c_str(), volumeNode->GetID());
-        mask = segmentationNode;
-        break;
-        }
-      }
+    // a FITS mask of this cube loaded before it (same voxel lattice, WCS)
+    mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, volumeNode, referencedMask);
     }
   if (!mask && create)
     {
@@ -2958,6 +3024,8 @@ void vtkSlicerAstroVolumeLogic::EnsureVolumeSegmentations(vtkMRMLAstroVolumeNode
     {
     return;
     }
+  // FITS masks loaded before the cube (same voxel lattice) become its masks
+  this->AttachMasksToVolume(volumeNode);
   this->GetContoursSegmentationForVolume(volumeNode, true);
   this->GetMaskSegmentationForVolume(volumeNode, true);
 }
@@ -3162,25 +3230,526 @@ bool vtkSlicerAstroVolumeLogic::HasGeometryOfVolume(vtkMRMLSegmentationNode* seg
 }
 
 //----------------------------------------------------------------------------
-vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::FindVolumeOfMask(vtkMRMLScene* scene,
-                                                                   vtkMRMLSegmentationNode* segmentationNode)
+bool vtkSlicerAstroVolumeLogic::GetGridOffset(struct wcsprm* wcsA, const int dimensionsA[3], struct wcsprm* wcsB,
+                                              int offset[3])
 {
-  if (!scene || !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode) ||
-      segmentationNode->GetNodeReference(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()))
+  offset[0] = offset[1] = offset[2] = 0;
+  if (!wcsA || !wcsB || wcsA->naxis < 1 || wcsA->naxis > 3 || wcsB->naxis < 1 || wcsB->naxis > wcsA->naxis)
+    {
+    return false;
+    }
+  // the axes of B are compared (all, or the celestial ones of a 3D A and a 2D B)
+  const int compared = wcsB->naxis;
+  if (compared < wcsA->naxis && (compared != 2 || wcsA->lng != 0 || wcsA->lat != 1 ||
+                                 wcsB->lng != 0 || wcsB->lat != 1))
+    {
+    return false;
+    }
+  // voxels of A: the corners and the center (FITS pixel coordinates, from 1)
+  std::vector<std::array<double, 3> > samples;
+  for (int corner = 0; corner < 8; corner++)
+    {
+    std::array<double, 3> pixel = {1., 1., 1.};
+    for (int axis = 0; axis < 3; axis++)
+      {
+      const int size = (axis < wcsA->naxis) ? std::max(1, dimensionsA[axis]) : 1;
+      pixel[axis] = ((corner >> axis) & 1) ? size : 1.;
+      }
+    samples.push_back(pixel);
+    }
+  samples.push_back({0.5 * (dimensionsA[0] + 1), 0.5 * (std::max(1, dimensionsA[1]) + 1),
+                     0.5 * (std::max(1, dimensionsA[2]) + 1)});
+  bool first = true;
+  for (const std::array<double, 3>& sample : samples)
+    {
+    double pixelA[4] = {sample[0], sample[1], sample[2], 0.}, imgcrd[4] = {0.}, world[4] = {0.};
+    double phi[1] = {0.}, theta[1] = {0.}, pixelB[4] = {0.};
+    int status[1] = {0};
+    if (wcsp2s(wcsA, 1, 4, pixelA, imgcrd, phi, theta, world, status))
+      {
+      return false;
+      }
+    double worldB[4] = {world[0], world[1], world[2], 0.};
+    if (wcss2p(wcsB, 1, 4, worldB, phi, theta, imgcrd, pixelB, status))
+      {
+      return false;
+      }
+    for (int axis = 0; axis < compared; axis++)
+      {
+      const double difference = pixelB[axis] - pixelA[axis];
+      const double rounded = std::round(difference);
+      if (fabs(difference - rounded) > 1.e-3)
+        {
+        return false;
+        }
+      if (first)
+        {
+        offset[axis] = static_cast<int>(rounded);
+        }
+      else if (offset[axis] != static_cast<int>(rounded))
+        {
+        return false;
+        }
+      }
+    first = false;
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetGridOffset(vtkMRMLAstroVolumeNode* volumeA, vtkMRMLAstroVolumeNode* volumeB,
+                                              int offset[3])
+{
+  offset[0] = offset[1] = offset[2] = 0;
+  vtkMRMLAstroVolumeDisplayNode* displayA = volumeA ? volumeA->GetAstroVolumeDisplayNode() : nullptr;
+  vtkMRMLAstroVolumeDisplayNode* displayB = volumeB ? volumeB->GetAstroVolumeDisplayNode() : nullptr;
+  if (!displayA || !displayB || !volumeA->GetImageData() ||
+      strcmp(displayA->GetSpace(), "WCS") || strcmp(displayB->GetSpace(), "WCS"))
+    {
+    return false;
+    }
+  int dimensions[3] = {0, 0, 0};
+  volumeA->GetImageData()->GetDimensions(dimensions);
+  return vtkSlicerAstroVolumeLogic::GetGridOffset(displayA->GetWCSStruct(), dimensions,
+                                                  displayB->GetWCSStruct(), offset);
+}
+
+namespace
+{
+//----------------------------------------------------------------------------
+// Header (WCS) of the FITS file of a mask (nullptr if not a FITS mask with a file)
+vtkSmartPointer<vtkFITSReader> ReadMaskHeader(vtkMRMLSegmentationNode* segmentationNode, int dimensions[3])
+{
+  vtkMRMLAstroSegmentationStorageNode* storageNode = segmentationNode ?
+    vtkMRMLAstroSegmentationStorageNode::SafeDownCast(segmentationNode->GetStorageNode()) : nullptr;
+  const char* fileName = storageNode ? storageNode->GetFileName() : nullptr;
+  if (!fileName || !*fileName || !vtksys::SystemTools::FileExists(fileName, true))
     {
     return nullptr;
     }
+  vtkSmartPointer<vtkFITSReader> reader = vtkSmartPointer<vtkFITSReader>::New();
+  reader->SetFileName(fileName);
+  if (!reader->CanReadFile(fileName))
+    {
+    return nullptr;
+    }
+  reader->UpdateInformation();
+  if (!reader->GetWCSStruct() || reader->GetWCSStatus() != 0)
+    {
+    return nullptr;
+    }
+  for (int axis = 0; axis < 3; axis++)
+    {
+    const std::string key = "SlicerAstro.NAXIS" + std::to_string(axis + 1);
+    const char* value = reader->GetHeaderValue(key.c_str());
+    dimensions[axis] = (value && *value) ? std::max(1, atoi(value)) : 1;
+    }
+  return reader;
+}
+
+//----------------------------------------------------------------------------
+// Labelmap moved to the grid of a volume: same voxels, extent shifted by offset
+void MoveLabelmapToGrid(vtkOrientedImageData* labelmap, vtkMatrix4x4* ijkToRAS, const int offset[3])
+{
+  int extent[6] = {0, -1, 0, -1, 0, -1};
+  labelmap->GetExtent(extent);
+  for (int axis = 0; axis < 3; axis++)
+    {
+    extent[2 * axis] += offset[axis];
+    extent[2 * axis + 1] += offset[axis];
+    }
+  labelmap->SetExtent(extent);
+  labelmap->SetGeometryFromImageToWorldMatrix(ijkToRAS);
+  labelmap->Modified();
+}
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::FindVolumeOfMask(vtkMRMLScene* scene,
+                                                                   vtkMRMLSegmentationNode* segmentationNode,
+                                                                   int offset[3])
+{
+  offset[0] = offset[1] = offset[2] = 0;
+  if (!scene || !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode) ||
+      vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+        vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str())))
+    {
+    return nullptr;
+    }
+  int maskDimensions[3] = {1, 1, 1};
+  vtkSmartPointer<vtkFITSReader> header = ReadMaskHeader(segmentationNode, maskDimensions);
+  if (!header)
+    {
+    return nullptr;
+    }
+  // the active volume first, then the most recent ones
   std::vector<vtkMRMLNode*> volumes;
   scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+  std::reverse(volumes.begin(), volumes.end());
+  vtkMRMLSelectionNode* selectionNode = vtkMRMLSelectionNode::SafeDownCast(
+    scene->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  vtkMRMLNode* active = (selectionNode && selectionNode->GetActiveVolumeID()) ?
+    scene->GetNodeByID(selectionNode->GetActiveVolumeID()) : nullptr;
+  std::vector<vtkMRMLNode*>::iterator activeIt = std::find(volumes.begin(), volumes.end(), active);
+  if (activeIt != volumes.end())
+    {
+    std::rotate(volumes.begin(), activeIt, activeIt + 1);
+    }
   for (vtkMRMLNode* node : volumes)
     {
     vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
-    if (vtkSlicerAstroVolumeLogic::HasGeometryOfVolume(segmentationNode, volumeNode))
+    vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+    if (!displayNode || !volumeNode->GetImageData() || strcmp(displayNode->GetSpace(), "WCS") ||
+        !displayNode->GetWCSStruct() || displayNode->GetWCSStruct()->naxis != header->GetWCSStruct()->naxis)
+      {
+      continue;
+      }
+    if (vtkSlicerAstroVolumeLogic::GetGridOffset(header->GetWCSStruct(), maskDimensions,
+                                                 displayNode->GetWCSStruct(), offset))
       {
       return volumeNode;
       }
     }
+  offset[0] = offset[1] = offset[2] = 0;
   return nullptr;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::AttachMaskToVolume(vtkMRMLSegmentationNode* segmentationNode,
+                                                   vtkMRMLAstroVolumeNode* volumeNode, const int offset[3])
+{
+  vtkSegmentation* segmentation = segmentationNode ? segmentationNode->GetSegmentation() : nullptr;
+  if (!segmentation || !volumeNode || !volumeNode->GetImageData())
+    {
+    return false;
+    }
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  volumeNode->GetIJKToRASMatrix(ijkToRAS);
+  MRMLNodeModifyBlocker blocker(segmentationNode);
+
+  // labelmaps (shared by the segments of a layer: moved once)
+  const std::string labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  std::set<vtkOrientedImageData*> moved;
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkOrientedImageData* labelmap = vtkOrientedImageData::SafeDownCast(
+      segmentation->GetSegment(segmentID)->GetRepresentation(labelmapName));
+    if (labelmap && moved.insert(labelmap).second)
+      {
+      MoveLabelmapToGrid(labelmap, ijkToRAS, offset);
+      }
+    }
+
+  // reference geometry: the grid of the mask (its own extent) in the voxel
+  // grid of the volume
+  const std::string geometryName = vtkSegmentationConverter::GetReferenceImageGeometryParameterName();
+  vtkNew<vtkOrientedImageData> geometry;
+  const std::string geometryString = segmentation->GetConversionParameter(geometryName);
+  if (geometryString.empty() || !vtkSegmentationConverter::DeserializeImageGeometry(geometryString, geometry, false))
+    {
+    geometry->SetExtent(volumeNode->GetImageData()->GetExtent());
+    geometry->SetGeometryFromImageToWorldMatrix(ijkToRAS);
+    }
+  else
+    {
+    MoveLabelmapToGrid(geometry, ijkToRAS, offset);
+    }
+  segmentation->SetConversionParameter(geometryName, vtkSegmentationConverter::SerializeImageGeometry(geometry));
+  segmentationNode->SetNodeReferenceID(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str(),
+                                       volumeNode->GetID());
+  segmentationNode->Modified();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::AttachMasksToVolume(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  if (!scene || !displayNode || !displayNode->GetWCSStruct() || strcmp(displayNode->GetSpace(), "WCS"))
+    {
+    return 0;
+    }
+  int attached = 0;
+  std::vector<vtkMRMLNode*> segmentationNodes;
+  scene->GetNodesByClass("vtkMRMLSegmentationNode", segmentationNodes);
+  for (vtkMRMLNode* node : segmentationNodes)
+    {
+    vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
+    if (!vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode) ||
+        vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+          vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str())))
+      {
+      continue;
+      }
+    int maskDimensions[3] = {1, 1, 1};
+    vtkSmartPointer<vtkFITSReader> header = ReadMaskHeader(segmentationNode, maskDimensions);
+    int offset[3] = {0, 0, 0};
+    if (header && header->GetWCSStruct()->naxis == displayNode->GetWCSStruct()->naxis &&
+        vtkSlicerAstroVolumeLogic::GetGridOffset(header->GetWCSStruct(), maskDimensions,
+                                                 displayNode->GetWCSStruct(), offset) &&
+        vtkSlicerAstroVolumeLogic::AttachMaskToVolume(segmentationNode, volumeNode, offset))
+      {
+      attached++;
+      }
+    }
+  return attached;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CopyMaskSegmentsToVolume(
+  vtkMRMLSegmentationNode* segmentationNode, vtkStringArray* segmentIDsArray,
+  vtkMRMLAstroVolumeNode* targetVolume, bool move)
+{
+  this->LastMaskCopyError.clear();
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkSegmentation* segmentation = segmentationNode ? segmentationNode->GetSegmentation() : nullptr;
+  if (!scene || !segmentation || !targetVolume || !targetVolume->GetImageData())
+    {
+    this->LastMaskCopyError = "no mask or no data volume to copy it to.";
+    return nullptr;
+    }
+  vtkMRMLAstroVolumeNode* sourceVolume = vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  if (!sourceVolume || !sourceVolume->GetImageData())
+    {
+    this->LastMaskCopyError = std::string("the mask ") + (segmentationNode->GetName() ? segmentationNode->GetName() : "") +
+                              " is not on the grid of a data volume (no reference volume).";
+    return nullptr;
+    }
+  std::vector<std::string> segmentIDs;
+  if (segmentIDsArray && segmentIDsArray->GetNumberOfValues() > 0)
+    {
+    for (vtkIdType index = 0; index < segmentIDsArray->GetNumberOfValues(); index++)
+      {
+      segmentIDs.push_back(segmentIDsArray->GetValue(index));
+      }
+    }
+  else
+    {
+    segmentation->GetSegmentIDs(segmentIDs);
+    }
+  for (const std::string& segmentID : segmentIDs)
+    {
+    if (!segmentation->GetSegment(segmentID))
+      {
+      this->LastMaskCopyError = "the segment " + segmentID + " is not in the mask.";
+      return nullptr;
+      }
+    }
+  if (segmentIDs.empty())
+    {
+    this->LastMaskCopyError = "the mask has no segments.";
+    return nullptr;
+    }
+  vtkMRMLSegmentationNode* targetMask = this->GetMaskSegmentationForVolume(targetVolume, true);
+  if (!targetMask)
+    {
+    this->LastMaskCopyError = std::string("the mask of ") + targetVolume->GetName() + " could not be created.";
+    return nullptr;
+    }
+  if (targetMask == segmentationNode)
+    {
+    this->LastMaskCopyError = std::string("the segments are already in the mask of ") + targetVolume->GetName() + ".";
+    return nullptr;
+    }
+
+  int sourceDimensions[3] = {0, 0, 0};
+  sourceVolume->GetImageData()->GetDimensions(sourceDimensions);
+  int targetExtent[6] = {0, -1, 0, -1, 0, -1};
+  targetVolume->GetImageData()->GetExtent(targetExtent);
+  const int targetDimensions[3] = {targetExtent[1] - targetExtent[0] + 1, targetExtent[3] - targetExtent[2] + 1,
+                                   targetExtent[5] - targetExtent[4] + 1};
+  const vtkIdType targetSlice = static_cast<vtkIdType>(targetDimensions[0]) * targetDimensions[1];
+  const vtkIdType targetSize = targetSlice * targetDimensions[2];
+  const int sourceAxes = StringToInt(sourceVolume->GetAttribute("SlicerAstro.NAXIS"));
+  const int targetAxes = StringToInt(targetVolume->GetAttribute("SlicerAstro.NAXIS"));
+
+  // the masks of the segments on the grid of the target volume
+  std::vector<std::vector<unsigned char> > targetMasks(segmentIDs.size());
+  int offset[3] = {0, 0, 0};
+  const bool lattice = vtkSlicerAstroVolumeLogic::GetGridOffset(sourceVolume, targetVolume, offset);
+  if (lattice && (sourceAxes == targetAxes || (sourceAxes == 3 && targetAxes == 2)))
+    {
+    // same voxel lattice (offset), or projection along the channels on a 2D
+    // image of the same sky grid
+    const bool projection = sourceAxes == 3 && targetAxes == 2;
+    for (size_t index = 0; index < segmentIDs.size(); index++)
+      {
+      vtkNew<vtkImageData> sourceMask;
+      std::string error;
+      if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentIDs[index].c_str(), sourceVolume,
+                                                        sourceMask, error))
+        {
+        this->LastMaskCopyError = error;
+        return nullptr;
+        }
+      const unsigned char* source = static_cast<unsigned char*>(sourceMask->GetScalarPointer());
+      std::vector<unsigned char>& target = targetMasks[index];
+      target.assign(static_cast<size_t>(targetSize), 0);
+      for (int k = 0; k < sourceDimensions[2]; k++)
+        {
+        const int tk = projection ? 0 : k + offset[2];
+        if (tk < 0 || tk >= targetDimensions[2])
+          {
+          continue;
+          }
+        for (int j = 0; j < sourceDimensions[1]; j++)
+          {
+          const int tj = j + offset[1];
+          if (tj < 0 || tj >= targetDimensions[1])
+            {
+            continue;
+            }
+          const unsigned char* row = source + (static_cast<vtkIdType>(k) * sourceDimensions[1] + j) * sourceDimensions[0];
+          unsigned char* targetRow = target.data() + tk * targetSlice + static_cast<vtkIdType>(tj) * targetDimensions[0];
+          for (int i = 0; i < sourceDimensions[0]; i++)
+            {
+            const int ti = i + offset[0];
+            if (row[i] && ti >= 0 && ti < targetDimensions[0])
+              {
+              targetRow[ti] = 1;
+              }
+            }
+          }
+        }
+      }
+    }
+  else
+    {
+    // another grid: the segments (labels 1, 2, ...) reprojected with the WCS
+    if (sourceAxes != targetAxes)
+      {
+      this->LastMaskCopyError = std::string("the mask of ") + sourceVolume->GetName() + " (" +
+        std::to_string(sourceAxes) + "D) can not be copied to " + targetVolume->GetName() + " (" +
+        std::to_string(targetAxes) + "D) on another sky grid.";
+      return nullptr;
+      }
+    if (!this->ReprojectFunction)
+      {
+      this->LastMaskCopyError = "the grids differ and the reprojection (AstroReproject module) is not available.";
+      return nullptr;
+      }
+    vtkMRMLAstroVolumeNode* labelVolume = this->CloneAstroVolume(scene, sourceVolume, nullptr, "_masklabels",
+      (std::string(sourceVolume->GetName()) + "_masklabels").c_str(), true);
+    if (!labelVolume || !labelVolume->GetImageData())
+      {
+      this->LastMaskCopyError = "the labels of the mask could not be prepared.";
+      return nullptr;
+      }
+    vtkNew<vtkImageData> labels;
+    labels->SetExtent(sourceVolume->GetImageData()->GetExtent());
+    labels->AllocateScalars(VTK_FLOAT, 1);
+    float* labelVoxels = static_cast<float*>(labels->GetScalarPointer());
+    std::fill(labelVoxels, labelVoxels + labels->GetNumberOfPoints(), 0.f);
+    for (size_t index = 0; index < segmentIDs.size(); index++)
+      {
+      vtkNew<vtkImageData> sourceMask;
+      std::string error;
+      if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentIDs[index].c_str(), sourceVolume,
+                                                        sourceMask, error))
+        {
+        scene->RemoveNode(labelVolume);
+        this->LastMaskCopyError = error;
+        return nullptr;
+        }
+      const unsigned char* source = static_cast<unsigned char*>(sourceMask->GetScalarPointer());
+      for (vtkIdType voxel = 0; voxel < labels->GetNumberOfPoints(); voxel++)
+        {
+        if (source[voxel])
+          {
+          labelVoxels[voxel] = static_cast<float>(index + 1);
+          }
+        }
+      }
+    labelVolume->SetAndObserveImageData(labels);
+    labelVolume->SetAttribute("SlicerAstro.BITPIX", "-32");
+
+    vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParameters;
+    reprojectParameters->SetInputVolumeNodeID(labelVolume->GetID());
+    reprojectParameters->SetInputVolumeNodeIDs(labelVolume->GetID());
+    reprojectParameters->SetReferenceVolumeNodeID(targetVolume->GetID());
+    reprojectParameters->SetSpatialGridMode(vtkMRMLAstroReprojectParametersNode::SpatialReference);
+    reprojectParameters->SetSpectralGridMode(targetAxes > 2 ? vtkMRMLAstroReprojectParametersNode::SpectralReference :
+                                                              vtkMRMLAstroReprojectParametersNode::SpectralInput);
+    reprojectParameters->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::NearestNeighbour);
+    reprojectParameters->SetSpectralMethod(vtkMRMLAstroReprojectParametersNode::SpectralNearest);
+    const bool reprojected = this->Reproject(reprojectParameters);
+    scene->RemoveNode(labelVolume);
+    vtkMRMLAstroVolumeNode* outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
+      reprojectParameters->GetOutputVolumeNodeID() ? scene->GetNodeByID(reprojectParameters->GetOutputVolumeNodeID()) : nullptr);
+    if (!reprojected || !outputVolume || !outputVolume->GetImageData())
+      {
+      if (outputVolume)
+        {
+        scene->RemoveNode(outputVolume);
+        }
+      this->LastMaskCopyError = "the reprojection of the mask failed: " + this->GetLastReprojectError();
+      return nullptr;
+      }
+    int outputDimensions[3] = {0, 0, 0};
+    outputVolume->GetImageData()->GetDimensions(outputDimensions);
+    vtkDataArray* outputScalars = outputVolume->GetImageData()->GetPointData()->GetScalars();
+    if (!outputScalars || outputDimensions[0] != targetDimensions[0] || outputDimensions[1] != targetDimensions[1] ||
+        outputDimensions[2] != targetDimensions[2])
+      {
+      scene->RemoveNode(outputVolume);
+      this->LastMaskCopyError = "the reprojected mask is not on the grid of the target volume.";
+      return nullptr;
+      }
+    for (size_t index = 0; index < segmentIDs.size(); index++)
+      {
+      targetMasks[index].assign(static_cast<size_t>(targetSize), 0);
+      }
+    for (vtkIdType voxel = 0; voxel < targetSize; voxel++)
+      {
+      const double value = outputScalars->GetComponent(voxel, 0);
+      if (std::isfinite(value) && value > 0.5)
+        {
+        const size_t index = static_cast<size_t>(std::lround(value)) - 1;
+        if (index < targetMasks.size())
+          {
+          targetMasks[index][static_cast<size_t>(voxel)] = 1;
+          }
+        }
+      }
+    scene->RemoveNode(outputVolume);
+    }
+
+  // the segments in the mask of the target volume (names, colors, terminology)
+  vtkNew<vtkMatrix4x4> targetIJKToRAS;
+  targetVolume->GetIJKToRASMatrix(targetIJKToRAS);
+  vtkSegmentation* targetSegmentation = targetMask->GetSegmentation();
+  const std::string labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  {
+  MRMLNodeModifyBlocker blocker(targetMask);
+  for (size_t index = 0; index < segmentIDs.size(); index++)
+    {
+    vtkNew<vtkOrientedImageData> labelmap;
+    labelmap->SetExtent(targetExtent);
+    labelmap->SetGeometryFromImageToWorldMatrix(targetIJKToRAS);
+    labelmap->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
+    std::copy(targetMasks[index].begin(), targetMasks[index].end(),
+              static_cast<unsigned char*>(labelmap->GetScalarPointer()));
+    vtkNew<vtkSegment> segment;
+    segment->DeepCopyMetadata(segmentation->GetSegment(segmentIDs[index]));
+    segment->RemoveAllRepresentations();
+    segment->SetLabelValue(1);
+    segment->AddRepresentation(labelmapName, labelmap);
+    targetSegmentation->AddSegment(segment, targetSegmentation->GenerateUniqueSegmentID(segmentIDs[index]));
+    }
+  }
+  if (move)
+    {
+    MRMLNodeModifyBlocker blocker(segmentationNode);
+    for (const std::string& segmentID : segmentIDs)
+      {
+      segmentation->RemoveSegment(segmentID);
+      }
+    }
+  return targetMask;
 }
 
 //----------------------------------------------------------------------------

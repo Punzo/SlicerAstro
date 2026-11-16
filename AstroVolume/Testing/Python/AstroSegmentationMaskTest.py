@@ -164,6 +164,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.test_NewSegmentationDefaultStorage()
         self.setUp()
         self.test_MasksWithoutLabelMaps()
+        self.setUp()
+        self.test_AttachByWCS()
 
     def sourceArray(self, segmentationNode, segmentID):
         """Voxels of a segment in the geometry of the mask (z, y, x)."""
@@ -385,6 +387,112 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
                 self.assertIsNotNone(mask)
                 np.testing.assert_array_equal(mask, (original == sourceID).astype(np.uint8),
                                               err_msg=f"{node.GetName()} source {sourceID}")
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+        self.delayDisplay("Test passed")
+
+    def cards(self, crpix=None, cdMatrix=False, scale=1.0, mask=True):
+        """WCS_CARDS for a mask (SoFiA history) or a cube: other reference
+        pixel (cutout), CD matrix instead of CDELT, pixels scale times larger."""
+        cards = []
+        for key, value in WCS_CARDS:
+            if key == "HISTORY" and not mask:
+                continue
+            if crpix and key in ("CRPIX1", "CRPIX2", "CRPIX3"):
+                value = crpix[int(key[-1]) - 1]
+            if key in ("CDELT1", "CDELT2"):
+                value = value * scale
+                if cdMatrix:
+                    key = "CD%s_%s" % (key[-1], key[-1])
+            if key == "CDELT3" and cdMatrix:
+                key = "CD3_3"
+            cards.append((key, value))
+        return cards
+
+    def writeCube(self, name, shape, cards):
+        from AstroFITSIOTest import writeFITS as writeFloatFITS
+        path = os.path.join(self.directory, name + ".fits")
+        cubeCards = [(key, "JY/BEAM") if key == "BUNIT" else (key, value) for key, value in cards]
+        writeFloatFITS(path, np.ones(shape, dtype=np.float32), -32, cubeCards)
+        return path
+
+    def test_AttachByWCS(self):
+        """FITS masks are attached to the data cube on the same voxel lattice
+        (WCS), in both orders of loading, also the mask of a part of the cube
+        (offset), with another form of the header (CD matrix); not to data on
+        another grid. All the data are centered on their voxel grid."""
+        from AstroVolumeLogicTest import segmentMask
+        logic = slicer.modules.astrovolume.logic()
+        role = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
+        original = syntheticMask()
+        shape = original.shape
+        cubePath = self.writeCube("attach_cube", shape, self.cards(mask=False))
+        maskPath = os.path.join(self.directory, "attach_mask.fits")
+        writeFITS(maskPath, original, WCS_CARDS)
+        # cutout of the mask: voxels [2:10, 3:13, 4:16] (z, y, x)
+        cutout = original[2:10, 3:13, 4:16]
+        cutoutPath = os.path.join(self.directory, "attach_cutout_mask.fits")
+        writeFITS(cutoutPath, cutout, self.cards(crpix=(10.0 - 4, 8.0 - 3, 1.0 - 2)))
+        cdPath = os.path.join(self.directory, "attach_cd_mask.fits")
+        writeFITS(cdPath, original, self.cards(cdMatrix=True))
+        otherPath = os.path.join(self.directory, "attach_other_mask.fits")
+        writeFITS(otherPath, original, self.cards(scale=2.0))
+
+        def assertAttached(maskNode, cubeNode, expected):
+            self.assertEqual(maskNode.GetNodeReferenceID(role), cubeNode.GetID(), maskNode.GetName())
+            for sourceID in SOURCES:
+                segmentID = "Source_%d" % sourceID
+                if not maskNode.GetSegmentation().GetSegment(segmentID):
+                    continue
+                np.testing.assert_array_equal(segmentMask(maskNode, segmentID, cubeNode),
+                                              (expected == sourceID).astype(np.uint8),
+                                              err_msg=f"{maskNode.GetName()} {segmentID}")
+
+        # cubes always centered (also when not asked)
+        cube = slicer.util.loadVolume(cubePath, {"center": False})
+        ijkToRAS = vtk.vtkMatrix4x4()
+        cube.GetIJKToRASMatrix(ijkToRAS)
+        center = [ijkToRAS.MultiplyPoint([(n - 1) / 2. for n in reversed(shape)] + [1.])[axis] for axis in range(3)]
+        np.testing.assert_allclose(center, [0., 0., 0.], atol=1e-9)
+
+        # cube, then the masks
+        mask = slicer.util.loadSegmentation(maskPath)
+        assertAttached(mask, cube, original)
+        self.assertEqual(cube.GetNodeReference(logic.GetMaskReferenceRole()), mask)
+        cdMask = slicer.util.loadSegmentation(cdPath)
+        assertAttached(cdMask, cube, original)
+        cutoutMask = slicer.util.loadSegmentation(cutoutPath)
+        expected = np.zeros(shape, dtype=original.dtype)
+        expected[2:10, 3:13, 4:16] = cutout
+        assertAttached(cutoutMask, cube, expected)
+        # the cutout mask is still saved on its own grid
+        savedPath = os.path.join(self.directory, "attach_cutout_saved.fits")
+        self.assertTrue(slicer.util.saveNode(cutoutMask, savedPath))
+        header, data = readFITS(savedPath)
+        np.testing.assert_array_equal(data, cutout)
+        self.assertAlmostEqual(float(header["CRPIX1"]), 6.0)
+        self.assertAlmostEqual(float(header["CRPIX3"]), -1.0)
+        # another grid: not attached
+        otherMask = slicer.util.loadSegmentation(otherPath)
+        self.assertIsNone(otherMask.GetNodeReference(role))
+
+        # the masks, then the cube (the one on the same lattice)
+        slicer.mrmlScene.Clear(0)
+        cutoutMask = slicer.util.loadSegmentation(cutoutPath)
+        otherMask = slicer.util.loadSegmentation(otherPath)
+        self.assertIsNone(cutoutMask.GetNodeReference(role))
+        cube = slicer.util.loadVolume(cubePath)
+        assertAttached(cutoutMask, cube, expected)
+        self.assertIsNone(otherMask.GetNodeReference(role))
+
+        # two cubes on the same lattice: the active one
+        slicer.mrmlScene.Clear(0)
+        first = slicer.util.loadVolume(cubePath, {"name": "first"})
+        second = slicer.util.loadVolume(cubePath, {"name": "second"})
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(first.GetID())
+        mask = slicer.util.loadSegmentation(maskPath)
+        assertAttached(mask, first, original)
+        # used on the other cube through the WCS (same lattice)
+        np.testing.assert_array_equal(segmentMask(mask, "Source_1", second), (original == 1).astype(np.uint8))
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
         self.delayDisplay("Test passed")
 

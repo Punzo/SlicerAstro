@@ -299,26 +299,6 @@ void qSlicerAstroStatisticsModuleWidget::exit()
   this->onROIVisibilityChanged(false);
 }
 
-namespace
-{
-//----------------------------------------------------------------------------
-template <typename T> std::string NumberToString(T V)
-{
-  std::string stringValue;
-  std::stringstream strstream;
-  strstream << V;
-  strstream >> stringValue;
-  return stringValue;
-}
-
-//----------------------------------------------------------------------------
-std::string IntToString(int Value)
-{
-  return NumberToString<int>(Value);
-}
-
-} // end namespace
-
 //-----------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {

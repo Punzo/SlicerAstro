@@ -53,8 +53,20 @@ segment per source, also on their own (before or without their data cube).
 Masks are always segmentations: SlicerAstro has no label map volumes. The
 modules with an input mask (AstroMomentMaps, AstroProfiles, AstroStatistics,
 AstroMasking, AstroModeling) use the selected segment directly, on the voxel
-grid of their input data (resampled if the segmentation is on another grid
-or transformed).
+grid of their input data.
+
+A FITS mask is attached to the data cube on the same voxel grid (compared
+with the WCS), whichever is loaded first; the mask of a part of the cube
+(e.g. SoFiA run on a cutout) is placed at its position in the cube and is
+still saved on its own grid. All the astronomical data are centered on their
+voxel grid in the views.
+
+**Copy to** copies (or **Move** moves) the selected segments (all if none is
+selected) to the mask of another volume: voxel by voxel on the same voxel
+grid (e.g. a smoothed copy or a cutout), projected along the channels on a 2D
+image of the same sky grid (e.g. a moment map), otherwise reprojected with
+the WCS (nearest neighbour). A mask on another grid is not used directly as
+the input of a module: copy it to the input data first.
 
 ### Astronomical terminology
 

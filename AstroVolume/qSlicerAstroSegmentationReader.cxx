@@ -107,7 +107,8 @@ bool qSlicerAstroSegmentationReader::load(const IOProperties& properties)
     return false;
     }
   storageNode->SetFileName(fileName.toUtf8().constData());
-  storageNode->SetCenterImage(properties.value("center", true).toBool());
+  // centered on its voxel grid, as all the astronomical data
+  storageNode->SetCenterImage(true);
   segmentationNode->SetAndObserveStorageNodeID(storageNode->GetID());
 
   const bool success = storageNode->ReadData(segmentationNode) != 0;
@@ -124,13 +125,14 @@ bool qSlicerAstroSegmentationReader::load(const IOProperties& properties)
   vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
   // opacity saved with the mask (SEGOPAC keyword)
   vtkMRMLAstroSegmentationStorageNode::ApplySavedOpacity(segmentationNode);
-  // mask of a loaded data cube (same geometry): it becomes the mask of the
-  // cube (replacing the empty mask created with the cube)
-  vtkMRMLAstroVolumeNode* volumeNode = vtkSlicerAstroVolumeLogic::FindVolumeOfMask(scene, segmentationNode);
+  // mask of a loaded data cube (same voxel lattice, WCS; also the mask of a
+  // part of the cube): it is placed on the grid of the cube and becomes its
+  // mask (replacing the empty mask created with the cube)
+  int offset[3] = {0, 0, 0};
+  vtkMRMLAstroVolumeNode* volumeNode = vtkSlicerAstroVolumeLogic::FindVolumeOfMask(scene, segmentationNode, offset);
   if (volumeNode)
     {
-    segmentationNode->SetNodeReferenceID(
-      vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str(), volumeNode->GetID());
+    vtkSlicerAstroVolumeLogic::AttachMaskToVolume(segmentationNode, volumeNode, offset);
     }
   this->setLoadedNodes(QStringList() << QString(segmentationNode->GetID()));
   return true;

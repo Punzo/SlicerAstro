@@ -54,6 +54,8 @@ class vtkSegment;
 class vtkSlicerTerminologiesModuleLogic;
 class vtkVolumeProperty;
 class vtkImageData;
+class vtkStringArray;
+struct wcsprm;
 class vtkIntArray;
 
 /// \class vtkSlicerAstroVolumeLogic
@@ -211,8 +213,12 @@ public:
   /// of the volume, whose reference geometry is the volume), otherwise it is
   /// resampled (nearest neighbour; transforms of the segmentation and of the
   /// volume applied). The segments sharing a labelmap layer are told apart
-  /// by their label value. Returns false if the segment or the voxels of the
-  /// volume are not found.
+  /// by their label value. The mask of another astronomical volume (its
+  /// reference geometry) is placed with the WCS when the two volumes are on
+  /// the same voxel lattice (e.g. a cube and its cutout; projected along the
+  /// channels on a 2D image of the same sky grid), and refused otherwise
+  /// (CopyMaskSegmentsToVolume reprojects it). Returns false if the segment
+  /// or the voxels of the volume are not found, or for a mask on another grid.
   static bool CreateSegmentMask(vtkMRMLSegmentationNode* segmentationNode, const char* segmentID,
                                 vtkMRMLVolumeNode* volumeNode, vtkImageData* mask);
 #ifndef __VTK_WRAP__
@@ -262,9 +268,50 @@ public:
   /// True if the segmentation has the geometry (voxel grid) of the volume.
   static bool HasGeometryOfVolume(vtkMRMLSegmentationNode* segmentationNode, vtkMRMLVolumeNode* volumeNode);
 
-  /// The astronomical volume with the geometry of a mask without reference
-  /// volume (e.g. a FITS mask loaded after its data cube), nullptr if none.
-  static vtkMRMLAstroVolumeNode* FindVolumeOfMask(vtkMRMLScene* scene, vtkMRMLSegmentationNode* segmentationNode);
+  /// Voxel offset between the grids of two astronomical volumes (WCS): voxel
+  /// (i, j, k) of volumeA is voxel (i, j, k) + offset of volumeB. True if the
+  /// two grids are the same voxel lattice (same pixel size, projection,
+  /// orientation, celestial frame and channels; whole voxel offset), e.g. a
+  /// cube and a cutout of it. A 3D volumeA and a 2D volumeB (e.g. a moment
+  /// map) are compared on their celestial axes (offset[2] = 0).
+  static bool GetGridOffset(vtkMRMLAstroVolumeNode* volumeA, vtkMRMLAstroVolumeNode* volumeB, int offset[3]);
+#ifndef __VTK_WRAP__
+  /// GetGridOffset for two WCS (the grid of A has dimensionsA voxels).
+  static bool GetGridOffset(struct wcsprm* wcsA, const int dimensionsA[3], struct wcsprm* wcsB, int offset[3]);
+#endif
+
+  /// The astronomical volume of the scene whose voxel lattice is the one of
+  /// a FITS mask without reference volume (e.g. a FITS mask loaded after its
+  /// data cube; the active volume first, then the most recent one), nullptr
+  /// if none. offset: the voxel offset of the mask in the grid of the volume
+  /// (non zero for the mask of a part of the cube).
+  static vtkMRMLAstroVolumeNode* FindVolumeOfMask(vtkMRMLScene* scene, vtkMRMLSegmentationNode* segmentationNode,
+                                                  int offset[3]);
+
+  /// The mask on the voxel grid of the volume: its labelmaps are placed in
+  /// the grid of the volume (offset of the mask in that grid: geometry only,
+  /// the voxels are not resampled) and the volume becomes its reference
+  /// geometry. The FITS mask is still saved on its own grid (its header).
+  static bool AttachMaskToVolume(vtkMRMLSegmentationNode* segmentationNode, vtkMRMLAstroVolumeNode* volumeNode,
+                                 const int offset[3]);
+
+  /// The FITS masks of the scene without reference volume that are on the
+  /// voxel lattice of the volume (e.g. masks loaded before their cube) are
+  /// attached to it (AttachMaskToVolume). Returns the number of masks.
+  int AttachMasksToVolume(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Copy (move: copy, then remove from the mask) segments of a mask (all if
+  /// segmentIDs is empty) to the mask of another volume. The mask must have
+  /// an astronomical reference volume. The segments are placed voxel by
+  /// voxel when the volumes are on the same voxel lattice (e.g. a smoothed
+  /// copy, a cutout), projected along the channels onto a 2D image on the
+  /// same sky grid (e.g. a moment map), otherwise reprojected with the WCS
+  /// (AstroReproject, nearest neighbour). On failure the reason is in
+  /// GetLastMaskCopyError. Returns the mask of the target volume.
+  vtkMRMLSegmentationNode* CopyMaskSegmentsToVolume(vtkMRMLSegmentationNode* segmentationNode,
+                                                    vtkStringArray* segmentIDs,
+                                                    vtkMRMLAstroVolumeNode* targetVolume, bool move);
+  std::string GetLastMaskCopyError() { return this->LastMaskCopyError; }
 
   static const char* GetContoursReferenceRole() { return "SlicerAstroContours"; }
   static const char* GetMaskReferenceRole() { return "SlicerAstroMask"; }
@@ -449,6 +496,7 @@ protected:
 #ifndef __VTK_WRAP__
   BackgroundRunnerType BackgroundRunner;
   bool IncompatibleSceneImported{false};
+  std::string LastMaskCopyError;
   ReprojectFunctionType ReprojectFunction;
 #endif
   std::string LastReprojectError;

@@ -160,6 +160,11 @@ protected slots:
   void onDisplayThresholdValueChanged(double DisplayThreshold);
   void onEditSelectedSegment();
   void onSaveFITSMask();
+  void onCopyMask();
+  void onMoveMask();
+  /// Copy (move) the selected segments of the mask (all if none is selected)
+  /// to the mask of the volume selected in "Copy to". Returns true on success.
+  bool copyMaskSegments(bool move);
   void updateMaskSelector();
   void updateSaveFITSMaskButton();
   void onSegmentationNodeChanged(vtkMRMLNode* node);

@@ -18,6 +18,11 @@
 ==============================================================================*/
 
 // Qt includes
+#include <vtkStringArray.h>
+#include <qMRMLNodeComboBox.h>
+#include <QPushButton>
+#include <QLabel>
+#include <QHBoxLayout>
 #include <QSignalBlocker>
 #include <QApplication>
 #include <QEvent>
@@ -168,6 +173,10 @@ public:
   /// Mask of the Masks section (observed to enable Save as FITS mask)
   vtkWeakPointer<vtkMRMLSegmentationNode> MaskNode;
   QTimer* SaveFITSMaskButtonTimer{ nullptr };
+  // copy or move segments of the mask to the mask of another volume
+  qMRMLNodeComboBox* CopyMaskTargetSelector{ nullptr };
+  QPushButton* CopyMaskPushButton{ nullptr };
+  QPushButton* MoveMaskPushButton{ nullptr };
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
 
   bool Lock;
@@ -428,6 +437,46 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi(qSlicerAstroVolumeModuleWidg
                    q, SLOT(updateMaskSelector()));
   QObject::connect(this->SaveFITSMaskPushButton, SIGNAL(clicked()),
                    q, SLOT(onSaveFITSMask()));
+
+  // Copy / move the selected segments (all if none is selected) to the mask
+  // of another volume (e.g. a smoothed copy, a cutout, a moment map)
+  QHBoxLayout* copyMaskLayout = new QHBoxLayout;
+  QLabel* copyMaskLabel = new QLabel(QObject::tr("Copy to:"), q);
+  this->CopyMaskTargetSelector = new qMRMLNodeComboBox(q);
+  this->CopyMaskTargetSelector->setObjectName("CopyMaskTargetSelector");
+  this->CopyMaskTargetSelector->setNodeTypes(QStringList() << "vtkMRMLAstroVolumeNode");
+  this->CopyMaskTargetSelector->setNoneEnabled(true);
+  this->CopyMaskTargetSelector->setAddEnabled(false);
+  this->CopyMaskTargetSelector->setRemoveEnabled(false);
+  this->CopyMaskTargetSelector->setRenameEnabled(false);
+  this->CopyMaskTargetSelector->setToolTip(QObject::tr(
+    "Data volume whose mask receives the selected segments (all the segments if none is selected): voxel by "
+    "voxel on the same voxel grid (e.g. a smoothed copy or a cutout), projected along the channels on a 2D "
+    "image of the same sky grid (e.g. a moment map), otherwise reprojected with the WCS (nearest neighbour)."));
+  this->CopyMaskPushButton = new QPushButton(QObject::tr("Copy"), q);
+  this->CopyMaskPushButton->setObjectName("CopyMaskPushButton");
+  this->CopyMaskPushButton->setToolTip(QObject::tr("Copy the segments to the mask of the selected volume."));
+  this->MoveMaskPushButton = new QPushButton(QObject::tr("Move"), q);
+  this->MoveMaskPushButton->setObjectName("MoveMaskPushButton");
+  this->MoveMaskPushButton->setToolTip(QObject::tr(
+    "Move the segments to the mask of the selected volume (they are removed from this mask)."));
+  copyMaskLayout->addWidget(copyMaskLabel);
+  copyMaskLayout->addWidget(this->CopyMaskTargetSelector, 1);
+  copyMaskLayout->addWidget(this->CopyMaskPushButton);
+  copyMaskLayout->addWidget(this->MoveMaskPushButton);
+  int buttonsRow = this->verticalLayout_2->count();
+  for (int index = 0; index < this->verticalLayout_2->count(); index++)
+    {
+    if (this->verticalLayout_2->itemAt(index)->layout() == this->horizontalLayout_2)
+      {
+      buttonsRow = index + 1;
+      }
+    }
+  this->verticalLayout_2->insertLayout(buttonsRow, copyMaskLayout);
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
+                   this->CopyMaskTargetSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
+  QObject::connect(this->CopyMaskPushButton, SIGNAL(clicked()), q, SLOT(onCopyMask()));
+  QObject::connect(this->MoveMaskPushButton, SIGNAL(clicked()), q, SLOT(onMoveMask()));
   // enabled for masks with voxels (checked after the edits, not at each stroke)
   this->SaveFITSMaskButtonTimer = new QTimer(q);
   this->SaveFITSMaskButtonTimer->setSingleShot(true);
@@ -4666,6 +4715,55 @@ void qSlicerAstroVolumeModuleWidget::updateSaveFITSMaskButton()
     tr("Save the segmentation as a FITS mask (one label value per segment, with the FITS header "
        "of the mask or of the reference data cube).") :
     tr("The mask has no segments or its segments are empty: nothing to save."));
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onCopyMask()
+{
+  this->copyMaskSegments(false);
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroVolumeModuleWidget::onMoveMask()
+{
+  this->copyMaskSegments(true);
+}
+
+//---------------------------------------------------------------------------
+bool qSlicerAstroVolumeModuleWidget::copyMaskSegments(bool move)
+{
+  Q_D(qSlicerAstroVolumeModuleWidget);
+
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  vtkMRMLSegmentationNode* segmentationNode =
+    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+  vtkMRMLAstroVolumeNode* targetVolume =
+    vtkMRMLAstroVolumeNode::SafeDownCast(d->CopyMaskTargetSelector->currentNode());
+  const QString title = move ? tr("Move mask segments") : tr("Copy mask segments");
+  if (!astroVolumeLogic || !segmentationNode || !targetVolume)
+    {
+    qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, title,
+      tr("Select a mask and the data volume to copy its segments to."));
+    return false;
+    }
+  vtkNew<vtkStringArray> segmentIDs;
+  for (const QString& segmentID : d->SegmentsTableView->selectedSegmentIDs())
+    {
+    segmentIDs->InsertNextValue(segmentID.toUtf8().constData());
+    }
+  vtkMRMLSegmentationNode* targetMask =
+    astroVolumeLogic->CopyMaskSegmentsToVolume(segmentationNode, segmentIDs, targetVolume, move);
+  if (!targetMask)
+    {
+    qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, title,
+      QString::fromStdString(astroVolumeLogic->GetLastMaskCopyError()));
+    return false;
+    }
+  qInfo().noquote() << title << ":" << tr("segments of %1 copied to %2 (mask of %3).")
+    .arg(QString::fromUtf8(segmentationNode->GetName()), QString::fromUtf8(targetMask->GetName()),
+         QString::fromUtf8(targetVolume->GetName()));
+  this->updateSaveFITSMaskButton();
+  return true;
 }
 
 //---------------------------------------------------------------------------
