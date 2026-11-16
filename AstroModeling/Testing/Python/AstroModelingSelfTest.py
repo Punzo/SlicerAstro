@@ -112,7 +112,11 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         """Model from the estimated parameters, a short fit of the rotation
         and dispersion, and a model recomputed from an edited ring table."""
         volumeNode, widget, parametersNode = self.openModule()
+        beam = [volumeNode.GetAttribute("SlicerAstro." + key) for key in ("BMAJ", "BMIN", "BPA")]
         self.estimate(widget, parametersNode)
+        # the beam of the header keeps its precision (the spin boxes show 2
+        # decimals): BMAJ = 29.6644" for NGC 2403, not 29.66"
+        self.assertEqual([volumeNode.GetAttribute("SlicerAstro." + key) for key in ("BMAJ", "BMIN", "BPA")], beam)
 
         # few rings and two free parameters: a short fit (Manual: the values
         # of the parameters node, not a new estimate)

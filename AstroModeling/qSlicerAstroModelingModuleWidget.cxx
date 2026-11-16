@@ -4239,6 +4239,30 @@ bool qSlicerAstroModelingModuleWidget::applyBeamToInputVolume(vtkMRMLAstroVolume
     {
     return false;
     }
+  // the spin boxes show the beam with 2 decimals: the beam of the header is
+  // kept with its precision unless the user changed it (29.6644" would
+  // become 29.66": different ring widths and beam in 3DBarolo)
+  const char* currentValues[3] = {inputVolume->GetAttribute("SlicerAstro.BMAJ"),
+                                  inputVolume->GetAttribute("SlicerAstro.BMIN"),
+                                  inputVolume->GetAttribute("SlicerAstro.BPA")};
+  QDoubleSpinBox* spinBoxes[3] = {d->BeamMajorSpinBox, d->BeamMinorSpinBox, d->BeamPASpinBox};
+  bool unchanged = true;
+  for (int i = 0; i < 3 && unchanged; i++)
+    {
+    if (!currentValues[i] || !strcmp(currentValues[i], "UNDEFINED"))
+      {
+      unchanged = false;
+      break;
+      }
+    const double current = StringToDouble(currentValues[i]) * (i < 2 ? 3600. : 1.);
+    const double shown = QString::number(current, 'f', spinBoxes[i]->decimals()).toDouble();
+    unchanged = (current > 0. || i == 2) && fabs(shown - spinBoxes[i]->value()) < 1e-9;
+    }
+  if (unchanged)
+    {
+    return true;
+    }
+
   double bmaj = d->BeamMajorSpinBox->value() / 3600.;
   double bmin = d->BeamMinorSpinBox->value() / 3600.;
   if (bmaj <= 0. || bmin <= 0.)
