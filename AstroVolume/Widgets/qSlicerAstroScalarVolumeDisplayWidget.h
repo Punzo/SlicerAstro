@@ -84,6 +84,9 @@ public slots:
 
   /// Set the color for contours
   void onColorChanged(QColor color);
+  /// Terminology (type of the astronomical terminology) and color of the
+  /// contours chosen with the color button
+  void onContoursTerminologyChanged();
   void onContours2DOriginChanged(double value);
 
   /// Generate closed contours (see tooltip for the options)
@@ -127,6 +130,9 @@ protected slots:
   void updateTransferFunction();
 
 protected:
+  /// Color button of the contours: the color and the terminology of the
+  /// contours of the volume
+  void updateContoursColorButton(const QColor& color);
   void InvertColorFunction(vtkMRMLColorNode *colorNode);
   void ReverseColorFunction(vtkMRMLColorNode *colorNode);
   void showEvent(QShowEvent * event);

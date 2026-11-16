@@ -327,7 +327,7 @@
       </widget>
      </item>
      <item>
-      <widget class="ctkColorPickerButton" name="ColorPickerButton">
+      <widget class="qSlicerTerminologySelectorButton" name="ColorPickerButton">
        <property name="minimumSize">
         <size>
          <width>45</width>
@@ -335,23 +335,7 @@
         </size>
        </property>
        <property name="toolTip">
-        <string>Set the color of the contours.</string>
-       </property>
-       <property name="iconSize">
-        <size>
-         <width>24</width>
-         <height>24</height>
-        </size>
-       </property>
-       <property name="color" stdset="0">
-        <color>
-         <red>255</red>
-         <green>187</green>
-         <blue>20</blue>
-        </color>
-       </property>
-       <property name="displayColorName" stdset="0">
-        <bool>false</bool>
+        <string>Color of the contours: a type of the astronomical terminology (with its recommended color) or a custom color.</string>
        </property>
       </widget>
      </item>
@@ -661,9 +645,9 @@
    <container>1</container>
   </customwidget>
   <customwidget>
-   <class>ctkColorPickerButton</class>
+   <class>qSlicerTerminologySelectorButton</class>
    <extends>QPushButton</extends>
-   <header>ctkColorPickerButton.h</header>
+   <header>qSlicerTerminologySelectorButton.h</header>
   </customwidget>
   <customwidget>
    <class>ctkSliderWidget</class>

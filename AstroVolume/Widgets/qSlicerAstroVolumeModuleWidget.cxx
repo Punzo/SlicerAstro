@@ -105,6 +105,9 @@
 #include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroTerminology.h>
+#include <vtkSlicerTerminologiesModuleLogic.h>
+#include <vtkSlicerTerminologyEntry.h>
+#include <qSlicerTerminologyNavigatorWidget.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLCameraNode.h>
@@ -1004,6 +1007,12 @@ void qSlicerAstroVolumeModuleWidget::initializeColorNodes()
     if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
         !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors") ||
         !strcmp(tempColorTableNode->GetName(), "Random"))
+      {
+      continue;
+      }
+    // color table of the astronomical terminology of the segments
+    if (tempColorTableNode->GetSingletonTag() &&
+        !strcmp(tempColorTableNode->GetSingletonTag(), vtkSlicerAstroVolumeLogic::GetAstroTerminologyColorTableSingletonTag()))
       {
       continue;
       }
@@ -2677,7 +2686,19 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
   vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(maskNode, volumeOne);
 
   const std::string SegmentTwoName = std::string(volumeTwo->GetName()) + "_3RMS";
-  double maskColor[3] = {1., 0.9, 0.13};
+  // recommended color of the Mask type of the astronomical terminology
+  double maskColor[3] = {0.31, 0.82, 0.88};
+  vtkNew<vtkSlicerTerminologyEntry> maskEntry;
+  if (vtkSlicerTerminologiesModuleLogic::DeserializeTerminologyEntry(vtkMRMLAstroTerminology::GetMaskEntry(), maskEntry))
+    {
+    const QColor recommendedColor = qSlicerTerminologyNavigatorWidget::recommendedColorFromTerminology(maskEntry);
+    if (recommendedColor.isValid())
+      {
+      maskColor[0] = recommendedColor.redF();
+      maskColor[1] = recommendedColor.greenF();
+      maskColor[2] = recommendedColor.blueF();
+      }
+    }
   const std::string SegmentTwoID = maskNode->GetSegmentation()->AddEmptySegment(SegmentTwoName, SegmentTwoName, maskColor);
   if (vtkSegment* maskSegment = maskNode->GetSegmentation()->GetSegment(SegmentTwoID))
     {

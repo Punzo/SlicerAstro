@@ -66,6 +66,7 @@ set(${KIT}_RESOURCES
 set(${KIT}_TARGET_LIBRARIES
    MRMLCore
    qSlicerSegmentationsModuleWidgets
+   qSlicerTerminologiesModuleWidgets
    qSlicerVolumeRenderingModuleWidgets
    vtkSlicer${MODULE_NAME}ModuleLogic
    vtkSlicer${MODULE_NAME}ModuleMRML

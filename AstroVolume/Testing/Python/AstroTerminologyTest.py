@@ -113,7 +113,12 @@ class AstroTerminologyTestTest(ScriptedLoadableModuleTest):
         # recommended colors of the terminology
         color = [0.0] * 4
         table.GetColor(slicer.vtkSlicerTerminologiesModuleLogic.GetColorIndexByTerminology(table, SOURCE), color)
-        np.testing.assert_allclose(color[:3], np.array([255, 193, 7]) / 255.0, atol=1e-6)
+        np.testing.assert_allclose(color[:3], np.array([255, 140, 66]) / 255.0, atol=1e-6)
+
+        # contours: the default color of the contours of the AstroVolume module
+        table.GetColor(slicer.vtkSlicerTerminologiesModuleLogic.GetColorIndexByTerminology(table, CONTOUR), color)
+        defaultContours = slicer.vtkMRMLAstroVolumeDisplayNode().GetContoursColor()
+        np.testing.assert_allclose(color[:3], [defaultContours.GetValue(i) for i in range(3)], atol=3e-3)
 
         # the closing of a scene empties the singleton color tables: filled again
         slicer.mrmlScene.Clear(0)
@@ -163,6 +168,11 @@ class AstroTerminologyTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(self.typeName(segmentation.GetNthSegment(0).GetTerminology()), "Mask")
         editorWidget.setSegmentationNode(None)
         editorWidget.setMRMLSegmentEditorNode(None)
+
+        # the color button of the contours chooses a type of the terminology
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
+        colorButton = slicer.util.findChild(slicer.modules.astrovolume.widgetRepresentation(), "ColorPickerButton")
+        self.assertEqual(colorButton.className(), "qSlicerTerminologySelectorButton")
 
         # an entry chosen by the user is kept
         slicer.vtkSlicerTerminologiesModuleLogic.SetDefaultTerminologyEntryAsString(maskNode, GAS_CLOUD)

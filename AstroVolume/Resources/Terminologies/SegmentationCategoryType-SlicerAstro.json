@@ -15,8 +15,8 @@
             "CodeValue": "SA-T101",
             "recommendedDisplayRGBValue": [
               255,
-              193,
-              7
+              140,
+              66
             ],
             "3dSlicerLabel": "source",
             "3dSlicerIntegerLabel": 1
@@ -27,8 +27,8 @@
             "CodeValue": "SA-T102",
             "recommendedDisplayRGBValue": [
               255,
-              152,
-              0
+              182,
+              119
             ],
             "3dSlicerLabel": "source_candidate",
             "3dSlicerIntegerLabel": 2
@@ -38,9 +38,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T103",
             "recommendedDisplayRGBValue": [
-              233,
-              30,
-              99
+              255,
+              92,
+              138
             ],
             "3dSlicerLabel": "continuum_source",
             "3dSlicerIntegerLabel": 3
@@ -50,9 +50,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T104",
             "recommendedDisplayRGBValue": [
-              156,
-              39,
-              176
+              179,
+              136,
+              255
             ],
             "3dSlicerLabel": "absorption_feature",
             "3dSlicerIntegerLabel": 4
@@ -62,9 +62,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T105",
             "recommendedDisplayRGBValue": [
-              158,
-              158,
-              158
+              154,
+              165,
+              184
             ],
             "3dSlicerLabel": "artefact",
             "3dSlicerIntegerLabel": 5
@@ -74,9 +74,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T106",
             "recommendedDisplayRGBValue": [
-              96,
-              125,
-              139
+              108,
+              120,
+              145
             ],
             "3dSlicerLabel": "noise_peak",
             "3dSlicerIntegerLabel": 6
@@ -94,9 +94,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T201",
             "recommendedDisplayRGBValue": [
-              3,
-              169,
-              244
+              61,
+              139,
+              255
             ],
             "3dSlicerLabel": "target_galaxy",
             "3dSlicerIntegerLabel": 7
@@ -106,9 +106,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T202",
             "recommendedDisplayRGBValue": [
-              0,
-              188,
-              212
+              130,
+              182,
+              255
             ],
             "3dSlicerLabel": "companion_galaxy",
             "3dSlicerIntegerLabel": 8
@@ -118,9 +118,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T203",
             "recommendedDisplayRGBValue": [
-              121,
-              134,
-              203
+              122,
+              122,
+              255
             ],
             "3dSlicerLabel": "background_galaxy",
             "3dSlicerIntegerLabel": 9
@@ -131,8 +131,8 @@
             "CodeValue": "SA-T204",
             "recommendedDisplayRGBValue": [
               255,
-              235,
-              59
+              240,
+              160
             ],
             "3dSlicerLabel": "foreground_star",
             "3dSlicerIntegerLabel": 10
@@ -150,9 +150,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T301",
             "recommendedDisplayRGBValue": [
-              76,
-              175,
-              80
+              46,
+              196,
+              166
             ],
             "3dSlicerLabel": "gas_disk",
             "3dSlicerIntegerLabel": 11
@@ -162,9 +162,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T302",
             "recommendedDisplayRGBValue": [
-              139,
-              195,
-              74
+              122,
+              217,
+              160
             ],
             "3dSlicerLabel": "warp",
             "3dSlicerIntegerLabel": 12
@@ -174,9 +174,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T303",
             "recommendedDisplayRGBValue": [
-              205,
-              220,
-              57
+              180,
+              240,
+              210
             ],
             "3dSlicerLabel": "extraplanar_gas",
             "3dSlicerIntegerLabel": 13
@@ -186,9 +186,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T304",
             "recommendedDisplayRGBValue": [
-              255,
-              87,
-              34
+              155,
+              225,
+              93
             ],
             "3dSlicerLabel": "tidal_tail",
             "3dSlicerIntegerLabel": 14
@@ -198,9 +198,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T305",
             "recommendedDisplayRGBValue": [
-              255,
-              138,
-              101
+              212,
+              240,
+              122
             ],
             "3dSlicerLabel": "bridge",
             "3dSlicerIntegerLabel": 15
@@ -210,9 +210,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T306",
             "recommendedDisplayRGBValue": [
-              0,
-              150,
-              136
+              31,
+              168,
+              138
             ],
             "3dSlicerLabel": "gas_cloud",
             "3dSlicerIntegerLabel": 16
@@ -222,9 +222,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T307",
             "recommendedDisplayRGBValue": [
-              244,
-              67,
-              54
+              232,
+              107,
+              208
             ],
             "3dSlicerLabel": "high_velocity_cloud",
             "3dSlicerIntegerLabel": 17
@@ -234,9 +234,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T308",
             "recommendedDisplayRGBValue": [
-              129,
-              199,
-              132
+              102,
+              224,
+              194
             ],
             "3dSlicerLabel": "ring",
             "3dSlicerIntegerLabel": 18
@@ -246,9 +246,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T309",
             "recommendedDisplayRGBValue": [
-              186,
-              104,
-              200
+              196,
+              155,
+              255
             ],
             "3dSlicerLabel": "anomalous_gas",
             "3dSlicerIntegerLabel": 19
@@ -266,9 +266,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T401",
             "recommendedDisplayRGBValue": [
-              33,
-              150,
-              243
+              76,
+              141,
+              255
             ],
             "3dSlicerLabel": "approaching_side",
             "3dSlicerIntegerLabel": 20
@@ -278,9 +278,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T402",
             "recommendedDisplayRGBValue": [
-              229,
-              57,
-              53
+              255,
+              90,
+              90
             ],
             "3dSlicerLabel": "receding_side",
             "3dSlicerIntegerLabel": 21
@@ -291,8 +291,8 @@
             "CodeValue": "SA-T403",
             "recommendedDisplayRGBValue": [
               255,
-              214,
-              0
+              210,
+              76
             ],
             "3dSlicerLabel": "non_circular_motion",
             "3dSlicerIntegerLabel": 22
@@ -310,9 +310,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T501",
             "recommendedDisplayRGBValue": [
-              255,
-              230,
-              33
+              79,
+              209,
+              224
             ],
             "3dSlicerLabel": "mask",
             "3dSlicerIntegerLabel": 23
@@ -322,9 +322,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T502",
             "recommendedDisplayRGBValue": [
-              77,
-              208,
-              225
+              168,
+              184,
+              255
             ],
             "3dSlicerLabel": "region_of_interest",
             "3dSlicerIntegerLabel": 24
@@ -334,9 +334,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T503",
             "recommendedDisplayRGBValue": [
-              144,
-              164,
-              174
+              133,
+              146,
+              172
             ],
             "3dSlicerLabel": "noise_region",
             "3dSlicerIntegerLabel": 25
@@ -346,9 +346,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T504",
             "recommendedDisplayRGBValue": [
-              84,
-              110,
-              122
+              176,
+              184,
+              200
             ],
             "3dSlicerLabel": "exclusion_region",
             "3dSlicerIntegerLabel": 26
@@ -359,8 +359,8 @@
             "CodeValue": "SA-T505",
             "recommendedDisplayRGBValue": [
               255,
-              255,
-              255
+              186,
+              20
             ],
             "3dSlicerLabel": "contour",
             "3dSlicerIntegerLabel": 27
@@ -370,9 +370,9 @@
             "CodingSchemeDesignator": "99SLICERASTRO",
             "CodeValue": "SA-T506",
             "recommendedDisplayRGBValue": [
-              0,
-              229,
-              255
+              255,
+              230,
+              33
             ],
             "3dSlicerLabel": "model",
             "3dSlicerIntegerLabel": 28
