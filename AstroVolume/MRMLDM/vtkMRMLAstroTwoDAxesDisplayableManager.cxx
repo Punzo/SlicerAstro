@@ -27,8 +27,6 @@
 #include <vtkMRMLAbstractViewNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLSliceCompositeNode.h>
 #include <vtkMRMLSliceLayerLogic.h>
 #include <vtkMRMLSliceLogic.h>
@@ -1236,10 +1234,6 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast
         (sliceLayerLogic->GetVolumeDisplayNode());
 
-    vtkMRMLAstroLabelMapVolumeDisplayNode* displayLabelNode =
-      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast
-        (sliceLayerLogic->GetVolumeDisplayNode());
-
     if (displayNode)
       {
       vtkMRMLAstroVolumeNode* astroVolume =
@@ -1270,21 +1264,6 @@ void vtkMRMLAstroTwoDAxesDisplayableManager::vtkInternal::UpdateAxes()
         }
 
       this->ShowActors(this->UpdateWCSAxes(sliceNode, sliceLayerLogic, displayNode,
-                                           viewWidthPixel, viewHeightPixel,
-                                           MajorTickMin, MajorTickMax, MinorTickMin, MinorTickMax,
-                                           type, internalFontSize));
-      break;
-      }
-    else if (displayLabelNode)
-      {
-      if (strcmp(displayLabelNode->GetSpace(), "WCS") != 0)
-        {
-        continue;
-        }
-
-      hasDisplay = true;
-
-      this->ShowActors(this->UpdateWCSAxes(sliceNode, sliceLayerLogic, displayLabelNode,
                                            viewWidthPixel, viewHeightPixel,
                                            MajorTickMin, MajorTickMax, MinorTickMin, MinorTickMax,
                                            type, internalFontSize));

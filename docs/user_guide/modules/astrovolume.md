@@ -48,7 +48,13 @@ image are shown as a channel map: the *Channel* slider selects the channel.
 Each data volume has a mask (a segmentation of its grid), edited with the
 Segment Editor (also the *Cloud Lasso* effect of SlicerAstro) and saved as a
 FITS mask. FITS masks (e.g. from SoFiA) are loaded as segmentations, one
-segment per source.
+segment per source, also on their own (before or without their data cube).
+
+Masks are always segmentations: SlicerAstro has no label map volumes. The
+modules with an input mask (AstroMomentMaps, AstroProfiles, AstroStatistics,
+AstroMasking, AstroModeling) use the selected segment directly, on the voxel
+grid of their input data (resampled if the segmentation is on another grid
+or transformed).
 
 ### Astronomical terminology
 

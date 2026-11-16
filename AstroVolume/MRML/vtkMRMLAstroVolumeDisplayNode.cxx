@@ -28,7 +28,6 @@
 #include <algorithm>
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLColorNode.h>
 #include <vtkMRMLScene.h>
@@ -862,21 +861,11 @@ void vtkMRMLAstroVolumeDisplayNode::CopyWCS(vtkMRMLNode *node)
 
   vtkMRMLAstroVolumeDisplayNode *AstroVolumeDisplayNode =
       vtkMRMLAstroVolumeDisplayNode::SafeDownCast(node);
-  vtkMRMLAstroLabelMapVolumeDisplayNode *AstroLabelMapVolumeDisplayNode =
-      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(node);
-
-  if (AstroVolumeDisplayNode)
-    {
-    WCSNew = AstroVolumeDisplayNode->GetWCSStruct();
-    }
-  else if (AstroLabelMapVolumeDisplayNode)
-    {
-    WCSNew = AstroLabelMapVolumeDisplayNode->GetWCSStruct();
-    }
-  else
+  if (!AstroVolumeDisplayNode)
     {
     return;
     }
+  WCSNew = AstroVolumeDisplayNode->GetWCSStruct();
 
   if (!this->WCS || !WCSNew)
     {

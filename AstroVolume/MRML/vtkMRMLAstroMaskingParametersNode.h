@@ -66,10 +66,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMaskingParametersNode : public vtkMRMLNo
   vtkSetStringMacro(InputVolumeNodeID);
   vtkGetStringMacro(InputVolumeNodeID);
 
-  /// Set/Get the MaskVolumeNodeID.
-  /// \sa SetMaskVolumeNodeID(), GetMaskVolumeNodeID()
-  vtkSetStringMacro(MaskVolumeNodeID);
-  vtkGetStringMacro(MaskVolumeNodeID);
+  /// Set/Get the MaskSegmentationNodeID: segmentation of the input mask.
+  /// \sa SetMaskSegmentationNodeID(), GetMaskSegmentationNodeID()
+  vtkSetStringMacro(MaskSegmentationNodeID);
+  vtkGetStringMacro(MaskSegmentationNodeID);
+
+  /// Set/Get the MaskSegmentID: segment of the input mask (in the
+  /// segmentation MaskSegmentationNodeID).
+  /// \sa SetMaskSegmentID(), GetMaskSegmentID()
+  vtkSetStringMacro(MaskSegmentID);
+  vtkGetStringMacro(MaskSegmentID);
 
   /// Set/Get the OutputVolumeNodeID.
   /// \sa SetOutputVolumeNodeID(), GetOutputVolumeNodeID()
@@ -130,7 +136,8 @@ protected:
   const char *GetROIAlignmentTransformNodeReferenceRole();
 
   char *InputVolumeNodeID;
-  char *MaskVolumeNodeID;
+  char *MaskSegmentationNodeID;
+  char *MaskSegmentID;
   char *OutputVolumeNodeID;
   char *Mode;
   char *Operation;

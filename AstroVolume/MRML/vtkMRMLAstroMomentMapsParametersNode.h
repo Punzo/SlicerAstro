@@ -77,10 +77,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroMomentMapsParametersNode : public vtkMRM
   vtkSetStringMacro(SecondMomentVolumeNodeID);
   vtkGetStringMacro(SecondMomentVolumeNodeID);
 
-  /// Set/Get the MaskVolumeNodeID.
-  /// \sa SetMaskVolumeNodeID(), GetMaskVolumeNodeID()
-  vtkSetStringMacro(MaskVolumeNodeID);
-  vtkGetStringMacro(MaskVolumeNodeID);
+  /// Set/Get the MaskSegmentationNodeID: segmentation of the input mask.
+  /// \sa SetMaskSegmentationNodeID(), GetMaskSegmentationNodeID()
+  vtkSetStringMacro(MaskSegmentationNodeID);
+  vtkGetStringMacro(MaskSegmentationNodeID);
+
+  /// Set/Get the MaskSegmentID: segment of the input mask (in the
+  /// segmentation MaskSegmentationNodeID).
+  /// \sa SetMaskSegmentID(), GetMaskSegmentID()
+  vtkSetStringMacro(MaskSegmentID);
+  vtkGetStringMacro(MaskSegmentID);
 
   /// Set/Get the Cores.
   /// Default is 0 (all the free cores will be used)
@@ -157,7 +163,8 @@ protected:
   char *ZeroMomentVolumeNodeID;
   char *FirstMomentVolumeNodeID;
   char *SecondMomentVolumeNodeID;
-  char *MaskVolumeNodeID;
+  char *MaskSegmentationNodeID;
+  char *MaskSegmentID;
 
   int Cores;
 

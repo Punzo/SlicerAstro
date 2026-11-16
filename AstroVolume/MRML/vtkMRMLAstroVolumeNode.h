@@ -34,7 +34,6 @@
 
 class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroVolumeDisplayNode;
-class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLTransformNode;
 class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeRenderingDisplayNode;
@@ -65,6 +64,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
 
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() override {return "AstroVolume";};
+
+  /// Scene format of SlicerAstro, written in the scene with the volume:
+  /// 2 since SlicerAstro 2.0 (masks are segmentations). Scenes of older
+  /// versions (masks as label map volumes, other parameters nodes) have no
+  /// format: they are not compatible.
+  static int GetCurrentSceneFormat() { return 2; }
+
+  /// Scene format of the scene the volume was read from (0: an older
+  /// SlicerAstro); the current format for volumes not read from a scene.
+  vtkGetMacro(SceneFormat, int);
 
   /// Make a 'None' volume node with blank image data
   static void CreateNoneNode(vtkMRMLScene *scene);
@@ -172,6 +181,8 @@ protected:
 
   static const char* ROI_ALIGNMENTTRANSFORM_REFERENCE_ROLE;
   const char *GetROIAlignmentTransformNodeReferenceRole();
+
+  int SceneFormat;
 
   vtkMRMLAstroVolumeNode(const vtkMRMLAstroVolumeNode&);
   void operator=(const vtkMRMLAstroVolumeNode&);

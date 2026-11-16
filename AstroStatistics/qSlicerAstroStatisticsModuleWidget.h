@@ -76,10 +76,9 @@ protected:
   /// Initialization of MRML table node
   void initializeTableNode(bool forceNew = false);
 
-  /// Convert a segmentation to LabelMap volume (a mask).
-  /// The LabelMap ID is stored in the MRML parameter node of the module
-  /// \return Success flag
-  bool convertSelectedSegmentToLabelMap();
+  /// Set the segment selected in the segments table as the input mask
+  /// (segmentation and segment IDs in the MRML parameter node of the module)
+  bool setMaskSegmentFromSelection();
 
   /// Initialization of module widgets
   virtual void setup();

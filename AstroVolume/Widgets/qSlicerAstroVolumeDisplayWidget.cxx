@@ -20,10 +20,8 @@
 // SlicerQT includes
 #include <qSlicerAstroVolumeDisplayWidget.h>
 #include <qSlicerAstroScalarVolumeDisplayWidget.h>
-#include <qSlicerAstroLabelMapVolumeDisplayWidget.h>
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLVolumeNode.h>
 
@@ -42,7 +40,6 @@ public:
   void setCurrentDisplayWidget(qSlicerWidget* displayWidget);
 
   qSlicerAstroScalarVolumeDisplayWidget*            ScalarVolumeDisplayWidget;
-  qSlicerAstroLabelMapVolumeDisplayWidget*          LabelMapVolumeDisplayWidget;
 };
 
 // --------------------------------------------------------------------------
@@ -51,7 +48,6 @@ qSlicerAstroVolumeDisplayWidgetPrivate::qSlicerAstroVolumeDisplayWidgetPrivate(
   : q_ptr(&object)
 {
   this->ScalarVolumeDisplayWidget = 0;
-  this->LabelMapVolumeDisplayWidget = 0;
 }
 
 // --------------------------------------------------------------------------
@@ -60,9 +56,6 @@ void qSlicerAstroVolumeDisplayWidgetPrivate::init()
   Q_Q(qSlicerAstroVolumeDisplayWidget);
   this->ScalarVolumeDisplayWidget = new qSlicerAstroScalarVolumeDisplayWidget(q);
   q->addWidget(this->ScalarVolumeDisplayWidget);
-
-  this->LabelMapVolumeDisplayWidget = new qSlicerAstroLabelMapVolumeDisplayWidget(q);
-  q->addWidget(this->LabelMapVolumeDisplayWidget);
 }
 
 // --------------------------------------------------------------------------
@@ -85,11 +78,6 @@ void qSlicerAstroVolumeDisplayWidgetPrivate::setCurrentDisplayWidget(
     if (activeWidget == this->ScalarVolumeDisplayWidget)
       {
       this->ScalarVolumeDisplayWidget->setMRMLVolumeNode(emptyVolumeNode);
-      }
-
-    if (activeWidget == this->LabelMapVolumeDisplayWidget)
-      {
-      this->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(emptyVolumeNode);
       }
     activeWidget->setMRMLScene(0);
   }
@@ -127,8 +115,6 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
      }
 
   vtkMRMLScene* scene = VolumeNode->GetScene();
-  vtkMRMLAstroLabelMapVolumeNode* labelMapVolumeNode =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(VolumeNode);
   vtkMRMLAstroVolumeNode* astroVolumeNode =
     vtkMRMLAstroVolumeNode::SafeDownCast(VolumeNode);
   if (astroVolumeNode)
@@ -139,14 +125,6 @@ void qSlicerAstroVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLNode* VolumeNode)
     d->ScalarVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
     d->setCurrentDisplayWidget(d->ScalarVolumeDisplayWidget);
     }
-  else if (labelMapVolumeNode)
-   {
-   qvtkReconnect(VolumeNode, vtkCommand::ModifiedEvent,
-                 this, SLOT(updateFromMRML(vtkObject*)));
-   d->LabelMapVolumeDisplayWidget->setMRMLScene(scene);
-   d->LabelMapVolumeDisplayWidget->setMRMLVolumeNode(VolumeNode);
-   d->setCurrentDisplayWidget(d->LabelMapVolumeDisplayWidget);
-  }
 }
 
 // --------------------------------------------------------------------------

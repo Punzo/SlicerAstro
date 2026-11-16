@@ -107,7 +107,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_AstroStatisticsSelfTest, self.test_Box, self.test_Mask,
-                     self.test_SelectedQuantities):
+                     self.test_MaskDoubleSharedLayer, self.test_SelectedQuantities):
             self.setUp()
             test()
 
@@ -167,7 +167,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
             "Npixels": values.size, "Min": values.min(), "Max": values.max(), "Mean": values.mean(),
             "Std": values.std(), "Median": np.median(values.astype(np.float32)), "Sum": sum,
             # total flux (Jy): sum of the Jy/beam values divided by the beam area in pixels
-            "TotalFlux": sum * CDELT * CDELT / (1.13 * BEAM * BEAM)}
+            "TotalFlux": sum * CDELT * CDELT / (np.pi / (4. * np.log(2.)) * BEAM * BEAM)}
         for name in names or expected:
             self.assertAlmostEqual(computed[name], expected[name],
                                    delta=1e-5 * max(1., abs(expected[name])), msg=name)
@@ -205,6 +205,33 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(parametersNode.GetMode(), "Segmentation")
         computed = self.compute(widget, parametersNode)
         self.assertStatistics(computed, data[mask])
+
+    def test_MaskDoubleSharedLayer(self):
+        """Statistics of a 64-bit cube in a segment sharing its labelmap layer
+        with another segment (read directly, no label map volume)."""
+        from AstroVolumeLogicTest import doublePrecisionCopy, maskSegmentation
+        floatNode, data = self.cube()
+        volumeNode = doublePrecisionCopy(floatNode, "cube_double")
+        z, y, x = np.indices(self.SHAPE)
+        source = ((x - 12.) ** 2 + (y - 10.) ** 2) / 36. + (z - 5.) ** 2 / 9. <= 1.
+        corner = np.zeros(self.SHAPE, dtype=bool)
+        corner[:3, :4, :5] = True
+        segmentationNode, (sourceID, cornerID) = maskSegmentation(
+            volumeNode, {"Source": source, "Corner": corner})
+        self.assertEqual(segmentationNode.GetSegmentation().GetNumberOfLayers(), 1)
+        widget, parametersNode = self.openModule(volumeNode)
+        parametersNode.SetTotalFlux(True)
+        slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
+        slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
+        for segmentID, mask in ((sourceID, source), (cornerID, corner)):
+            slicer.app.processEvents()
+            slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([segmentID])
+            slicer.app.processEvents()
+            computed = self.compute(widget, parametersNode)
+            self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
+            self.assertEqual(parametersNode.GetMaskSegmentID(), segmentID)
+            self.assertStatistics(computed, data[mask])
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
 
     def test_SelectedQuantities(self):
         """Quantities switched off in the widget are not computed (NaN in the table)."""

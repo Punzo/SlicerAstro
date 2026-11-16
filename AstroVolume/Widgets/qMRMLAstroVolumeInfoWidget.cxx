@@ -42,8 +42,6 @@
 #include <qMRMLSliceControllerWidget.h>
 
 // MRML includes
-#include <vtkMRMLLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLLabelMapVolumeNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLScalarVolumeNode.h>
 #include <vtkMRMLScalarVolumeDisplayNode.h>
@@ -85,8 +83,6 @@ public:
   QSpinBox *NumberOfScalarsSpinBox;
   QLabel *FileNameLabel;
   QLineEdit *FileNameLineEdit;
-  QLabel *LabelMapLabel;
-  QCheckBox *LabelMapCheckBox;
 };
 
 //------------------------------------------------------------------------------
@@ -188,17 +184,6 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
 
   this->formLayout->setWidget(9, QFormLayout::FieldRole, FileNameLineEdit);
 
-  this->LabelMapLabel = new QLabel(q);
-  this->LabelMapLabel->setObjectName(QLatin1String("LabelMapLabel"));
-
-  this->formLayout->setWidget(10, QFormLayout::LabelRole, LabelMapLabel);
-
-  this->LabelMapCheckBox = new QCheckBox(q);
-  this->LabelMapCheckBox->setObjectName(QLatin1String("LabelMapCheckBox"));
-  this->LabelMapCheckBox->setEnabled(false);
-
-  this->formLayout->setWidget(10, QFormLayout::FieldRole, LabelMapCheckBox);
-
   QMetaObject::connectSlotsByName(q);
 
   q->setWindowTitle("Volume Information");
@@ -210,8 +195,6 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
   this->CenterVolumePushButton->setText("Center Volume");
   this->NumberOfScalarsLabel->setText("Number of Scalars:");
   this->FileNameLabel->setText("File Name:");
-  this->LabelMapLabel->setText("LabelMap:");
-  this->LabelMapCheckBox->setText(QString());
 
   QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
                    this->ImageDimensionsWidget, SLOT(setMRMLScene(vtkMRMLScene*)));
@@ -306,7 +289,6 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
 {
   Q_D(qMRMLAstroVolumeInfoWidget);
   this->setEnabled(d->VolumeNode != 0);
-  d->LabelMapCheckBox->setEnabled(false);
   d->NumberOfScalarsSpinBox->setEnabled(false);
   d->FileNameLineEdit->setEnabled(false);
 
@@ -324,8 +306,6 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
     d->NumberOfScalarsSpinBox->setValue(1);
 
     d->FileNameLineEdit->setText("");
-
-    d->LabelMapCheckBox->setChecked(false);
 
     return;
     }
@@ -369,9 +349,6 @@ void qMRMLAstroVolumeInfoWidget::updateWidgetFromMRML()
 
   vtkMRMLStorageNode* storageNode = d->VolumeNode->GetStorageNode();
   d->FileNameLineEdit->setText(storageNode ? storageNode->GetFileName() : "");
-
-  vtkMRMLLabelMapVolumeNode *labelMapNode = vtkMRMLLabelMapVolumeNode::SafeDownCast( d->VolumeNode );
-  d->LabelMapCheckBox->setChecked(labelMapNode!=0);
 }
 
 //------------------------------------------------------------------------------

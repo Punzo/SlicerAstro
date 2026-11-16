@@ -30,7 +30,8 @@ int vtkMRMLAstroModelingParametersNodeTest1(int , char * [] )
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), OutputVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), ResidualVolumeNodeID);
-  TEST_SET_GET_STRING(node1.GetPointer(), MaskVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskSegmentationNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskSegmentID);
 
   TEST_SET_GET_BOOLEAN(node1.GetPointer(), MaskActive);
 

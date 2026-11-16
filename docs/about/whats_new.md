@@ -24,8 +24,9 @@ Qt 6) with new features.
 - World coordinate axes placed exactly on the sky (rotated data, position-
   velocity slices), the beam drawn on the sky; faster interaction (also on
   Qt 6 and Wayland).
-- Masks and contours of each volume as segmentations; FITS masks; the Cloud
-  Lasso effect; an astronomical terminology of the segments (sources,
+- Masks and contours of each volume as segmentations (no label map
+  volumes: the modules read their input mask from the segment); FITS masks,
+  also loaded or saved on their own; the Cloud Lasso effect; an astronomical terminology of the segments (sources,
   galaxies, gas structures, kinematic and analysis regions).
 - Measurements of markups on the sky: separations, lengths, areas, angles,
   velocity differences.
@@ -41,3 +42,20 @@ Qt 6) with new features.
   rotation curves.
 - AstroSoFiACatalog: SoFiA and other source catalogues.
 - All long computations in the background, with progress and cancel.
+
+## Not compatible with SlicerAstro 1.x
+
+Scenes saved with SlicerAstro 1.x cannot be used: masks were label map
+volumes (now segmentations) and the parameters of the modules changed. When
+such a scene is loaded, SlicerAstro says so (and the message is in the Error
+Log); its masks and module settings are not restored. Load the FITS files of
+the data and masks instead, and save a new scene.
+
+The 0th moment maps computed without a mask over the whole velocity range
+are lower by a factor (N - 1) / N than those of SlicerAstro 1.x (N channels):
+1.x multiplied the sum of the intensities by the velocity range (N channel
+widths) divided by N - 1 instead of by the channel width. Fluxes in Jy (AstroProfiles,
+total flux of AstroStatistics) use the exact area of the Gaussian beam,
+pi / (4 ln 2) BMAJ BMIN (1.x: 1.13 BMAJ BMIN, 0.27% higher fluxes). Both were
+found by comparing with spectral-cube, astropy and casacore.
+

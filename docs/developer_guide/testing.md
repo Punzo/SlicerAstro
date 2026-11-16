@@ -34,3 +34,8 @@ The tests also run in GitHub Actions: see
 
 The validation of the reprojection against other software is described in
 [Validation of the reprojection](reprojection_validation.md).
+
+The moment maps, integrated spectra and statistics (with and without input
+masks) are compared with spectral-cube, astropy, radio-beam and casacore by
+the scripts of `AstroVolume/Testing/validation` (results in its README: the
+differences are below 5e-6 of the peak values).

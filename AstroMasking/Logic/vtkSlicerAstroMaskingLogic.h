@@ -71,13 +71,11 @@ public:
   virtual void RegisterNodes() override;
 
   /// Convenience function which calls ApplyBlank or ApplyCrop.
+  /// The region is the ROI of the parameters node (Mode ROI) or its mask
+  /// segment (Mode Segmentation: MaskSegmentationNodeID, MaskSegmentID).
   /// \param MRML parameter node
-  /// \param MRML segmentation node (if not using a ROI)
-  /// \param the selected segment from the MRML segmentation node (if not using a ROI)
   /// \return Success flag
-  bool ApplyMask(vtkMRMLAstroMaskingParametersNode *pnode,
-                 vtkMRMLSegmentationNode *segmentationNode,
-                 vtkSegment *segment);
+  bool ApplyMask(vtkMRMLAstroMaskingParametersNode *pnode);
 
   /// Apply Blank algorithm
   /// \param MRML parameter node
@@ -86,12 +84,8 @@ public:
 
   /// Apply Crop algorithm
   /// \param MRML parameter node
-  /// \param MRML segmentation node (if not using a ROI)
-  /// \param the selected segment from the MRML segmentation node (if not using a ROI)
   /// \return Success flag
-  bool ApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode,
-                 vtkMRMLSegmentationNode *segmentationNode,
-                 vtkSegment *segment);
+  bool ApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode);
 
   /// Sets ROI to fit to input volume.
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.

@@ -26,8 +26,10 @@
 #include <QSettings>
 #include <QStringList>
 #include <QMainWindow>
+#include <QMessageBox>
 
 //VTK includes
+#include <vtkCallbackCommand.h>
 #include <vtkCollection.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -408,6 +410,22 @@ void qSlicerAstroVolumeModule::setup()
     return;
     }
 
+  // Scenes of SlicerAstro < 2.0 are not compatible: the user is told (the
+  // message is also in the error log)
+  vtkNew<vtkCallbackCommand> incompatibleSceneCallback;
+  incompatibleSceneCallback->SetCallback([](vtkObject*, unsigned long, void*, void*)
+    {
+    qSlicerApplication* application = qSlicerApplication::application();
+    if (!application || !application->mainWindow() ||
+        application->testAttribute(qSlicerCoreApplication::AA_EnableTesting))
+      {
+      return;
+      }
+    QMessageBox::warning(application->mainWindow(), QObject::tr("Scene of an older SlicerAstro"),
+                         QObject::tr(vtkSlicerAstroVolumeLogic::GetIncompatibleSceneMessage()));
+    });
+  logic->AddObserver(vtkSlicerAstroVolumeLogic::IncompatibleSceneEvent, incompatibleSceneCallback);
+
   // Long computations of the SlicerAstro modules (reprojection, smoothing,
   // moment maps, ...): in a worker thread, the GUI responsive with a
   // progress dialog
@@ -762,7 +780,5 @@ QStringList qSlicerAstroVolumeModule::associatedNodeTypes() const
 {
   return QStringList()
     << "vtkMRMLAstroVolumeNode"
-    << "vtkMRMLAstroVolumeDisplayNode"
-    << "vtkMRMLAstroLabelMapVolumeNode"
-    << "vtkMRMLAstroLabelMapVolumeDisplayNode";
+    << "vtkMRMLAstroVolumeDisplayNode";
 }

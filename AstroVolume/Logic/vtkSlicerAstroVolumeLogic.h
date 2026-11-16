@@ -31,6 +31,8 @@
 #include <functional>
 #include <string>
 #include <vtkSlicerVolumesLogic.h>
+#include <vtkCommand.h>
+#include <vtkSmartPointer.h>
 #include <vtkWeakPointer.h>
 
 // STD includes
@@ -42,7 +44,6 @@ class vtkMRMLCameraNode;
 class vtkMRMLColorTableNode;
 class vtkMRMLMarkupsNode;
 class vtkMRMLMarkupsROINode;
-class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLSegmentationNode;
@@ -52,6 +53,7 @@ class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkSlicerTerminologiesModuleLogic;
 class vtkVolumeProperty;
+class vtkImageData;
 class vtkIntArray;
 
 /// \class vtkSlicerAstroVolumeLogic
@@ -68,6 +70,20 @@ public:
   void PrintSelf(ostream& os, vtkIndent indent) override;
 
   typedef vtkSlicerAstroVolumeLogic Self;
+
+  enum Events
+    {
+    /// A scene saved with a SlicerAstro older than 2.0 was imported (see
+    /// GetIncompatibleSceneMessage): invoked at the end of the import.
+    IncompatibleSceneEvent = vtkCommand::UserEvent + 1301
+    };
+
+  /// Message for the scenes of SlicerAstro older than 2.0.
+  static const char* GetIncompatibleSceneMessage();
+
+  /// True if the last imported scene was saved with a SlicerAstro older
+  /// than 2.0 (its astronomical volumes have no scene format).
+  vtkGetMacro(IncompatibleSceneImported, bool);
 
   /// Register the factory that the AstroVolume needs to manage fits
   /// file with the specified volumes logic
@@ -107,11 +123,6 @@ public:
                                            const char *outputNameReference,
                                            const char *name,
                                            bool cloneImageData = true);
-
-  /// Create a label map volume to match the given \a volumeNode and add it to the \a scene
-  vtkMRMLAstroLabelMapVolumeNode *CreateAndAddLabelVolume(vtkMRMLScene *scene,
-                                                          vtkMRMLAstroVolumeNode *volumeNode,
-                                                          const char *name);
 
   /// Widen the gaps between the points of the scalar opacity and color
   /// transfer functions of \a volumeProperty to at least 1/10000 of the
@@ -192,6 +203,23 @@ public:
   /// Returns false if the noise is not correlated (e.g. single dish or
   /// optical data) or the cube is too small.
   static bool EstimateBeamFromNoise(vtkMRMLAstroVolumeNode* volumeNode, double beam[3]);
+
+  /// Mask of a segment on the voxel grid of a volume (input masks of the
+  /// modules): unsigned char voxels with the dimensions of the volume, 1
+  /// inside the segment and 0 outside. The binary labelmap of the segment is
+  /// read directly when it is on the voxel grid of the volume (e.g. the masks
+  /// of the volume, whose reference geometry is the volume), otherwise it is
+  /// resampled (nearest neighbour; transforms of the segmentation and of the
+  /// volume applied). The segments sharing a labelmap layer are told apart
+  /// by their label value. Returns false if the segment or the voxels of the
+  /// volume are not found.
+  static bool CreateSegmentMask(vtkMRMLSegmentationNode* segmentationNode, const char* segmentID,
+                                vtkMRMLVolumeNode* volumeNode, vtkImageData* mask);
+#ifndef __VTK_WRAP__
+  /// As CreateSegmentMask, with the reason of a failure in error.
+  static bool CreateSegmentMask(vtkMRMLSegmentationNode* segmentationNode, const char* segmentID,
+                                vtkMRMLVolumeNode* volumeNode, vtkImageData* mask, std::string& error);
+#endif
 
   /// Return true if the segmentation is a mask: binary labelmap source and
   /// not contours.
@@ -342,6 +370,7 @@ public:
   bool Reproject(vtkMRMLAstroReprojectParametersNode *pnode);
   std::string GetLastReprojectError() { return this->LastReprojectError; }
 
+
 #ifndef __VTK_WRAP__
   typedef std::function<bool(vtkMRMLAstroReprojectParametersNode* pnode, std::string& error)> ReprojectFunctionType;
   void SetReprojectFunction(const ReprojectFunctionType& function);
@@ -419,6 +448,7 @@ protected:
   bool EnsuringVolumeSegmentations{false};
 #ifndef __VTK_WRAP__
   BackgroundRunnerType BackgroundRunner;
+  bool IncompatibleSceneImported{false};
   ReprojectFunctionType ReprojectFunction;
 #endif
   std::string LastReprojectError;

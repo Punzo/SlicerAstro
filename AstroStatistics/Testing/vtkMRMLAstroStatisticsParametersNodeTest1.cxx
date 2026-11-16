@@ -28,7 +28,8 @@ int vtkMRMLAstroStatisticsParametersNodeTest1(int , char * [] )
   EXERCISE_BASIC_OBJECT_METHODS( node1.GetPointer() );
 
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
-  TEST_SET_GET_STRING(node1.GetPointer(), MaskVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskSegmentationNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskSegmentID);
   TEST_SET_GET_STRING(node1.GetPointer(), Mode);
 
   TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);

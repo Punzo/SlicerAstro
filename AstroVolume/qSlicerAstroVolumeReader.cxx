@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QDebug>
 #include <QFileInfo>
 
 // SlicerQt includes
@@ -36,11 +37,12 @@
 
 // MRML includes
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkMRMLMessageCollection.h>
 #include <vtkMRMLSelectionNode.h>
 
 // VTK includes
+#include <vtkCommand.h>
 #include <vtkSmartPointer.h>
 #include <vtkStringArray.h>
 
@@ -130,15 +132,20 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
     {
     name = properties["name"].toString();
     }
+  // FITS masks are segmentations (SegmentationFile): no label map volumes
+  if (properties.contains("labelmap") && properties["labelmap"].toBool())
+    {
+    QString message = tr("%1: FITS masks are loaded as segmentations in SlicerAstro, not as label map volumes "
+                         "(load the file as a Segmentation).").arg(fileName);
+    qWarning() << Q_FUNC_INFO << message;
+    this->userMessages()->AddMessage(vtkCommand::ErrorEvent, message.toStdString());
+    return false;
+    }
   int options = 0;
-  if (properties.contains("labelmap"))
-    {
-    options |= properties["labelmap"].toBool() ? 0x1 : 0x0;
-    }
-  if (properties.contains("center"))
-    {
-    options |= properties["center"].toBool() ? 0x2 : 0x0;
-    }
+  // centered by default, as in the Add Data dialog and as the FITS masks
+  // (segmentations): a cube and its mask overlap whatever the order of loading
+  const bool center = properties.contains("center") ? properties["center"].toBool() : true;
+  options |= center ? 0x2 : 0x0;
   if (properties.contains("singleFile"))
     {
     options |= properties["singleFile"].toBool() ? 0x4 : 0x0;
@@ -180,7 +187,7 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
       qSlicerCoreApplication::application()->moduleManager()->module("AstroVolume") : nullptr;
     vtkSlicerAstroVolumeLogic* astroVolumeLogic = astroVolumeModule ?
       vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic()) : nullptr;
-    if (astroVolume && astroVolumeLogic && !vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node))
+    if (astroVolume && astroVolumeLogic)
       {
       astroVolumeLogic->EnsureVolumeSegmentations(astroVolume);
       }
@@ -191,14 +198,7 @@ bool qSlicerAstroVolumeReader::load(const IOProperties& properties)
       appLogic ? appLogic->GetSelectionNode() : 0;
     if (selectionNode)
       {
-      if (vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node))
-        {
-        selectionNode->SetActiveLabelVolumeID(node->GetID());
-        }
-      else
-        {
-        selectionNode->SetActiveVolumeID(node->GetID());
-        }
+      selectionNode->SetActiveVolumeID(node->GetID());
       if (appLogic)
         {
         appLogic->PropagateVolumeSelection(); // includes FitSliceToAll by default

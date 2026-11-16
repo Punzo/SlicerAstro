@@ -22,7 +22,8 @@ class AstroSegmentationMaskTest(ScriptedLoadableModule):
         self.parent.helpText = """
 Test of FITS masks as segmentations: a SoFiA-like mask is loaded directly as
 a segmentation (one segment per source, names from the SoFiA catalogue),
-edited and saved back as a FITS mask without label map volumes.
+edited and saved back as a FITS mask without label map volumes; masks loaded
+or saved on their own and used as inputs of the modules on a cube.
 """
         self.parent.hidden = True
 
@@ -161,6 +162,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.test_SaveButtonEnabled()
         self.setUp()
         self.test_NewSegmentationDefaultStorage()
+        self.setUp()
+        self.test_MasksWithoutLabelMaps()
 
     def sourceArray(self, segmentationNode, segmentID):
         """Voxels of a segment in the geometry of the mask (z, y, x)."""
@@ -326,6 +329,63 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         reloaded.SetAndObserveStorageNodeID(None)
         slicer.mrmlScene.RemoveNode(storageNode)
         self.assertEqual(reloaded.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
+        self.delayDisplay("Test passed")
+
+    def test_MasksWithoutLabelMaps(self):
+        """SlicerAstro has no label map volumes: a FITS mask is a segmentation
+        (also when asked as label map: refused), loaded or saved on its own,
+        and used directly as the input mask of the modules on its cube."""
+        maskPath = os.path.join(self.directory, "cube_mask.fits")
+        original = syntheticMask()
+        writeFITS(maskPath, original, WCS_CARDS)
+        cubeCards = [(key, "JY/BEAM") if key == "BUNIT" else (key, value) for key, value in WCS_CARDS
+                     if key != "HISTORY"]
+        cubePath = os.path.join(self.directory, "cube.fits")
+        cube = (np.arange(original.size, dtype=np.float32).reshape(original.shape) * 0.01).astype(np.float32)
+        from AstroFITSIOTest import writeFITS as writeFloatFITS
+        writeFloatFITS(cubePath, cube, -32, cubeCards + [("BMAJ", 0.003), ("BMIN", 0.003), ("BPA", 0.)])
+
+        # no label map volume classes
+        for className in ("vtkMRMLAstroLabelMapVolumeNode", "vtkMRMLAstroLabelMapVolumeDisplayNode"):
+            self.assertIsNone(slicer.mrmlScene.CreateNodeByClass(className), className)
+
+        # a mask asked as a label map volume: nothing is loaded, the user is told
+        numberOfNodes = slicer.mrmlScene.GetNumberOfNodes()
+        with self.assertRaises(RuntimeError):
+            slicer.util.loadVolume(maskPath, {"labelmap": True})
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodes(), numberOfNodes)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+
+        # the mask on its own (no cube yet): a segmentation with the grid of the file
+        self.assertEqual(slicer.app.coreIOManager().fileType(maskPath), "SegmentationFile")
+        maskNode = slicer.util.loadSegmentation(maskPath)
+        self.assertIsNotNone(maskNode)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), 0)
+        self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), len(SOURCES))
+
+        # saved on its own and loaded again: same sources and header
+        savedPath = os.path.join(self.directory, "cube_mask_saved.fits")
+        self.assertTrue(slicer.util.saveNode(maskNode, savedPath))
+        header, data = readFITS(savedPath)
+        np.testing.assert_array_equal(data, original)
+        self.assertEqual(header["CTYPE3"], "FREQ")
+        self.assertAlmostEqual(float(header["CRPIX1"]), 10.0)
+        reloadedNode = slicer.util.loadSegmentation(savedPath)
+        self.assertEqual(sorted(reloadedNode.GetSegmentation().GetSegmentIDs()),
+                         sorted(maskNode.GetSegmentation().GetSegmentIDs()))
+
+        # the cube loaded afterwards: the segments of the mask are its input masks
+        # centered, as with the Add Data dialog, the sample data and the FITS masks
+        cubeNode = slicer.util.loadVolume(cubePath, {"center": True})
+        self.assertTrue(cubeNode.IsA("vtkMRMLAstroVolumeNode"))
+        from AstroVolumeLogicTest import segmentMask
+        for node in (maskNode, reloadedNode):
+            for sourceID in SOURCES:
+                mask = segmentMask(node, "Source_%d" % sourceID, cubeNode)
+                self.assertIsNotNone(mask)
+                np.testing.assert_array_equal(mask, (original == sourceID).astype(np.uint8),
+                                              err_msg=f"{node.GetName()} source {sourceID}")
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
         self.delayDisplay("Test passed")
 
     def test_VolumeSaveKeepsHeader(self):

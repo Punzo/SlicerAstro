@@ -49,7 +49,7 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_EstimateInitialParameters, self.test_CreateFitAndUpdate,
-                     self.test_CancelFit, self.test_DoublePrecision):
+                     self.test_CancelFit, self.test_DoublePrecision, self.test_Mask):
             self.setUp()
             test()
 
@@ -234,6 +234,49 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         floatModel = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
         self.assertEqual(floatModel.shape, doubleModel.shape)
         self.assertLess(np.nanmax(np.abs(np.nan_to_num(floatModel) - np.nan_to_num(doubleModel))), 1e-3 * peak)
+
+    def test_Mask(self):
+        """Estimate, model and model from the table with an input mask: the
+        segment is read directly (no label map volume)."""
+        import scipy.ndimage
+        from AstroVolumeLogicTest import maskSegmentation
+
+        volumeNode, widget, parametersNode = self.openModule()
+        cube = voxelArray(volumeNode)
+        with np.errstate(invalid="ignore"):
+            emission = cube > 3. * volumeNode.GetDisplayThreshold()
+        galaxy = scipy.ndimage.binary_dilation(emission, iterations=2)
+        segmentationNode, (galaxyID,) = maskSegmentation(volumeNode, {"Galaxy": galaxy}, "NGC2403_TestMask")
+
+        slicer.util.findChild(widget, "MaskCheckBox").setChecked(True)
+        self.assertTrue(parametersNode.GetMaskActive())
+        slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
+        slicer.app.processEvents()
+        slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([galaxyID])
+        slicer.app.processEvents()
+
+        self.estimate(widget, parametersNode)
+        self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
+        self.assertEqual(parametersNode.GetMaskSegmentID(), galaxyID)
+
+        parametersNode.SetMode("Manual")
+        parametersNode.SetNumberOfRings(4)
+        parametersNode.SetRadSep(120.)
+        parametersNode.SetInclinationFit(False)
+        parametersNode.SetPositionAngleFit(False)
+        self.runOperation(parametersNode, widget.onCreate)
+        modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertIsNotNone(modelNode)
+        model = voxelArray(modelNode).astype(np.float64).copy()
+        peak = np.nanmax(np.abs(model))
+        self.assertGreater(peak, 0.)
+
+        # model from the (not edited) ring table, with the same mask
+        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        recomputed = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
+        self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(model))), 1e-3 * peak)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+        slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
 
     def test_EstimateInitialParameters(self):
         """Only the estimate of the initial parameters is tested: it is fast,

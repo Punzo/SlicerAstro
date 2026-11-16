@@ -84,6 +84,8 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         self.setUp()
         self.test_SceneSaveAndLoad()
+        self.setUp()
+        self.test_OlderScene()
 
     #
     # scene
@@ -207,6 +209,9 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
         slicer.app.processEvents()
         self.apply("AstroMasking")
         self.track(slicer.mrmlScene.GetNodeByID(masking.GetOutputVolumeNodeID()))
+        # the input mask is the segment (saved with the scene)
+        self.assertEqual(masking.GetMaskSegmentationNodeID(), sofiaMask.GetID())
+        self.assertEqual(masking.GetMaskSegmentID(), sofiaSegments.GetNthSegmentID(1))
 
         # PV diagram along a line on the moment map
         selectionNode.SetActiveVolumeID(cube.GetID())
@@ -340,6 +345,9 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
                     referenced = slicer.mrmlScene.GetNodeByID(nodeID) if nodeID else None
                     if referenced is not None and referenced.GetName() in self.tracked:
                         references[name[3:]] = referenced.GetName()
+            # input mask: a segment of a segmentation
+            if hasattr(node, "GetMaskSegmentID") and node.GetMaskSegmentID():
+                references["MaskSegmentID"] = node.GetMaskSegmentID()
             if className in state:
                 # one parameters node per module (no copy added by a scene load)
                 state[className]["count"] += 1
@@ -447,4 +455,65 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
         for moduleName in ("AstroSmoothing", "AstroMomentMaps", "AstroMasking", "AstroReproject"):
             self.selectModule(moduleName)
         self.assertSameState(expected, self.sceneState(), "modules")
+        self.delayDisplay("Test passed")
+
+    def test_OlderScene(self):
+        """Scenes are saved with the SlicerAstro scene format; scenes of
+        SlicerAstro < 2.0 (no format, label map volumes, old parameters) are
+        reported as not compatible, their label maps are not loaded."""
+        from AstroFITSIOTest import beamCards, celestialWCS, radioVelocityWCS, writeFITS
+
+        self.delayDisplay("Scene format")
+        logic = slicer.modules.astrovolume.logic()
+        path = os.path.join(self.directory, "cube.fits")
+        writeFITS(path, np.ones((4, 6, 8), dtype=np.float32), -32,
+                  celestialWCS() + radioVelocityWCS() + beamCards())
+        cube = slicer.util.loadVolume(path)
+        self.assertEqual(cube.GetSceneFormat(), slicer.vtkMRMLAstroVolumeNode.GetCurrentSceneFormat())
+        folder = os.path.join(self.directory, "FormatScene")
+        os.makedirs(folder)
+        self.assertTrue(slicer.app.applicationLogic().SaveSceneToSlicerDataBundleDirectory(folder, None))
+        sceneFile = os.path.join(folder, [name for name in os.listdir(folder) if name.endswith(".mrml")][0])
+        with open(sceneFile) as f:
+            text = f.read()
+        self.assertIn('slicerAstroSceneFormat="2"', text)
+
+        # a scene of SlicerAstro 2: compatible
+        slicer.mrmlScene.Clear(0)
+        slicer.util.loadScene(sceneFile)
+        self.assertFalse(logic.GetIncompatibleSceneImported())
+        self.assertEqual(slicer.util.getNode("cube").GetSceneFormat(), 2)
+
+        # the same scene as written by SlicerAstro 1.x: no format, a label map
+        # volume (mask) and a parameters node with a mask label map
+        import re
+        oldText = text.replace(' slicerAstroSceneFormat="2"', "")
+        oldText = re.sub(r"(</MRML>)",
+                         '<AstroLabelMapVolume id="vtkMRMLAstroLabelMapVolumeNode1" name="cube_mask" '
+                         'references="display:vtkMRMLAstroLabelMapVolumeDisplayNode1;" ></AstroLabelMapVolume>\n'
+                         '<AstroLabelMapVolumeDisplay id="vtkMRMLAstroLabelMapVolumeDisplayNode1" '
+                         'name="AstroLabelMapVolumeDisplay" ></AstroLabelMapVolumeDisplay>\n'
+                         '<AstroMomentMapsParameters id="vtkMRMLAstroMomentMapsParametersNode9" '
+                         'name="AstroMomentMapsParameters" MaskVolumeNodeID="vtkMRMLAstroLabelMapVolumeNode1" '
+                         'MaskActive="true" ></AstroMomentMapsParameters>\n\\1', oldText)
+        oldScene = os.path.join(folder, "older.mrml")
+        with open(oldScene, "w") as f:
+            f.write(oldText)
+        slicer.mrmlScene.Clear(0)
+        try:
+            slicer.util.loadScene(oldScene)
+        except RuntimeError:
+            pass  # the nodes of unknown classes are reported as errors
+        self.assertTrue(logic.GetIncompatibleSceneImported())
+        self.assertIsNotNone(slicer.mrmlScene.GetFirstNodeByName("cube"))
+        self.assertEqual(slicer.util.getNode("cube").GetSceneFormat(), 0)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+        for node in slicer.util.getNodesByClass("vtkMRMLAstroMomentMapsParametersNode"):
+            self.assertIsNone(node.GetMaskSegmentationNodeID())
+        self.assertIn("older than 2.0", slicer.vtkSlicerAstroVolumeLogic.GetIncompatibleSceneMessage())
+
+        # a new scene: compatible again
+        slicer.mrmlScene.Clear(0)
+        slicer.util.loadScene(sceneFile)
+        self.assertFalse(logic.GetIncompatibleSceneImported())
         self.delayDisplay("Test passed")

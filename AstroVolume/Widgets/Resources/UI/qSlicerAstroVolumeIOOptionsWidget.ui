@@ -35,13 +35,6 @@
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="LabelMapCheckBox">
-     <property name="text">
-      <string>LabelMap</string>
-     </property>
-    </widget>
-   </item>
-   <item>
     <widget class="QCheckBox" name="SingleFileCheckBox">
      <property name="text">
       <string>Single File</string>

@@ -74,10 +74,9 @@ protected:
   /// Initialization of MRML ROI node
   void initializeROINode(bool forceNew = false);
 
-  /// Convert a segmentation to LabelMap volume (a mask).
-  /// The LabelMap ID is stored in the MRML parameter node of the module
-  /// \return the selected vtkSegment (only one segment can be selected for masking)
-  vtkSegment* convertSelectedSegmentToLabelMap();
+  /// Set the segment selected in the segments table as the input mask
+  /// (segmentation and segment IDs in the MRML parameter node of the module)
+  bool setMaskSegmentFromSelection();
 
 protected slots:
 

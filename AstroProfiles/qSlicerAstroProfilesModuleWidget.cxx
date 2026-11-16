@@ -70,8 +70,6 @@
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroProfilesParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
@@ -559,94 +557,34 @@ void qSlicerAstroProfilesModuleWidget::initializeSegmentations(bool forceNew /*=
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroProfilesModuleWidget::convertSelectedSegmentToLabelMap()
+bool qSlicerAstroProfilesModuleWidget::setMaskSegmentFromSelection()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!this->mrmlScene())
-    {
-    return false;
-    }
-
-  if (!d->segmentEditorNode)
-    {
-    qCritical() << Q_FUNC_INFO << ": segmentEditorNode not found.";
-    return false;
-    }
-
-  vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-  if (!currentSegmentationNode || !currentSegmentationNode->GetSegmentation())
+  vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode ?
+    d->segmentEditorNode->GetSegmentationNode() : nullptr;
+  if (!d->parametersNode || !segmentationNode || !segmentationNode->GetSegmentation())
     {
     QString message = QString("No segmentation available!");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
     return false;
     }
-
-  // Export selected segments into a multi-label labelmap volume
-  std::vector<std::string> segmentIDs;
-  currentSegmentationNode->GetSegmentation()->GetSegmentIDs(segmentIDs);
-
-  vtkSmartPointer<vtkMRMLAstroLabelMapVolumeNode> labelMapNode;
 
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
-
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("No segment selected from the segmentation node! Please provide a segment.");
+    QString message = QString("No segment selected from the segmentation node! Please select the segment of the mask.");
     qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a segment"), message);
+    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
     return false;
     }
 
-  segmentIDs.clear();
-  segmentIDs.push_back(selectedSegmentIDs[0].toStdString());
-
-  vtkMRMLAstroVolumeNode* activeVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(
-     d->InputVolumeNodeSelector->currentNode());
-
-  if (activeVolumeNode)
-    {
-    vtkSlicerAstroProfilesLogic* astroProfileslogic =
-      vtkSlicerAstroProfilesLogic::SafeDownCast(this->logic());
-    if (!astroProfileslogic)
-      {
-      qCritical() << Q_FUNC_INFO << ": astroProfileslogic not found!";
-      return false;
-      }
-    vtkSlicerAstroVolumeLogic* astroVolumelogic =
-      vtkSlicerAstroVolumeLogic::SafeDownCast(astroProfileslogic->GetAstroVolumeLogic());
-    if (!astroVolumelogic)
-      {
-      qCritical() << Q_FUNC_INFO << ": vtkSlicerAstroVolumeLogic not found!";
-      return false;
-      }
-    std::string name(activeVolumeNode->GetName());
-    name += "Copy_mask" + IntToString(d->parametersNode->GetOutputSerial());
-    labelMapNode = astroVolumelogic->CreateAndAddLabelVolume(this->mrmlScene(), activeVolumeNode, name.c_str());
-    }
-  else
-    {
-    qCritical() << Q_FUNC_INFO << ": converting current segmentation Node into labelMap Node (Mask),"
-                                  " but the labelMap Node is invalid!";
-    return false;
-    }
-
-  if (!vtkSlicerSegmentationsModuleLogic::ExportSegmentsToLabelmapNode(currentSegmentationNode, segmentIDs, labelMapNode, activeVolumeNode))
-    {
-    QString message = QString("Failed to export segments from segmentation %1 to representation node %2!\n\n"
-                              "Be sure that segment to export has been selected in the table view (left click). \n\n").
-                              arg(currentSegmentationNode->GetName()).arg(labelMapNode->GetName());
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to export segment"), message);
-    this->mrmlScene()->RemoveNode(labelMapNode);
-    return false;
-    }
-
-  labelMapNode->UpdateRangeAttributes();
-
-  d->parametersNode->SetMaskVolumeNodeID(labelMapNode->GetID());
-
+  // the logic reads the segment directly (no label map volume)
+  int wasModifying = d->parametersNode->StartModify();
+  d->parametersNode->SetMaskSegmentationNodeID(segmentationNode->GetID());
+  d->parametersNode->SetMaskSegmentID(selectedSegmentIDs[0].toUtf8().constData());
+  d->parametersNode->EndModify(wasModifying);
   return true;
 }
 
@@ -1016,10 +954,10 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   if (d->parametersNode->GetMaskActive())
     {
-    if (!this->convertSelectedSegmentToLabelMap())
+    if (!this->setMaskSegmentFromSelection())
       {
       qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
-                    "convertSelectedSegmentToLabelMap failed!";
+                    "setMaskSegmentFromSelection failed!";
       d->parametersNode->SetStatus(0);
       return;
       }
@@ -1165,29 +1103,7 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     scene->RemoveNode(ProfileVolume);
     d->parametersNode->SetStatus(0);
 
-    if (d->parametersNode->GetMaskActive())
-      {
-      vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-          (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMaskVolumeNodeID()));
-      if(maskVolume)
-        {
-        scene->RemoveNode(maskVolume);
-        }
-      }
-
     return;
-    }
-
-  if (d->parametersNode->GetMaskActive())
-    {
-    vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-        (this->mrmlScene()->GetNodeByID(d->parametersNode->GetMaskVolumeNodeID()));
-    if(maskVolume)
-      {
-      scene->RemoveNode(maskVolume);
-      }
     }
 
   // Setting the Layout for the Output

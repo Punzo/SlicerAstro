@@ -10,6 +10,14 @@ coordinates.
 DSS images with only the old plate solution (`PPO`, `AMDX`, `AMDY`
 keywords, without a standard WCS) cannot be reprojected.
 
+## Scenes of SlicerAstro 1.x
+
+Scenes saved with SlicerAstro 1.x are not compatible with SlicerAstro 2:
+masks were label map volumes (now segmentations) and the parameters of the
+modules changed. A message says so when such a scene is loaded. Load the
+FITS files of the data and of the masks instead (FITS masks are loaded as
+segmentations) and save a new scene.
+
 ## Large data cubes
 
 Loading a cube needs memory for its voxels only (about 4 bytes per voxel;

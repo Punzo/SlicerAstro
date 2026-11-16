@@ -29,7 +29,8 @@ int vtkMRMLAstroProfilesParametersNodeTest1(int , char * [] )
 
   TEST_SET_GET_STRING(node1.GetPointer(), InputVolumeNodeID);
   TEST_SET_GET_STRING(node1.GetPointer(), ProfileVolumeNodeID);
-  TEST_SET_GET_STRING(node1.GetPointer(), MaskVolumeNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskSegmentationNodeID);
+  TEST_SET_GET_STRING(node1.GetPointer(), MaskSegmentID);
 
   TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);
 

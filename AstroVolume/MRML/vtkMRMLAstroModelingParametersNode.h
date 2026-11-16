@@ -81,10 +81,16 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroModelingParametersNode : public vtkMRMLN
   vtkSetStringMacro(ResidualVolumeNodeID);
   vtkGetStringMacro(ResidualVolumeNodeID);
 
-  /// Set/Get the MaskVolumeNodeID.
-  /// \sa SetMaskVolumeNodeID(), GetMaskVolumeNodeID()
-  vtkSetStringMacro(MaskVolumeNodeID);
-  vtkGetStringMacro(MaskVolumeNodeID);
+  /// Set/Get the MaskSegmentationNodeID: segmentation of the input mask.
+  /// \sa SetMaskSegmentationNodeID(), GetMaskSegmentationNodeID()
+  vtkSetStringMacro(MaskSegmentationNodeID);
+  vtkGetStringMacro(MaskSegmentationNodeID);
+
+  /// Set/Get the MaskSegmentID: segment of the input mask (in the
+  /// segmentation MaskSegmentationNodeID).
+  /// \sa SetMaskSegmentID(), GetMaskSegmentID()
+  vtkSetStringMacro(MaskSegmentID);
+  vtkGetStringMacro(MaskSegmentID);
 
   /// Set/Get the Mode.
   /// Default is "Automatic"
@@ -519,7 +525,8 @@ protected:
   char *InputVolumeNodeID;
   char *OutputVolumeNodeID;
   char *ResidualVolumeNodeID;
-  char *MaskVolumeNodeID;
+  char *MaskSegmentationNodeID;
+  char *MaskSegmentID;
   char *Mode;
   char *Normalize;
 

@@ -20,6 +20,7 @@
 // STD includes
 #include <string>
 #include <cstdlib>
+#include <cstring>
 #include <math.h>
 
 // VTK includes
@@ -34,7 +35,6 @@
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vector>
@@ -60,6 +60,7 @@ vtkMRMLNodeNewMacro(vtkMRMLAstroVolumeNode);
 //----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode::vtkMRMLAstroVolumeNode()
 {
+  this->SceneFormat = vtkMRMLAstroVolumeNode::GetCurrentSceneFormat();
 }
 
 //----------------------------------------------------------------------------
@@ -142,12 +143,24 @@ template <typename T> bool isNaN(T value)
 void vtkMRMLAstroVolumeNode::ReadXMLAttributes(const char** atts)
 {
   this->Superclass::ReadXMLAttributes(atts);
+
+  // scenes of SlicerAstro before 2.0 have no scene format
+  this->SceneFormat = 0;
+  for (const char** att = atts; att && *att && *(att + 1); att += 2)
+    {
+    if (!strcmp(*att, "slicerAstroSceneFormat"))
+      {
+      this->SceneFormat = atoi(*(att + 1));
+      }
+    }
 }
 
 //----------------------------------------------------------------------------
 void vtkMRMLAstroVolumeNode::WriteXML(ostream& of, int nIndent)
 {
   this->Superclass::WriteXML(of, nIndent);
+
+  of << " slicerAstroSceneFormat=\"" << vtkMRMLAstroVolumeNode::GetCurrentSceneFormat() << "\"";
 }
 
 //----------------------------------------------------------------------------
@@ -160,6 +173,7 @@ void vtkMRMLAstroVolumeNode::Copy(vtkMRMLNode *anode)
     }
 
   this->Superclass::Copy(astroVolumeNode);
+  this->SceneFormat = astroVolumeNode->GetSceneFormat();
 }
 
 //----------------------------------------------------------------------------

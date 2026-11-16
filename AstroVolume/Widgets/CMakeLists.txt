@@ -23,8 +23,6 @@ set(${KIT}_SRCS
   qSlicer${MODULE_NAME}IOOptionsWidget.h
   qSlicer${MODULE_NAME}ModuleWidget.cxx
   qSlicer${MODULE_NAME}ModuleWidget.h
-  qSlicerAstroLabelMapVolumeDisplayWidget.cxx
-  qSlicerAstroLabelMapVolumeDisplayWidget.h
   qSlicerAstroScalarVolumeDisplayWidget.cxx
   qSlicerAstroScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.cxx
@@ -42,7 +40,6 @@ set(${KIT}_SRCS
 set(${KIT}_MOC_SRCS
   qSlicer${MODULE_NAME}IOOptionsWidget.h
   qSlicer${MODULE_NAME}ModuleWidget.h
-  qSlicerAstroLabelMapVolumeDisplayWidget.h
   qSlicerAstroScalarVolumeDisplayWidget.h
   qSlicerAstroVolumeDisplayWidget.h
   qMRMLAstroVolumeInfoWidget.h
@@ -55,7 +52,6 @@ set(${KIT}_MOC_SRCS
 set(${KIT}_UI_SRCS
   Resources/UI/qSlicer${MODULE_NAME}IOOptionsWidget.ui
   Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
-  Resources/UI/qSlicerAstroLabelMapVolumeDisplayWidget.ui
   Resources/UI/qSlicerAstroScalarVolumeDisplayWidget.ui
   )
 

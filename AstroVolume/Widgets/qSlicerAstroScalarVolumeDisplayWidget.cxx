@@ -684,6 +684,14 @@ void qSlicerAstroScalarVolumeDisplayWidget::onContours2DOriginChanged(double val
     return;
     }
 
+  // channel map: only a 2D image under the contours of a 3D cube moves with
+  // the channel (a 3D volume with the contours of another cube stays)
+  if (StringToInt(astroVolume->GetAttribute("SlicerAstro.NAXIS")) != 2 ||
+      StringToInt(d->contoursVolumeNode->GetAttribute("SlicerAstro.NAXIS")) != 3)
+    {
+    return;
+    }
+
   vtkNew<vtkGeneralTransform> IJKtoRASTransform;
   IJKtoRASTransform->Identity();
   IJKtoRASTransform->PostMultiply();

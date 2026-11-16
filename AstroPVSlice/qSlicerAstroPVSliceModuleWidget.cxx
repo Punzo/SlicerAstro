@@ -70,8 +70,6 @@
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
 #include <vtkMRMLAstroPVSliceParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>

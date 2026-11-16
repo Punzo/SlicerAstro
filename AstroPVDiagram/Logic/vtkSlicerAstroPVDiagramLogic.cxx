@@ -75,8 +75,6 @@
 #include <iostream>
 #include <chrono>
 
-
-
 //----------------------------------------------------------------------------
 class vtkSlicerAstroPVDiagramLogic::vtkInternal
 {
@@ -745,16 +743,6 @@ bool vtkSlicerAstroPVDiagramLogic::GenerateAndSetPVDiagram(vtkMRMLAstroPVDiagram
       }
     }
     });
-
-  inFPixel = nullptr;
-  PVDiagramFPixel = nullptr;
-  inDPixel = nullptr;
-  PVDiagramDPixel = nullptr;
-
-  delete inFPixel;
-  delete PVDiagramFPixel;
-  delete inDPixel;
-  delete PVDiagramDPixel;
 
   PVDiagramVolume->UpdateRangeAttributes();
 

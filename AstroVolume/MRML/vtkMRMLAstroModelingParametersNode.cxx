@@ -51,7 +51,8 @@ vtkMRMLAstroModelingParametersNode::vtkMRMLAstroModelingParametersNode()
   this->InputVolumeNodeID = nullptr;
   this->OutputVolumeNodeID = nullptr;
   this->ResidualVolumeNodeID = nullptr;
-  this->MaskVolumeNodeID = nullptr;
+  this->MaskSegmentationNodeID = nullptr;
+  this->MaskSegmentID = nullptr;
   this->MaskActive = false;
   this->OutputSerial = 1;
   this->Mode = nullptr;
@@ -148,10 +149,16 @@ vtkMRMLAstroModelingParametersNode::~vtkMRMLAstroModelingParametersNode()
     this->ResidualVolumeNodeID = nullptr;
     }
 
-  if (this->MaskVolumeNodeID)
+  if (this->MaskSegmentationNodeID)
     {
-    delete [] this->MaskVolumeNodeID;
-    this->MaskVolumeNodeID = nullptr;
+    delete [] this->MaskSegmentationNodeID;
+    this->MaskSegmentationNodeID = nullptr;
+    }
+
+  if (this->MaskSegmentID)
+    {
+    delete [] this->MaskSegmentID;
+    this->MaskSegmentID = nullptr;
     }
 
   if (this->Mode)
@@ -226,9 +233,15 @@ void vtkMRMLAstroModelingParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
-    if (!strcmp(attName, "MaskVolumeNodeID"))
+    if (!strcmp(attName, "MaskSegmentationNodeID"))
       {
-      this->SetMaskVolumeNodeID(attValue);
+      this->SetMaskSegmentationNodeID(attValue);
+      continue;
+      }
+
+    if (!strcmp(attName, "MaskSegmentID"))
+      {
+      this->SetMaskSegmentID(attValue);
       continue;
       }
 
@@ -676,9 +689,14 @@ void vtkMRMLAstroModelingParametersNode::WriteXML(ostream& of, int nIndent)
     of << indent << " ResidualVolumeNodeID=\"" << this->ResidualVolumeNodeID << "\"";
     }
 
-  if (this->MaskVolumeNodeID != nullptr)
+  if (this->MaskSegmentationNodeID != nullptr)
     {
-    of << indent << " maskVolumeNodeID=\"" << this->MaskVolumeNodeID << "\"";
+    of << indent << " MaskSegmentationNodeID=\"" << this->MaskSegmentationNodeID << "\"";
+    }
+
+  if (this->MaskSegmentID != nullptr)
+    {
+    of << indent << " MaskSegmentID=\"" << this->MaskSegmentID << "\"";
     }
 
   if (this->Mode != nullptr)
@@ -774,7 +792,8 @@ void vtkMRMLAstroModelingParametersNode::Copy(vtkMRMLNode *anode)
   this->SetInputVolumeNodeID(node->GetInputVolumeNodeID());
   this->SetOutputVolumeNodeID(node->GetOutputVolumeNodeID());
   this->SetResidualVolumeNodeID(node->GetResidualVolumeNodeID());
-  this->SetMaskVolumeNodeID(node->GetMaskVolumeNodeID());
+  this->SetMaskSegmentationNodeID(node->GetMaskSegmentationNodeID());
+  this->SetMaskSegmentID(node->GetMaskSegmentID());
   this->SetMaskActive(node->GetMaskActive());
   this->SetMode(node->GetMode());
   this->SetNormalize(node->GetNormalize());
@@ -924,7 +943,8 @@ void vtkMRMLAstroModelingParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << "InputVolumeNodeID: " << ( (this->InputVolumeNodeID) ? this->InputVolumeNodeID : "None" ) << "\n";
   os << "OutputVolumeNodeID: " << ( (this->OutputVolumeNodeID) ? this->OutputVolumeNodeID : "None" ) << "\n";
   os << "ResidualVolumeNodeID: " << ( (this->ResidualVolumeNodeID) ? this->ResidualVolumeNodeID : "None" ) << "\n";
-  os << "MaskVolumeNodeID: " << ( (this->MaskVolumeNodeID) ? this->MaskVolumeNodeID : "None" ) << "\n";
+  os << "MaskSegmentationNodeID: " << ( (this->MaskSegmentationNodeID) ? this->MaskSegmentationNodeID : "None" ) << "\n";
+  os << "MaskSegmentID: " << ( (this->MaskSegmentID) ? this->MaskSegmentID : "None" ) << "\n";
   os << "MaskActive: " << this->MaskActive << "\n";
   os << "Mode: " << ( (this->Mode) ? this->Mode : "None" ) << "\n";
   os << "Normalize: " << ( (this->Normalize) ? this->Normalize : "None" ) << "\n";
@@ -1017,8 +1037,8 @@ void vtkMRMLAstroModelingParametersNode::UpdateReferenceID(const char *oldID, co
     {
     this->SetResidualVolumeNodeID(newID);
     }
-  if (this->MaskVolumeNodeID && !strcmp(this->MaskVolumeNodeID, oldID))
+  if (this->MaskSegmentationNodeID && !strcmp(this->MaskSegmentationNodeID, oldID))
     {
-    this->SetMaskVolumeNodeID(newID);
+    this->SetMaskSegmentationNodeID(newID);
     }
 }

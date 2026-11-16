@@ -34,7 +34,6 @@
 
 class vtkAlgorithmOutput;
 class vtkImageData;
-class vtkMRMLAstroLabelMapVolumeDisplayNode;
 class vtkMRMLUnitNode;
 
 /// \brief MRML node for representing a volume display attributes.

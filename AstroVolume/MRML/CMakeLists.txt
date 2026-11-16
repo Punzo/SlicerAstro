@@ -22,10 +22,6 @@ set(${KIT}_INCLUDE_DIRECTORIES
 # Sources
 # --------------------------------------------------------------------------
 set(${KIT}_SRCS
-    vtkMRMLAstroLabelMapVolumeDisplayNode.cxx
-    vtkMRMLAstroLabelMapVolumeDisplayNode.h
-    vtkMRMLAstroLabelMapVolumeNode.cxx
-    vtkMRMLAstroLabelMapVolumeNode.h
     vtkMRMLAstroMaskingParametersNode.cxx
     vtkMRMLAstroMaskingParametersNode.h
     vtkMRMLAstroMeasurement.cxx

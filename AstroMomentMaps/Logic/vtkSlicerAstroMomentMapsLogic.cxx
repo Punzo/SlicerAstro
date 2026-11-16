@@ -27,10 +27,9 @@
 #include <vector>
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
 #include <vtkMRMLTableNode.h>
 
@@ -49,7 +48,6 @@
 #include <cassert>
 #include <iostream>
 #include <chrono>
-
 
 #define DOUBLEPRECISION 1.E-16
 
@@ -86,6 +84,25 @@ bool DoubleIsNaN(double Value)
 bool FloatIsNaN(float Value)
 {
   return isNaN<float>(Value);
+}
+
+//----------------------------------------------------------------------------
+// Width of a channel (velocity unit of the channels): the mean width over the
+// summed channels first..last (the moment 0 is the sum of the intensities
+// times the channel width)
+double ChannelWidth(const std::vector<double>& channelVelocity, int first, int last)
+{
+  const int numberOfChannels = static_cast<int>(channelVelocity.size());
+  if (numberOfChannels < 2)
+    {
+    return 1.;
+    }
+  if (last > first)
+    {
+    return fabs(channelVelocity[last] - channelVelocity[first]) / (last - first);
+    }
+  const int next = first + 1 < numberOfChannels ? first + 1 : first - 1;
+  return fabs(channelVelocity[next] - channelVelocity[first]);
 }
 
 }// end namespace
@@ -216,17 +233,24 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     return false;
     }
 
-  vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
-
   bool maskActive = pnode->GetMaskActive();
 
-  if((!maskVolume || !maskVolume->GetImageData()) && maskActive)
+  // input mask: a segment, on the voxel grid of the data (1 inside)
+  vtkNew<vtkImageData> maskImage;
+  unsigned char* maskVoxels = nullptr;
+  if (maskActive)
     {
-    vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
-                  " maskVolume not found!");
-    return false;
+    std::string maskError;
+    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+      maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                      maskImage, maskError))
+      {
+      vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps : " << maskError);
+      return false;
+      }
+    maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
@@ -237,7 +261,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   float *outZeroFPixel = nullptr;
   float *outFirstFPixel = nullptr;
   float *outSecondFPixel = nullptr;
-  short *maskPixel = nullptr;
+  unsigned char *maskPixel = nullptr;
   double *inDPixel = nullptr;
   double *outZeroDPixel = nullptr;
   double *outFirstDPixel = nullptr;
@@ -299,7 +323,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   bool cancel = false;
 
-
   std::chrono::steady_clock::time_point start, end;
 
   long mtime = 0;
@@ -346,8 +369,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   if(pnode->GetMaskActive())
     {
-    double dV = fabs((pnode->GetVelocityMax() - pnode->GetVelocityMin()) / dims[2]);
-    maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
+    maskPixel = maskVoxels;
 
     // Velocity of each channel at the reference spatial position (the same
     // for all the pixels): computed once, outside of the parallel loop.
@@ -361,6 +383,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       channelVelocity[kk] = worldChannel[2] * VelFactor;
       }
     }
+    // all the channels are summed (the mask selects the voxels)
+    const double dV = ChannelWidth(channelVelocity, 0, dims[2] - 1);
 
     {
     vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(progressNode.GetPointer(), (numSlice) - (0), 10, 100);
@@ -606,7 +630,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       Zmax = temp;
       }
 
-    double dV = fabs((pnode->GetVelocityMax() - pnode->GetVelocityMin()) / (Zmax - Zmin));
     // Velocity of each channel at the reference spatial position (the same
     // for all the pixels): computed once, outside of the parallel loop.
     std::vector<double> channelVelocity(dims[2], 0.);
@@ -619,6 +642,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       channelVelocity[kk] = worldChannel[2] * VelFactor;
       }
     }
+    const double dV = ChannelWidth(channelVelocity, Zmin, Zmax);
 
     {
     vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMomentMapsParametersNode> progress(progressNode.GetPointer(), (numSlice) - (0), 10, 100);
@@ -829,31 +853,6 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
   vtkDebugMacro("Moment Maps Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = nullptr;
-  inDPixel = nullptr;
-
-  delete inFPixel;
-  delete inDPixel;
-
-  outZeroFPixel = nullptr;
-  outFirstFPixel = nullptr;
-  outSecondFPixel = nullptr;
-  outZeroDPixel = nullptr;
-  outFirstDPixel = nullptr;
-  outSecondDPixel = nullptr;
-
-  delete outZeroFPixel;
-  delete outFirstFPixel;
-  delete outSecondFPixel;
-  delete outZeroDPixel;
-  delete outFirstDPixel;
-  delete outSecondDPixel;
-
-  if (pnode->GetMaskActive())
-    {
-    maskPixel = nullptr;
-    delete maskPixel;
-    }
 
   };
   progressNode->SetStatus(1);

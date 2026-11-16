@@ -28,8 +28,6 @@
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroMaskingParametersNode.h>
@@ -214,21 +212,28 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     return 0;
     }
 
-  vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
-
   bool segmentationActive = false;
   if (!(strcmp(pnode->GetMode(), "Segmentation")))
     {
     segmentationActive = true;
     }
 
-  if((!maskVolume || !maskVolume->GetImageData()) && segmentationActive)
+  // input mask: a segment, on the voxel grid of the data (1 inside)
+  vtkNew<vtkImageData> maskImage;
+  unsigned char* maskVoxels = nullptr;
+  if (segmentationActive)
     {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank :"
-                  " maskVolume not found.");
-    return false;
+    std::string maskError;
+    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+      maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                      maskImage, maskError))
+      {
+      vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank : " << maskError);
+      return false;
+      }
+    maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
   bool regionInside = false;
@@ -258,7 +263,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   float *outFPixel = nullptr;
   double *inDPixel = nullptr;
   double *outDPixel = nullptr;
-  short *maskPixel = nullptr;
+  unsigned char *maskPixel = nullptr;
 
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
@@ -289,7 +294,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   vtkIdType firstElement = 0, lastElement = numElements;
   if (segmentationActive)
     {
-    maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
+    maskPixel = maskVoxels;
     }
   else
     {
@@ -377,18 +382,6 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 
   vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = nullptr;
-  outFPixel = nullptr;
-  inDPixel = nullptr;
-  outFPixel = nullptr;
-  maskPixel = nullptr;
-
-  delete inFPixel;
-  delete outFPixel;
-  delete inDPixel;
-  delete outDPixel;
-  delete maskPixel;
-
   if (cancel)
     {
     pnode->SetStatus(100);
@@ -412,9 +405,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode,
-                                           vtkMRMLSegmentationNode *segmentationNode,
-                                           vtkSegment *segment)
+bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode)
 {
   if (!pnode)
     {
@@ -456,6 +447,12 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     segmentationActive = true;
     }
 
+  // segment of the mask (Segmentation mode)
+  const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+  vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+    maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+  vtkSegment* segment = (segmentationNode && segmentationNode->GetSegmentation() && pnode->GetMaskSegmentID()) ?
+    segmentationNode->GetSegmentation()->GetSegment(pnode->GetMaskSegmentID()) : nullptr;
   if((!segment || !segmentationNode) && segmentationActive)
     {
     vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
@@ -668,9 +665,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
 }
 
 //----------------------------------------------------------------------------
-bool vtkSlicerAstroMaskingLogic::ApplyMask(vtkMRMLAstroMaskingParametersNode *pnode,
-                                           vtkMRMLSegmentationNode *segmentationNode,
-                                           vtkSegment *segment)
+bool vtkSlicerAstroMaskingLogic::ApplyMask(vtkMRMLAstroMaskingParametersNode *pnode)
 {
   if (!pnode)
     {
@@ -681,11 +676,11 @@ bool vtkSlicerAstroMaskingLogic::ApplyMask(vtkMRMLAstroMaskingParametersNode *pn
 
   if (!(strcmp(pnode->GetOperation(), "Blank")))
     {
-    this->ApplyBlank(pnode);
+    return this->ApplyBlank(pnode);
     }
   else if (!(strcmp(pnode->GetOperation(), "Crop")))
     {
-    this->ApplyCrop(pnode, segmentationNode, segment);
+    return this->ApplyCrop(pnode);
     }
   else
     {

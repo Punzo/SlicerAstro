@@ -26,10 +26,9 @@
 #include <type_traits>
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLAstroProfilesParametersNode.h>
 #include <vtkMRMLTableNode.h>
 
@@ -37,6 +36,7 @@
 #include <vtkArrayData.h>
 #include <vtkCacheManager.h>
 #include <vtkImageData.h>
+#include <vtkMath.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
@@ -48,7 +48,6 @@
 #include <cassert>
 #include <iostream>
 #include <chrono>
-
 
 #define DOUBLEPRECISION 1.E-16
 
@@ -195,17 +194,24 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     return false;
     }
 
-  vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
-
   bool maskActive = pnode->GetMaskActive();
 
-  if((!maskVolume || !maskVolume->GetImageData()) && maskActive)
+  // input mask: a segment, on the voxel grid of the data (1 inside)
+  vtkNew<vtkImageData> maskImage;
+  unsigned char* maskVoxels = nullptr;
+  if (maskActive)
     {
-    vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
-                  " maskVolume not found!");
-    return false;
+    std::string maskError;
+    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+      maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                      maskImage, maskError))
+      {
+      vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile : " << maskError);
+      return false;
+      }
+    maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
   double BMAJ = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMAJ"));
@@ -225,7 +231,8 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     }
   else
     {
-    unitBeamConv = fabs((CDELT1 * CDELT2) / (1.13 * BMAJ * BMIN));
+    // Jy/beam -> Jy: pixel area / area of the Gaussian beam (pi / (4 ln 2) BMAJ BMIN)
+    unitBeamConv = fabs((CDELT1 * CDELT2) / (vtkMath::Pi() / (4. * log(2.)) * BMAJ * BMIN));
     }
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
@@ -234,7 +241,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   float *inFPixel = nullptr;
   float *outProfileFPixel = nullptr;
-  short *maskPixel = nullptr;
+  unsigned char *maskPixel = nullptr;
   double *inDPixel = nullptr;
   double *outProfileDPixel = nullptr;
 
@@ -255,7 +262,6 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     }
 
   bool cancel = false;
-
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -303,7 +309,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   if(pnode->GetMaskActive())
     {
-    maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
+    maskPixel = maskVoxels;
 
     {
     vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(progressNode.GetPointer(), (dims[2]) - (0), 10, 100);
@@ -503,23 +509,6 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   vtkDebugMacro("Profile Kernel Time : "<<mtime<<" ms.");
 
-  inFPixel = nullptr;
-  inDPixel = nullptr;
-
-  delete inFPixel;
-  delete inDPixel;
-
-  outProfileFPixel = nullptr;
-  outProfileDPixel = nullptr;
-
-  delete outProfileFPixel;
-  delete outProfileDPixel;
-
-  if (pnode->GetMaskActive())
-    {
-    maskPixel = nullptr;
-    delete maskPixel;
-    }
 
   };
   progressNode->SetStatus(1);

@@ -57,10 +57,9 @@
   }
 
 // MRML includes
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLAstroModelingParametersNode.h>
 #include <vtkMRMLTableNode.h>
 
@@ -858,17 +857,24 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     return 0;
     }
 
-  vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
-
   bool maskActive = pnode->GetMaskActive();
 
-  if((!maskVolume || !maskVolume->GetImageData()) && maskActive)
+  // input mask: a segment, on the voxel grid of the data (1 inside)
+  vtkNew<vtkImageData> maskImage;
+  unsigned char* maskVoxels = nullptr;
+  if (maskActive)
     {
-    vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
-                  " maskVolume not found!");
-    return 0;
+    std::string maskError;
+    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+      maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                      maskImage, maskError))
+      {
+      vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : " << maskError);
+      return 0;
+      }
+    maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
   vtkImageData* imageData = inputVolume->GetImageData();
@@ -1303,7 +1309,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
       // Feed segmentation mask to cube
       if (maskActive)
         {
-        short* segmentationMaskPointer = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer());
+        unsigned char* segmentationMaskPointer = maskVoxels;
         if (!segmentationMaskPointer)
           {
           this->cleanPointers();
@@ -1573,7 +1579,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
       // Feed segmentation mask to cube
       if (maskActive)
         {
-        short* segmentationMaskPointer = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer());
+        unsigned char* segmentationMaskPointer = maskVoxels;
         if (!segmentationMaskPointer)
           {
           this->cleanPointers();
@@ -2217,20 +2223,21 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
   if (!this->Internal->fitF && !this->Internal->fitD)
     {
-    short* maskPointer = nullptr;
+    unsigned char* maskPointer = nullptr;
+    vtkNew<vtkImageData> maskImage;
     if (pnode->GetMaskActive())
       {
-      vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-          (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
-      if (!maskVolume || !maskVolume->GetImageData() ||
-          !maskVolume->GetImageData()->GetScalarPointer())
+      std::string maskError;
+      const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+      vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+        maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+      if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                        maskImage, maskError))
         {
-        vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
-                      " maskVolume not found!");
+        vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : " << maskError);
         return 0;
         }
-      maskPointer = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer());
+      maskPointer = static_cast<unsigned char*>(maskImage->GetScalarPointer());
       }
 
     if (this->Internal->par != nullptr)

@@ -43,8 +43,6 @@
 #include <vtkMRMLAstroMeasurement.h>
 #include <vtkMRMLMarkupsLineNode.h>
 #include <vtkMRMLMarkupsROINode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
 #include <vtkMRMLAstroReprojectParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
@@ -79,7 +77,10 @@
 #include <vtkCollection.h>
 #include <vtkColorTransferFunction.h>
 #include <vtkGeneralTransform.h>
+#include <vtkTransform.h>
 #include <vtkImageData.h>
+#include <vtkSMPTools.h>
+#include <vtkSegmentation.h>
 #include <vtkIntArray.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
@@ -387,8 +388,35 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
 }
 
 //----------------------------------------------------------------------------
+const char* vtkSlicerAstroVolumeLogic::GetIncompatibleSceneMessage()
+{
+  return "This scene was saved with a SlicerAstro version older than 2.0 and is not compatible with "
+         "SlicerAstro 2: masks were label map volumes (now segmentations) and the parameters of the "
+         "modules changed. Masks, mask inputs and module settings of the scene are not restored. "
+         "Load the FITS files of the data (and masks) instead, and save a new scene.";
+}
+
+//----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
 {
+  // scenes of SlicerAstro < 2.0: their astronomical volumes have no scene format
+  this->IncompatibleSceneImported = false;
+  std::vector<vtkMRMLNode*> importedVolumes;
+  this->GetMRMLScene()->GetNodesByClass("vtkMRMLAstroVolumeNode", importedVolumes);
+  for (vtkMRMLNode* node : importedVolumes)
+    {
+    vtkMRMLAstroVolumeNode* volumeNode = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+    if (volumeNode && volumeNode->GetSceneFormat() < vtkMRMLAstroVolumeNode::GetCurrentSceneFormat())
+      {
+      this->IncompatibleSceneImported = true;
+      }
+    }
+  if (this->IncompatibleSceneImported)
+    {
+    vtkErrorMacro("vtkSlicerAstroVolumeLogic: " << vtkSlicerAstroVolumeLogic::GetIncompatibleSceneMessage());
+    this->InvokeEvent(vtkSlicerAstroVolumeLogic::IncompatibleSceneEvent);
+    }
+
   this->UpdateSliceOrientationPresets();
   // markups of the scene (their measurements were read as static copies)
   this->UpdateAllAstroMeasurements();
@@ -452,7 +480,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
   // astronomical volumes loaded from a file (storage node with a file name,
   // set after the node is added) get their contours and mask segmentations
   vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
-  if (astroVolume && !vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(node))
+  if (astroVolume)
     {
     // a cloned volume (derived data) has copied the references to the contours
     // and mask segmentations of its source: they are not its own
@@ -646,8 +674,7 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneNodeAdded(vtkMRMLNode* node)
       }
     }
 
-  if (node->IsA("vtkMRMLAstroVolumeNode") ||
-      node->IsA("vtkMRMLAstroLabelMapVolumeNode"))
+  if (node->IsA("vtkMRMLAstroVolumeNode"))
     {
     // change axes label names
     vtkSmartPointer<vtkCollection> viewNodes = vtkSmartPointer<vtkCollection>::Take
@@ -794,39 +821,6 @@ ArchetypeVolumeNodeSet AstroVolumeNodeSetFactory(std::string& volumeName, vtkMRM
   return nodeSet;
 }
 
-//----------------------------------------------------------------------------
-ArchetypeVolumeNodeSet AstroLabelMapVolumeNodeSetFactory(std::string& volumeName, vtkMRMLScene* scene, int options)
-{
-  ArchetypeVolumeNodeSet nodeSet(scene);
-
-  // set up the AstroLabelMap node's support nodes
-  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
-  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
-  nodeSet.Scene->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
-
-  vtkMRMLAstroLabelMapVolumeDisplayNode* adisplayNode =
-      vtkMRMLAstroLabelMapVolumeDisplayNode::SafeDownCast(
-        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroLabelMapVolumeDisplayNode"));
-
-  vtkMRMLAstroLabelMapVolumeNode* astroNode =
-      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(
-        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroLabelMapVolumeNode", volumeName));
-  astroNode->SetAndObserveDisplayNodeID(adisplayNode->GetID());
-
-  vtkMRMLAstroVolumeStorageNode* storageNode =
-      vtkMRMLAstroVolumeStorageNode::SafeDownCast(
-        nodeSet.Scene->AddNewNodeByClass("vtkMRMLAstroVolumeStorageNode"));
-  storageNode->SetCenterImage(options & vtkSlicerVolumesLogic::CenterImage);
-  astroNode->SetAndObserveStorageNodeID(storageNode->GetID());
-
-  nodeSet.StorageNode = storageNode;
-  nodeSet.DisplayNode = adisplayNode;
-  nodeSet.Node = astroNode;
-  nodeSet.LabelMap = true;
-
-  return nodeSet;
-}
-
 } // end of anonymous namespace
 
 //----------------------------------------------------------------------------
@@ -834,7 +828,6 @@ void vtkSlicerAstroVolumeLogic::RegisterArchetypeVolumeNodeSetFactory(vtkSlicerV
 {
   if (volumesLogic)
     {
-    volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroLabelMapVolumeNodeSetFactory);
     volumesLogic->PreRegisterArchetypeVolumeNodeSetFactory(AstroVolumeNodeSetFactory);
     }
 }
@@ -851,8 +844,6 @@ void vtkSlicerAstroVolumeLogic::RegisterNodes()
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeDisplayNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroVolumeStorageNode>().GetPointer());
   this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroSegmentationStorageNode>().GetPointer());
-  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeNode>().GetPointer());
-  this->GetMRMLScene()->RegisterNodeClass(vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode>().GetPointer());
 
   if (!this->PresetsScene)
     {
@@ -1051,101 +1042,6 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::CloneAstroVolume(vtkMRMLScene
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
   return outputVolume;
-}
-
-//---------------------------------------------------------------------------
-vtkMRMLAstroLabelMapVolumeNode *vtkSlicerAstroVolumeLogic::CreateAndAddLabelVolume(vtkMRMLScene *scene,
-                                                                                   vtkMRMLAstroVolumeNode *volumeNode,
-                                                                                   const char *name)
-{
-  if (!scene || !volumeNode || !name)
-    {
-    return nullptr;
-    }
-
-  // Create a display node if the label node does not have one
-  vtkNew<vtkMRMLAstroLabelMapVolumeDisplayNode> labelDisplayNode;
-  // Set Generic Colors
-  labelDisplayNode->SetAndObserveColorNodeID("vtkMRMLColorTableNodeFileGenericColors.txt");
-
-  vtkMRMLAstroVolumeDisplayNode* astroVolumeDisplay = volumeNode->GetAstroVolumeDisplayNode();
-  // Copy from astroVolumeDisplayNode
-  labelDisplayNode->SetSpaceQuantities(astroVolumeDisplay->GetSpaceQuantities());
-  labelDisplayNode->SetSpace(astroVolumeDisplay->GetSpace());
-  labelDisplayNode->SetAttribute("SlicerAstro.NAXIS", volumeNode->GetAttribute("SlicerAstro.NAXIS"));
-
-  struct wcsprm* labelWCS;
-  struct wcsprm* volumeWCS;
-
-  labelWCS = labelDisplayNode->GetWCSStruct();
-  volumeWCS = astroVolumeDisplay->GetWCSStruct();
-
-  if (!labelWCS || !volumeWCS)
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
-                  "WCS not found!");
-    return nullptr;
-    }
-  labelWCS->flag=-1;
-
-  labelDisplayNode->SetWCSStatus(wcscopy(1, volumeWCS, labelWCS));
-  if (labelDisplayNode->GetWCSStatus())
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume : "
-                  << vtkAstroWCSErrorMessage("wcscopy", labelDisplayNode->GetWCSStatus(), labelWCS));
-    return nullptr;
-    }
-
-  labelDisplayNode->SetWCSStatus(wcsset(labelWCS));
-  if (labelDisplayNode->GetWCSStatus())
-    {
-    vtkErrorMacro("vtkSlicerAstroVolumeLogic::CreateLabelVolumeFromVolume :"
-                  << vtkAstroWCSErrorMessage("wcsset", labelDisplayNode->GetWCSStatus(), labelWCS));
-    return nullptr;
-    }
-
-  scene->AddNode(labelDisplayNode.GetPointer());
-
-  // Create a label node as copy of source volume
-  vtkNew<vtkMRMLAstroLabelMapVolumeNode> labelNode;
-  std::string uname = this->GetMRMLScene()->GetUniqueNameByString(name);
-  labelNode->SetName(uname.c_str());
-  labelNode->SetAndObserveDisplayNodeID(labelDisplayNode->GetID());
-
-  // We need to copy from the volume node to get required attributes, but
-  // the copy copies volumeNode's name as well.  So save the original name
-  // and re-set the name after the copy.
-  std::string origName(labelNode->GetName());
-  labelNode->Copy(volumeNode);
-  labelNode->SetAndObserveStorageNodeID(nullptr);
-  labelNode->SetName(origName.c_str());
-  labelNode->SetAndObserveDisplayNodeID(labelDisplayNode->GetID());
-
-  std::vector<std::string> keys = volumeNode->GetAttributeNames();
-  for (std::vector<std::string>::iterator kit = keys.begin(); kit != keys.end(); ++kit)
-    {
-    labelNode->SetAttribute((*kit).c_str(), volumeNode->GetAttribute((*kit).c_str()));
-    }
-  labelNode->SetAttribute("SlicerAstro.DATAMODEL", "MASK");
-  labelNode->SetAttribute("SlicerAstro.BITPIX", "16");
-
-  // Copy and set image data of the input volume to the label volume
-  vtkNew<vtkImageData> imageData;
-  imageData->DeepCopy(volumeNode->GetImageData());
-  labelNode->SetAndObserveImageData(imageData.GetPointer());
-
-  // Make an image data of the same size and shape as the input volume, but filled with zeros
-  vtkSlicerVolumesLogic::ClearVolumeImageData(labelNode.GetPointer());
-  labelNode->Modified();
-  scene->AddNode(labelNode.GetPointer());
-
-  vtkMRMLAstroVolumeStorageNode* storageNode =
-      vtkMRMLAstroVolumeStorageNode::SafeDownCast(
-        scene->AddNewNodeByClass("vtkMRMLAstroVolumeStorageNode"));
-  storageNode->SetCenterImage(vtkSlicerVolumesLogic::CenterImage);
-  labelNode->SetAndObserveStorageNodeID(storageNode->GetID());
-
-  return labelNode.GetPointer();
 }
 
 //---------------------------------------------------------------------------
@@ -1627,6 +1523,43 @@ double vtkSlicerAstroVolumeLogic::CalculateDisplayThresholdInROI(vtkMRMLMarkupsR
 namespace
 {
 // Per-thread histograms of the finite voxels (no locking), merged by the caller
+//----------------------------------------------------------------------------
+// mask[volume index] = 1 where labelmap == labelValue, over the voxels of the
+// labelmap extent inside the volume extent (labelmap on the volume grid)
+template <typename T>
+void FillSegmentMask(vtkImageData* labelmap, double labelValue, const int volumeExtent[6], unsigned char* mask)
+{
+  const int* labelmapExtent = labelmap->GetExtent();
+  int extent[6] = {0, -1, 0, -1, 0, -1};
+  for (int axis = 0; axis < 3; axis++)
+    {
+    extent[2 * axis] = std::max(labelmapExtent[2 * axis], volumeExtent[2 * axis]);
+    extent[2 * axis + 1] = std::min(labelmapExtent[2 * axis + 1], volumeExtent[2 * axis + 1]);
+    if (extent[2 * axis] > extent[2 * axis + 1])
+      {
+      return;
+      }
+    }
+  const T label = static_cast<T>(labelValue);
+  const vtkIdType nx = volumeExtent[1] - volumeExtent[0] + 1;
+  const vtkIdType ny = volumeExtent[3] - volumeExtent[2] + 1;
+  vtkSMPTools::For(extent[4], extent[5] + 1, [&](vtkIdType firstZ, vtkIdType lastZ)
+    {
+    for (vtkIdType z = firstZ; z < lastZ; z++)
+      {
+      for (int y = extent[2]; y <= extent[3]; y++)
+        {
+        const T* in = static_cast<const T*>(labelmap->GetScalarPointer(extent[0], y, static_cast<int>(z)));
+        unsigned char* out = mask + ((z - volumeExtent[4]) * ny + (y - volumeExtent[2])) * nx + (extent[0] - volumeExtent[0]);
+        for (int x = extent[0]; x <= extent[1]; x++, in++, out++)
+          {
+          *out = (*in == label) ? 1 : 0;
+          }
+        }
+      }
+    });
+}
+
 template <typename T>
 void FillHistograms(const T* data, vtkIdType numElements, double dataMin, double binSpacing, int numberOfBins,
                     vtkSMPThreadLocal<std::vector<vtkIdType>>& localHistograms)
@@ -1707,6 +1640,112 @@ void vtkSlicerAstroVolumeLogic::CalculateHistogram(vtkMRMLAstroVolumeNode *input
     {
     histoArray->SetValue(bin, static_cast<int>(histogram[bin]));
     }
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::CreateSegmentMask(vtkMRMLSegmentationNode* segmentationNode, const char* segmentID,
+                                                  vtkMRMLVolumeNode* volumeNode, vtkImageData* mask)
+{
+  std::string error;
+  if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(segmentationNode, segmentID, volumeNode, mask, error))
+    {
+    vtkGenericWarningMacro("vtkSlicerAstroVolumeLogic::CreateSegmentMask: " << error);
+    return false;
+    }
+  return true;
+}
+
+//---------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::CreateSegmentMask(vtkMRMLSegmentationNode* segmentationNode, const char* segmentID,
+                                                  vtkMRMLVolumeNode* volumeNode, vtkImageData* mask, std::string& error)
+{
+  vtkImageData* volumeImage = volumeNode ? volumeNode->GetImageData() : nullptr;
+  if (!mask || !volumeImage)
+    {
+    error = "the data have no voxels.";
+    return false;
+    }
+  vtkSegmentation* segmentation = segmentationNode ? segmentationNode->GetSegmentation() : nullptr;
+  vtkSegment* segment = (segmentation && segmentID) ? segmentation->GetSegment(segmentID) : nullptr;
+  if (!segment)
+    {
+    error = std::string("the mask segment ") + (segmentID ? segmentID : "") + " was not found" +
+            (segmentationNode && segmentationNode->GetName() ? std::string(" in ") + segmentationNode->GetName() : "") + ".";
+    return false;
+    }
+
+  int volumeExtent[6] = {0, -1, 0, -1, 0, -1};
+  volumeImage->GetExtent(volumeExtent);
+  mask->SetExtent(volumeExtent);
+  mask->SetOrigin(volumeImage->GetOrigin());
+  mask->SetSpacing(volumeImage->GetSpacing());
+  mask->AllocateScalars(VTK_UNSIGNED_CHAR, 1);
+  unsigned char* maskVoxels = static_cast<unsigned char*>(mask->GetScalarPointer());
+  std::fill(maskVoxels, maskVoxels + mask->GetNumberOfPoints(), static_cast<unsigned char>(0));
+
+  // binary labelmap of the segment: the one of the segmentation (shared by
+  // the segments of a layer, each with its label value), or converted for
+  // this segment only (e.g. closed surfaces drawn as source)
+  const std::string labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  vtkSmartPointer<vtkOrientedImageData> labelmap = vtkOrientedImageData::SafeDownCast(segment->GetRepresentation(labelmapName));
+  double labelValue = segment->GetLabelValue();
+  if (!labelmap)
+    {
+    vtkNew<vtkSegmentation> single;
+    single->SetSourceRepresentationName(segmentation->GetSourceRepresentationName());
+    single->CopyConversionParameters(segmentation);
+    single->CopySegmentFromSegmentation(segmentation, segmentID);
+    vtkSegment* copy = single->GetSegment(segmentID);
+    if (!copy || !single->CreateRepresentation(labelmapName))
+      {
+      error = std::string("the mask segment ") + segmentID + " could not be converted to a binary labelmap.";
+      return false;
+      }
+    labelmap = vtkOrientedImageData::SafeDownCast(copy->GetRepresentation(labelmapName));
+    labelValue = copy->GetLabelValue();
+    }
+  if (!labelmap || !labelmap->GetPointData() || !labelmap->GetPointData()->GetScalars() ||
+      labelmap->GetNumberOfScalarComponents() != 1)
+    {
+    // empty segment: empty mask
+    return true;
+    }
+
+  // voxel grid of the volume (its RAS geometry) as reference
+  vtkNew<vtkOrientedImageData> reference;
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  volumeNode->GetIJKToRASMatrix(ijkToRAS);
+  reference->SetGeometryFromImageToWorldMatrix(ijkToRAS);
+  reference->SetExtent(volumeExtent);
+
+  // transform from the segmentation to the volume (parent transforms)
+  vtkNew<vtkGeneralTransform> segmentationToVolume;
+  vtkMRMLTransformNode::GetTransformBetweenNodes(segmentationNode->GetParentTransformNode(),
+                                                 volumeNode->GetParentTransformNode(), segmentationToVolume);
+  vtkNew<vtkTransform> segmentationToVolumeLinear;
+  const bool identity = vtkMRMLTransformNode::IsGeneralTransformLinear(segmentationToVolume, segmentationToVolumeLinear) &&
+                        segmentationToVolumeLinear->GetMatrix()->IsIdentity();
+
+  vtkSmartPointer<vtkOrientedImageData> source = labelmap;
+  if (!identity || !vtkOrientedImageDataResample::DoGeometriesMatch(reference, labelmap))
+    {
+    source = vtkSmartPointer<vtkOrientedImageData>::New();
+    if (!vtkOrientedImageDataResample::ResampleOrientedImageToReferenceOrientedImage(
+          labelmap, reference, source, false, false, identity ? nullptr : segmentationToVolume.GetPointer()))
+      {
+      error = std::string("the mask segment ") + segmentID + " could not be resampled to the voxels of the data.";
+      return false;
+      }
+    }
+  switch (source->GetScalarType())
+    {
+    vtkTemplateMacro(FillSegmentMask<VTK_TT>(source, labelValue, volumeExtent, maskVoxels));
+    default:
+      error = "unsupported scalar type of the mask segment.";
+      return false;
+    }
+  mask->Modified();
+  return true;
 }
 
 //---------------------------------------------------------------------------
@@ -2903,8 +2942,7 @@ void vtkSlicerAstroVolumeLogic::EnsureSegmentationsOfLoadedVolume(vtkMRMLAstroVo
   vtkMRMLScene* scene = this->GetMRMLScene();
   if (this->EnsuringVolumeSegmentations || !scene || scene->IsImporting() || scene->IsClosing() ||
       !volumeNode || !volumeNode->GetScene() || !volumeNode->GetImageData() ||
-      !volumeNode->GetStorageNode() || !volumeNode->GetStorageNode()->GetFileName() ||
-      vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(volumeNode))
+      !volumeNode->GetStorageNode() || !volumeNode->GetStorageNode()->GetFileName())
     {
     return;
     }
@@ -2916,7 +2954,7 @@ void vtkSlicerAstroVolumeLogic::EnsureSegmentationsOfLoadedVolume(vtkMRMLAstroVo
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::EnsureVolumeSegmentations(vtkMRMLAstroVolumeNode* volumeNode)
 {
-  if (!volumeNode || vtkMRMLAstroLabelMapVolumeNode::SafeDownCast(volumeNode))
+  if (!volumeNode)
     {
     return;
     }

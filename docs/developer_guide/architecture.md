@@ -17,7 +17,8 @@ Each module has MRML nodes (parameters), a logic (computations) and a Qt
 widget. The **AstroVolume** module provides the shared parts:
 
 - MRML: `vtkMRMLAstroVolumeNode` and its display node (WCS, colour
-  functions), label map volumes, the parameters nodes of all the modules,
+  functions), the parameters nodes of all the modules (input masks: a
+  segmentation and a segment, read with `vtkSlicerAstroVolumeLogic::CreateSegmentMask`),
   `vtkMRMLAstroSegmentationStorageNode` (FITS masks),
   `vtkMRMLAstroMeasurement` (measurements on the sky);
 - displayable managers: WCS axes and beam of the slice views;

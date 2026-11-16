@@ -52,6 +52,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.test_ContoursOfOtherData()
         self.setUp()
         self.test_ContoursChannelMap()
+        self.setUp()
+        self.test_ContoursOfOtherCube()
 
     def loadWEIN069(self):
         import AstroSampleData
@@ -263,6 +265,39 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
             expected = math.pi * 2. * sigma * sigma * math.log(1. / level) / pixelArea
             self.assertAlmostEqual(float(np.count_nonzero(mask)) / expected, 1., delta=0.2,
                                    msg=f"level {level}")
+        self.delayDisplay("Test passed")
+
+    def test_ContoursOfOtherCube(self):
+        """A cube with the contours of another cube stays in place (only a 2D
+        image moves with the channel of the contours of a cube)."""
+        import numpy as np
+        import vtk
+        from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
+
+        directory = os.path.join(slicer.app.temporaryPath, "AstroVolumeSegmentationsTest")
+        os.makedirs(directory, exist_ok=True)
+        nodes = []
+        for name in ("cubeA", "cubeB"):
+            path = os.path.join(directory, name + ".fits")
+            writeFITS(path, np.ones((12, 20, 24), dtype=np.float32), -32,
+                      celestialWCS(crpix=(12.5, 10.5)) + radioVelocityWCS())
+            nodes.append(slicer.util.loadVolume(path))
+        activeNode, sourceNode = nodes
+        before = vtk.vtkMatrix4x4()
+        activeNode.GetIJKToRASMatrix(before)
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(activeNode.GetID())
+        slicer.util.selectModule("AstroVolume")
+        slicer.app.processEvents()
+        displayWidget = slicer.modules.astrovolume.widgetRepresentation().findChild(
+            "qSlicerAstroScalarVolumeDisplayWidget")
+        slicer.util.findChild(displayWidget, "ContoursVolumeNodeSelector").setCurrentNode(sourceNode)
+        slicer.app.processEvents()
+        after = vtk.vtkMatrix4x4()
+        activeNode.GetIJKToRASMatrix(after)
+        for row in range(4):
+            for column in range(4):
+                self.assertEqual(after.GetElement(row, column), before.GetElement(row, column))
+        self.assertFalse(slicer.util.findChild(displayWidget, "Contours2DSliderWidget").isVisibleTo(displayWidget))
         self.delayDisplay("Test passed")
 
     def test_ContoursChannelMap(self):

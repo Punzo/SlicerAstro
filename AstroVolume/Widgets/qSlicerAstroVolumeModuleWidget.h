@@ -41,7 +41,6 @@ class qMRMLAstroVolumeInfoWidget;
 class qSlicerAstroVolumeDisplayWidget;
 class qSlicerAstroVolumeModuleWidgetPrivate;
 class qSlicerAbstractModuleWidget;
-class vtkMRMLAstroLabelMapVolumeNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLMarkupsROINode;
 class vtkMRMLNode;
@@ -145,9 +144,6 @@ public slots:
   /// Set the MRML node of interest
   void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
 
-  /// Set the MRML node of interest
-  void setMRMLVolumeNode(vtkMRMLAstroLabelMapVolumeNode* volumeNode);
-
   /// Utility function to start to rock the view
   void startRockView();
 
@@ -176,7 +172,6 @@ protected slots:
   void onInputVolumeChanged(vtkMRMLNode *node);
   void onLockToggled(bool toggled);
   void onMRMLDisplayROINodeModified(vtkObject*);
-  void onMRMLLabelVolumeNodeModified();
   void onMRMLPlotChartNodeHistogramModified();
   void onMRMLSceneEndImportEvent();
   void onMRMLSceneEndCloseEvent();
@@ -195,8 +190,6 @@ protected slots:
   void onOffsetValueChanged(double offsetValue);
   void onOpacityValueChanged(double Opacity);
   void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
-  void onPushButtonCovertLabelMapToSegmentationClicked();
-  void onPushButtonConvertSegmentationToLabelMapClicked();
   void onROICropDisplayCheckBoxToggled(bool toggle);
   void onSegmentEditorNodeModified(vtkObject* sender);
   void onStretchValueChanged(double stretchValue);

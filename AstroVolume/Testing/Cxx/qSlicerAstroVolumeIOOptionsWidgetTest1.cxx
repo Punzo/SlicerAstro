@@ -34,24 +34,16 @@ int qSlicerAstroVolumeIOOptionsWidgetTest1( int argc, char * argv[] )
 
   qSlicerAstroVolumeIOOptionsWidget optionsWidget;
 
-  optionsWidget.setFileName("mylabelmap-seg.fits");
-  if (!optionsWidget.properties()["labelmap"].toBool())
+  // FITS masks are segmentations: the volume options have no label map option
+  optionsWidget.setFileName("WEIN069_mask.fits");
+  if (optionsWidget.properties().contains("labelmap"))
     {
-    std::cerr << "Must be a labelmap" << std::endl;
+    std::cerr << "The volume options must not have a labelmap property" << std::endl;
     return EXIT_FAILURE;
     }
-
-  optionsWidget.setFileName("./mylabelmap_seg_1.fits");
-  if (!optionsWidget.properties()["labelmap"].toBool())
+  if (!optionsWidget.properties().contains("center") || !optionsWidget.properties().contains("singleFile"))
     {
-    std::cerr << "Must be a labelmap" << std::endl;
-    return EXIT_FAILURE;
-    }
-
-  optionsWidget.setFileName("./segment.fits");
-  if (optionsWidget.properties()["labelmap"].toBool())
-    {
-    std::cerr << "Not a labelmap" << std::endl;
+    std::cerr << "The volume options must have the center and singleFile properties" << std::endl;
     return EXIT_FAILURE;
     }
 

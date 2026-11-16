@@ -88,7 +88,8 @@ class AstroMaskingSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_BlankInsideBox, self.test_BlankOutsideBoxNaN, self.test_CropBox,
-                     self.test_BlankWithMask, self.test_CropWithMask, self.test_BoxOutsideCube):
+                     self.test_BlankWithMask, self.test_CropWithMask, self.test_BoxOutsideCube,
+                     self.test_MaskDoubleSharedLayer):
             self.setUp()
             test()
 
@@ -246,6 +247,41 @@ class AstroMaskingSelfTestTest(ScriptedLoadableModuleTest):
         box = (slice(3, 7), slice(5, 10), slice(6, 13))
         expected = np.where(mask[box], data[box], np.nan).astype(np.float32)
         np.testing.assert_array_equal(voxelArray(outputNode), expected)
+
+    def test_MaskDoubleSharedLayer(self):
+        """Blank and crop of a 64-bit cube with a segment that shares its
+        labelmap layer with another segment: only the selected segment is the
+        mask, read directly (no label map volume)."""
+        from AstroVolumeLogicTest import doublePrecisionCopy, maskSegmentation
+        floatNode, data = self.cube()
+        volumeNode = doublePrecisionCopy(floatNode, "cube_double")
+        z, y, x = np.indices(self.SHAPE)
+        ellipsoid = ((x - 11.) ** 2 / 36. + (y - 9.) ** 2 / 25. + (z - 6.) ** 2 / 9.) <= 1.
+        corner = np.zeros(self.SHAPE, dtype=bool)
+        corner[:3, :3, :3] = True
+        segmentationNode, (ellipsoidID, cornerID) = maskSegmentation(
+            volumeNode, {"Ellipsoid": ellipsoid, "Corner": corner})
+        self.assertEqual(segmentationNode.GetSegmentation().GetNumberOfLayers(), 1)
+
+        widget, parametersNode = self.openModule(volumeNode)
+        parametersNode.SetOperation("Blank")
+        parametersNode.SetBlankRegion("Outside")
+        parametersNode.SetBlankValue("0")
+        self.selectSegment(widget, segmentationNode, ellipsoidID)
+        outputNode = self.apply(widget, parametersNode)
+        self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
+        self.assertEqual(parametersNode.GetMaskSegmentID(), ellipsoidID)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+        self.assertEqual(outputNode.GetImageData().GetScalarType(), vtk.VTK_DOUBLE)
+        np.testing.assert_array_equal(voxelArray(outputNode), np.where(ellipsoid, data.astype(np.float64), 0.))
+        # the input is unchanged
+        np.testing.assert_array_equal(voxelArray(volumeNode), data.astype(np.float64))
+
+        parametersNode.SetOperation("Crop")
+        self.selectSegment(widget, segmentationNode, cornerID)
+        outputNode = self.apply(widget, parametersNode)
+        self.assertEqual(parametersNode.GetMaskSegmentID(), cornerID)
+        np.testing.assert_array_equal(voxelArray(outputNode), data[:3, :3, :3].astype(np.float64))
 
     def test_BoxOutsideCube(self):
         """A box that does not overlap the cube crops nothing (no crash, no empty output)."""

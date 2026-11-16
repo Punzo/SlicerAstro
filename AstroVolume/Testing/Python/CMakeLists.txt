@@ -70,12 +70,6 @@ if(Slicer_USE_PYTHONQT)
   slicer_add_python_unittest(SCRIPT AstroParametersNodesTest.py)
 
   slicerMacroBuildScriptedModule(
-    NAME AstroLabelMapTest
-    SCRIPTS AstroLabelMapTest.py
-    )
-  slicer_add_python_unittest(SCRIPT AstroLabelMapTest.py)
-
-  slicerMacroBuildScriptedModule(
     NAME AstroVolumeLogicTest
     SCRIPTS AstroVolumeLogicTest.py
     )

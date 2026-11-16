@@ -566,7 +566,7 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
     def worldPositionVolume(referenceNode):
         """Data cube with the WCS for placing celestial positions: referenceNode,
         or the reference volume of a segmentation."""
-        if referenceNode.IsA("vtkMRMLAstroVolumeNode") or referenceNode.IsA("vtkMRMLAstroLabelMapVolumeNode"):
+        if referenceNode.IsA("vtkMRMLAstroVolumeNode"):
             return referenceNode
         if referenceNode.IsA("vtkMRMLSegmentationNode"):
             volumeNode = referenceNode.GetNodeReference(

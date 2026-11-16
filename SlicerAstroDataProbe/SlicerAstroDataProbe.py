@@ -421,12 +421,12 @@ def generateViewDescriptionAstro(self, xyz, ras, sliceNode, sliceLogic):
     for layer,logicCall in layerLogicCalls:
       layerLogic = logicCall()
       volumeNode = layerLogic.GetVolumeNode()
-      if volumeNode is not None and (volumeNode.IsA("vtkMRMLAstroVolumeNode") or volumeNode.IsA("vtkMRMLAstroLabelMapVolumeNode")):
+      if volumeNode is not None and volumeNode.IsA("vtkMRMLAstroVolumeNode"):
         dimensionality = int(volumeNode.GetAttribute("SlicerAstro.NAXIS"))
         xyToIJK = layerLogic.GetXYToIJKTransform()
         ijkFloat = xyToIJK.TransformDoublePoint(xyz)
         displayNode = volumeNode.GetDisplayNode()
-        if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
+        if displayNode is not None and displayNode.IsA("vtkMRMLAstroVolumeDisplayNode"):
           CoordinateSystemName = displayNode.GetSpace()
           displayNode.GetReferenceSpace(ijkFloat, world)
           # the formatter leaves out the fields equal to the previous value
@@ -493,7 +493,7 @@ def generateIJKPixelValueDescriptionAstro(self, ijk, slicerLayerLogic):
   volumeNode = slicerLayerLogic.GetVolumeNode()
   if volumeNode is not None:
     displayNode = volumeNode.GetDisplayNode()
-    if displayNode is not None and (displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.IsA("vtkMRMLAstroLabelMapVolumeDisplayNode")):
+    if displayNode is not None and displayNode.IsA("vtkMRMLAstroVolumeDisplayNode"):
       return "<b>%s</b>" % displayNode.GetPixelString(ijk)
     # Not an astronomical volume: use the standard Data Probe pixel description
     return "<b>%s</b>" % self.getPixelString(volumeNode, ijk)

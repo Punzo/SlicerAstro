@@ -22,7 +22,8 @@ class AstroVolumeLogicTest(ScriptedLoadableModule):
         self.parent.helpText = """
 Functions of the AstroVolume logic, against analytic or numpy results: the beam
 estimated from correlated noise, intensity histograms (single and double
-precision cubes) and the alignment of ROIs to the voxel grid of a volume.
+precision cubes), the alignment of ROIs to the voxel grid of a volume and the
+input masks of the modules (segments on the voxel grid of a volume).
 """
         self.parent.hidden = True
 
@@ -33,6 +34,35 @@ class AstroVolumeLogicTestWidget(ScriptedLoadableModuleWidget):
 
 class AstroVolumeLogicTestLogic(ScriptedLoadableModuleLogic):
     pass
+
+
+def maskSegmentation(volumeNode, masks, name="TestMask", sharedLayer=True):
+    """Segmentation on the grid of volumeNode with one segment per boolean
+    (z, y, x) mask of masks (dict name -> array); the segments share one
+    labelmap layer (label values 1, 2, ...) if sharedLayer. Returns the
+    segmentation node and the segment IDs (in the order of masks)."""
+    segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", name)
+    segmentationNode.CreateDefaultDisplayNodes()
+    segmentationNode.SetReferenceImageGeometryParameterFromVolumeNode(volumeNode)
+    segmentIDs = []
+    for segmentName, mask in masks.items():
+        segmentID = segmentationNode.GetSegmentation().AddEmptySegment(segmentName, segmentName)
+        slicer.util.updateSegmentBinaryLabelmapFromArray(mask.astype(np.uint8), segmentationNode,
+                                                         segmentID, volumeNode)
+        segmentIDs.append(segmentID)
+    if sharedLayer:
+        segmentationNode.GetSegmentation().CollapseBinaryLabelmaps(False)
+    return segmentationNode, segmentIDs
+
+
+def segmentMask(segmentationNode, segmentID, volumeNode):
+    """Mask of the segment on the voxel grid of the volume (z, y, x), by the logic."""
+    from vtk.util.numpy_support import vtk_to_numpy
+    mask = vtk.vtkImageData()
+    if not slicer.vtkSlicerAstroVolumeLogic.CreateSegmentMask(segmentationNode, segmentID, volumeNode, mask):
+        return None
+    dims = mask.GetDimensions()
+    return vtk_to_numpy(mask.GetPointData().GetScalars()).reshape(dims[2], dims[1], dims[0]).copy()
 
 
 def doublePrecisionCopy(volumeNode, name):
@@ -58,7 +88,8 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         os.makedirs(self.directory, exist_ok=True)
 
     def runTest(self):
-        for test in (self.test_EstimateBeamFromNoise, self.test_Histogram, self.test_SnapROIToVoxelGrid):
+        for test in (self.test_EstimateBeamFromNoise, self.test_Histogram, self.test_SnapROIToVoxelGrid,
+                     self.test_SegmentMask):
             self.setUp()
             test()
 
@@ -158,6 +189,75 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         histogram = vtk.vtkIntArray()
         self.logic.CalculateHistogram(floatNode, histogram, 0.0, numberOfBins)
         self.assertEqual(histogram.GetNumberOfValues(), 0)
+        self.delayDisplay("Test passed")
+
+    def test_SegmentMask(self):
+        """Input masks of the modules: a segment on the voxel grid of the data,
+        read from its labelmap (segments sharing a layer told apart by their
+        label value), resampled when the segmentation is transformed,
+        converted from closed surfaces; empty and missing segments."""
+        self.delayDisplay("Masks from segments")
+        shape = (10, 16, 20)
+        volumeNode = self.loadCube("segmentmask", np.zeros(shape, dtype=np.float32))
+        z, y, x = np.indices(shape)
+        ellipsoid = ((x - 9.) ** 2 / 25. + (y - 8.) ** 2 / 16. + (z - 5.) ** 2 / 9.) <= 1.
+        box = np.zeros(shape, dtype=bool)
+        box[1:4, 2:6, 13:18] = True
+        segmentationNode, (ellipsoidID, boxID) = maskSegmentation(
+            volumeNode, {"Ellipsoid": ellipsoid, "Box": box})
+        segmentation = segmentationNode.GetSegmentation()
+        self.assertEqual(segmentation.GetNumberOfLayers(), 1)
+        self.assertNotEqual(segmentation.GetSegment(ellipsoidID).GetLabelValue(),
+                            segmentation.GetSegment(boxID).GetLabelValue())
+
+        # each segment of the shared layer, on the grid of the data (1 inside)
+        for segmentID, expected in ((ellipsoidID, ellipsoid), (boxID, box)):
+            mask = segmentMask(segmentationNode, segmentID, volumeNode)
+            self.assertIsNotNone(mask)
+            self.assertEqual(mask.shape, shape)
+            self.assertEqual(mask.dtype, np.uint8)
+            np.testing.assert_array_equal(mask, expected.astype(np.uint8), err_msg=segmentID)
+
+        # segmentation moved by 3 voxels along i (transform): resampled
+        ijkToRAS = vtk.vtkMatrix4x4()
+        volumeNode.GetIJKToRASMatrix(ijkToRAS)
+        shift = [3. * ijkToRAS.GetElement(row, 0) for row in range(3)]
+        transformNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLLinearTransformNode", "Shift")
+        matrix = vtk.vtkMatrix4x4()
+        for row in range(3):
+            matrix.SetElement(row, 3, shift[row])
+        transformNode.SetMatrixTransformToParent(matrix)
+        segmentationNode.SetAndObserveTransformNodeID(transformNode.GetID())
+        shifted = np.zeros(shape, dtype=np.uint8)
+        shifted[:, :, 3:] = box[:, :, :-3]
+        np.testing.assert_array_equal(segmentMask(segmentationNode, boxID, volumeNode), shifted)
+        segmentationNode.SetAndObserveTransformNodeID(None)
+
+        # closed surfaces as source representation: converted for the segment
+        surfaceNode, (surfaceID,) = maskSegmentation(volumeNode, {"Ellipsoid": ellipsoid}, "Surfaces",
+                                                     sharedLayer=False)
+        surfaceSegmentation = surfaceNode.GetSegmentation()
+        surfaceName = slicer.vtkSegmentationConverter.GetSegmentationClosedSurfaceRepresentationName()
+        labelmapName = slicer.vtkSegmentationConverter.GetSegmentationBinaryLabelmapRepresentationName()
+        self.assertTrue(surfaceSegmentation.CreateRepresentation(surfaceName))
+        surfaceSegmentation.SetSourceRepresentationName(surfaceName)
+        surfaceSegmentation.RemoveRepresentation(labelmapName)
+        self.assertIsNone(surfaceSegmentation.GetSegment(surfaceID).GetRepresentation(labelmapName))
+        mask = segmentMask(surfaceNode, surfaceID, volumeNode)
+        self.assertIsNotNone(mask)
+        overlap = np.count_nonzero(mask.astype(bool) & ellipsoid)
+        dice = 2. * overlap / (np.count_nonzero(mask) + np.count_nonzero(ellipsoid))
+        self.assertGreater(dice, 0.85)
+        # the segmentation is not changed (no labelmap added to it)
+        self.assertIsNone(surfaceSegmentation.GetSegment(surfaceID).GetRepresentation(labelmapName))
+
+        # empty segment: empty mask; missing segment or volume: no mask
+        emptyID = segmentation.AddEmptySegment("Empty", "Empty")
+        np.testing.assert_array_equal(segmentMask(segmentationNode, emptyID, volumeNode),
+                                      np.zeros(shape, dtype=np.uint8))
+        self.assertIsNone(segmentMask(segmentationNode, "NoSuchSegment", volumeNode))
+        self.assertIsNone(segmentMask(None, boxID, volumeNode))
+        self.assertIsNone(segmentMask(segmentationNode, boxID, None))
         self.delayDisplay("Test passed")
 
     def test_SnapROIToVoxelGrid(self):

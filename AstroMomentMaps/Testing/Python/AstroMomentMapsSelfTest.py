@@ -87,7 +87,26 @@ def referenceMoments(cube, velocities, zmin, zmax, intensityMin, intensityMax, v
         m1 = np.where(empty0 | (np.abs(m1raw) < DOUBLEPRECISION), np.nan, m1raw / m0raw)
         m2raw = (weights * (vel - m1) ** 2).sum(axis=0)
         m2 = np.where(empty0 | ~(np.abs(m2raw) >= DOUBLEPRECISION), np.nan, np.sqrt(m2raw / m0raw))
-        dV = abs((velMax - velMin) / (zmax - zmin))
+        # channel width (moment 0: sum of intensity times channel width)
+        dV = abs((velocities[zmax] - velocities[zmin]) / (zmax - zmin)) if zmax > zmin else abs(velocities[1] - velocities[0])
+        m0 = np.where(empty0, np.nan, m0raw * dV)
+    return m0, m1, m2
+
+
+def referenceMaskedMoments(cube, velocities, mask):
+    """Moment maps (0, 1, 2) of the voxels inside the mask, all the channels
+    (the mask selects the voxels: no intensity or velocity limits)."""
+    data = np.where(mask, cube.astype(np.float64), 0.0)
+    data = np.nan_to_num(data, nan=0.0)
+    vel = velocities[:, None, None]
+    dV = abs((velocities[-1] - velocities[0]) / (len(velocities) - 1))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        m0raw = data.sum(axis=0)
+        m1raw = (data * vel).sum(axis=0)
+        empty0 = np.abs(m0raw) < DOUBLEPRECISION
+        m1 = np.where(empty0 | (np.abs(m1raw) < DOUBLEPRECISION), np.nan, m1raw / m0raw)
+        m2raw = (data * (vel - m1) ** 2).sum(axis=0)
+        m2 = np.where(empty0 | ~(np.abs(m2raw) >= DOUBLEPRECISION), np.nan, np.sqrt(m2raw / m0raw))
         m0 = np.where(empty0, np.nan, m0raw * dV)
     return m0, m1, m2
 
@@ -97,7 +116,7 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        for test in (self.test_AstroMomentMapsSelfTest, self.test_DoublePrecision):
+        for test in (self.test_AstroMomentMapsSelfTest, self.test_DoublePrecision, self.test_Mask):
             self.setUp()
             test()
 
@@ -137,6 +156,63 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         maps = self.checkMomentMaps(volumeNode)
         for node in maps:
             self.assertEqual(node.GetImageData().GetScalarType(), vtk.VTK_DOUBLE, node.GetName())
+        self.delayDisplay("Test passed")
+
+    def test_Mask(self):
+        """Moment maps of the voxels of a mask segment (the segment read
+        directly, no label map volume), for 32-bit and 64-bit cubes."""
+        import AstroSampleData
+        from AstroVolumeLogicTest import doublePrecisionCopy, maskSegmentation
+
+        self.delayDisplay("Moment maps with a mask")
+        floatNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(floatNode)
+        doubleNode = doublePrecisionCopy(floatNode, "WEIN069_double")
+        cube = voxelArray(floatNode)
+        with np.errstate(invalid="ignore"):
+            source = cube > 3. * floatNode.GetDisplayThreshold()
+        # a second segment in the same layer: only the selected one is used
+        other = np.zeros(cube.shape, dtype=bool)
+        other[:, :5, :5] = True
+        other &= ~source
+        segmentationNode, (sourceID, otherID) = maskSegmentation(
+            floatNode, {"Source": source, "Corner": other}, "WEIN069_TestMask")
+
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroMomentMaps")
+        widget = slicer.modules.astromomentmaps.widgetRepresentation()
+        parametersNode = slicer.util.getNode("AstroMomentMapsParameters")
+        for volumeNode in (floatNode, doubleNode):
+            parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+            parametersNode.SetGenerateZero(True)
+            parametersNode.SetGenerateFirst(True)
+            parametersNode.SetGenerateSecond(True)
+            slicer.util.findChild(widget, "MaskCheckBox").setChecked(True)
+            self.assertTrue(parametersNode.GetMaskActive())
+            slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
+            slicer.app.processEvents()
+            slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([sourceID])
+            slicer.app.processEvents()
+            slicer.util.findChild(widget, "ApplyButton").click()
+            # the segment is the mask: no label map volume
+            self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
+            self.assertEqual(parametersNode.GetMaskSegmentID(), sourceID)
+            self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+
+            velocities, _, _ = channelRange(volumeNode, parametersNode)
+            expected = referenceMaskedMoments(cube, velocities, source)
+            for name, nodeID, reference in zip(("moment 0", "moment 1", "moment 2"),
+                                               (parametersNode.GetZeroMomentVolumeNodeID(),
+                                                parametersNode.GetFirstMomentVolumeNodeID(),
+                                                parametersNode.GetSecondMomentVolumeNodeID()), expected):
+                node = slicer.mrmlScene.GetNodeByID(nodeID)
+                self.assertIsNotNone(node, name)
+                self.assertEqual(node.GetImageData().GetScalarType(), volumeNode.GetImageData().GetScalarType())
+                computed = voxelArray(node)[0].astype(np.float64)
+                self.assertMapsClose(computed, reference, f"{volumeNode.GetName()} {name}",
+                                     1e-3 * abs(velocities[1] - velocities[0]) if name == "moment 2" else 0.0)
+            slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
         self.delayDisplay("Test passed")
 
     def checkMomentMaps(self, volumeNode):

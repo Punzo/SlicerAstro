@@ -27,10 +27,9 @@
 
 // MRML includes
 #include <vtkMRMLMarkupsROINode.h>
-#include <vtkMRMLAstroLabelMapVolumeDisplayNode.h>
-#include <vtkMRMLAstroLabelMapVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
+#include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLAstroStatisticsParametersNode.h>
 #include <vtkMRMLTableNode.h>
 
@@ -40,6 +39,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkFloatArray.h>
 #include <vtkImageData.h>
+#include <vtkMath.h>
 #include <vtkIntArray.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -54,7 +54,6 @@
 #include <cassert>
 #include <iostream>
 #include <chrono>
-
 
 namespace
 {
@@ -205,21 +204,28 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     return false;
     }
 
-  vtkMRMLAstroLabelMapVolumeNode *maskVolume =
-    vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
-
   bool segmentationActive = false;
   if (!(strcmp(pnode->GetMode(), "Segmentation")))
     {
     segmentationActive = true;
     }
 
-  if((!maskVolume || !maskVolume->GetImageData()) && segmentationActive)
+  // input mask: a segment, on the voxel grid of the data (1 inside)
+  vtkNew<vtkImageData> maskImage;
+  unsigned char* maskVoxels = nullptr;
+  if (segmentationActive)
     {
-    vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
-                  " maskVolume not found!");
-    return false;
+    std::string maskError;
+    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+      maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                      maskImage, maskError))
+      {
+      vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : " << maskError);
+      return false;
+      }
+    maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
   vtkMRMLTableNode* tableNode = pnode->GetTableNode();
@@ -279,7 +285,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       }
     else
       {
-      unitBeamConv = fabs((CDELT1 * CDELT2) / (1.13 * BMAJ * BMIN));
+      // Jy/beam -> Jy: pixel area / area of the Gaussian beam (pi / (4 ln 2) BMAJ BMIN)
+      unitBeamConv = fabs((CDELT1 * CDELT2) / (vtkMath::Pi() / (4. * log(2.)) * BMAJ * BMIN));
       }
     }
 
@@ -291,7 +298,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   float *inFPixel = nullptr;
   double *inDPixel = nullptr;
-  short *maskPixel = nullptr;
+  unsigned char *maskPixel = nullptr;
   double Max = inputVolume->GetImageData()->GetScalarTypeMin(), Min = inputVolume->GetImageData()->GetScalarTypeMax();
   double Mean = 0., Median = 0., Std = 0., Sum = 0., TotalFlux = 0.;
   vtkIdType Npixels = 0;
@@ -312,7 +319,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   bool cancel = false;
 
-
   std::chrono::steady_clock::time_point start, end;
 
   long mtime = 0;
@@ -331,7 +337,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
   if(segmentationActive)
     {
-    maskPixel = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer(0,0,0));
+    maskPixel = maskVoxels;
 
     // Calculate Max, Min, NPixels, Sum
     if (pnode->GetMax() || pnode->GetMin() ||
@@ -409,13 +415,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = nullptr;
-        inDPixel = nullptr;
-        maskPixel = nullptr;
-
-        delete inFPixel;
-        delete inDPixel;
-        delete maskPixel;
 
         computeResult = false;
 
@@ -481,13 +480,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = nullptr;
-        inDPixel = nullptr;
-        maskPixel = nullptr;
-
-        delete inFPixel;
-        delete inDPixel;
-        delete maskPixel;
 
         computeResult = false;
 
@@ -630,13 +622,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = nullptr;
-        inDPixel = nullptr;
-        maskPixel = nullptr;
-
-        delete inFPixel;
-        delete inDPixel;
-        delete maskPixel;
 
         computeResult = false;
 
@@ -706,13 +691,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
 
       if (cancel)
         {
-        inFPixel = nullptr;
-        inDPixel = nullptr;
-        maskPixel = nullptr;
-
-        delete inFPixel;
-        delete inDPixel;
-        delete maskPixel;
 
         computeResult = false;
 
@@ -762,14 +740,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
 
   vtkDebugMacro("Statistics Kernel Time : "<<mtime<<" ms.");
-
-  inFPixel = nullptr;
-  inDPixel = nullptr;
-  maskPixel = nullptr;
-
-  delete inFPixel;
-  delete inDPixel;
-  delete maskPixel;
 
   };
   progressNode->SetStatus(1);

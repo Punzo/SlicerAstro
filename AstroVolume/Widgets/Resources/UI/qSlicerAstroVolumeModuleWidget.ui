@@ -1781,7 +1781,6 @@
        <property name="nodeTypes">
         <stringlist>
          <string>vtkMRMLAstroVolumeNode</string>
-         <string>vtkMRMLAstroLabelMapVolumeNode</string>
         </stringlist>
        </property>
        <property name="noneEnabled">

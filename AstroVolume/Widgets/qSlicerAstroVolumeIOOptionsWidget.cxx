@@ -82,8 +82,6 @@ qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* pa
 
   connect(d->NameLineEdit, SIGNAL(textChanged(QString)),
           this, SLOT(updateProperties()));
-  connect(d->LabelMapCheckBox, SIGNAL(toggled(bool)),
-          this, SLOT(updateProperties()));
   connect(d->CenteredCheckBox, SIGNAL(toggled(bool)),
           this, SLOT(updateProperties()));
   connect(d->SingleFileCheckBox, SIGNAL(toggled(bool)),
@@ -91,10 +89,6 @@ qSlicerAstroVolumeIOOptionsWidget::qSlicerAstroVolumeIOOptionsWidget(QWidget* pa
   connect(d->ColorTableComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
           this, SLOT(updateProperties()));
 
-
-  // need to update the color selector when the label map check box is toggled
-    connect(d->LabelMapCheckBox, SIGNAL(toggled(bool)),
-            this, SLOT(updateColorSelector()));
 
   // Single file by default
   d->SingleFileCheckBox->setChecked(true);
@@ -123,7 +117,6 @@ void qSlicerAstroVolumeIOOptionsWidget::updateProperties()
     {
     d->Properties.remove("name");
     }
-  d->Properties["labelmap"] = d->LabelMapCheckBox->isChecked();
   d->Properties["center"] = d->CenteredCheckBox->isChecked();
   d->Properties["singleFile"] = d->SingleFileCheckBox->isChecked();
   d->Properties["colorNodeID"] = d->ColorTableComboBox->currentNodeID();
@@ -142,7 +135,6 @@ void qSlicerAstroVolumeIOOptionsWidget::setFileNames(const QStringList& fileName
   QStringList names;
   bool onlyNumberInName = false;
   bool onlyNumberInExtension = false;
-  bool hasLabelMapName = false;
 
   vtkNew<vtkMRMLVolumeArchetypeStorageNode> snode;
   for (const QString& fileName : fileNames)
@@ -161,25 +153,12 @@ void qSlicerAstroVolumeIOOptionsWidget::setFileNames(const QStringList& fileName
       onlyNumberInName = QRegularExpression(QRegularExpression::anchoredPattern("[0-9\\.\\-\\_\\@\\(\\)\\~]+")).match(fileBaseName).hasMatch();
       fileInfo.suffix().toInt(&onlyNumberInExtension);
       }
-      // Because '_' is considered as a word character (\w), \b
-      // doesn't consider '_' as a word boundary.
-    QRegularExpression labelMapName("(\\b|_)([Ll]abel(s)?)(\\b|_)");
-    QRegularExpression segName("(\\b|_)([Ss]eg)(\\b|_)");
-    QRegularExpression maskName("(\\b|_)([Mm]ask)(\\b|_)");
-    if (fileInfo.baseName().contains(labelMapName) ||
-        fileInfo.baseName().contains(segName) ||
-        fileInfo.baseName().contains(maskName))
-      {
-      hasLabelMapName = true;
-      }
     }
   d->NameLineEdit->setText( names.join("; ") );
   d->SingleFileCheckBox->setChecked(!onlyNumberInName && !onlyNumberInExtension);
-  d->LabelMapCheckBox->setChecked(hasLabelMapName);
   this->qSlicerIOOptionsWidget::setFileNames(fileNames);
 
-  // update the color selector since the label map check box may not
-  // have changed on setting this new name
+  // color table from the name (e.g. moment maps)
   this->updateColorSelector();
 }
 
@@ -198,48 +177,41 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
   vtkSlicerApplicationLogic* appLogic = qSlicerCoreApplication::application()->applicationLogic();
   if (appLogic && appLogic->GetColorLogic())
     {
-    if (d->LabelMapCheckBox->isChecked())
-      {
-      d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultLabelMapColorNodeID());
-      }
-    else
-      {
-      QString Name = d->Properties["name"].toString();
-      QRegularExpression firstMomentMapName("(\\b|_)([Mm]om1(st)?)(\\b|_)");
-      QRegularExpression secondMomentMapName("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
+    QString Name = d->Properties["name"].toString();
+    QRegularExpression firstMomentMapName("(\\b|_)([Mm]om1(st)?)(\\b|_)");
+    QRegularExpression secondMomentMapName("(\\b|_)([Mm]om2(nd)?)(\\b|_)");
 
-      if (Name.contains(firstMomentMapName))
+    if (Name.contains(firstMomentMapName))
+      {
+      vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "VelocityField"));
+      vtkMRMLColorTableNode *velocityFieldColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
+      if (velocityFieldColorNode)
         {
-        vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
-          (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "VelocityField"));
-        vtkMRMLColorTableNode *velocityFieldColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
-        if (velocityFieldColorNode)
-          {
-          d->ColorTableComboBox->setCurrentNodeID(velocityFieldColorNode->GetID());
-          }
-        else
-          {
-          d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
-          }
-        }
-      else if (Name.contains(secondMomentMapName))
-        {
-        vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
-          (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "Rainbow"));
-        vtkMRMLColorTableNode *rainbowColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
-        if (rainbowColorNode)
-          {
-          d->ColorTableComboBox->setCurrentNodeID(rainbowColorNode->GetID());
-          }
-        else
-          {
-          d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
-          }
+        d->ColorTableComboBox->setCurrentNodeID(velocityFieldColorNode->GetID());
         }
       else
         {
         d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
         }
+      }
+    else if (Name.contains(secondMomentMapName))
+      {
+      vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
+        (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "Rainbow"));
+      vtkMRMLColorTableNode *rainbowColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
+      if (rainbowColorNode)
+        {
+        d->ColorTableComboBox->setCurrentNodeID(rainbowColorNode->GetID());
+        }
+      else
+        {
+        d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
+        }
+      }
+    else
+      {
+      d->ColorTableComboBox->setCurrentNodeID(appLogic->GetColorLogic()->GetDefaultVolumeColorNodeID());
       }
     }
 }
