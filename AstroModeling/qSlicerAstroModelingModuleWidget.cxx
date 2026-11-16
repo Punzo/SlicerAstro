@@ -59,6 +59,7 @@
 #include <vtkGeneralTransform.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
+#include <vtkContextScene.h>
 #include <vtkPlot.h>
 #include <vtkPointData.h>
 #include <vtksys/SystemTools.hxx>
@@ -578,6 +579,18 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
         }
       }
     this->formLayout_2->insertRow(firstRow, this->InitialParametersWidget);
+    // The rows were children of the collapsible button, which filters the
+    // show/hide events of its children to hide them while it is collapsed
+    // (and shows only its children when it expands): moved into the
+    // container, they stayed hidden after a collapse (blank initial
+    // parameters in Manual mode after Create). The button manages the
+    // container only.
+    const QList<QWidget*> movedWidgets = this->InitialParametersWidget->findChildren<QWidget*>();
+    for (QWidget* moved : movedWidgets)
+      {
+      moved->removeEventFilter(this->FittingParametersCollapsibleButton);
+      moved->setProperty("visibilityToParent", QVariant());
+      }
     }
 
   // 3DBarolo parameters (Advanced section)
@@ -3098,6 +3111,24 @@ void qSlicerAstroModelingModuleWidget::onMRMLSliceNodeModified(vtkObject *sender
 //-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidget::onMRMLTableNodeModified()
 {
+  // VTK (vtkPlotPoints::UpdateCache) refills the points of a plot in place
+  // without marking their array modified: the markers, drawn from a vertex
+  // buffer cached by that array, kept the previous values of the rings
+  // (the lines were updated). The plot scenes release their buffers, which
+  // are uploaded again at the next render.
+  qSlicerLayoutManager* layoutManager = qSlicerApplication::application() ?
+    qSlicerApplication::application()->layoutManager() : nullptr;
+  for (int ii = 0; layoutManager && ii < layoutManager->plotViewCount(); ii++)
+    {
+    qMRMLPlotWidget* plotWidget = layoutManager->plotWidget(ii);
+    qMRMLPlotView* plotView = plotWidget ? plotWidget->plotView() : nullptr;
+    if (plotView && plotView->scene())
+      {
+      plotView->scene()->ReleaseGraphicsResources();
+      plotView->update();
+      }
+    }
+
   vtkMRMLSliceNode *yellowSliceNode = vtkMRMLSliceNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceNodeYellow"));
   vtkMRMLSliceNode *greenSliceNode = vtkMRMLSliceNode::SafeDownCast
