@@ -16,6 +16,11 @@ on:
   schedule:
     - cron: "0 3 * * 0"   # weekly, Sunday 03:00 UTC
   workflow_dispatch:
+    inputs:
+      coverage:
+        description: "Also measure the code coverage (linux job)"
+        type: boolean
+        default: false
   push:
     branches: [master, update-slicer-5.13]
     paths-ignore: ["docs/**", "**.md"]
@@ -38,6 +43,8 @@ jobs:
       JOBS: 4
       # 3D Slicer build stopped in time to save the compiler cache
       SLICER_TIME_LIMIT: 290
+      # VTK reports leaked objects: the tests fail on leaks
+      SLICER_VTK_DEBUG_LEAKS: "ON"
     steps:
       - uses: actions/checkout@v4
 
@@ -67,6 +74,30 @@ jobs:
       - name: Errors
         if: failure()
         run: bash .github/ci/annotate-errors.sh "$WORK/build.log" "Build and test errors"
+
+      # weekly (and on demand): SlicerAstro built again with --coverage against
+      # the same 3D Slicer, tests run, C++ and Python reports as an artifact
+      - name: Code coverage
+        id: coverage
+        if: success() && (github.event_name == 'schedule' || inputs.coverage)
+        run: |
+          set -o pipefail
+          .github/ci/coverage/coverage.sh "$GITHUB_WORKSPACE" "$WORK/build/Slicer-build/Slicer-build" "$WORK/coverage-work" 2>&1 | tee "$WORK/coverage.log"
+          echo "::notice title=C++ coverage::$(grep -E '^lines' $WORK/coverage-work/coverage/cxx-summary.txt | head -1)"
+          echo "::notice title=Python coverage::$(cat $WORK/coverage-work/coverage/python-summary.txt)"
+
+      - name: Coverage reports
+        if: always() && steps.coverage.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: |
+            /mnt/work/coverage-work/coverage/cxx/
+            /mnt/work/coverage-work/coverage/python/html/
+            /mnt/work/coverage-work/coverage/*.json
+            /mnt/work/coverage-work/coverage/*.txt
+            /mnt/work/coverage-work/coverage/logs/
+          if-no-files-found: ignore
 
       - name: Save the compiler cache
         if: always()

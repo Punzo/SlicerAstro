@@ -1,0 +1,17 @@
+# coverage.py configuration of the Python coverage of SlicerAstro (coverage.sh):
+# the paths come from the environment
+[run]
+parallel = True
+data_file = ${SLICERASTRO_COVERAGE_DIR}/python/.coverage
+source =
+    ${SLICERASTRO_COVERAGE_MODULES}
+    ${SLICERASTRO_SOURCE_DIR}
+omit =
+    */Testing/*
+    *Test.py
+    */docs/*
+    */.github/*
+    */SuperBuild/*
+
+[html]
+directory = ${SLICERASTRO_COVERAGE_DIR}/python/html

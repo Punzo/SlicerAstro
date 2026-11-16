@@ -16,6 +16,9 @@
 #                     when reached the script stops (exit code 124): the compiler
 #                     cache keeps what was built for the next run
 #   CTEST_EXCLUDE     regular expression of tests not run (default: none)
+#   SLICER_VTK_DEBUG_LEAKS  ON: VTK counts its objects and reports the leaked
+#                     ones at exit (the tests fail on "vtkDebugLeaks has
+#                     detected LEAKS"); default OFF
 #
 # ccache is used if installed (CCACHE_DIR, CCACHE_MAXSIZE).
 set -euo pipefail
@@ -75,7 +78,7 @@ cmake -S Slicer -B Slicer-build \
   -DSlicer_BUILD_USAGE_LOGGING_SUPPORT:BOOL=OFF \
   -DSlicer_USE_QtTesting:BOOL=OFF \
   -DSlicer_USE_SimpleITK:BOOL=OFF \
-  -DSlicer_USE_VTK_DEBUG_LEAKS:BOOL=OFF
+  -DSlicer_USE_VTK_DEBUG_LEAKS:BOOL=${SLICER_VTK_DEBUG_LEAKS:-OFF}
 
 # summary lines as GitHub annotations (readable without the job log)
 notice() { [ -n "${GITHUB_ACTIONS:-}" ] && echo "::notice title=$1::$2" || echo "== $1: $2"; }
