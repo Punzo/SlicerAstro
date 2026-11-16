@@ -163,7 +163,8 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_DataTypes, self.test_WesterborkUnits, self.test_Projections,
-                     self.test_CelestialFrames, self.test_SpectralAxes, self.test_Dimensions,
+                     self.test_CelestialFrames, self.test_SpectralAxes, self.test_HeaderDialects,
+                     self.test_Dimensions,
                      self.test_MissingWCS, self.test_Extension, self.test_Compression, self.test_RoundTrip,
                      self.test_Memory, self.test_LargeCube):
             self.setUp()
@@ -357,6 +358,93 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
                     self.assertAlmostEqual(self.world(node, (2, 2, k))[2], radio[k], delta=1.e-3)
         self.delayDisplay("Test passed")
 
+    def test_HeaderDialects(self):
+        """Headers of older software: GIPSY frequency axes with the velocity
+        in VELR or DRVAL3 (converted to barycentric frequencies, worked
+        examples of the Kapteyn Package documentation, "Spectral coordinates:
+        background information"), the rest frequency derived from DRVAL3,
+        and the standard WCS of a DSS image whose plate solution WCSLIB
+        could not translate."""
+        self.delayDisplay("Header dialects")
+        c = SPEED_OF_LIGHT
+        data = cubeData()
+
+        # GIPSY: topocentric frequency axis and barycentric velocity of the
+        # reference pixel; (cards, convention, barycentric CRVAL3 and CDELT3 [Hz], velocity [m/s])
+        f0 = 1.420405752e9
+        gipsy = {
+            "optical_velr": ([("CTYPE3", "FREQ-OHEL"), ("CRVAL3", 1418921567.851), ("CDELT3", -9765.625),
+                              ("CUNIT3", "HZ"), ("VELR", 304000.0)],
+                             "VOPT", 1418966870.14, -9765.3132202, 304000.0),
+            "optical_drval": ([("CTYPE3", "FREQ-OLSR"), ("CRVAL3", 1378.35117405), ("CDELT3", 0.09765625),
+                               ("CUNIT3", "MHZ"), ("DRVAL3", 9120.0), ("DUNIT3", "KM/S")],
+                              "VOPT", 1378471216.43, 97647.745732, 9120000.0),
+            "radio_velr": ([("CTYPE3", "FREQ-RHEL"), ("CRVAL3", 1.37835117405), ("CDELT3", 9.765625e-5),
+                            ("CUNIT3", "GHZ"), ("VELR", 8850750.904)],
+                           "VRAD", 1378471216.43, 97647.745732, 8850750.904),
+            "radio_khz": ([("CTYPE3", "FREQ-RLSR"), ("CRVAL3", 1378351.17405), ("CDELT3", 97.65625),
+                           ("CUNIT3", "KHZ"), ("DRVAL3", 8850750.904), ("DUNIT3", "M/S")],
+                          "VRAD", 1378471216.43, 97647.745732, 8850750.904),
+        }
+        for name, (spectral, definition, crval3, cdelt3, velocity) in gipsy.items():
+            path = os.path.join(self.directory, f"gipsy_{name}.fits")
+            writeFITS(path, data, -32, celestialWCS() + spectral + [("CRPIX3", 1.0), ("RESTFREQ", f0)] + beamCards())
+            node = self.load(path)
+            self.assertIsNotNone(node, name)
+            displayNode = node.GetAstroVolumeDisplayNode()
+            self.assertEqual(displayNode.GetWCSStatus(), 0, name)
+            self.assertEqual(displayNode.GetVelocityDefinition()[:4], definition, name)
+            # velocities of the channels from the barycentric frequencies
+            # (0.5 m/s: about 2 Hz), and the velocity of the reference pixel
+            for k in range(data.shape[0]):
+                frequency = crval3 + cdelt3 * k
+                expected = c * (f0 / frequency - 1.0) if definition == "VOPT" else c * (1.0 - frequency / f0)
+                self.assertAlmostEqual(self.world(node, (2, 2, k))[2], expected, delta=0.5,
+                                       msg=f"{name}: channel {k}")
+            self.assertAlmostEqual(self.world(node, (2, 2, 0))[2], velocity, delta=0.5, msg=name)
+
+        # no rest frequency: derived from the velocity (DRVAL3) and the
+        # frequency (CRVAL3) of the reference pixel
+        derived = {
+            "mhz_kms": ([("CRVAL3", 1415.0), ("CDELT3", -0.1), ("CUNIT3", "MHZ"),
+                         ("DRVAL3", 1000.0), ("DUNIT3", "KM/S")], 1415.0e6, 1.0e6),
+            "hz_ms": ([("CRVAL3", 1.415e9), ("CDELT3", -1.0e5), ("CUNIT3", "Hz"),
+                       ("DRVAL3", 2.0e6), ("DUNIT3", "M/S")], 1.415e9, 2.0e6),
+            "ghz_kms": ([("CRVAL3", 1.415), ("CDELT3", -1.0e-4), ("CUNIT3", "GHZ"),
+                         ("DRVAL3", 500.0), ("DUNIT3", "km/s")], 1.415e9, 5.0e5),
+        }
+        for name, (spectral, frequency, velocity) in derived.items():
+            path = os.path.join(self.directory, f"restfreq_{name}.fits")
+            writeFITS(path, data, -32, celestialWCS() + [("CTYPE3", "FREQ"), ("CRPIX3", 1.0)] + spectral + beamCards())
+            node = self.load(path)
+            self.assertIsNotNone(node, name)
+            expected = frequency * np.sqrt((c + velocity) / (c - velocity))
+            self.assertAlmostEqual(float(node.GetAttribute("SlicerAstro.RESTFREQ")) / expected, 1.0, delta=1.e-9,
+                                   msg=name)
+
+        # DSS image whose plate solution (here only a PPO keyword) WCSLIB can
+        # not translate: the standard WCS of the header (PC matrix, also in
+        # the PC00i00j form) is used
+        image = cubeData((5, 6))
+        angle = np.radians(20.0)
+        pc = [("PC1_1", np.cos(angle)), ("PC1_2", -np.sin(angle)), ("PC2_1", np.sin(angle)), ("PC2_2", np.cos(angle))]
+        oldPc = [("PC00" + key[2] + "00" + key[4], value) for key, value in pc]
+        celestial = celestialWCS("TAN", crval=(150.0, 20.0))
+        referencePath = os.path.join(self.directory, "dss_reference.fits")
+        writeFITS(referencePath, image, -32, celestial + pc)
+        reference = self.load(referencePath)
+        self.assertIsNotNone(reference)
+        for name, matrix in (("pc", pc), ("pc00", oldPc)):
+            path = os.path.join(self.directory, f"dss_{name}.fits")
+            writeFITS(path, image, -32, celestial + matrix + [("PPO3", 0.0)])
+            node = self.load(path)
+            self.assertIsNotNone(node, name)
+            self.assertEqual(node.GetAttribute("SlicerAstro.DSS"), "1", name)
+            self.assertEqual(node.GetAstroVolumeDisplayNode().GetWCSStatus(), 0, name)
+            for ijk in ((0, 0, 0), (2, 2, 0), (5, 4, 0), (1, 3, 0)):
+                self.assertWorld(node, ijk, self.world(reference, ijk)[:2])
+        self.delayDisplay("Test passed")
+
     def test_Dimensions(self):
         """2D images, 4D cubes with a degenerate Stokes axis; polarization cubes
         (NAXIS4 > 1) are rejected."""
@@ -369,6 +457,23 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(node.GetImageData().GetDimensions(), (6, 5, 1))
         self.assertVoxels(node, image[np.newaxis])
         self.assertWorld(node, (2, 2, 0), (180.0, 30.0))
+
+        # a spectrum stored as an image with one row (NAXIS2 = 1): one dimension
+        spectrum = cubeData((1, 6))
+        path = os.path.join(self.directory, "spectrum.fits")
+        writeFITS(path, spectrum, -32, [("CTYPE1", "VRAD"), ("CRVAL1", 1000.0), ("CDELT1", 5000.0),
+                                        ("CRPIX1", 1.0), ("CUNIT1", "m/s"), ("CTYPE2", "DEC--SIN"),
+                                        ("CRVAL2", 30.0), ("CDELT2", 0.001), ("CRPIX2", 1.0),
+                                        ("CUNIT2", "deg"), ("BUNIT", "JY/BEAM")])
+        node = self.load(path)
+        self.assertIsNotNone(node)
+        self.assertEqual(node.GetAttribute("SlicerAstro.NAXIS"), "1")
+        self.assertIsNone(node.GetAttribute("SlicerAstro.CTYPE2"))
+        self.assertEqual(node.GetImageData().GetDimensions(), (6, 1, 1))
+        self.assertVoxels(node, spectrum[np.newaxis])
+        self.assertEqual(node.GetAstroVolumeDisplayNode().GetWCSStatus(), 0)
+        for k in (0, 3, 5):
+            self.assertAlmostEqual(self.world(node, (k, 0, 0))[0], 1000.0 + 5000.0 * k, delta=1.e-6)
 
         stokes = [("CTYPE4", "STOKES"), ("CRVAL4", 1.0), ("CDELT4", 1.0), ("CRPIX4", 1.0)]
         cube = cubeData()

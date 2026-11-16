@@ -213,7 +213,8 @@ class SlicerAstroDataProbeTest(ScriptedLoadableModuleTest):
     """Run as few or as many tests as needed here.
     """
     for test in (self.test_Override, self.test_CubeReadout, self.test_ImageReadout,
-                 self.test_NoWCS, self.test_ScalarVolume):
+                 self.test_B1950Readout, self.test_NoWCS, self.test_ScalarVolume,
+                 self.test_AnnotationsSettings):
       self.setUp()
       test()
 
@@ -317,6 +318,64 @@ class SlicerAstroDataProbeTest(ScriptedLoadableModuleTest):
     print(description)
     self.assertIn("WCS[", description)
     self.assertNotIn("km/s", description)
+
+  def test_B1950Readout(self):
+    """FK4 coordinates (equinox 1950): Besselian equinox in the readout."""
+    import numpy as np
+    data = np.ones((23, 31), dtype=np.float32)
+    cards = [(key, "FK4") if key == "RADESYS" else (key, 1950.) if key == "EQUINOX" else (key, value)
+             for key, value in self.CELESTIAL]
+    volumeNode = self.writeFITS("probe_b1950.fits", data, cards)
+    sliceNode, sliceLogic, xyz = self.showInRedView(volumeNode)
+    description = slicer.modules.DataProbeInstance.infoWidget.generateViewDescription(
+      xyz, [0., 0., 0.], sliceNode, sliceLogic)
+    print(description)
+    self.assertIn("B1950", description)
+    self.assertNotIn("J2000", description)
+
+  def test_AnnotationsSettings(self):
+    """Color, font family and size of the module panel are used by the WCS
+    axes labels of the slice views (and the color by the beam)."""
+    import numpy as np
+    data = np.ones((11, 23, 31), dtype=np.float32)
+    volumeNode = self.writeFITS("probe_annotations.fits", data, self.CELESTIAL + self.SPECTRAL)
+    self.showInRedView(volumeNode)
+    widget = slicer.modules.slicerastrodataprobe.widgetRepresentation().self()
+    widget.colorSelector.setColor(qt.QColor(51, 102, 204))
+    widget.styleComboBox.setCurrentText("Courier")
+    widget.sizeSpinBox.setValue(17)
+
+    sliceView = slicer.app.layoutManager().sliceWidget("Red").sliceView()
+    managers = vtk.vtkCollection()
+    sliceView.getDisplayableManagers(managers)
+    axesManager = None
+    for index in range(managers.GetNumberOfItems()):
+      manager = managers.GetItemAsObject(index)
+      if manager.GetClassName() == "vtkMRMLAstroTwoDAxesDisplayableManager":
+        axesManager = manager
+    self.assertIsNotNone(axesManager)
+    sliceView.forceRender()
+    slicer.app.processEvents()
+
+    labels = []
+    actors = axesManager.vtkMarkerRenderer().GetActors2D()
+    actors.InitTraversal()
+    for _ in range(actors.GetNumberOfItems()):
+      actor = actors.GetNextActor2D()
+      if actor.IsA("vtkTextActor") and actor.GetVisibility() and actor.GetInput():
+        labels.append(actor)
+    self.assertGreater(len(labels), 0, "no WCS axes labels")
+    for label in labels:
+      properties = label.GetTextProperty()
+      self.assertEqual(properties.GetFontFamilyAsString(), "Courier")
+      self.assertEqual(properties.GetFontSize(), 17)
+      for component, expected in zip(label.GetProperty().GetColor(), (51 / 255., 102 / 255., 204 / 255.)):
+        self.assertAlmostEqual(component, expected, places=6)
+
+    # back to the defaults of the panel
+    widget.colorSelector.setColor(qt.QColor(255, 187, 20))
+    widget.styleComboBox.setCurrentText("Arial")
+    widget.sizeSpinBox.setValue(12)
 
   def test_NoWCS(self):
     """A cube without world coordinates is described in voxel coordinates."""

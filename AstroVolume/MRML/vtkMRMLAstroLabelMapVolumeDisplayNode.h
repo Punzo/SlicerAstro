@@ -61,9 +61,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
   /// Copy WCS to this object
   virtual void CopyWCS(vtkMRMLNode *node);
 
-  /// Copy only the spatial WCS information to this object
-  virtual void CopySpatialWCS(vtkMRMLNode *node);
-
   /// Get node XML tag name (like Volume, Model)
   virtual const char* GetNodeTagName() override {return "AstroLabelMapVolumeDisplay";};
 
@@ -110,10 +107,6 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroLabelMapVolumeDisplayNode : public vtkMR
 
   /// Get IJK Coordinates from WCS
   virtual bool GetIJKSpace(const double SpaceCoordinates[3],
-                           double ijk[3]);
-
-  /// Get IJK Coordinates from WCS
-  virtual bool GetIJKSpace(std::vector<double> SpaceCoordinates,
                            double ijk[3]);
 
   /// Get the first tick for the display of axes at given unitNode in WCS units

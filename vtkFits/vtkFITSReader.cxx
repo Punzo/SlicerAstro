@@ -364,7 +364,6 @@ private:
 vtkFITSReader::vtkFITSReader()
 {
   this->RasToIjkMatrix = nullptr;
-  this->HeaderKeys = nullptr;
   this->CurrentFileName = nullptr;
   this->UseNativeOrigin = true;
   this->fptr = nullptr;
@@ -394,11 +393,6 @@ vtkFITSReader::~vtkFITSReader()
     this->RasToIjkMatrix = nullptr;
     }
 
-  if (this->HeaderKeys)
-    {
-    delete [] this->HeaderKeys;
-    this->HeaderKeys = nullptr;
-    }
 
   if (this->CurrentFileName)
     {
@@ -516,34 +510,6 @@ vtkMatrix4x4* vtkFITSReader::GetRasToIjkMatrix()
 {
   this->ExecuteInformation();
   return this->RasToIjkMatrix;
-}
-
-//----------------------------------------------------------------------------
-char* vtkFITSReader::GetHeaderKeys()
-{
-  std::string keys;
-  for (std::map<std::string,std::string>::iterator i = HeaderKeyValue.begin();
-       i != this->HeaderKeyValue.end(); i++)
-    {
-    std::string s = static_cast<std::string> (i->first);
-    if (i != this->HeaderKeyValue.begin())
-      {
-      keys = keys + " ";
-      }
-    keys = keys + s;
-    }
-  if (this->HeaderKeys)
-    {
-    delete [] this->HeaderKeys;
-    }
-  this->HeaderKeys = nullptr;
-
-  if (keys.size() > 0)
-    {
-    this->HeaderKeys = new char[keys.size()+1];
-    strcpy(this->HeaderKeys, keys.c_str());
-    }
-  return this->HeaderKeys;
 }
 
 //----------------------------------------------------------------------------
@@ -2297,7 +2263,7 @@ int vtkFITSReader::FixGipsyHeader()
       !this->HeaderKeyValue.at("SlicerAstro.CTYPE3").compare(GipsyKeywords[1].c_str());
     if (this->GipsyOpticalVelocity)
       {
-      freqB = freq0 * (1. + (vel / c));
+      freqB = freq0 / (1. + (vel / c));
       }
     else
       {
@@ -2568,10 +2534,11 @@ bool vtkFITSReader::AllocateWCS()
     }
   else if (n == 1 && readWcsAxis >= 1)
     {
+    // the first axis, whatever its type (e.g. the spectral axis of a spectrum)
     nsub = 1;
-    axes[0] = WCSSUB_LONGITUDE;
-    axes[1] = -WCSSUB_LATITUDE;
-    axes[2] = -WCSSUB_SPECTRAL;
+    axes[0] = 1;
+    axes[1] = 0;
+    axes[2] = 0;
     }
   else
     {
@@ -2592,7 +2559,21 @@ bool vtkFITSReader::AllocateWCS()
     }
 
   // set internally the wcs
-  if ((this->WCSStatus = wcsset(this->WCS)))
+  const bool dssHeader = !strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1");
+  if ((this->WCSStatus = wcsset(this->WCS)) && dssHeader &&
+      (this->WCS->lin.dispre != nullptr || this->WCS->lin.disseq != nullptr))
+    {
+    // DSS plate solution that WCSLIB could not translate (e.g. incomplete:
+    // singular distortion): the standard WCS of the header is used instead
+    vtkFITSHeaderMessageMacro(vtkFITSReader::HeaderWarning, "the DSS plate solution could not be used ("
+                    << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS)
+                    << "): the standard WCS keywords are used.");
+    lindist(1, &this->WCS->lin, nullptr, 0);
+    lindist(2, &this->WCS->lin, nullptr, 0);
+    this->WCS->flag = 0;
+    this->WCSStatus = 0;
+    }
+  else if (this->WCSStatus)
     {
     vtkErrorMacro("vtkFITSReader::AllocateWCS: " << vtkAstroWCSErrorMessage("wcsset", this->WCSStatus, this->WCS));
     }
@@ -2616,7 +2597,7 @@ bool vtkFITSReader::AllocateWCS()
   // astrometry of the plate). The standard WCS of the header (an approximation
   // of the plate solution) is used only when WCSLIB could not translate it.
   const bool dssDistortion = this->WCS->lin.dispre != nullptr || this->WCS->lin.disseq != nullptr;
-  if (!strcmp(this->HeaderKeyValue["SlicerAstro.DSS"].c_str(), "1") && !dssDistortion)
+  if (dssHeader && !dssDistortion)
     {
     if (this->WCS->naxis != 2)
       {
@@ -2700,65 +2681,33 @@ bool vtkFITSReader::AllocateWCS()
     this->WCS->cd[2] = 0.;
     this->WCS->cd[3] = 0.;
 
-    if (this->HeaderKeyValue.find("SlicerAstro.PC1_1") != this->HeaderKeyValue.end())
+    // PCi_j, or the old PC00i00j form (missing keywords are "0." in the header map)
+    const char* pcKeys[2][4] = { { "PC1_1", "PC1_2", "PC2_1", "PC2_2" },
+                                 { "PC001001", "PC001002", "PC002001", "PC002002" } };
+    bool pcFound = false;
+    for (int form = 0; form < 2 && !pcFound; form++)
       {
-      this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_1").c_str());
+      double pc[4] = { 0., 0., 0., 0. };
+      for (int ii = 0; ii < 4; ii++)
+        {
+        std::map<std::string, std::string>::const_iterator value =
+          this->HeaderKeyValue.find(std::string("SlicerAstro.") + pcKeys[form][ii]);
+        pc[ii] = value != this->HeaderKeyValue.end() ? StringToDouble(value->second.c_str()) : 0.;
+        }
+      if (fabs(pc[0] * pc[3] - pc[1] * pc[2]) > 1.E-12)
+        {
+        std::copy(pc, pc + 4, this->WCS->pc);
+        pcFound = true;
+        }
       }
-    if (fabs(this->WCS->pc[0]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC001001") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[0] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001001").c_str());
-      }
-    else
-      {
-      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
-                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
-      return false;
-      }
-
-    if (this->HeaderKeyValue.find("SlicerAstro.PC1_2") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC1_2").c_str());
-      }
-    if (fabs(this->WCS->pc[1]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC001002") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[1] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC001002").c_str());
-      }
-    else
+    if (!pcFound)
       {
       vtkErrorMacro("vtkFITSReader::AllocateWCS: "
                     "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
       return false;
       }
-
-    if (this->HeaderKeyValue.find("SlicerAstro.PC2_1") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_1").c_str());
-      }
-    if (fabs(this->WCS->pc[2]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC002001") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[2] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002001").c_str());
-      }
-    else
-      {
-      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
-                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
-      return false;
-      }
-
-    if (this->HeaderKeyValue.find("SlicerAstro.PC2_2") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC2_2").c_str());
-      }
-    if (fabs(this->WCS->pc[3]) < 1.E-6 && this->HeaderKeyValue.find("SlicerAstro.PC002002") != this->HeaderKeyValue.end())
-      {
-      this->WCS->pc[3] = StringToDouble(this->HeaderKeyValue.at("SlicerAstro.PC002002").c_str());
-      }
-    else
-      {
-      vtkErrorMacro("vtkFITSReader::AllocateWCS: "
-                    "DSS image PC Matrix not found. Provide DSS image with PC matrix.");
-      return false;
-      }
+    // the linear transformation is the PC matrix and CDELT (CD and CROTA cleared)
+    this->WCS->altlin = 1;
 
     this->WCS->flag = 0;
     }

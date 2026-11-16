@@ -1,6 +1,7 @@
 import numpy as np
 
 import slicer
+import vtk
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
     ScriptedLoadableModuleLogic,
@@ -96,8 +97,9 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        self.setUp()
-        self.test_AstroMomentMapsSelfTest()
+        for test in (self.test_AstroMomentMapsSelfTest, self.test_DoublePrecision):
+            self.setUp()
+            test()
 
     def assertMapsClose(self, computed, expected, name, zeroTolerance=0.0):
         # moments are accumulated in the output type (float32): relative tolerance
@@ -119,6 +121,27 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Loading WEIN069")
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
         self.assertIsNotNone(volumeNode)
+        self.checkMomentMaps(volumeNode)
+        self.delayDisplay("Test passed")
+
+    def test_DoublePrecision(self):
+        """64-bit cube (BITPIX -64): double moment maps, equal to the reference."""
+        import AstroSampleData
+        from AstroVolumeLogicTest import doublePrecisionCopy
+
+        self.delayDisplay("Loading WEIN069 (double precision)")
+        floatNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(floatNode)
+        volumeNode = doublePrecisionCopy(floatNode, "WEIN069_double")
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        maps = self.checkMomentMaps(volumeNode)
+        for node in maps:
+            self.assertEqual(node.GetImageData().GetScalarType(), vtk.VTK_DOUBLE, node.GetName())
+        self.delayDisplay("Test passed")
+
+    def checkMomentMaps(self, volumeNode):
+        """Moment maps 0, 1, 2 of the volume (above 3 RMS) computed by the
+        module, compared with numpy; returns the map nodes."""
         rms = volumeNode.GetDisplayThreshold()
 
         mainWindow = slicer.util.mainWindow()
@@ -126,6 +149,7 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         mainWindow.moduleSelector().selectModule("AstroMomentMaps")
 
         parametersNode = slicer.util.getNode("AstroMomentMapsParameters")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
         parametersNode.SetMaskActive(False)
         parametersNode.SetGenerateZero(True)
         parametersNode.SetGenerateFirst(True)
@@ -136,12 +160,13 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         widget = slicer.modules.astromomentmaps.widgetRepresentation()
         slicer.util.findChild(widget, "ApplyButton").click()
 
-        maps = []
+        nodes, maps = [], []
         for nodeID in (parametersNode.GetZeroMomentVolumeNodeID(),
                        parametersNode.GetFirstMomentVolumeNodeID(),
                        parametersNode.GetSecondMomentVolumeNodeID()):
             node = slicer.mrmlScene.GetNodeByID(nodeID)
             self.assertIsNotNone(node)
+            nodes.append(node)
             maps.append(voxelArray(node)[0].astype(np.float64))
 
         velocities, zmin, zmax = channelRange(volumeNode, parametersNode)
@@ -154,5 +179,4 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
                 ("moment 0", "moment 1", "moment 2"), maps, expected, (0.0, 0.0, 1e-3 * channelWidth)):
             self.assertEqual(computed.shape, reference.shape)
             self.assertMapsClose(computed, reference, name, zeroTolerance)
-
-        self.delayDisplay("Test passed")
+        return nodes

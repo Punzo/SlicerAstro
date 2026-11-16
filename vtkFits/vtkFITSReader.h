@@ -56,12 +56,6 @@ public:
   vtkMatrix4x4* GetRasToIjkMatrix();
 
   ///
-  /// Get a space separated list of all keys in the header
-  /// the string is allocated and deleted in this object.  This method
-  /// does not support spaces in key names.
-  char* GetHeaderKeys();
-
-  ///
   /// Get a list of keys in the header. Preferred method to use as it
   /// supports spaces in key names.
   std::vector<std::string> GetHeaderKeysVector();
@@ -202,7 +196,6 @@ protected:
 
   vtkMatrix4x4* RasToIjkMatrix;
 
-  char* HeaderKeys;
   char* CurrentFileName;
 
   int PointDataType;

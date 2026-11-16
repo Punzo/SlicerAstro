@@ -10,7 +10,11 @@ Qt 6) with new features.
 - FITS: gzip (`.fits.gz`, without temporary copies in memory) and
   tile-compressed (`.fz`) files, cubes of more than 2³¹ voxels, integer
   masks (SoFiA), headers kept when saving, frequency and wavelength axes,
-  CO and other lines.
+  CO and other lines, one-dimensional spectra with their spectral axis.
+- Corrected GIPSY headers with optical velocities (FREQ-OHEL, FREQ-OLSR:
+  the barycentric frequency of the reference pixel had the wrong sign of the
+  velocity) and DSS images whose plate solution cannot be used (the standard
+  WCS keywords are used instead).
 - New sample data: NGC 2403, NGC 891, NGC 3198, NGC 4631 (HALOGAS), the
   Antennae galaxies (HI, CO, MUSE, optical), WEIN069 with its SoFiA mask and
   catalogue.

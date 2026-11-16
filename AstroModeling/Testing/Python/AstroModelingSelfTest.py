@@ -3,6 +3,7 @@ import time
 import numpy as np
 
 import slicer
+import vtk
 from slicer.ScriptedLoadableModule import (
     ScriptedLoadableModule,
     ScriptedLoadableModuleLogic,
@@ -48,7 +49,7 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_EstimateInitialParameters, self.test_CreateFitAndUpdate,
-                     self.test_CancelFit):
+                     self.test_CancelFit, self.test_DoublePrecision):
             self.setUp()
             test()
 
@@ -199,6 +200,40 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         # the module runs again after a cancel
         parametersNode.SetNumberOfRings(2)
         self.runOperation(parametersNode, widget.onCreate)
+
+    def test_DoublePrecision(self):
+        """64-bit cube (BITPIX -64): estimate, model and model from the table;
+        the model equals the one of the 32-bit cube."""
+        from AstroVolumeLogicTest import doublePrecisionCopy
+
+        floatNode, widget, parametersNode = self.openModule()
+        volumeNode = doublePrecisionCopy(floatNode, "NGC2403_double")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+        self.estimate(widget, parametersNode)
+        parametersNode.SetMode("Manual")
+        parametersNode.SetNumberOfRings(4)
+        parametersNode.SetRadSep(120.)
+        parametersNode.SetInclinationFit(False)
+        parametersNode.SetPositionAngleFit(False)
+        self.runOperation(parametersNode, widget.onCreate)
+        modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertIsNotNone(modelNode)
+        self.assertEqual(modelNode.GetImageData().GetScalarType(), vtk.VTK_DOUBLE)
+        doubleModel = voxelArray(modelNode).astype(np.float64).copy()
+        peak = np.nanmax(np.abs(doubleModel))
+        self.assertGreater(peak, 0.)
+
+        # model from the (not edited) ring table
+        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        recomputed = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
+        self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(doubleModel))), 1e-3 * peak)
+
+        # same parameters on the 32-bit cube
+        parametersNode.SetInputVolumeNodeID(floatNode.GetID())
+        self.runOperation(parametersNode, widget.onCreate)
+        floatModel = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
+        self.assertEqual(floatModel.shape, doubleModel.shape)
+        self.assertLess(np.nanmax(np.abs(np.nan_to_num(floatModel) - np.nan_to_num(doubleModel))), 1e-3 * peak)
 
     def test_EstimateInitialParameters(self):
         """Only the estimate of the initial parameters is tested: it is fast,
