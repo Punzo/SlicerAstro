@@ -2566,6 +2566,12 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
     qCritical() << Q_FUNC_INFO << ": input volume not found!";
     return;
     }
+  // the mask of the fit: the normalization of the model (LOCAL, AZIM) uses it
+  if (d->parametersNode->GetMaskActive() && !this->convertSelectedSegmentToLabelMap())
+    {
+    qCritical() << Q_FUNC_INFO << ": convertSelectedSegmentToLabelMap failed!";
+    return;
+    }
   d->restoreRadioVelocity = !strncmp(inputVolumeDisplayNode->GetVelocityDefinition().c_str(), "VRAD", 4);
   if (d->restoreRadioVelocity)
     {
@@ -4981,6 +4987,13 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
   // Calculate and Visualize Model: visualization of the model of the table
   if (d->parametersNode && d->parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::UPDATE)
     {
+    // temporary label map of the mask (onCalculateAndVisualize)
+    vtkMRMLNode* maskVolume = this->mrmlScene() && d->parametersNode->GetMaskVolumeNodeID() ?
+      this->mrmlScene()->GetNodeByID(d->parametersNode->GetMaskVolumeNodeID()) : nullptr;
+    if (maskVolume)
+      {
+      this->mrmlScene()->RemoveNode(maskVolume);
+      }
     this->finishCalculateAndVisualize(d->worker->GetLastResult() != 0);
     d->parametersNode->SetStatus(0);
     return;

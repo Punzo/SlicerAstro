@@ -375,6 +375,14 @@ void RunGalfitStage(Model::Galfit<T>* fit, vtkMRMLAstroModelingParametersNode* p
 }
 
 //----------------------------------------------------------------------------
+// Value of a cell of the rings table, with full precision (the cell text has
+// 6 significant digits)
+double TableValue(vtkMRMLTableNode* tableNode, int row, int column)
+{
+  return tableNode->GetTable()->GetValue(row, column).ToDouble();
+}
+
+//----------------------------------------------------------------------------
 // Final model of the output rings, with the progress (rings done, then the
 // convolution with the beam) in [progressFrom, progressTo]
 template <class T>
@@ -1301,10 +1309,16 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         // can differ (e.g. the position angles refined ring by ring with a 2D
         // tilted-ring model): the UI shows their median.
         Rings<float>* initialRings = this->Internal->fitF->Inrings();
-        RejectOutlierInitialRings(initialRings);
-        RejectOutlierInitialRings(this->Internal->fitF->Outrings());
-        ExtrapolateInnerRotationVelocity(initialRings);
-        ExtrapolateInnerRotationVelocity(this->Internal->fitF->Outrings());
+        // Guards against meaningless initial rings, for Estimate and Create
+        // (the model uses the initial rings, no fit corrects them). A fit
+        // starts from the initial rings of 3DBarolo, as upstream 3DBarolo.
+        if (pnode->GetOperation() != vtkMRMLAstroModelingParametersNode::FIT)
+          {
+          RejectOutlierInitialRings(initialRings);
+          RejectOutlierInitialRings(this->Internal->fitF->Outrings());
+          ExtrapolateInnerRotationVelocity(initialRings);
+          ExtrapolateInnerRotationVelocity(this->Internal->fitF->Outrings());
+          }
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
@@ -1560,10 +1574,16 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
         // can differ (e.g. the position angles refined ring by ring with a 2D
         // tilted-ring model): the UI shows their median.
         Rings<double>* initialRings = this->Internal->fitD->Inrings();
-        RejectOutlierInitialRings(initialRings);
-        RejectOutlierInitialRings(this->Internal->fitD->Outrings());
-        ExtrapolateInnerRotationVelocity(initialRings);
-        ExtrapolateInnerRotationVelocity(this->Internal->fitD->Outrings());
+        // Guards against meaningless initial rings, for Estimate and Create
+        // (the model uses the initial rings, no fit corrects them). A fit
+        // starts from the initial rings of 3DBarolo, as upstream 3DBarolo.
+        if (pnode->GetOperation() != vtkMRMLAstroModelingParametersNode::FIT)
+          {
+          RejectOutlierInitialRings(initialRings);
+          RejectOutlierInitialRings(this->Internal->fitD->Outrings());
+          ExtrapolateInnerRotationVelocity(initialRings);
+          ExtrapolateInnerRotationVelocity(this->Internal->fitD->Outrings());
+          }
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
@@ -1873,7 +1893,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Dens->SetValue(ii, this->Internal->fitF->Outrings()->dens[ii] * 1.E-20);
+        Dens->SetValue(ii, this->Internal->fitF->Outrings()->dens[ii]);
         }
       }
 
@@ -1964,7 +1984,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
       {
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
-        Dens->SetValue(ii, this->Internal->fitD->Outrings()->dens[ii] * 1.E-20);
+        Dens->SetValue(ii, this->Internal->fitD->Outrings()->dens[ii]);
         }
       }
 
@@ -2118,6 +2138,22 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
   if (!this->Internal->fitF && !this->Internal->fitD)
     {
+    short* maskPointer = nullptr;
+    if (pnode->GetMaskActive())
+      {
+      vtkMRMLAstroLabelMapVolumeNode *maskVolume =
+        vtkMRMLAstroLabelMapVolumeNode::SafeDownCast
+          (this->GetMRMLScene()->GetNodeByID(pnode->GetMaskVolumeNodeID()));
+      if (!maskVolume || !maskVolume->GetImageData() ||
+          !maskVolume->GetImageData()->GetScalarPointer())
+        {
+        vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
+                      " maskVolume not found!");
+        return 0;
+        }
+      maskPointer = static_cast<short*> (maskVolume->GetImageData()->GetScalarPointer());
+      }
+
     if (this->Internal->par != nullptr)
       {
       delete this->Internal->par;
@@ -2350,8 +2386,10 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
     this->Internal->par->getParGF().CDENS = pnode->GetCloudsColumnDensity();
 
     this->Internal->par->getParGF().flagADRIFT = pnode->GetADRIFTCorrection();
+    // same mask as the fit (OperateModel): the user's mask, otherwise the
+    // source search (3DBarolo's default SEARCH mask). The LOCAL and AZIM
+    // normalizations of the model depend on it.
     this->Internal->par->getParSE().flagSearch = false;
-    this->Internal->par->setMASK("SMOOTH");
     this->Internal->par->setBeamFWHM(this->Internal->par->getBeamFWHM()/3600.);
     this->Internal->par->getParGF().TOL = pnode->GetTollerance();
 
@@ -2431,6 +2469,14 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         this->Internal->cubeF->saveHead(*this->Internal->head);
         this->Internal->cubeF->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
         this->Internal->cubeF->setCube(static_cast<float*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
+        if (maskPointer)
+          {
+          bool* mask = this->Internal->cubeF->allocateMask();
+          for (vtkIdType ii = 0; ii < numElements; ii++)
+            {
+            mask[ii] = maskPointer[ii] > 0;
+            }
+          }
 
         this->Internal->fitF = new Model::Galfit<float>(this->Internal->cubeF);
         break;
@@ -2446,6 +2492,14 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
         this->Internal->cubeD->saveHead(*this->Internal->head);
         this->Internal->cubeD->Head().setCrota(StringToDouble(inputVolume->GetAttribute("SlicerAstro.CROTA2")));
         this->Internal->cubeD->setCube(static_cast<double*> (inputVolume->GetImageData()->GetScalarPointer()), dims);
+        if (maskPointer)
+          {
+          bool* mask = this->Internal->cubeD->allocateMask();
+          for (vtkIdType ii = 0; ii < numElements; ii++)
+            {
+            mask[ii] = maskPointer[ii] > 0;
+            }
+          }
 
         this->Internal->fitD = new Model::Galfit<double>(this->Internal->cubeD);
         break;
@@ -2500,39 +2554,28 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
         this->Internal->fitF->Outrings()->xpos.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnXPos).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnXPos));
         this->Internal->fitF->Outrings()->ypos.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnYPos).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnYPos));
         this->Internal->fitF->Outrings()->vsys.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys));
         this->Internal->fitF->Outrings()->radii.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
         this->Internal->fitF->Outrings()->vrot.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot));
         this->Internal->fitF->Outrings()->vrad.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad));
         this->Internal->fitF->Outrings()->vdisp.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp));
         this->Internal->fitF->Outrings()->dens.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnDens).c_str()) * 1.E+20);
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnDens));
         this->Internal->fitF->Outrings()->z0.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnZ0).c_str()) /
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnZ0) /
                     KpcPerArc(this->Internal->par->getDistance()));
         this->Internal->fitF->Outrings()->inc.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnInc).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnInc));
         this->Internal->fitF->Outrings()->phi.push_back(
-            StringToFloat(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi));
         this->Internal->fitF->Outrings()->pa.push_back(0.);
         this->Internal->fitF->Outrings()->vvert.push_back(pnode->GetVerticalVelocity());
         this->Internal->fitF->Outrings()->dvdz.push_back(pnode->GetVerticalRotationalGradient());
@@ -2659,39 +2702,28 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
       for (int ii = 0; ii < pnode->GetNumberOfRings(); ii++)
         {
         this->Internal->fitD->Outrings()->xpos.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnXPos).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnXPos));
         this->Internal->fitD->Outrings()->ypos.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnYPos).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnYPos));
         this->Internal->fitD->Outrings()->vsys.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVSys));
         this->Internal->fitD->Outrings()->radii.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnRadii));
         this->Internal->fitD->Outrings()->vrot.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRot));
         this->Internal->fitD->Outrings()->vrad.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVRad));
         this->Internal->fitD->Outrings()->vdisp.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnVDisp));
         this->Internal->fitD->Outrings()->dens.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnDens).c_str()) * 1.E+20);
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnDens));
         this->Internal->fitD->Outrings()->z0.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnZ0).c_str()) /
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnZ0) /
                     KpcPerArc(this->Internal->par->getDistance()));
         this->Internal->fitD->Outrings()->inc.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnInc).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnInc));
         this->Internal->fitD->Outrings()->phi.push_back(
-            StringToDouble(paramsTableNode->GetCellText(
-                ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi).c_str()));
+            TableValue(paramsTableNode, ii, vtkMRMLAstroModelingParametersNode::ParamsColumnPhi));
         this->Internal->fitD->Outrings()->pa.push_back(0.);
         this->Internal->fitD->Outrings()->vvert.push_back(pnode->GetVerticalVelocity());
         this->Internal->fitD->Outrings()->dvdz.push_back(pnode->GetVerticalRotationalGradient());

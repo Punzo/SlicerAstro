@@ -146,6 +146,15 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         residualNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetResidualVolumeNodeID() or "")
         self.assertIsNotNone(residualNode)
 
+        # the model recomputed from the rings of the table (not edited) is the
+        # fitted model: same rings, same units (e.g. densities in 1E20 cm^-2)
+        fitted = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())).copy()
+        self.runOperation(parametersNode, widget.onCalculateAndVisualize)
+        recomputed = voxelArray(slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID()))
+        peak = np.nanmax(np.abs(fitted))
+        self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(fitted))), 1e-3 * peak)
+        np.testing.assert_allclose(self.ringColumn(parametersNode, "Dens"), 1., rtol=1e-6)
+
         # edit the rings and recompute the model from the table
         before = voxelArray(
             slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())).copy()
