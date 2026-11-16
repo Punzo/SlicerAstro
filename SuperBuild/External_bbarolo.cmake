@@ -28,7 +28,7 @@ if((NOT DEFINED BBAROLO_INCLUDE_DIR OR NOT DEFINED BBAROLO_LIBRARY_DIR)
 
   ExternalProject_SetIfNotDefined(
     ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
-    "bf102df2b2f2b9c60269a63b2697db1cb79f20fe" # branch slicerastro-1.8 (BBarolo 1.8 + master fixes)
+    "fc1f2bfe612f381f55f24d148922bbad8269b26a" # branch slicerastro-1.8 (BBarolo 1.8 + master fixes)
     QUIET
     )
 
