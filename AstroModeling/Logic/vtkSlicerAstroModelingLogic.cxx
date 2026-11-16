@@ -77,6 +77,7 @@
 
 // STD includes
 #include <cassert>
+#include <cstdlib>
 #include <iostream>
 
 //----------------------------------------------------------------------------
@@ -190,6 +191,21 @@ std::vector<double> ParseNumberList(const std::string& text)
     values.push_back(value);
     }
   return values;
+}
+
+//----------------------------------------------------------------------------
+// Threads of 3DBarolo: all the cores (std::thread::hardware_concurrency) by
+// default, as many as OMP_NUM_THREADS when it is set (e.g. to leave cores to
+// other work, or for reproducible fits: 3DBarolo's fits depend slightly on
+// the number of threads)
+void ApplyThreadsFromEnvironment(Param* par)
+{
+  const char* value = std::getenv("OMP_NUM_THREADS");
+  const int threads = value ? std::atoi(value) : 0;
+  if (threads > 0)
+    {
+    par->setThreads(threads);
+    }
 }
 
 //----------------------------------------------------------------------------
@@ -393,6 +409,22 @@ std::string UnconvergedRings(Rings<T>* rings, int numberOfRings)
       }
     }
   return numbers;
+}
+
+//----------------------------------------------------------------------------
+// Initial value of a parameter for the UI: the value of the user, unless it
+// is to be estimated (-1), or the one of the initial rings of 3DBarolo
+double UserOrInitialValue(bool keepUserValues, double userValue, double initialValue)
+{
+  return keepUserValues && userValue > -1 ? userValue : initialValue;
+}
+
+//----------------------------------------------------------------------------
+// Same, for the parameters that are always given (e.g. the radial velocity,
+// negative for inflows)
+double GivenOrInitialValue(bool keepUserValues, double userValue, double initialValue)
+{
+  return keepUserValues ? userValue : initialValue;
 }
 
 //----------------------------------------------------------------------------
@@ -896,6 +928,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     }
 
   this->Internal->par = new Param;
+  ApplyThreadsFromEnvironment(this->Internal->par);
 
   if (this->Internal->head != nullptr)
     {
@@ -1340,24 +1373,29 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           ExtrapolateInnerRotationVelocity(initialRings);
           ExtrapolateInnerRotationVelocity(this->Internal->fitF->Outrings());
           }
+        // Manual mode: Create and Fit keep the values of the user (the rings
+        // of 3DBarolo can differ, e.g. refined by its 2D tilted-ring fit and
+        // by the guards above); only the values to estimate (-1) are filled
+        const bool keepUserValues = !strcmp(pnode->GetMode(), "Manual") &&
+          pnode->GetOperation() != vtkMRMLAstroModelingParametersNode::ESTIMATE;
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
           pnode->SetRadSep(initialRings->radsep > 0 ? initialRings->radsep :
             (initialRings->nr > 1 ? initialRings->radii[1] - initialRings->radii[0] : initialRings->radii[0]));
-          pnode->SetXCenter(MedianOfRings(initialRings->xpos));
-          pnode->SetYCenter(MedianOfRings(initialRings->ypos));
-          pnode->SetSystemicVelocity(MedianOfRings(initialRings->vsys));
-          pnode->SetRotationVelocity(MedianOfRings(initialRings->vrot));
-          pnode->SetRadialVelocity(MedianOfRings(initialRings->vrad));
-          pnode->SetVerticalVelocity(MedianOfRings(initialRings->vvert));
-          pnode->SetVerticalRotationalGradient(MedianOfRings(initialRings->dvdz));
-          pnode->SetVerticalRotationalGradientHeight(MedianOfRings(initialRings->zcyl));
-          pnode->SetPositionAngle(MedianOfRings(initialRings->phi));
-          pnode->SetInclination(MedianOfRings(initialRings->inc));
-          pnode->SetScaleHeight(MedianOfRings(initialRings->z0));
-          pnode->SetVelocityDispersion(MedianOfRings(initialRings->vdisp));
-          pnode->SetColumnDensity(MedianOfRings(initialRings->dens));
+          pnode->SetXCenter(UserOrInitialValue(keepUserValues, pnode->GetXCenter(), MedianOfRings(initialRings->xpos)));
+          pnode->SetYCenter(UserOrInitialValue(keepUserValues, pnode->GetYCenter(), MedianOfRings(initialRings->ypos)));
+          pnode->SetSystemicVelocity(UserOrInitialValue(keepUserValues, pnode->GetSystemicVelocity(), MedianOfRings(initialRings->vsys)));
+          pnode->SetRotationVelocity(UserOrInitialValue(keepUserValues, pnode->GetRotationVelocity(), MedianOfRings(initialRings->vrot)));
+          pnode->SetRadialVelocity(GivenOrInitialValue(keepUserValues, pnode->GetRadialVelocity(), MedianOfRings(initialRings->vrad)));
+          pnode->SetVerticalVelocity(GivenOrInitialValue(keepUserValues, pnode->GetVerticalVelocity(), MedianOfRings(initialRings->vvert)));
+          pnode->SetVerticalRotationalGradient(GivenOrInitialValue(keepUserValues, pnode->GetVerticalRotationalGradient(), MedianOfRings(initialRings->dvdz)));
+          pnode->SetVerticalRotationalGradientHeight(GivenOrInitialValue(keepUserValues, pnode->GetVerticalRotationalGradientHeight(), MedianOfRings(initialRings->zcyl)));
+          pnode->SetPositionAngle(UserOrInitialValue(keepUserValues, pnode->GetPositionAngle(), MedianOfRings(initialRings->phi)));
+          pnode->SetInclination(UserOrInitialValue(keepUserValues, pnode->GetInclination(), MedianOfRings(initialRings->inc)));
+          pnode->SetScaleHeight(UserOrInitialValue(keepUserValues, pnode->GetScaleHeight(), MedianOfRings(initialRings->z0)));
+          pnode->SetVelocityDispersion(UserOrInitialValue(keepUserValues, pnode->GetVelocityDispersion(), MedianOfRings(initialRings->vdisp)));
+          pnode->SetColumnDensity(UserOrInitialValue(keepUserValues, pnode->GetColumnDensity(), MedianOfRings(initialRings->dens)));
           }
         else
           {
@@ -1605,24 +1643,29 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
           ExtrapolateInnerRotationVelocity(initialRings);
           ExtrapolateInnerRotationVelocity(this->Internal->fitD->Outrings());
           }
+        // Manual mode: Create and Fit keep the values of the user (the rings
+        // of 3DBarolo can differ, e.g. refined by its 2D tilted-ring fit and
+        // by the guards above); only the values to estimate (-1) are filled
+        const bool keepUserValues = !strcmp(pnode->GetMode(), "Manual") &&
+          pnode->GetOperation() != vtkMRMLAstroModelingParametersNode::ESTIMATE;
         if (initialRings && initialRings->nr > 0)
           {
           pnode->SetNumberOfRings(initialRings->nr);
           pnode->SetRadSep(initialRings->radsep > 0 ? initialRings->radsep :
             (initialRings->nr > 1 ? initialRings->radii[1] - initialRings->radii[0] : initialRings->radii[0]));
-          pnode->SetXCenter(MedianOfRings(initialRings->xpos));
-          pnode->SetYCenter(MedianOfRings(initialRings->ypos));
-          pnode->SetSystemicVelocity(MedianOfRings(initialRings->vsys));
-          pnode->SetRotationVelocity(MedianOfRings(initialRings->vrot));
-          pnode->SetRadialVelocity(MedianOfRings(initialRings->vrad));
-          pnode->SetVerticalVelocity(MedianOfRings(initialRings->vvert));
-          pnode->SetVerticalRotationalGradient(MedianOfRings(initialRings->dvdz));
-          pnode->SetVerticalRotationalGradientHeight(MedianOfRings(initialRings->zcyl));
-          pnode->SetPositionAngle(MedianOfRings(initialRings->phi));
-          pnode->SetInclination(MedianOfRings(initialRings->inc));
-          pnode->SetScaleHeight(MedianOfRings(initialRings->z0));
-          pnode->SetVelocityDispersion(MedianOfRings(initialRings->vdisp));
-          pnode->SetColumnDensity(MedianOfRings(initialRings->dens));
+          pnode->SetXCenter(UserOrInitialValue(keepUserValues, pnode->GetXCenter(), MedianOfRings(initialRings->xpos)));
+          pnode->SetYCenter(UserOrInitialValue(keepUserValues, pnode->GetYCenter(), MedianOfRings(initialRings->ypos)));
+          pnode->SetSystemicVelocity(UserOrInitialValue(keepUserValues, pnode->GetSystemicVelocity(), MedianOfRings(initialRings->vsys)));
+          pnode->SetRotationVelocity(UserOrInitialValue(keepUserValues, pnode->GetRotationVelocity(), MedianOfRings(initialRings->vrot)));
+          pnode->SetRadialVelocity(GivenOrInitialValue(keepUserValues, pnode->GetRadialVelocity(), MedianOfRings(initialRings->vrad)));
+          pnode->SetVerticalVelocity(GivenOrInitialValue(keepUserValues, pnode->GetVerticalVelocity(), MedianOfRings(initialRings->vvert)));
+          pnode->SetVerticalRotationalGradient(GivenOrInitialValue(keepUserValues, pnode->GetVerticalRotationalGradient(), MedianOfRings(initialRings->dvdz)));
+          pnode->SetVerticalRotationalGradientHeight(GivenOrInitialValue(keepUserValues, pnode->GetVerticalRotationalGradientHeight(), MedianOfRings(initialRings->zcyl)));
+          pnode->SetPositionAngle(UserOrInitialValue(keepUserValues, pnode->GetPositionAngle(), MedianOfRings(initialRings->phi)));
+          pnode->SetInclination(UserOrInitialValue(keepUserValues, pnode->GetInclination(), MedianOfRings(initialRings->inc)));
+          pnode->SetScaleHeight(UserOrInitialValue(keepUserValues, pnode->GetScaleHeight(), MedianOfRings(initialRings->z0)));
+          pnode->SetVelocityDispersion(UserOrInitialValue(keepUserValues, pnode->GetVelocityDispersion(), MedianOfRings(initialRings->vdisp)));
+          pnode->SetColumnDensity(UserOrInitialValue(keepUserValues, pnode->GetColumnDensity(), MedianOfRings(initialRings->dens)));
           }
         else
           {
@@ -2197,6 +2240,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
       }
 
     this->Internal->par = new Param;
+    ApplyThreadsFromEnvironment(this->Internal->par);
 
     if (this->Internal->head != nullptr)
       {

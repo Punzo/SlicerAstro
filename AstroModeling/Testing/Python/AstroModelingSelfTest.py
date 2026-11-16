@@ -130,6 +130,20 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetVelocityDispersionFit(True)
         parametersNode.SetTwoStage(False)
 
+        initialNames = ("XCenter", "YCenter", "SystemicVelocity", "RotationVelocity", "VelocityDispersion",
+                        "Inclination", "PositionAngle", "ColumnDensity")
+        initialValues = [getattr(parametersNode, "Get" + name)() for name in initialNames]
+
+        # free geometry: 3DBarolo refines the initial rings with a 2D
+        # tilted-ring fit (the rings can differ from the values of the user)
+        parametersNode.SetInclinationFit(True)
+        parametersNode.SetPositionAngleFit(True)
+        self.runOperation(parametersNode, widget.onCreate)
+        # Manual mode: Create keeps the values of the user (the next fit
+        # starts from them, as upstream 3DBarolo with the same parameters)
+        self.assertEqual([getattr(parametersNode, "Get" + name)() for name in initialNames], initialValues)
+        parametersNode.SetInclinationFit(False)
+        parametersNode.SetPositionAngleFit(False)
         self.runOperation(parametersNode, widget.onCreate)
         modelNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
         self.assertIsNotNone(modelNode)
