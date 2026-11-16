@@ -29,7 +29,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # as the Slicer factory: Windows with Visual Studio 2022 (windows-latest
+        # has a newer Visual Studio), macOS arm64 and Intel
+        os: [ubuntu-latest, windows-2022, macos-latest, macos-15-intel]
     steps:
       - uses: actions/checkout@v4
 

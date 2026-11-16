@@ -1,11 +1,14 @@
 #!/bin/bash
-# Build 3D Slicer (Release, Qt 6, without the parts SlicerAstro does not use),
-# SlicerAstro against it, and run the tests of SlicerAstro.
+# Build 3D Slicer (Release, Qt 6 or Qt 5, without the parts SlicerAstro does not
+# use), SlicerAstro against it, and run the tests of SlicerAstro.
 #
 #   build-extension.sh <SlicerAstro source dir> <work dir>
 #
 # Environment:
-#   Qt6_DIR           Qt 6 CMake directory (required)
+#   Qt6_DIR           Qt 6 CMake directory, or
+#   Qt5_DIR           Qt 5 CMake directory (e.g. Kitware's build environment
+#                     slicer/buildenv-qt5-almalinux8-gcc14, the one of the
+#                     Linux packages of the Slicer factory)
 #   SLICER_REPOSITORY 3D Slicer repository (default: GitHub)
 #   SLICER_SHA        3D Slicer commit (default: the one SlicerAstro is developed with)
 #   JOBS              parallel jobs (default: number of processors)
@@ -19,7 +22,14 @@ set -euo pipefail
 
 SOURCE=$(realpath "$1")
 WORK=$(realpath -m "$2")
-: "${Qt6_DIR:?Qt6_DIR must be set}"
+if [ -n "${Qt6_DIR:-}" ]; then
+  QT_ARGS=(-DQt6_DIR:PATH="$Qt6_DIR")
+elif [ -n "${Qt5_DIR:-}" ]; then
+  QT_ARGS=(-DQt5_DIR:PATH="$Qt5_DIR")
+else
+  echo "Qt6_DIR or Qt5_DIR must be set" >&2
+  exit 1
+fi
 SLICER_REPOSITORY=${SLICER_REPOSITORY:-https://github.com/Slicer/Slicer.git}
 SLICER_SHA=${SLICER_SHA:-4b9cbc3fef87fdb8c6d2d406d64de40a6064bc52}
 JOBS=${JOBS:-$(nproc)}
@@ -28,8 +38,12 @@ cd "$WORK"
 
 # compiler cache: through the compiler wrappers of ccache, also in the external
 # projects of the superbuilds
-if command -v ccache > /dev/null && [ -d /usr/lib/ccache ]; then
-  export CC=/usr/lib/ccache/gcc CXX=/usr/lib/ccache/g++
+if command -v ccache > /dev/null; then
+  # compiler names linked to ccache (ccache then runs the next gcc/g++ of the PATH)
+  mkdir -p "$WORK/ccache-bin"
+  ln -sf "$(command -v ccache)" "$WORK/ccache-bin/gcc"
+  ln -sf "$(command -v ccache)" "$WORK/ccache-bin/g++"
+  export CC="$WORK/ccache-bin/gcc" CXX="$WORK/ccache-bin/g++"
   export CCACHE_BASEDIR="$WORK" CCACHE_COMPRESS=1 CCACHE_SLOPPINESS=time_macros,include_file_mtime
   ccache --zero-stats > /dev/null
 fi
@@ -44,7 +58,7 @@ git -C Slicer checkout -q FETCH_HEAD
 
 cmake -S Slicer -B Slicer-build \
   -DCMAKE_BUILD_TYPE:STRING=Release \
-  -DQt6_DIR:PATH="$Qt6_DIR" \
+  "${QT_ARGS[@]}" \
   -DBUILD_TESTING:BOOL=OFF \
   -DSlicer_BUILD_DOCUMENTATION:BOOL=OFF \
   -DSlicer_BUILD_DICOM_SUPPORT:BOOL=OFF \
@@ -98,8 +112,18 @@ echo "== Tests"
 cd SlicerAstro-build/inner-build
 export SLICERASTRO_COMPRESS_MOUSE_MOVES=0
 status=0
-xvfb-run -a -s "-screen 0 1600x1000x24" \
-  ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
+export QT_QPA_PLATFORM=xcb
+if command -v xvfb-run > /dev/null; then
+  xvfb-run -a -s "-screen 0 1600x1000x24" \
+    ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
+else
+  # no xvfb-run (e.g. AlmaLinux): an X server of our own
+  Xvfb :98 -screen 0 1600x1000x24 +extension GLX +render -noreset > /dev/null 2>&1 &
+  xvfbPid=$!
+  sleep 2
+  DISPLAY=:98 ctest -j 2 --output-on-failure --timeout 1800 ${CTEST_EXCLUDE:+-E "$CTEST_EXCLUDE"} > ctest.log 2>&1 || status=$?
+  kill $xvfbPid 2> /dev/null || true
+fi
 cat ctest.log
 notice "Tests" "$(grep -E 'tests passed|No tests were found' ctest.log | tail -1) $(grep -E '^\s+[0-9]+ - .*\((Failed|Timeout|Not Run|SEGFAULT|Exception)' ctest.log | tr -s ' ' | tr '\n' ';')"
 exit $status

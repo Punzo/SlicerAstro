@@ -1,5 +1,10 @@
-# Build 3D Slicer (Release, Qt 6, without the parts SlicerAstro does not use)
-# and SlicerAstro on a GitHub Linux runner, and run the tests of SlicerAstro.
+# Build 3D Slicer (Release, without the parts SlicerAstro does not use) and
+# SlicerAstro on a GitHub Linux runner, and run the tests of SlicerAstro:
+# - linux: Qt 6 (the Qt of SlicerAstroApp and of the macOS and Windows
+#   packages of the Slicer factory);
+# - linux-qt5: Qt 5 in Kitware's build environment
+#   (slicer/buildenv-qt5-almalinux8-gcc14), the one of the Linux packages of
+#   the Slicer factory, i.e. what Linux users of the extension get.
 #
 # 3D Slicer is built from source (about 3-5 hours the first time on the 4
 # cores of a runner); the compiler cache (ccache, in the GitHub cache) makes
@@ -29,7 +34,7 @@ jobs:
     env:
       WORK: /mnt/work
       CCACHE_DIR: /mnt/work/ccache
-      CCACHE_MAXSIZE: 8G
+      CCACHE_MAXSIZE: 4500M
       JOBS: 4
       # 3D Slicer build stopped in time to save the compiler cache
       SLICER_TIME_LIMIT: 290
@@ -75,5 +80,64 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-logs
+          path: /mnt/work/build/SlicerAstro-build/inner-build/Testing/Temporary/
+          if-no-files-found: ignore
+
+  linux-qt5:
+    name: linux-qt5 (Kitware build environment)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 355
+    env:
+      WORK: /mnt/work
+      IMAGE: slicer/buildenv-qt5-almalinux8-gcc14:latest
+      JOBS: 4
+      SLICER_TIME_LIMIT: 290
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL
+          sudo mkdir -p "$WORK/ccache" && sudo chown -R "$USER" "$WORK"
+          df -h / /mnt
+
+      - name: Restore the compiler cache
+        uses: actions/cache/restore@v4
+        with:
+          path: /mnt/work/ccache
+          key: ccache-linux-qt5-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: ccache-linux-qt5-
+
+      - name: Build and test (Kitware build environment)
+        run: |
+          set -o pipefail
+          docker pull -q "$IMAGE"
+          # the image provides Qt5_DIR (Qt 5.15.2 of the Qt installer, GCC 14)
+          docker run --rm -v "$GITHUB_WORKSPACE:/src" -v "$WORK:/work" \
+            -e JOBS -e SLICER_TIME_LIMIT -e GITHUB_ACTIONS \
+            -e CCACHE_DIR=/work/ccache -e CCACHE_MAXSIZE=4500M \
+            "$IMAGE" bash -c '
+              dnf install -y -q epel-release > /dev/null && dnf install -y -q ccache > /dev/null || echo "no ccache"
+              /src/.github/ci/build-extension.sh /src /work/build
+              status=$?
+              chmod -R a+rwX /work
+              exit $status' 2>&1 | tee "$WORK/build.log"
+
+      - name: Errors
+        if: failure()
+        run: bash .github/ci/annotate-errors.sh "$WORK/build.log" "Build and test errors (Qt 5)"
+
+      - name: Save the compiler cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: /mnt/work/ccache
+          key: ccache-linux-qt5-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs-qt5
           path: /mnt/work/build/SlicerAstro-build/inner-build/Testing/Temporary/
           if-no-files-found: ignore

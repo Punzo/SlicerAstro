@@ -6,17 +6,25 @@ scripts can also be run on your own computer.
 
 | Workflow | What it does | Runs on | When |
 |---|---|---|---|
-| `extension.yml` (Extension (Linux)) | Builds 3D Slicer from source, then SlicerAstro, then runs all the tests | Ubuntu 24.04 | weekly (Sunday 03:00 UTC), on demand, on pushes to `master` (not for documentation-only changes) |
-| `dependencies.yml` (Dependencies) | Builds CFITSIO, WCSLIB, ERFA, FFTW and 3DBarolo with the pinned versions and runs a smoke test | Linux, Windows (MSVC), macOS | changes to `SuperBuild/` or `.github/ci/dependencies/`, on demand |
+| `extension.yml` (Extension (Linux)) | Builds 3D Slicer from source, then SlicerAstro, then runs all the tests; two jobs: `linux` (Qt 6) and `linux-qt5` (Qt 5 in Kitware's build environment) | Ubuntu 24.04; `slicer/buildenv-qt5-almalinux8-gcc14` | weekly (Sunday 03:00 UTC), on demand, on pushes to `master` (not for documentation-only changes) |
+| `dependencies.yml` (Dependencies) | Builds CFITSIO, WCSLIB, ERFA, FFTW and 3DBarolo with the pinned versions and runs a smoke test | Linux, Windows (Visual Studio 2022), macOS arm64 and Intel | changes to `SuperBuild/` or `.github/ci/dependencies/`, on demand |
 | `docs.yml` (Documentation) | Builds this documentation with Sphinx, with warnings as errors, and publishes it to GitHub Pages | Ubuntu | changes to `docs/`; published from `master` only |
 
 The full extension is built only on Linux. On Windows and macOS it is built by
 the 3D Slicer extensions factory once SlicerAstro is in the
 [ExtensionsIndex](https://github.com/Slicer/ExtensionsIndex).
 
+The two Linux jobs match the configurations of the factory
+([SlicerPreview dashboard](https://slicer.cdash.org/index.php?project=SlicerPreview)):
+the Linux packages are built with Qt 5.15.2 in the
+`slicer/buildenv-qt5-almalinux8-gcc14` image (AlmaLinux 8, GCC 14), the
+macOS and Windows packages with Qt 6.11. The `linux-qt5` job runs the same
+script in that image (`docker run`), so it builds what Linux users of the
+extension get.
+
 ## Extension (Linux)
 
-### Steps
+### Steps (`linux` job)
 
 1. **System packages and Qt** (`.github/ci/install-system-packages.sh`):
    - compilers, CMake, ccache, Mesa (OpenGL), the X11/xcb libraries, OpenSSL
@@ -44,8 +52,9 @@ A GitHub runner has 4 cores, 16 GB of memory and a 6-hour limit per job.
 Building 3D Slicer from scratch takes about 4 to 6 hours on it. The workflow
 handles this as follows:
 
-- Every compilation goes through **ccache**. The cache (up to 8 GB) is kept in
-  the GitHub Actions cache and is saved even when the job fails or is stopped.
+- Every compilation goes through **ccache**. The cache (up to 4.5 GB per job,
+  the two jobs sharing the 10 GB of GitHub Actions cache of the repository) is
+  saved even when the job fails or is stopped.
 - The 3D Slicer build stops after `SLICER_TIME_LIMIT` (290 minutes), so there
   is time left to save the cache. The script then exits with code 124 and the
   log says "run again".
@@ -96,11 +105,20 @@ export Qt6_DIR=/work/Qt/6.11.3/gcc_64/lib/cmake/Qt6 JOBS=$(nproc)
 /src/.github/ci/build-extension.sh /src /work/build
 ```
 
+The Qt 5 job in Kitware's build environment (the image provides `Qt5_DIR`):
+
+```bash
+docker run --rm -it -v $PWD:/src:ro -v $HOME/ci-work-qt5:/work slicer/buildenv-qt5-almalinux8-gcc14 bash
+# inside the container
+dnf install -y epel-release && dnf install -y ccache   # optional
+JOBS=$(nproc) /src/.github/ci/build-extension.sh /src /work/build
+```
+
 Environment variables of `build-extension.sh`:
 
 | Variable | Meaning |
 |---|---|
-| `Qt6_DIR` | Qt 6 CMake directory (required) |
+| `Qt6_DIR` or `Qt5_DIR` | Qt 6 or Qt 5 CMake directory (one of them is required) |
 | `SLICER_REPOSITORY`, `SLICER_SHA` | 3D Slicer repository and commit |
 | `JOBS` | parallel jobs (default: all processors) |
 | `SLICER_TIME_LIMIT` | time limit of the 3D Slicer build, in minutes |
@@ -116,6 +134,12 @@ Environment variables of `build-extension.sh`:
   opt-in variable) should return early with a message. Don't raise
   `unittest.SkipTest`: `runTest()` calls the test methods directly, so the
   exception fails the test.
+- **One window application at a time:** the tests with windows (Python tests,
+  Qt widget tests, OpenGL tests) share the CTest resource lock
+  `SlicerAstroDisplay`, so another application on the same X display does not
+  take the active window, the focus or the input events of a test. Run Slicer
+  tests with `QT_QPA_PLATFORM=xcb`: with Qt 6.11 and a Wayland session, Qt
+  otherwise opens the windows on the desktop instead of Xvfb.
 - **No window manager:** Xvfb has none, so with Qt 6 calling
   `activateWindow()` does not make a window active. Tests that need keyboard
   shortcuts of the main window call `QApplication.setActiveWindow()` when the
