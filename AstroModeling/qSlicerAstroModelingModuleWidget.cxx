@@ -139,8 +139,17 @@ public:
   ~qSlicerAstroModelingModuleWidgetPrivate();
   void init();
   void cleanPointers();
+  /// Table of the rings plotted by the plot series (nullptr: none); the plot
+  /// series that do not exist (e.g. after the closing of a scene) are skipped
+  void setPlotSeriesTable(vtkMRMLTableNode* tableNode);
   // a 3DBarolo operation is running in the worker thread
   bool workerRunning() const;
+  /// End a running 3DBarolo operation (as the Cancel button) and wait for the
+  /// worker thread: before the scene is closed or replaced, the operation must
+  /// not use the 3DBarolo objects or the nodes being removed. Its results are
+  /// discarded (onWorkFinished is ignored once).
+  void stopWorker();
+  bool ignoreWorkFinished = false;
   // segment of the contours segmentation of the module (data, model, region
   // of the model): the segmentation node if the segment exists
   vtkMRMLSegmentationNode* modelingSegment(vtkMRMLScene* scene, const char* segmentID) const;
@@ -910,6 +919,52 @@ bool qSlicerAstroModelingModuleWidgetPrivate::workerRunning() const
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidgetPrivate::stopWorker()
+{
+  if (!this->workerRunning())
+    {
+    return;
+    }
+  if (this->logic())
+    {
+    this->logic()->RequestAbort();
+    }
+  this->workerParametersNode->SetStatus(-1);
+  if (this->worker)
+    {
+    this->worker->abort();
+    }
+  if (this->thread)
+    {
+    this->thread->wait();
+    }
+  if (this->workerProgressTimer)
+    {
+    this->workerProgressTimer->stop();
+    }
+  this->workerParametersNode = nullptr;
+  this->calculatingModel = false;
+  this->ignoreWorkFinished = true;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidgetPrivate::setPlotSeriesTable(vtkMRMLTableNode* tableNode)
+{
+  vtkMRMLPlotSeriesNode* plotSeriesNodes[] = {
+    this->PlotSeriesNodeVRot, this->PlotSeriesNodeVRad, this->PlotSeriesNodeInc, this->PlotSeriesNodePhi,
+    this->PlotSeriesNodeVSys, this->PlotSeriesNodeVDisp, this->PlotSeriesNodeDens, this->PlotSeriesNodeZ0,
+    this->PlotSeriesNodeXPos, this->PlotSeriesNodeYPos};
+  const char* tableNodeID = tableNode ? tableNode->GetID() : nullptr;
+  for (vtkMRMLPlotSeriesNode* plotSeriesNode : plotSeriesNodes)
+    {
+    if (plotSeriesNode)
+      {
+      plotSeriesNode->SetAndObserveTableNodeID(tableNodeID);
+      }
+    }
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroModelingModuleWidgetPrivate::cleanPointers()
 {
   Q_Q(const qSlicerAstroModelingModuleWidget);
@@ -1103,18 +1158,7 @@ qSlicerAstroModelingModuleWidget::~qSlicerAstroModelingModuleWidget()
   // A 3DBarolo operation still running (e.g. the application is closed during
   // a fit): request its end as the Cancel button does, then wait for the
   // worker thread, so the worker is not deleted while it runs.
-  if (d->workerRunning())
-    {
-    if (d->logic())
-      {
-      d->logic()->RequestAbort();
-      }
-    d->workerParametersNode->SetStatus(-1);
-    if (d->worker)
-      {
-      d->worker->abort();
-      }
-    }
+  d->stopWorker();
   if (d->thread)
     {
     d->thread->quit();
@@ -4142,6 +4186,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneStartCloseEvent()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  d->stopWorker();
   d->cleanPointers();
 }
 
@@ -4150,6 +4195,7 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneStartImportEvent()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  d->stopWorker();
   d->cleanPointers();
 }
 
@@ -4799,16 +4845,7 @@ void qSlicerAstroModelingModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
 
   d->parametersNode->SetParamsTableNode(tableNode);
 
-  d->PlotSeriesNodeVRot->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeVRad->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeInc->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodePhi->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeVSys->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeVDisp->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeDens->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeZ0->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeXPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-  d->PlotSeriesNodeYPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+  d->setPlotSeriesTable(d->parametersNode->GetParamsTableNode());
 }
 
 //--------------------------------------------------------------------------
@@ -5014,6 +5051,14 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
+  // an operation ended by stopWorker (scene closed or replaced): its results
+  // are discarded
+  if (d->ignoreWorkFinished)
+    {
+    d->ignoreWorkFinished = false;
+    return;
+    }
+
   // results of the worker thread (parameters and status) in the parameter
   // node, in the GUI thread
   d->workerProgressTimer->stop();
@@ -5212,16 +5257,7 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
       }
 
     d->parametersNode->GetParamsTableNode()->GetTable()->DeepCopy(d->internalTableNode->GetTable());
-    d->PlotSeriesNodeVRot->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeVRad->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeInc->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodePhi->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeVSys->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeVDisp->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeDens->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeZ0->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeXPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
-    d->PlotSeriesNodeYPos->SetAndObserveTableNodeID(d->parametersNode->GetParamsTableNode()->GetID());
+    d->setPlotSeriesTable(d->parametersNode->GetParamsTableNode());
 
     vtkDoubleArray* Phi = vtkDoubleArray::SafeDownCast
       (d->parametersNode->GetParamsTableNode()
