@@ -1122,6 +1122,16 @@ void qSlicerAstroReprojectModuleWidget::onEndImportEvent()
 //-----------------------------------------------------------------------------
 void qSlicerAstroReprojectModuleWidget::onStartImportEvent()
 {
+  Q_D(qSlicerAstroReprojectModuleWidget);
+  // the parameters node of the module (created when the scene was closed) is
+  // replaced by the one of the imported scene, as in the other modules: kept,
+  // it would follow the active volume and be used instead of the loaded one
+  if (d->parametersNode && this->mrmlScene())
+    {
+    vtkMRMLNode* parametersNode = d->parametersNode;
+    this->setMRMLAstroReprojectParametersNode(nullptr);
+    this->mrmlScene()->RemoveNode(parametersNode);
+    }
 }
 
 //-----------------------------------------------------------------------------
