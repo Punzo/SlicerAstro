@@ -39,6 +39,7 @@
 // VTK includes
 #include <vtkDataSetAttributes.h>
 #include <vtkImageData.h>
+#include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkType.h>
@@ -251,6 +252,20 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
     return 0;
     }
 
+  // A scene being loaded has the geometry of the volume (IJK to RAS, in the
+  // scene file): it is kept, so that a volume placed in the scene (e.g. the
+  // moment map of the PV Diagram module, below the data) stays there. A FITS
+  // header has no RAS geometry; files opened outside a scene take the
+  // geometry of the reader.
+  vtkNew<vtkMatrix4x4> sceneRASToIJK;
+  vtkMRMLVolumeNode* volumeNode = vtkMRMLVolumeNode::SafeDownCast(refNode);
+  bool keepSceneGeometry = false;
+  if (volumeNode && volumeNode->GetScene() && volumeNode->GetScene()->IsImporting())
+    {
+    volumeNode->GetRASToIJKMatrix(sceneRASToIJK);
+    keepSceneGeometry = !sceneRASToIJK->IsIdentity();
+    }
+
   vtkNew<vtkFITSReader> reader;
 
   // Set Reader member variables
@@ -323,7 +338,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   if (refNode->IsA("vtkMRMLAstroVolumeNode"))
     {
     // set volume attributes
-    vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
+    vtkMatrix4x4* mat = keepSceneGeometry ? sceneRASToIJK.GetPointer() : reader->GetRasToIjkMatrix();
     volNode->SetRASToIJKMatrix(mat);
 
     // parse non-specific key-value pairs
@@ -410,7 +425,7 @@ int vtkMRMLAstroVolumeStorageNode::ReadDataInternal(vtkMRMLNode *refNode)
   else if (refNode->IsA("vtkMRMLAstroLabelMapVolumeNode"))
     {
     // set volume attributes
-    vtkMatrix4x4* mat = reader->GetRasToIjkMatrix();
+    vtkMatrix4x4* mat = keepSceneGeometry ? sceneRASToIJK.GetPointer() : reader->GetRasToIjkMatrix();
     labvolNode->SetRASToIJKMatrix(mat);
 
     // parse non-specific key-value pairs
