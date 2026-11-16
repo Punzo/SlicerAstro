@@ -31,6 +31,12 @@ mark_as_superbuild(Slicer_DIR)
 find_package(Git REQUIRED)
 mark_as_superbuild(GIT_EXECUTABLE)
 
+# Code coverage (gcov) of the SlicerAstro code only, not of the third-party
+# libraries of the superbuild (an instrumented 3DBarolo is very slow)
+option(SLICERASTRO_COVERAGE "Instrument the SlicerAstro code for code coverage (gcov)" OFF)
+mark_as_advanced(SLICERASTRO_COVERAGE)
+mark_as_superbuild(SLICERASTRO_COVERAGE)
+
 #-----------------------------------------------------------------------------
 # SuperBuild setup
 option(${EXTENSION_NAME}_SUPERBUILD "Build ${EXTENSION_NAME} and the projects it depends on." ON)
@@ -45,6 +51,11 @@ endif()
 # with WCSLIB's wcsset(): no non-standard C runtime names (as WCSLIB and BBarolo)
 if(MSVC)
   add_compile_definitions(_CRT_DECLARE_NONSTDC_NAMES=0)
+endif()
+
+if(SLICERASTRO_COVERAGE)
+  add_compile_options(--coverage)
+  add_link_options(--coverage)
 endif()
 
 #-----------------------------------------------------------------------------

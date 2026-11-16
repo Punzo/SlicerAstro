@@ -26,9 +26,12 @@ set -euo pipefail
 SOURCE=$(realpath "$1")
 WORK=$(realpath -m "$2")
 if [ -n "${Qt6_DIR:-}" ]; then
-  QT_ARGS=(-DQt6_DIR:PATH="$Qt6_DIR")
+  QT_ARGS=(-DQt6_DIR:PATH="$Qt6_DIR" -DSlicer_BUILD_WEBENGINE_SUPPORT:BOOL=OFF)
 elif [ -n "${Qt5_DIR:-}" ]; then
-  QT_ARGS=(-DQt5_DIR:PATH="$Qt5_DIR")
+  # with Qt WebEngine, as the Linux packages of the Slicer factory (its Qt 5.15.2
+  # libraries, built with an old GCC, export libstdc++ template instances: the
+  # tests check that SlicerAstro works next to them)
+  QT_ARGS=(-DQt5_DIR:PATH="$Qt5_DIR" -DSlicer_BUILD_WEBENGINE_SUPPORT:BOOL=ON)
 else
   echo "Qt6_DIR or Qt5_DIR must be set" >&2
   exit 1
@@ -39,14 +42,13 @@ JOBS=${JOBS:-$(nproc)}
 mkdir -p "$WORK"
 cd "$WORK"
 
-# compiler cache: through the compiler wrappers of ccache, also in the external
-# projects of the superbuilds
+# compiler cache: ccache as compiler launcher of all the CMake projects of the
+# superbuilds (CMake initializes CMAKE_<LANG>_COMPILER_LAUNCHER from the
+# environment). The compilers themselves are unchanged: link-time optimization
+# (e.g. TBB) runs the compiler again, which fails through an old ccache (GCC 14
+# "internal compiler error" in Kitware's AlmaLinux 8 build environment).
 if command -v ccache > /dev/null; then
-  # compiler names linked to ccache (ccache then runs the next gcc/g++ of the PATH)
-  mkdir -p "$WORK/ccache-bin"
-  ln -sf "$(command -v ccache)" "$WORK/ccache-bin/gcc"
-  ln -sf "$(command -v ccache)" "$WORK/ccache-bin/g++"
-  export CC="$WORK/ccache-bin/gcc" CXX="$WORK/ccache-bin/g++"
+  export CMAKE_C_COMPILER_LAUNCHER=ccache CMAKE_CXX_COMPILER_LAUNCHER=ccache
   export CCACHE_BASEDIR="$WORK" CCACHE_COMPRESS=1 CCACHE_SLOPPINESS=time_macros,include_file_mtime
   ccache --zero-stats > /dev/null
 fi
@@ -72,7 +74,6 @@ cmake -S Slicer -B Slicer-build \
   -DSlicer_BUILD_EXTENSIONMANAGER_SUPPORT:BOOL=OFF \
   -DSlicer_BUILD_APPLICATIONUPDATE_SUPPORT:BOOL=OFF \
   -DSlicer_BUILD_MULTIMEDIA_SUPPORT:BOOL=OFF \
-  -DSlicer_BUILD_WEBENGINE_SUPPORT:BOOL=OFF \
   -DSlicer_BUILD_QT_DESIGNER_PLUGINS:BOOL=OFF \
   -DSlicer_BUILD_I18N_SUPPORT:BOOL=OFF \
   -DSlicer_BUILD_USAGE_LOGGING_SUPPORT:BOOL=OFF \

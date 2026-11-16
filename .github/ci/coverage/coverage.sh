@@ -26,8 +26,7 @@ cmake -S "$SOURCE" -B "$WORK/build" \
   -DCMAKE_BUILD_TYPE:STRING=Debug \
   -DSlicer_DIR:PATH="$SLICER_BUILD" \
   "${QT_ARGS[@]}" \
-  -DADDITIONAL_C_FLAGS:STRING=--coverage \
-  -DADDITIONAL_CXX_FLAGS:STRING=--coverage \
+  -DSLICERASTRO_COVERAGE:BOOL=ON \
   -DBUILD_TESTING:BOOL=ON
 cmake --build "$WORK/build" -j "$JOBS"
 INNER="$WORK/build/inner-build"
