@@ -79,7 +79,12 @@ protected slots:
   void onVolumeModified();
 
 protected:
+  void mousePressEvent(QMouseEvent* event) override;
+  void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
+  bool eventFilter(QObject* watched, QEvent* event) override;
+  /// Drag of the dataset or of a product to a view
+  void startDrag(const QString& nodeID);
 
   qSlicerAstroDatasetCardHeader* Header;
   QWidget* ChipsRow;
@@ -88,6 +93,9 @@ protected:
   vtkMRMLVolumeNode* Volume{nullptr};
   QString Kind;
   QStringList Chips;
+  QPoint PressPosition;
+  bool Pressed{false};
+  bool Dragged{false};
 };
 
 #endif

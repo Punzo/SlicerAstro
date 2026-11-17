@@ -80,5 +80,9 @@
         <file alias="Icons/unlock.svg">Icons/Astro/unlock.svg</file>
         <file alias="Icons/volume.svg">Icons/Astro/volume.svg</file>
         <file alias="Icons/warning.svg">Icons/Astro/warning.svg</file>
+        <file alias="Icons/expand.svg">Icons/Astro/expand.svg</file>
+        <file alias="Icons/terminal.svg">Icons/Astro/terminal.svg</file>
+        <file alias="Icons/curve.svg">Icons/Astro/curve.svg</file>
+        <file alias="Icons/pointer.svg">Icons/Astro/pointer.svg</file>
     </qresource>
 </RCC>

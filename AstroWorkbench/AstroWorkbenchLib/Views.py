@@ -310,7 +310,9 @@ class ViewDecorator:
     def __init__(self, workbench):
         self.workbench = workbench
         self.bars = {}
+        self.frames = {}
         self.saved = {}
+        self.viewport = None
 
     def install(self):
         layoutManager = slicer.app.layoutManager()
@@ -328,6 +330,7 @@ class ViewDecorator:
             bar = SliceViewBar(self.workbench, widget)
             widget.layout().insertWidget(0, bar)
             self.bars[name] = bar
+            self.addFrame(name, widget, widget.sliceView())
         for index in range(layoutManager.threeDViewCount):
             widget = layoutManager.threeDWidget(index)
             key = f"3D{index}"
@@ -340,8 +343,34 @@ class ViewDecorator:
             bar = ThreeDViewBar(self.workbench, widget)
             widget.layout().insertWidget(0, bar)
             self.bars[key] = bar
+            self.addFrame(key, widget, widget.threeDView())
         for bar in self.bars.values():
             bar.refresh()
+        self.styleViewport()
+        self.setActive(self.workbench.activeViewKey)
+
+    def addFrame(self, key, container, view):
+        """Rounded corners, active border and drop target of a view."""
+        frame = slicer.qSlicerAstroViewFrame()
+        frame.attach(container, view)
+        frame.setObjectName(f"AstroViewFrame_{key}")
+        frame.connect("activated()", lambda k=key: self.workbench.setActiveView(k))
+        frame.connect("nodeDropped(QString)", lambda nodeID, k=key: self.workbench.dropNode(k, nodeID))
+        self.frames[key] = frame
+
+    def setActive(self, key):
+        for name, frame in self.frames.items():
+            frame.active = name == key
+
+    def styleViewport(self, caller=None):
+        """The area around the views in the colour of the corners."""
+        viewport = slicer.app.layoutManager().viewport()
+        if self.viewport is None:
+            self.viewport = (viewport.objectName, viewport.styleSheet)
+            if not viewport.objectName:
+                viewport.setObjectName("AstroWorkbenchViewport")
+            theme().connect("themeChanged()", self.styleViewport)
+        viewport.setStyleSheet(f"QWidget#{viewport.objectName} {{ background: {theme().color('bg').name()}; }}")
 
     def refresh(self):
         for bar in self.bars.values():
@@ -369,5 +398,150 @@ class ViewDecorator:
                     for slider in controller.findChildren("QSlider"):
                         slider.setStyleSheet("")
                     widget.setSliceOffsetSliderOrientation(self.saved.get(key, qt.Qt.Horizontal))
+        for frame in self.frames.values():
+            frame.delete()
+        self.frames = {}
+        if self.viewport is not None:
+            theme().disconnect("themeChanged()", self.styleViewport)
+            viewport = layoutManager.viewport()
+            viewport.setStyleSheet(self.viewport[1])
+            viewport.setObjectName(self.viewport[0])
+            self.viewport = None
         self.bars = {}
         self.saved = {}
+
+
+class ViewVisibility:
+    """Which data each view shows, with the view node IDs of the display
+    nodes (ShowInAllViewsByDefault off: a display node without views is
+    shown nowhere, not everywhere):
+
+    - masks and contours (segmentations) are shown in the views that show
+      their cube (as background or foreground of a slice view, or rendered
+      in a 3D view), plus the views they were dropped on;
+    - a cube dropped on a 3D view is rendered there only.
+
+    Leaving the Workbench restores the display nodes (shown in all views)."""
+
+    SEGMENTATION_DISPLAY = "vtkMRMLSegmentationDisplayNode"
+
+    def __init__(self):
+        self.active = False
+        self.saved = {}
+        self.extra = {}
+        self.defaultNode = None
+        self.observers = []
+        self.timer = qt.QTimer()
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(50)
+        self.timer.connect("timeout()", self.update)
+
+    def enter(self):
+        scene = slicer.mrmlScene
+        self.defaultNode = scene.GetDefaultNodeByClass(self.SEGMENTATION_DISPLAY)
+        default = slicer.vtkMRMLSegmentationDisplayNode()
+        default.SetShowInAllViewsByDefault(False)
+        scene.AddDefaultNode(default)
+        for displayNode in slicer.util.getNodesByClass(self.SEGMENTATION_DISPLAY):
+            self.saved[displayNode.GetID()] = (displayNode.GetShowInAllViewsByDefault(),
+                                               list(displayNode.GetViewNodeIDs()))
+        for composite in slicer.util.getNodesByClass("vtkMRMLSliceCompositeNode"):
+            self.observers.append((composite, composite.AddObserver("ModifiedEvent", self.schedule)))
+        self.observers.append((scene, scene.AddObserver(scene.NodeAddedEvent, self.schedule)))
+        self.active = True
+        self.update()
+
+    def schedule(self, caller=None, event=None):
+        if self.active:
+            self.timer.start()
+
+    def viewsShowing(self):
+        """View node IDs showing each volume (ID)."""
+        showing = {}
+        for composite in slicer.util.getNodesByClass("vtkMRMLSliceCompositeNode"):
+            sliceNode = slicer.mrmlScene.GetSingletonNode(composite.GetLayoutName(), "vtkMRMLSliceNode")
+            if sliceNode is None:
+                continue
+            for volumeID in (composite.GetBackgroundVolumeID(), composite.GetForegroundVolumeID()):
+                if volumeID:
+                    showing.setdefault(volumeID, set()).add(sliceNode.GetID())
+        viewNodes = slicer.util.getNodesByClass("vtkMRMLViewNode")
+        for displayNode in slicer.util.getNodesByClass("vtkMRMLVolumeRenderingDisplayNode"):
+            volume = displayNode.GetDisplayableNode()
+            if volume is None or not displayNode.GetVisibility():
+                continue
+            for viewNode in viewNodes:
+                if displayNode.IsDisplayableInView(viewNode.GetID()):
+                    showing.setdefault(volume.GetID(), set()).add(viewNode.GetID())
+        return showing
+
+    def allViews(self):
+        return [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLSliceNode")] + \
+               [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLViewNode")]
+
+    def update(self):
+        if not self.active:
+            return
+        showing = self.viewsShowing()
+        role = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
+        for segmentation in slicer.util.getNodesByClass("vtkMRMLSegmentationNode"):
+            displayNode = segmentation.GetDisplayNode()
+            if displayNode is None:
+                continue
+            if displayNode.GetID() not in self.saved:
+                self.saved[displayNode.GetID()] = (True, [])
+            reference = segmentation.GetNodeReference(role)
+            views = set(showing.get(reference.GetID(), set())) if reference is not None else set(self.allViews())
+            views |= self.extra.get(segmentation.GetID(), set())
+            displayNode.SetShowInAllViewsByDefault(False)
+            if set(displayNode.GetViewNodeIDs()) != views:
+                displayNode.SetViewNodeIDs(sorted(views))
+
+    def addToView(self, segmentation, viewNodeID):
+        self.extra.setdefault(segmentation.GetID(), set()).add(viewNodeID)
+        displayNode = segmentation.GetDisplayNode()
+        if displayNode is not None:
+            displayNode.SetVisibility(True)
+        self.update()
+
+    def renderInView(self, volume, viewNodeID):
+        """Volume rendering of a cube in one 3D view (the other volumes are
+        no more rendered there)."""
+        logic = slicer.modules.volumerendering.logic()
+        viewIDs = [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLViewNode")]
+        displayNode = logic.GetFirstVolumeRenderingDisplayNode(volume)
+        if displayNode is None:
+            displayNode = logic.CreateDefaultVolumeRenderingNodes(volume)
+        for other in slicer.util.getNodesByClass("vtkMRMLVolumeRenderingDisplayNode"):
+            if other is displayNode or not other.IsDisplayableInView(viewNodeID):
+                continue
+            keep = [viewID for viewID in viewIDs if viewID != viewNodeID and other.IsDisplayableInView(viewID)]
+            other.SetShowInAllViewsByDefault(False)
+            other.SetViewNodeIDs(keep)
+        if displayNode is not None:
+            keep = [viewID for viewID in viewIDs if viewID != viewNodeID and displayNode.IsDisplayableInView(viewID)
+                    and list(displayNode.GetViewNodeIDs())]
+            displayNode.SetShowInAllViewsByDefault(False)
+            displayNode.SetViewNodeIDs(keep + [viewNodeID])
+            displayNode.SetVisibility(True)
+        self.update()
+
+    def exit(self):
+        self.active = False
+        self.timer.stop()
+        for node, tag in self.observers:
+            node.RemoveObserver(tag)
+        self.observers = []
+        scene = slicer.mrmlScene
+        if self.defaultNode is not None:
+            scene.AddDefaultNode(self.defaultNode)
+        else:
+            scene.AddDefaultNode(slicer.vtkMRMLSegmentationDisplayNode())
+        self.defaultNode = None
+        for displayNodeID, (showAll, viewIDs) in self.saved.items():
+            displayNode = scene.GetNodeByID(displayNodeID)
+            if displayNode is not None:
+                displayNode.SetViewNodeIDs(viewIDs)
+                displayNode.SetShowInAllViewsByDefault(showAll)
+        self.saved = {}
+        self.extra = {}

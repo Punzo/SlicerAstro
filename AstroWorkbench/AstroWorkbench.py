@@ -38,8 +38,9 @@ products, a scrubber of the spectral axis over the integrated spectrum, an
 inspector with the processing pipeline (smoothing, masks, moment maps,
 profiles, PV diagrams), measurements on the sky and 3DBarolo, and the sky
 coordinates under the cursor.<br>
-Open it from this module or with {SHORTCUT}; "Classic Slicer" (or {SHORTCUT})
-goes back to the Slicer interface.
+Open it from this module or with {SHORTCUT}; the full Slicer button (or
+{SHORTCUT}) goes back to the Slicer interface, the developer button shows the
+Python console.
 """
         self.parent.acknowledgementText = """
 This module was developed by Davide Punzo. <br>
@@ -130,6 +131,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_DatasetsAndScrubber()
         self.setUp()
         self.test_Theme()
+        self.setUp()
+        self.test_ViewsInteraction()
         self.tearDown()
 
     def cube(self):
@@ -165,7 +168,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertFalse(panel.visible)
         self.assertIsNotNone(mainWindow.findChild("QDockWidget", "WorkbenchDatasets"))
         self.assertIsNotNone(mainWindow.findChild("QToolBar", "WorkbenchHeaderBar"))
-        slicer.util.findChild(mainWindow, "ClassicSlicerButton").click()
+        slicer.util.findChild(mainWindow, "FullSlicerButton").click()
         self.process()
         self.assertFalse(workbench().active)
         self.assertEqual(mainWindow.menuBar().visible, menuVisible)
@@ -248,3 +251,79 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertNotEqual(header.styleSheet, darkSheet)
         self.assertIn(theme.color("panel").name(), header.styleSheet.lower())
         theme.setMode(mode)
+
+    def test_ViewsInteraction(self):
+        """Active view (frame), data dropped on views, masks shown only in
+        the views showing their cube, the Python console of the developer
+        button."""
+        volume = self.cube()
+        mask = slicer.modules.astrovolume.logic().GetMaskSegmentationForVolume(volume, True)
+        selection = slicer.app.applicationLogic().GetSelectionNode()
+        selection.SetActiveVolumeID(volume.GetID())
+        workbench().enter()
+        workbench().header.layoutButton.setCurrentIndex(2)
+        self.process(30)
+        mainWindow = slicer.util.mainWindow()
+        layoutManager = slicer.app.layoutManager()
+        frames = {name: slicer.util.findChild(mainWindow, f"AstroViewFrame_{name}") for name in ("Red", "Yellow", "Green")}
+        self.assertTrue(frames["Red"].active)
+
+        # a click in a view makes it the active view
+        view = layoutManager.sliceWidget("Green").sliceView()
+        center = qt.QPointF(view.width / 2, view.height / 2)
+        for eventType in (qt.QEvent.MouseButtonPress, qt.QEvent.MouseButtonRelease):
+            event = qt.QMouseEvent(eventType, center, view.mapToGlobal(center), qt.Qt.LeftButton,
+                                   qt.Qt.LeftButton if eventType == qt.QEvent.MouseButtonPress else qt.Qt.NoButton,
+                                   qt.Qt.NoModifier)
+            slicer.app.sendEvent(view, event)
+        self.process()
+        self.assertTrue(frames["Green"].active)
+        self.assertFalse(frames["Red"].active)
+
+        # a dataset dropped on a view: shown there, the view becomes active
+        target = layoutManager.sliceWidget("Yellow").sliceView()
+        mime = qt.QMimeData()
+        mime.setData("application/x-slicerastro-node-id", qt.QByteArray(volume.GetID().encode()))
+        point = qt.QPointF(target.width / 2, target.height / 2)
+        slicer.app.sendEvent(target, qt.QDragEnterEvent(point.toPoint(), qt.Qt.CopyAction, mime,
+                                                          qt.Qt.LeftButton, qt.Qt.NoModifier))
+        slicer.app.sendEvent(target, qt.QDropEvent(point, qt.Qt.CopyAction, mime, qt.Qt.LeftButton, qt.Qt.NoModifier))
+        self.process(20)
+        yellowComposite = layoutManager.sliceWidget("Yellow").mrmlSliceCompositeNode()
+        self.assertEqual(yellowComposite.GetBackgroundVolumeID(), volume.GetID())
+        self.assertTrue(frames["Yellow"].active)
+
+        # the mask of the cube: in the views showing the cube only
+        workbench().visibility.update()
+        displayNode = mask.GetDisplayNode()
+        self.assertFalse(displayNode.GetShowInAllViewsByDefault())
+        greenComposite = layoutManager.sliceWidget("Green").mrmlSliceCompositeNode()
+        greenComposite.SetBackgroundVolumeID(None)
+        self.process(20)
+        workbench().visibility.update()
+        self.assertTrue(displayNode.IsDisplayableInView("vtkMRMLSliceNodeYellow"))
+        self.assertFalse(displayNode.IsDisplayableInView("vtkMRMLSliceNodeGreen"))
+
+        # the cube dropped on the 3D view: rendered there
+        threeD = layoutManager.threeDWidget(0)
+        workbench().dropNode("3D0", volume.GetID())
+        rendering = slicer.modules.volumerendering.logic().GetFirstVolumeRenderingDisplayNode(volume)
+        self.assertTrue(rendering.GetVisibility())
+        self.assertTrue(rendering.IsDisplayableInView(threeD.mrmlViewNode().GetID()))
+
+        # developer button: the Python console
+        developer = slicer.util.findChild(mainWindow, "DeveloperButton")
+        console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
+        if console is not None:
+            developer.click()
+            self.process()
+            self.assertTrue(console.visible)
+            developer.click()
+            self.process()
+            self.assertFalse(console.visible)
+
+        # leaving: the masks are shown in all the views again
+        workbench().exit()
+        self.process()
+        self.assertTrue(displayNode.GetShowInAllViewsByDefault())
+        self.assertTrue(displayNode.IsDisplayableInView("vtkMRMLSliceNodeGreen"))

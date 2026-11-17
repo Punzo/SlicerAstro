@@ -15,8 +15,11 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QApplication>
+#include <QDrag>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -29,6 +32,7 @@
 #include <vtkImageData.h>
 
 // MRML includes
+#include <vtkMRMLScene.h>
 #include <vtkMRMLVolumeNode.h>
 
 #include <algorithm>
@@ -37,6 +41,7 @@
 #include "qSlicerAstroDatasetCard.h"
 #include "qSlicerAstroTheme.h"
 #include "qSlicerAstroThumbnails.h"
+#include "qSlicerAstroViewFrame.h"
 
 //-----------------------------------------------------------------------------
 /// Preview, name, "active" chip, dimensions and the integrated spectrum
@@ -187,6 +192,9 @@ qSlicerAstroDatasetCard::qSlicerAstroDatasetCard(QWidget* parent)
   this->setProperty("activeCard", false);
   this->setCursor(Qt::PointingHandCursor);
   this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  // hover highlight (style sheet :hover)
+  this->setAttribute(Qt::WA_Hover, true);
+  this->setToolTip(tr("Click: open in the views. Drag: show in one view."));
   QVBoxLayout* layout = new QVBoxLayout(this);
   layout->setContentsMargins(10, 10, 10, 10);
   layout->setSpacing(9);
@@ -322,7 +330,9 @@ void qSlicerAstroDatasetCard::addProduct(const QString& id, const QString& name,
   button->setIconSize(QSize(14, 14));
   button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   button->setText(detail.isEmpty() ? name : QString("%1   %2").arg(name, detail));
-  button->setToolTip(name);
+  button->setToolTip(tr("%1\nClick: show. Drag: show in one view.").arg(name));
+  button->setProperty("nodeID", id);
+  button->installEventFilter(this);
   QObject::connect(button, &QToolButton::clicked, this, [this, id]() { emit this->productClicked(id); });
   this->ProductsLayout->addWidget(button);
   this->Products->setVisible(this->isActive());
@@ -335,11 +345,86 @@ int qSlicerAstroDatasetCard::productCount() const
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::mousePressEvent(QMouseEvent* event)
+{
+  if (event->button() == Qt::LeftButton)
+    {
+    this->PressPosition = event->pos();
+    this->Pressed = true;
+    this->Dragged = false;
+    }
+  QFrame::mousePressEvent(event);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::mouseMoveEvent(QMouseEvent* event)
+{
+  if (this->Pressed && !this->Dragged && (event->buttons() & Qt::LeftButton) &&
+      (event->pos() - this->PressPosition).manhattanLength() >= QApplication::startDragDistance())
+    {
+    this->Dragged = true;
+    this->startDrag(this->volumeID());
+    }
+  QFrame::mouseMoveEvent(event);
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroDatasetCard::mouseReleaseEvent(QMouseEvent* event)
 {
-  if (event->button() == Qt::LeftButton && this->rect().contains(event->pos()))
+  const bool click = this->Pressed && !this->Dragged;
+  this->Pressed = false;
+  if (click && event->button() == Qt::LeftButton && this->rect().contains(event->pos()))
     {
     emit this->clicked();
     }
   QFrame::mouseReleaseEvent(event);
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroDatasetCard::eventFilter(QObject* watched, QEvent* event)
+{
+  // products: dragged to a view
+  QToolButton* button = qobject_cast<QToolButton*>(watched);
+  if (button && event->type() == QEvent::MouseButtonPress)
+    {
+    button->setProperty("pressPosition", static_cast<QMouseEvent*>(event)->pos());
+    }
+  else if (button && event->type() == QEvent::MouseMove &&
+           (static_cast<QMouseEvent*>(event)->buttons() & Qt::LeftButton))
+    {
+    const QPoint start = button->property("pressPosition").toPoint();
+    if ((static_cast<QMouseEvent*>(event)->pos() - start).manhattanLength() >= QApplication::startDragDistance())
+      {
+      button->setDown(false);
+      this->startDrag(button->property("nodeID").toString());
+      return true;
+      }
+    }
+  return QFrame::eventFilter(watched, event);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::startDrag(const QString& nodeID)
+{
+  if (nodeID.isEmpty())
+    {
+    return;
+    }
+  QMimeData* mimeData = new QMimeData;
+  mimeData->setData(qSlicerAstroViewFrame::mimeType(), nodeID.toUtf8());
+  mimeData->setText(nodeID);
+  QDrag* drag = new QDrag(this);
+  drag->setMimeData(mimeData);
+  vtkMRMLVolumeNode* node = nullptr;
+  if (this->Volume && this->Volume->GetScene())
+    {
+    node = vtkMRMLVolumeNode::SafeDownCast(this->Volume->GetScene()->GetNodeByID(nodeID.toUtf8().constData()));
+    }
+  if (node)
+    {
+    QPixmap pixmap = qSlicerAstroThumbnails::instance()->roundedPixmap(node, 76, 58, 7., this->devicePixelRatioF());
+    drag->setPixmap(pixmap);
+    drag->setHotSpot(QPoint(38, 29));
+    }
+  drag->exec(Qt::CopyAction);
 }

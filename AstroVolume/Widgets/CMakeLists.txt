@@ -63,6 +63,8 @@ set(${KIT}_SRCS
   qSlicerAstroToggleCard.h
   qSlicerAstroValueField.cxx
   qSlicerAstroValueField.h
+  qSlicerAstroViewFrame.cxx
+  qSlicerAstroViewFrame.h
   )
 
 set(${KIT}_MOC_SRCS
@@ -89,6 +91,7 @@ set(${KIT}_MOC_SRCS
   qSlicerAstroThumbnails.h
   qSlicerAstroToggleCard.h
   qSlicerAstroValueField.h
+  qSlicerAstroViewFrame.h
   )
 
 set(${KIT}_UI_SRCS

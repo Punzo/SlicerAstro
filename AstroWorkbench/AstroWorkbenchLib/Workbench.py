@@ -5,7 +5,7 @@ is hidden and the Workbench is installed around the views:
     rail | Datasets drawer | views + axis scrubber | inspector
     WCS status bar (bottom)
 
-Leaving the mode ("Classic Slicer", Ctrl+Shift+W) restores everything."""
+Leaving the mode (the full Slicer button, Ctrl+Shift+W) restores everything."""
 
 import qt
 import vtk
@@ -14,7 +14,7 @@ import slicer
 
 from . import Astro
 from .Inspector import Inspector
-from .Views import ViewDecorator
+from .Views import ViewDecorator, ViewVisibility
 
 VIEW_COLOR = (7 / 255.0, 10 / 255.0, 18 / 255.0)
 
@@ -71,14 +71,16 @@ class HeaderBar(qt.QFrame):
         # interaction tools
         self.toolGroup = qt.QButtonGroup(self)
         self.toolGroup.setExclusive(True)
-        self.navigateButton = iconButton("target", "Navigate: pan, zoom, scroll through the channels", checkable=True)
+        self.navigateButton = iconButton("pointer", "Navigate: pan, zoom, scroll through the channels", checkable=True)
         self.navigateButton.checked = True
-        self.crosshairButton = iconButton("compass", "Crosshair: link the views at the cursor", checkable=True)
+        self.crosshairButton = iconButton("target", "Crosshair: the same position in all the views", checkable=True)
         self.lineButton = iconButton("ruler", "Line: angular separation and velocity difference", checkable=True)
+        self.curveButton = iconButton("curve", "Curve: length on the sky and velocity range along it", checkable=True)
         self.angleButton = iconButton("angle", "Angle on the sky", checkable=True)
         self.roiButton = iconButton("roi", "ROI box", checkable=True)
         for button, separator in ((self.navigateButton, False), (self.crosshairButton, True),
-                                  (self.lineButton, False), (self.angleButton, False), (self.roiButton, False)):
+                                  (self.lineButton, False), (self.curveButton, False), (self.angleButton, False),
+                                  (self.roiButton, False)):
             self.toolGroup.addButton(button)
             layout.addWidget(button)
             if separator:
@@ -86,6 +88,7 @@ class HeaderBar(qt.QFrame):
         self.navigateButton.connect("clicked()", lambda: self.workbench.setInteraction("navigate"))
         self.crosshairButton.connect("clicked()", lambda: self.workbench.setInteraction("crosshair"))
         self.lineButton.connect("clicked()", lambda: self.workbench.setInteraction("line"))
+        self.curveButton.connect("clicked()", lambda: self.workbench.setInteraction("curve"))
         self.angleButton.connect("clicked()", lambda: self.workbench.setInteraction("angle"))
         self.roiButton.connect("clicked()", lambda: self.workbench.setInteraction("roi"))
         layout.addStretch(1)
@@ -93,10 +96,12 @@ class HeaderBar(qt.QFrame):
         # layout of the views
         self.layoutButton = slicer.qSlicerAstroSegmentedButton()
         self.layoutButton.setObjectName("WorkbenchLayoutButton")
-        self.layoutButton.addButton("", "One view")
-        self.layoutButton.addButton("", "Four views")
-        self.layoutButton.button(0).setIcon(theme().icon("layout1"))
-        self.layoutButton.button(1).setIcon(theme().icon("layout4"))
+        self.layoutButton.addButton("", "One view: the channel map")
+        self.layoutButton.addButton("", "Three views: channel map, moment 0 and 3D")
+        self.layoutButton.addButton("", "Four views: channel map, 3D, position-velocity and moment 0")
+        for index, icon in enumerate(("layout1", "layout3", "layout4")):
+            self.layoutButton.button(index).setIcon(theme().icon(icon))
+            self.layoutButton.button(index).setObjectName(f"WorkbenchLayout_{icon}")
         self.layoutButton.connect("currentIndexChanged(int)", self.workbench.setViewLayout)
         layout.addWidget(self.layoutButton)
         self.themeButton = iconButton("sun", "Light or dark theme")
@@ -107,12 +112,15 @@ class HeaderBar(qt.QFrame):
         helpButton.connect("clicked()", lambda: qt.QDesktopServices.openUrl(
             qt.QUrl("https://punzo.github.io/SlicerAstro/")))
         layout.addWidget(helpButton)
-        self.classicButton = qt.QPushButton("Classic Slicer")
-        self.classicButton.setObjectName("ClassicSlicerButton")
-        self.classicButton.toolTip = "Back to the Slicer interface (Ctrl+Shift+W)"
+        self.developerButton = iconButton("terminal", "Developer: Python console", checkable=True)
+        self.developerButton.setObjectName("DeveloperButton")
+        self.developerButton.connect("toggled(bool)", self.workbench.setPythonConsoleVisible)
+        layout.addWidget(self.developerButton)
+        self.fullSlicerButton = iconButton("expand", "Full Slicer interface (Ctrl+Shift+W)")
+        self.fullSlicerButton.setObjectName("FullSlicerButton")
         # the header is deleted by exit(): called after the click is handled
-        self.classicButton.connect("clicked()", lambda: qt.QTimer.singleShot(0, self.workbench.exit))
-        layout.addWidget(self.classicButton)
+        self.fullSlicerButton.connect("clicked()", lambda: qt.QTimer.singleShot(0, self.workbench.exit))
+        layout.addWidget(self.fullSlicerButton)
         theme().connect("themeChanged()", self.updateThemeIcon)
         self.updateThemeIcon()
 
@@ -321,7 +329,13 @@ class ScrubberBar(qt.QFrame):
         self.updating = False
         self.scrubber.connect("currentIndexChanged(int)", self.onIndexChanged)
 
-    def setVolume(self, volume):
+    def setVolume(self, volume, sliceNode=None):
+        """The spectral axis of a cube, moving a slice view (by default the
+        red one)."""
+        sliceNode = sliceNode if sliceNode is not None else slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeRed")
+        if volume is self.volume and sliceNode is self.sliceNode and self.scrubber.count() > 0:
+            self.onSliceModified()
+            return
         self.volume = volume
         if volume is None or Astro.dimensions(volume) < 3:
             self.scrubber.clear()
@@ -329,7 +343,7 @@ class ScrubberBar(qt.QFrame):
         velocities = Astro.channelVelocities(volume)
         self.scrubber.setAxis("channel", Astro.spectralUnit(volume), Astro.spectralLabel(volume), velocities)
         self.scrubber.setProfile(slicer.qSlicerAstroThumbnails().integratedSpectrum(volume))
-        self.followSlice(slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeRed"))
+        self.followSlice(sliceNode)
         self.onSliceModified()
 
     def followSlice(self, sliceNode):
@@ -386,7 +400,7 @@ class StatusBar(qt.QFrame):
             layout.addWidget(label)
             self.labels[name] = label
         layout.addStretch(1)
-        self.hint = qt.QLabel("Ctrl+Shift+W: classic Slicer")
+        self.hint = qt.QLabel("Ctrl+Shift+W: full Slicer")
         self.hint.setProperty("astroRole", "label")
         layout.addWidget(self.hint)
         self.crosshair = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLCrosshairNode")
@@ -445,6 +459,8 @@ class Workbench:
         self.inspector = None
         self.scrubberBar = None
         self.views = ViewDecorator(self)
+        self.visibility = ViewVisibility()
+        self.activeViewKey = "Red"
 
     # ------------------------------------------------------------------
     def activeVolumeID(self):
@@ -457,11 +473,82 @@ class Workbench:
         return volume if Astro.isAstroVolume(volume) else None
 
     def activate(self, volume):
+        """Opens a dataset: active volume, in the views (channel map, moment
+        0, position-velocity, 3D)."""
         selection = slicer.app.applicationLogic().GetSelectionNode()
         selection.SetActiveVolumeID(volume.GetID())
         slicer.app.applicationLogic().PropagateVolumeSelection(0)
         self.refresh()
         self.arrangeViews()
+
+    # ------------------------------------------------------------------
+    def viewNodeID(self, key):
+        layoutManager = slicer.app.layoutManager()
+        if key.startswith("3D"):
+            widget = layoutManager.threeDWidget(int(key[2:]))
+            return widget.mrmlViewNode().GetID() if widget is not None else None
+        widget = layoutManager.sliceWidget(key)
+        return widget.mrmlSliceNode().GetID() if widget is not None else None
+
+    def setActiveView(self, key):
+        """The view clicked last (amber border): the scrubber moves it when
+        it shows a cube."""
+        self.activeViewKey = key
+        self.views.setActive(key)
+        if key.startswith("3D") or self.scrubberBar is None:
+            return
+        sliceNode = slicer.mrmlScene.GetNodeByID(self.viewNodeID(key))
+        composite = slicer.app.layoutManager().sliceWidget(key).mrmlSliceCompositeNode()
+        volumeID = composite.GetBackgroundVolumeID()
+        volume = slicer.mrmlScene.GetNodeByID(volumeID) if volumeID else None
+        if Astro.isAstroVolume(volume) and Astro.dimensions(volume) >= 3 and sliceNode.GetOrientation() == "XY":
+            self.scrubberBar.setVolume(volume, sliceNode)
+
+    def dropNode(self, key, nodeID):
+        """Data dragged from the Datasets drawer onto a view: shown in that
+        view only."""
+        node = slicer.mrmlScene.GetNodeByID(nodeID)
+        viewNodeID = self.viewNodeID(key)
+        if node is None or viewNodeID is None:
+            return
+        if node.IsA("vtkMRMLSegmentationNode"):
+            self.visibility.addToView(node, viewNodeID)
+            self.setActiveView(key)
+            return
+        if not Astro.isAstroVolume(node):
+            return
+        if key.startswith("3D"):
+            if Astro.dimensions(node) < 3:
+                return
+            self.visibility.renderInView(node, viewNodeID)
+        else:
+            sliceNode = slicer.mrmlScene.GetNodeByID(viewNodeID)
+            composite = slicer.app.layoutManager().sliceWidget(key).mrmlSliceCompositeNode()
+            composite.SetBackgroundVolumeID(node.GetID())
+            composite.SetForegroundVolumeID(None)
+            orientation = sliceNode.GetOrientation() if Astro.dimensions(node) >= 3 else "XY"
+            sliceNode.SetOrientation("XZ" if orientation == "XY" else "XY")
+            sliceNode.SetOrientation(orientation)
+            sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
+            if sliceLogic is not None:
+                sliceLogic.FitSliceToAll()
+        # the dropped data become the active dataset (without moving the
+        # other views)
+        if Astro.dimensions(node) >= 3 or self.activeVolume() is None:
+            slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(node.GetID())
+        self.visibility.update()
+        self.setActiveView(key)
+
+    def setPythonConsoleVisible(self, visible):
+        mainWindow = slicer.util.mainWindow()
+        console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
+        if console is None:
+            return
+        if visible and mainWindow.dockWidgetArea(console) == qt.Qt.NoDockWidgetArea:
+            mainWindow.addDockWidget(qt.Qt.BottomDockWidgetArea, console)
+        console.visible = visible
+        if visible:
+            console.raise_()
 
     def showProduct(self, nodeID):
         node = slicer.mrmlScene.GetNodeByID(nodeID)
@@ -472,9 +559,9 @@ class Workbench:
             if displayNode is not None:
                 displayNode.SetVisibility(not displayNode.GetVisibility())
             return
-        composite = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow" if self.fourViews()
+        composite = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow" if self.layoutIndex() > 0
                                                  else "vtkMRMLSliceCompositeNodeRed")
-        sliceNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow" if self.fourViews()
+        sliceNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow" if self.layoutIndex() > 0
                                                  else "vtkMRMLSliceNodeRed")
         composite.SetBackgroundVolumeID(node.GetID())
         sliceNode.SetOrientation("XZ")
@@ -482,14 +569,52 @@ class Workbench:
         slicer.app.applicationLogic().FitSliceToAll()
 
     # ------------------------------------------------------------------
+    THREE_VIEWS = 3501
+    THREE_VIEWS_LAYOUT = """
+<layout type="horizontal" split="true">
+ <item splitSize="600">
+  <view class="vtkMRMLSliceNode" singletontag="Red">
+   <property name="viewlabel" action="default">R</property>
+   <property name="viewcolor" action="default">#F34A33</property>
+  </view>
+ </item>
+ <item splitSize="400">
+  <layout type="vertical" split="true">
+   <item>
+    <view class="vtkMRMLSliceNode" singletontag="Yellow">
+     <property name="viewlabel" action="default">Y</property>
+     <property name="viewcolor" action="default">#EDD54C</property>
+    </view>
+   </item>
+   <item>
+    <view class="vtkMRMLViewNode" singletontag="1">
+     <property name="viewlabel" action="default">1</property>
+    </view>
+   </item>
+  </layout>
+ </item>
+</layout>"""
+
+    def layouts(self):
+        """Layouts of the switch: one view, three views (channel map,
+        moment 0, 3D) and four views."""
+        layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
+        if not layoutNode.IsLayoutDescription(self.THREE_VIEWS):
+            layoutNode.AddLayoutDescription(self.THREE_VIEWS, self.THREE_VIEWS_LAYOUT)
+        return (slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView, self.THREE_VIEWS,
+                slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+
     def fourViews(self):
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         return layoutNode.GetViewArrangement() == slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView
 
+    def layoutIndex(self):
+        arrangement = slicer.app.layoutManager().layoutLogic().GetLayoutNode().GetViewArrangement()
+        layouts = self.layouts()
+        return layouts.index(arrangement) if arrangement in layouts else 2
+
     def setViewLayout(self, index):
-        layout = slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView if index == 0 else \
-            slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView
-        slicer.app.layoutManager().setLayout(layout)
+        slicer.app.layoutManager().setLayout(self.layouts()[index])
         self.styleViews()
         self.arrangeViews()
 
@@ -520,7 +645,13 @@ class Workbench:
             sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
             if sliceLogic is not None:
                 sliceLogic.FitSliceToAll()
+        if cube:
+            threeD = self.viewNodeID("3D0")
+            if threeD is not None:
+                self.visibility.renderInView(volume, threeD)
+        self.visibility.update()
         if cube and self.scrubberBar is not None:
+            self.setActiveView("Red")
             self.scrubberBar.onIndexChanged(self.scrubberBar.scrubber.currentIndex)
 
     def setInteraction(self, mode):
@@ -529,8 +660,8 @@ class Workbench:
         if crosshair is not None:
             crosshair.SetCrosshairMode(slicer.vtkMRMLCrosshairNode.ShowBasic if mode == "crosshair"
                                        else slicer.vtkMRMLCrosshairNode.NoCrosshair)
-        placeClasses = {"line": "vtkMRMLMarkupsLineNode", "angle": "vtkMRMLMarkupsAngleNode",
-                        "roi": "vtkMRMLMarkupsROINode"}
+        placeClasses = {"line": "vtkMRMLMarkupsLineNode", "curve": "vtkMRMLMarkupsCurveNode",
+                        "angle": "vtkMRMLMarkupsAngleNode", "roi": "vtkMRMLMarkupsROINode"}
         if mode in placeClasses:
             selection = slicer.app.applicationLogic().GetSelectionNode()
             selection.SetReferenceActivePlaceNodeClassName(placeClasses[mode])
@@ -619,7 +750,8 @@ class Workbench:
         for widget in (self.header, left, self.inspector, self.scrubberBar, self.statusBar):
             theme().applyTo(widget)
 
-        self.header.layoutButton.setCurrentIndex(1 if self.fourViews() else 0)
+        self.header.layoutButton.setCurrentIndex(self.layoutIndex())
+        self.visibility.enter()
         self.styleViews()
         mainWindow.resizeDocks([mainWindow.findChild("QDockWidget", "WorkbenchDatasets")], [360], qt.Qt.Horizontal)
         for event in (slicer.mrmlScene.NodeAddedEvent, slicer.mrmlScene.NodeRemovedEvent,
@@ -640,9 +772,11 @@ class Workbench:
         volume = self.activeVolume()
         self.drawer.refresh()
         self.scrubberBar.setVolume(volume)
+        self.setActiveView(self.activeViewKey)
         self.statusBar.clear()
         self.inspector.setVolume(volume)
         self.views.refresh()
+        self.visibility.update()
         if volume is not None:
             context = [Astro.attribute(volume, "OBJECT", "").strip(), Astro.attribute(volume, "TELESCOP", "").strip()]
             self.header.contextLabel.text = " · ".join(part for part in context if part) or volume.GetName()
@@ -683,6 +817,7 @@ class Workbench:
             dock.visible = visible
         mainWindow.restoreState(self.saved["state"])
         self.views.remove()
+        self.visibility.exit()
         for nodeID, color, color2 in self.saved["views"]:
             node = slicer.mrmlScene.GetNodeByID(nodeID)
             if node is not None:
