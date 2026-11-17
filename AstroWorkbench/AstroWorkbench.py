@@ -237,8 +237,21 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertEqual(scrubber.currentIndex, 5)
 
+        # Inspect > Display: histogram in units of the noise, the window of
+        # the 2D display set from it
+        inspector = workbench().inspector
+        histogram = slicer.util.findChild(inspector, "DisplayHistogram")
+        self.assertEqual(len(histogram.spectrumX()), 160)
+        noise = volume.GetDisplayThreshold()
+        inspector.onWindowChanged(-1.0, 12.0)
+        self.process()
+        displayNode = volume.GetDisplayNode()
+        self.assertAlmostEqual(displayNode.GetWindow() / noise, 13.0, places=3)
+        self.assertAlmostEqual(displayNode.GetLevel() / noise, 5.5, places=3)
+        self.assertIn("max 12.0σ", slicer.util.findChild(inspector, "DisplayWindowLabel").text)
+        self.assertFalse(slicer.util.findChild(inspector, "DisplayColourStrip").pixmap.isNull())
+
         # Process: moment maps from the pipeline panel, listed as products
-        inspector = slicer.util.findChild(mainWindow, "WorkbenchInspector")
         momentsPanel = slicer.util.findChild(inspector, "PipelinePanel_AstroMomentMaps")
         self.assertTrue(momentsPanel.visible)
         slicer.util.findChild(momentsPanel, "ApplyButton").click()
