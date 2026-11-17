@@ -44,7 +44,7 @@ SOURCES = [
 ]
 # SampleData-v2 files: tested as they are (not copied to TestingData-v1)
 SAMPLES_TESTED = [
-    ("WEIN069.fits", "WHISP HI cube (WSRT)"),
+    ("WEIN069.fits", "HI cube of the WSRT ZoA Perseus-Pisces Filament survey (Ramatsoku et al. 2016)"),
     ("NGC3198.fits", "HALOGAS HI cube (WSRT)"),
     ("NGC2403_DSS.fits", "DSS2 optical image (plate solution and standard WCS)"),
     ("Antennae_HI.fits", "VLA HI cube (AIPS header, FELO-OBS, Stokes axis)"),

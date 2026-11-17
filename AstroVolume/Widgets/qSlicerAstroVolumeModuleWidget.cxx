@@ -1696,7 +1696,7 @@ void qSlicerAstroVolumeModuleWidget::updatePresets(vtkMRMLNode *node)
     {
     // default 3D color function
     d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-    d->PresetsNodeComboBox->setCurrentNodeIndex(vtkMRMLAstroVolumeNode::ThreeSurfacesPreset);
+    d->PresetsNodeComboBox->setCurrentNodeIndex(vtkMRMLAstroVolumeNode::DefaultPreset);
     }
 
   d->PresetsNodeComboBox->update();
@@ -5831,7 +5831,7 @@ void qSlicerAstroVolumeModuleWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* v
       {
       // default 3D color function of a new volume
       d->PresetsNodeComboBox->setCurrentNodeIndex(-1);
-      d->PresetsNodeComboBox->setCurrentNodeIndex(vtkMRMLAstroVolumeNode::ThreeSurfacesPreset);
+      d->PresetsNodeComboBox->setCurrentNodeIndex(vtkMRMLAstroVolumeNode::DefaultPreset);
       forcePreset = true;
       }
 

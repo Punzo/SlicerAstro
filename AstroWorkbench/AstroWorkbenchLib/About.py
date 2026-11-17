@@ -130,7 +130,7 @@ class AboutDialog(qt.QDialog):
         version.setObjectName("AboutVersion")
         version.setProperty("astroRole", "monoLabel")
         titles.addWidget(version)
-        tagline = qt.QLabel("3-D visualisation and analysis of astronomical data cubes")
+        tagline = qt.QLabel("3D visualisation and analysis of astronomical data cubes")
         tagline.setProperty("astroRole", "label")
         titles.addWidget(tagline)
         headerLayout.addLayout(titles, 1)
@@ -264,6 +264,11 @@ class AboutDialog(qt.QDialog):
             "Thijs van der Hulst, Kapteyn Astronomical Institute, University of Groningen. SlicerAstro was "
             "supported by the European Research Council (grant nr. 291531) and the 3D Slicer community.",
             role=""))
+        layout.addWidget(overline("Thanks"))
+        layout.addWidget(paragraph(
+            "Special thanks to Mpati Ramatsoku for the WEIN069 data cube, from her WSRT Zone of Avoidance "
+            "Perseus-Pisces Filament survey (Ramatsoku et al. 2016, MNRAS, 460, 923), the sample data of "
+            "SlicerAstro since its first version.", role=""))
         layout.addWidget(overline("Citing"))
         layout.addWidget(paragraph("If you use SlicerAstro in your research, please cite:"))
         for citation in CITATIONS:
@@ -297,7 +302,8 @@ class AboutDialog(qt.QDialog):
             "Licence 1.1). Logo, icons and the Observatory and Daylight themes: SlicerAstro."))
         layout.addWidget(overline("Sample data"))
         layout.addWidget(paragraph(
-            "WHISP (van der Hulst et al. 2001), HALOGAS DR1 (Heald et al. 2011), the Digitized Sky "
+            "WEIN069 from the WSRT ZoA Perseus-Pisces Filament survey (Ramatsoku et al. 2016, MNRAS, 460, 923), "
+            "HALOGAS DR1 (Heald et al. 2011), the Digitized Sky "
             "Survey (STScI/AURA) and masks and catalogues made with SoFiA-2 (Westmeier et al. 2021)."))
         layout.addStretch(1)
         return widget

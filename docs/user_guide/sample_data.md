@@ -7,7 +7,7 @@ release of SlicerAstro (checksums are verified) and cached locally.
 
 | Sample | Content | Source |
 |---|---|---|
-| WEIN069 | HI data cube of a galaxy group | WHISP (van der Hulst et al. 2001) |
+| WEIN069 | HI data cube of a galaxy group with a tidal tail | WSRT ZoA Perseus-Pisces Filament survey (Ramatsoku et al. 2016) |
 | WEIN069_MASK | SoFiA 2 mask (segmentation) and source catalogue of WEIN069 | SoFiA 2 (Westmeier et al. 2021) |
 | NGC2403 | HI data cube (30″ resolution) | HALOGAS DR1 (Heald et al. 2011) |
 | NGC2403_DSS | Optical image of the NGC 2403 field | Digitized Sky Survey 2 (red) |

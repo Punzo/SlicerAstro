@@ -2,7 +2,7 @@
  "file": "WEIN069.fits",
  "url": "https://github.com/Punzo/SlicerAstro/releases/download/SampleData-v2/WEIN069.fits",
  "sha256": "35c256c0d552f317e20edb38598e93ef10d370f05a16ff9603db6771fe523905",
- "description": "WHISP HI cube (WSRT)",
+ "description": "HI cube of the WSRT ZoA Perseus-Pisces Filament survey (Ramatsoku et al. 2016)",
  "bitpix": -32,
  "dimensions": [
   134,

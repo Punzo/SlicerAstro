@@ -168,7 +168,10 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
       ObservatoryShellsPreset,
       ObservatoryEmissionPreset,
       MagmaEmissionPreset,
-      ViridisEmissionPreset
+      ViridisEmissionPreset,
+      /// default of the data: the surfaces at 3, 7 and 15 sigma in colours
+      /// safe for colour-blind people
+      DefaultPreset = ObservatorySurfacesPreset
      };
 
   /// Set reference to the current VolumeProperty Node

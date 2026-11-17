@@ -30,9 +30,9 @@ ROI*).
 | Emission above 3σ · faint, medium, dense | all the emission above 3σ, constant opacity |
 | Surface at 3σ · green, white | one surface at 3σ |
 | Surfaces at 3σ, 7σ | two surfaces |
-| Surfaces at 3σ, 7σ, 15σ | three surfaces, green, blue and red (default) |
+| Surfaces at 3σ, 7σ, 15σ | three surfaces, green, blue and red |
 | Surfaces every 3σ · rainbow | eight surfaces, from 3σ to 24σ |
-| Surfaces at 3σ, 7σ, 15σ · Observatory | three surfaces in colours safe for colour-blind people (teal, mint, amber), faint outside |
+| Surfaces at 3σ, 7σ, 15σ · Observatory | three surfaces in colours safe for colour-blind people (teal, mint, amber), faint outside (default) |
 | Surfaces every 3σ · Observatory | eight surfaces along the Observatory colour map |
 | Emission 3σ–25σ · Observatory, magma, viridis | continuous rendering of the emission from 3σ to 25σ, opacity and colour rising with the intensity (magma and viridis are perceptually uniform colour maps) |
 

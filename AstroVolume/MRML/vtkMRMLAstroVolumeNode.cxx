@@ -532,7 +532,7 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
       return index;
       }
     }
-  return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
+  return vtkMRMLAstroVolumeNode::DefaultPreset;
 }
 
 //-----------------------------------------------------------

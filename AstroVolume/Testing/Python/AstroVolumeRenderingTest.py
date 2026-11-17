@@ -20,7 +20,7 @@ class AstroVolumeRenderingTest(ScriptedLoadableModule):
 Test of the volume rendering of astronomical data: the transfer functions
 keep their points far enough apart for the lookup table textures, the
 OpenGL volume mapper does not warn about the texture size, and the ROI of
-the 3-D display (Display ROI, crop, RMS in ROI) works.
+the 3D display (Display ROI, crop, RMS in ROI) works.
 """
         self.parent.hidden = True
 
@@ -219,8 +219,9 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Test passed")
 
     def test_DefaultPreset(self):
-        """The 3D color function of a loaded cube is the three surfaces
-        (identifier ThreeSurfaces, shown as "Surfaces at 3σ, 7σ, 15σ")."""
+        """The 3D color function of a loaded cube: the surfaces at 3σ, 7σ,
+        15σ in colours safe for colour-blind people (identifier
+        ObservatorySurfaces)."""
         import AstroSampleData
 
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
@@ -230,9 +231,11 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         slicer.app.processEvents()
         presetNode = volumeNode.GetPresetNode()
         self.assertIsNotNone(presetNode)
-        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(presetNode), "ThreeSurfaces")
-        self.assertEqual(presetNode.GetName(), "Surfaces at 3σ, 7σ, 15σ")
-        self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.ThreeSurfacesPreset)
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(presetNode), "ObservatorySurfaces")
+        self.assertEqual(presetNode.GetName(), "Surfaces at 3σ, 7σ, 15σ · Observatory")
+        self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.DefaultPreset)
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.DefaultPreset,
+                         slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
         self.delayDisplay("Test passed")
 
     def test_PresetNamesAndFunctions(self):
