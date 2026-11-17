@@ -882,7 +882,7 @@ vtkMRMLVolumePropertyNode* vtkSlicerAstroVolumeLogic::GetScenePresetNode(vtkMRML
     return preset;
     }
 
-  std::string singletonTag = std::string("SlicerAstro.Preset.") + preset->GetName();
+  std::string singletonTag = std::string("SlicerAstro.Preset.") + vtkMRMLAstroVolumeNode::GetPresetIdentifier(preset);
   vtkMRMLVolumePropertyNode* scenePreset = vtkMRMLVolumePropertyNode::SafeDownCast(
     scene->GetSingletonNode(singletonTag.c_str(), "vtkMRMLVolumePropertyNode"));
   if (scenePreset)
@@ -893,6 +893,9 @@ vtkMRMLVolumePropertyNode* vtkSlicerAstroVolumeLogic::GetScenePresetNode(vtkMRML
   vtkNew<vtkMRMLVolumePropertyNode> newScenePreset;
   newScenePreset->Copy(preset);
   newScenePreset->SetName(preset->GetName());
+  // the identifier (attributes are not copied by Copy)
+  newScenePreset->SetAttribute(vtkMRMLAstroVolumeNode::GetPresetIdentifierAttributeName(),
+                               vtkMRMLAstroVolumeNode::GetPresetIdentifier(preset).c_str());
   newScenePreset->SetSingletonTag(singletonTag.c_str());
   newScenePreset->SetHideFromEditors(true);
   return vtkMRMLVolumePropertyNode::SafeDownCast(scene->AddNode(newScenePreset));
@@ -1852,6 +1855,151 @@ bool vtkSlicerAstroVolumeLogic::Reproject(vtkMRMLAstroReprojectParametersNode *p
 }
 
 //---------------------------------------------------------------------------
+namespace
+{
+//----------------------------------------------------------------------------
+/// A thin surface of a 3D colour function at a multiple of the noise
+struct PresetShell
+{
+  double Sigma;
+  double Opacity;
+  unsigned int Rgb;
+};
+
+typedef std::vector<std::pair<double, unsigned int> > ColorStops;
+
+//----------------------------------------------------------------------------
+ColorStops ObservatoryStops()
+{
+  return {{0., 0x2B3F8C}, {0.25, 0x1F8FA6}, {0.5, 0x7FD3C4}, {0.75, 0xF2B24C}, {1., 0xFFF3D6}};
+}
+
+//----------------------------------------------------------------------------
+/// magma and viridis (perceptually uniform colour maps of matplotlib, CC0),
+/// without their darkest part (invisible on the dark background)
+ColorStops MagmaStops()
+{
+  return {{0., 0x3B0F70}, {0.25, 0x8C2981}, {0.5, 0xDE4968}, {0.75, 0xFE9F6D}, {1., 0xFCFDBF}};
+}
+
+//----------------------------------------------------------------------------
+ColorStops ViridisStops()
+{
+  return {{0., 0x440154}, {0.25, 0x3B528B}, {0.5, 0x21918C}, {0.75, 0x5EC962}, {1., 0xFDE725}};
+}
+
+//----------------------------------------------------------------------------
+void RgbComponents(unsigned int rgb, double components[3])
+{
+  components[0] = ((rgb >> 16) & 0xFF) / 255.;
+  components[1] = ((rgb >> 8) & 0xFF) / 255.;
+  components[2] = (rgb & 0xFF) / 255.;
+}
+
+//----------------------------------------------------------------------------
+unsigned int ColorMapRgb(const ColorStops& stops, double value)
+{
+  value = std::max(0., std::min(1., value));
+  for (size_t i = 1; i < stops.size(); i++)
+    {
+    if (value <= stops[i].first)
+      {
+      const double t = (value - stops[i - 1].first) / (stops[i].first - stops[i - 1].first);
+      double a[3], b[3];
+      RgbComponents(stops[i - 1].second, a);
+      RgbComponents(stops[i].second, b);
+      unsigned int rgb = 0;
+      for (int c = 0; c < 3; c++)
+        {
+        rgb = (rgb << 8) | static_cast<unsigned int>(std::lround(255. * (a[c] + t * (b[c] - a[c]))));
+        }
+      return rgb;
+      }
+    }
+  return stops.back().second;
+}
+
+//----------------------------------------------------------------------------
+/// Thin surfaces at multiples of the noise (half width 0.2 level, at most
+/// half the noise for high levels); levels outside of the data are skipped
+void SetPresetShells(vtkMRMLVolumePropertyNode* node, const std::vector<PresetShell>& shells,
+                     double noise, double min, double max)
+{
+  vtkPiecewiseFunction* opacity = node->GetScalarOpacity();
+  vtkColorTransferFunction* color = node->GetColor();
+  opacity->RemoveAllPoints();
+  color->RemoveAllPoints();
+  opacity->AddPoint(min, 0.);
+  double rgb[3];
+  RgbComponents(shells.front().Rgb, rgb);
+  color->AddRGBPoint(min, rgb[0], rgb[1], rgb[2]);
+  for (const PresetShell& shell : shells)
+    {
+    const double level = shell.Sigma * noise;
+    const double halfWidth = (shell.Sigma < 10. ? 0.2 * shell.Sigma : 0.5) * noise;
+    if (level - halfWidth <= min || level + halfWidth >= max)
+      {
+      continue;
+      }
+    opacity->AddPoint(level - halfWidth, 0., 0.5, 0.2);
+    opacity->AddPoint(level, shell.Opacity, 0.5, 0.2);
+    opacity->AddPoint(level + halfWidth, 0., 0.5, 0.2);
+    RgbComponents(shell.Rgb, rgb);
+    color->AddRGBPoint(level, rgb[0], rgb[1], rgb[2]);
+    }
+  opacity->AddPoint(max, 0.);
+  RgbComponents(shells.back().Rgb, rgb);
+  color->AddRGBPoint(max, rgb[0], rgb[1], rgb[2]);
+  vtkPiecewiseFunction* gradientOpacity = node->GetGradientOpacity();
+  gradientOpacity->RemoveAllPoints();
+  gradientOpacity->AddPoint(min, 1.);
+  gradientOpacity->AddPoint(max, 1.);
+}
+
+//----------------------------------------------------------------------------
+/// Emission from 3 to 25 times the noise: opacity rising from 0.04 to 0.7,
+/// colours of a colour map, levels spaced logarithmically
+void SetPresetEmission(vtkMRMLVolumePropertyNode* node, const ColorStops& stops,
+                       double noise, double min, double max)
+{
+  vtkPiecewiseFunction* opacity = node->GetScalarOpacity();
+  vtkColorTransferFunction* color = node->GetColor();
+  opacity->RemoveAllPoints();
+  color->RemoveAllPoints();
+  double rgb[3];
+  RgbComponents(ColorMapRgb(stops, 0.), rgb);
+  opacity->AddPoint(min, 0.);
+  color->AddRGBPoint(min, rgb[0], rgb[1], rgb[2]);
+  const double start = 0.85 * 3. * noise;
+  if (start > min && start < max)
+    {
+    opacity->AddPoint(start, 0.);
+    }
+  double lastOpacity = 0.;
+  for (int k = 0; k <= 8; k++)
+    {
+    const double t = k / 8.;
+    const double level = 3. * noise * std::pow(25. / 3., t);
+    if (level <= min || level >= max)
+      {
+      continue;
+      }
+    lastOpacity = 0.04 + (0.7 - 0.04) * std::pow(t, 1.3);
+    opacity->AddPoint(level, lastOpacity);
+    RgbComponents(ColorMapRgb(stops, t), rgb);
+    color->AddRGBPoint(level, rgb[0], rgb[1], rgb[2]);
+    }
+  opacity->AddPoint(max, lastOpacity);
+  RgbComponents(ColorMapRgb(stops, 1.), rgb);
+  color->AddRGBPoint(max, rgb[0], rgb[1], rgb[2]);
+  vtkPiecewiseFunction* gradientOpacity = node->GetGradientOpacity();
+  gradientOpacity->RemoveAllPoints();
+  gradientOpacity->AddPoint(min, 1.);
+  gradientOpacity->AddPoint(max, 1.);
+}
+} // end of anonymous namespace
+
+//---------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node)
 {
   if (!node || !node->IsA("vtkMRMLAstroVolumeNode"))
@@ -1970,7 +2118,8 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       {
       continue;
       }
-    if(!strcmp(volumePropertyNode->GetName(),"LowConstantOpacity"))
+    const std::string preset = vtkMRMLAstroVolumeNode::GetPresetIdentifier(volumePropertyNode);
+    if (preset == "LowConstantOpacity")
       {
       vtkPiecewiseFunction *compositeOpacity =
           volumePropertyNode->GetScalarOpacity();
@@ -1993,7 +2142,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"MediumConstantOpacity"))
+    if (preset == "MediumConstantOpacity")
       {
       vtkPiecewiseFunction *compositeOpacity =
           volumePropertyNode->GetScalarOpacity();
@@ -2016,7 +2165,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"HighConstantOpacity"))
+    if (preset == "HighConstantOpacity")
       {
       vtkPiecewiseFunction *compositeOpacity =
           volumePropertyNode->GetScalarOpacity();
@@ -2039,7 +2188,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"OneSurfaceGreen"))
+    if (preset == "OneSurfaceGreen")
       {
       vtkPiecewiseFunction *compositeOpacity =
           volumePropertyNode->GetScalarOpacity();
@@ -2063,7 +2212,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"OneSurfaceWhite"))
+    if (preset == "OneSurfaceWhite")
       {
       vtkPiecewiseFunction *compositeOpacity =
           volumePropertyNode->GetScalarOpacity();
@@ -2087,7 +2236,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"TwoSurfaces"))
+    if (preset == "TwoSurfaces")
       {
       vtkPiecewiseFunction *compositeOpacity =
           volumePropertyNode->GetScalarOpacity();
@@ -2115,7 +2264,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"ThreeSurfaces"))
+    if (preset == "ThreeSurfaces")
       {
       vtkPiecewiseFunction *compositeOpacity =
          volumePropertyNode->GetScalarOpacity();
@@ -2147,7 +2296,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
       }
-    if(!strcmp(volumePropertyNode->GetName(),"BrightSurfaces"))
+    if (preset == "BrightSurfaces")
       {
       vtkPiecewiseFunction *compositeOpacity =
          volumePropertyNode->GetScalarOpacity();
@@ -2198,6 +2347,38 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
       gradientOpacity->RemoveAllPoints();
       gradientOpacity->AddPoint(min, 1.);
       gradientOpacity->AddPoint(max, 1.);
+      }
+    // colour-blind safe surfaces and emission ramps (Observatory, magma and
+    // viridis colour maps)
+    if (preset == "ObservatorySurfaces")
+      {
+      std::vector<PresetShell> shells = {{3., 0.12, 0x1F8FA6}, {7., 0.3, 0x7FD3C4}, {15., 0.9, 0xF2B24C}};
+      SetPresetShells(volumePropertyNode, shells, noise, min, max);
+      }
+    if (preset == "ObservatoryShells")
+      {
+      std::vector<PresetShell> shells;
+      for (int k = 1; k <= 8; k++)
+        {
+        PresetShell shell;
+        shell.Sigma = 3. * k;
+        shell.Opacity = 0.04 + 0.11 * (k - 1);
+        shell.Rgb = ColorMapRgb(ObservatoryStops(), (k - 1) / 7.);
+        shells.push_back(shell);
+        }
+      SetPresetShells(volumePropertyNode, shells, noise, min, max);
+      }
+    if (preset == "ObservatoryEmission")
+      {
+      SetPresetEmission(volumePropertyNode, ObservatoryStops(), noise, min, max);
+      }
+    if (preset == "MagmaEmission")
+      {
+      SetPresetEmission(volumePropertyNode, MagmaStops(), noise, min, max);
+      }
+    if (preset == "ViridisEmission")
+      {
+      SetPresetEmission(volumePropertyNode, ViridisStops(), noise, min, max);
       }
     }
     return true;

@@ -3766,13 +3766,12 @@ void qSlicerAstroVolumeModuleWidget::applyPreset(vtkMRMLNode *volumePropertyNode
     {
     return;
     }
-  std::string newVolumePropertyNodeName = newVolumePropertyNode->GetName();   
-  std::size_t found = newVolumePropertyNodeName.find(d->astroVolumeNode->GetName());
-  if (found == std::string::npos)
-    {
-    newVolumePropertyNodeName += d->astroVolumeNode->GetName();
-    }
+  // the copy of the preset of this volume: "<preset> · <volume>"
+  const std::string newVolumePropertyNodeName = std::string(volumePropertyNode->GetName()) + " \xC2\xB7 " +
+    d->astroVolumeNode->GetName();
   newVolumePropertyNode->SetName(newVolumePropertyNodeName.c_str());
+  newVolumePropertyNode->SetAttribute(vtkMRMLAstroVolumeNode::GetPresetIdentifierAttributeName(),
+    vtkMRMLAstroVolumeNode::GetPresetIdentifier(volumePropertyNode).c_str());
 
   d->astroVolumeNode->SetVolumePropertyNode(newVolumePropertyNode);
 }

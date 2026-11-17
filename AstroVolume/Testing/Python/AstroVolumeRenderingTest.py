@@ -71,6 +71,8 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_DefaultPreset()
         self.setUp()
+        self.test_PresetNamesAndFunctions()
+        self.setUp()
         self.test_SceneRestoresColorFunctions()
 
     def test_EnsureMinimumTransferFunctionGap(self):
@@ -217,7 +219,8 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Test passed")
 
     def test_DefaultPreset(self):
-        """The 3D color function of a loaded cube is ThreeSurfaces."""
+        """The 3D color function of a loaded cube is the three surfaces
+        (identifier ThreeSurfaces, shown as "Surfaces at 3σ, 7σ, 15σ")."""
         import AstroSampleData
 
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
@@ -227,15 +230,66 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         slicer.app.processEvents()
         presetNode = volumeNode.GetPresetNode()
         self.assertIsNotNone(presetNode)
-        self.assertEqual(presetNode.GetName(), "ThreeSurfaces")
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(presetNode), "ThreeSurfaces")
+        self.assertEqual(presetNode.GetName(), "Surfaces at 3σ, 7σ, 15σ")
         self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.ThreeSurfacesPreset)
+        self.delayDisplay("Test passed")
+
+    def test_PresetNamesAndFunctions(self):
+        """The 3D colour functions: readable names, stable identifiers in the
+        order of the selector, the new colour-blind safe surfaces and the
+        emission ramps scaled to the noise of the cube."""
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
+        slicer.app.processEvents()
+        logic = slicer.modules.astrovolume.logic()
+        presetsScene = logic.GetPresetsScene()
+        identifiers = ["LowConstantOpacity", "MediumConstantOpacity", "HighConstantOpacity", "OneSurfaceGreen",
+                       "OneSurfaceWhite", "TwoSurfaces", "ThreeSurfaces", "BrightSurfaces", "ObservatorySurfaces",
+                       "ObservatoryShells", "ObservatoryEmission", "MagmaEmission", "ViridisEmission"]
+        presets = [presetsScene.GetNthNodeByClass(i, "vtkMRMLVolumePropertyNode")
+                   for i in range(presetsScene.GetNumberOfNodesByClass("vtkMRMLVolumePropertyNode"))]
+        self.assertEqual([slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(p) for p in presets], identifiers)
+        for preset in presets:
+            self.assertIn("σ", preset.GetName())
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.ViridisEmissionPreset, len(identifiers) - 1)
+
+        # functions scaled to the noise
+        logic.synchronizePresetsToVolumeNode(volumeNode)
+        noise = volumeNode.GetDisplayThreshold()
+        dataMax = float(volumeNode.GetAttribute("SlicerAstro.DATAMAX"))
+        surfaces = presets[identifiers.index("ObservatorySurfaces")].GetVolumeProperty().GetScalarOpacity()
+        for sigma, opacity in ((3, 0.12), (7, 0.3), (15, 0.9)):
+            if sigma * noise * 1.2 < dataMax:
+                self.assertAlmostEqual(surfaces.GetValue(sigma * noise), opacity, places=3)
+                self.assertLess(surfaces.GetValue(sigma * noise * 1.25), 0.05)
+        emission = presets[identifiers.index("ObservatoryEmission")].GetVolumeProperty().GetScalarOpacity()
+        self.assertAlmostEqual(emission.GetValue(3 * noise), 0.04, places=3)
+        self.assertLess(emission.GetValue(2 * noise), 0.01)
+        values = [emission.GetValue(s * noise) for s in (3, 5, 8, 12) if s * noise < dataMax]
+        self.assertEqual(values, sorted(values))
+
+        # a new function chosen in the selector: the copy of the volume keeps
+        # the identifier, named "<preset> · <volume>"
+        widget = slicer.modules.astrovolume.widgetRepresentation()
+        slicer.util.findChild(widget, "PresetsNodeComboBox").setCurrentNodeIndex(
+            slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
+        slicer.app.processEvents()
+        self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
+        copy = volumeNode.GetVolumePropertyNode()
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(copy), "ObservatorySurfaces")
+        self.assertEqual(copy.GetName(), "Surfaces at 3σ, 7σ, 15σ · Observatory · WEIN069")
         self.delayDisplay("Test passed")
 
     def displayState(self, volumeNode):
         displayNode = volumeNode.GetAstroVolumeDisplayNode()
         volumeProperty = volumeNode.GetVolumePropertyNode().GetVolumeProperty()
         return {
-            "preset": volumeNode.GetPresetNode().GetName() if volumeNode.GetPresetNode() else None,
+            "preset": slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(volumeNode.GetPresetNode())
+            if volumeNode.GetPresetNode() else None,
             "offset": round(displayNode.GetPresetOffset(), 9),
             "stretch": round(displayNode.GetPresetStretch(), 9),
             "opacityShift": round(displayNode.GetOpacityShift(), 9),

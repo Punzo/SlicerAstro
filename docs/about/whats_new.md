@@ -21,6 +21,20 @@ Qt 6) with new features.
 
 ## Display and interaction
 
+- New look: the "Observatory" (dark) and "Daylight" (light) themes of the
+  SlicerAstro panels (View > SlicerAstro theme), the Atkinson Hyperlegible
+  fonts, a new icon set and logo; the Moment maps panel rebuilt (threshold in
+  units of the noise, velocity range chosen on the integrated spectrum,
+  progress and messages in the panel).
+- AstroWorkbench (Ctrl+Shift+W): datasets with previews computed from the
+  data and their products, channel map, moment 0, position-velocity and 3D
+  views with drag and drop, a scrubber of the spectral axis over the
+  integrated spectrum, the processing pipeline, sky coordinates under the
+  cursor; About SlicerAstro (F1) with the shortcuts and credits.
+- 3D colour functions with readable names (e.g. "Surfaces at 3σ, 7σ, 15σ")
+  and new ones: surfaces in colours safe for colour-blind people, continuous
+  emission in the Observatory, magma and viridis colour maps.
+
 - World coordinate axes placed exactly on the sky (rotated data, position-
   velocity slices), the beam drawn on the sky; faster interaction (also on
   Qt 6 and Wayland).

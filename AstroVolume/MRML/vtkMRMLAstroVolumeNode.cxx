@@ -492,52 +492,47 @@ vtkMRMLNode *vtkMRMLAstroVolumeNode::GetPresetNode()
 }
 
 //-----------------------------------------------------------
-int vtkMRMLAstroVolumeNode::GetPresetIndex()
+std::string vtkMRMLAstroVolumeNode::GetPresetIdentifier(vtkMRMLNode* presetNode)
 {
-  vtkMRMLNode* presetNode = this->GetPresetNode();
   if (!presetNode)
     {
-    return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
+    return std::string();
     }
+  const char* identifier = presetNode->GetAttribute(GetPresetIdentifierAttributeName());
+  if (identifier && *identifier)
+    {
+    return std::string(identifier);
+    }
+  // the presets of the MRML scene are singletons "SlicerAstro.Preset.<identifier>"
+  // (a scene clear resets their attributes, not their tag)
+  const std::string prefix = std::string(GetPresetIdentifierAttributeName()) + ".";
+  const char* singletonTag = presetNode->GetSingletonTag();
+  if (singletonTag && std::string(singletonTag).compare(0, prefix.size(), prefix) == 0)
+    {
+    return std::string(singletonTag).substr(prefix.size());
+    }
+  return presetNode->GetName() ? std::string(presetNode->GetName()) : std::string();
+}
 
-  std::string presetName = presetNode->GetName();
-
-  if (presetName.find("LowConstantOpacity") != std::string::npos)
+//-----------------------------------------------------------
+int vtkMRMLAstroVolumeNode::GetPresetIndex()
+{
+  const std::string identifier = GetPresetIdentifier(this->GetPresetNode());
+  // identifiers in the order of the enum (and of presets.xml)
+  const char* identifiers[] =
     {
-    return vtkMRMLAstroVolumeNode::LowConstantOpacityPreset;
-    }
-  else if (presetName.find("MediumConstantOpacity") != std::string::npos)
+    "LowConstantOpacity", "MediumConstantOpacity", "HighConstantOpacity", "OneSurfaceGreen",
+    "OneSurfaceWhite", "TwoSurfaces", "ThreeSurfaces", "BrightSurfaces", "ObservatorySurfaces",
+    "ObservatoryShells", "ObservatoryEmission", "MagmaEmission", "ViridisEmission"
+    };
+  for (int index = 0; index < static_cast<int>(sizeof(identifiers) / sizeof(identifiers[0])); index++)
     {
-    return vtkMRMLAstroVolumeNode::MediumConstantOpacityPreset;
+    if (identifier == identifiers[index])
+      {
+      return index;
+      }
     }
-  else if (presetName.find("HighConstantOpacity") != std::string::npos)
-    {
-    return vtkMRMLAstroVolumeNode::HighConstantOpacityPreset;
-    }
-  else if (presetName.find("OneSurfaceGreen") != std::string::npos)
-    {
-    return vtkMRMLAstroVolumeNode::OneSurfaceGreenPreset;
-    }
-  else if (presetName.find("OneSurfaceWhite") != std::string::npos)
-    {
-    return vtkMRMLAstroVolumeNode::OneSurfaceWhitePreset;
-    }
-  else if (presetName.find("TwoSurfaces") != std::string::npos)
-    {
-    return vtkMRMLAstroVolumeNode::TwoSurfacesPreset;
-    }
-  else if (presetName.find("ThreeSurfaces") != std::string::npos)
-    {
-    return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
-    }
-  else if (presetName.find("BrightSurface") != std::string::npos)
-    {
-    return vtkMRMLAstroVolumeNode::BrightSurface;
-    }
-  else
-    {
-    return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
-    }
+  return vtkMRMLAstroVolumeNode::ThreeSurfacesPreset;
 }
 
 //-----------------------------------------------------------

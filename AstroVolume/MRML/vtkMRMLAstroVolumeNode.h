@@ -145,6 +145,15 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
   /// Utility method to get the PresetComboBoxIndex from the PresetNode
   int GetPresetIndex();
 
+  /// Identifier of a 3D colour function (preset): the attribute
+  /// SlicerAstro.Preset (e.g. "ThreeSurfaces"), independent of the name shown
+  /// to the user (e.g. "Surfaces at 3σ, 7σ, 15σ"); the name for nodes
+  /// without the attribute
+  static std::string GetPresetIdentifier(vtkMRMLNode* presetNode);
+  static const char* GetPresetIdentifierAttributeName() { return "SlicerAstro.Preset"; }
+
+  /// The 3D colour functions, in the order of presets.xml (the index in the
+  /// preset selector)
   enum
      {
       LowConstantOpacityPreset,
@@ -154,7 +163,12 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
       OneSurfaceWhitePreset,
       TwoSurfacesPreset,
       ThreeSurfacesPreset,
-      BrightSurface
+      BrightSurface,
+      ObservatorySurfacesPreset,
+      ObservatoryShellsPreset,
+      ObservatoryEmissionPreset,
+      MagmaEmissionPreset,
+      ViridisEmissionPreset
      };
 
   /// Set reference to the current VolumeProperty Node

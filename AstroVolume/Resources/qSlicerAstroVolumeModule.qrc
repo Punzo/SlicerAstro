@@ -14,13 +14,31 @@
         <file>Icons/XLarge/NGC2841.png</file>
     </qresource>
     <qresource prefix="/presets">
-        <file alias="HighConstantOpacity">Icons/high.png</file>
-        <file alias="LowConstantOpacity">Icons/low.png</file>
-        <file alias="MediumConstantOpacity">Icons/medium.png</file>
-        <file alias="OneSurfaceGreen">Icons/OneSurfaceGreen.png</file>
-        <file alias="ThreeSurfaces">Icons/ThreeSurface.png</file>
-        <file alias="TwoSurfaces">Icons/TwoSurface.png</file>
-        <file alias="OneSurfaceWhite">Icons/OneSurfaceWhite.png</file>
-        <file alias="BrightSurfaces">Icons/BrightSurfaces.png</file>
+        <!-- LowConstantOpacity -->
+        <file alias="Emission above 3σ · faint">Icons/Presets/LowConstantOpacity.png</file>
+        <!-- MediumConstantOpacity -->
+        <file alias="Emission above 3σ · medium">Icons/Presets/MediumConstantOpacity.png</file>
+        <!-- HighConstantOpacity -->
+        <file alias="Emission above 3σ · dense">Icons/Presets/HighConstantOpacity.png</file>
+        <!-- OneSurfaceGreen -->
+        <file alias="Surface at 3σ · green">Icons/Presets/OneSurfaceGreen.png</file>
+        <!-- OneSurfaceWhite -->
+        <file alias="Surface at 3σ · white">Icons/Presets/OneSurfaceWhite.png</file>
+        <!-- TwoSurfaces -->
+        <file alias="Surfaces at 3σ, 7σ">Icons/Presets/TwoSurfaces.png</file>
+        <!-- ThreeSurfaces -->
+        <file alias="Surfaces at 3σ, 7σ, 15σ">Icons/Presets/ThreeSurfaces.png</file>
+        <!-- BrightSurfaces -->
+        <file alias="Surfaces every 3σ · rainbow">Icons/Presets/BrightSurfaces.png</file>
+        <!-- ObservatorySurfaces -->
+        <file alias="Surfaces at 3σ, 7σ, 15σ · Observatory">Icons/Presets/ObservatorySurfaces.png</file>
+        <!-- ObservatoryShells -->
+        <file alias="Surfaces every 3σ · Observatory">Icons/Presets/ObservatoryShells.png</file>
+        <!-- ObservatoryEmission -->
+        <file alias="Emission 3σ–25σ · Observatory">Icons/Presets/ObservatoryEmission.png</file>
+        <!-- MagmaEmission -->
+        <file alias="Emission 3σ–25σ · magma">Icons/Presets/MagmaEmission.png</file>
+        <!-- ViridisEmission -->
+        <file alias="Emission 3σ–25σ · viridis">Icons/Presets/ViridisEmission.png</file>
     </qresource>
 </RCC>

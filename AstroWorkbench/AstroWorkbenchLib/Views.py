@@ -261,8 +261,9 @@ class ThreeDViewBar(ViewBar):
         volume = self.workbench.activeVolume()
         displayNode = self.renderingDisplayNode()
         details = [volume.GetName()] if volume is not None else ["no data"]
-        if displayNode is not None and displayNode.GetVolumePropertyNode() is not None:
-            details.append(displayNode.GetVolumePropertyNode().GetName())
+        presetNode = volume.GetPresetNode() if volume is not None else None
+        if displayNode is not None and presetNode is not None:
+            details.append(presetNode.GetName())
         self.detail.text = " · ".join(details)
         self.visibilityButton.blockSignals(True)
         self.visibilityButton.checked = displayNode is not None and bool(displayNode.GetVisibility())

@@ -20,9 +20,24 @@ scaling, thresholds. The slice views show the WCS axes and the beam.
 
 ## 3D display
 
-Volume rendering with presets of the colour and opacity functions, which
-follow the noise of the data; a region of interest (ROI) crops the rendering
-and measures the noise inside it (*RMS in ROI*).
+Volume rendering with presets of the colour and opacity functions (3D colour
+functions), defined in multiples of the noise σ of the data; a region of
+interest (ROI) crops the rendering and measures the noise inside it (*RMS in
+ROI*).
+
+| 3D colour function | Rendering |
+|---|---|
+| Emission above 3σ · faint, medium, dense | all the emission above 3σ, constant opacity |
+| Surface at 3σ · green, white | one surface at 3σ |
+| Surfaces at 3σ, 7σ | two surfaces |
+| Surfaces at 3σ, 7σ, 15σ | three surfaces, green, blue and red (default) |
+| Surfaces every 3σ · rainbow | eight surfaces, from 3σ to 24σ |
+| Surfaces at 3σ, 7σ, 15σ · Observatory | three surfaces in colours safe for colour-blind people (teal, mint, amber), faint outside |
+| Surfaces every 3σ · Observatory | eight surfaces along the Observatory colour map |
+| Emission 3σ–25σ · Observatory, magma, viridis | continuous rendering of the emission from 3σ to 25σ, opacity and colour rising with the intensity (magma and viridis are perceptually uniform colour maps) |
+
+The names are shown in the selector; scenes store a stable identifier of
+each function (e.g. `ThreeSurfaces`).
 
 ## Contours
 
