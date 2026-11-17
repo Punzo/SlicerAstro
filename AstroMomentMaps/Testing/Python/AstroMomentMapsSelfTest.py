@@ -188,7 +188,7 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
             parametersNode.SetGenerateZero(True)
             parametersNode.SetGenerateFirst(True)
             parametersNode.SetGenerateSecond(True)
-            slicer.util.findChild(widget, "MaskCheckBox").setChecked(True)
+            slicer.util.findChild(widget, "VoxelSelectionButton").setCurrentIndex(1)
             self.assertTrue(parametersNode.GetMaskActive())
             slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
             slicer.app.processEvents()
@@ -212,7 +212,7 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
                 computed = voxelArray(node)[0].astype(np.float64)
                 self.assertMapsClose(computed, reference, f"{volumeNode.GetName()} {name}",
                                      1e-3 * abs(velocities[1] - velocities[0]) if name == "moment 2" else 0.0)
-            slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
+            slicer.util.findChild(widget, "VoxelSelectionButton").setCurrentIndex(0)
         self.delayDisplay("Test passed")
 
     def checkMomentMaps(self, volumeNode):

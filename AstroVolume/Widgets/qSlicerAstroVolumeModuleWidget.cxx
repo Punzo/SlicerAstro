@@ -90,6 +90,7 @@
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
+#include <qSlicerAstroRunButton.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerCoreApplication.h>
 #include <qSlicerLayoutManager.h>
@@ -2865,6 +2866,46 @@ void qSlicerAstroVolumeModuleWidget::runInBackground(QWidget* parent, const QStr
                                                      const std::function<int()>& progress,
                                                      const std::function<void()>& cancel)
 {
+  // started by a run button of a panel: the progress is shown in the button
+  // (no dialog), only its Cancel button accepts input
+  qSlicerAstroRunButton* runButton = qSlicerAstroRunButton::activeButton();
+  if (runButton && runButton->isVisible())
+    {
+    QThread* buttonThread = QThread::create(work);
+    runButton->setProgressText(label.endsWith("...") ? label.left(label.size() - 3) : label);
+    runButton->setRunning(true);
+    runButton->setProgress(0);
+    const QMetaObject::Connection buttonCancel =
+      QObject::connect(runButton, &qSlicerAstroRunButton::cancelRequested, [cancel]() { cancel(); });
+    QEventLoop buttonLoop;
+    QTimer buttonTimer;
+    buttonTimer.setInterval(100);
+    QObject::connect(&buttonTimer, &QTimer::timeout, [runButton, &buttonLoop, buttonThread, progress]()
+      {
+      const int value = progress();
+      if (value >= 0 && value <= 100)
+        {
+        runButton->setProgress(value);
+        }
+      if (buttonThread->isFinished())
+        {
+        buttonLoop.quit();
+        }
+      });
+    BackgroundInputBlocker buttonInputBlocker(runButton->cancelButton());
+    qApp->installEventFilter(&buttonInputBlocker);
+    buttonThread->start();
+    buttonTimer.start();
+    buttonLoop.exec();
+    qApp->removeEventFilter(&buttonInputBlocker);
+    buttonTimer.stop();
+    buttonThread->wait();
+    delete buttonThread;
+    QObject::disconnect(buttonCancel);
+    runButton->setRunning(false);
+    return;
+    }
+
   QThread* thread = QThread::create(work);
   QProgressDialog dialog(label, tr("Cancel"), 0, 100, parent);
   dialog.setWindowTitle(tr("SlicerAstro"));

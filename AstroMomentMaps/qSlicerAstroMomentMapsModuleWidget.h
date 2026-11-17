@@ -112,10 +112,23 @@ protected slots:
   void onGenerateSecondToggled(bool generate);
   void onGenerateZeroToggled(bool generate);
   void onMaskActiveToggled(bool active);
-  void onThresholdRangeChanged(double min, double max);
+  /// Which voxels: 0 threshold, 1 mask
+  void onVoxelSelectionChanged(int index);
+  /// Lower threshold in units of the noise (or of the data without noise)
+  void onThresholdChanged(double threshold);
+  /// Upper limit of the intensities (Advanced)
+  void onIntensityMaxChanged(double maximum);
   void onUnitNodeIntensityChanged(vtkObject* sender);
   void onUnitNodeVelocityChanged(vtkObject* sender);
   void onVelocityRangeChanged(double min, double max);
+  /// Velocity range from the fields
+  void onVelocityFieldsChanged();
+  /// Velocity range of the line in the integrated spectrum
+  void onAutoVelocityRange();
+  /// Show a moment map in the views
+  void onShowZeroMoment();
+  void onShowFirstMoment();
+  void onShowSecondMoment();
 
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);

@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QActionGroup>
 #include <QApplication>
 #include <QDir>
 #include <QFile>
@@ -26,6 +27,7 @@
 #include <QSettings>
 #include <QStringList>
 #include <QMainWindow>
+#include <QMenu>
 #include <QMessageBox>
 
 //VTK includes
@@ -74,6 +76,7 @@
 #include <qSlicerAstroVolumeLayoutSliceViewFactory.h>
 #include <qSlicerAstroVolumeModule.h>
 #include "qSlicerAstroMouseMoveCompressor.h"
+#include <qSlicerAstroTheme.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerAstroSegmentationReader.h>
 #include <qSlicerAstroVolumeReader.h>
@@ -372,6 +375,39 @@ void qSlicerAstroVolumeModule::setup()
     {
     qCritical() << "qSlicerAstroVolumeModule::setup() : qSlicerApplication not found!";
     return;
+    }
+
+  // theme of the SlicerAstro panels (dark "Observatory", light "Daylight"):
+  // created here (fonts registered, Python access through the application
+  // property "SlicerAstroTheme"); the mode is chosen in View > SlicerAstro theme
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  QMenu* viewMenu = d->app->mainWindow() ? d->app->mainWindow()->findChild<QMenu*>("ViewMenu") : nullptr;
+  if (viewMenu && !viewMenu->findChild<QMenu*>("SlicerAstroThemeMenu"))
+    {
+    QMenu* themeMenu = viewMenu->addMenu(tr("SlicerAstro theme"));
+    themeMenu->setObjectName("SlicerAstroThemeMenu");
+    themeMenu->setToolTip(tr("Colours of the SlicerAstro panels and of the Workbench"));
+    QActionGroup* group = new QActionGroup(themeMenu);
+    const QStringList modes = QStringList() << "dark" << "light" << "system";
+    const QStringList names = QStringList() << tr("Dark (Observatory)") << tr("Light (Daylight)")
+                                            << tr("Follow Slicer");
+    for (int i = 0; i < modes.size(); i++)
+      {
+      QAction* action = themeMenu->addAction(names[i]);
+      action->setCheckable(true);
+      action->setData(modes[i]);
+      action->setChecked(theme->mode() == modes[i]);
+      group->addAction(action);
+      const QString mode = modes[i];
+      QObject::connect(action, &QAction::triggered, theme, [theme, mode]() { theme->setMode(mode); });
+      }
+    QObject::connect(theme, &qSlicerAstroTheme::themeChanged, themeMenu, [theme, group]()
+      {
+      for (QAction* action : group->actions())
+        {
+        action->setChecked(action->data().toString() == theme->mode());
+        }
+      });
     }
 
   // mouse moves of the views: no duplicated hover moves (Qt 6), compressed

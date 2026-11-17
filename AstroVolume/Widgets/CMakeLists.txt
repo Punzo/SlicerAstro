@@ -35,6 +35,34 @@ set(${KIT}_SRCS
   qMRMLSliceAstroWidget.cxx
   qMRMLSliceAstroWidget.h
   qMRMLSliceAstroWidget_p.h
+  qSlicerAstroAxisScrubber.cxx
+  qSlicerAstroAxisScrubber.h
+  qSlicerAstroDatasetCard.cxx
+  qSlicerAstroDatasetCard.h
+  qSlicerAstroDatasetSelector.cxx
+  qSlicerAstroDatasetSelector.h
+  qSlicerAstroFoldSection.cxx
+  qSlicerAstroFoldSection.h
+  qSlicerAstroMessageWidget.cxx
+  qSlicerAstroMessageWidget.h
+  qSlicerAstroPanelHeader.cxx
+  qSlicerAstroPanelHeader.h
+  qSlicerAstroResultCard.cxx
+  qSlicerAstroResultCard.h
+  qSlicerAstroRunButton.cxx
+  qSlicerAstroRunButton.h
+  qSlicerAstroSegmentedButton.cxx
+  qSlicerAstroSegmentedButton.h
+  qSlicerAstroSpectrumRangeWidget.cxx
+  qSlicerAstroSpectrumRangeWidget.h
+  qSlicerAstroTheme.cxx
+  qSlicerAstroTheme.h
+  qSlicerAstroThumbnails.cxx
+  qSlicerAstroThumbnails.h
+  qSlicerAstroToggleCard.cxx
+  qSlicerAstroToggleCard.h
+  qSlicerAstroValueField.cxx
+  qSlicerAstroValueField.h
   )
 
 set(${KIT}_MOC_SRCS
@@ -47,6 +75,20 @@ set(${KIT}_MOC_SRCS
   qMRMLSliceAstroControllerWidget_p.h
   qMRMLSliceAstroWidget.h
   qMRMLSliceAstroWidget_p.h
+  qSlicerAstroAxisScrubber.h
+  qSlicerAstroDatasetCard.h
+  qSlicerAstroDatasetSelector.h
+  qSlicerAstroFoldSection.h
+  qSlicerAstroMessageWidget.h
+  qSlicerAstroPanelHeader.h
+  qSlicerAstroResultCard.h
+  qSlicerAstroRunButton.h
+  qSlicerAstroSegmentedButton.h
+  qSlicerAstroSpectrumRangeWidget.h
+  qSlicerAstroTheme.h
+  qSlicerAstroThumbnails.h
+  qSlicerAstroToggleCard.h
+  qSlicerAstroValueField.h
   )
 
 set(${KIT}_UI_SRCS
@@ -57,9 +99,18 @@ set(${KIT}_UI_SRCS
 
 set(${KIT}_RESOURCES
   Resources/qSlicer${MODULE_NAME}WidgetsModule.qrc
+  Resources/qSlicerAstroTheme.qrc
   )
 
+# Qt Svg: icons of the theme (tinted SVG files)
+if(Slicer_REQUIRED_QT_VERSION VERSION_GREATER_EQUAL "6")
+  set(_astro_qt_svg Qt6::Svg)
+else()
+  set(_astro_qt_svg Qt5::Svg)
+endif()
+
 set(${KIT}_TARGET_LIBRARIES
+   ${_astro_qt_svg}
    MRMLCore
    qSlicerSegmentationsModuleWidgets
    qSlicerTerminologiesModuleWidgets

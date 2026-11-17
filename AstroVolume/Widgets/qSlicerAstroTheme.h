@@ -1,0 +1,117 @@
+/*==============================================================================
+
+  Copyright (c) Kapteyn Astronomical Institute
+  University of Groningen, Groningen, Netherlands. All Rights Reserved.
+
+  See COPYRIGHT.txt
+  or http://www.slicer.org/copyright/copyright.txt for details.
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+==============================================================================*/
+
+#ifndef __qSlicerAstroTheme_h
+#define __qSlicerAstroTheme_h
+
+// Qt includes
+#include <QColor>
+#include <QFont>
+#include <QIcon>
+#include <QObject>
+#include <QPalette>
+#include <QScopedPointer>
+
+#include "qSlicerAstroVolumeModuleWidgetsExport.h"
+
+class QLabel;
+class qSlicerAstroThemePrivate;
+
+/// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
+/// The "Observatory" (dark) and "Daylight" (light) themes of SlicerAstro.
+///
+/// The colours are named tokens (bg, panel, raised, hover, line, line-strong,
+/// text, muted, subtle, accent, accent-ink, on-accent, data, ok, warn, err,
+/// view, ...): the style sheet and the palette are generated from them. The
+/// fonts (Atkinson Hyperlegible Next and Mono, OFL) are bundled.
+///
+/// In the extension the theme is applied only to the SlicerAstro panels
+/// (applyTo); SlicerAstroApp applies it to the whole application
+/// (applyToApplication). The mode (dark, light, system) is stored in the
+/// settings ("SlicerAstro/Theme"); system follows the colours of Slicer (or
+/// of the desktop for the application).
+///
+/// Icons are SVG files drawn in the text colour ("currentColor"), tinted
+/// with a token when painted: they follow a change of theme.
+class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroTheme
+  : public QObject
+{
+  Q_OBJECT
+  Q_PROPERTY(QString mode READ mode WRITE setMode NOTIFY themeChanged)
+  Q_PROPERTY(bool dark READ isDark NOTIFY themeChanged)
+
+public:
+  /// The theme shared by all the panels: use instance() (the constructor is
+  /// public for the Python wrapping only). In Python:
+  /// slicer.app.property("SlicerAstroTheme")
+  static qSlicerAstroTheme* instance();
+  qSlicerAstroTheme(QObject* parent = nullptr);
+  ~qSlicerAstroTheme() override;
+
+  /// "dark", "light" or "system"
+  QString mode() const;
+  /// Resolved theme
+  bool isDark() const;
+
+  /// Colour of a token of the current theme (invalid colour if unknown)
+  Q_INVOKABLE QColor color(const QString& token) const;
+  /// Colour of a token in the dark or light theme
+  Q_INVOKABLE QColor tokenColor(const QString& token, bool dark) const;
+
+  /// Style sheet of the current theme
+  Q_INVOKABLE QString styleSheet() const;
+  QPalette palette() const;
+
+  /// Fonts: "body" (13), "label" (12), "overline" (11 bold, spaced),
+  /// "section" (15 semibold), "title" (22 semibold), "mono" (13),
+  /// "monoSmall" (11.5)
+  Q_INVOKABLE QFont font(const QString& role) const;
+  static QString bodyFamily();
+  static QString monoFamily();
+
+  /// Icon of the SlicerAstro set (name of the SVG file without extension,
+  /// e.g. "run", "module-moment-maps") drawn in the colour of a token
+  Q_INVOKABLE QIcon icon(const QString& name, const QString& colorToken = QString("muted")) const;
+  /// SVG of an icon with its stroke colour
+  QByteArray iconSvg(const QString& name, const QColor& color) const;
+
+  /// Style and palette of the theme for a panel and its children; the
+  /// widget is restyled when the theme changes
+  Q_INVOKABLE void applyTo(QWidget* widget);
+  /// The theme for the whole application (SlicerAstroApp)
+  Q_INVOKABLE void applyToApplication();
+
+  /// A label with a text role: "overline", "label", "unit", "mono",
+  /// "section", "title" (font and colour of the role)
+  Q_INVOKABLE static void setLabelRole(QLabel* label, const QString& role);
+
+public slots:
+  void setMode(const QString& mode);
+
+signals:
+  void themeChanged();
+
+protected:
+  bool eventFilter(QObject* watched, QEvent* event) override;
+
+  QScopedPointer<qSlicerAstroThemePrivate> d_ptr;
+
+private:
+  Q_DECLARE_PRIVATE(qSlicerAstroTheme);
+  Q_DISABLE_COPY(qSlicerAstroTheme);
+};
+
+#endif

@@ -124,6 +124,7 @@ add_subdirectory(AstroPVDiagram)
 add_subdirectory(AstroModeling)
 add_subdirectory(AstroSampleData)
 add_subdirectory(AstroSoFiACatalog)
+add_subdirectory(AstroWorkbench)
 add_subdirectory(SlicerAstroDataProbe)
 
 #-----------------------------------------------------------------------------

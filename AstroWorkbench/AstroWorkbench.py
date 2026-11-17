@@ -1,0 +1,250 @@
+import qt
+
+import slicer
+from slicer.ScriptedLoadableModule import (
+    ScriptedLoadableModule,
+    ScriptedLoadableModuleLogic,
+    ScriptedLoadableModuleTest,
+    ScriptedLoadableModuleWidget,
+)
+
+SHORTCUT = "Ctrl+Shift+W"
+
+
+def workbench():
+    """The Workbench of the main window (one per application)."""
+    from AstroWorkbenchLib.Workbench import Workbench
+    if getattr(slicer.modules, "astroWorkbenchInstance", None) is None:
+        slicer.modules.astroWorkbenchInstance = Workbench()
+    return slicer.modules.astroWorkbenchInstance
+
+
+#
+# AstroWorkbench
+#
+
+
+class AstroWorkbench(ScriptedLoadableModule):
+    def __init__(self, parent):
+        ScriptedLoadableModule.__init__(self, parent)
+        self.parent.title = "Astro Workbench"
+        self.parent.categories = ["Astronomy"]
+        self.parent.dependencies = ["AstroVolume", "AstroMomentMaps"]
+        self.parent.contributors = ["Davide Punzo (Kapteyn Astronomical Institute)"]
+        self.parent.helpText = f"""
+A workspace for spectral cubes around the views: the datasets with previews
+computed from the data (moment-0 map and integrated spectrum) and their
+products, a scrubber of the spectral axis over the integrated spectrum, an
+inspector with the processing pipeline (smoothing, masks, moment maps,
+profiles, PV diagrams), measurements on the sky and 3DBarolo, and the sky
+coordinates under the cursor.<br>
+Open it from this module or with {SHORTCUT}; "Classic Slicer" (or {SHORTCUT})
+goes back to the Slicer interface.
+"""
+        self.parent.acknowledgementText = """
+This module was developed by Davide Punzo. <br>
+This work was supported by ERC grant nr. 291531 and the Slicer Community.
+"""
+        slicer.app.connect("startupCompleted()", installShortcut)
+
+
+def installShortcut():
+    mainWindow = slicer.util.mainWindow()
+    if mainWindow is None or mainWindow.findChild("QShortcut", "AstroWorkbenchShortcut") is not None:
+        return
+    shortcut = qt.QShortcut(qt.QKeySequence(SHORTCUT), mainWindow)
+    shortcut.setObjectName("AstroWorkbenchShortcut")
+    shortcut.setContext(qt.Qt.ApplicationShortcut)
+    shortcut.connect("activated()", lambda: workbench().toggle())
+
+
+#
+# AstroWorkbenchWidget
+#
+
+
+class AstroWorkbenchWidget(ScriptedLoadableModuleWidget):
+    def setup(self):
+        ScriptedLoadableModuleWidget.setup(self)
+        theme = slicer.app.property("SlicerAstroTheme")
+        panel = qt.QWidget()
+        layout = qt.QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        header = slicer.qSlicerAstroPanelHeader()
+        header.title = "Workbench"
+        header.iconName = "module-workbench"
+        layout.addWidget(header)
+        body = qt.QWidget()
+        bodyLayout = qt.QVBoxLayout(body)
+        bodyLayout.setContentsMargins(12, 12, 12, 14)
+        bodyLayout.setSpacing(12)
+        text = qt.QLabel(
+            "A workspace for spectral cubes: your datasets with previews and their products, the views "
+            "with a scrubber of the spectral axis, the processing pipeline and the sky coordinates under "
+            "the cursor. Slicer's menus and panels are hidden while it is open.")
+        text.wordWrap = True
+        text.setProperty("astroRole", "label")
+        bodyLayout.addWidget(text)
+        self.openButton = slicer.qSlicerAstroRunButton()
+        self.openButton.setObjectName("OpenWorkbenchButton")
+        self.openButton.text = "Open the Workbench"
+        self.openButton.connect("clicked()", lambda: workbench().enter())
+        bodyLayout.addWidget(self.openButton)
+        hint = qt.QLabel(f"{SHORTCUT} opens and closes it from anywhere.")
+        hint.setProperty("astroRole", "note")
+        bodyLayout.addWidget(hint)
+        layout.addWidget(body)
+        theme.applyTo(panel)
+        self.layout.addWidget(panel)
+        self.layout.addStretch(1)
+        installShortcut()
+
+
+#
+# AstroWorkbenchLogic
+#
+
+
+class AstroWorkbenchLogic(ScriptedLoadableModuleLogic):
+    pass
+
+
+#
+# AstroWorkbenchTest
+#
+
+
+class AstroWorkbenchTest(ScriptedLoadableModuleTest):
+    def setUp(self):
+        workbench().exit()
+        slicer.mrmlScene.Clear(0)
+
+    def tearDown(self):
+        workbench().exit()
+
+    def runTest(self):
+        self.setUp()
+        self.test_EnterExit()
+        self.setUp()
+        self.test_DatasetsAndScrubber()
+        self.setUp()
+        self.test_Theme()
+        self.tearDown()
+
+    def cube(self):
+        import SampleData
+        return SampleData.downloadSample("WEIN069")
+
+    def process(self, count=20):
+        for _ in range(count):
+            slicer.app.processEvents()
+
+    def test_EnterExit(self):
+        """The chrome of Slicer is hidden and restored."""
+        mainWindow = slicer.util.mainWindow()
+        panel = mainWindow.findChild("QDockWidget", "PanelDockWidget")
+        menuVisible = mainWindow.menuBar().visible
+        panelVisible = panel.visible
+        toolbars = {bar.objectName: bar.visible for bar in mainWindow.findChildren("QToolBar")}
+        layoutManager = slicer.app.layoutManager()
+        redWidget = layoutManager.sliceWidget("Red")
+        viewNode = layoutManager.threeDWidget(0).mrmlViewNode()
+        boxVisible = viewNode.GetBoxVisible()
+        sliderOrientation = redWidget.sliceOffsetSliderOrientation
+        workbench().enter()
+        self.process()
+        self.assertTrue(workbench().active)
+        # views: bars of the Workbench, vertical slice sliders, no 3D box
+        bars = [bar for bar in mainWindow.findChildren("QFrame") if bar.objectName == "AstroViewBar"]
+        self.assertGreaterEqual(len(bars), 2)
+        self.assertEqual(redWidget.sliceOffsetSliderOrientation, qt.Qt.Vertical)
+        self.assertFalse(redWidget.sliceController().visible)
+        self.assertFalse(viewNode.GetBoxVisible())
+        self.assertFalse(mainWindow.menuBar().visible)
+        self.assertFalse(panel.visible)
+        self.assertIsNotNone(mainWindow.findChild("QDockWidget", "WorkbenchDatasets"))
+        self.assertIsNotNone(mainWindow.findChild("QToolBar", "WorkbenchHeaderBar"))
+        slicer.util.findChild(mainWindow, "ClassicSlicerButton").click()
+        self.process()
+        self.assertFalse(workbench().active)
+        self.assertEqual(mainWindow.menuBar().visible, menuVisible)
+        self.assertEqual(panel.visible, panelVisible)
+        for bar in mainWindow.findChildren("QToolBar"):
+            if bar.objectName in toolbars:
+                self.assertEqual(bar.visible, toolbars[bar.objectName], bar.objectName)
+        self.process()
+        self.assertIsNone(mainWindow.findChild("QToolBar", "WorkbenchHeaderBar"))
+        self.assertEqual(redWidget.sliceOffsetSliderOrientation, sliderOrientation)
+        self.assertTrue(redWidget.sliceController().visible)
+        self.assertEqual(viewNode.GetBoxVisible(), boxVisible)
+        self.assertEqual([bar for bar in mainWindow.findChildren("QFrame") if bar.objectName == "AstroViewBar"], [])
+
+    def test_DatasetsAndScrubber(self):
+        """A card per dataset (preview from the data, chips), the moment
+        maps as its products, the scrubber moves the XY view."""
+        import numpy as np
+        volume = self.cube()
+        selection = slicer.app.applicationLogic().GetSelectionNode()
+        selection.SetActiveVolumeID(volume.GetID())
+        slicer.app.applicationLogic().PropagateVolumeSelection(0)
+        workbench().enter()
+        self.process(30)
+        mainWindow = slicer.util.mainWindow()
+        card = slicer.util.findChild(mainWindow, f"DatasetCard_{volume.GetID()}")
+        self.assertTrue(card.active)
+        self.assertEqual(card.kind, "cube")
+        self.assertTrue(any(chip.endswith("km/s") for chip in card.chips))
+        thumbnail = slicer.qSlicerAstroThumbnails().image(volume, 76, 58)
+        self.assertFalse(thumbnail.isNull())
+        spectrum = slicer.qSlicerAstroThumbnails().integratedSpectrum(volume)
+        self.assertEqual(len(spectrum), volume.GetImageData().GetDimensions()[2])
+
+        # the integrated spectrum of the scrubber is the sum of each channel
+        from vtk.util.numpy_support import vtk_to_numpy
+        dims = volume.GetImageData().GetDimensions()
+        cube = vtk_to_numpy(volume.GetImageData().GetPointData().GetScalars()).reshape(dims[2], dims[1], dims[0])
+        np.testing.assert_allclose(np.array(spectrum), np.nansum(cube, axis=(1, 2)), rtol=1e-5)
+
+        scrubber = slicer.util.findChild(mainWindow, "AxisScrubber")
+        self.assertEqual(scrubber.count(), dims[2])
+        redNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeRed")
+        from AstroWorkbenchLib import Astro
+        for channel in (3, dims[2] // 2, dims[2] - 2):
+            scrubber.setCurrentIndex(channel)
+            self.process()
+            self.assertEqual(Astro.channelOfSlice(volume, redNode), channel)
+        # the scrubber follows the view
+        Astro.setSliceToChannel(volume, redNode, 5)
+        self.process()
+        self.assertEqual(scrubber.currentIndex, 5)
+
+        # Process: moment maps from the pipeline panel, listed as products
+        inspector = slicer.util.findChild(mainWindow, "WorkbenchInspector")
+        momentsPanel = slicer.util.findChild(inspector, "PipelinePanel_AstroMomentMaps")
+        self.assertTrue(momentsPanel.visible)
+        slicer.util.findChild(momentsPanel, "ApplyButton").click()
+        self.process(30)
+        workbench().refresh()
+        self.process()
+        card = slicer.util.findChild(mainWindow, f"DatasetCard_{volume.GetID()}")
+        self.assertGreaterEqual(card.productCount(), 3)
+        self.assertEqual(slicer.util.findChild(inspector, "StepState_Moments").text, "done")
+
+    def test_Theme(self):
+        """The theme switch restyles the Workbench."""
+        theme = slicer.app.property("SlicerAstroTheme")
+        mode = theme.mode
+        workbench().enter()
+        self.process()
+        header = slicer.util.findChild(slicer.util.mainWindow(), "WorkbenchHeader")
+        theme.setMode("dark")
+        self.process()
+        self.assertTrue(theme.dark)
+        darkSheet = header.styleSheet
+        theme.setMode("light")
+        self.process()
+        self.assertFalse(theme.dark)
+        self.assertNotEqual(header.styleSheet, darkSheet)
+        self.assertIn(theme.color("panel").name(), header.styleSheet.lower())
+        theme.setMode(mode)

@@ -1,0 +1,84 @@
+<RCC>
+    <qresource prefix="/AstroTheme">
+        <file>Theme/astro.qss</file>
+        <file>Fonts/AtkinsonHyperlegibleMono-Medium.ttf</file>
+        <file>Fonts/AtkinsonHyperlegibleMono-Regular.ttf</file>
+        <file>Fonts/AtkinsonHyperlegibleNext-Bold.ttf</file>
+        <file>Fonts/AtkinsonHyperlegibleNext-Medium.ttf</file>
+        <file>Fonts/AtkinsonHyperlegibleNext-Regular.ttf</file>
+        <file>Fonts/AtkinsonHyperlegibleNext-SemiBold.ttf</file>
+        <file alias="Icons/angle.svg">Icons/Astro/angle.svg</file>
+        <file alias="Icons/beam.svg">Icons/Astro/beam.svg</file>
+        <file alias="Icons/channel.svg">Icons/Astro/channel.svg</file>
+        <file alias="Icons/check.svg">Icons/Astro/check.svg</file>
+        <file alias="Icons/chevronDown.svg">Icons/Astro/chevronDown.svg</file>
+        <file alias="Icons/chevronRight.svg">Icons/Astro/chevronRight.svg</file>
+        <file alias="Icons/chip.svg">Icons/Astro/chip.svg</file>
+        <file alias="Icons/close.svg">Icons/Astro/close.svg</file>
+        <file alias="Icons/colormap.svg">Icons/Astro/colormap.svg</file>
+        <file alias="Icons/compass.svg">Icons/Astro/compass.svg</file>
+        <file alias="Icons/contour.svg">Icons/Astro/contour.svg</file>
+        <file alias="Icons/copy.svg">Icons/Astro/copy.svg</file>
+        <file alias="Icons/crop.svg">Icons/Astro/crop.svg</file>
+        <file alias="Icons/cube3d.svg">Icons/Astro/cube3d.svg</file>
+        <file alias="Icons/dish.svg">Icons/Astro/dish.svg</file>
+        <file alias="Icons/download.svg">Icons/Astro/download.svg</file>
+        <file alias="Icons/eyeOff.svg">Icons/Astro/eyeOff.svg</file>
+        <file alias="Icons/eye.svg">Icons/Astro/eye.svg</file>
+        <file alias="Icons/filter.svg">Icons/Astro/filter.svg</file>
+        <file alias="Icons/folder.svg">Icons/Astro/folder.svg</file>
+        <file alias="Icons/globe.svg">Icons/Astro/globe.svg</file>
+        <file alias="Icons/grid.svg">Icons/Astro/grid.svg</file>
+        <file alias="Icons/help.svg">Icons/Astro/help.svg</file>
+        <file alias="Icons/histogram.svg">Icons/Astro/histogram.svg</file>
+        <file alias="Icons/info.svg">Icons/Astro/info.svg</file>
+        <file alias="Icons/lasso.svg">Icons/Astro/lasso.svg</file>
+        <file alias="Icons/layers.svg">Icons/Astro/layers.svg</file>
+        <file alias="Icons/layout1.svg">Icons/Astro/layout1.svg</file>
+        <file alias="Icons/layout3.svg">Icons/Astro/layout3.svg</file>
+        <file alias="Icons/layout4.svg">Icons/Astro/layout4.svg</file>
+        <file alias="Icons/link.svg">Icons/Astro/link.svg</file>
+        <file alias="Icons/lock.svg">Icons/Astro/lock.svg</file>
+        <file alias="Icons/module-masking.svg">Icons/Astro/module-masking.svg</file>
+        <file alias="Icons/module-modelling.svg">Icons/Astro/module-modelling.svg</file>
+        <file alias="Icons/module-moment-maps.svg">Icons/Astro/module-moment-maps.svg</file>
+        <file alias="Icons/module-profiles.svg">Icons/Astro/module-profiles.svg</file>
+        <file alias="Icons/module-pv-diagram.svg">Icons/Astro/module-pv-diagram.svg</file>
+        <file alias="Icons/module-pv-slice.svg">Icons/Astro/module-pv-slice.svg</file>
+        <file alias="Icons/module-reproject.svg">Icons/Astro/module-reproject.svg</file>
+        <file alias="Icons/module-sample-data.svg">Icons/Astro/module-sample-data.svg</file>
+        <file alias="Icons/module-segment-editor.svg">Icons/Astro/module-segment-editor.svg</file>
+        <file alias="Icons/module-sky-search-vo.svg">Icons/Astro/module-sky-search-vo.svg</file>
+        <file alias="Icons/module-smoothing.svg">Icons/Astro/module-smoothing.svg</file>
+        <file alias="Icons/module-sofia-sources.svg">Icons/Astro/module-sofia-sources.svg</file>
+        <file alias="Icons/module-statistics.svg">Icons/Astro/module-statistics.svg</file>
+        <file alias="Icons/module-volume.svg">Icons/Astro/module-volume.svg</file>
+        <file alias="Icons/module-welcome.svg">Icons/Astro/module-welcome.svg</file>
+        <file alias="Icons/module-workbench.svg">Icons/Astro/module-workbench.svg</file>
+        <file alias="Icons/monitor.svg">Icons/Astro/monitor.svg</file>
+        <file alias="Icons/moon.svg">Icons/Astro/moon.svg</file>
+        <file alias="Icons/more.svg">Icons/Astro/more.svg</file>
+        <file alias="Icons/mosaic.svg">Icons/Astro/mosaic.svg</file>
+        <file alias="Icons/pin.svg">Icons/Astro/pin.svg</file>
+        <file alias="Icons/playChannel.svg">Icons/Astro/playChannel.svg</file>
+        <file alias="Icons/plot.svg">Icons/Astro/plot.svg</file>
+        <file alias="Icons/plus.svg">Icons/Astro/plus.svg</file>
+        <file alias="Icons/profiles.svg">Icons/Astro/profiles.svg</file>
+        <file alias="Icons/roi.svg">Icons/Astro/roi.svg</file>
+        <file alias="Icons/ruler.svg">Icons/Astro/ruler.svg</file>
+        <file alias="Icons/run.svg">Icons/Astro/run.svg</file>
+        <file alias="Icons/search.svg">Icons/Astro/search.svg</file>
+        <file alias="Icons/settings.svg">Icons/Astro/settings.svg</file>
+        <file alias="Icons/smoothing.svg">Icons/Astro/smoothing.svg</file>
+        <file alias="Icons/spectrum.svg">Icons/Astro/spectrum.svg</file>
+        <file alias="Icons/stop.svg">Icons/Astro/stop.svg</file>
+        <file alias="Icons/sun.svg">Icons/Astro/sun.svg</file>
+        <file alias="Icons/table.svg">Icons/Astro/table.svg</file>
+        <file alias="Icons/target.svg">Icons/Astro/target.svg</file>
+        <file alias="Icons/trash.svg">Icons/Astro/trash.svg</file>
+        <file alias="Icons/undo.svg">Icons/Astro/undo.svg</file>
+        <file alias="Icons/unlock.svg">Icons/Astro/unlock.svg</file>
+        <file alias="Icons/volume.svg">Icons/Astro/volume.svg</file>
+        <file alias="Icons/warning.svg">Icons/Astro/warning.svg</file>
+    </qresource>
+</RCC>

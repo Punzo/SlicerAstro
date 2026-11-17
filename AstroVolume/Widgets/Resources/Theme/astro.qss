@@ -1,0 +1,337 @@
+/* SlicerAstro "Observatory" / "Daylight" style sheet.
+   @token@ is replaced with the colour of the token in the current theme,
+   @icon:name:token@ with an SVG file of the icon in that colour.
+   Applied to the SlicerAstro panels only (or to the whole application in
+   SlicerAstroApp). */
+
+QWidget {
+  color: @text@;
+  font-family: "@body-family@";
+  font-size: 13px;
+}
+
+QWidget[astroPanel="true"] {
+  background: @panel@;
+}
+
+QLabel { background: transparent; }
+QLabel:disabled { color: @subtle@; }
+QLabel[astroRole="label"] { color: @muted@; font-size: 12px; }
+QLabel[astroRole="unit"] { color: @subtle@; font-size: 11px; }
+QLabel[astroRole="overline"] { color: @subtle@; font-size: 11px; font-weight: 700; }
+QLabel[astroRole="section"] { font-size: 15px; font-weight: 600; }
+QLabel[astroRole="title"] { font-size: 15px; font-weight: 700; }
+QLabel[astroRole="mono"] { font-family: "@mono-family@"; }
+QLabel[astroRole="monoLabel"] { font-family: "@mono-family@"; color: @muted@; font-size: 11px; }
+QLabel[astroRole="note"] { color: @muted@; font-size: 12px; border-left: 2px solid @accent@; padding-left: 9px; }
+
+/* Panel header and footer */
+QFrame[astroRole="panelHeader"] {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid @line@;
+}
+QFrame[astroRole="panelFooter"] {
+  background: @raised@;
+  border: none;
+  border-top: 1px solid @line@;
+}
+
+/* Buttons */
+QPushButton {
+  background: @raised@;
+  border: 1px solid @line-strong@;
+  border-radius: 7px;
+  padding: 0px 11px;
+  min-height: 28px;
+  font-weight: 600;
+  color: @text@;
+}
+QPushButton:hover { background: @hover@; }
+QPushButton:pressed { background: @line@; }
+QPushButton:disabled { color: @subtle@; border-color: @line@; background: @panel@; }
+QPushButton[astroRole="primary"] {
+  background: @accent@;
+  border-color: @accent@;
+  color: @on-accent@;
+  min-height: 34px;
+}
+QPushButton[astroRole="primary"]:hover { background: @accent-hover@; border-color: @accent-hover@; }
+QPushButton[astroRole="primary"]:pressed { background: @accent-pressed@; }
+QPushButton[astroRole="primary"]:disabled { background: @accent-soft@; border-color: @accent-soft@; color: @subtle@; }
+QPushButton[astroRole="ghost"] {
+  background: transparent;
+  border-color: transparent;
+  color: @muted@;
+  padding: 0px 8px;
+  min-height: 24px;
+}
+QPushButton[astroRole="ghost"]:hover { background: @hover@; color: @text@; }
+QPushButton[astroRole="danger"] { color: @err@; border-color: @err@; }
+
+QToolButton {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: @muted@;
+  padding: 2px;
+}
+QToolButton:hover { background: @hover@; color: @text@; }
+QToolButton:checked { background: @raised@; border-color: @line-strong@; color: @text@; }
+
+/* Segmented control */
+QFrame[astroRole="segmented"] {
+  background: @bg@;
+  border: 1px solid @line@;
+  border-radius: 8px;
+}
+QFrame[astroRole="segmented"] QToolButton {
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: @muted@;
+  min-height: 24px;
+  padding: 0px 8px;
+  font-size: 12px;
+}
+QFrame[astroRole="segmented"] QToolButton:hover { color: @text@; }
+QFrame[astroRole="segmented"] QToolButton:checked {
+  background: @raised@;
+  border-color: @line-strong@;
+  color: @text@;
+}
+
+/* Fields */
+QLineEdit, QAbstractSpinBox {
+  background: @raised@;
+  border: 1px solid @line@;
+  border-radius: 7px;
+  padding: 0px 8px;
+  min-height: 28px;
+  selection-background-color: @data-soft-strong@;
+  selection-color: @text@;
+}
+QLineEdit:focus, QAbstractSpinBox:focus { border-color: @data@; }
+QLineEdit:disabled, QAbstractSpinBox:disabled { color: @subtle@; background: @panel@; }
+/* fields have no steppers (keyboard and wheel still step); the buttons are
+   kept with no width: without buttons a styled spin box loses its edit area */
+QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 0px; border: none; }
+
+QFrame[astroRole="field"] {
+  background: @raised@;
+  border: 1px solid @line@;
+  border-radius: 7px;
+}
+QFrame[astroRole="field"][focused="true"] { border-color: @data@; }
+QFrame[astroRole="field"]:disabled { background: @panel@; }
+QFrame[astroRole="field"] QAbstractSpinBox,
+QFrame[astroRole="field"] QLineEdit {
+  background: transparent;
+  border: none;
+  padding: 0px;
+  min-height: 26px;
+  font-family: "@mono-family@";
+  font-size: 12px;
+}
+
+QComboBox {
+  background: @raised@;
+  border: 1px solid @line@;
+  border-radius: 7px;
+  padding: 0px 8px;
+  min-height: 28px;
+  color: @text@;
+}
+QComboBox:hover { border-color: @line-strong@; }
+QComboBox:focus { border-color: @data@; }
+QComboBox:disabled { color: @subtle@; background: @panel@; }
+QComboBox::drop-down { border: none; width: 22px; }
+QComboBox::down-arrow { image: url(@icon:chevronDown:subtle@); width: 14px; height: 14px; }
+QComboBox QAbstractItemView {
+  background: @raised@;
+  border: 1px solid @line-strong@;
+  selection-background-color: @hover@;
+  selection-color: @text@;
+  outline: none;
+}
+
+/* Check boxes and radio buttons */
+QCheckBox, QRadioButton { spacing: 8px; background: transparent; }
+QCheckBox::indicator, QRadioButton::indicator {
+  width: 16px; height: 16px;
+  border: 1px solid @line-strong@;
+  background: @raised@;
+}
+QCheckBox::indicator { border-radius: 4px; }
+QRadioButton::indicator { border-radius: 8px; }
+QCheckBox::indicator:checked { background: @accent@; border-color: @accent@; image: url(@icon:check:on-accent@); }
+QRadioButton::indicator:checked { background: @accent@; border: 4px solid @raised@; outline: none; }
+QCheckBox::indicator:disabled, QRadioButton::indicator:disabled { background: @panel@; border-color: @line@; }
+
+/* Scroll areas of the panels: the background of the panel shows through */
+QScrollArea { background: transparent; border: none; }
+QScrollArea > QWidget#qt_scrollarea_viewport { background: transparent; }
+QScrollArea > QWidget#qt_scrollarea_viewport > QWidget { background: transparent; }
+
+/* Tables and lists */
+QTableView, QListView, QTreeView {
+  background: @raised@;
+  alternate-background-color: @panel@;
+  border: 1px solid @line@;
+  border-radius: 7px;
+  gridline-color: @line@;
+  selection-background-color: @data-soft-strong@;
+  selection-color: @text@;
+  outline: none;
+}
+QHeaderView { background: transparent; }
+QHeaderView::section {
+  background: @panel@;
+  color: @subtle@;
+  border: none;
+  border-bottom: 1px solid @line@;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 600;
+}
+QTableCornerButton::section { background: @panel@; border: none; }
+
+/* Scroll bars */
+QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 0px; }
+QScrollBar::handle { background: @line-strong@; border-radius: 4px; min-height: 24px; min-width: 24px; margin: 2px; }
+QScrollBar::handle:hover { background: @subtle@; }
+QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+
+/* Progress */
+QProgressBar {
+  background: @accent-soft@;
+  border: 1px solid @accent@;
+  border-radius: 7px;
+  text-align: center;
+  color: @text@;
+  min-height: 18px;
+}
+QProgressBar::chunk { background: @accent-soft-strong@; border-radius: 6px; }
+
+/* Sliders */
+QSlider::groove:horizontal { height: 4px; background: @line-strong@; border-radius: 2px; }
+QSlider::sub-page:horizontal { background: @accent@; border-radius: 2px; }
+QSlider::handle:horizontal { width: 14px; height: 14px; margin: -6px 0px; border-radius: 7px; background: @accent@; border: 2px solid @panel@; }
+
+/* Inline messages */
+QFrame[astroRole="message"] { border-radius: 8px; }
+QFrame[astroRole="message"][kind="info"] { background: @data-soft@; border: 1px solid @data@; }
+QFrame[astroRole="message"][kind="warning"] { background: @warn-soft@; border: 1px solid @warn@; }
+QFrame[astroRole="message"][kind="error"] { background: @err-soft@; border: 1px solid @err@; }
+QFrame[astroRole="message"][kind="success"] { background: @raised@; border: 1px solid @line@; }
+
+/* Result cards */
+QFrame[astroRole="result"] {
+  background: @panel@;
+  border: 1px solid @line@;
+  border-radius: 9px;
+}
+
+/* Fold (progressive disclosure) */
+QToolButton[astroRole="fold"] {
+  border: none;
+  border-top: 1px solid @line@;
+  border-radius: 0px;
+  background: transparent;
+  color: @subtle@;
+  padding: 6px 0px 0px 0px;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+}
+QToolButton[astroRole="fold"]:hover { color: @text@; background: transparent; }
+
+QToolTip {
+  background: @raised@;
+  color: @text@;
+  border: 1px solid @line-strong@;
+  padding: 4px 6px;
+}
+
+QMenu {
+  background: @raised@;
+  border: 1px solid @line-strong@;
+  padding: 4px;
+}
+QMenu::item { padding: 5px 12px 5px 8px; border-radius: 6px; color: @text@; }
+QMenu::item:selected { background: @hover@; }
+QMenu::separator { height: 1px; background: @line@; margin: 4px 6px; }
+
+/* Workbench: bars, drawer, inspector, scrubber */
+QFrame[astroRole="bar"] { background: @panel@; border: none; border-bottom: 1px solid @line@; }
+QFrame[astroRole="statusBar"] { background: @panel@; border: none; border-top: 1px solid @line@; }
+QFrame[astroRole="rail"] { background: @panel@; border: none; border-right: 1px solid @line@; }
+QFrame[astroRole="drawer"] { background: @panel@; border: none; border-right: 1px solid @line@; }
+QFrame[astroRole="inspector"] { background: @panel@; border: none; border-left: 1px solid @line@; }
+QFrame[astroRole="scrubber"] { background: @panel@; border: none; border-top: 1px solid @line@; }
+QFrame[astroRole="card"] { background: @raised@; border: 1px solid @line@; border-radius: 12px; }
+
+QToolButton[astroRole="rail"] {
+  border: none;
+  border-radius: 10px;
+  color: @muted@;
+  font-size: 10px;
+  padding: 4px 2px;
+  min-width: 46px;
+  min-height: 46px;
+}
+QToolButton[astroRole="rail"]:hover { background: @hover@; color: @text@; }
+QToolButton[astroRole="rail"]:checked { background: @raised@; color: @text@; border-left: 3px solid @accent@; }
+QToolButton[astroRole="rail"]:disabled { color: @line-strong@; }
+
+QToolButton[astroRole="toolbar"] { border: none; border-radius: 8px; min-width: 30px; min-height: 30px; color: @muted@; }
+QToolButton[astroRole="toolbar"]:hover { background: @hover@; color: @text@; }
+QToolButton[astroRole="toolbar"]:checked { background: @accent-soft@; color: @accent-ink@; }
+
+QToolButton[astroRole="tab"] {
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 0px 10px;
+  min-height: 28px;
+  font-weight: 600;
+  color: @muted@;
+}
+QToolButton[astroRole="tab"]:hover { color: @text@; background: transparent; }
+QToolButton[astroRole="tab"]:checked { background: @raised@; color: @text@; border-color: @line-strong@; }
+
+/* Dataset cards */
+QFrame[astroRole="datasetCard"] { border: 1px solid @line@; border-radius: 12px; background: transparent; }
+QFrame[astroRole="datasetCard"]:hover { background: @hover@; }
+QFrame[astroRole="datasetCard"][activeCard="true"] { border-color: @accent@; background: @raised@; }
+QLabel[astroRole="chip"] {
+  background: @raised@;
+  border: 1px solid @line@;
+  border-radius: 9px;
+  padding: 1px 7px;
+  color: @muted@;
+  font-size: 11px;
+}
+QWidget[astroRole="lineage"] { border: none; border-left: 1px solid @line-strong@; margin-left: 4px; }
+QToolButton[astroRole="product"] {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 6px;
+  color: @text@;
+  font-size: 12px;
+  text-align: left;
+}
+QToolButton[astroRole="product"]:hover { background: @hover@; }
+
+/* Pipeline steps */
+QToolButton[astroRole="step"] {
+  border: 1px solid transparent;
+  border-radius: 9px;
+  padding: 6px 10px;
+  color: @text@;
+  font-weight: 600;
+  text-align: left;
+}
+QToolButton[astroRole="step"]:hover { background: @hover@; }
+QToolButton[astroRole="step"]:checked { background: @accent-soft@; border-color: @accent@; }
