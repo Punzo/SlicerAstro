@@ -130,7 +130,7 @@ class AboutDialog(qt.QDialog):
         version.setObjectName("AboutVersion")
         version.setProperty("astroRole", "monoLabel")
         titles.addWidget(version)
-        tagline = qt.QLabel("Spectral cubes in 3-D, with their sky and velocity coordinates.")
+        tagline = qt.QLabel("3-D visualisation and analysis of astronomical data cubes")
         tagline.setProperty("astroRole", "label")
         titles.addWidget(tagline)
         headerLayout.addLayout(titles, 1)
