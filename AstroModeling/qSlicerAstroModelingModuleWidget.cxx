@@ -166,6 +166,7 @@ public:
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   /// Beam (FWHM major and minor axes in arcsec, position angle in degrees)
   QLabel* BeamLabel{nullptr};
+  QLabel* BeamStatusLabel{nullptr};
   QDoubleSpinBox* BeamMajorSpinBox{nullptr};
   QDoubleSpinBox* BeamMinorSpinBox{nullptr};
   QDoubleSpinBox* BeamPASpinBox{nullptr};
@@ -538,6 +539,11 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   this->BeamLabel = new QLabel(qSlicerAstroModelingModuleWidget::tr("Beam:"), this->FittingParametersCollapsibleButton);
   this->BeamLabel->setToolTip(beamToolTip);
   this->formLayout_2->insertRow(0, this->BeamLabel, beamWidget);
+  // where the beam comes from (highlighted when estimated)
+  this->BeamStatusLabel = new QLabel(this->FittingParametersCollapsibleButton);
+  this->BeamStatusLabel->setObjectName("BeamStatusLabel");
+  this->BeamStatusLabel->setWordWrap(true);
+  this->formLayout_2->insertRow(1, QString(), this->BeamStatusLabel);
 
   // The initial parameters rows (from the Clean/Estimate buttons to the
   // column density) in a widget, hidden in Automatic mode without leaving
@@ -4237,8 +4243,21 @@ void qSlicerAstroModelingModuleWidget::updateBeamFromVolume(vtkMRMLAstroVolumeNo
   d->BeamMajorSpinBox->setValue(beam[0] * 3600.);
   d->BeamMinorSpinBox->setValue(beam[1] * 3600.);
   d->BeamPASpinBox->setValue(beam[2]);
-  d->BeamLabel->setText(source.startsWith(tr("from")) || source.isEmpty() ? tr("Beam:") : tr("Beam (!):"));
+  const bool fromHeader = source.startsWith(tr("from")) || source.isEmpty();
+  d->BeamLabel->setText(fromHeader ? tr("Beam:") : tr("Beam (!):"));
   d->BeamLabel->setToolTip(d->BeamMajorSpinBox->toolTip() + (source.isEmpty() ? QString() : "\n\n" + tr("Beam ") + source + "."));
+  // visible status: an estimated beam must be checked by the user
+  d->BeamStatusLabel->setText(source.isEmpty() ? QString() :
+    fromHeader ? tr("Beam %1.").arg(source) :
+    tr("Beam ESTIMATED: the FITS header has no beam; %1 (about 10% accuracy). It is used for the model and saved "
+       "with the data: check it or enter the beam of the observation.").arg(source));
+  d->BeamStatusLabel->setStyleSheet(fromHeader ? QString() : QString("QLabel { color: #d07000; font-weight: bold; }"));
+  if (!fromHeader && volumeNode)
+    {
+    d->appendOutputLog(tr("%1: the FITS header has no beam; beam %2: %3 x %4 arcsec, PA %5 deg.")
+      .arg(QString::fromUtf8(volumeNode->GetName()), source)
+      .arg(beam[0] * 3600., 0, 'f', 2).arg(beam[1] * 3600., 0, 'f', 2).arg(beam[2], 0, 'f', 1));
+    }
 }
 
 //-----------------------------------------------------------------------------

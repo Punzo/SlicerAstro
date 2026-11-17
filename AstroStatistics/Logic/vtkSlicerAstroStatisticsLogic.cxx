@@ -67,12 +67,6 @@ template <typename T> T StringToNumber(const char* num)
 }
 
 //----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-//----------------------------------------------------------------------------
 template <typename T> std::string NumberToString(T V)
 {
   std::string stringValue;
@@ -265,29 +259,13 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     return false;
     }
 
-  double BMAJ = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMAJ"));
-  double BMIN = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMIN"));
-  double CDELT1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
-  double CDELT2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
-
-  double unitBeamConv = 1.;
-  if (pnode->GetTotalFlux())
+  // Jy/beam -> Jy (pixel area / beam area); 0: no total flux (no beam, or
+  // data not in Jy/beam), the total flux is blank (the setting is kept)
+  const double unitBeamConv = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume);
+  if (pnode->GetTotalFlux() && unitBeamConv <= 0.)
     {
-    if (!strcmp(inputVolume->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
-        !strcmp(inputVolume->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
-        !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), "UNDEFINED") ||
-        !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), "UNDEFINED"))
-      {
-      vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
-                      " Beam or CDELT information are not available."
-                      " The total flux can not be calculated!");
-      pnode->SetTotalFlux(false);
-      }
-    else
-      {
-      // Jy/beam -> Jy: pixel area / area of the Gaussian beam (pi / (4 ln 2) BMAJ BMIN)
-      unitBeamConv = fabs((CDELT1 * CDELT2) / (vtkMath::Pi() / (4. * log(2.)) * BMAJ * BMIN));
-      }
+    vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : the data have no beam (BMAJ, BMIN) "
+                    "or are not in Jy/beam: the total flux can not be calculated.");
     }
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
@@ -431,7 +409,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     // Calculate TotalFlux
     if (pnode->GetTotalFlux())
       {
-      TotalFlux = Sum * unitBeamConv;
+      TotalFlux = unitBeamConv > 0. ? Sum * unitBeamConv : sqrt(-1.);
       }
 
     // Calculate Std
@@ -638,7 +616,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     // Calculate TotalFlux
     if (pnode->GetTotalFlux())
       {
-      TotalFlux = Sum * unitBeamConv;
+      TotalFlux = unitBeamConv > 0. ? Sum * unitBeamConv : sqrt(-1.);
       }
 
     // Calculate Std

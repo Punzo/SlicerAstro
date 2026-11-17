@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QCheckBox>
 #include <QDebug>
 #include <QMessageBox>
 #include <QStringList>
@@ -35,6 +36,7 @@
 #include <vtkImageReslice.h>
 #include <vtkFloatArray.h>
 #include <vtkNew.h>
+#include <vtkWeakPointer.h>
 #include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
 #include <vtkTable.h>
@@ -110,6 +112,10 @@ public:
 
   vtkSlicerAstroProfilesLogic* logic() const;
   vtkSmartPointer<vtkMRMLAstroProfilesParametersNode> parametersNode;
+  // input volume observed (Modified) and input volume of the selected ranges
+  vtkWeakPointer<vtkMRMLNode> observedInputVolume;
+  vtkWeakPointer<vtkMRMLNode> rangesInputVolume;
+  QCheckBox* MaskApertureCheckBox{ nullptr };
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeProfile;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
@@ -168,6 +174,19 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
 
   QObject::connect(this->MaskCheckBox, SIGNAL(toggled(bool)),
                    q, SLOT(onMaskActiveToggled(bool)));
+
+  // aperture: the sky area of the mask in all the channels (the faint wings
+  // of a source are included, the noise averages out)
+  this->MaskApertureCheckBox = new QCheckBox(QObject::tr("Aperture: the sky area of the mask in all channels"), q);
+  this->MaskApertureCheckBox->setObjectName("MaskApertureCheckBox");
+  this->MaskApertureCheckBox->setToolTip(QObject::tr(
+    "Checked: in each channel the sum of all the voxels in the sky area of the mask (its voxels in any channel), "
+    "without threshold: the faint emission of the wings is included and the noise averages out (global profile). "
+    "Unchecked: the sum of the voxels of the mask only."));
+  int maskRow = this->verticalLayout_2->indexOf(this->MaskCheckBox);
+  this->verticalLayout_2->insertWidget(maskRow + 1, this->MaskApertureCheckBox);
+  QObject::connect(this->MaskApertureCheckBox, SIGNAL(toggled(bool)),
+                   q, SLOT(onMaskApertureToggled(bool)));
 
   QObject::connect(this->ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
                    q, SLOT(onThresholdRangeChanged(double, double)));
@@ -687,8 +706,10 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     {
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onInputVolumeModified()));
+    // only the current input data are observed
+    this->qvtkReconnect(d->observedInputVolume, mrmlNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onInputVolumeModified()));
+    d->observedInputVolume = mrmlNode;
 
     this->onInputVolumeModified();
     }
@@ -765,7 +786,14 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
     Vmax = worldOne[2];
     }
 
-  d->VelocityRangeWidget->reset();
+  // the limits of the data; the selected ranges are reset only for new input
+  // data (not at every modification of the volume)
+  const bool newInput = d->rangesInputVolume.GetPointer() != astroMrmlNode;
+  d->rangesInputVolume = astroMrmlNode;
+  if (newInput)
+    {
+    d->VelocityRangeWidget->reset();
+    }
   int wasBlocked = d->VelocityRangeWidget->blockSignals(true);
   d->VelocityRangeWidget->setRange(Vmin, Vmax);
   d->VelocityRangeWidget->setSingleStep((Vmax - Vmin) / 200.);
@@ -774,23 +802,39 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
   double min = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
   double max = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
 
-  d->ThresholdRangeWidget->reset();
+  if (newInput)
+    {
+    d->ThresholdRangeWidget->reset();
+    }
   wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
   d->ThresholdRangeWidget->setRange(min, max);
   d->ThresholdRangeWidget->setSingleStep((max - min) / 200.);
   d->ThresholdRangeWidget->blockSignals(wasBlocked);
 
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetVelocityMin(Vmin);
-  d->parametersNode->SetVelocityMax(Vmax);
-
-  d->parametersNode->SetIntensityMin(StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN")));
-  d->parametersNode->SetIntensityMax(StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX")));
-
-  d->parametersNode->EndModify(wasModifying);
+  if (newInput)
+    {
+    int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetVelocityMin(Vmin);
+    d->parametersNode->SetVelocityMax(Vmax);
+    d->parametersNode->SetIntensityMin(min);
+    d->parametersNode->SetIntensityMax(max);
+    d->parametersNode->EndModify(wasModifying);
+    }
 
   d->VelocityUnitLabel->setText("km/s");
   d->ThresholdUnitLabel->setText(astroMrmlNode->GetAttribute("SlicerAstro.BUNIT"));
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onMaskApertureToggled(bool aperture)
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetMaskAperture(aperture);
 }
 
 //-----------------------------------------------------------------------------
@@ -826,6 +870,10 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
   d->ProfileVolumeNodeSelector->setCurrentNode(ProfileVolumeNode);
 
   d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
+  bool wasBlocked = d->MaskApertureCheckBox->blockSignals(true);
+  d->MaskApertureCheckBox->setChecked(d->parametersNode->GetMaskAperture());
+  d->MaskApertureCheckBox->setEnabled(d->parametersNode->GetMaskActive());
+  d->MaskApertureCheckBox->blockSignals(wasBlocked);
   d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
   if (!d->parametersNode->GetMaskActive() && inputVolumeNode)
     {
@@ -838,7 +886,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
     d->ParametersCollapsibleButton->setEnabled(false);
     }
 
-  bool wasBlocked = d->VelocityRangeWidget->blockSignals(true);
+  wasBlocked = d->VelocityRangeWidget->blockSignals(true);
   d->VelocityRangeWidget->setMinimumValue(d->parametersNode->GetVelocityMin());
   d->VelocityRangeWidget->setMaximumValue(d->parametersNode->GetVelocityMax());
   d->VelocityRangeWidget->blockSignals(wasBlocked);
@@ -1220,6 +1268,13 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
 
   if (d->plotChartNodeProfile)
     {
+    // flux in Jy with a beam, otherwise the sum of the intensities
+    vtkMRMLVolumeNode* inputVolume = d->parametersNode->GetInputVolumeNodeID() ?
+      vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID())) : nullptr;
+    const char* bunit = inputVolume ? inputVolume->GetAttribute("SlicerAstro.BUNIT") : nullptr;
+    d->plotChartNodeProfile->SetYAxisTitle(vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume) > 0. ?
+      "Total flux per channel (Jy)" :
+      (std::string("Sum of the intensities per channel (") + (bunit && *bunit ? bunit : "no unit") + ")").c_str());
     d->plotChartNodeProfile->AddAndObservePlotSeriesNodeID(PlotSeriesNode->GetID());
     }
 

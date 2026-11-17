@@ -1146,6 +1146,14 @@ void qSlicerAstroStatisticsModuleWidget::onMRMLAstroStatisticsParametersNodeModi
   d->StdCheckBox->setChecked(d->parametersNode->GetStd());
   d->SumCheckBox->setChecked(d->parametersNode->GetSum());
   d->TotalFluxCheckBox->setChecked(d->parametersNode->GetTotalFlux());
+  // total flux (Jy) only for data in Jy/beam with a beam
+  const bool fluxDefined = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolumeNode) > 0.;
+  d->TotalFluxCheckBox->setEnabled(fluxDefined);
+  d->TotalFluxCheckBox->setToolTip(fluxDefined ?
+    tr("Total flux (Jy): the sum of the intensities (Jy/beam) times the pixel area divided by the beam area "
+       "(pi / (4 ln 2) BMAJ BMIN).") :
+    tr("Not available: the data have no beam (BMAJ, BMIN missing or not positive in the FITS header) or are "
+       "not in Jy/beam, so the total flux in Jy can not be calculated."));
 
   int status = d->parametersNode->GetStatus();
 

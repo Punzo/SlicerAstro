@@ -76,7 +76,7 @@ def momentMaps(volumeNode, segmentationNode, segmentID, prefix, outputFolder, re
     selectMask(widget, None, None)
 
 
-def profile(volumeNode, segmentationNode, segmentID, prefix, outputFolder, result):
+def profile(volumeNode, segmentationNode, segmentID, prefix, outputFolder, result, aperture=False, key="profile"):
     widget = selectModule("AstroProfiles")
     parametersNode = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroProfilesParametersNode")
     parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
@@ -84,10 +84,12 @@ def profile(volumeNode, segmentationNode, segmentID, prefix, outputFolder, resul
     if segmentationNode is None:
         parametersNode.SetIntensityMin(3. * volumeNode.GetDisplayThreshold())
     selectMask(widget, segmentationNode, segmentID)
+    if segmentationNode is not None:
+        slicer.util.findChild(widget, "MaskApertureCheckBox").setChecked(aperture)
     slicer.util.findChild(widget, "ApplyButton").click()
     profileNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetProfileVolumeNodeID())
     values = voxelArray(profileNode).ravel().astype(np.float64)
-    result["profile"] = {"values": [None if np.isnan(v) else float(v) for v in values],
+    result[key] = {"values": [None if np.isnan(v) else float(v) for v in values],
                          "intensityMin": parametersNode.GetIntensityMin(),
                          "intensityMax": parametersNode.GetIntensityMax()}
     selectMask(widget, None, None)
@@ -167,6 +169,9 @@ def run(outputFolder):
                        f"{name}_{key}", outputFolder, entry[key])
             profile(volumeNode, segmentationNode if masked else None, segmentID,
                     f"{name}_{key}", outputFolder, entry[key])
+            if masked:
+                profile(volumeNode, segmentationNode, segmentID, f"{name}_{key}", outputFolder, entry[key],
+                        aperture=True, key="profileAperture")
         statistics(volumeNode, segmentationNode, segmentID, entry["mask"])
         results[name] = entry
 

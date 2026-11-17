@@ -36,6 +36,9 @@
 #include <vtkArrayData.h>
 #include <vtkCacheManager.h>
 #include <vtkImageData.h>
+#include <cmath>
+#include <vector>
+#include <limits>
 #include <vtkMath.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
@@ -69,22 +72,67 @@ double StringToDouble(const char* str)
 }
 
 //----------------------------------------------------------------------------
-template <typename T> bool isNaN(T value)
+// voxels of each channel summed in a profile
+struct ProfileSelection
 {
-  return value != value;
-}
+  const unsigned char* Mask = nullptr;      // voxels of the mask
+  const unsigned char* Footprint = nullptr; // sky area of the mask (aperture), all channels
+  bool Threshold = false;                   // voxels within (IntensityMin, IntensityMax)
+  double IntensityMin = 0.;
+  double IntensityMax = 0.;
+  int Zmin = 0;                             // channels of the profile
+  int Zmax = 0;
+  double UnitConversion = 1.;               // Jy/beam -> Jy (1: sum of the intensities)
+};
 
 //----------------------------------------------------------------------------
-bool DoubleIsNaN(double Value)
+// Profile: in each channel the sum of the selected voxels (double
+// accumulation, blank voxels skipped) times the unit conversion; 0 when no
+// voxel is selected; blank (NaN) for the channels outside the range and the
+// channels without data (all voxels blank)
+template <typename T, typename ProgressType>
+void ComputeProfile(const T* in, T* out, vtkIdType numSlice, int numChannels, const ProfileSelection& selection,
+                    ProgressType& progress)
 {
-  return isNaN<double>(Value);
+  const T NaN = std::numeric_limits<T>::quiet_NaN();
+  vtkSMPTools::For(0, numChannels, [&](vtkIdType first, vtkIdType last)
+    {
+    if (progress.IsCancelled())
+      {
+      return;
+      }
+    for (vtkIdType k = first; k < last; k++)
+      {
+      if (k < selection.Zmin || k > selection.Zmax)
+        {
+        out[k] = NaN;
+        continue;
+        }
+      const T* channel = in + k * numSlice;
+      const unsigned char* mask = selection.Mask ? selection.Mask + k * numSlice : nullptr;
+      double sum = 0.;
+      vtkIdType finite = 0;
+      for (vtkIdType voxel = 0; voxel < numSlice; voxel++)
+        {
+        const double value = channel[voxel];
+        if (std::isnan(value))
+          {
+          continue;
+          }
+        finite++;
+        if ((mask && !mask[voxel]) || (selection.Footprint && !selection.Footprint[voxel]) ||
+            (selection.Threshold && !(value > selection.IntensityMin && value < selection.IntensityMax)))
+          {
+          continue;
+          }
+        sum += value;
+        }
+      out[k] = finite > 0 ? static_cast<T>(sum * selection.UnitConversion) : NaN;
+      }
+    progress.Done(last - first);
+    });
 }
 
-//----------------------------------------------------------------------------
-bool FloatIsNaN(float Value)
-{
-  return isNaN<float>(Value);
-}
 
 }// end namespace
 
@@ -214,25 +262,14 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
-  double BMAJ = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMAJ"));
-  double BMIN = StringToDouble(inputVolume->GetAttribute("SlicerAstro.BMIN"));
-  double CDELT1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT1"));
-  double CDELT2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.CDELT2"));
-
-  double unitBeamConv = 1.;
-  if (!strcmp(inputVolume->GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED") ||
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.BMIN"), "UNDEFINED") ||
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT1"), "UNDEFINED") ||
-      !strcmp(inputVolume->GetAttribute("SlicerAstro.CDELT2"), "UNDEFINED"))
+  // Jy/beam -> Jy (pixel area / beam area); without a beam (or data not in
+  // Jy/beam) the profile is the sum of the intensities
+  double unitBeamConv = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume);
+  if (unitBeamConv <= 0.)
     {
-    vtkWarningMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
-                    " Beam or CDELT information are not available."
-                    " The total flux per channel will be the simple sum!");
-    }
-  else
-    {
-    // Jy/beam -> Jy: pixel area / area of the Gaussian beam (pi / (4 ln 2) BMAJ BMIN)
-    unitBeamConv = fabs((CDELT1 * CDELT2) / (vtkMath::Pi() / (4. * log(2.)) * BMAJ * BMIN));
+    vtkWarningMacro("vtkSlicerAstroProfilesLogic::CalculateProfile : the data have no beam (BMAJ, BMIN) or are "
+                    "not in Jy/beam: the profile is the sum of the intensities per channel.");
+    unitBeamConv = 1.;
     }
 
   const int *dims = inputVolume->GetImageData()->GetDimensions();
@@ -307,201 +344,64 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     VelFactor = 0.001;
     }
 
-  if(pnode->GetMaskActive())
-    {
-    maskPixel = maskVoxels;
-
-    {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(progressNode.GetPointer(), (dims[2]) - (0), 10, 100);
-    vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
-      {
-      if (progress.IsCancelled())
-        {
-        return;
-        }
-      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-              *(outProfileFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-              *(outProfileDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int kk = 0; kk < numSlice; kk++)
-          {
-          vtkIdType posData = elemCnt * numSlice + kk;
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (*(maskPixel + posData) > 0.001)
-                {
-                if (FloatIsNaN(*(inFPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outProfileFPixel + elemCnt) += *(inFPixel + posData);
-                }
-              break;
-            case VTK_DOUBLE:
-              if (*(maskPixel + posData) > 0.001)
-                {
-                if (DoubleIsNaN(*(inDPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outProfileDPixel + elemCnt) += *(inDPixel + posData);
-                }
-              break;
-            }
-          }
-
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outProfileFPixel + elemCnt) *= unitBeamConv;
-            if (fabs(*(outProfileFPixel + elemCnt)) < DOUBLEPRECISION)
-              {
-              *(outProfileFPixel + elemCnt) = NaN;
-              }
-            break;
-          case VTK_DOUBLE:
-            *(outProfileDPixel + elemCnt) *= unitBeamConv;
-            if (fabs(*(outProfileDPixel + elemCnt)) < DOUBLEPRECISION)
-              {
-              *(outProfileDPixel + elemCnt) = NaN;
-              }
-            break;
-          }
-        }
-      progress.Done(lastIndex - firstIndex);
-      });
-    cancel = progress.IsCancelled();
-    }
-    }
-  else
+  // channels: the velocity range (threshold), all the channels with a mask
+  int Zmin = 0, Zmax = dims[2] - 1;
+  if (!pnode->GetMaskActive())
     {
     ijk[2] = 0.;
     astroDisplay->GetReferenceSpace(ijk, world);
-    double VelMin = pnode->GetVelocityMin();
-    VelMin /= VelFactor;
-    world[2] = VelMin;
-    astroDisplay->GetIJKSpace(world, ijk);
-    int Zmin;
-    if (ijk[2] < 0)
+    int limits[2] = {0, dims[2] - 1};
+    const double velocities[2] = {pnode->GetVelocityMin() / VelFactor, pnode->GetVelocityMax() / VelFactor};
+    for (int index = 0; index < 2; index++)
       {
-      Zmin = 0;
+      world[2] = velocities[index];
+      double channel[3] = {0., 0., 0.};
+      astroDisplay->GetIJKSpace(world, channel);
+      limits[index] = std::min(std::max(static_cast<int>(std::lround(channel[2])), 0), dims[2] - 1);
       }
-    else if (ijk[2] >= dims[2])
-      {
-      Zmin = dims[2] - 1;
-      }
-    else
-      {
-      Zmin = ijk[2];
-      }
+    Zmin = std::min(limits[0], limits[1]);
+    Zmax = std::max(limits[0], limits[1]);
+    }
 
-    double VelMax = pnode->GetVelocityMax();
-    VelMax /= VelFactor;
-    world[2] = VelMax;
-    astroDisplay->GetIJKSpace(world, ijk);
-    int Zmax;
-    if (ijk[2] < 0)
-      {
-      Zmax = 0;
-      }
-    else if (ijk[2] >= dims[2])
-      {
-      Zmax = dims[2] - 1;
-      }
-    else
-      {
-      Zmax = ijk[2];
-      }
-
-    if (Zmin > Zmax)
-      {
-      double temp = Zmin;
-      Zmin = Zmax;
-      Zmax = temp;
-      }
-
+  // aperture: the sky area of the mask (its voxels in any channel), all the
+  // channels; otherwise the voxels of the mask, or the threshold
+  std::vector<unsigned char> footprint;
+  if (pnode->GetMaskActive() && pnode->GetMaskAperture())
     {
-    vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(progressNode.GetPointer(), (dims[2]) - (0), 10, 100);
-    vtkSMPTools::For(0, dims[2], [&](vtkIdType firstIndex, vtkIdType lastIndex)
+    maskPixel = maskVoxels;
+    footprint.assign(static_cast<size_t>(numSlice), 0);
+    for (vtkIdType voxel = 0; voxel < static_cast<vtkIdType>(numSlice) * dims[2]; voxel++)
       {
-      if (progress.IsCancelled())
+      if (maskPixel[voxel])
         {
-        return;
+        footprint[static_cast<size_t>(voxel % numSlice)] = 1;
         }
-      for (vtkIdType elemCnt = firstIndex; elemCnt < lastIndex; elemCnt++)
-        {
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-              *(outProfileFPixel + elemCnt) = 0.;
-            break;
-          case VTK_DOUBLE:
-              *(outProfileDPixel + elemCnt) = 0.;
-            break;
-          }
-
-        for (int kk = 0; kk < numSlice; kk++)
-          {
-          vtkIdType posData = elemCnt * numSlice + kk;
-          switch (DataType)
-            {
-            case VTK_FLOAT:
-              if (*(inFPixel + posData) > pnode->GetIntensityMin() &&
-                  *(inFPixel + posData) < pnode->GetIntensityMax())
-                {
-                if (FloatIsNaN(*(inFPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outProfileFPixel + elemCnt) += *(inFPixel + posData);
-                }
-              break;
-            case VTK_DOUBLE:
-              if (*(inDPixel + posData) > pnode->GetIntensityMin() &&
-                  *(inDPixel + posData) < pnode->GetIntensityMax())
-                {
-                if (DoubleIsNaN(*(inDPixel + posData)))
-                  {
-                  continue;
-                  }
-                *(outProfileDPixel + elemCnt) += *(inDPixel + posData);
-                }
-              break;
-            }
-          }
-
-        switch (DataType)
-          {
-          case VTK_FLOAT:
-            *(outProfileFPixel + elemCnt) *= unitBeamConv;
-            if (fabs(*(outProfileFPixel + elemCnt)) < DOUBLEPRECISION)
-              {
-              *(outProfileFPixel + elemCnt) = NaN;
-              }
-            break;
-          case VTK_DOUBLE:
-            *(outProfileDPixel + elemCnt) *= unitBeamConv;
-            if (fabs(*(outProfileDPixel + elemCnt)) < DOUBLEPRECISION)
-              {
-              *(outProfileDPixel + elemCnt) = NaN;
-              }
-            break;
-          }
-        }
-      progress.Done(lastIndex - firstIndex);
-      });
-    cancel = progress.IsCancelled();
+      }
     }
+  ProfileSelection selection;
+  selection.Mask = pnode->GetMaskActive() && footprint.empty() ? maskVoxels : nullptr;
+  selection.Footprint = footprint.empty() ? nullptr : footprint.data();
+  selection.Threshold = !pnode->GetMaskActive();
+  selection.IntensityMin = pnode->GetIntensityMin();
+  selection.IntensityMax = pnode->GetIntensityMax();
+  selection.Zmin = Zmin;
+  selection.Zmax = Zmax;
+  selection.UnitConversion = unitBeamConv;
+
+  {
+  vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroProfilesParametersNode> progress(progressNode.GetPointer(), dims[2], 10, 100);
+  switch (DataType)
+    {
+    case VTK_FLOAT:
+      ComputeProfile(inFPixel, outProfileFPixel, numSlice, dims[2], selection, progress);
+      break;
+    case VTK_DOUBLE:
+      ComputeProfile(inDPixel, outProfileDPixel, numSlice, dims[2], selection, progress);
+      break;
     }
+  cancel = progress.IsCancelled();
+  }
+  (void)NaN;
 
   end = std::chrono::steady_clock::now();
 

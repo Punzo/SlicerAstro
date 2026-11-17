@@ -49,7 +49,7 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_EstimateInitialParameters, self.test_CreateFitAndUpdate,
-                     self.test_CancelFit, self.test_DoublePrecision, self.test_Mask):
+                     self.test_CancelFit, self.test_DoublePrecision, self.test_Mask, self.test_BeamStatus):
             self.setUp()
             test()
 
@@ -277,6 +277,25 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertLess(np.nanmax(np.abs(np.nan_to_num(recomputed) - np.nan_to_num(model))), 1e-3 * peak)
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
         slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
+
+    def test_BeamStatus(self):
+        """The origin of the beam is shown: from the header, or estimated
+        (highlighted: the user must check it)."""
+        volumeNode, widget, parametersNode = self.openModule()
+        status = slicer.util.findChild(widget, "BeamStatusLabel")
+        self.assertIn("from the FITS header", status.text)
+        self.assertEqual(status.styleSheet, "")
+        # a copy without beam in the header: estimated, and said so
+        copy = slicer.modules.astrovolume.logic().CloneAstroVolume(
+            slicer.mrmlScene, volumeNode, None, "_nobeam", "NGC2403_nobeam")
+        for key in ("BMAJ", "BMIN", "BPA"):
+            copy.SetAttribute("SlicerAstro." + key, "UNDEFINED")
+        parametersNode.SetInputVolumeNodeID(copy.GetID())
+        slicer.app.processEvents()
+        self.assertIn("ESTIMATED", status.text)
+        self.assertIn("color", status.styleSheet)
+        self.assertGreater(slicer.util.findChild(widget, "BeamMajorSpinBox").value, 0.)
+        self.assertIn("has no beam", slicer.util.findChild(widget, "OutputLogTextEdit").toPlainText())
 
     def test_EstimateInitialParameters(self):
         """Only the estimate of the initial parameters is tested: it is fast,

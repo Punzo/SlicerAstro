@@ -35,6 +35,7 @@ int vtkMRMLAstroProfilesParametersNodeTest1(int , char * [] )
   TEST_SET_GET_INT(node1.GetPointer(), Cores, 0);
 
   TEST_SET_GET_BOOLEAN(node1.GetPointer(), MaskActive);
+  TEST_SET_GET_BOOLEAN(node1.GetPointer(), MaskAperture);
 
   TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), IntensityMin, 0., 10.);
   TEST_SET_GET_DOUBLE_RANGE(node1.GetPointer(), IntensityMax, 0., 10.);

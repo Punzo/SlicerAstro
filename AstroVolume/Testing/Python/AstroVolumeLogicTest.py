@@ -89,7 +89,7 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_EstimateBeamFromNoise, self.test_Histogram, self.test_SnapROIToVoxelGrid,
-                     self.test_SegmentMask):
+                     self.test_SegmentMask, self.test_BeamInInfo, self.test_AllBlankCube):
             self.setUp()
             test()
 
@@ -324,3 +324,75 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         for index in range(6):
             self.assertAlmostEqual(snapped[index], original[index], places=6)
         self.delayDisplay("Test passed")
+
+    def test_BeamInInfo(self):
+        """Beam in the Info section of the AstroVolume module: the beam of the
+        header is shown; without beam nothing is estimated until the user
+        asks; the estimate fills the fields (not applied); Apply sets the beam
+        of the data (fluxes in Jy)."""
+        self.delayDisplay("Beam in the AstroVolume module")
+        data = self.correlatedNoise((3, 160, 160), 8.0, 5.0, 30.0, seed=11)
+        volumeNode = self.loadCube("info_nobeam", data)
+        self.assertEqual(volumeNode.GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED")
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        slicer.util.selectModule("AstroVolume")
+        slicer.app.processEvents()
+        widget = slicer.modules.astrovolume.widgetRepresentation()
+        major = slicer.util.findChild(widget, "BeamMajorSpinBox")
+        minor = slicer.util.findChild(widget, "BeamMinorSpinBox")
+        angle = slicer.util.findChild(widget, "BeamPASpinBox")
+        status = slicer.util.findChild(widget, "BeamStatusLabel")
+        # not estimated automatically
+        self.assertEqual(major.value, 0.)
+        self.assertIn("no beam", status.text)
+        self.assertEqual(volumeNode.GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED")
+        self.assertEqual(slicer.vtkSlicerAstroVolumeLogic.GetJyBeamToJyFactor(volumeNode), 0.)
+
+        # estimate: the fields, not the data
+        slicer.util.findChild(widget, "EstimateBeamPushButton").click()
+        self.assertAlmostEqual(major.value / (8.0 * 3.6), 1.0, delta=0.1)
+        self.assertAlmostEqual(minor.value / (5.0 * 3.6), 1.0, delta=0.1)
+        self.assertLess(abs(angle.value - 30.), 8.)
+        self.assertIn("ESTIMATED", status.text)
+        self.assertEqual(volumeNode.GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED")
+
+        # apply: the beam of the data
+        slicer.util.findChild(widget, "ApplyBeamPushButton").click()
+        self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BMAJ")) * 3600., major.value, places=6)
+        self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BMIN")) * 3600., minor.value, places=6)
+        self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BPA")), angle.value, places=6)
+        self.assertGreater(slicer.vtkSlicerAstroVolumeLogic.GetJyBeamToJyFactor(volumeNode), 0.)
+        self.assertIn("applied", status.text)
+
+        # a beam entered by the user
+        major.value = 40.
+        minor.value = 30.
+        angle.value = -10.
+        self.assertIn("not applied", status.text)
+        slicer.util.findChild(widget, "ApplyBeamPushButton").click()
+        self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BMAJ")), 40. / 3600., places=12)
+        self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BPA")), -10., places=12)
+
+        # the beam of a header keeps its precision (fields with 2 decimals)
+        withBeam = self.loadCube("info_beam", data, extraCards=[("BMAJ", 0.0082401093), ("BMIN", 0.0081396336),
+                                                                ("BPA", -79.44637)])
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(withBeam.GetID())
+        slicer.app.processEvents()
+        self.assertAlmostEqual(major.value, 0.0082401093 * 3600., places=2)
+        self.assertNotIn("no beam", status.text)
+        header = withBeam.GetAttribute("SlicerAstro.BMAJ")
+        slicer.util.findChild(widget, "ApplyBeamPushButton").click()
+        self.assertEqual(withBeam.GetAttribute("SlicerAstro.BMAJ"), header)
+        self.delayDisplay("Test passed")
+
+    def test_AllBlankCube(self):
+        """A cube without finite voxels loaded with the AstroVolume module
+        shown: an empty data range (it crashed with the limits of the float
+        type as range)."""
+        slicer.util.selectModule("AstroVolume")
+        slicer.app.processEvents()
+        volumeNode = self.loadCube("allblank", np.full((2, 32, 32), np.nan, dtype=np.float32))
+        slicer.app.processEvents()
+        self.assertEqual(float(volumeNode.GetAttribute("SlicerAstro.DATAMIN")), 0.)
+        self.assertEqual(float(volumeNode.GetAttribute("SlicerAstro.DATAMAX")), 0.)
+

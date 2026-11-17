@@ -91,6 +91,13 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroProfilesParametersNode : public vtkMRMLN
   vtkGetMacro(MaskActive,bool);
   vtkBooleanMacro(MaskActive,bool);
 
+  /// Set/Get MaskAperture: with a mask, the profile is the sum of the voxels
+  /// in the sky area of the mask (its voxels in any channel) in all the
+  /// channels (aperture, default); otherwise of the voxels of the mask only.
+  vtkSetMacro(MaskAperture,bool);
+  vtkGetMacro(MaskAperture,bool);
+  vtkBooleanMacro(MaskAperture,bool);
+
   /// Set/Get the IntensityMin.
   /// \sa SetIntensityMin(), GetIntensityMin()
   vtkSetMacro(IntensityMin,double);
@@ -136,6 +143,7 @@ protected:
   int Cores;
 
   bool MaskActive;
+  bool MaskAperture;
 
   double IntensityMin;
   double IntensityMax;

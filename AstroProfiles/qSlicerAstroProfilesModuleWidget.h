@@ -106,6 +106,7 @@ protected slots:
   void onStartImportEvent();
 
   void onMaskActiveToggled(bool active);
+  void onMaskApertureToggled(bool aperture);
   void onThresholdRangeChanged(double min, double max);
   void onUnitNodeIntensityChanged(vtkObject* sender);
   void onUnitNodeVelocityChanged(vtkObject* sender);

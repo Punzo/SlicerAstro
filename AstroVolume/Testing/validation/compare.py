@@ -123,19 +123,24 @@ def compareDataset(folder, name, entry):
             difference, blanks = relative(computed, reference)
             rows.append((f"moment {moment[1]} ({key})", difference, blanks))
 
-        # integrated spectrum: Jy (pixel area / beam area, radio-beam) or Jy/beam
-        if cube.unit == u.Jy / u.beam and _beamDefined(cube):
-            fluxes = selected.to(u.Jy / u.pix).sum(axis=(1, 2)).value
-        else:
-            fluxes = selected.sum(axis=(1, 2)).value
-        fluxes = np.where(np.abs(fluxes) < 1e-16, np.nan, fluxes)
-        computed = np.array([np.nan if v is None else v for v in result["profile"]["values"]])
+        # integrated spectrum: Jy (pixel area / beam area, radio-beam) or the sum
+        # of the intensities; 0 without selected voxels, blank for channels
+        # without data
         if key == "threshold":
             p = result["profile"]
             profileSelection = (data > p["intensityMin"]) & (data < p["intensityMax"])
-            fluxes = _profile(cube, profileSelection)
+        else:
+            profileSelection = selection
+        fluxes = _profile(cube, profileSelection, data)
+        computed = np.array([np.nan if v is None else v for v in result["profile"]["values"]])
         difference, blanks = relative(computed, fluxes)
         rows.append((f"profile ({key})", difference, blanks))
+        if "profileAperture" in result:
+            footprint = np.broadcast_to(mask.any(axis=0), data.shape) & np.isfinite(data)
+            fluxes = _profile(cube, footprint, data)
+            computed = np.array([np.nan if v is None else v for v in result["profileAperture"]["values"]])
+            difference, blanks = relative(computed, fluxes)
+            rows.append((f"profile (aperture)", difference, blanks))
 
     rows += compareStatistics(entry, data, mask, cube)
     for label, difference, blanks in rows:
@@ -150,13 +155,14 @@ def _beamDefined(cube):
         return False
 
 
-def _profile(cube, selection):
+def _profile(cube, selection, data):
     selected = cube.with_mask(selection)
     if cube.unit == u.Jy / u.beam and _beamDefined(cube):
         fluxes = selected.to(u.Jy / u.pix).sum(axis=(1, 2)).value
     else:
         fluxes = selected.sum(axis=(1, 2)).value
-    return np.where(np.abs(fluxes) < 1e-16, np.nan, fluxes)
+    fluxes = np.where(np.isnan(fluxes), 0., fluxes)
+    return np.where(np.all(np.isnan(data), axis=(1, 2)), np.nan, fluxes)
 
 
 def compareStatistics(entry, data, mask, cube):

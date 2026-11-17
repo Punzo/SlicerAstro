@@ -34,6 +34,7 @@
 #include <vtkImageData.h>
 #include <vtkImageReslice.h>
 #include <vtkNew.h>
+#include <vtkWeakPointer.h>
 #include <vtkMatrix4x4.h>
 #include <vtkPointData.h>
 #include <vtksys/SystemTools.hxx>
@@ -104,6 +105,9 @@ public:
 
   vtkSlicerAstroMomentMapsLogic* logic() const;
   vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode> parametersNode;
+  // input volume observed (Modified) and input volume of the selected ranges
+  vtkWeakPointer<vtkMRMLNode> observedInputVolume;
+  vtkWeakPointer<vtkMRMLNode> rangesInputVolume;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
   vtkSmartPointer<vtkMRMLUnitNode> unitNodeIntensity;
@@ -670,8 +674,10 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlN
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
 
-    this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onInputVolumeModified()));
+    // only the current input data are observed
+    this->qvtkReconnect(d->observedInputVolume, mrmlNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onInputVolumeModified()));
+    d->observedInputVolume = mrmlNode;
 
     this->onInputVolumeModified();
     }
@@ -748,7 +754,14 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
     Vmax = worldOne[2];
     }
 
-  d->VelocityRangeWidget->reset();
+  // the limits of the data; the selected ranges are reset only for new input
+  // data (not at every modification of the volume)
+  const bool newInput = d->rangesInputVolume.GetPointer() != astroMrmlNode;
+  d->rangesInputVolume = astroMrmlNode;
+  if (newInput)
+    {
+    d->VelocityRangeWidget->reset();
+    }
   int wasBlocked = d->VelocityRangeWidget->blockSignals(true);
   d->VelocityRangeWidget->setRange(Vmin, Vmax);
   d->VelocityRangeWidget->setSingleStep((Vmax - Vmin) / 200.);
@@ -757,20 +770,24 @@ void qSlicerAstroMomentMapsModuleWidget::onInputVolumeModified()
   double min = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
   double max = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
 
-  d->ThresholdRangeWidget->reset();
+  if (newInput)
+    {
+    d->ThresholdRangeWidget->reset();
+    }
   wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
   d->ThresholdRangeWidget->setRange(min, max);
   d->ThresholdRangeWidget->setSingleStep((max - min) / 200.);
   d->ThresholdRangeWidget->blockSignals(wasBlocked);
 
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetVelocityMin(Vmin);
-  d->parametersNode->SetVelocityMax(Vmax);
-
-  d->parametersNode->SetIntensityMin(StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN")));
-  d->parametersNode->SetIntensityMax(StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX")));
-
-  d->parametersNode->EndModify(wasModifying);
+  if (newInput)
+    {
+    int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetVelocityMin(Vmin);
+    d->parametersNode->SetVelocityMax(Vmax);
+    d->parametersNode->SetIntensityMin(min);
+    d->parametersNode->SetIntensityMax(max);
+    d->parametersNode->EndModify(wasModifying);
+    }
 
   d->VelocityUnitLabel->setText("km/s");
   d->ThresholdUnitLabel->setText(astroMrmlNode->GetAttribute("SlicerAstro.BUNIT"));

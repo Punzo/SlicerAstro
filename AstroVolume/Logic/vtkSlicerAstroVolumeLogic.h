@@ -268,6 +268,12 @@ public:
   /// True if the segmentation has the geometry (voxel grid) of the volume.
   static bool HasGeometryOfVolume(vtkMRMLSegmentationNode* segmentationNode, vtkMRMLVolumeNode* volumeNode);
 
+  /// Factor converting intensities in Jy/beam to fluxes in Jy per pixel:
+  /// pixel area / area of the Gaussian beam (pi / (4 ln 2) BMAJ BMIN). 0 if
+  /// the data are not in Jy/beam (BUNIT) or the beam or the pixel size are
+  /// not defined (missing, UNDEFINED or not positive, e.g. BMAJ = -1).
+  static double GetJyBeamToJyFactor(vtkMRMLVolumeNode* volumeNode);
+
   /// Voxel offset between the grids of two astronomical volumes (WCS): voxel
   /// (i, j, k) of volumeA is voxel (i, j, k) + offset of volumeB. True if the
   /// two grids are the same voxel lattice (same pixel size, projection,

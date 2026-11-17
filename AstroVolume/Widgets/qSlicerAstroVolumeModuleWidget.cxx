@@ -5614,12 +5614,20 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeNodeDisplayThresholdModified(bo
     }
 
   double max = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMAX"));
-  d->DisplayThresholdSliderWidget->setMaximum(max);
   double min = StringToDouble(d->astroVolumeNode->GetAttribute("SlicerAstro.DATAMIN"));
   if (min < 0.)
     {
     min = 0.;
     }
+  // data without finite voxels (or a range of the limits of the type, e.g.
+  // a scene of an older version): a valid range for the slider
+  if (!std::isfinite(min) || !std::isfinite(max) || max <= min || fabs(max) > 1.e30)
+    {
+    min = 0.;
+    max = std::isfinite(DisplayThreshold) && DisplayThreshold > 0. && DisplayThreshold < 1.e30 ?
+      10. * DisplayThreshold : 1.;
+    }
+  d->DisplayThresholdSliderWidget->setMaximum(max);
   d->DisplayThresholdSliderWidget->setMinimum(min);
   d->DisplayThresholdSliderWidget->setSingleStep((max - min) / 10000.);
   QString DisplayThresholdUnit = "  ";

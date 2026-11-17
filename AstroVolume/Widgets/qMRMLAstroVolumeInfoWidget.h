@@ -72,13 +72,26 @@ public slots:
   /// Set the number of scalar component
   void setNumberOfScalars(int);
 
+  /// Fill the beam fields with the beam estimated from the noise (not applied).
+  /// Returns false if it can not be estimated.
+  bool estimateBeam();
+
+  /// Set the beam of the fields as the beam of the data (BMAJ, BMIN, BPA).
+  bool applyBeam();
+
 protected slots:
   /// Update widget GUI from MRML AstroVolume node
   void updateWidgetFromMRML();
 
+  /// The beam fields from the beam of the data
+  void updateBeamFromVolume();
+  void onBeamEdited();
+
 protected:
   /// Fit the slice views to the data (after the user moved the data)
   void fitSlicesToAll();
+  /// Status of the beam (warning: highlighted, e.g. an estimated beam)
+  void setBeamStatus(const QString& status, bool warning);
 
 protected:
   QScopedPointer<qMRMLAstroVolumeInfoWidgetPrivate> d_ptr;

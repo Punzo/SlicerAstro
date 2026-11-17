@@ -51,6 +51,7 @@ vtkMRMLAstroProfilesParametersNode::vtkMRMLAstroProfilesParametersNode()
   this->MaskSegmentID = nullptr;
   this->Cores = 0;
   this->MaskActive = false;
+  this->MaskAperture = true;
   this->IntensityMin = -1.;
   this->IntensityMax = 1.;
   this->VelocityMin = -1.;
@@ -158,6 +159,12 @@ void vtkMRMLAstroProfilesParametersNode::ReadXMLAttributes(const char** atts)
       continue;
       }
 
+    if (!strcmp(attName, "MaskAperture"))
+      {
+      this->MaskAperture = StringToInt(attValue);
+      continue;
+      }
+
     if (!strcmp(attName, "IntensityMin"))
       {
       this->IntensityMin = StringToDouble(attValue);
@@ -225,6 +232,7 @@ void vtkMRMLAstroProfilesParametersNode::WriteXML(ostream& of, int nIndent)
 
   of << indent << " Cores=\"" << this->Cores << "\"";
   of << indent << " MaskActive=\"" << this->MaskActive << "\"";
+  of << indent << " MaskAperture=\"" << this->MaskAperture << "\"";
   of << indent << " IntensityMin=\"" << this->IntensityMin << "\"";
   of << indent << " IntensityMax=\"" << this->IntensityMax << "\"";
   of << indent << " VelocityMin=\"" << this->VelocityMin << "\"";
@@ -249,6 +257,7 @@ void vtkMRMLAstroProfilesParametersNode::Copy(vtkMRMLNode *anode)
   this->SetMaskSegmentID(node->GetMaskSegmentID());
   this->SetCores(node->GetCores());
   this->SetMaskActive(node->GetMaskActive());
+  this->SetMaskAperture(node->GetMaskAperture());
   this->SetIntensityMin(node->GetIntensityMin());
   this->SetIntensityMax(node->GetIntensityMax());
   this->SetVelocityMin(node->GetVelocityMin());
@@ -269,6 +278,7 @@ void vtkMRMLAstroProfilesParametersNode::PrintSelf(ostream& os, vtkIndent indent
   os << indent << "MaskSegmentationNodeID: " << ( (this->MaskSegmentationNodeID) ? this->MaskSegmentationNodeID : "None" ) << "\n";
   os << indent << "MaskSegmentID: " << ( (this->MaskSegmentID) ? this->MaskSegmentID : "None" ) << "\n";
   os << indent << "MaskActive: " << this->MaskActive << "\n";
+  os << indent << "MaskAperture: " << this->MaskAperture << "\n";
   os << indent << "IntensityMin: " << this->IntensityMin << "\n";
   os << indent << "IntensityMax: " << this->IntensityMax << "\n";
   os << indent << "VelocityMin: " << this->VelocityMin << "\n";

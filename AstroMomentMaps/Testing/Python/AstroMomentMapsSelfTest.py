@@ -231,6 +231,10 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetGenerateFirst(True)
         parametersNode.SetGenerateSecond(True)
         parametersNode.SetIntensityMin(rms * 3)
+        # a modification of the data does not reset the selected ranges
+        volumeNode.Modified()
+        slicer.app.processEvents()
+        self.assertAlmostEqual(parametersNode.GetIntensityMin(), rms * 3)
 
         self.delayDisplay("Calculating moment maps")
         widget = slicer.modules.astromomentmaps.widgetRepresentation()

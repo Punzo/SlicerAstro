@@ -18,6 +18,9 @@
 ==============================================================================*/
 
 // QT includes
+#include <QSignalBlocker>
+#include <QHBoxLayout>
+#include <QDoubleSpinBox>
 #include <QDebug>
 #include <QFormLayout>
 #include <QLabel>
@@ -33,6 +36,8 @@
 #include <qSlicerCoreApplication.h>
 #include <qSlicerApplication.h>
 #include <qSlicerLayoutManager.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+#include <vtkMRMLAstroVolumeNode.h>
 #include <vtkSlicerApplicationLogic.h>
 
 // qMRML includes
@@ -83,6 +88,16 @@ public:
   QSpinBox *NumberOfScalarsSpinBox;
   QLabel *FileNameLabel;
   QLineEdit *FileNameLineEdit;
+  // beam of the data (BMAJ, BMIN, BPA): from the FITS header, entered by the
+  // user or estimated from the noise (on request), written with Apply
+  QLabel *BeamLabel{ nullptr };
+  QDoubleSpinBox *BeamMajorSpinBox{ nullptr };
+  QDoubleSpinBox *BeamMinorSpinBox{ nullptr };
+  QDoubleSpinBox *BeamPASpinBox{ nullptr };
+  QPushButton *EstimateBeamPushButton{ nullptr };
+  QPushButton *ApplyBeamPushButton{ nullptr };
+  QLabel *BeamStatusLabel{ nullptr };
+  vtkWeakPointer<vtkMRMLVolumeNode> BeamVolumeNode;
 };
 
 //------------------------------------------------------------------------------
@@ -184,6 +199,57 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
 
   this->formLayout->setWidget(9, QFormLayout::FieldRole, FileNameLineEdit);
 
+  // Beam (rows after the file name)
+  const QString beamToolTip = qMRMLAstroVolumeInfoWidget::tr(
+    "Beam of the data (BMAJ, BMIN, BPA): FWHM of the major and minor axes in arcsec, position angle of the "
+    "major axis in degrees (from North to East). Used for fluxes in Jy (AstroProfiles, AstroStatistics), the "
+    "beam drawn in the slice views, smoothing and modeling, and saved in the FITS header.");
+  this->BeamLabel = new QLabel(qMRMLAstroVolumeInfoWidget::tr("Beam:"), q);
+  this->BeamLabel->setObjectName(QLatin1String("BeamLabel"));
+  this->BeamLabel->setToolTip(beamToolTip);
+  QWidget* beamWidget = new QWidget(q);
+  QHBoxLayout* beamLayout = new QHBoxLayout(beamWidget);
+  beamLayout->setContentsMargins(0, 0, 0, 0);
+  this->BeamMajorSpinBox = new QDoubleSpinBox(beamWidget);
+  this->BeamMinorSpinBox = new QDoubleSpinBox(beamWidget);
+  this->BeamPASpinBox = new QDoubleSpinBox(beamWidget);
+  QDoubleSpinBox* beamSpinBoxes[3] = {this->BeamMajorSpinBox, this->BeamMinorSpinBox, this->BeamPASpinBox};
+  const char* beamNames[3] = {"BeamMajorSpinBox", "BeamMinorSpinBox", "BeamPASpinBox"};
+  const char* beamPrefixes[3] = {"major ", "minor ", "PA "};
+  for (int i = 0; i < 3; i++)
+    {
+    beamSpinBoxes[i]->setObjectName(QLatin1String(beamNames[i]));
+    beamSpinBoxes[i]->setDecimals(2);
+    beamSpinBoxes[i]->setRange(i < 2 ? 0. : -180., i < 2 ? 36000. : 180.);
+    beamSpinBoxes[i]->setPrefix(QString::fromUtf8(beamPrefixes[i]));
+    beamSpinBoxes[i]->setSuffix(i < 2 ? QString(" arcsec") : QString(" deg"));
+    beamSpinBoxes[i]->setToolTip(beamToolTip);
+    beamLayout->addWidget(beamSpinBoxes[i]);
+    }
+  this->formLayout->setWidget(10, QFormLayout::LabelRole, this->BeamLabel);
+  this->formLayout->setWidget(10, QFormLayout::FieldRole, beamWidget);
+  QWidget* beamButtons = new QWidget(q);
+  QHBoxLayout* beamButtonsLayout = new QHBoxLayout(beamButtons);
+  beamButtonsLayout->setContentsMargins(0, 0, 0, 0);
+  this->EstimateBeamPushButton = new QPushButton(qMRMLAstroVolumeInfoWidget::tr("Estimate from noise"), beamButtons);
+  this->EstimateBeamPushButton->setObjectName(QLatin1String("EstimateBeamPushButton"));
+  this->EstimateBeamPushButton->setToolTip(qMRMLAstroVolumeInfoWidget::tr(
+    "Estimate the beam from the noise of the data (spatial autocorrelation of the noise of the first and last "
+    "channels, which is the beam convolved with itself for interferometric data). The estimate fills the "
+    "fields: check it, then Apply."));
+  this->ApplyBeamPushButton = new QPushButton(qMRMLAstroVolumeInfoWidget::tr("Apply"), beamButtons);
+  this->ApplyBeamPushButton->setObjectName(QLatin1String("ApplyBeamPushButton"));
+  this->ApplyBeamPushButton->setToolTip(qMRMLAstroVolumeInfoWidget::tr(
+    "Set the beam of the fields as the beam of the data (BMAJ, BMIN, BPA)."));
+  beamButtonsLayout->addWidget(this->EstimateBeamPushButton);
+  beamButtonsLayout->addWidget(this->ApplyBeamPushButton);
+  beamButtonsLayout->addStretch(1);
+  this->formLayout->setWidget(11, QFormLayout::FieldRole, beamButtons);
+  this->BeamStatusLabel = new QLabel(q);
+  this->BeamStatusLabel->setObjectName(QLatin1String("BeamStatusLabel"));
+  this->BeamStatusLabel->setWordWrap(true);
+  this->formLayout->setWidget(12, QFormLayout::FieldRole, this->BeamStatusLabel);
+
   QMetaObject::connectSlotsByName(q);
 
   q->setWindowTitle("Volume Information");
@@ -211,6 +277,14 @@ void qMRMLAstroVolumeInfoWidgetPrivate::init()
                    q, SLOT(setImageOrigin(double*)));
   QObject::connect(this->CenterVolumePushButton, SIGNAL(clicked()),
                    q, SLOT(center()));
+  QObject::connect(this->EstimateBeamPushButton, SIGNAL(clicked()),
+                   q, SLOT(estimateBeam()));
+  QObject::connect(this->ApplyBeamPushButton, SIGNAL(clicked()),
+                   q, SLOT(applyBeam()));
+  for (QDoubleSpinBox* spinBox : {this->BeamMajorSpinBox, this->BeamMinorSpinBox, this->BeamPASpinBox})
+    {
+    QObject::connect(spinBox, SIGNAL(valueChanged(double)), q, SLOT(onBeamEdited()));
+    }
 
   q->setEnabled(this->VolumeNode != 0);
 }
@@ -282,6 +356,145 @@ void qMRMLAstroVolumeInfoWidget::setVolumeNode(vtkMRMLVolumeNode* volumeNode)
                 this, SLOT(updateWidgetFromMRML()));
   d->VolumeNode = volumeNode;
   this->updateWidgetFromMRML();
+  // the beam fields show the beam of the data (not reset by the other
+  // modifications of the volume, e.g. while the user edits them)
+  if (d->BeamVolumeNode.GetPointer() != volumeNode)
+    {
+    d->BeamVolumeNode = volumeNode;
+    this->updateBeamFromVolume();
+    }
+}
+
+//------------------------------------------------------------------------------
+void qMRMLAstroVolumeInfoWidget::setBeamStatus(const QString& status, bool warning)
+{
+  Q_D(qMRMLAstroVolumeInfoWidget);
+  d->BeamStatusLabel->setText(status);
+  d->BeamStatusLabel->setStyleSheet(warning ? "QLabel { color: #d07000; font-weight: bold; }" : QString());
+  d->BeamLabel->setText(warning ? tr("Beam (!):") : tr("Beam:"));
+}
+
+//------------------------------------------------------------------------------
+void qMRMLAstroVolumeInfoWidget::updateBeamFromVolume()
+{
+  Q_D(qMRMLAstroVolumeInfoWidget);
+  vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(d->VolumeNode);
+  const bool enabled = astroVolume != nullptr;
+  for (QWidget* widget : std::initializer_list<QWidget*>{d->BeamMajorSpinBox, d->BeamMinorSpinBox, d->BeamPASpinBox,
+                                                         d->EstimateBeamPushButton, d->ApplyBeamPushButton})
+    {
+    widget->setEnabled(enabled);
+    }
+  double beam[3] = {0., 0., 0.};
+  bool defined = false;
+  if (astroVolume)
+    {
+    const char* values[3] = {astroVolume->GetAttribute("SlicerAstro.BMAJ"), astroVolume->GetAttribute("SlicerAstro.BMIN"),
+                             astroVolume->GetAttribute("SlicerAstro.BPA")};
+    defined = values[0] && values[1] && strcmp(values[0], "UNDEFINED") && strcmp(values[1], "UNDEFINED") &&
+              QString(values[0]).toDouble() > 0. && QString(values[1]).toDouble() > 0.;
+    if (defined)
+      {
+      beam[0] = QString(values[0]).toDouble();
+      beam[1] = QString(values[1]).toDouble();
+      beam[2] = (values[2] && strcmp(values[2], "UNDEFINED")) ? QString(values[2]).toDouble() : 0.;
+      }
+    }
+  QSignalBlocker blockMajor(d->BeamMajorSpinBox);
+  QSignalBlocker blockMinor(d->BeamMinorSpinBox);
+  QSignalBlocker blockPA(d->BeamPASpinBox);
+  d->BeamMajorSpinBox->setValue(beam[0] * 3600.);
+  d->BeamMinorSpinBox->setValue(beam[1] * 3600.);
+  d->BeamPASpinBox->setValue(beam[2]);
+  if (!astroVolume)
+    {
+    this->setBeamStatus(QString(), false);
+    }
+  else if (defined)
+    {
+    this->setBeamStatus(tr("Beam of the data (FITS header or applied)."), false);
+    }
+  else
+    {
+    this->setBeamStatus(tr("The data have no beam: enter it, or estimate it from the noise, then Apply. "
+                           "Without a beam, fluxes in Jy can not be calculated."), true);
+    }
+}
+
+//------------------------------------------------------------------------------
+void qMRMLAstroVolumeInfoWidget::onBeamEdited()
+{
+  this->setBeamStatus(tr("Beam edited, not applied: Apply to set it as the beam of the data."), true);
+}
+
+//------------------------------------------------------------------------------
+bool qMRMLAstroVolumeInfoWidget::estimateBeam()
+{
+  Q_D(qMRMLAstroVolumeInfoWidget);
+  vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(d->VolumeNode);
+  double beam[3] = {0., 0., 0.};
+  if (!astroVolume || !vtkSlicerAstroVolumeLogic::EstimateBeamFromNoise(astroVolume, beam))
+    {
+    this->setBeamStatus(tr("The beam can not be estimated: the noise is not correlated (e.g. single dish or "
+                           "optical data) or the image is too small. Enter it."), true);
+    return false;
+    }
+  QSignalBlocker blockMajor(d->BeamMajorSpinBox);
+  QSignalBlocker blockMinor(d->BeamMinorSpinBox);
+  QSignalBlocker blockPA(d->BeamPASpinBox);
+  d->BeamMajorSpinBox->setValue(beam[0] * 3600.);
+  d->BeamMinorSpinBox->setValue(beam[1] * 3600.);
+  d->BeamPASpinBox->setValue(beam[2] > 90. ? beam[2] - 180. : beam[2]);
+  this->setBeamStatus(tr("Beam ESTIMATED from the noise (spatial autocorrelation of the first and last channels; "
+                         "about 10% accuracy): check it, then Apply. Not applied yet."), true);
+  return true;
+}
+
+//------------------------------------------------------------------------------
+bool qMRMLAstroVolumeInfoWidget::applyBeam()
+{
+  Q_D(qMRMLAstroVolumeInfoWidget);
+  vtkMRMLAstroVolumeNode* astroVolume = vtkMRMLAstroVolumeNode::SafeDownCast(d->VolumeNode);
+  double bmaj = d->BeamMajorSpinBox->value() / 3600.;
+  double bmin = d->BeamMinorSpinBox->value() / 3600.;
+  if (!astroVolume || bmaj <= 0. || bmin <= 0.)
+    {
+    this->setBeamStatus(tr("Enter a beam with positive major and minor axes."), true);
+    return false;
+    }
+  if (bmin > bmaj)
+    {
+    std::swap(bmaj, bmin);
+    }
+  // the beam of the header keeps its precision when it is not changed (the
+  // fields show 2 decimals)
+  const char* currentValues[3] = {astroVolume->GetAttribute("SlicerAstro.BMAJ"),
+                                  astroVolume->GetAttribute("SlicerAstro.BMIN"),
+                                  astroVolume->GetAttribute("SlicerAstro.BPA")};
+  QDoubleSpinBox* spinBoxes[3] = {d->BeamMajorSpinBox, d->BeamMinorSpinBox, d->BeamPASpinBox};
+  bool unchanged = true;
+  for (int i = 0; i < 3 && unchanged; i++)
+    {
+    if (!currentValues[i] || !strcmp(currentValues[i], "UNDEFINED"))
+      {
+      unchanged = false;
+      break;
+      }
+    const double current = QString(currentValues[i]).toDouble() * (i < 2 ? 3600. : 1.);
+    const double shown = QString::number(current, 'f', spinBoxes[i]->decimals()).toDouble();
+    unchanged = (current > 0. || i == 2) && fabs(shown - spinBoxes[i]->value()) < 1e-9;
+    }
+  if (!unchanged)
+    {
+    int wasModifying = astroVolume->StartModify();
+    astroVolume->SetAttribute("SlicerAstro.BMAJ", QString::number(bmaj, 'g', 17).toUtf8().constData());
+    astroVolume->SetAttribute("SlicerAstro.BMIN", QString::number(bmin, 'g', 17).toUtf8().constData());
+    astroVolume->SetAttribute("SlicerAstro.BPA", QString::number(d->BeamPASpinBox->value(), 'g', 17).toUtf8().constData());
+    astroVolume->EndModify(wasModifying);
+    }
+  this->updateBeamFromVolume();
+  this->setBeamStatus(tr("Beam applied to the data (saved in the FITS header)."), false);
+  return true;
 }
 
 //------------------------------------------------------------------------------

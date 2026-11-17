@@ -302,6 +302,13 @@ bool vtkMRMLAstroVolumeNode::UpdateRangeAttributes()
       return false;
     }
 
+  // no finite voxel (e.g. all blank): the search did not change the initial
+  // values (the limits of the type): an empty range
+  if (!(min_val <= max_val) || !std::isfinite(min_val) || !std::isfinite(max_val))
+    {
+    min_val = max_val = 0.;
+    }
+
   int wasModifying = this->StartModify();
   this->SetAttribute("SlicerAstro.DATAMAX", DoubleToString(max_val).c_str());
   this->SetAttribute("SlicerAstro.DATAMIN", DoubleToString(min_val).c_str());

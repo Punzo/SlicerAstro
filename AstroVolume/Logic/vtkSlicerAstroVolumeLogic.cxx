@@ -79,6 +79,7 @@
 #include <vtkGeneralTransform.h>
 #include <vtkTransform.h>
 #include <vtkImageData.h>
+#include <cctype>
 #include <set>
 #include <vtkStringArray.h>
 #include <vtksys/SystemTools.hxx>
@@ -3227,6 +3228,40 @@ bool vtkSlicerAstroVolumeLogic::HasGeometryOfVolume(vtkMRMLSegmentationNode* seg
       }
     }
   return true;
+}
+
+//----------------------------------------------------------------------------
+double vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(vtkMRMLVolumeNode* volumeNode)
+{
+  if (!volumeNode)
+    {
+    return 0.;
+    }
+  const char* unit = volumeNode->GetAttribute("SlicerAstro.BUNIT");
+  std::string bunit = unit ? unit : "";
+  std::transform(bunit.begin(), bunit.end(), bunit.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+  bunit.erase(std::remove(bunit.begin(), bunit.end(), ' '), bunit.end());
+  if (bunit != "JY/BEAM")
+    {
+    return 0.;
+    }
+  double values[4] = {0., 0., 0., 0.};
+  const char* keys[4] = {"SlicerAstro.BMAJ", "SlicerAstro.BMIN", "SlicerAstro.CDELT1", "SlicerAstro.CDELT2"};
+  for (int index = 0; index < 4; index++)
+    {
+    const char* value = volumeNode->GetAttribute(keys[index]);
+    if (!value || !strcmp(value, "UNDEFINED"))
+      {
+      return 0.;
+      }
+    values[index] = StringToDouble(value);
+    }
+  if (!(values[0] > 0.) || !(values[1] > 0.) || values[2] == 0. || values[3] == 0.)
+    {
+    return 0.;
+    }
+  const double beamArea = vtkMath::Pi() / (4. * log(2.)) * values[0] * values[1];
+  return fabs(values[2] * values[3]) / beamArea;
 }
 
 //----------------------------------------------------------------------------

@@ -34,6 +34,7 @@
 #include <vtkMatrix4x4.h>
 #include <vtkMatrixToLinearTransform.h>
 #include <vtkNew.h>
+#include <vtkWeakPointer.h>
 #include <vtkParametricEllipsoid.h>
 #include <vtkParametricFunctionSource.h>
 #include <vtkPolyDataMapper.h>
@@ -105,6 +106,9 @@ public:
   vtkSlicerAstroSmoothingLogic* logic() const;
   qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersNode;
+  // input volume observed (Modified) and input volume of the selected ranges
+  vtkWeakPointer<vtkMRMLNode> observedInputVolume;
+  vtkWeakPointer<vtkMRMLNode> rangesInputVolume;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
   vtkSmartPointer<vtkMRMLCameraNode> cameraNodeOne;
@@ -795,8 +799,10 @@ void qSlicerAstroSmoothingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNo
     {
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    this->qvtkConnect(mrmlNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onInputVolumeModified()));
+    // only the current input data are observed
+    this->qvtkReconnect(d->observedInputVolume, mrmlNode, vtkCommand::ModifiedEvent,
+                        this, SLOT(onInputVolumeModified()));
+    d->observedInputVolume = mrmlNode;
 
     this->onInputVolumeModified();
     }

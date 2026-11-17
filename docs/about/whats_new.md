@@ -60,5 +60,8 @@ are lower by a factor (N - 1) / N than those of SlicerAstro 1.x (N channels):
 widths) divided by N - 1 instead of by the channel width. Fluxes in Jy (AstroProfiles,
 total flux of AstroStatistics) use the exact area of the Gaussian beam,
 pi / (4 ln 2) BMAJ BMIN (1.x: 1.13 BMAJ BMIN, 0.27% higher fluxes). Both were
-found by comparing with spectral-cube, astropy and casacore.
+found by comparing with spectral-cube, astropy and casacore. AstroProfiles: aperture profiles (the sky area
+of a mask in all channels, with the faint wings), channels without selected
+voxels are 0 (no gaps in the plot), the velocity range is applied, the plot
+axis shows Jy only for data with a beam.
 

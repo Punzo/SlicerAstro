@@ -107,7 +107,8 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_AstroStatisticsSelfTest, self.test_Box, self.test_Mask,
-                     self.test_MaskDoubleSharedLayer, self.test_SelectedQuantities):
+                     self.test_MaskDoubleSharedLayer, self.test_SelectedQuantities,
+                     self.test_TotalFluxWithoutBeam):
             self.setUp()
             test()
 
@@ -232,6 +233,36 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
             self.assertEqual(parametersNode.GetMaskSegmentID(), segmentID)
             self.assertStatistics(computed, data[mask])
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+
+    def test_TotalFluxWithoutBeam(self):
+        """Data without beam (BMAJ = -1, e.g. WEIN069): the total flux can not be
+        calculated; its check box is disabled with the reason, the setting
+        is not changed by the computation and the value is blank. With a
+        beam the check box is enabled again."""
+        random = np.random.default_rng(3)
+        data = random.normal(0., 1., self.SHAPE).astype(np.float32)
+        cards = [(key, -1.) if key in ("BMAJ", "BMIN") else (key, value) for key, value in CUBE_CARDS]
+        path = os.path.join(self.directory, "nobeam.fits")
+        writeFITS(path, data, cards)
+        volumeNode = slicer.util.loadVolume(path)
+        widget, parametersNode = self.openModule(volumeNode)
+        slicer.util.findChild(widget, "ROIModeRadioButton").click()
+        parametersNode.SetTotalFlux(True)
+        slicer.app.processEvents()
+        totalFluxCheckBox = slicer.util.findChild(widget, "TotalFluxCheckBox")
+        self.assertFalse(totalFluxCheckBox.enabled)
+        self.assertIn("no beam", totalFluxCheckBox.toolTip)
+        self.setBox(parametersNode, volumeNode, (2, 2, 1), (10, 9, 5))
+        computed = self.compute(widget, parametersNode)
+        self.assertTrue(parametersNode.GetTotalFlux())
+        self.assertTrue(np.isnan(computed["TotalFlux"]))
+        self.assertStatistics(computed, data[1:6, 2:10, 2:11], names=("Npixels", "Mean", "Sum"))
+
+        # a cube with a beam: enabled
+        withBeam, _ = self.cube()
+        parametersNode.SetInputVolumeNodeID(withBeam.GetID())
+        slicer.app.processEvents()
+        self.assertTrue(totalFluxCheckBox.enabled)
 
     def test_SelectedQuantities(self):
         """Quantities switched off in the widget are not computed (NaN in the table)."""
