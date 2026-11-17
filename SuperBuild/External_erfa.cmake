@@ -26,13 +26,13 @@ if((NOT DEFINED ERFA_INCLUDE_DIR OR NOT DEFINED ERFA_LIBRARY_DIR)
 
   ExternalProject_SetIfNotDefined(
     ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY
-    "${EP_GIT_PROTOCOL}://github.com/liberfa/erfa.git"
+    "${EP_GIT_PROTOCOL}://github.com/Punzo/erfa.git"
     QUIET
     )
 
   ExternalProject_SetIfNotDefined(
     ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
-    "9915ba38c9365f8b0738269b8c2ac1fdd5f8dee3" # tag v2.0.1
+    "52fb5df87ebb0bf683e26af126fed38a2856251e" # slicerastro-cmake: upstream master 1a8044c (2.0.1+) with a CMake build
     QUIET
     )
 
@@ -47,9 +47,6 @@ if((NOT DEFINED ERFA_INCLUDE_DIR OR NOT DEFINED ERFA_LIBRARY_DIR)
     SOURCE_DIR ${EP_SOURCE_DIR}
     BINARY_DIR ${EP_BINARY_DIR}
     INSTALL_DIR ${EP_INSTALL_DIR}
-    # ERFA has no CMake build: SlicerAstro's one
-    PATCH_COMMAND ${CMAKE_COMMAND} -E copy
-      ${CMAKE_CURRENT_SOURCE_DIR}/SuperBuild/erfa/CMakeLists.txt ${EP_SOURCE_DIR}/CMakeLists.txt
     CMAKE_CACHE_ARGS
       # Compiler settings
       -DCMAKE_C_COMPILER:FILEPATH=${CMAKE_C_COMPILER}

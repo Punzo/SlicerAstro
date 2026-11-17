@@ -22,13 +22,13 @@ if((NOT DEFINED CFITSIO_INCLUDE_DIR OR NOT DEFINED CFITSIO_LIBRARY_DIR)
 
   ExternalProject_SetIfNotDefined(
     ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY
-    "${EP_GIT_PROTOCOL}://github.com/HEASARC/cfitsio.git"
+    "${EP_GIT_PROTOCOL}://github.com/Punzo/cfitsio.git"
     QUIET
     )
 
   ExternalProject_SetIfNotDefined(
     ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
-    "d6d27653740864a0483e74cff23c53e34e1dceee" # cfitsio-4.7.0
+    "408694634f75367471d097c0ca30281d96d40884" # develop: cfitsio-4.7.0 + 34 (2026-11-16)
     QUIET
     )
 

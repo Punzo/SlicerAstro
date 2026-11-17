@@ -34,10 +34,10 @@ cd inner-build && make package
 
 | Library | Version | Licence | Use |
 |---|---|---|---|
-| [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/) | 4.7.0 | NASA (permissive) | FITS files |
+| [CFITSIO](https://heasarc.gsfc.nasa.gov/fitsio/) | 4.7.0 + development branch (fork) | NASA (permissive) | FITS files |
 | [WCSLIB](https://www.atnf.csiro.au/people/mcalabre/WCS/) | 8.10 (CMake build in a fork) | LGPL-3 | world coordinates |
-| [ERFA](https://github.com/liberfa/erfa) | 2.0.1 | BSD-3 | celestial and spectral reference frames |
-| [FFTW](https://www.fftw.org) | 3.3.11 | GPL-2 | 3DBarolo |
+| [ERFA](https://github.com/liberfa/erfa) | 2.0.1 + main branch (CMake build in a fork) | BSD-3 | celestial and spectral reference frames |
+| [FFTW](https://www.fftw.org) | 3.3.11 (source release: the generated codelets are not in git) | GPL-2 | 3DBarolo |
 | [3DBarolo](https://github.com/editeodoro/Bbarolo) | 1.8 (fork with SlicerAstro patches) | GPL-2 | kinematic modelling |
 
 The pinned versions are in `SuperBuild/External_*.cmake`. The workflow

@@ -98,12 +98,10 @@ ExternalProject_Add(fftw3
     -DCMAKE_POLICY_VERSION_MINIMUM:STRING=3.5
   )
 
-# ERFA: release tarball, built with the CMakeLists.txt of SlicerAstro
+# ERFA: fork with a CMake build
 ExternalProject_Add(erfa
   GIT_REPOSITORY "${erfa_REPOSITORY}"
   GIT_TAG "${erfa_TAG}"
-  PATCH_COMMAND ${CMAKE_COMMAND} -E copy
-    ${SLICERASTRO_SOURCE_DIR}/SuperBuild/erfa/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
   CMAKE_ARGS ${common_args} -DBUILD_TESTING:BOOL=OFF
   )
 
