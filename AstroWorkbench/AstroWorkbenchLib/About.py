@@ -260,10 +260,10 @@ class AboutDialog(qt.QDialog):
         widget, layout = self.page()
         layout.addWidget(overline("Authors"))
         layout.addWidget(paragraph(
-            "SlicerAstro was created by Davide Punzo at the Kapteyn Astronomical Institute, University "
-            "of Groningen, with J. M. van der Hulst and J. B. T. M. Roerdink, J. C. Fillion-Robin and "
-            "L. Yu. It was supported by the European Research Council (grant nr. 291531) and the 3D "
-            "Slicer community.", role=""))
+            "Davide Punzo (<a href='mailto:punzodavide@hotmail.it'>punzodavide@hotmail.it</a>) and "
+            "Thijs van der Hulst, Kapteyn Astronomical Institute, University of Groningen. SlicerAstro was "
+            "supported by the European Research Council (grant nr. 291531) and the 3D Slicer community.",
+            role=""))
         layout.addWidget(overline("Citing"))
         layout.addWidget(paragraph("If you use SlicerAstro in your research, please cite:"))
         for citation in CITATIONS:
