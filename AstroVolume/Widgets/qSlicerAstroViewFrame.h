@@ -53,6 +53,13 @@ public:
 
   bool isActive() const;
   void setActive(bool active);
+
+  /// Compass of a sky view: directions of north and east on the screen
+  /// (unit vectors, y down); hidden when visible is false
+  Q_INVOKABLE void setCompass(bool visible, double northX, double northY, double eastX, double eastY);
+  /// Angular scale bar: length in pixels of the view and its label (e.g.
+  /// "5′"); hidden for a length of 0
+  Q_INVOKABLE void setScaleBar(double pixels, const QString& label);
   double cornerRadius() const;
   void setCornerRadius(double radius);
   /// Theme token of the colour around the views (default "bg")
@@ -74,6 +81,11 @@ protected:
   bool Active{false};
   bool DropTarget{false};
   double CornerRadius{8.};
+  bool CompassVisible{false};
+  double North[2]{0., -1.};
+  double East[2]{-1., 0.};
+  double ScaleBarPixels{0.};
+  QString ScaleBarLabel;
   QString CornerToken{"bg"};
 };
 

@@ -246,3 +246,79 @@ def readout(volume, ras):
     if dimensions(volume) >= 3:
         result["velocity"] = displayNode.GetDisplayStringFromValueZ(world[2], noPrevious, output, 2)
     return result
+
+
+def angularSeparation(world0, world1):
+    """Angle (degrees) between two (RA, Dec) positions in degrees."""
+    ra0, dec0, ra1, dec1 = (math.radians(v) for v in (world0[0], world0[1], world1[0], world1[1]))
+    s = (math.sin((dec1 - dec0) / 2) ** 2 + math.cos(dec0) * math.cos(dec1) * math.sin((ra1 - ra0) / 2) ** 2)
+    return math.degrees(2 * math.asin(min(1.0, math.sqrt(s))))
+
+
+def hasBeam(volume):
+    return math.isfinite(floatAttribute(volume, "BMAJ")) and floatAttribute(volume, "BMAJ") > 0
+
+
+def skyGeometry(volume, sliceNode):
+    """Of a slice view on the sky plane of a volume, at the centre of the
+    view: arc seconds per pixel of the view (XY), and the directions of north
+    and east on the screen (unit vectors, y down). None if the view does not
+    show the sky."""
+    if not isAstroVolume(volume) or sliceNode.GetOrientation() != "XY":
+        return None
+    displayNode = volume.GetDisplayNode()
+    if displayNode is None or not displayNode.IsA("vtkMRMLAstroVolumeDisplayNode") or displayNode.GetSpace() != "WCS":
+        return None
+    xyToRAS = sliceNode.GetXYToRAS()
+    rasToXY = vtk.vtkMatrix4x4()
+    vtk.vtkMatrix4x4.Invert(xyToRAS, rasToXY)
+    rasToIJK = _matrix(volume, False)
+    ijkToRAS = _matrix(volume, True)
+    dims = sliceNode.GetDimensions()
+    centre = (dims[0] / 2.0, dims[1] / 2.0)
+
+    def world(x, y):
+        ras = xyToRAS.MultiplyPoint([x, y, 0.0, 1.0])
+        ijk = rasToIJK.MultiplyPoint(ras)[:3]
+        out = [0.0, 0.0, 0.0]
+        displayNode.GetReferenceSpace(ijk, out)
+        return out
+
+    def screen(w):
+        ijk = [0.0, 0.0, 0.0]
+        displayNode.GetIJKSpace(w, ijk)
+        ras = ijkToRAS.MultiplyPoint([ijk[0], ijk[1], ijk[2], 1.0])
+        xy = rasToXY.MultiplyPoint(ras)
+        return xy[0], xy[1]
+
+    w0 = world(*centre)
+    w1 = world(centre[0] + 100.0, centre[1])
+    arcsecPerPixel = angularSeparation(w0, w1) * 3600.0 / 100.0
+    if not arcsecPerPixel > 0:
+        return None
+    x0, y0 = screen(w0)
+    step = 1.0 / 60.0
+    directions = []
+    for w in ([w0[0], w0[1] + step, w0[2]], [w0[0] + step / max(1e-6, math.cos(math.radians(w0[1]))), w0[1], w0[2]]):
+        x, y = screen(w)
+        dx, dy = x - x0, -(y - y0)      # XY has y up, the screen y down
+        norm = math.hypot(dx, dy)
+        if norm == 0:
+            return None
+        directions.append((dx / norm, dy / norm))
+    return arcsecPerPixel, directions[0], directions[1]
+
+
+SCALE_LENGTHS = [1, 2, 5, 10, 20, 30, 60, 120, 300, 600, 900, 1200, 1800, 3600, 7200, 18000]
+
+
+def scaleBar(arcsecPerPixel, targetPixels=90.0):
+    """A round angular length close to targetPixels: (pixels, label)."""
+    best = min(SCALE_LENGTHS, key=lambda a: abs(math.log(a / (arcsecPerPixel * targetPixels))))
+    if best >= 3600:
+        label = f"{best // 3600}°"
+    elif best >= 60:
+        label = f"{best // 60}′"
+    else:
+        label = f"{best}″"
+    return best / arcsecPerPixel, label

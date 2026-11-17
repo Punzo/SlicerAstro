@@ -128,6 +128,9 @@ class SliceViewBar(ViewBar):
         self.layersButton, self.layersMenu = self.menuButton(
             "layers", "Data shown in the view", f"ViewLayers_{self.viewName}")
         self.layersMenu.connect("aboutToShow()", self.fillLayersMenu)
+        self.beamButton = self.button("beam", "Show the beam of the data", True, f"ViewBeam_{self.viewName}")
+        self.beamButton.connect("toggled(bool)", self.setBeamVisible)
+        self.frame = None
         self.linkButton = self.button("link", "Link the views (same slice, zoom and layers)", True,
                                       f"ViewLink_{self.viewName}")
         self.linkButton.connect("toggled(bool)", self.setLinked)
@@ -145,9 +148,34 @@ class SliceViewBar(ViewBar):
         volumeID = self.compositeNode.GetBackgroundVolumeID()
         return slicer.mrmlScene.GetNodeByID(volumeID) if volumeID else None
 
+    def setBeamVisible(self, visible):
+        self.sliceNode.SetAttribute("SlicerAstro.Beam", "on" if visible else "off")
+        self.sliceNode.Modified()
+
+    def updateOverlays(self, volume):
+        """Compass and scale bar of a sky view (from the WCS)."""
+        if self.frame is None:
+            return
+        geometry = Astro.skyGeometry(volume, self.sliceNode) if volume is not None else None
+        if geometry is None:
+            self.frame.setCompass(False, 0, -1, -1, 0)
+            self.frame.setScaleBar(0, "")
+            return
+        arcsecPerPixel, north, east = geometry
+        ratio = self.sliceWidget.sliceView().devicePixelRatioF()
+        self.frame.setCompass(True, north[0], north[1], east[0], east[1])
+        pixels, label = Astro.scaleBar(arcsecPerPixel * ratio)
+        self.frame.setScaleBar(pixels, label)
+
     def refresh(self, caller=None, event=None):
         volume = self.volume()
         orientation = self.sliceNode.GetOrientation()
+        beam = Astro.isAstroVolume(volume) and Astro.hasBeam(volume) and orientation == "XY"
+        self.beamButton.visible = bool(beam)
+        self.beamButton.blockSignals(True)
+        self.beamButton.checked = self.sliceNode.GetAttribute("SlicerAstro.Beam") == "on"
+        self.beamButton.blockSignals(False)
+        self.updateOverlays(volume)
         self.linkButton.blockSignals(True)
         self.linkButton.checked = bool(self.compositeNode.GetLinkedControl())
         self.linkButton.blockSignals(False)
@@ -322,6 +350,10 @@ class ViewDecorator:
             if widget is None or name in self.bars:
                 continue
             self.saved[name] = widget.sliceOffsetSliderOrientation
+            # the beam of the data in the slice views
+            sliceNode = widget.mrmlSliceNode()
+            self.saved[f"beam:{name}"] = sliceNode.GetAttribute("SlicerAstro.Beam")
+            sliceNode.SetAttribute("SlicerAstro.Beam", "on")
             widget.sliceController().visible = False
             widget.setSliceOffsetSliderOrientation(qt.Qt.Vertical)
             controller = widget.sliceVerticalController()
@@ -358,6 +390,10 @@ class ViewDecorator:
         frame.connect("activated()", lambda k=key: self.workbench.setActiveView(k))
         frame.connect("nodeDropped(QString)", lambda nodeID, k=key: self.workbench.dropNode(k, nodeID))
         self.frames[key] = frame
+        bar = self.bars.get(key)
+        if bar is not None and hasattr(bar, "frame"):
+            bar.frame = frame
+            bar.refresh()
 
     def setActive(self, key):
         for name, frame in self.frames.items():
@@ -401,6 +437,13 @@ class ViewDecorator:
                     for slider in controller.findChildren("QSlider"):
                         slider.setStyleSheet("")
                     widget.setSliceOffsetSliderOrientation(self.saved.get(key, qt.Qt.Horizontal))
+                    beam = self.saved.get(f"beam:{key}")
+                    sliceNode = widget.mrmlSliceNode()
+                    if beam is None:
+                        sliceNode.RemoveAttribute("SlicerAstro.Beam")
+                    else:
+                        sliceNode.SetAttribute("SlicerAstro.Beam", beam)
+                    sliceNode.Modified()
         for frame in self.frames.values():
             frame.delete()
         self.frames = {}

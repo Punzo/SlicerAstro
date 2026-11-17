@@ -24,6 +24,17 @@
 
 #include <algorithm>
 
+namespace
+{
+/// An arrow of the compass: direction on the screen, label and colour
+struct CompassArrow
+{
+  const double* Direction;
+  const char* Label;
+  QColor Colour;
+};
+}
+
 #include "qSlicerAstroTheme.h"
 #include "qSlicerAstroViewFrame.h"
 
@@ -102,6 +113,25 @@ bool qSlicerAstroViewFrame::isActive() const
 void qSlicerAstroViewFrame::setActive(bool active)
 {
   this->Active = active;
+  this->update();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroViewFrame::setCompass(bool visible, double northX, double northY, double eastX, double eastY)
+{
+  this->CompassVisible = visible;
+  this->North[0] = northX;
+  this->North[1] = northY;
+  this->East[0] = eastX;
+  this->East[1] = eastY;
+  this->update();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroViewFrame::setScaleBar(double pixels, const QString& label)
+{
+  this->ScaleBarPixels = pixels;
+  this->ScaleBarLabel = label;
   this->update();
 }
 
@@ -221,6 +251,46 @@ void qSlicerAstroViewFrame::paintEvent(QPaintEvent* event)
     QColor fill = theme->color("view-data");
     fill.setAlphaF(0.10);
     painter.fillPath(rounded, fill);
+    }
+  // overlays in the area of the view (below the bar, left of the slider)
+  if (this->View && this->Container && (this->CompassVisible || this->ScaleBarPixels > 0.))
+    {
+    const QRectF view(QPointF(this->View->mapTo(this->Container, QPoint(0, 0))), QSizeF(this->View->size()));
+    const QColor text = theme->color("view-text");
+    QColor shadow = theme->color("view");
+    shadow.setAlphaF(0.85);
+    if (this->CompassVisible)
+      {
+      const QPointF origin(view.right() - 40., view.top() + 40.);
+      const double length = 22.;
+      painter.setFont(theme->font("monoSmall"));
+      const CompassArrow arrows[2] =
+        {{this->North, "N", theme->color("accent")}, {this->East, "E", text}};
+      for (const CompassArrow& arrow : arrows)
+        {
+        const QPointF tip(origin.x() + length * arrow.Direction[0], origin.y() + length * arrow.Direction[1]);
+        painter.setPen(QPen(shadow, 4., Qt::SolidLine, Qt::RoundCap));
+        painter.drawLine(origin, tip);
+        painter.setPen(QPen(arrow.Colour, 1.6, Qt::SolidLine, Qt::RoundCap));
+        painter.drawLine(origin, tip);
+        const QPointF label(origin.x() + (length + 9.) * arrow.Direction[0], origin.y() + (length + 9.) * arrow.Direction[1]);
+        painter.drawText(QRectF(label.x() - 8., label.y() - 8., 16., 16.), Qt::AlignCenter, arrow.Label);
+        }
+      }
+    if (this->ScaleBarPixels > 0.)
+      {
+      const double right = view.right() - 22.;
+      const double left = right - this->ScaleBarPixels;
+      const double y = view.bottom() - 52.;
+      painter.setPen(QPen(shadow, 4., Qt::SolidLine, Qt::FlatCap));
+      painter.drawLine(QPointF(left, y), QPointF(right, y));
+      painter.setPen(QPen(text, 1.6, Qt::SolidLine, Qt::FlatCap));
+      painter.drawLine(QPointF(left, y), QPointF(right, y));
+      painter.drawLine(QPointF(left, y - 4.), QPointF(left, y + 4.));
+      painter.drawLine(QPointF(right, y - 4.), QPointF(right, y + 4.));
+      painter.setFont(theme->font("monoSmall"));
+      painter.drawText(QRectF(left, y - 20., right - left, 14.), Qt::AlignCenter, this->ScaleBarLabel);
+      }
     }
   if (this->DropTarget || this->Active)
     {

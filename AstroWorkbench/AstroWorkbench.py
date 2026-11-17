@@ -319,6 +319,24 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertTrue(displayNode.IsDisplayableInView("vtkMRMLSliceNodeYellow"))
         self.assertFalse(displayNode.IsDisplayableInView("vtkMRMLSliceNodeGreen"))
 
+        # compass and scale bar of the sky view: from the WCS
+        import math
+        from AstroWorkbenchLib import Astro
+        redNode = layoutManager.sliceWidget("Red").mrmlSliceNode()
+        geometry = Astro.skyGeometry(volume, redNode)
+        self.assertIsNotNone(geometry)
+        arcsecPerPixel, north, east = geometry
+        self.assertLess(abs(north[0]), 0.1)
+        self.assertLess(north[1], -0.99)       # north up
+        self.assertLess(east[0], -0.99)        # east left
+        xyToRAS = redNode.GetXYToRAS()
+        mmPerPixel = math.hypot(xyToRAS.GetElement(0, 0), xyToRAS.GetElement(1, 0), xyToRAS.GetElement(2, 0))
+        cdelt = abs(float(volume.GetAttribute("SlicerAstro.CDELT1"))) * 3600.0
+        self.assertAlmostEqual(arcsecPerPixel / (cdelt / volume.GetSpacing()[0] * mmPerPixel), 1.0, delta=0.03)
+        pixels, label = Astro.scaleBar(arcsecPerPixel)
+        self.assertTrue(30 < pixels < 300)
+        self.assertTrue(label[-1] in "″′°")
+
         # the cube dropped on the 3D view: rendered there
         threeD = layoutManager.threeDWidget(0)
         workbench().dropNode("3D0", volume.GetID())
