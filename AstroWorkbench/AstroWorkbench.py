@@ -49,10 +49,21 @@ This work was supported by ERC grant nr. 291531 and the Slicer Community.
         slicer.app.connect("startupCompleted()", installShortcut)
 
 
+def showAbout():
+    from AstroWorkbenchLib import About
+    About.showAbout()
+
+
 def installShortcut():
+    """Ctrl+Shift+W (Workbench) and Help > About SlicerAstro."""
     mainWindow = slicer.util.mainWindow()
     if mainWindow is None or mainWindow.findChild("QShortcut", "AstroWorkbenchShortcut") is not None:
         return
+    helpMenu = mainWindow.findChild("QMenu", "HelpMenu")
+    if helpMenu is not None:
+        action = helpMenu.addAction("About SlicerAstro")
+        action.setObjectName("AboutSlicerAstroAction")
+        action.connect("triggered()", showAbout)
     shortcut = qt.QShortcut(qt.QKeySequence(SHORTCUT), mainWindow)
     shortcut.setObjectName("AstroWorkbenchShortcut")
     shortcut.setContext(qt.Qt.ApplicationShortcut)
@@ -133,6 +144,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_Theme()
         self.setUp()
         self.test_ViewsInteraction()
+        self.setUp()
+        self.test_About()
         self.tearDown()
 
     def cube(self):
@@ -329,3 +342,32 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertTrue(displayNode.GetShowInAllViewsByDefault())
         self.assertTrue(displayNode.IsDisplayableInView("vtkMRMLSliceNodeGreen"))
+
+    def test_About(self):
+        """The About window: versions, shortcuts, credits; the shortcuts of
+        the Workbench."""
+        from AstroWorkbenchLib import About
+        dialog = About.AboutDialog()
+        dialog.show()
+        self.process()
+        version = slicer.util.findChild(dialog, "AboutVersion_SlicerAstro")
+        self.assertEqual(version.text, slicer.vtkSlicerAstroVolumeLogic.GetSlicerAstroVersion())
+        self.assertTrue(slicer.util.findChild(dialog, "AboutVersion_CFITSIO").text)
+        self.assertTrue(slicer.util.findChild(dialog, "AboutVersion_WCSLIB").text.startswith("8."))
+        self.assertFalse(slicer.util.findChild(dialog, "AboutLogo").pixmap.isNull())
+        for index in range(3):
+            dialog.tabs.setCurrentIndex(index)
+            self.process()
+            self.assertEqual(dialog.stack.currentIndex, index)
+        slicer.util.findChild(dialog, "AboutClose").click()
+        self.process()
+        self.assertFalse(dialog.visible)
+        # Workbench shortcuts exist while it is open
+        workbench().enter()
+        self.process()
+        mainWindow = slicer.util.mainWindow()
+        for keys in ("F1", "Ctrl+Shift+T", "Space"):
+            self.assertIsNotNone(mainWindow.findChild("QShortcut", f"WorkbenchShortcut_{keys}"))
+        workbench().exit()
+        self.process()
+        self.assertIsNone(mainWindow.findChild("QShortcut", "WorkbenchShortcut_F1"))

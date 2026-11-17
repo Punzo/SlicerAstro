@@ -13,6 +13,7 @@ import vtk
 import slicer
 
 from . import Astro
+from . import About
 from .Inspector import Inspector
 from .Views import ViewDecorator, ViewVisibility
 
@@ -108,9 +109,9 @@ class HeaderBar(qt.QFrame):
         self.themeButton.setObjectName("WorkbenchThemeButton")
         self.themeButton.connect("clicked()", self.toggleTheme)
         layout.addWidget(self.themeButton)
-        helpButton = iconButton("help", "SlicerAstro documentation")
-        helpButton.connect("clicked()", lambda: qt.QDesktopServices.openUrl(
-            qt.QUrl("https://punzo.github.io/SlicerAstro/")))
+        helpButton = iconButton("help", "About SlicerAstro: shortcuts, credits, documentation (F1)")
+        helpButton.setObjectName("AboutButton")
+        helpButton.connect("clicked()", lambda: About.showAbout())
         layout.addWidget(helpButton)
         self.developerButton = iconButton("terminal", "Developer: Python console", checkable=True)
         self.developerButton.setObjectName("DeveloperButton")
@@ -458,6 +459,7 @@ class Workbench:
         self.refreshTimer.connect("timeout()", self.refresh)
         self.inspector = None
         self.scrubberBar = None
+        self.shortcuts = []
         self.views = ViewDecorator(self)
         self.visibility = ViewVisibility()
         self.activeViewKey = "Red"
@@ -762,6 +764,15 @@ class Workbench:
             self.sceneObservers.append(slicer.mrmlScene.AddObserver(event, self.scheduleRefresh))
         selection = slicer.app.applicationLogic().GetSelectionNode()
         self.selectionObserver = selection.AddObserver(vtk.vtkCommand.ModifiedEvent, self.scheduleRefresh)
+        # shortcuts of the Workbench (removed when leaving it)
+        self.shortcuts = []
+        for keys, callback in (("F1", lambda: About.showAbout()),
+                               ("Ctrl+Shift+T", self.header.toggleTheme),
+                               ("Space", self.scrubberBar.scrubber.togglePlaying)):
+            shortcut = qt.QShortcut(qt.QKeySequence(keys), mainWindow)
+            shortcut.setObjectName(f"WorkbenchShortcut_{keys}")
+            shortcut.connect("activated()", callback)
+            self.shortcuts.append(shortcut)
         self.active = True
         self.refresh()
         self.arrangeViews()
@@ -807,6 +818,9 @@ class Workbench:
             slicer.mrmlScene.RemoveObserver(observer)
         self.sceneObservers = []
         slicer.app.applicationLogic().GetSelectionNode().RemoveObserver(self.selectionObserver)
+        for shortcut in self.shortcuts:
+            shortcut.delete()
+        self.shortcuts = []
         self.header.cleanup()
         self.scrubberBar.cleanup()
         self.statusBar.cleanup()

@@ -10,5 +10,7 @@
 
 #cmakedefine SLICERASTRO_HAS_WEBGPU
 
+#define SLICERASTRO_VERSION "@SLICERASTRO_VERSION@"
+
 #endif // __vtkSlicerAstroConfigure_h
 

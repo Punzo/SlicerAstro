@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="#0B0F1A"/>
+  <g transform="translate(64 64) scale(0.80) translate(-64 -66)">
+  <path d="M24 96 V44 M104 96 V44 M64 114 V62" stroke="#4FD1E0" stroke-opacity="0.35" stroke-width="1.4" stroke-dasharray="3 3" fill="none"/>
+  <path d="M24 96 L64 78 L104 96 L64 114 Z" fill="#111726" fill-opacity="0.94" stroke="#4FD1E0" stroke-opacity="0.6" stroke-width="1.6" stroke-linejoin="round"/>
+  <g transform="matrix(20 9 20 -9 64 96)">
+    <ellipse cx="0" cy="0" rx="0.92" ry="0.42" transform="rotate(45)" fill="#4FD1E0" fill-opacity="0.10"/>
+    <ellipse cx="-0.520" cy="-0.520" rx="0.3" ry="0.22" transform="rotate(45 -0.520 -0.520)" fill="#2F6BFF" fill-opacity="0.9"/>
+    <ellipse cx="-0.520" cy="-0.520" rx="0.150" ry="0.110" transform="rotate(45 -0.520 -0.520)" fill="#4FD1E0"/>
+  </g>
+  <path d="M24 70 L64 52 L104 70 L64 88 Z" fill="#111726" fill-opacity="0.94" stroke="#4FD1E0" stroke-opacity="0.6" stroke-width="1.6" stroke-linejoin="round"/>
+  <g transform="matrix(20 9 20 -9 64 70)">
+    <ellipse cx="0" cy="0" rx="0.92" ry="0.42" transform="rotate(45)" fill="#4FD1E0" fill-opacity="0.10"/>
+    <ellipse cx="0.000" cy="0.000" rx="0.16" ry="0.4" transform="rotate(45 0.000 0.000)" fill="#4FD1E0" fill-opacity="0.9"/>
+    <ellipse cx="0.000" cy="0.000" rx="0.080" ry="0.200" transform="rotate(45 0.000 0.000)" fill="#E8ECF4"/>
+  </g>
+  <path d="M24 44 L64 26 L104 44 L64 62 Z" fill="#111726" fill-opacity="0.94" stroke="#4FD1E0" stroke-opacity="0.6" stroke-width="1.6" stroke-linejoin="round"/>
+  <g transform="matrix(20 9 20 -9 64 44)">
+    <ellipse cx="0" cy="0" rx="0.92" ry="0.42" transform="rotate(45)" fill="#4FD1E0" fill-opacity="0.10"/>
+    <ellipse cx="0.520" cy="0.520" rx="0.3" ry="0.22" transform="rotate(45 0.520 0.520)" fill="#E5672E" fill-opacity="0.9"/>
+    <ellipse cx="0.520" cy="0.520" rx="0.150" ry="0.110" transform="rotate(45 0.520 0.520)" fill="#F2B24C"/>
+  </g>
+  <path d="M106 6 L108.4 15.6 L118 18 L108.4 20.4 L106 30 L103.6 20.4 L94 18 L103.6 15.6 Z" fill="#F2B24C"/>
+  <circle cx="18" cy="22" r="2.4" fill="#4FD1E0"/>
+  <circle cx="116" cy="104" r="1.8" fill="#FFF3D6"/>
+  </g>
+</svg>

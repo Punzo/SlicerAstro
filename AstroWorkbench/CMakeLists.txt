@@ -5,6 +5,7 @@ set(MODULE_NAME AstroWorkbench)
 set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}.py
   ${MODULE_NAME}Lib/__init__.py
+  ${MODULE_NAME}Lib/About.py
   ${MODULE_NAME}Lib/Astro.py
   ${MODULE_NAME}Lib/Inspector.py
   ${MODULE_NAME}Lib/Views.py

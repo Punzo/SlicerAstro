@@ -84,6 +84,7 @@
 #include <vtkStringArray.h>
 #include <vtksys/SystemTools.hxx>
 #include <vtkFITSReader.h>
+#include <fitsio.h>
 #include <vtkSMPTools.h>
 #include <vtkSegmentation.h>
 #include <vtkIntArray.h>
@@ -3964,4 +3965,23 @@ bool vtkSlicerAstroVolumeLogic::HasNonEmptySegments(vtkMRMLSegmentationNode* seg
       }
     }
   return false;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::GetSlicerAstroVersion()
+{
+  return std::string(SLICERASTRO_VERSION);
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::GetLibraryVersions()
+{
+  float cfitsioVersion = 0.f;
+  fits_get_version(&cfitsioVersion);
+  // CFITSIO reports 4.07 for 4.7.0
+  const int major = static_cast<int>(cfitsioVersion);
+  const int minor = static_cast<int>(std::lround((cfitsioVersion - major) * 100.));
+  std::ostringstream versions;
+  versions << "CFITSIO " << major << "." << minor << ";WCSLIB " << wcslib_version(nullptr);
+  return versions.str();
 }

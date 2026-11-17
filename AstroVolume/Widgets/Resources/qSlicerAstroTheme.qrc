@@ -84,5 +84,7 @@
         <file alias="Icons/terminal.svg">Icons/Astro/terminal.svg</file>
         <file alias="Icons/curve.svg">Icons/Astro/curve.svg</file>
         <file alias="Icons/pointer.svg">Icons/Astro/pointer.svg</file>
+        <file>Logo/SlicerAstroLogo.svg</file>
+        <file>Logo/SlicerAstroBadge.svg</file>
     </qresource>
 </RCC>

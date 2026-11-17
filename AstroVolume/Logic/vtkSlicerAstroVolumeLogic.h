@@ -272,6 +272,13 @@ public:
   /// pixel area / area of the Gaussian beam (pi / (4 ln 2) BMAJ BMIN). 0 if
   /// the data are not in Jy/beam (BUNIT) or the beam or the pixel size are
   /// not defined (missing, UNDEFINED or not positive, e.g. BMAJ = -1).
+  /// Version of SlicerAstro (e.g. "2.0.0")
+  static std::string GetSlicerAstroVersion();
+  /// Versions of the libraries of SlicerAstro used by this logic, e.g.
+  /// "CFITSIO 4.7;WCSLIB 8.10" (name and version separated by a space,
+  /// libraries by ";")
+  static std::string GetLibraryVersions();
+
   static double GetJyBeamToJyFactor(vtkMRMLVolumeNode* volumeNode);
 
   /// Voxel offset between the grids of two astronomical volumes (WCS): voxel
