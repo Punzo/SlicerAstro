@@ -74,6 +74,10 @@ def overline(text):
 
 
 def paragraph(text, role="label"):
+    # links in the data colour of the theme (Qt's default blue is unreadable
+    # on the dark theme)
+    if "<a " in text:
+        text = text.replace("<a ", f"<a style='color:{theme().color('data').name()}; text-decoration: none;' ")
     label = qt.QLabel(text)
     label.wordWrap = True
     label.setProperty("astroRole", role)
@@ -274,7 +278,7 @@ class AboutDialog(qt.QDialog):
         row.addStretch(1)
         layout.addLayout(row)
         layout.addWidget(paragraph(
-            "Please also cite 3D Slicer (Fedorov et al. 2012), 3DBarolo (Di Teodoro &amp; Fraternali "
+            "Please also cite 3D Slicer (Fedorov et al. 2012), 3DBarolo (Di Teodoro & Fraternali "
             "2015) for the kinematic models, and the surveys of your data."))
         layout.addWidget(overline("Built with"))
         layout.addWidget(paragraph(
