@@ -53,6 +53,8 @@ set(${KIT}_SRCS
   qSlicerAstroRunButton.h
   qSlicerAstroSegmentedButton.cxx
   qSlicerAstroSegmentedButton.h
+  qSlicerAstroSpectrumPlot.cxx
+  qSlicerAstroSpectrumPlot.h
   qSlicerAstroSpectrumRangeWidget.cxx
   qSlicerAstroSpectrumRangeWidget.h
   qSlicerAstroTheme.cxx
@@ -86,6 +88,7 @@ set(${KIT}_MOC_SRCS
   qSlicerAstroResultCard.h
   qSlicerAstroRunButton.h
   qSlicerAstroSegmentedButton.h
+  qSlicerAstroSpectrumPlot.h
   qSlicerAstroSpectrumRangeWidget.h
   qSlicerAstroTheme.h
   qSlicerAstroThumbnails.h

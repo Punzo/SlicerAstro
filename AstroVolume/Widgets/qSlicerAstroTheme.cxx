@@ -568,6 +568,16 @@ void qSlicerAstroTheme::setMode(const QString& mode)
 }
 
 //-----------------------------------------------------------------------------
+QString qSlicerAstroTheme::displayUnit(const QString& unit)
+{
+  QString text = unit;
+  text.replace(QRegularExpression("\\bJY\\b", QRegularExpression::CaseInsensitiveOption), "Jy");
+  text.replace(QRegularExpression("\\bBEAM\\b", QRegularExpression::CaseInsensitiveOption), "beam");
+  text.replace(QRegularExpression("\\bKM/S\\b", QRegularExpression::CaseInsensitiveOption), "km/s");
+  return text;
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroTheme::setLabelRole(QLabel* label, const QString& role)
 {
   if (!label)

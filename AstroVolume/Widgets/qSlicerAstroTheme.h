@@ -98,6 +98,10 @@ public:
   /// "section", "title" (font and colour of the role)
   Q_INVOKABLE static void setLabelRole(QLabel* label, const QString& role);
 
+  /// A unit of a FITS header as it is written in text (e.g. JY/BEAM ->
+  /// Jy/beam, KM/S -> km/s)
+  Q_INVOKABLE static QString displayUnit(const QString& unit);
+
 public slots:
   void setMode(const QString& mode);
 

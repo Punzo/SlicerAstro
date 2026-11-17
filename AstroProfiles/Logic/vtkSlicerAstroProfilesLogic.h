@@ -22,6 +22,7 @@
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
+class vtkDoubleArray;
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
@@ -56,6 +57,21 @@ public:
   /// \param MRML parameter node
   /// \return Success flag
   bool CalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode);
+
+  /// Measurements of a line profile (e.g. the global HI profile of a galaxy).
+  /// \param velocity velocity of each channel (any order, e.g. km/s)
+  /// \param flux flux of each channel (NaN for blank channels)
+  /// \param measurements output:
+  ///   0 integrated flux: sum of flux times channel width (e.g. Jy km/s),
+  ///   1 peak flux,
+  ///   2 W50 and 3 W20: widths at 50% and 20% of the peak, between the
+  ///     outermost crossings (from the ends of the spectrum inwards, linear
+  ///     interpolation between channels; the convention for double-horned
+  ///     profiles),
+  ///   4 systemic velocity: middle of the W50 edges,
+  ///   5, 6 lower and upper W50 edges, 7, 8 lower and upper W20 edges.
+  /// \return false without a positive peak (measurements are NaN)
+  static bool MeasureProfile(vtkDoubleArray* velocity, vtkDoubleArray* flux, double measurements[9]);
 
 protected:
   vtkSlicerAstroProfilesLogic();

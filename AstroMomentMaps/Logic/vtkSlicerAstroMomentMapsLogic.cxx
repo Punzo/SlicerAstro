@@ -692,7 +692,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
             {
             case VTK_FLOAT:
               if (*(inFPixel + posData) > pnode->GetIntensityMin() &&
-                  *(inFPixel + posData) < pnode->GetIntensityMax())
+                  *(inFPixel + posData) <= pnode->GetIntensityMax())
                 {
                 if (FloatIsNaN(*(inFPixel + posData)))
                   {
@@ -707,7 +707,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               break;
             case VTK_DOUBLE:
               if (*(inDPixel + posData) > pnode->GetIntensityMin() &&
-                  *(inDPixel + posData) < pnode->GetIntensityMax())
+                  *(inDPixel + posData) <= pnode->GetIntensityMax())
                 {
                 if (DoubleIsNaN(*(inDPixel + posData)))
                   {
@@ -763,7 +763,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
               {
               case VTK_FLOAT:
                 if (*(inFPixel + posData) > pnode->GetIntensityMin() &&
-                    *(inFPixel + posData) < pnode->GetIntensityMax())
+                    *(inFPixel + posData) <= pnode->GetIntensityMax())
                   {
                   if (FloatIsNaN(*(inFPixel + posData)))
                     {
@@ -775,7 +775,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
                 break;
               case VTK_DOUBLE:
                 if (*(inDPixel + posData) > pnode->GetIntensityMin() &&
-                    *(inDPixel + posData) < pnode->GetIntensityMax())
+                    *(inDPixel + posData) <= pnode->GetIntensityMax())
                   {
                   if (DoubleIsNaN(*(inDPixel + posData)))
                     {

@@ -50,10 +50,20 @@ public:
   /// Get vtkMRMLAstroProfilesParametersNode
   Q_INVOKABLE vtkMRMLAstroProfilesParametersNode* mrmlAstroProfilesParametersNode()const;
 
+  /// Write the current profile (velocity and flux of each channel) to a
+  /// CSV file
+  Q_INVOKABLE bool exportCSV(const QString& fileName);
+
 public slots:
   /// Slots to generate the profile.
   /// It creates an output volume and calls the logic
   void onCalculate();
+
+  /// The profile in Slicer's plot view
+  void onOpenPlotView();
+
+  /// Ask for a file name and write the profile as CSV
+  void onExportCSV();
 
 protected:
   QScopedPointer<qSlicerAstroProfilesModuleWidgetPrivate> d_ptr;
@@ -107,10 +117,15 @@ protected slots:
 
   void onMaskActiveToggled(bool active);
   void onMaskApertureToggled(bool aperture);
-  void onThresholdRangeChanged(double min, double max);
+  /// 0: the cube above a threshold, 1: a mask
+  void onRegionChanged(int index);
+  /// Threshold in units of the noise
+  void onThresholdChanged(double threshold);
+  void onIntensityMaxChanged(double maximum);
   void onUnitNodeIntensityChanged(vtkObject* sender);
   void onUnitNodeVelocityChanged(vtkObject* sender);
   void onVelocityRangeChanged(double min, double max);
+  void onVelocityFieldsChanged();
 
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);

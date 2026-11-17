@@ -43,7 +43,7 @@ def voxelArray(volumeNode):
 
 def referenceProfile(volumeNode, intensityMin, intensityMax, mask=None, aperture=False, channels=None):
     """Flux per channel: the sum of the voxels within (intensityMin,
-    intensityMax), of the voxels of the mask, or (aperture) of all the voxels
+    intensityMax], of the voxels of the mask, or (aperture) of all the voxels
     in the sky area of the mask, converted from Jy/beam to Jy when the beam
     is defined; 0 for channels without selected voxels; blank (NaN) for the
     channels outside channels (first, last) and the channels without data."""
@@ -61,7 +61,7 @@ def referenceProfile(volumeNode, intensityMin, intensityMax, mask=None, aperture
         unitBeamConv = 1.0  # beam not defined: the sum of the intensities
     with np.errstate(invalid="ignore"):
         if mask is None:
-            inside = (cube > intensityMin) & (cube < intensityMax)
+            inside = (cube > intensityMin) & (cube <= intensityMax)
         elif aperture:
             inside = np.broadcast_to(mask.any(axis=0), cube.shape) & ~np.isnan(cube)
         else:
@@ -75,12 +75,47 @@ def referenceProfile(volumeNode, intensityMin, intensityMax, mask=None, aperture
     return profile
 
 
+def measureReference(velocity, flux):
+    """Integrated flux, W50, W20 and systemic velocity (middle of W50) of a
+    profile: widths between the outermost crossings of 50% and 20% of the
+    peak, searched from the ends of the spectrum inwards with linear
+    interpolation between channels."""
+    valid = np.isfinite(flux)
+    n = len(flux)
+    widths = np.array([abs(velocity[min(i + 1, n - 1)] - velocity[max(i - 1, 0)]) /
+                       (min(i + 1, n - 1) - max(i - 1, 0)) for i in range(n)])
+    integrated = np.sum(flux[valid] * widths[valid])
+    peak = np.nanmax(flux)
+
+    def crossing(level, order):
+        previous = None
+        for i in order:
+            if not np.isfinite(flux[i]):
+                previous = None
+                continue
+            if flux[i] >= level:
+                if previous is None:
+                    return velocity[i]
+                t = (level - flux[previous]) / (flux[i] - flux[previous])
+                return velocity[previous] + t * (velocity[i] - velocity[previous])
+            previous = i
+        return np.nan
+
+    edges = {}
+    for fraction in (0.5, 0.2):
+        edges[fraction] = (crossing(fraction * peak, range(n)), crossing(fraction * peak, range(n - 1, -1, -1)))
+    w50 = abs(edges[0.5][1] - edges[0.5][0])
+    w20 = abs(edges[0.2][1] - edges[0.2][0])
+    return integrated, w50, w20, 0.5 * (edges[0.5][0] + edges[0.5][1])
+
+
 class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
     def setUp(self):
         slicer.mrmlScene.Clear(0)
 
     def runTest(self):
-        for test in (self.test_AstroProfilesSelfTest, self.test_Mask, self.test_VelocityRangeAndUnits):
+        for test in (self.test_AstroProfilesSelfTest, self.test_Mask, self.test_VelocityRangeAndUnits,
+                     self.test_Measurements):
             self.setUp()
             test()
 
@@ -117,6 +152,28 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
         # the module accumulates in float32: relative tolerance
         self.assertLess(maxDiff, 1e-5 * scale, f"max difference {maxDiff} (scale {scale})")
 
+        # the panel: the profile in the plot, its measurements and the CSV export
+        import os
+        plot = slicer.util.findChild(widget, "SpectrumPlot")
+        self.assertEqual(len(plot.spectrumY()), computed.size)
+        velocity = np.array(plot.spectrumX())
+        flux = np.array(plot.spectrumY())
+        np.testing.assert_allclose(flux[valid], computed[valid], rtol=1e-6)
+        integrated, w50, w20, systemic = measureReference(velocity, flux)
+        self.assertIn("%.1f" % w50, slicer.util.findChild(widget, "W50Label").text)
+        self.assertIn("%.1f" % w20, slicer.util.findChild(widget, "W20Value").text)
+        self.assertIn("%.1f" % systemic, slicer.util.findChild(widget, "SystemicVelocityValue").text.replace("\u2212", "-"))
+        self.assertTrue(slicer.util.findChild(widget, "PlotViewButton").enabled)
+        csvPath = os.path.join(slicer.app.temporaryPath, "AstroProfilesSelfTest.csv")
+        self.assertTrue(widget.exportCSV(csvPath))
+        exported = np.genfromtxt(csvPath, delimiter=",", skip_header=1)
+        np.testing.assert_allclose(exported[:, 0], velocity, rtol=1e-9)
+        np.testing.assert_allclose(exported[valid, 1], flux[valid], rtol=1e-9)
+        with open(csvPath) as csvFile:
+            # WEIN069 has no beam: the sum of the intensities in the units of the data
+            self.assertEqual(csvFile.readline().strip(), "velocity (km/s),flux (%s)" % volumeNode.GetAttribute("SlicerAstro.BUNIT"))
+        os.remove(csvPath)
+
         self.delayDisplay("Test passed")
 
     def test_Mask(self):
@@ -147,7 +204,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode = slicer.util.getNode("AstroProfilesParameters")
         for volumeNode, aperture in ((floatNode, True), (floatNode, False), (doubleNode, True), (doubleNode, False)):
             parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
-            slicer.util.findChild(widget, "MaskCheckBox").setChecked(True)
+            slicer.util.findChild(widget, "RegionButton").setCurrentIndex(1)
             apertureCheckBox = slicer.util.findChild(widget, "MaskApertureCheckBox")
             self.assertTrue(apertureCheckBox.enabled)
             apertureCheckBox.setChecked(aperture)
@@ -179,7 +236,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             # WEIN069 has no beam: the sum of the intensities
             chart = slicer.mrmlScene.GetFirstNodeByName("ProfileChart")
             self.assertEqual(chart.GetYAxisTitle(), "Sum of the intensities per channel (JY/BEAM)")
-            slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
+            slicer.util.findChild(widget, "RegionButton").setCurrentIndex(0)
         self.delayDisplay("Test passed")
 
     def test_VelocityRangeAndUnits(self):
@@ -206,7 +263,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             widget = slicer.modules.astroprofiles.widgetRepresentation()
             parametersNode = slicer.util.getNode("AstroProfilesParameters")
             parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
-            slicer.util.findChild(widget, "MaskCheckBox").setChecked(False)
+            slicer.util.findChild(widget, "RegionButton").setCurrentIndex(0)
             parametersNode.SetIntensityMin(3.)
             # channels 2..7: velocities 1000 + 5000 k m/s
             parametersNode.SetVelocityMin(11.)
@@ -230,10 +287,69 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
                 # Jy: the sum of the intensities times pixel area / beam area
                 # (CDELT 0.001 deg, beam 0.004 x 0.003 deg)
                 cube = voxelArray(volumeNode).astype(np.float64)
-                sums = np.where((cube > 3.) & (cube < parametersNode.GetIntensityMax()), cube, 0.).sum(axis=(1, 2))
+                sums = np.where((cube > 3.) & (cube <= parametersNode.GetIntensityMax()), cube, 0.).sum(axis=(1, 2))
                 factor = 0.001 * 0.001 / (np.pi / (4. * np.log(2.)) * 0.004 * 0.003)
                 np.testing.assert_allclose(computed[2:8], sums[2:8] * factor, rtol=1e-5)
             else:
                 self.assertEqual(title, "Sum of the intensities per channel (%s)" %
                                  ("JY/BEAM" if name == "nobeam" else "K"))
+        self.delayDisplay("Test passed")
+
+    def test_Measurements(self):
+        """W50, W20, systemic velocity and integrated flux of synthetic
+        profiles against their analytic values: a Gaussian line and a
+        double-horned (rotating disc) profile, with decreasing velocities and
+        a blank channel."""
+        import vtk
+        from vtkSlicerAstroProfilesModuleLogicPython import vtkSlicerAstroProfilesLogic
+
+        def measure(velocity, flux):
+            velocityArray, fluxArray = vtk.vtkDoubleArray(), vtk.vtkDoubleArray()
+            for v, f in zip(velocity, flux):
+                velocityArray.InsertNextValue(v)
+                fluxArray.InsertNextValue(f)
+            measurements = [0.] * 9
+            measured = vtkSlicerAstroProfilesLogic.MeasureProfile(velocityArray, fluxArray, measurements)
+            return measured, measurements
+
+        # Gaussian line: W50 = 2 sqrt(2 ln 2) s, W20 = 2 sqrt(2 ln 5) s,
+        # integral = peak s sqrt(2 pi)
+        velocity = np.arange(600., -600.1, -2.)  # decreasing, 2 km/s channels
+        sigma, centre, peak = 40., 123.4, 0.8
+        flux = peak * np.exp(-0.5 * ((velocity - centre) / sigma) ** 2)
+        measured, m = measure(velocity, flux)
+        self.assertTrue(measured)
+        self.assertAlmostEqual(m[0], peak * sigma * np.sqrt(2. * np.pi), delta=1e-6)
+        self.assertAlmostEqual(m[1], np.max(flux), places=12)
+        self.assertAlmostEqual(m[2], 2. * np.sqrt(2. * np.log(2.)) * sigma, delta=0.05)
+        self.assertAlmostEqual(m[3], 2. * np.sqrt(2. * np.log(5.)) * sigma, delta=0.05)
+        self.assertAlmostEqual(m[4], centre, delta=0.01)
+        self.assertLess(m[5], m[6])
+        self.assertLess(m[7], m[5])
+
+        # double-horned profile of a disc with flat rotation (horns at
+        # Vsys -/+ W), smoothed by a Gaussian, with a blank channel
+        W, vsys = 150., -40.
+        velocity = np.arange(-400., 400., 4.)
+        fine = np.linspace(-400., 400., 8001)
+        disc = np.where(np.abs(fine - vsys) < W, 1. / np.sqrt(np.maximum(1. - ((fine - vsys) / W) ** 2, 1e-3)), 0.)
+        kernel = np.exp(-0.5 * (np.arange(-200, 201) * 0.1 / 8.) ** 2)
+        smooth = np.convolve(disc, kernel / kernel.sum(), mode="same")
+        flux = np.interp(velocity, fine, smooth)
+        flux[60] = np.nan
+        measured, m = measure(velocity, flux)
+        integrated, w50, w20, systemic = measureReference(velocity, flux)
+        self.assertTrue(measured)
+        self.assertAlmostEqual(m[0], integrated, delta=1e-9 * abs(integrated))
+        self.assertAlmostEqual(m[2], w50, places=9)
+        self.assertAlmostEqual(m[3], w20, places=9)
+        self.assertAlmostEqual(m[4], systemic, places=9)
+        # the widths of a double-horned profile are close to 2 W
+        self.assertAlmostEqual(m[2], 2. * W, delta=15.)
+        self.assertAlmostEqual(m[4], vsys, delta=1.)
+
+        # no emission: no measurements
+        measured, m = measure(velocity, -np.abs(flux))
+        self.assertFalse(measured)
+        self.assertTrue(np.isnan(m[2]))
         self.delayDisplay("Test passed")

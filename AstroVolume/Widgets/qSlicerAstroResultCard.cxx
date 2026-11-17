@@ -24,6 +24,7 @@
 #include <vtkMRMLVolumeNode.h>
 
 #include "qSlicerAstroResultCard.h"
+#include "qSlicerAstroTheme.h"
 #include "qSlicerAstroThumbnails.h"
 
 //-----------------------------------------------------------------------------
@@ -96,7 +97,7 @@ void qSlicerAstroResultCard::setVolume(vtkMRMLVolumeNode* volume)
     volume, 44, 34, 6., this->devicePixelRatioF()));
   this->setTitle(QString::fromUtf8(volume->GetName()));
   const char* unit = volume->GetAttribute("SlicerAstro.BUNIT");
-  this->setSubtitle(unit ? QString::fromUtf8(unit) : QString());
+  this->setSubtitle(unit ? qSlicerAstroTheme::displayUnit(QString::fromUtf8(unit)) : QString());
 }
 
 //-----------------------------------------------------------------------------

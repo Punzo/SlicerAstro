@@ -101,7 +101,7 @@ def compareDataset(folder, name, entry):
         if key == "threshold":
             m = result["moments"]
             # SlicerAstro: intensity in (min, max), velocity range of the parameters
-            selection = (data > m["intensityMin"]) & (data < m["intensityMax"])
+            selection = (data > m["intensityMin"]) & (data <= m["intensityMax"])
         else:
             selection = mask & np.isfinite(data)
         selected = cube.with_mask(selection)
@@ -128,7 +128,7 @@ def compareDataset(folder, name, entry):
         # without data
         if key == "threshold":
             p = result["profile"]
-            profileSelection = (data > p["intensityMin"]) & (data < p["intensityMax"])
+            profileSelection = (data > p["intensityMin"]) & (data <= p["intensityMax"])
         else:
             profileSelection = selection
         fluxes = _profile(cube, profileSelection, data)

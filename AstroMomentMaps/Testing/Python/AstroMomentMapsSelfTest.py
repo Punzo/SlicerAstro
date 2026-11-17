@@ -79,7 +79,7 @@ def referenceMoments(cube, velocities, zmin, zmax, intensityMin, intensityMax, v
     selected = cube[zmin:zmax + 1].astype(np.float64)
     vel = velocities[zmin:zmax + 1][:, None, None]
     with np.errstate(invalid="ignore", divide="ignore"):
-        inside = (selected > intensityMin) & (selected < intensityMax)
+        inside = (selected > intensityMin) & (selected <= intensityMax)
         weights = np.where(inside, selected, 0.0)
         m0raw = weights.sum(axis=0)
         m1raw = (weights * vel).sum(axis=0)

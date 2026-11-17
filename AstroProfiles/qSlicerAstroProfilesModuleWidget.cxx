@@ -18,86 +18,143 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QAbstractItemView>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QDebug>
-#include <QMessageBox>
+#include <QFile>
+#include <QFileDialog>
+#include <QFormLayout>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QStackedWidget>
 #include <QStringList>
-
-// CTK includes
-#include <ctkFlowLayout.h>
-#include <ctkDoubleSpinBox.h>
-#include <ctkDoubleRangeSlider.h>
+#include <QTextStream>
+#include <QVBoxLayout>
 
 // VTK includes
-#include <vtkCollection.h>
 #include <vtkCommand.h>
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
-#include <vtkImageReslice.h>
-#include <vtkFloatArray.h>
 #include <vtkNew.h>
-#include <vtkWeakPointer.h>
-#include <vtkMatrix4x4.h>
-#include <vtkPointData.h>
 #include <vtkTable.h>
-#include <vtksys/SystemTools.hxx>
+#include <vtkWeakPointer.h>
 
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
 #include <qSlicerCoreApplication.h>
 #include <qSlicerLayoutManager.h>
-#include <qSlicerModuleManager.h>
-#include <qSlicerUtils.h>
 
 // AstroProfiles includes
 #include "qSlicerAstroProfilesModuleWidget.h"
-#include "ui_qSlicerAstroProfilesModuleWidget.h"
+
+// AstroVolume widgets includes
+#include <qSlicerAstroDatasetSelector.h>
+#include <qSlicerAstroFoldSection.h>
+#include <qSlicerAstroMessageWidget.h>
+#include <qSlicerAstroPanelHeader.h>
+#include <qSlicerAstroRunButton.h>
+#include <qSlicerAstroSegmentedButton.h>
+#include <qSlicerAstroSpectrumPlot.h>
+#include <qSlicerAstroTheme.h>
+#include <qSlicerAstroValueField.h>
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
 #include <vtkSlicerAstroProfilesLogic.h>
-#include <vtkSlicerSegmentationsModuleLogic.h>
 
 // qMRML includes
+#include <qMRMLNodeComboBox.h>
 #include <qMRMLSegmentsTableView.h>
 #include <qMRMLSortFilterProxyModel.h>
-#include <qMRMLNodeComboBox.h>
-#include <qMRMLSliceWidget.h>
-#include <qMRMLTableView.h>
 
 // MRMLLogic includes
 #include <vtkSlicerApplicationLogic.h>
 #include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLAstroProfilesParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLPlotChartNode.h>
 #include <vtkMRMLPlotSeriesNode.h>
-#include <vtkMRMLPlotViewNode.h>
 #include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLSegmentationDisplayNode.h>
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
-#include <vtkMRMLSliceCompositeNode.h>
-#include <vtkMRMLSliceLayerLogic.h>
-#include <vtkMRMLSliceLogic.h>
 #include <vtkMRMLTableNode.h>
 #include <vtkMRMLUnitNode.h>
-#include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
-#include <chrono>
+#include <algorithm>
+#include <cmath>
+#include <functional>
+#include <limits>
+#include <sstream>
+#include <vector>
+
+namespace
+{
+/// Reference from a profile volume to the table of its velocities and fluxes
+const char* ProfileTableReferenceRole = "SlicerAstro.ProfileTable";
+
+//----------------------------------------------------------------------------
+template <typename T> T StringToNumber(const char* num)
+{
+  std::stringstream ss;
+  ss << (num ? num : "");
+  T result;
+  return ss >> result ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+double StringToDouble(const char* str)
+{
+  return StringToNumber<double>(str);
+}
+
+//----------------------------------------------------------------------------
+int StringToInt(const char* str)
+{
+  return StringToNumber<int>(str);
+}
+
+//----------------------------------------------------------------------------
+/// Flux with a readable prefix (e.g. 0.00062 Jy/beam -> 0.62 mJy/beam)
+QString FormatWithUnit(double value, const QString& unit)
+{
+  const QString shortUnit = qSlicerAstroTheme::displayUnit(unit);
+  if (shortUnit.startsWith("Jy") && std::abs(value) < 0.1 && value != 0.)
+    {
+    return QString("%1 m%2").arg(value * 1000., 0, 'g', 3).arg(shortUnit);
+    }
+  return QString("%1 %2").arg(value, 0, 'g', 3).arg(shortUnit);
+}
+
+//----------------------------------------------------------------------------
+QString FormatVelocity(double value)
+{
+  return std::isfinite(value) ?
+    QString("%1 km/s").arg(value, 0, 'f', 1).replace('-', QChar(0x2212)) : QString::fromUtf8("—");
+}
+
+//----------------------------------------------------------------------------
+QLabel* Overline(const QString& text, QWidget* parent)
+{
+  QLabel* label = new QLabel(text, parent);
+  qSlicerAstroTheme::setLabelRole(label, "overline");
+  return label;
+}
+} // end namespace
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroProfiles
-class qSlicerAstroProfilesModuleWidgetPrivate: public Ui_qSlicerAstroProfilesModuleWidget
+class qSlicerAstroProfilesModuleWidgetPrivate
 {
   Q_DECLARE_PUBLIC(qSlicerAstroProfilesModuleWidget);
 protected:
@@ -111,16 +168,56 @@ public:
   void cleanPointers();
 
   vtkSlicerAstroProfilesLogic* logic() const;
+  vtkMRMLAstroVolumeNode* inputVolume() const;
+  /// Noise of the input (0 if unknown)
+  double noise() const;
+  /// Table (velocity, flux) of the current profile
+  vtkMRMLTableNode* profileTable() const;
+  void updateRunButton();
+  /// The current profile in the plot and its measurements
+  void updateResults();
+  /// Removes a profile volume with its table and plot series
+  void removeProfile(vtkMRMLNode* profileVolume);
+
+  // Panel
+  qSlicerAstroPanelHeader* Header{nullptr};
+  qSlicerAstroDatasetSelector* InputVolumeNodeSelector{nullptr};
+  qSlicerAstroMessageWidget* Message{nullptr};
+  qSlicerAstroSegmentedButton* RegionButton{nullptr};
+  QStackedWidget* RegionStack{nullptr};
+  qSlicerAstroValueField* ThresholdField{nullptr};
+  QLabel* ThresholdInfo{nullptr};
+  qMRMLNodeComboBox* SegmentationNodeComboBox{nullptr};
+  qMRMLSegmentsTableView* SegmentsTableView{nullptr};
+  QCheckBox* MaskApertureCheckBox{nullptr};
+  QLabel* W50Label{nullptr};
+  qSlicerAstroSpectrumPlot* SpectrumPlot{nullptr};
+  QWidget* Measurements{nullptr};
+  QLabel* IntegratedFluxValue{nullptr};
+  QLabel* PeakFluxValue{nullptr};
+  QLabel* SystemicVelocityValue{nullptr};
+  QLabel* W20Value{nullptr};
+  qSlicerAstroFoldSection* AdvancedSection{nullptr};
+  qSlicerAstroValueField* VelocityMinField{nullptr};
+  qSlicerAstroValueField* VelocityMaxField{nullptr};
+  qSlicerAstroValueField* IntensityMaxField{nullptr};
+  qMRMLNodeComboBox* ProfileVolumeNodeSelector{nullptr};
+  qMRMLNodeComboBox* ParametersNodeComboBox{nullptr};
+  qSlicerAstroRunButton* RunButton{nullptr};
+  QPushButton* PlotViewButton{nullptr};
+  QPushButton* ExportButton{nullptr};
+
   vtkSmartPointer<vtkMRMLAstroProfilesParametersNode> parametersNode;
   // input volume observed (Modified) and input volume of the selected ranges
   vtkWeakPointer<vtkMRMLNode> observedInputVolume;
   vtkWeakPointer<vtkMRMLNode> rangesInputVolume;
-  QCheckBox* MaskApertureCheckBox{ nullptr };
   vtkSmartPointer<vtkMRMLPlotChartNode> plotChartNodeProfile;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
   vtkSmartPointer<vtkMRMLUnitNode> unitNodeIntensity;
   vtkSmartPointer<vtkMRMLUnitNode> unitNodeVelocity;
+  /// The user cancelled the current computation
+  bool CancelRequested{false};
 };
 
 //-----------------------------------------------------------------------------
@@ -130,12 +227,6 @@ public:
 qSlicerAstroProfilesModuleWidgetPrivate::qSlicerAstroProfilesModuleWidgetPrivate(qSlicerAstroProfilesModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = nullptr;
-  this->selectionNode = nullptr;
-  this->plotChartNodeProfile = nullptr;
-  this->segmentEditorNode = nullptr;
-  this->unitNodeIntensity = nullptr;
-  this->unitNodeVelocity = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -148,64 +239,279 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
 {
   Q_Q(qSlicerAstroProfilesModuleWidget);
 
-  this->setupUi(q);
+  QVBoxLayout* rootLayout = new QVBoxLayout(q);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+  rootLayout->setSpacing(0);
 
-  qSlicerApplication* app = qSlicerApplication::application();
+  this->Header = new qSlicerAstroPanelHeader(q);
+  this->Header->setTitle(qSlicerAstroProfilesModuleWidget::tr("Profiles"));
+  this->Header->setIconName("module-profiles");
+  rootLayout->addWidget(this->Header);
 
-  if(!app)
-    {
-    qCritical() << "qSlicerAstroProfilesModuleWidgetPrivate::init(): could not find qSlicerApplication!";
-    return;
-    }
+  QWidget* body = new QWidget(q);
+  QVBoxLayout* bodyLayout = new QVBoxLayout(body);
+  bodyLayout->setContentsMargins(12, 12, 12, 14);
+  bodyLayout->setSpacing(14);
+  rootLayout->addWidget(body);
 
-  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setMRMLAstroProfilesParametersNode(vtkMRMLNode*)));
+  // Input data
+  this->InputVolumeNodeSelector = new qSlicerAstroDatasetSelector(body);
+  this->InputVolumeNodeSelector->setObjectName("InputVolumeNodeSelector");
+  this->InputVolumeNodeSelector->setRequiredDimensions(3);
+  this->InputVolumeNodeSelector->setNoneText(qSlicerAstroProfilesModuleWidget::tr("Select a data cube"));
+  this->InputVolumeNodeSelector->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Data cube of the profile (also the active volume of the views)."));
+  bodyLayout->addWidget(this->InputVolumeNodeSelector);
 
-  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
+  this->Message = new qSlicerAstroMessageWidget(body);
+  this->Message->setObjectName("MessageWidget");
+  bodyLayout->addWidget(this->Message);
 
-  QObject::connect(this->ProfileVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onProfileVolumeChanged(vtkMRMLNode*)));
-
-  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
-
+  // Region
+  QWidget* region = new QWidget(body);
+  QVBoxLayout* regionLayout = new QVBoxLayout(region);
+  regionLayout->setContentsMargins(0, 0, 0, 0);
+  regionLayout->setSpacing(8);
+  regionLayout->addWidget(Overline(qSlicerAstroProfilesModuleWidget::tr("Integrate over"), region));
+  this->RegionButton = new qSlicerAstroSegmentedButton(region);
+  this->RegionButton->setObjectName("RegionButton");
+  this->RegionButton->addButton(qSlicerAstroProfilesModuleWidget::tr("Cube"),
+    qSlicerAstroProfilesModuleWidget::tr("In each channel of the velocity range, the voxels of the whole cube "
+                                          "above a threshold."));
+  this->RegionButton->addButton(qSlicerAstroProfilesModuleWidget::tr("Mask"),
+    qSlicerAstroProfilesModuleWidget::tr("The voxels of a segment of a mask (e.g. a SoFiA source), "
+                                          "or its sky area in all the channels."));
+  regionLayout->addWidget(this->RegionButton);
+  this->RegionStack = new QStackedWidget(region);
+  QWidget* cubePage = new QWidget(this->RegionStack);
+  QVBoxLayout* cubeLayout = new QVBoxLayout(cubePage);
+  cubeLayout->setContentsMargins(0, 0, 0, 0);
+  cubeLayout->setSpacing(4);
+  this->ThresholdField = new qSlicerAstroValueField(cubePage);
+  this->ThresholdField->setObjectName("ThresholdField");
+  this->ThresholdField->setLeadingText(qSlicerAstroProfilesModuleWidget::tr("above"));
+  this->ThresholdField->setUnit(QString::fromUtf8("σ"));
+  this->ThresholdField->setDecimals(2);
+  this->ThresholdField->setSingleStep(0.5);
+  this->ThresholdField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Lower threshold of the intensities, in units of the noise (σ) of the data."));
+  cubeLayout->addWidget(this->ThresholdField);
+  this->ThresholdInfo = new QLabel(cubePage);
+  this->ThresholdInfo->setProperty("astroRole", "monoLabel");
+  cubeLayout->addWidget(this->ThresholdInfo);
+  this->RegionStack->addWidget(cubePage);
+  QWidget* maskPage = new QWidget(this->RegionStack);
+  QVBoxLayout* maskLayout = new QVBoxLayout(maskPage);
+  maskLayout->setContentsMargins(0, 0, 0, 0);
+  maskLayout->setSpacing(6);
+  this->SegmentationNodeComboBox = new qMRMLNodeComboBox(maskPage);
+  this->SegmentationNodeComboBox->setObjectName("SegmentationNodeComboBox");
+  this->SegmentationNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLSegmentationNode");
+  this->SegmentationNodeComboBox->setNoneEnabled(true);
+  this->SegmentationNodeComboBox->setAddEnabled(false);
+  this->SegmentationNodeComboBox->setRemoveEnabled(false);
+  this->SegmentationNodeComboBox->setEditEnabled(false);
+  this->SegmentationNodeComboBox->setRenameEnabled(true);
+  this->SegmentationNodeComboBox->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Mask with the segments. By default the mask of the input data cube."));
+  maskLayout->addWidget(this->SegmentationNodeComboBox);
+  this->SegmentsTableView = new qMRMLSegmentsTableView(maskPage);
+  this->SegmentsTableView->setObjectName("SegmentsTableView");
   this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
-
-  QObject::connect(this->MaskCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onMaskActiveToggled(bool)));
-
-  // aperture: the sky area of the mask in all the channels (the faint wings
-  // of a source are included, the noise averages out)
-  this->MaskApertureCheckBox = new QCheckBox(QObject::tr("Aperture: the sky area of the mask in all channels"), q);
+  this->SegmentsTableView->setMinimumHeight(120);
+  this->SegmentsTableView->setMaximumHeight(170);
+  this->SegmentsTableView->setToolTip(qSlicerAstroProfilesModuleWidget::tr("The selected segment is the mask."));
+  maskLayout->addWidget(this->SegmentsTableView);
+  // aperture: the sky area of the mask in all channels (the faint wings of a
+  // source are included, the noise averages out)
+  this->MaskApertureCheckBox = new QCheckBox(qSlicerAstroProfilesModuleWidget::tr(
+    "Aperture: the sky area of the mask in all channels"), maskPage);
   this->MaskApertureCheckBox->setObjectName("MaskApertureCheckBox");
-  this->MaskApertureCheckBox->setToolTip(QObject::tr(
+  this->MaskApertureCheckBox->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
     "Checked: in each channel the sum of all the voxels in the sky area of the mask (its voxels in any channel), "
     "without threshold: the faint emission of the wings is included and the noise averages out (global profile). "
     "Unchecked: the sum of the voxels of the mask only."));
-  int maskRow = this->verticalLayout_2->indexOf(this->MaskCheckBox);
-  this->verticalLayout_2->insertWidget(maskRow + 1, this->MaskApertureCheckBox);
-  QObject::connect(this->MaskApertureCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onMaskApertureToggled(bool)));
+  maskLayout->addWidget(this->MaskApertureCheckBox);
+  this->RegionStack->addWidget(maskPage);
+  regionLayout->addWidget(this->RegionStack);
+  bodyLayout->addWidget(region);
 
-  QObject::connect(this->ThresholdRangeWidget, SIGNAL(valuesChanged(double,double)),
-                   q, SLOT(onThresholdRangeChanged(double, double)));
+  // Spectrum and measurements
+  QWidget* spectrum = new QWidget(body);
+  QVBoxLayout* spectrumLayout = new QVBoxLayout(spectrum);
+  spectrumLayout->setContentsMargins(0, 0, 0, 0);
+  spectrumLayout->setSpacing(8);
+  QHBoxLayout* spectrumHeader = new QHBoxLayout();
+  spectrumHeader->addWidget(Overline(qSlicerAstroProfilesModuleWidget::tr("Spectrum"), spectrum));
+  spectrumHeader->addStretch(1);
+  this->W50Label = new QLabel(spectrum);
+  this->W50Label->setObjectName("W50Label");
+  this->W50Label->setProperty("astroRole", "monoLabel");
+  this->W50Label->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Width of the line at 50% of the peak (amber band in the plot)."));
+  spectrumHeader->addWidget(this->W50Label);
+  spectrumLayout->addLayout(spectrumHeader);
+  this->SpectrumPlot = new qSlicerAstroSpectrumPlot(spectrum);
+  this->SpectrumPlot->setObjectName("SpectrumPlot");
+  this->SpectrumPlot->setPlaceholderText(qSlicerAstroProfilesModuleWidget::tr("Compute the profile to see it here"));
+  this->SpectrumPlot->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Profile: flux of each channel. Amber band: W50; dashed lines: W20."));
+  spectrumLayout->addWidget(this->SpectrumPlot);
+  this->Measurements = new QWidget(spectrum);
+  QGridLayout* measurementsLayout = new QGridLayout(this->Measurements);
+  measurementsLayout->setContentsMargins(0, 0, 0, 0);
+  measurementsLayout->setHorizontalSpacing(12);
+  measurementsLayout->setVerticalSpacing(4);
+  QLabel** values[4] = {&this->IntegratedFluxValue, &this->PeakFluxValue, &this->SystemicVelocityValue, &this->W20Value};
+  const char* valueNames[4] = {"IntegratedFluxValue", "PeakFluxValue", "SystemicVelocityValue", "W20Value"};
+  const QString valueLabels[4] = {qSlicerAstroProfilesModuleWidget::tr("Integrated flux"),
+                                  qSlicerAstroProfilesModuleWidget::tr("Peak"),
+                                  qSlicerAstroProfilesModuleWidget::tr("Systemic (mid W50)"),
+                                  qSlicerAstroProfilesModuleWidget::tr("W20")};
+  const QString valueToolTips[4] = {
+    qSlicerAstroProfilesModuleWidget::tr("Sum of the flux of each channel times the channel width."),
+    qSlicerAstroProfilesModuleWidget::tr("Highest flux of the profile."),
+    qSlicerAstroProfilesModuleWidget::tr("Middle of the edges of the line at 50% of the peak."),
+    qSlicerAstroProfilesModuleWidget::tr("Width of the line at 20% of the peak (dashed lines in the plot).")};
+  for (int i = 0; i < 4; i++)
+    {
+    QLabel* label = new QLabel(valueLabels[i], this->Measurements);
+    label->setProperty("astroRole", "label");
+    label->setToolTip(valueToolTips[i]);
+    QLabel* value = new QLabel(this->Measurements);
+    value->setObjectName(valueNames[i]);
+    value->setProperty("astroRole", "mono");
+    value->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    value->setToolTip(valueToolTips[i]);
+    measurementsLayout->addWidget(label, i, 0);
+    measurementsLayout->addWidget(value, i, 1);
+    *values[i] = value;
+    }
+  measurementsLayout->setColumnStretch(1, 1);
+  spectrumLayout->addWidget(this->Measurements);
+  bodyLayout->addWidget(spectrum);
 
-  QObject::connect(this->VelocityRangeWidget, SIGNAL(valuesChanged(double,double)),
-                   q, SLOT(onVelocityRangeChanged(double, double)));
+  // Advanced
+  this->AdvancedSection = new qSlicerAstroFoldSection(body);
+  this->AdvancedSection->setObjectName("AdvancedSection");
+  this->AdvancedSection->setSummary(qSlicerAstroProfilesModuleWidget::tr("velocity range, upper limit, output"));
+  this->AdvancedSection->setSettingsKey("SlicerAstro/AstroProfiles/AdvancedCollapsed");
+  QWidget* advancedParent = this->AdvancedSection->contentWidget();
+  QFormLayout* advancedLayout = new QFormLayout();
+  advancedLayout->setContentsMargins(0, 0, 0, 0);
+  advancedLayout->setSpacing(8);
+  advancedLayout->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+  std::function<void(const QString&, QWidget*)> addRow =
+    [advancedLayout, advancedParent](const QString& text, QWidget* field)
+    {
+    QLabel* label = new QLabel(text, advancedParent);
+    label->setProperty("astroRole", "label");
+    // the labels keep their text, the fields get narrower
+    label->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    qMRMLNodeComboBox* selector = qobject_cast<qMRMLNodeComboBox*>(field);
+    if (selector)
+      {
+      selector->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+      selector->setMinimumWidth(80);
+      }
+    advancedLayout->addRow(label, field);
+    };
+  this->VelocityMinField = new qSlicerAstroValueField(advancedParent);
+  this->VelocityMinField->setObjectName("VelocityMinField");
+  this->VelocityMinField->setUnit("km/s");
+  this->VelocityMinField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Lower velocity of the channels of the profile (Cube only: a mask uses all the channels)."));
+  this->VelocityMaxField = new qSlicerAstroValueField(advancedParent);
+  this->VelocityMaxField->setObjectName("VelocityMaxField");
+  this->VelocityMaxField->setUnit("km/s");
+  this->VelocityMaxField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Upper velocity of the channels of the profile (Cube only: a mask uses all the channels)."));
+  addRow(qSlicerAstroProfilesModuleWidget::tr("From"), this->VelocityMinField);
+  addRow(qSlicerAstroProfilesModuleWidget::tr("To"), this->VelocityMaxField);
+  this->IntensityMaxField = new qSlicerAstroValueField(advancedParent);
+  this->IntensityMaxField->setObjectName("IntensityMaxField");
+  this->IntensityMaxField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Upper limit of the intensities (Cube only; by default the maximum of the data)."));
+  addRow(qSlicerAstroProfilesModuleWidget::tr("Upper limit"), this->IntensityMaxField);
+  this->ProfileVolumeNodeSelector = new qMRMLNodeComboBox(advancedParent);
+  this->ProfileVolumeNodeSelector->setObjectName("ProfileVolumeNodeSelector");
+  this->ProfileVolumeNodeSelector->setNodeTypes(QStringList() << "vtkMRMLAstroVolumeNode");
+  this->ProfileVolumeNodeSelector->setNoneEnabled(true);
+  this->ProfileVolumeNodeSelector->setAddEnabled(false);
+  this->ProfileVolumeNodeSelector->setEditEnabled(false);
+  this->ProfileVolumeNodeSelector->setRenameEnabled(true);
+  this->ProfileVolumeNodeSelector->setSelectNodeUponCreation(false);
+  this->ProfileVolumeNodeSelector->setNoneDisplay(qSlicerAstroProfilesModuleWidget::tr("New profile"));
+  this->ProfileVolumeNodeSelector->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Profile replaced by the next computation (a new profile if None)."));
+  addRow(qSlicerAstroProfilesModuleWidget::tr("Output"), this->ProfileVolumeNodeSelector);
+  this->ParametersNodeComboBox = new qMRMLNodeComboBox(advancedParent);
+  this->ParametersNodeComboBox->setObjectName("ParametersNodeComboBox");
+  this->ParametersNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLAstroProfilesParametersNode");
+  this->ParametersNodeComboBox->setShowHidden(true);
+  this->ParametersNodeComboBox->setAddEnabled(false);
+  this->ParametersNodeComboBox->setEditEnabled(false);
+  this->ParametersNodeComboBox->setRenameEnabled(true);
+  addRow(qSlicerAstroProfilesModuleWidget::tr("Parameter set"), this->ParametersNodeComboBox);
+  this->AdvancedSection->contentLayout()->addLayout(advancedLayout);
+  bodyLayout->addWidget(this->AdvancedSection);
 
-  QObject::connect(this->ApplyButton, SIGNAL(clicked()),
-                   q, SLOT(onCalculate()));
+  // Footer: run, plot view and export
+  QFrame* footer = new QFrame(q);
+  footer->setProperty("astroRole", "panelFooter");
+  QVBoxLayout* footerLayout = new QVBoxLayout(footer);
+  footerLayout->setContentsMargins(12, 12, 12, 12);
+  footerLayout->setSpacing(8);
+  this->RunButton = new qSlicerAstroRunButton(footer);
+  this->RunButton->setObjectName("RunButton");
+  this->RunButton->pushButton()->setObjectName("ApplyButton");
+  footerLayout->addWidget(this->RunButton);
+  QHBoxLayout* actionsLayout = new QHBoxLayout();
+  actionsLayout->setSpacing(6);
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  this->PlotViewButton = new QPushButton(qSlicerAstroProfilesModuleWidget::tr("Open in plot view"), footer);
+  this->PlotViewButton->setObjectName("PlotViewButton");
+  this->PlotViewButton->setIcon(theme->icon("plot", "text"));
+  this->PlotViewButton->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "The profile in Slicer's plot view (zoom, pan, compare profiles)."));
+  this->ExportButton = new QPushButton(qSlicerAstroProfilesModuleWidget::tr("CSV"), footer);
+  this->ExportButton->setObjectName("ExportButton");
+  this->ExportButton->setIcon(theme->icon("download", "text"));
+  this->ExportButton->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Save the velocity and the flux of each channel as a CSV file."));
+  actionsLayout->addWidget(this->PlotViewButton, 1);
+  actionsLayout->addWidget(this->ExportButton);
+  footerLayout->addLayout(actionsLayout);
+  rootLayout->addWidget(footer);
+  rootLayout->addStretch(1);
 
-  QObject::connect(this->CancelButton, SIGNAL(clicked()),
-                   q, SLOT(onComputationCancelled()));
+  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setMRMLAstroProfilesParametersNode(vtkMRMLNode*)));
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
+  QObject::connect(this->ProfileVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onProfileVolumeChanged(vtkMRMLNode*)));
+  for (QObject* selector : std::vector<QObject*>{this->InputVolumeNodeSelector, this->ParametersNodeComboBox,
+         this->ProfileVolumeNodeSelector, this->SegmentationNodeComboBox, this->SegmentsTableView})
+    {
+    QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)), selector, SLOT(setMRMLScene(vtkMRMLScene*)));
+    }
+  QObject::connect(this->RegionButton, SIGNAL(currentIndexChanged(int)), q, SLOT(onRegionChanged(int)));
+  QObject::connect(this->MaskApertureCheckBox, SIGNAL(toggled(bool)), q, SLOT(onMaskApertureToggled(bool)));
+  QObject::connect(this->ThresholdField, SIGNAL(valueChanged(double)), q, SLOT(onThresholdChanged(double)));
+  QObject::connect(this->IntensityMaxField, SIGNAL(valueChanged(double)), q, SLOT(onIntensityMaxChanged(double)));
+  QObject::connect(this->VelocityMinField, SIGNAL(valueChanged(double)), q, SLOT(onVelocityFieldsChanged()));
+  QObject::connect(this->VelocityMaxField, SIGNAL(valueChanged(double)), q, SLOT(onVelocityFieldsChanged()));
+  QObject::connect(this->RunButton, SIGNAL(clicked()), q, SLOT(onCalculate()));
+  QObject::connect(this->RunButton, SIGNAL(cancelRequested()), q, SLOT(onComputationCancelled()));
+  QObject::connect(this->PlotViewButton, SIGNAL(clicked()), q, SLOT(onOpenPlotView()));
+  QObject::connect(this->ExportButton, SIGNAL(clicked()), q, SLOT(onExportCSV()));
+  QObject::connect(this->InputVolumeNodeSelector, &qSlicerAstroDatasetSelector::currentNodeChanged,
+                   q, [this](vtkMRMLNode*) { this->updateRunButton(); });
 
-  this->InputSegmentCollapsibleButton->setCollapsed(false);
-
-  this->progressBar->hide();
-  this->progressBar->setMinimum(0);
-  this->progressBar->setMaximum(100);
-  this->CancelButton->hide();
+  theme->applyTo(q);
+  this->updateRunButton();
+  this->updateResults();
 }
 
 //-----------------------------------------------------------------------------
@@ -230,13 +536,13 @@ void qSlicerAstroProfilesModuleWidgetPrivate::cleanPointers()
     {
     q->mrmlScene()->RemoveNode(this->parametersNode);
     }
-  this->parametersNode = 0;
+  this->parametersNode = nullptr;
 
   if (this->plotChartNodeProfile)
     {
     q->mrmlScene()->RemoveNode(this->plotChartNodeProfile);
     }
-  this->plotChartNodeProfile = 0;
+  this->plotChartNodeProfile = nullptr;
 }
 
 //-----------------------------------------------------------------------------
@@ -244,6 +550,144 @@ vtkSlicerAstroProfilesLogic* qSlicerAstroProfilesModuleWidgetPrivate::logic() co
 {
   Q_Q(const qSlicerAstroProfilesModuleWidget);
   return vtkSlicerAstroProfilesLogic::SafeDownCast(q->logic());
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* qSlicerAstroProfilesModuleWidgetPrivate::inputVolume() const
+{
+  Q_Q(const qSlicerAstroProfilesModuleWidget);
+  if (!this->parametersNode || !q->mrmlScene() || !this->parametersNode->GetInputVolumeNodeID())
+    {
+    return nullptr;
+    }
+  return vtkMRMLAstroVolumeNode::SafeDownCast(
+    q->mrmlScene()->GetNodeByID(this->parametersNode->GetInputVolumeNodeID()));
+}
+
+//-----------------------------------------------------------------------------
+double qSlicerAstroProfilesModuleWidgetPrivate::noise() const
+{
+  vtkMRMLAstroVolumeNode* input = this->inputVolume();
+  if (!input)
+    {
+    return 0.;
+    }
+  const double noise = input->GetDisplayThreshold();
+  return (std::isfinite(noise) && noise > 0.) ? noise : 0.;
+}
+
+//-----------------------------------------------------------------------------
+vtkMRMLTableNode* qSlicerAstroProfilesModuleWidgetPrivate::profileTable() const
+{
+  Q_Q(const qSlicerAstroProfilesModuleWidget);
+  if (!this->parametersNode || !q->mrmlScene() || !this->parametersNode->GetProfileVolumeNodeID())
+    {
+    return nullptr;
+    }
+  vtkMRMLNode* profile = q->mrmlScene()->GetNodeByID(this->parametersNode->GetProfileVolumeNodeID());
+  return profile ? vtkMRMLTableNode::SafeDownCast(profile->GetNodeReference(ProfileTableReferenceRole)) : nullptr;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidgetPrivate::updateRunButton()
+{
+  const bool input = this->InputVolumeNodeSelector->currentNode() != nullptr;
+  this->RunButton->setText(input ? qSlicerAstroProfilesModuleWidget::tr("Compute profile") :
+                                   qSlicerAstroProfilesModuleWidget::tr("Select a data cube"));
+  this->RunButton->setEnabled(input);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidgetPrivate::updateResults()
+{
+  vtkMRMLTableNode* table = this->profileTable();
+  vtkTable* data = table ? table->GetTable() : nullptr;
+  const bool profile = data && data->GetNumberOfColumns() >= 2 && data->GetNumberOfRows() >= 2;
+  this->PlotViewButton->setEnabled(profile);
+  this->ExportButton->setEnabled(profile);
+  this->Measurements->setVisible(profile);
+  if (!profile)
+    {
+    this->SpectrumPlot->clearSpectrum();
+    this->W50Label->clear();
+    return;
+    }
+
+  vtkNew<vtkDoubleArray> velocity;
+  vtkNew<vtkDoubleArray> flux;
+  const vtkIdType rows = data->GetNumberOfRows();
+  velocity->SetNumberOfValues(rows);
+  flux->SetNumberOfValues(rows);
+  QVector<double> x(static_cast<int>(rows)), y(static_cast<int>(rows));
+  for (vtkIdType row = 0; row < rows; row++)
+    {
+    velocity->SetValue(row, data->GetValue(row, 0).ToDouble());
+    flux->SetValue(row, data->GetValue(row, 1).ToDouble());
+    x[static_cast<int>(row)] = velocity->GetValue(row);
+    y[static_cast<int>(row)] = flux->GetValue(row);
+    }
+  const char* fluxColumn = data->GetColumnName(1);
+  const std::string unitLabel = fluxColumn ? table->GetColumnUnitLabel(fluxColumn) : std::string();
+  const QString unit = qSlicerAstroTheme::displayUnit(QString::fromStdString(unitLabel));
+  this->SpectrumPlot->setSpectrum(x, y);
+  this->SpectrumPlot->setUnits("km/s", unit);
+
+  double measurements[9];
+  const bool measured = vtkSlicerAstroProfilesLogic::MeasureProfile(velocity, flux, measurements);
+  if (measured)
+    {
+    this->SpectrumPlot->setWidthMarkers(measurements[5], measurements[6], measurements[7], measurements[8]);
+    this->W50Label->setText(QString("W50 %1").arg(FormatVelocity(measurements[2])));
+    }
+  else
+    {
+    this->SpectrumPlot->clearWidthMarkers();
+    this->W50Label->setText(qSlicerAstroProfilesModuleWidget::tr("no emission"));
+    }
+  this->IntegratedFluxValue->setText(std::isfinite(measurements[0]) ?
+    QString("%1 %2 km/s").arg(measurements[0], 0, 'g', 4).arg(unit).replace('-', QChar(0x2212)) :
+    QString::fromUtf8("—"));
+  this->PeakFluxValue->setText(measured ? FormatWithUnit(measurements[1], unit) : QString::fromUtf8("—"));
+  this->SystemicVelocityValue->setText(FormatVelocity(measurements[4]));
+  this->W20Value->setText(FormatVelocity(measurements[3]));
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidgetPrivate::removeProfile(vtkMRMLNode* node)
+{
+  Q_Q(qSlicerAstroProfilesModuleWidget);
+  vtkMRMLScene* scene = q->mrmlScene();
+  vtkMRMLAstroVolumeNode* profile = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (!scene || !profile)
+    {
+    return;
+    }
+  vtkMRMLNode* table = profile->GetNodeReference(ProfileTableReferenceRole);
+  if (table)
+    {
+    std::vector<vtkMRMLNode*> series;
+    scene->GetNodesByClass("vtkMRMLPlotSeriesNode", series);
+    for (vtkMRMLNode* seriesNode : series)
+      {
+      vtkMRMLPlotSeriesNode* plotSeries = vtkMRMLPlotSeriesNode::SafeDownCast(seriesNode);
+      if (plotSeries && plotSeries->GetTableNodeID() && table->GetID() &&
+          !strcmp(plotSeries->GetTableNodeID(), table->GetID()))
+        {
+        scene->RemoveNode(plotSeries);
+        }
+      }
+    scene->RemoveNode(table);
+    }
+  scene->RemoveNode(profile->GetStorageNode());
+  scene->RemoveNode(profile->GetAstroVolumeDisplayNode());
+  vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay =
+    vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(profile->GetDisplayNode());
+  if (volumeRenderingDisplay)
+    {
+    scene->RemoveNode(volumeRenderingDisplay->GetROINode());
+    scene->RemoveNode(volumeRenderingDisplay);
+    }
+  scene->RemoveNode(profile);
 }
 
 //-----------------------------------------------------------------------------
@@ -275,6 +719,7 @@ void qSlicerAstroProfilesModuleWidget::enter()
 
   this->updateMaskSelector();
   this->onMaskSegmentationChanged(d->SegmentationNodeComboBox->currentNode());
+  d->updateResults();
 }
 
 //----------------------------------------------------------------------------
@@ -282,47 +727,6 @@ void qSlicerAstroProfilesModuleWidget::exit()
 {
   this->Superclass::exit();
 }
-
-namespace
-{
-//----------------------------------------------------------------------------
-template <typename T> T StringToNumber(const char* num)
-{
-  std::stringstream ss;
-  ss << num;
-  T result;
-  return ss >> result ? result : 0;
-}
-
-//----------------------------------------------------------------------------
-double StringToDouble(const char* str)
-{
-  return StringToNumber<double>(str);
-}
-
-//----------------------------------------------------------------------------
-int StringToInt(const char* str)
-{
-  return StringToNumber<int>(str);
-}
-
-//----------------------------------------------------------------------------
-template <typename T> std::string NumberToString(T V)
-{
-  std::string stringValue;
-  std::stringstream strstream;
-  strstream << V;
-  strstream >> stringValue;
-  return stringValue;
-}
-
-//----------------------------------------------------------------------------
-std::string IntToString(int Value)
-{
-  return NumberToString<int>(Value);
-}
-
-} // end namespace
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
@@ -368,8 +772,6 @@ void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->onMRMLSelectionNodeModified(d->selectionNode);
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
 
-  d->InputSegmentCollapsibleButton->setCollapsed(false);
-
   d->unitNodeIntensity = d->selectionNode->GetUnitNode("intensity");
   this->qvtkReconnect(d->unitNodeIntensity, vtkCommand::ModifiedEvent,
                       this, SLOT(onUnitNodeIntensityChanged(vtkObject*)));
@@ -385,8 +787,18 @@ void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   this->qvtkReconnect(scene, vtkMRMLScene::NodeRemovedEvent, this, SLOT(updateMaskSelector()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent, this, SLOT(updateMaskSelector()));
   this->updateMaskSelector();
+
+  // the parameters (and so the input) may have been selected when the
+  // selectors received the scene, before the selection node was known (e.g.
+  // a second panel, embedded in the Workbench): the input is set up now
+  if (d->InputVolumeNodeSelector->currentNode())
+    {
+    this->onInputVolumeChanged(d->InputVolumeNodeSelector->currentNode());
+    }
+  d->updateResults();
 }
 
+//-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::initializeNodes(bool forceNew  /*= false*/)
 {
   this->initializeParameterNode(forceNew);
@@ -480,6 +892,7 @@ void qSlicerAstroProfilesModuleWidget::initializeParameterNode(bool forceNew /*=
   d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
 }
 
+//-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= false*/)
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
@@ -492,11 +905,9 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
   // Check (and create) PlotChart node
   if (!d->plotChartNodeProfile || forceNew)
     {
-    vtkSmartPointer<vtkCollection> plotChartNodeProfileCol =
-      vtkSmartPointer<vtkCollection>::Take(
-        this->mrmlScene()->GetNodesByClassByName("vtkMRMLPlotChartNode", "ProfileChart"));
-
-    if (plotChartNodeProfileCol->GetNumberOfItems() == 0 || forceNew)
+    vtkMRMLPlotChartNode* existing = vtkMRMLPlotChartNode::SafeDownCast(
+      this->mrmlScene()->GetFirstNode("ProfileChart", "vtkMRMLPlotChartNode"));
+    if (!existing || forceNew)
       {
       d->plotChartNodeProfile.TakeReference(vtkMRMLPlotChartNode::SafeDownCast
         (this->mrmlScene()->CreateNodeByClass("vtkMRMLPlotChartNode")));
@@ -510,8 +921,7 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       }
     else
       {
-      d->plotChartNodeProfile = vtkMRMLPlotChartNode::SafeDownCast
-        (plotChartNodeProfileCol->GetItemAsObject(plotChartNodeProfileCol->GetNumberOfItems() - 1));
+      d->plotChartNodeProfile = existing;
       }
     }
 
@@ -536,7 +946,7 @@ void qSlicerAstroProfilesModuleWidget::initializeSegmentations(bool forceNew /*=
   vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
     this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
 
-  if (!segmentEditorNodeSingleton )
+  if (!segmentEditorNodeSingleton)
     {
     d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
     d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
@@ -580,22 +990,22 @@ bool qSlicerAstroProfilesModuleWidget::setMaskSegmentFromSelection()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode ?
-    d->segmentEditorNode->GetSegmentationNode() : nullptr;
+  vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+    d->SegmentationNodeComboBox->currentNode());
+  if (!segmentationNode && d->segmentEditorNode)
+    {
+    segmentationNode = d->segmentEditorNode->GetSegmentationNode();
+    }
   if (!d->parametersNode || !segmentationNode || !segmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation available!");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
+    d->Message->showMessage("error", tr("No mask: select a segmentation with the segment of the mask."));
     return false;
     }
 
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("No segment selected from the segmentation node! Please select the segment of the mask.");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
+    d->Message->showMessage("error", tr("Select the segment of the mask in the table."));
     return false;
     }
 
@@ -612,14 +1022,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObje
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
-
+  vtkMRMLSelectionNode *selectionNode = vtkMRMLSelectionNode::SafeDownCast(sender);
   if (!selectionNode)
     {
     return;
@@ -627,7 +1030,6 @@ void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObje
 
   vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
       selectionNode->GetNodeReference("SegmentEditorNodeRef"));
-
   if (!segmentEditorNode)
     {
     return;
@@ -639,30 +1041,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObje
 //--------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObject *sender)
 {
-  Q_D(qSlicerAstroProfilesModuleWidget);
-
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
-
-  if (!selectionNode)
-    {
-    return;
-    }
-
-  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-      selectionNode->GetNodeReference("SegmentEditorNodeRef"));
-
-  if (!segmentEditorNode)
-    {
-    return;
-    }
-
-  d->segmentEditorNode = segmentEditorNode;
+  this->onMRMLSelectionNodeReferenceAdded(sender);
 }
 
 //--------------------------------------------------------------------------
@@ -702,10 +1081,12 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     return;
     }
 
+  d->Message->clearMessage();
   if (mrmlNode)
     {
     d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
+    d->parametersNode->SetInputVolumeNodeID(mrmlNode->GetID());
+
     // only the current input data are observed
     this->qvtkReconnect(d->observedInputVolume, mrmlNode, vtkCommand::ModifiedEvent,
                         this, SLOT(onInputVolumeModified()));
@@ -715,7 +1096,6 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNod
     }
   else
     {
-    d->selectionNode->SetActiveVolumeID(nullptr);
     d->selectionNode->SetActiveVolumeID(nullptr);
     }
 
@@ -734,8 +1114,7 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
     return;
     }
 
-  vtkMRMLAstroVolumeNode* astroMrmlNode = vtkMRMLAstroVolumeNode::SafeDownCast
-    (this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  vtkMRMLAstroVolumeNode* astroMrmlNode = d->inputVolume();
   if (!astroMrmlNode)
     {
     return;
@@ -745,12 +1124,6 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
     {
     return;
     }
-
-  double ijk[3], worldOne[3], worldTwo[3];
-  ijk[0] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
-  ijk[1] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
-  ijk[2] = 0.;
-  astroMrmlDisplayNode->GetReferenceSpace(ijk, worldOne);
   struct wcsprm* WCS = astroMrmlDisplayNode->GetWCSStruct();
   if (!WCS)
     {
@@ -758,33 +1131,42 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
                    " WCS not found!";
     return;
     }
-  if(!strcmp(WCS->cunit[2], "m/s"))
-    {
-    worldOne[2] /= 1000.;
-    }
-  ijk[2] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS3"));
-  if (ijk[2] < 2)
-    {
-    ijk[2] += 1;
-    }
+  const double velocityFactor = !strcmp(WCS->cunit[2], "m/s") ? 0.001 : 1.;
+
+  // the limits of the data: edges of the first and last channels
+  const int channels = StringToInt(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS3"));
+  double ijk[3], worldOne[3], worldTwo[3];
+  ijk[0] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
+  ijk[1] = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
+  ijk[2] = 0.;
+  astroMrmlDisplayNode->GetReferenceSpace(ijk, worldOne);
+  ijk[2] = channels < 2 ? channels + 1 : channels;
   astroMrmlDisplayNode->GetReferenceSpace(ijk, worldTwo);
-  if(!strcmp(WCS->cunit[2], "m/s"))
+  const double Vmin = std::min(worldOne[2], worldTwo[2]) * velocityFactor;
+  const double Vmax = std::max(worldOne[2], worldTwo[2]) * velocityFactor;
+  double channelWidth = 0.;
+  if (channels > 1)
     {
-    worldTwo[2] /= 1000.;
+    double worldNext[3];
+    ijk[2] = 1.;
+    astroMrmlDisplayNode->GetReferenceSpace(ijk, worldNext);
+    channelWidth = std::abs(worldNext[2] - worldOne[2]) * velocityFactor;
+    }
+  for (qSlicerAstroValueField* field : {d->VelocityMinField, d->VelocityMaxField})
+    {
+    bool wasBlocked = field->blockSignals(true);
+    field->setRange(Vmin, Vmax);
+    field->setSingleStep(channelWidth > 0. ? channelWidth : (Vmax - Vmin) / 200.);
+    field->blockSignals(wasBlocked);
     }
 
-  double Vmin, Vmax;
-
-  if (worldOne[2] < worldTwo[2])
-    {
-    Vmin = worldOne[2];
-    Vmax = worldTwo[2];
-    }
-  else
-    {
-    Vmin = worldTwo[2];
-    Vmax = worldOne[2];
-    }
+  double min = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
+  double max = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
+  bool wasBlocked = d->IntensityMaxField->blockSignals(true);
+  d->IntensityMaxField->setRange(min, max);
+  d->IntensityMaxField->setSingleStep((max - min) / 200.);
+  d->IntensityMaxField->setUnit(QString::fromUtf8(astroMrmlNode->GetAttribute("SlicerAstro.BUNIT")));
+  d->IntensityMaxField->blockSignals(wasBlocked);
 
   // the limits of the data; the selected ranges are reset only for new input
   // data (not at every modification of the volume)
@@ -792,37 +1174,31 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
   d->rangesInputVolume = astroMrmlNode;
   if (newInput)
     {
-    d->VelocityRangeWidget->reset();
-    }
-  int wasBlocked = d->VelocityRangeWidget->blockSignals(true);
-  d->VelocityRangeWidget->setRange(Vmin, Vmax);
-  d->VelocityRangeWidget->setSingleStep((Vmax - Vmin) / 200.);
-  d->VelocityRangeWidget->blockSignals(wasBlocked);
-
-  double min = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
-  double max = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
-
-  if (newInput)
-    {
-    d->ThresholdRangeWidget->reset();
-    }
-  wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
-  d->ThresholdRangeWidget->setRange(min, max);
-  d->ThresholdRangeWidget->setSingleStep((max - min) / 200.);
-  d->ThresholdRangeWidget->blockSignals(wasBlocked);
-
-  if (newInput)
-    {
+    // default threshold: 3 times the noise
+    const double noise = d->noise();
     int wasModifying = d->parametersNode->StartModify();
     d->parametersNode->SetVelocityMin(Vmin);
     d->parametersNode->SetVelocityMax(Vmax);
-    d->parametersNode->SetIntensityMin(min);
+    d->parametersNode->SetIntensityMin(noise > 0. ? 3. * noise : min);
     d->parametersNode->SetIntensityMax(max);
     d->parametersNode->EndModify(wasModifying);
     }
 
-  d->VelocityUnitLabel->setText("km/s");
-  d->ThresholdUnitLabel->setText(astroMrmlNode->GetAttribute("SlicerAstro.BUNIT"));
+  // the dataset line: noise and channel width
+  const QString unit = QString::fromUtf8(astroMrmlNode->GetAttribute("SlicerAstro.BUNIT"));
+  const double noise = d->noise();
+  QStringList summary;
+  if (noise > 0.)
+    {
+    summary << QString::fromUtf8("σ %1").arg(FormatWithUnit(noise, unit));
+    }
+  if (channelWidth > 0.)
+    {
+    summary << QString("%1 km/s").arg(channelWidth, 0, 'g', 3);
+    }
+  summary << tr("%1 channels").arg(channels);
+  d->InputVolumeNodeSelector->setSubtitle(summary.join(QString::fromUtf8(" · ")));
+  this->onMRMLAstroProfilesParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
@@ -850,7 +1226,13 @@ void qSlicerAstroProfilesModuleWidget::onMaskActiveToggled(bool active)
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified()
+void qSlicerAstroProfilesModuleWidget::onRegionChanged(int index)
+{
+  this->onMaskActiveToggled(index == 1);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onThresholdChanged(double threshold)
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
@@ -858,43 +1240,83 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
     {
     return;
     }
+  const double noise = d->noise();
+  d->parametersNode->SetIntensityMin(noise > 0. ? threshold * noise : threshold);
+}
 
-  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
-  vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onIntensityMaxChanged(double maximum)
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetIntensityMax(maximum);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified()
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  if (!d->parametersNode || !this->mrmlScene())
+    {
+    return;
+    }
+
+  vtkMRMLAstroVolumeNode *inputVolumeNode = d->inputVolume();
   d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
 
-  const char *ProfileVolumeNodeID = d->parametersNode->GetProfileVolumeNodeID();
-  vtkMRMLAstroVolumeNode *ProfileVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(ProfileVolumeNodeID));
-  d->ProfileVolumeNodeSelector->setCurrentNode(ProfileVolumeNode);
+  const char *profileVolumeNodeID = d->parametersNode->GetProfileVolumeNodeID();
+  d->ProfileVolumeNodeSelector->setCurrentNode(profileVolumeNodeID ?
+    this->mrmlScene()->GetNodeByID(profileVolumeNodeID) : nullptr);
 
-  d->MaskCheckBox->setChecked(d->parametersNode->GetMaskActive());
+  const bool maskActive = d->parametersNode->GetMaskActive();
+  d->RegionButton->setCurrentIndex(maskActive ? 1 : 0);
+  // the stack has the height of the page shown (not of the tallest page)
+  d->RegionStack->setCurrentIndex(maskActive ? 1 : 0);
+  for (int page = 0; page < d->RegionStack->count(); page++)
+    {
+    d->RegionStack->widget(page)->setSizePolicy(QSizePolicy::Preferred,
+      page == d->RegionStack->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
+    }
+  d->RegionStack->adjustSize();
+  d->SegmentsTableView->setEnabled(maskActive);
   bool wasBlocked = d->MaskApertureCheckBox->blockSignals(true);
   d->MaskApertureCheckBox->setChecked(d->parametersNode->GetMaskAperture());
-  d->MaskApertureCheckBox->setEnabled(d->parametersNode->GetMaskActive());
+  d->MaskApertureCheckBox->setEnabled(maskActive);
   d->MaskApertureCheckBox->blockSignals(wasBlocked);
-  d->SegmentsTableView->setEnabled(d->parametersNode->GetMaskActive());
-  if (!d->parametersNode->GetMaskActive() && inputVolumeNode)
-    {
-    d->ParametersCollapsibleButton->setChecked(true);
-    d->ParametersCollapsibleButton->setEnabled(true);
-    }
-  else
-    {
-    d->ParametersCollapsibleButton->setChecked(false);
-    d->ParametersCollapsibleButton->setEnabled(false);
-    }
+  // with a mask the logic uses all the channels and no threshold
+  d->VelocityMinField->setEnabled(!maskActive);
+  d->VelocityMaxField->setEnabled(!maskActive);
+  d->IntensityMaxField->setEnabled(!maskActive);
 
-  wasBlocked = d->VelocityRangeWidget->blockSignals(true);
-  d->VelocityRangeWidget->setMinimumValue(d->parametersNode->GetVelocityMin());
-  d->VelocityRangeWidget->setMaximumValue(d->parametersNode->GetVelocityMax());
-  d->VelocityRangeWidget->blockSignals(wasBlocked);
+  wasBlocked = d->VelocityMinField->blockSignals(true);
+  d->VelocityMinField->setValue(d->parametersNode->GetVelocityMin());
+  d->VelocityMinField->blockSignals(wasBlocked);
+  wasBlocked = d->VelocityMaxField->blockSignals(true);
+  d->VelocityMaxField->setValue(d->parametersNode->GetVelocityMax());
+  d->VelocityMaxField->blockSignals(wasBlocked);
 
-  wasBlocked = d->ThresholdRangeWidget->blockSignals(true);
-  d->ThresholdRangeWidget->setMinimumValue(d->parametersNode->GetIntensityMin());
-  d->ThresholdRangeWidget->setMaximumValue(d->parametersNode->GetIntensityMax());
-  d->ThresholdRangeWidget->blockSignals(wasBlocked);
+  // threshold in units of the noise (in the units of the data without noise)
+  const double noise = d->noise();
+  const QString unit = inputVolumeNode ?
+    QString::fromUtf8(inputVolumeNode->GetAttribute("SlicerAstro.BUNIT")) : QString();
+  wasBlocked = d->ThresholdField->blockSignals(true);
+  d->ThresholdField->setUnit(noise > 0. ? QString::fromUtf8("σ") : unit);
+  d->ThresholdField->setValue(noise > 0. ? d->parametersNode->GetIntensityMin() / noise :
+                              d->parametersNode->GetIntensityMin());
+  d->ThresholdField->blockSignals(wasBlocked);
+  d->ThresholdInfo->setText(noise > 0. ?
+    QString::fromUtf8("= %1 · σ = %2").arg(FormatWithUnit(d->parametersNode->GetIntensityMin(), unit))
+                                      .arg(FormatWithUnit(noise, unit)) : QString());
+  wasBlocked = d->IntensityMaxField->blockSignals(true);
+  d->IntensityMaxField->setValue(d->parametersNode->GetIntensityMax());
+  d->IntensityMaxField->blockSignals(wasBlocked);
+
+  d->updateRunButton();
 
   int status = d->parametersNode->GetStatus();
 
@@ -911,9 +1333,8 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
     if(status != -1)
       {
       this->updateProgress(status);
-      qSlicerApplication::application()->processEvents();
       }
-  }
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -921,14 +1342,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeModified(vtkObject *se
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
-
+  vtkMRMLSelectionNode *selectionNode = vtkMRMLSelectionNode::SafeDownCast(sender);
   if (!selectionNode || !d->parametersNode)
     {
     return;
@@ -950,7 +1364,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLSelectionNodeModified(vtkObject *se
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onCalculate()
 {
-  Q_D(const qSlicerAstroProfilesModuleWidget);
+  Q_D(qSlicerAstroProfilesModuleWidget);
 
   if (!d->parametersNode)
     {
@@ -960,348 +1374,301 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
     }
 
   vtkSlicerAstroProfilesLogic *logic = d->logic();
-  if (!logic)
+  vtkMRMLScene *scene = this->mrmlScene();
+  if (!logic || !scene)
     {
     qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
-                  " : vtkSlicerAstroProfilesLogic not found!";
-    d->parametersNode->SetStatus(0);
+                  " : logic or scene not found!";
     return;
     }
 
-  d->parametersNode->SetStatus(1);
-
-  vtkMRMLScene *scene = this->mrmlScene();
-  if(!scene)
-    {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
-                  " : scene not found!";
-    }
-
-  vtkMRMLAstroVolumeNode *inputVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+  d->Message->clearMessage();
+  vtkMRMLAstroVolumeNode *inputVolume = d->inputVolume();
   if(!inputVolume || !inputVolume->GetImageData())
     {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate"
-                  " : inputVolume not found!";
-    d->parametersNode->SetStatus(0);
+    d->Message->showMessage("error", tr("Select the data cube of the profile."));
     return;
     }
 
   // Check Input volume
-  int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
-  if (n != 3)
+  if (StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS")) != 3)
     {
-    QString message = QString("It is possible to create Profiles only"
-                              " for datacubes with dimensionality 3 (NAXIS = 3).");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to create the Profile"), message);
-    d->parametersNode->SetStatus(0);
+    d->Message->showMessage("error", tr("Profiles need a data cube (3 axes: two on the sky and the "
+                                        "spectral axis)."));
+    return;
+    }
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  struct wcsprm* WCS = astroDisplay ? astroDisplay->GetWCSStruct() : nullptr;
+  if (!WCS)
+    {
+    d->Message->showMessage("error", tr("The data cube has no world coordinates (WCS)."));
     return;
     }
 
-  if (d->parametersNode->GetMaskActive())
+  if (d->parametersNode->GetMaskActive() && !this->setMaskSegmentFromSelection())
     {
-    if (!this->setMaskSegmentFromSelection())
-      {
-      qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
-                    "setMaskSegmentFromSelection failed!";
-      d->parametersNode->SetStatus(0);
-      return;
-      }
+    return;
     }
 
-  int serial = d->parametersNode->GetOutputSerial();
+  d->CancelRequested = false;
+  d->parametersNode->SetStatus(1);
+  const int serial = d->parametersNode->GetOutputSerial();
 
-  // Create ProfileVolume
+  // the previous profile is replaced (never the input)
+  vtkMRMLNode* previousProfile = d->parametersNode->GetProfileVolumeNodeID() ?
+    scene->GetNodeByID(d->parametersNode->GetProfileVolumeNodeID()) : nullptr;
+  if (previousProfile && previousProfile != inputVolume &&
+      std::string(previousProfile->GetName() ? previousProfile->GetName() : "").find("_Profile_") != std::string::npos)
+    {
+    d->removeProfile(previousProfile);
+    }
+
   std::ostringstream outSS;
-  outSS << inputVolume->GetName() << "_Profile";
-  outSS <<"_"<< IntToString(serial);
+  outSS << inputVolume->GetName() << "_Profile_" << serial;
+  const std::string name = outSS.str();
 
-  vtkMRMLAstroVolumeNode *ProfileVolume =
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->
-      GetNodeByID(d->parametersNode->GetProfileVolumeNodeID()));
-
-  if (ProfileVolume)
-    {
-    std::string name;
-    name = ProfileVolume->GetName();
-    if (!name.compare(inputVolume->GetName()))
-      {
-      ProfileVolume = nullptr;
-      }
-    else if (name.find("_Profile_") != std::string::npos)
-      {
-      vtkMRMLAstroVolumeStorageNode* astroStorage =
-        vtkMRMLAstroVolumeStorageNode::SafeDownCast(ProfileVolume->GetStorageNode());
-      scene->RemoveNode(astroStorage);
-      scene->RemoveNode(ProfileVolume->GetAstroVolumeDisplayNode());
-
-      vtkMRMLVolumeRenderingDisplayNode *volumeRenderingDisplay =
-        vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ProfileVolume->GetDisplayNode());
-      if (volumeRenderingDisplay)
-        {
-        scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-        scene->RemoveNode(volumeRenderingDisplay);
-        }
-      scene->RemoveNode(ProfileVolume);
-      }
-    }
-
-  // Get dimensions
-  int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-
-  // Create an empty 2D image
+  // the profile: a 1D astro volume along the spectral axis
+  const int N1 = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
   vtkNew<vtkImageData> imageDataTemp;
   imageDataTemp->SetDimensions(N1, 1, 1);
   imageDataTemp->SetSpacing(1.,1.,1.);
   imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
 
-  // Create Astro Volume for the profile
-  ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast
-     (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, outSS.str().c_str()));
+  vtkMRMLAstroVolumeNode* ProfileVolume = vtkMRMLAstroVolumeNode::SafeDownCast
+     (logic->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, inputVolume, name.c_str()));
+  if (!ProfileVolume)
+    {
+    d->parametersNode->SetStatus(0);
+    d->Message->showMessage("error", tr("The profile volume could not be created."));
+    return;
+    }
 
   // Modify fits attributes
   ProfileVolume->SetAttribute("SlicerAstro.NAXIS", "1");
   ProfileVolume->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "1");
   ProfileVolume->GetAstroVolumeDisplayNode()->CopyWCS(inputVolume->GetAstroVolumeDisplayNode());
-  std::string Bunit = ProfileVolume->GetAttribute("SlicerAstro.BUNIT");
+  std::string Bunit = ProfileVolume->GetAttribute("SlicerAstro.BUNIT") ? ProfileVolume->GetAttribute("SlicerAstro.BUNIT") : "";
   Bunit += " km/s";
   ProfileVolume->SetAttribute("SlicerAstro.BUNIT", Bunit.c_str());
-  std::string Btype = "";
-  Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(Btype);
+  std::string Btype = inputVolume->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(std::string());
   ProfileVolume->SetAttribute("SlicerAstro.BTYPE", Btype.c_str());
-  ProfileVolume->SetAttribute("SlicerAstro.NAXIS1", inputVolume->GetAttribute("SlicerAstro.NAXIS3"));
-  ProfileVolume->SetAttribute("SlicerAstro.CROTA1", inputVolume->GetAttribute("SlicerAstro.CROTA3"));
-  ProfileVolume->SetAttribute("SlicerAstro.CRPIX1", inputVolume->GetAttribute("SlicerAstro.CRPIX3"));
-  ProfileVolume->SetAttribute("SlicerAstro.CRVAL1", inputVolume->GetAttribute("SlicerAstro.CRVAL3"));
-  ProfileVolume->SetAttribute("SlicerAstro.CTYPE1", inputVolume->GetAttribute("SlicerAstro.CTYPE3"));
-  ProfileVolume->SetAttribute("SlicerAstro.CUNIT1", inputVolume->GetAttribute("SlicerAstro.CUNIT3"));
-  ProfileVolume->SetAttribute("SlicerAstro.DTYPE1", inputVolume->GetAttribute("SlicerAstro.DTYPE3"));
-  ProfileVolume->SetAttribute("SlicerAstro.DRVAL1", inputVolume->GetAttribute("SlicerAstro.DRVAL3"));
-  ProfileVolume->SetAttribute("SlicerAstro.DUNIT1", inputVolume->GetAttribute("SlicerAstro.DUNIT3"));
+  const char* spectralToFirst[] = {"NAXIS", "CROTA", "CRPIX", "CRVAL", "CTYPE", "CUNIT", "DTYPE", "DRVAL", "DUNIT"};
+  for (const char* key : spectralToFirst)
+    {
+    const std::string third = std::string("SlicerAstro.") + key + "3";
+    ProfileVolume->SetAttribute((std::string("SlicerAstro.") + key + "1").c_str(), inputVolume->GetAttribute(third.c_str()));
+    }
+  const char* removedKeys[] = {"NAXIS", "CDELT", "CROTA", "CRPIX", "CRVAL", "CTYPE", "CUNIT", "DTYPE", "DRVAL", "DUNIT"};
+  for (int axis = 2; axis <= 3; axis++)
+    {
+    for (const char* key : removedKeys)
+      {
+      ProfileVolume->RemoveAttribute((std::string("SlicerAstro.") + key + std::to_string(axis)).c_str());
+      }
+    }
+  for (int i = 1; i <= 3; i++)
+    {
+    for (int j = 1; j <= 3; j++)
+      {
+      ProfileVolume->RemoveAttribute(("SlicerAstro.PC" + std::to_string(i) + "_" + std::to_string(j)).c_str());
+      }
+    }
 
-  ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CDELT2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CROTA2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT2");
-
-  ProfileVolume->RemoveAttribute("SlicerAstro.NAXIS3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CDELT3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CROTA3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CRPIX3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CRVAL3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CTYPE3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.CUNIT3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.DTYPE3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.DRVAL3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.DUNIT3");
-
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC1_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC1_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC1_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC2_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC2_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC2_3");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC3_1");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC3_2");
-  ProfileVolume->RemoveAttribute("SlicerAstro.PC3_3");
-
-  // Copy 1D image into the Astro Volume object
   ProfileVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-
   double Origin[3];
   inputVolume->GetOrigin(Origin);
   Origin[1] = 0.;
   ProfileVolume->SetOrigin(Origin);
-
-  ProfileVolume->SetName(outSS.str().c_str());
-  d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
-
-  vtkMRMLNode* node = nullptr;
-  ProfileVolume->SetPresetNode(node);
-
-  // Remove old rendering Display
-  int ndnodes = ProfileVolume->GetNumberOfDisplayNodes();
-  for (int ii = 0; ii < ndnodes; ii++)
+  ProfileVolume->SetName(name.c_str());
+  vtkMRMLNode* noPreset = nullptr;
+  ProfileVolume->SetPresetNode(noPreset);
+  // profiles have no volume rendering
+  for (int ii = ProfileVolume->GetNumberOfDisplayNodes() - 1; ii >= 0; ii--)
     {
-    vtkMRMLVolumeRenderingDisplayNode *dnode =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(
-        ProfileVolume->GetNthDisplayNode(ii));
-    if (dnode)
+    if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(ProfileVolume->GetNthDisplayNode(ii)))
       {
       ProfileVolume->RemoveNthDisplayNodeID(ii);
       }
     }
-
   ProfileVolume->SetAttribute("SlicerAstro.DATAMODEL", "PROFILE");
+  d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
+  d->parametersNode->SetOutputSerial(serial + 1);
 
   // Run computation
   if (!logic->CalculateProfile(d->parametersNode))
     {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
-                  "CalculateProfiles error!";
-
-    scene->RemoveNode(ProfileVolume);
+    const bool cancelled = d->CancelRequested;
+    d->removeProfile(ProfileVolume);
+    d->parametersNode->SetProfileVolumeNodeID(nullptr);
     d->parametersNode->SetStatus(0);
-
+    if (cancelled)
+      {
+      d->Message->showMessage("info", tr("Computation cancelled."));
+      }
+    else
+      {
+      d->Message->showMessage("error", tr("The profile could not be computed (see the error log)."));
+      }
     return;
     }
 
-  // Setting the Layout for the Output
-  qSlicerApplication* app = qSlicerApplication::application();
-
-  if(!app)
-    {
-    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate :"
-                   " qSlicerApplication not found!";
-    return;
-    }
-
-  qSlicerLayoutManager* layoutManager = app->layoutManager();
-
-  if(!app)
-    {
-    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate :"
-                   " layoutManager not found!";
-    return;
-    }
-
-  // Plot the profile
-  layoutManager->layoutLogic()->GetLayoutNode()->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+  // table (velocity, flux) for the plot and the export: flux in Jy with a
+  // beam, otherwise the sum of the intensities in the units of the data
+  const char* bunit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
+  const bool jansky = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume) > 0.;
+  const std::string fluxUnit = jansky ? "Jy" : (bunit && *bunit ? bunit : "");
 
   vtkNew<vtkTable> table;
   vtkNew<vtkMRMLTableNode> tableNode;
-
   int wasModifying = tableNode->StartModify();
-
-  std::string name = inputVolume->GetName();
-  name += "_Profile_" + IntToString(serial);
-
-  std::string nameTable = name;
-  nameTable += "Table";
-  tableNode->SetName(nameTable.c_str());
+  tableNode->SetName((name + "Table").c_str());
   tableNode->SetAndObserveTable(table.GetPointer());
   tableNode->RemoveAllColumns();
   tableNode->SetUseColumnTitleAsColumnHeader(true);
   tableNode->SetDefaultColumnType("double");
-
-  vtkDoubleArray* Velocity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
-  if (!Velocity)
+  vtkDoubleArray* velocityColumn = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
+  vtkDoubleArray* fluxColumn = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
+  if (!velocityColumn || !fluxColumn)
     {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
-                  "Unable to find the Velocity Column.";
+    qCritical() << "qSlicerAstroProfilesModuleWidget::onCalculate : the table columns could not be created";
+    tableNode->EndModify(wasModifying);
+    d->parametersNode->SetStatus(0);
     return;
     }
-  Velocity->SetName("Velocity");
+  velocityColumn->SetName("Velocity");
   tableNode->SetColumnUnitLabel("Velocity", "km/s");
-  tableNode->SetColumnTitle("Velocity", "Velocity axes");
-
-  vtkDoubleArray* Intensity = vtkDoubleArray::SafeDownCast(tableNode->AddColumn());
-  if (!Intensity)
-    {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate : "
-                  "Unable to find the Intensity Column.";
-    return;
-    }
-  Intensity->SetName(name.c_str());
-  tableNode->SetColumnUnitLabel(name.c_str(), "Jy");
-  tableNode->SetColumnTitle(name.c_str(), "Intensity axes");
-
-  table->SetNumberOfRows(StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1")));
-
-  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
-  if (!astroDisplay)
-    {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate :"
-                  " astroDisplay not found!";
-    return;
-    }
-  double ijk[3], world[3], VelFactor;
-  struct wcsprm* WCS = astroDisplay->GetWCSStruct();
-  if (!WCS)
-    {
-    qCritical() <<"qSlicerAstroProfilesModuleWidget::onCalculate :"
-                  " WCS not found!";
-    return;
-    }
-  if (!strcmp(WCS->cunit[2], "m/s"))
-    {
-    VelFactor = 0.001;
-    }
+  tableNode->SetColumnTitle("Velocity", "Velocity");
+  fluxColumn->SetName(name.c_str());
+  tableNode->SetColumnUnitLabel(name.c_str(), fluxUnit.c_str());
+  tableNode->SetColumnTitle(name.c_str(), "Flux");
+  table->SetNumberOfRows(N1);
+  const double velocityFactor = !strcmp(WCS->cunit[2], "m/s") ? 0.001 : 1.;
+  double ijk[3], world[3];
   ijk[0] = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
   ijk[1] = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
-
-  for (int ii = 0; ii < StringToInt(ProfileVolume->GetAttribute("SlicerAstro.NAXIS1")); ii++)
-     {
-     ijk[2] = ii;
-     astroDisplay->GetReferenceSpace(ijk, world);
-     table->SetValue(ii, 0, world[2] * VelFactor);
-     table->SetValue(ii, 1, ProfileVolume->GetImageData()->GetScalarComponentAsDouble(ii,0,0,0));
-     }
-
-  tableNode->EndModify(wasModifying);
-
-  scene->AddNode(tableNode.GetPointer());
-  if (d->selectionNode)
+  for (int ii = 0; ii < N1; ii++)
     {
-    d->selectionNode->SetActiveTableID(tableNode->GetID());
+    ijk[2] = ii;
+    astroDisplay->GetReferenceSpace(ijk, world);
+    table->SetValue(ii, 0, world[2] * velocityFactor);
+    table->SetValue(ii, 1, ProfileVolume->GetImageData()->GetScalarComponentAsDouble(ii, 0, 0, 0));
     }
+  tableNode->EndModify(wasModifying);
+  scene->AddNode(tableNode.GetPointer());
+  ProfileVolume->SetNodeReferenceID(ProfileTableReferenceRole, tableNode->GetID());
 
-  vtkNew<vtkMRMLPlotSeriesNode> PlotSeriesNode;
-  PlotSeriesNode->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
-  PlotSeriesNode->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleNone);
-  PlotSeriesNode->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
-  PlotSeriesNode->SetLineWidth(3);
-  PlotSeriesNode->SetName(name.c_str());
-  PlotSeriesNode->SetAndObserveTableNodeID(tableNode->GetID());
-  PlotSeriesNode->SetXColumnName(tableNode->GetColumnName(0));
-  PlotSeriesNode->SetYColumnName(tableNode->GetColumnName(tableNode->GetNumberOfColumns() - 1));
-  scene->AddNode(PlotSeriesNode.GetPointer());
-  PlotSeriesNode->SetUniqueColor();
+  vtkNew<vtkMRMLPlotSeriesNode> plotSeriesNode;
+  plotSeriesNode->SetPlotType(vtkMRMLPlotSeriesNode::PlotTypeScatter);
+  plotSeriesNode->SetMarkerStyle(vtkMRMLPlotSeriesNode::MarkerStyleNone);
+  plotSeriesNode->SetLineStyle(vtkMRMLPlotSeriesNode::LineStyleSolid);
+  plotSeriesNode->SetLineWidth(3);
+  plotSeriesNode->SetName(name.c_str());
+  plotSeriesNode->SetAndObserveTableNodeID(tableNode->GetID());
+  plotSeriesNode->SetXColumnName(tableNode->GetColumnName(0));
+  plotSeriesNode->SetYColumnName(tableNode->GetColumnName(1));
+  scene->AddNode(plotSeriesNode.GetPointer());
+  plotSeriesNode->SetUniqueColor();
 
   if (d->plotChartNodeProfile)
     {
-    // flux in Jy with a beam, otherwise the sum of the intensities
-    vtkMRMLVolumeNode* inputVolume = d->parametersNode->GetInputVolumeNodeID() ?
-      vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID())) : nullptr;
-    const char* bunit = inputVolume ? inputVolume->GetAttribute("SlicerAstro.BUNIT") : nullptr;
-    d->plotChartNodeProfile->SetYAxisTitle(vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume) > 0. ?
-      "Total flux per channel (Jy)" :
+    d->plotChartNodeProfile->SetYAxisTitle(jansky ? "Total flux per channel (Jy)" :
       (std::string("Sum of the intensities per channel (") + (bunit && *bunit ? bunit : "no unit") + ")").c_str());
-    d->plotChartNodeProfile->AddAndObservePlotSeriesNodeID(PlotSeriesNode->GetID());
+    d->plotChartNodeProfile->AddAndObservePlotSeriesNodeID(plotSeriesNode->GetID());
     }
 
+  d->parametersNode->SetStatus(0);
+  d->updateResults();
+  d->Message->showMessage("success", tr("Profile computed"));
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onOpenPlotView()
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  qSlicerApplication* app = qSlicerApplication::application();
+  vtkMRMLTableNode* table = d->profileTable();
+  if (!app || !app->layoutManager() || !d->plotChartNodeProfile || !table)
+    {
+    return;
+    }
+  // the plot view, unless the layout already has one
+  vtkMRMLLayoutNode* layoutNode = app->layoutManager()->layoutLogic()->GetLayoutNode();
+  if (layoutNode && app->layoutManager()->plotViewCount() == 0)
+    {
+    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+    }
   if (d->selectionNode)
     {
     d->selectionNode->SetActivePlotChartID(d->plotChartNodeProfile->GetID());
-    d->selectionNode->SetActiveTableID(tableNode->GetID());
+    d->selectionNode->SetActiveTableID(table->GetID());
     }
-
   vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
   if (appLogic)
     {
     appLogic->PropagatePlotChartSelection();
     }
+}
 
-  serial++;
-  d->parametersNode->SetOutputSerial(serial);
-  d->parametersNode->SetStatus(0);
+//-----------------------------------------------------------------------------
+bool qSlicerAstroProfilesModuleWidget::exportCSV(const QString& fileName)
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  vtkMRMLTableNode* tableNode = d->profileTable();
+  vtkTable* table = tableNode ? tableNode->GetTable() : nullptr;
+  if (!table || table->GetNumberOfColumns() < 2 || fileName.isEmpty())
+    {
+    return false;
+    }
+  QFile file(fileName);
+  if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+    {
+    d->Message->showMessage("error", tr("The file %1 could not be written.").arg(fileName));
+    return false;
+    }
+  const char* fluxColumn = table->GetColumnName(1);
+  QString unit = fluxColumn ? QString::fromStdString(tableNode->GetColumnUnitLabel(fluxColumn)) : QString();
+  unit = unit.isEmpty() ? QString("flux") : QString("flux (%1)").arg(unit);
+  QTextStream stream(&file);
+  stream << "velocity (km/s)," << unit << "\n";
+  for (vtkIdType row = 0; row < table->GetNumberOfRows(); row++)
+    {
+    const double velocity = table->GetValue(row, 0).ToDouble();
+    const double flux = table->GetValue(row, 1).ToDouble();
+    stream << QString::number(velocity, 'g', 10) << ","
+           << (std::isfinite(flux) ? QString::number(flux, 'g', 10) : QString("nan")) << "\n";
+    }
+  file.close();
+  d->Message->showMessage("success", tr("Profile saved to %1").arg(fileName));
+  return true;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onExportCSV()
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+
+  vtkMRMLTableNode* table = d->profileTable();
+  if (!table)
+    {
+    return;
+    }
+  QString defaultName = QString::fromUtf8(table->GetName() ? table->GetName() : "Profile");
+  defaultName.replace(QRegularExpression("Table$"), QString());
+  const QString fileName = QFileDialog::getSaveFileName(this, tr("Save the profile"),
+    defaultName + ".csv", tr("CSV files (*.csv)"));
+  if (!fileName.isEmpty())
+    {
+    this->exportCSV(fileName);
+    }
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onComputationFinished()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
-  d->CancelButton->hide();
-  d->progressBar->hide();
-  d->ApplyButton->show();
+  d->RunButton->setRunning(false);
 }
 
 //---------------------------------------------------------------------------
@@ -1309,20 +1676,13 @@ void qSlicerAstroProfilesModuleWidget::onSegmentEditorNodeModified(vtkObject *se
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSegmentEditorNode *segmentEditorNode =
-    vtkMRMLSegmentEditorNode::SafeDownCast(sender);
+  vtkMRMLSegmentEditorNode *segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(sender);
   if (!segmentEditorNode)
     {
     return;
     }
 
-  vtkMRMLSegmentationNode* segmentationNode =
-    segmentEditorNode->GetSegmentationNode();
+  vtkMRMLSegmentationNode* segmentationNode = segmentEditorNode->GetSegmentationNode();
   if (!segmentationNode)
     {
     return;
@@ -1381,8 +1741,7 @@ void qSlicerAstroProfilesModuleWidget::updateMaskSelector()
   vtkMRMLSegmentationNode* currentNode =
     vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
   vtkMRMLSegmentationNode* editorNode = d->segmentEditorNode ? d->segmentEditorNode->GetSegmentationNode() : nullptr;
-  vtkMRMLVolumeNode* inputVolume = (d->parametersNode && d->parametersNode->GetInputVolumeNodeID()) ?
-    vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID())) : nullptr;
+  vtkMRMLVolumeNode* inputVolume = d->inputVolume();
   vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, inputVolume,
     currentNode ? currentNode : editorNode);
   if (!mask && !currentNode && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(editorNode))
@@ -1408,35 +1767,16 @@ void qSlicerAstroProfilesModuleWidget::onStartImportEvent()
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroProfilesModuleWidget::onThresholdRangeChanged(double min, double max)
-{
-  Q_D(qSlicerAstroProfilesModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetIntensityMin(min);
-  d->parametersNode->SetIntensityMax(max);
-  d->parametersNode->EndModify(wasModifying);
-}
-
-//-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onUnitNodeIntensityChanged(vtkObject *sender)
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!sender)
+  vtkMRMLUnitNode* unitNodeIntensity = vtkMRMLUnitNode::SafeDownCast(sender);
+  if (!unitNodeIntensity)
     {
     return;
     }
-
-  vtkMRMLUnitNode* unitNodeIntensity = vtkMRMLUnitNode::SafeDownCast(sender);
-  d->ThresholdRangeWidget->setDecimals(unitNodeIntensity->GetPrecision());
-  d->ThresholdRangeWidget->minimumSpinBox()->setDecimals(unitNodeIntensity->GetPrecision());
-  d->ThresholdRangeWidget->maximumSpinBox()->setDecimals(unitNodeIntensity->GetPrecision());
+  d->IntensityMaxField->setDecimals(unitNodeIntensity->GetPrecision());
 }
 
 //-----------------------------------------------------------------------------
@@ -1444,15 +1784,13 @@ void qSlicerAstroProfilesModuleWidget::onUnitNodeVelocityChanged(vtkObject *send
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
 
-  if (!sender)
+  vtkMRMLUnitNode* unitNodeVelocity = vtkMRMLUnitNode::SafeDownCast(sender);
+  if (!unitNodeVelocity)
     {
     return;
     }
-
-  vtkMRMLUnitNode* unitNodeVelocity = vtkMRMLUnitNode::SafeDownCast(sender);
-  d->VelocityRangeWidget->setDecimals(unitNodeVelocity->GetPrecision());
-  d->VelocityRangeWidget->minimumSpinBox()->setDecimals(unitNodeVelocity->GetPrecision());
-  d->VelocityRangeWidget->maximumSpinBox()->setDecimals(unitNodeVelocity->GetPrecision());
+  d->VelocityMinField->setDecimals(unitNodeVelocity->GetPrecision());
+  d->VelocityMaxField->setDecimals(unitNodeVelocity->GetPrecision());
 }
 
 //-----------------------------------------------------------------------------
@@ -1472,6 +1810,14 @@ void qSlicerAstroProfilesModuleWidget::onVelocityRangeChanged(double min, double
 }
 
 //-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onVelocityFieldsChanged()
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+  this->onVelocityRangeChanged(std::min(d->VelocityMinField->value(), d->VelocityMaxField->value()),
+                               std::max(d->VelocityMinField->value(), d->VelocityMaxField->value()));
+}
+
+//-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onProfileVolumeChanged(vtkMRMLNode *mrmlNode)
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
@@ -1481,37 +1827,34 @@ void qSlicerAstroProfilesModuleWidget::onProfileVolumeChanged(vtkMRMLNode *mrmlN
     return;
     }
 
-  if (mrmlNode)
-    {
-    d->parametersNode->SetProfileVolumeNodeID(mrmlNode->GetID());
-    }
-  else
-    {
-    d->parametersNode->SetProfileVolumeNodeID(nullptr);
-    }
+  d->parametersNode->SetProfileVolumeNodeID(mrmlNode ? mrmlNode->GetID() : nullptr);
+  d->updateResults();
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
-  d->parametersNode->SetStatus(-1);
+  d->CancelRequested = true;
+  if (d->parametersNode)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::updateProgress(int value)
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
-  d->progressBar->setValue(value);
+  d->RunButton->setProgress(value);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroProfilesModuleWidget::onComputationStarted()
 {
   Q_D(qSlicerAstroProfilesModuleWidget);
-  d->ApplyButton->hide();
-  d->progressBar->show();
-  d->CancelButton->show();
+  d->RunButton->setProgressText(tr("Computing the profile"));
+  d->RunButton->setRunning(true);
 }
 
 //---------------------------------------------------------------------------
@@ -1521,4 +1864,3 @@ mrmlAstroProfilesParametersNode()const
   Q_D(const qSlicerAstroProfilesModuleWidget);
   return d->parametersNode;
 }
-

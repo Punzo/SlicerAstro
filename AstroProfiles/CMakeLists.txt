@@ -35,8 +35,8 @@ set(MODULE_MOC_SRCS
   qSlicer${MODULE_NAME}ModuleWidget.h
   )
 
+# the panel is built in code with the SlicerAstro widgets (AstroVolume)
 set(MODULE_UI_SRCS
-  Resources/UI/qSlicer${MODULE_NAME}ModuleWidget.ui
   )
 
 set(MODULE_TARGET_LIBRARIES

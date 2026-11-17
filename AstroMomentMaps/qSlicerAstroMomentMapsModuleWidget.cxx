@@ -19,6 +19,7 @@
 
 // Qt includes
 #include <QAbstractItemView>
+#include <QComboBox>
 #include <QDebug>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
@@ -123,8 +124,7 @@ int StringToInt(const char* str)
 /// Flux with a readable prefix (e.g. 0.00062 Jy/beam -> 0.62 mJy/beam)
 QString FormatWithUnit(double value, const QString& unit)
 {
-  QString shortUnit = unit;
-  shortUnit.replace("JY/BEAM", "Jy/beam", Qt::CaseInsensitive);
+  const QString shortUnit = qSlicerAstroTheme::displayUnit(unit);
   if (shortUnit.startsWith("Jy") && std::abs(value) < 0.1 && value != 0.)
     {
     return QString("%1 m%2").arg(value * 1000., 0, 'g', 3).arg(shortUnit);
@@ -401,6 +401,14 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
     {
     QLabel* label = new QLabel(text, advancedParent);
     label->setProperty("astroRole", "label");
+    // the labels keep their text, the fields get narrower
+    label->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    qMRMLNodeComboBox* selector = qobject_cast<qMRMLNodeComboBox*>(field);
+    if (selector)
+      {
+      selector->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+      selector->setMinimumWidth(80);
+      }
     advancedLayout->addRow(label, field);
     };
   addRow(qSlicerAstroMomentMapsModuleWidget::tr("Upper limit"), this->IntensityMaxField);

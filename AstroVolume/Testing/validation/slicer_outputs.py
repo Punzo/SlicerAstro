@@ -39,7 +39,13 @@ def selectModule(name):
 
 def selectMask(widget, segmentationNode, segmentID, checkBoxName="MaskCheckBox"):
     if checkBoxName:
-        slicer.util.findChild(widget, checkBoxName).setChecked(segmentationNode is not None)
+        # panels rebuilt with the SlicerAstro widgets: segmented "Threshold/Cube | Mask"
+        segmented = [w for w in (slicer.util.findChildren(widget, "VoxelSelectionButton") +
+                                 slicer.util.findChildren(widget, "RegionButton"))]
+        if segmented:
+            segmented[0].setCurrentIndex(1 if segmentationNode is not None else 0)
+        else:
+            slicer.util.findChild(widget, checkBoxName).setChecked(segmentationNode is not None)
     else:
         slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
     if segmentationNode is None:

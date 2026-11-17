@@ -35,7 +35,9 @@
 // VTK includes
 #include <vtkArrayData.h>
 #include <vtkCacheManager.h>
+#include <vtkDoubleArray.h>
 #include <vtkImageData.h>
+#include <algorithm>
 #include <cmath>
 #include <vector>
 #include <limits>
@@ -77,7 +79,7 @@ struct ProfileSelection
 {
   const unsigned char* Mask = nullptr;      // voxels of the mask
   const unsigned char* Footprint = nullptr; // sky area of the mask (aperture), all channels
-  bool Threshold = false;                   // voxels within (IntensityMin, IntensityMax)
+  bool Threshold = false;                   // voxels within (IntensityMin, IntensityMax]
   double IntensityMin = 0.;
   double IntensityMax = 0.;
   int Zmin = 0;                             // channels of the profile
@@ -121,7 +123,7 @@ void ComputeProfile(const T* in, T* out, vtkIdType numSlice, int numChannels, co
           }
         finite++;
         if ((mask && !mask[voxel]) || (selection.Footprint && !selection.Footprint[voxel]) ||
-            (selection.Threshold && !(value > selection.IntensityMin && value < selection.IntensityMax)))
+            (selection.Threshold && !(value > selection.IntensityMin && value <= selection.IntensityMax)))
           {
           continue;
           }
@@ -462,5 +464,99 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
+  return true;
+}
+
+namespace
+{
+//----------------------------------------------------------------------------
+/// Velocity where the profile crosses `level`, from one end of the spectrum
+/// (step +1 from the first channel, -1 from the last one) inwards
+double OutermostCrossing(const std::vector<double>& velocity, const std::vector<double>& flux,
+                         double level, int step)
+{
+  const int n = static_cast<int>(flux.size());
+  int index = step > 0 ? 0 : n - 1;
+  int previous = -1;
+  for (; index >= 0 && index < n; index += step)
+    {
+    if (!std::isfinite(flux[index]))
+      {
+      previous = -1;
+      continue;
+      }
+    if (flux[index] >= level)
+      {
+      break;
+      }
+    previous = index;
+    }
+  if (index < 0 || index >= n)
+    {
+    return std::numeric_limits<double>::quiet_NaN();
+    }
+  if (previous < 0 || flux[index] == flux[previous])
+    {
+    return velocity[index];
+    }
+  const double t = (level - flux[previous]) / (flux[index] - flux[previous]);
+  return velocity[previous] + t * (velocity[index] - velocity[previous]);
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroProfilesLogic::MeasureProfile(vtkDoubleArray* velocityArray, vtkDoubleArray* fluxArray,
+                                                double measurements[9])
+{
+  for (int i = 0; i < 9; i++)
+    {
+    measurements[i] = std::numeric_limits<double>::quiet_NaN();
+    }
+  if (!velocityArray || !fluxArray || velocityArray->GetNumberOfTuples() != fluxArray->GetNumberOfTuples() ||
+      velocityArray->GetNumberOfTuples() < 2)
+    {
+    return false;
+    }
+  const int n = static_cast<int>(velocityArray->GetNumberOfTuples());
+  std::vector<double> velocity(n), flux(n);
+  for (int i = 0; i < n; i++)
+    {
+    velocity[i] = velocityArray->GetValue(i);
+    flux[i] = fluxArray->GetValue(i);
+    }
+
+  // integrated flux: each channel times its width (half the distance to the
+  // neighbouring channels)
+  double integrated = 0.;
+  double peak = -std::numeric_limits<double>::infinity();
+  for (int i = 0; i < n; i++)
+    {
+    if (!std::isfinite(flux[i]))
+      {
+      continue;
+      }
+    const int lower = std::max(i - 1, 0);
+    const int upper = std::min(i + 1, n - 1);
+    const double width = std::abs(velocity[upper] - velocity[lower]) / (upper - lower);
+    integrated += flux[i] * width;
+    peak = std::max(peak, flux[i]);
+    }
+  measurements[0] = integrated;
+  if (!(peak > 0.))
+    {
+    return false;
+    }
+  measurements[1] = peak;
+
+  const double fractions[2] = {0.5, 0.2};
+  for (int f = 0; f < 2; f++)
+    {
+    const double first = OutermostCrossing(velocity, flux, fractions[f] * peak, 1);
+    const double last = OutermostCrossing(velocity, flux, fractions[f] * peak, -1);
+    measurements[5 + 2 * f] = std::min(first, last);
+    measurements[6 + 2 * f] = std::max(first, last);
+    measurements[2 + f] = std::abs(last - first);
+    }
+  measurements[4] = 0.5 * (measurements[5] + measurements[6]);
   return true;
 }

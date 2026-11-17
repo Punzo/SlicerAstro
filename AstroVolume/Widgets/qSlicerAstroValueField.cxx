@@ -24,6 +24,7 @@
 #include <limits>
 
 #include "qSlicerAstroValueField.h"
+#include "qSlicerAstroTheme.h"
 
 //-----------------------------------------------------------------------------
 qSlicerAstroValueField::qSlicerAstroValueField(QWidget* parent)
@@ -83,7 +84,7 @@ QString qSlicerAstroValueField::unit() const
 //-----------------------------------------------------------------------------
 void qSlicerAstroValueField::setUnit(const QString& unit)
 {
-  this->UnitLabel->setText(unit);
+  this->UnitLabel->setText(qSlicerAstroTheme::displayUnit(unit));
   this->UnitLabel->setVisible(!unit.isEmpty());
 }
 
