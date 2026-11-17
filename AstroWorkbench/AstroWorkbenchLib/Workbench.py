@@ -752,6 +752,9 @@ class Workbench:
 
         self.header.layoutButton.setCurrentIndex(self.layoutIndex())
         self.visibility.enter()
+        self.saved["styleSheet"] = mainWindow.styleSheet
+        self.styleMainWindow()
+        theme().connect("themeChanged()", self.styleMainWindow)
         self.styleViews()
         mainWindow.resizeDocks([mainWindow.findChild("QDockWidget", "WorkbenchDatasets")], [360], qt.Qt.Horizontal)
         for event in (slicer.mrmlScene.NodeAddedEvent, slicer.mrmlScene.NodeRemovedEvent,
@@ -762,6 +765,18 @@ class Workbench:
         self.active = True
         self.refresh()
         self.arrangeViews()
+
+    def styleMainWindow(self):
+        """Separators between the views and the panels (dock separators of
+        the main window, and the gaps next to the docks of fixed size, which
+        show the main window) in the background colour of the Workbench,
+        instead of Slicer's light grey."""
+        bg = theme().color("bg").name()
+        hover = theme().color("line-strong").name()
+        slicer.util.mainWindow().setStyleSheet(
+            f"QMainWindow {{ background: {bg}; }}"
+            f"QMainWindow::separator {{ background: {bg}; width: 6px; height: 6px; }}"
+            f"QMainWindow::separator:hover {{ background: {hover}; }}")
 
     def scheduleRefresh(self, caller=None, event=None):
         self.refreshTimer.start()
@@ -815,6 +830,8 @@ class Workbench:
             bar.visible = visible
         for dock, visible in self.saved["docks"]:
             dock.visible = visible
+        theme().disconnect("themeChanged()", self.styleMainWindow)
+        mainWindow.setStyleSheet(self.saved.get("styleSheet", ""))
         mainWindow.restoreState(self.saved["state"])
         self.views.remove()
         self.visibility.exit()

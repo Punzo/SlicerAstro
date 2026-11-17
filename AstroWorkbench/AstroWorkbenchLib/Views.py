@@ -370,7 +370,9 @@ class ViewDecorator:
             if not viewport.objectName:
                 viewport.setObjectName("AstroWorkbenchViewport")
             theme().connect("themeChanged()", self.styleViewport)
-        viewport.setStyleSheet(f"QWidget#{viewport.objectName} {{ background: {theme().color('bg').name()}; }}")
+        bg = theme().color("bg").name()
+        viewport.setStyleSheet(f"QWidget#{viewport.objectName} {{ background: {bg}; }}"
+                               f"QWidget#{viewport.objectName} QSplitter::handle {{ background: {bg}; }}")
 
     def refresh(self):
         for bar in self.bars.values():

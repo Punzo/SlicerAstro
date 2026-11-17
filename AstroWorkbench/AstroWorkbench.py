@@ -162,6 +162,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         bars = [bar for bar in mainWindow.findChildren("QFrame") if bar.objectName == "AstroViewBar"]
         self.assertGreaterEqual(len(bars), 2)
         self.assertEqual(redWidget.sliceOffsetSliderOrientation, qt.Qt.Vertical)
+        self.assertIn("QMainWindow::separator", mainWindow.styleSheet)
         self.assertFalse(redWidget.sliceController().visible)
         self.assertFalse(viewNode.GetBoxVisible())
         self.assertFalse(mainWindow.menuBar().visible)
@@ -179,6 +180,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertIsNone(mainWindow.findChild("QToolBar", "WorkbenchHeaderBar"))
         self.assertEqual(redWidget.sliceOffsetSliderOrientation, sliderOrientation)
+        self.assertNotIn("QMainWindow::separator", mainWindow.styleSheet)
         self.assertTrue(redWidget.sliceController().visible)
         self.assertEqual(viewNode.GetBoxVisible(), boxVisible)
         self.assertEqual([bar for bar in mainWindow.findChildren("QFrame") if bar.objectName == "AstroViewBar"], [])
