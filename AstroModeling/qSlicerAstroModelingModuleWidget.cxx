@@ -527,8 +527,10 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   this->BeamPASpinBox = new QDoubleSpinBox(beamWidget);
   QDoubleSpinBox* beamSpinBoxes[3] = {this->BeamMajorSpinBox, this->BeamMinorSpinBox, this->BeamPASpinBox};
   const char* beamPrefixes[3] = {"major ", "minor ", "PA "};
+  const char* beamNames[3] = {"BeamMajorSpinBox", "BeamMinorSpinBox", "BeamPASpinBox"};
   for (int i = 0; i < 3; i++)
     {
+    beamSpinBoxes[i]->setObjectName(beamNames[i]);
     beamSpinBoxes[i]->setDecimals(2);
     beamSpinBoxes[i]->setRange(i < 2 ? 0. : -180., i < 2 ? 36000. : 180.);
     beamSpinBoxes[i]->setPrefix(QString::fromUtf8(beamPrefixes[i]));
