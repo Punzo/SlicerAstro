@@ -35,7 +35,7 @@ read_pin(fftw3 External_fftw3.cmake)
 read_pin(erfa External_erfa.cmake)
 read_pin(bbarolo External_bbarolo.cmake)
 foreach(var cfitsio_REPOSITORY cfitsio_TAG wcslib_REPOSITORY wcslib_TAG fftw3_VERSION fftw3_SHA256
-            erfa_VERSION erfa_SHA256
+            erfa_REPOSITORY erfa_TAG
             bbarolo_REPOSITORY bbarolo_TAG)
   if(NOT ${var})
     message(FATAL_ERROR "${var} not found in SuperBuild/External_*.cmake")
@@ -100,9 +100,8 @@ ExternalProject_Add(fftw3
 
 # ERFA: release tarball, built with the CMakeLists.txt of SlicerAstro
 ExternalProject_Add(erfa
-  URL "https://github.com/liberfa/erfa/releases/download/v${erfa_VERSION}/erfa-${erfa_VERSION}.tar.xz"
-  URL_HASH "SHA256=${erfa_SHA256}"
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+  GIT_REPOSITORY "${erfa_REPOSITORY}"
+  GIT_TAG "${erfa_TAG}"
   PATCH_COMMAND ${CMAKE_COMMAND} -E copy
     ${SLICERASTRO_SOURCE_DIR}/SuperBuild/erfa/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
   CMAKE_ARGS ${common_args} -DBUILD_TESTING:BOOL=OFF

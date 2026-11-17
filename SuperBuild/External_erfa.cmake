@@ -24,7 +24,17 @@ endforeach()
 if((NOT DEFINED ERFA_INCLUDE_DIR OR NOT DEFINED ERFA_LIBRARY_DIR)
    AND NOT ${SUPERBUILD_TOPLEVEL_PROJECT}_USE_SYSTEM_${proj})
 
-  set(_version "2.0.1")
+  ExternalProject_SetIfNotDefined(
+    ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY
+    "${EP_GIT_PROTOCOL}://github.com/liberfa/erfa.git"
+    QUIET
+    )
+
+  ExternalProject_SetIfNotDefined(
+    ${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG
+    "9915ba38c9365f8b0738269b8c2ac1fdd5f8dee3" # tag v2.0.1
+    QUIET
+    )
 
   set(EP_SOURCE_DIR ${CMAKE_BINARY_DIR}/${proj})
   set(EP_BINARY_DIR ${CMAKE_BINARY_DIR}/${proj}-build)
@@ -32,9 +42,8 @@ if((NOT DEFINED ERFA_INCLUDE_DIR OR NOT DEFINED ERFA_LIBRARY_DIR)
 
   ExternalProject_Add(${proj}
     ${${proj}_EP_ARGS}
-    URL "https://github.com/liberfa/erfa/releases/download/v${_version}/erfa-${_version}.tar.xz"
-    URL_HASH "SHA256=45111f0addf6ef69345aaf093bd054705b41ac2db7541dd3f0e105362c8e20e4"
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    GIT_REPOSITORY "${${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_REPOSITORY}"
+    GIT_TAG "${${SUPERBUILD_TOPLEVEL_PROJECT}_${proj}_GIT_TAG}"
     SOURCE_DIR ${EP_SOURCE_DIR}
     BINARY_DIR ${EP_BINARY_DIR}
     INSTALL_DIR ${EP_INSTALL_DIR}
