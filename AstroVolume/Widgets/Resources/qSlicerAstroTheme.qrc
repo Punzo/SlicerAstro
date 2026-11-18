@@ -61,6 +61,7 @@
         <file alias="Icons/mosaic.svg">Icons/Astro/mosaic.svg</file>
         <file alias="Icons/pin.svg">Icons/Astro/pin.svg</file>
         <file alias="Icons/playChannel.svg">Icons/Astro/playChannel.svg</file>
+        <file alias="Icons/paste.svg">Icons/Astro/paste.svg</file>
         <file alias="Icons/plot.svg">Icons/Astro/plot.svg</file>
         <file alias="Icons/plus.svg">Icons/Astro/plus.svg</file>
         <file alias="Icons/profiles.svg">Icons/Astro/profiles.svg</file>

@@ -20,6 +20,8 @@
 // Qt includes
 #include <QAction>
 #include <QDebug>
+#include <QToolButton>
+#include <QBoxLayout>
 #include <QSpinBox>
 #include <QLineEdit>
 #include <QGroupBox>
@@ -78,6 +80,13 @@
 
 // AstroModeling includes
 #include "qSlicerAstroModelingModuleWidget.h"
+
+// AstroVolume widgets includes
+#include <qSlicerAstroDatasetSelector.h>
+#include <qSlicerAstroFoldSection.h>
+#include <qSlicerAstroPanelHeader.h>
+#include <qSlicerAstroSegmentedButton.h>
+#include <qSlicerAstroTheme.h>
 #include "ui_qSlicerAstroModelingModuleWidget.h"
 #include "qSlicerAstroModelingModuleWorker.h"
 
@@ -136,7 +145,12 @@ public:
   qSlicerAstroModelingModuleWidgetPrivate(qSlicerAstroModelingModuleWidget& object);
   ~qSlicerAstroModelingModuleWidgetPrivate();
   void init();
+  /// The panel in the SlicerAstro design: header, dataset selector, the
+  /// sections of the .ui moved into fold sections, footer with the buttons
+  void restructurePanel();
   void cleanPointers();
+  qSlicerAstroDatasetSelector* DatasetSelector{nullptr};
+  qSlicerAstroSegmentedButton* ModeButton{nullptr};
   /// Table of the rings plotted by the plot series (nullptr: none); the plot
   /// series that do not exist (e.g. after the closing of a scene) are skipped
   void setPlotSeriesTable(vtkMRMLTableNode* tableNode);
@@ -850,6 +864,322 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
   QObject::connect(this->workerProgressTimer, SIGNAL(timeout()), q, SLOT(updateWorkerProgress()));
 
   QObject::connect(this->worker, SIGNAL(finished()), this->thread, SLOT(quit()), Qt::DirectConnection);
+
+  this->restructurePanel();
+}
+
+namespace
+{
+//-----------------------------------------------------------------------------
+/// The items of a layout moved into a new layout of the same kind on target
+/// (the widgets keep their connections; they are reparented to target)
+void MoveLayoutContents(QLayout* source, QWidget* target)
+{
+  if (!source || !target)
+    {
+    return;
+    }
+  if (QFormLayout* form = qobject_cast<QFormLayout*>(source))
+    {
+    QFormLayout* destination = new QFormLayout(target);
+    destination->setContentsMargins(0, 0, 0, 0);
+    destination->setHorizontalSpacing(8);
+    destination->setVerticalSpacing(6);
+    destination->setFieldGrowthPolicy(QFormLayout::AllNonFixedFieldsGrow);
+    destination->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+    while (form->rowCount() > 0)
+      {
+      QFormLayout::TakeRowResult row = form->takeRow(0);
+      QWidget* label = row.labelItem ? row.labelItem->widget() : nullptr;
+      QLayout* fieldLayout = row.fieldItem ? row.fieldItem->layout() : nullptr;
+      QWidget* fieldWidget = (row.fieldItem && !fieldLayout) ? row.fieldItem->widget() : nullptr;
+      if (fieldLayout)
+        {
+        fieldLayout->setParent(nullptr);
+        }
+      if (label && fieldLayout)
+        {
+        destination->addRow(label, fieldLayout);
+        }
+      else if (label && fieldWidget)
+        {
+        destination->addRow(label, fieldWidget);
+        }
+      else if (fieldLayout)
+        {
+        destination->addRow(fieldLayout);
+        }
+      else if (fieldWidget)
+        {
+        destination->addRow(fieldWidget);
+        }
+      else if (label)
+        {
+        destination->addRow(label);
+        }
+      delete row.labelItem;
+      if (row.fieldItem && !fieldLayout)
+        {
+        delete row.fieldItem;
+        }
+      }
+    return;
+    }
+  if (QGridLayout* grid = qobject_cast<QGridLayout*>(source))
+    {
+    QGridLayout* destination = new QGridLayout(target);
+    destination->setContentsMargins(0, 0, 0, 0);
+    destination->setHorizontalSpacing(6);
+    destination->setVerticalSpacing(6);
+    while (grid->count() > 0)
+      {
+      int row = 0, column = 0, rowSpan = 1, columnSpan = 1;
+      grid->getItemPosition(0, &row, &column, &rowSpan, &columnSpan);
+      QLayoutItem* item = grid->takeAt(0);
+      if (QWidget* widget = item->widget())
+        {
+        destination->addWidget(widget, row, column, rowSpan, columnSpan);
+        delete item;
+        }
+      else if (QLayout* layout = item->layout())
+        {
+        layout->setParent(nullptr);
+        destination->addLayout(layout, row, column, rowSpan, columnSpan);
+        }
+      else
+        {
+        destination->addItem(item, row, column, rowSpan, columnSpan);
+        }
+      }
+    return;
+    }
+  QBoxLayout* box = qobject_cast<QBoxLayout*>(source);
+  QBoxLayout* destination = new QBoxLayout(box ? box->direction() : QBoxLayout::TopToBottom, target);
+  destination->setContentsMargins(0, 0, 0, 0);
+  destination->setSpacing(6);
+  while (source->count() > 0)
+    {
+    QLayoutItem* item = source->takeAt(0);
+    if (QWidget* widget = item->widget())
+      {
+      destination->addWidget(widget);
+      delete item;
+      }
+    else if (QLayout* layout = item->layout())
+      {
+      layout->setParent(nullptr);
+      destination->addLayout(layout);
+      }
+    else
+      {
+      destination->addItem(item);
+      }
+    }
+}
+
+//-----------------------------------------------------------------------------
+/// Removes a widget from the layout holding it (any depth below root)
+bool DetachWidget(QLayout* root, QWidget* widget)
+{
+  if (!root || !widget)
+    {
+    return false;
+    }
+  if (root->indexOf(widget) >= 0)
+    {
+    root->removeWidget(widget);
+    return true;
+    }
+  for (int i = 0; i < root->count(); i++)
+    {
+    QLayout* child = root->itemAt(i) ? root->itemAt(i)->layout() : nullptr;
+    if (child && DetachWidget(child, widget))
+      {
+      return true;
+      }
+    }
+  return false;
+}
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidgetPrivate::restructurePanel()
+{
+  Q_Q(qSlicerAstroModelingModuleWidget);
+
+  QVBoxLayout* moduleLayout = qobject_cast<QVBoxLayout*>(q->layout());
+  if (!moduleLayout)
+    {
+    return;
+    }
+  moduleLayout->setContentsMargins(0, 0, 0, 0);
+  moduleLayout->setSpacing(0);
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+
+  // header and dataset selector (synchronized with the selector of the .ui,
+  // which the code of the panel uses)
+  qSlicerAstroPanelHeader* header = new qSlicerAstroPanelHeader(q);
+  header->setTitle(qSlicerAstroModelingModuleWidget::tr("Modelling · 3DBarolo"));
+  header->setIconName("module-modelling");
+  moduleLayout->insertWidget(0, header);
+  QWidget* body = new QWidget(q);
+  body->setObjectName("ModelingBody");
+  QVBoxLayout* bodyLayout = new QVBoxLayout(body);
+  bodyLayout->setContentsMargins(12, 12, 12, 14);
+  bodyLayout->setSpacing(10);
+  moduleLayout->insertWidget(1, body);
+  this->DatasetSelector = new qSlicerAstroDatasetSelector(body);
+  this->DatasetSelector->setObjectName("DatasetSelector");
+  this->DatasetSelector->setRequiredDimensions(3);
+  this->DatasetSelector->setNoneText(qSlicerAstroModelingModuleWidget::tr("Select a data cube"));
+  this->DatasetSelector->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Data cube of the galaxy to model (also the active volume of the views)."));
+  bodyLayout->addWidget(this->DatasetSelector);
+  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)), this->DatasetSelector, SLOT(setMRMLScene(vtkMRMLScene*)));
+  QObject::connect(this->DatasetSelector, &qSlicerAstroDatasetSelector::currentNodeChanged, q, [this](vtkMRMLNode* node)
+    {
+    if (this->InputVolumeNodeSelector->currentNode() != node)
+      {
+      this->InputVolumeNodeSelector->setCurrentNode(node);
+      }
+    });
+  QObject::connect(this->InputVolumeNodeSelector, qOverload<vtkMRMLNode*>(&qMRMLNodeComboBox::currentNodeChanged), q, [this](vtkMRMLNode* node)
+    {
+    if (this->DatasetSelector->currentNode() != node)
+      {
+      this->DatasetSelector->setCurrentNode(node);
+      }
+    });
+  this->InputVolumeLabel->hide();
+  this->InputVolumeNodeSelector->hide();
+
+  // mode: segmented control driving the radio buttons of the .ui
+  this->ModeButton = new qSlicerAstroSegmentedButton(this->FittingParametersCollapsibleButton);
+  this->ModeButton->setObjectName("ModeButton");
+  this->ModeButton->setToolTip(qSlicerAstroModelingModuleWidget::tr(
+    "Automatic: 3DBarolo estimates the initial parameters. Manual: start from the parameters below."));
+  this->ModeButton->addButton(qSlicerAstroModelingModuleWidget::tr("Automatic"),
+    qSlicerAstroModelingModuleWidget::tr("3DBarolo estimates the geometry and the initial rings."));
+  this->ModeButton->addButton(qSlicerAstroModelingModuleWidget::tr("Manual"),
+    qSlicerAstroModelingModuleWidget::tr("The rings, geometry and kinematics set below (Estimate fills them)."));
+  this->ModeButton->setCurrentIndex(this->ManualModeRadioButton->isChecked() ? 1 : 0);
+  QObject::connect(this->ModeButton, &qSlicerAstroSegmentedButton::currentIndexChanged, q, [this](int index)
+    {
+    (index == 1 ? this->ManualModeRadioButton : this->AutomaticModeRadioButton)->setChecked(true);
+    });
+  QObject::connect(this->ManualModeRadioButton, &QRadioButton::toggled, q, [this](bool manual)
+    {
+    const QSignalBlocker blocker(this->ModeButton);
+    this->ModeButton->setCurrentIndex(manual ? 1 : 0);
+    });
+  this->formLayout_2->replaceWidget(this->AutomaticModeRadioButton, this->ModeButton);
+  this->AutomaticModeRadioButton->hide();
+  this->ManualModeRadioButton->hide();
+  if (!DetachWidget(this->formLayout_2, this->ManualModeRadioButton) && this->ManualModeRadioButton->parentWidget())
+    {
+    DetachWidget(this->ManualModeRadioButton->parentWidget()->layout(), this->ManualModeRadioButton);
+    }
+
+  // footer: create, fit, cancel and the progress
+  QFrame* footer = new QFrame(q);
+  footer->setObjectName("ModelingFooter");
+  footer->setProperty("astroRole", "panelFooter");
+  QVBoxLayout* footerLayout = new QVBoxLayout(footer);
+  footerLayout->setContentsMargins(12, 12, 12, 12);
+  footerLayout->setSpacing(8);
+  QHBoxLayout* buttonsLayout = new QHBoxLayout();
+  buttonsLayout->setSpacing(6);
+  for (QWidget* widget : {static_cast<QWidget*>(this->CreatePushButton), static_cast<QWidget*>(this->FitPushButton),
+                          static_cast<QWidget*>(this->CancelPushButton), static_cast<QWidget*>(this->progressBar)})
+    {
+    // in the form of the model parameters, or in the widget of its initial
+    // parameters
+    if (!DetachWidget(this->formLayout_2, widget) && widget->parentWidget())
+      {
+      DetachWidget(widget->parentWidget()->layout(), widget);
+      }
+    }
+  this->FitPushButton->setProperty("astroRole", "primary");
+  this->FitPushButton->setIcon(theme->icon("run", "on-accent"));
+  this->CreatePushButton->setIcon(theme->icon("module-modelling", "text"));
+  buttonsLayout->addWidget(this->CreatePushButton, 1);
+  buttonsLayout->addWidget(this->FitPushButton, 2);
+  buttonsLayout->addWidget(this->CancelPushButton);
+  footerLayout->addLayout(buttonsLayout);
+  footerLayout->addWidget(this->progressBar);
+
+  // the collapsible sections of the .ui as fold sections (the code of the
+  // panel still expands them: their state is followed)
+  struct SectionSpec
+    {
+    ctkCollapsibleButton* Button;
+    QString Title;
+    QString Summary;
+    const char* Key;
+    QVBoxLayout* Layout;
+    bool AfterFooter;
+    };
+  qSlicerAstroFoldSection* resultsSection = nullptr;
+  const SectionSpec specs[] = {
+    {this->InputSegmentCollapsibleButton, qSlicerAstroModelingModuleWidget::tr("Mask"),
+     qSlicerAstroModelingModuleWidget::tr("the voxels of the galaxy"), "Mask", bodyLayout, false},
+    {this->FittingParametersCollapsibleButton, qSlicerAstroModelingModuleWidget::tr("Model"),
+     qSlicerAstroModelingModuleWidget::tr("beam, mode, rings, geometry, kinematics"), "Model", bodyLayout, false},
+    {this->AdvancedCollapsibleButton, qSlicerAstroModelingModuleWidget::tr("Advanced"),
+     qSlicerAstroModelingModuleWidget::tr("free parameters, layer, fit options, second stage"), "Advanced", bodyLayout, false},
+    {this->NodesCollapsibleButton, qSlicerAstroModelingModuleWidget::tr("Output nodes"),
+     qSlicerAstroModelingModuleWidget::tr("model, residuals, table, parameter set"), "Nodes", bodyLayout, false},
+    {this->OutputCollapsibleButton, qSlicerAstroModelingModuleWidget::tr("Results"),
+     qSlicerAstroModelingModuleWidget::tr("rings, rotation curve, contours"), "Results", nullptr, true},
+    {this->OutputCollapsibleButton_2, qSlicerAstroModelingModuleWidget::tr("Position-velocity"),
+     qSlicerAstroModelingModuleWidget::tr("slices along the major and minor axes"), "PV", nullptr, true},
+    {this->outputLogCollapsibleButton, qSlicerAstroModelingModuleWidget::tr("3DBarolo log"),
+     qSlicerAstroModelingModuleWidget::tr("output, errors and warnings"), "Log", nullptr, true}};
+  QWidget* after = new QWidget(q);
+  QVBoxLayout* afterLayout = new QVBoxLayout(after);
+  afterLayout->setContentsMargins(12, 12, 12, 14);
+  afterLayout->setSpacing(10);
+  for (const SectionSpec& spec : specs)
+    {
+    if (!spec.Button)
+      {
+      continue;
+      }
+    qSlicerAstroFoldSection* section = new qSlicerAstroFoldSection(q);
+    section->setObjectName(QString("Section_%1").arg(spec.Key));
+    section->setTitle(spec.Title);
+    section->setSummary(spec.Summary);
+    section->setCollapsed(spec.Button->collapsed());
+    QWidget* content = new QWidget(section->contentWidget());
+    MoveLayoutContents(spec.Button->layout(), content);
+    section->contentLayout()->addWidget(content);
+    QObject::connect(spec.Button, SIGNAL(contentsCollapsed(bool)), section, SLOT(setCollapsed(bool)));
+    // a fold inside another one (e.g. Advanced in Model) is moved out
+    DetachWidget(spec.Button->parentWidget() ? spec.Button->parentWidget()->layout() : nullptr, spec.Button);
+    spec.Button->hide();
+    if (spec.Key == std::string("PV") && resultsSection)
+      {
+      resultsSection->contentLayout()->addWidget(section);
+      }
+    else if (spec.AfterFooter)
+      {
+      afterLayout->addWidget(section);
+      }
+    else
+      {
+      spec.Layout->addWidget(section);
+      }
+    if (spec.Key == std::string("Results"))
+      {
+      resultsSection = section;
+      }
+    }
+  // the sections of the module layout (the .ui ones are hidden), the
+  // footer after the setup and the results after the footer
+  const int bodyIndex = moduleLayout->indexOf(body);
+  moduleLayout->insertWidget(bodyIndex + 1, footer);
+  moduleLayout->insertWidget(bodyIndex + 2, after);
+  theme->applyTo(q);
 }
 
 //-----------------------------------------------------------------------------
@@ -4951,31 +5281,39 @@ void qSlicerAstroModelingModuleWidget::setup()
 
   // Create shortcuts for copy/paste
   d->CopyAction = new QAction(this);
-  d->CopyAction->setIcon(QIcon(":Icons/Medium/SlicerEditCopy.png"));
+  d->CopyAction->setIcon(qSlicerAstroTheme::instance()->icon("copy", "text"));
+  d->CopyAction->setText(tr("Copy"));
   d->CopyAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   // set CTRL+C shortcut
   d->CopyAction->setShortcuts(QKeySequence::Copy);
-  d->CopyAction->setToolTip(tr("Copy"));
+  d->CopyAction->setToolTip(tr("Copy the selected cells of the table (Ctrl+C), e.g. to a spreadsheet."));
   this->addAction(d->CopyAction);
   d->PasteAction = new QAction(this);
-  d->PasteAction->setIcon(QIcon(":Icons/Medium/SlicerEditPaste.png"));
+  d->PasteAction->setIcon(qSlicerAstroTheme::instance()->icon("paste", "text"));
+  d->PasteAction->setText(tr("Paste"));
   d->PasteAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   // set CTRL+V shortcut
   d->PasteAction->setShortcuts(QKeySequence::Paste);
-  d->PasteAction->setToolTip(tr("Paste"));
+  d->PasteAction->setToolTip(tr("Paste values into the selected cells of the table (Ctrl+V): e.g. edited "
+                                "rings; Calculate Model then uses them."));
   this->addAction(d->PasteAction);
   d->PlotAction = new QAction(this);
-  d->PlotAction->setIcon(QIcon(":Icons/Medium/SlicerInteractivePlotting.png"));
+  d->PlotAction->setIcon(qSlicerAstroTheme::instance()->icon("plot", "text"));
+  d->PlotAction->setText(tr("Plot"));
   d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
   // set CTRL+P shortcut
   d->PlotAction->setShortcuts(QKeySequence::Print);
-  d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
-                                " the columns of the table. The First (from left to right)"
-                                " Column will be used as X-Axis and each additional Column"
-                                " will be plotted in the same Plot as Y-Axis. "
-                                "If the selection is only one Column, the Column will be"
-                                " used as Y-Axis and the X-Axis will be indexes."));
+  d->PlotAction->setToolTip(tr("Plot the selected columns of the table (Ctrl+P): the first column on the x "
+                               "axis, the others on the y axis (one column: against the row index)."));
   this->addAction(d->PlotAction);
+
+  // text beside the icons
+  for (QToolButton* button : {d->AstroModelingCopyButton, d->AstroModelingPasteButton, d->AstroModelingPlotButton})
+    {
+    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    button->setIconSize(QSize(16, 16));
+    button->setProperty("astroRole", "toolbar");
+    }
 
   // Connect copy, paste and plot actions
   d->AstroModelingCopyButton->setDefaultAction(d->CopyAction);

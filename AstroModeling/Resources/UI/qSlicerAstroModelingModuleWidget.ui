@@ -2541,7 +2541,7 @@
             </sizepolicy>
            </property>
            <property name="text">
-            <string>Fitting Tollerance:</string>
+            <string>Fitting tolerance:</string>
            </property>
           </widget>
          </item>
