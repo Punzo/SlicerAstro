@@ -82,6 +82,7 @@ void qSlicerAstroFoldSection::setTitle(const QString& title)
 {
   this->Title = title;
   this->TitleLabel->setText(title.toUpper());
+  this->Header->setToolTip(tr("Show or hide: %1").arg(title));
 }
 
 //-----------------------------------------------------------------------------

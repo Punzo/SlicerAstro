@@ -99,6 +99,7 @@ class HeaderBar(qt.QFrame):
         # layout of the views
         self.layoutButton = slicer.qSlicerAstroSegmentedButton()
         self.layoutButton.setObjectName("WorkbenchLayoutButton")
+        self.layoutButton.toolTip = "Layout of the views."
         self.layoutButton.addButton("", "One view: the channel map")
         self.layoutButton.addButton("", "Three views: channel map, moment 0 and 3D")
         self.layoutButton.addButton("", "Four views: channel map, 3D, position-velocity and moment 0")
@@ -167,8 +168,10 @@ class Rail(qt.QFrame):
             button.text = text
             button.checkable = True
             button.enabled = enabled
-            if not enabled:
-                button.toolTip = f"{text}: coming with the next steps of SlicerAstro 2.0"
+            button.toolTip = {
+                "data": "Datasets: the loaded data with their previews and derived products.",
+                "samples": "Sample data: public HI cubes and images to try SlicerAstro.",
+            }.get(name, f"{text}: coming with the next steps of SlicerAstro 2.0")
             self.group.addButton(button)
             layout.addWidget(button, 0, qt.Qt.AlignHCenter)
             self.buttons[name] = button
@@ -205,12 +208,14 @@ class DatasetDrawer(qt.QFrame):
         titleRow.addStretch(1)
         openButton = qt.QPushButton("Open")
         openButton.setObjectName("OpenDataButton")
+        openButton.toolTip = "Open data: FITS cubes and images, masks, catalogues, scenes."
         openButton.setIcon(theme().icon("folder", "text"))
         openButton.connect("clicked()", slicer.util.openAddDataDialog)
         titleRow.addWidget(openButton)
         pageLayout.addLayout(titleRow)
         self.filterEdit = qt.QLineEdit()
         self.filterEdit.setObjectName("DatasetFilter")
+        self.filterEdit.toolTip = "Show only the datasets whose name, object or line contains this text."
         self.filterEdit.placeholderText = "Filter by name, object, line"
         self.filterEdit.addAction(theme().icon("search", "subtle"), qt.QLineEdit.LeadingPosition)
         self.filterEdit.connect("textChanged(QString)", lambda text: self.applyFilter())
@@ -350,6 +355,8 @@ class ScrubberBar(qt.QFrame):
         layout.setContentsMargins(0, 4, 0, 4)
         self.scrubber = slicer.qSlicerAstroAxisScrubber()
         self.scrubber.setObjectName("AxisScrubber")
+        self.scrubber.toolTip = ("Channel of the active view over the integrated spectrum: drag or click to move, "
+                                 "Space to play.")
         layout.addWidget(self.scrubber)
         self.volume = None
         self.sliceNode = None

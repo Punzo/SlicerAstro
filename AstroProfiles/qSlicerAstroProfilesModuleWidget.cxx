@@ -275,6 +275,8 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
   regionLayout->addWidget(Overline(qSlicerAstroProfilesModuleWidget::tr("Integrate over"), region));
   this->RegionButton = new qSlicerAstroSegmentedButton(region);
   this->RegionButton->setObjectName("RegionButton");
+  this->RegionButton->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Voxels of the profile: the cube above a threshold, or a mask."));
   this->RegionButton->addButton(qSlicerAstroProfilesModuleWidget::tr("Cube"),
     qSlicerAstroProfilesModuleWidget::tr("In each channel of the velocity range, the voxels of the whole cube "
                                           "above a threshold."));
@@ -465,6 +467,8 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
   this->RunButton = new qSlicerAstroRunButton(footer);
   this->RunButton->setObjectName("RunButton");
   this->RunButton->pushButton()->setObjectName("ApplyButton");
+  this->RunButton->pushButton()->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Compute the profile: the flux of each channel, with its widths and integrated flux."));
   footerLayout->addWidget(this->RunButton);
   QHBoxLayout* actionsLayout = new QHBoxLayout();
   actionsLayout->setSpacing(6);

@@ -366,6 +366,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- quick guide
   ctkCollapsibleButton* guideButton = new ctkCollapsibleButton(q->tr("Quick guide"));
   guideButton->setObjectName("GuideCollapsibleButton");
+  guideButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("How reprojection, mosaics and regridding work, step by step."));
   guideButton->setCollapsed(true);
   QVBoxLayout* guideLayout = new QVBoxLayout(guideButton);
   QLabel* guide = new QLabel(q->tr(
@@ -399,6 +400,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- inputs
   ctkCollapsibleButton* inputsButton = new ctkCollapsibleButton(q->tr("Inputs and output"));
   inputsButton->setObjectName("InputsCollapsibleButton");
+  inputsButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("The data to reproject (one, or several for a mosaic) and the name of the output."));
   QFormLayout* inputsLayout = new QFormLayout(inputsButton);
   this->InputVolumesComboBox = new qMRMLCheckableNodeComboBox;
   this->InputVolumesComboBox->setObjectName("InputVolumesComboBox");
@@ -448,6 +450,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- output grid
   ctkCollapsibleButton* gridButton = new ctkCollapsibleButton(q->tr("Output grid"));
   gridButton->setObjectName("GridCollapsibleButton");
+  gridButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("Sky and spectral grids of the output: of a reference dataset, of an input, the union or intersection of the inputs, or set by hand (projection, frame, pixel size, channels)."));
   this->GridLayout = new QFormLayout(gridButton);
   QFormLayout* grid = this->GridLayout;
   this->SpatialGridModeComboBox = this->addComboBox(grid, q->tr("Sky grid:"), "SpatialGridModeComboBox",
@@ -634,6 +637,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- methods
   ctkCollapsibleButton* methodButton = new ctkCollapsibleButton(q->tr("Resampling"));
   methodButton->setObjectName("MethodCollapsibleButton");
+  methodButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("Resampling of the values: nearest, bilinear, bicubic, flux-conserving area or exact overlap."));
   this->MethodLayout = new QFormLayout(methodButton);
   this->SpatialMethodComboBox = this->addComboBox(this->MethodLayout, q->tr("Sky:"), "SpatialMethodComboBox",
     QStringList() << q->tr("Nearest neighbour") << q->tr("Bilinear") << q->tr("Bicubic") << q->tr("Lanczos-3")
@@ -678,6 +682,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- resolution
   ctkCollapsibleButton* resolutionButton = new ctkCollapsibleButton(q->tr("Resolution"));
   resolutionButton->setObjectName("ResolutionCollapsibleButton");
+  resolutionButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("Beams: convolve the inputs to a common beam or to a target beam before combining them."));
   resolutionButton->setCollapsed(true);
   this->ResolutionLayout = new QFormLayout(resolutionButton);
   this->ResolutionModeComboBox = this->addComboBox(this->ResolutionLayout, q->tr("Beam:"), "ResolutionModeComboBox",
@@ -712,6 +717,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- mosaic
   ctkCollapsibleButton* mosaicButton = new ctkCollapsibleButton(q->tr("Combination (mosaic)"));
   mosaicButton->setObjectName("MosaicCollapsibleButton");
+  mosaicButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("Combination of several inputs: weights (noise, primary beam), optimal or primary-beam weighted mosaic, weight and coverage maps."));
   mosaicButton->setCollapsed(true);
   this->MosaicLayout = new QFormLayout(mosaicButton);
   QLabel* mosaicNote = new QLabel(q->tr(
@@ -784,6 +790,7 @@ void qSlicerAstroReprojectModuleWidgetPrivate::init()
   // --- run (progress and cancel: progress dialog of the background runner)
   this->ApplyButton = new QPushButton(q->tr("Apply"));
   this->ApplyButton->setObjectName("ApplyButton");
+  this->ApplyButton->setToolTip(qSlicerAstroReprojectModuleWidget::tr("Reproject the inputs on the output grid (and combine them for a mosaic)."));
   this->verticalLayout->addWidget(this->ApplyButton);
   this->verticalLayout->addStretch(1);
 

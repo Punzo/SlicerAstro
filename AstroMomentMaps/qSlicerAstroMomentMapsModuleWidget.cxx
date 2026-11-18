@@ -333,6 +333,8 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   voxelsLayout->addWidget(Overline(qSlicerAstroMomentMapsModuleWidget::tr("Which voxels"), voxels));
   this->VoxelSelectionButton = new qSlicerAstroSegmentedButton(voxels);
   this->VoxelSelectionButton->setObjectName("VoxelSelectionButton");
+  this->VoxelSelectionButton->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr(
+    "Voxels of the maps: above a threshold in the velocity range, or the voxels of a mask."));
   this->VoxelSelectionButton->addButton(qSlicerAstroMomentMapsModuleWidget::tr("Threshold"),
     qSlicerAstroMomentMapsModuleWidget::tr("The voxels above a threshold, in the velocity range."));
   this->VoxelSelectionButton->addButton(qSlicerAstroMomentMapsModuleWidget::tr("Mask"),
@@ -455,6 +457,8 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   this->RunButton = new qSlicerAstroRunButton(footer);
   this->RunButton->setObjectName("RunButton");
   this->RunButton->pushButton()->setObjectName("ApplyButton");
+  this->RunButton->pushButton()->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr(
+    "Compute the selected moment maps (new maps, or the maps of the previous computation replaced)."));
   footerLayout->addWidget(this->RunButton);
   qSlicerAstroResultCard** results[3] = {&this->ZeroMomentResult, &this->FirstMomentResult, &this->SecondMomentResult};
   const char* resultNames[3] = {"ZeroMomentResult", "FirstMomentResult", "SecondMomentResult"};

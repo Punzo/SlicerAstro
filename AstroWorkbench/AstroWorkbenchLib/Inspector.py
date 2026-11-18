@@ -177,6 +177,13 @@ class Inspector(qt.QFrame):
             button = qt.QToolButton()
             button.setProperty("astroRole", "tab")
             button.setObjectName(f"InspectorTab_{name}")
+            button.toolTip = {
+                "Inspect": "Facts of the active dataset, its colours, contours, masks, sources, 3D and header.",
+                "Process": "Processing steps of the active dataset: smoothing, masking, moments, profiles, "
+                           "position-velocity, reprojection.",
+                "Measure": "Sizes on the sky and velocity differences of the lines, curves and angles drawn.",
+                "Model": "Tilted-ring model of a galaxy with 3DBarolo.",
+            }[name]
             button.text = name
             button.checkable = True
             self.tabGroup.addButton(button, index)
