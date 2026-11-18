@@ -211,17 +211,15 @@ def catalogues(scene=None):
 
 
 def catalogueVolume(tableNode):
-    """The dataset a catalogue is placed on: its reference cube, or the cube of
-    its reference mask."""
-    referenceID = tableNode.GetAttribute("SlicerAstro.SoFiAReference") if tableNode is not None else None
-    reference = slicer.mrmlScene.GetNodeByID(referenceID) if referenceID else None
-    if reference is not None and reference.IsA("vtkMRMLSegmentationNode"):
-        reference = reference.GetNodeReference(slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole())
-    return reference if isAstroVolume(reference) else None
+    """The dataset a catalogue is placed on (vtkSlicerAstroVolumeLogic)."""
+    return slicer.vtkSlicerAstroVolumeLogic.GetSourceCatalogueVolume(tableNode) if tableNode is not None else None
 
 
 def cataloguesOf(volume):
-    return [table for table in catalogues() if catalogueVolume(table) is volume]
+    """The catalogues placed on a dataset (vtkSlicerAstroVolumeLogic)."""
+    tables = vtk.vtkCollection()
+    slicer.vtkSlicerAstroVolumeLogic.GetSourceCatalogues(volume, tables)
+    return [tables.GetItemAsObject(index) for index in range(tables.GetNumberOfItems())]
 
 
 def _matrix(volume, ijkToRAS=True):

@@ -612,8 +612,9 @@ class Workbench:
                 self.activate(volume)
             self.inspector.tabs["Inspect"].checked = True
             self.inspector.showTab(0)
-            self.inspector.sourcesSection.setVolume(self.activeVolume(), node.GetID())
-            self.inspector.sourcesSection.section.setCollapsed(False)
+            self.inspector.sourcesWidget.setVolumeNode(self.activeVolume())
+            self.inspector.sourcesWidget.setCatalogueNode(node)
+            self.inspector.sourcesFold.setCollapsed(False)
             return
         composite = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow" if self.layoutIndex() > 0
                                                  else "vtkMRMLSliceCompositeNodeRed")

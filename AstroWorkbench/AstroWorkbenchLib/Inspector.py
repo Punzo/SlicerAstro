@@ -240,13 +240,16 @@ class Inspector(qt.QFrame):
         self.masksFold.toolTip = self.masksWidget.toolTip
         self.masksFold.contentLayout().addWidget(self.masksWidget)
         layout.addWidget(self.masksFold)
-        self.sourcesSection = Sections.SourcesSection()
+        self.sourcesWidget = slicer.qSlicerAstroSourcesSection()
+        self.sourcesFold = Sections.foldSection("Sources", "catalogues", "Sources")
+        self.sourcesFold.toolTip = self.sourcesWidget.toolTip
+        self.sourcesFold.contentLayout().addWidget(self.sourcesWidget)
         self.renderingWidget = slicer.qSlicerAstroRenderingSection()
         self.renderingFold = Sections.foldSection("3D", "rendering of the cube", "ThreeD")
         self.renderingFold.toolTip = self.renderingWidget.toolTip
         self.renderingFold.contentLayout().addWidget(self.renderingWidget)
         layout.addWidget(self.renderingFold)
-        layout.addWidget(self.sourcesSection.section)
+        layout.addWidget(self.sourcesFold)
         layout.addStretch(1)
         return scroll
 
@@ -369,7 +372,10 @@ class Inspector(qt.QFrame):
         self.masksFold.visible = volume is not None
         self.renderingWidget.setVolumeNode(volume)
         self.renderingFold.visible = volume is not None and Astro.dimensions(volume) >= 3
-        self.sourcesSection.setVolume(volume)
+        self.sourcesWidget.setVolumeNode(volume)
+        self.sourcesFold.visible = volume is not None
+        count = self.sourcesWidget.catalogueCount()
+        self.sourcesFold.summary = f"{count} catalogue{'s' if count != 1 else ''}" if count else "catalogues"
         done = 0
         for button in self.stepButtons:
             state = button.step.state(volume)
@@ -420,6 +426,7 @@ class Inspector(qt.QFrame):
         self.masksWidget.setEditing(False)
         self.masksWidget.setVolumeNode(None)
         self.renderingWidget.setVolumeNode(None)
+        self.sourcesWidget.setVolumeNode(None)
         self.enterPanel(None)
         # the step panels are kept by their modules: they are taken out of
         # the inspector before it is deleted

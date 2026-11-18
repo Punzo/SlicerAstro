@@ -512,7 +512,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         """A SoFiA catalogue: a product of its cube ("N sources"), its table
         in Inspect > Sources; a click on a source moves the views to it and
         selects its point."""
+        import os
+
         import AstroSampleData
+        import vtk
 
         workbench().enter()
         self.process()
@@ -535,26 +538,48 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         # the product opens the Sources section with the catalogue
         workbench().showProduct(table.GetID())
         self.process()
-        section = workbench().inspector.sourcesSection
-        self.assertFalse(section.section.collapsed)
-        self.assertIs(section.tableNode(), table)
-        self.assertEqual(section.table.model().rowCount(), rows)
+        section = workbench().inspector.sourcesWidget
+        self.assertFalse(workbench().inspector.sourcesFold.collapsed)
+        self.assertEqual(section.catalogueCount(), 1)
+        self.assertEqual(section.sourceCount(), rows)
+        tableView = slicer.util.findChild(section, "SourcesTable")
+        self.assertEqual(tableView.model().rowCount(), rows)
 
-        # a source: the views move to it, its point is selected
-        points = section.pointList()
-        section.table.selectRow(0)
+        # a source: the views move to it, its point is selected, its segment
+        # in the mask of the cube is found
+        points = slicer.vtkSlicerAstroVolumeLogic.GetSourceCataloguePoints(table)
+        tableView.selectRow(0)
         self.process()
         self.assertTrue(points.GetNthControlPointSelected(0))
+        self.assertFalse(points.GetNthControlPointSelected(1) if points.GetNumberOfControlPoints() > 1 else False)
         position = [0.0, 0.0, 0.0]
         points.GetNthControlPointPositionWorld(0, position)
         redNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeRed")
         offset = redNode.GetSliceOffset()
         normal = [redNode.GetSliceToRAS().GetElement(r, 2) for r in range(3)]
         self.assertAlmostEqual(offset, sum(n * p for n, p in zip(normal, position)), delta=1.0)
-        self.assertIn(points.GetNthControlPointLabel(0), section.status.text)
-        # points and labels
-        section.pointsButton.checked = True
+        self.assertIn(points.GetNthControlPointLabel(0), section.status())
+        mask = slicer.modules.astrovolume.logic().GetMaskSegmentationForVolume(cube, False)
+        segmentID = section.selectedSegmentID()
+        self.assertNotEqual(segmentID, "")
+        sourceID = vtk.reference("")
+        mask.GetSegmentation().GetSegment(segmentID).GetTag("SlicerAstro.SourceID", sourceID)
+        self.assertEqual("id " + str(sourceID), points.GetNthControlPointDescription(0))
+        # points, labels and 2D display
+        slicer.util.findChild(section, "SourcesPoints").checked = True
         self.assertTrue(points.GetDisplayNode().GetVisibility3D())
-        section.labelsButton.checked = False
+        slicer.util.findChild(section, "SourcesLabels").checked = False
         self.assertFalse(points.GetDisplayNode().GetPointLabelsVisibility())
+        slicer.util.findChild(section, "SourcesSlices").checked = True
+        self.assertTrue(points.GetDisplayNode().GetVisibility2D())
+
+        # the catalogue loaded again from the section (file type
+        # SoFiACatalogFile), placed on the active cube
+        cataloguePath = os.path.join(slicer.app.cachePath, "WEIN069_cat.txt")
+        self.assertTrue(os.path.exists(cataloguePath), cataloguePath)
+        self.assertTrue(section.loadCatalogue(cataloguePath), section.status())
+        self.assertEqual(section.catalogueCount(), 2)
+        self.assertEqual(section.status(), f"{rows} sources loaded")
+        self.assertFalse(section.loadCatalogue("/nonexistent/catalogue.txt"))
+        self.assertNotEqual(section.status(), "")
         self.delayDisplay("Test passed")
