@@ -90,7 +90,7 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         for test in (self.test_EstimateBeamFromNoise, self.test_Histogram, self.test_SnapROIToVoxelGrid,
                      self.test_SegmentMask, self.test_BeamInInfo, self.test_AllBlankCube,
-                     self.test_DisplayHistogramAndWindow):
+                     self.test_DisplayHistogramAndWindow, self.test_ContoursSection):
             self.setUp()
             test()
 
@@ -438,4 +438,71 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         histogram = slicer.util.findChild(section, "DisplayHistogram")
         self.assertEqual(int(sum(histogram.binCounts())), values.size)
         self.assertAlmostEqual(histogram.noise, 2.0)
+        self.delayDisplay("Test passed")
+
+    def test_ContoursSection(self):
+        """Contour colour families (interpolated between their stops), the
+        contours of each source with their visibility, and the Contours
+        section (reusable widget of the AstroVolume panel and the Workbench):
+        levels in units of the noise, one colour per level, source rows,
+        delete."""
+        logic = slicer.vtkSlicerAstroVolumeLogic
+        names = vtk.vtkStringArray()
+        logic.GetContourColorFamilies(names)
+        families = [names.GetValue(i) for i in range(names.GetNumberOfValues())]
+        self.assertEqual(families, ["Amber", "Cyan", "Deep blue", "White", "Observatory ramp"])
+        colours = vtk.vtkDoubleArray()
+        self.assertTrue(logic.GetContourFamilyColors("Amber", 3, colours))
+        self.assertEqual((colours.GetNumberOfTuples(), colours.GetNumberOfComponents()), (3, 3))
+        np.testing.assert_allclose([colours.GetTuple3(i) for i in range(3)],
+                                   np.array([(255, 236, 196), (242, 178, 76), (184, 104, 16)]) / 255.0, atol=1e-12)
+        self.assertTrue(logic.GetContourFamilyColors("Amber", 9, colours))
+        np.testing.assert_allclose(colours.GetTuple3(1), (np.array((255, 236, 196)) + (246, 194, 108)) / 2 / 255.0,
+                                   atol=1e-12)
+        # an unknown family gives the first one
+        unknown = vtk.vtkDoubleArray()
+        self.assertTrue(logic.GetContourFamilyColors("No such family", 3, unknown))
+        self.assertEqual(unknown.GetTuple3(2), (184 / 255.0, 104 / 255.0, 16 / 255.0))
+        self.assertFalse(logic.GetContourFamilyColors("Amber", 0, unknown))
+
+        rng = np.random.default_rng(5)
+        data = rng.normal(0.0, 1.0, (4, 40, 40)).astype(np.float32)
+        yy, xx = np.mgrid[0:40, 0:40]
+        data += (20.0 * np.exp(-((xx - 20) ** 2 + (yy - 20) ** 2) / (2 * 4.0 ** 2)))[None].astype(np.float32)
+        volume = self.loadCube("contours", data)
+        volume.SetDisplayThreshold(1.0)
+        section = slicer.qSlicerAstroContoursSection()
+        section.setVolumeNode(volume)
+        section.setLevels("3, 6, 12", slicer.qSlicerAstroContoursSection.Sigma)
+        self.assertEqual(section.drawContours(), 3)
+        self.assertIn("3 levels drawn", section.status())
+
+        contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volume, False)
+        sourceIDs, levels = vtk.vtkStringArray(), vtk.vtkIntArray()
+        logic.GetContourSources(contours, sourceIDs, levels)
+        self.assertEqual((sourceIDs.GetNumberOfValues(), sourceIDs.GetValue(0), levels.GetValue(0)),
+                         (1, volume.GetID(), 3))
+        # one colour of the default family (Amber) per level, lowest first
+        segmentation = contours.GetSegmentation()
+        np.testing.assert_allclose([segmentation.GetNthSegment(i).GetColor() for i in range(3)],
+                                   np.array([(255, 236, 196), (242, 178, 76), (184, 104, 16)]) / 255.0, atol=1e-6)
+        self.assertTrue(logic.GetContourSourceVisibility(contours, volume.GetID()))
+
+        # the source row toggles its contours, the delete button removes them
+        eye = slicer.util.findChild(section, f"ContoursSourceShow_{volume.GetID()}")
+        eye.click()
+        self.assertFalse(logic.GetContourSourceVisibility(contours, volume.GetID()))
+        logic.SetContourSourceVisibility(contours, volume.GetID(), True)
+        self.assertTrue(logic.GetContourSourceVisibility(contours, volume.GetID()))
+        slicer.util.findChild(section, "ContoursDelete").click()
+        self.assertEqual(segmentation.GetNumberOfSegments(), 0)
+        self.assertEqual(section.status(), "")
+
+        # without a noise, levels in sigma are refused
+        volume.SetDisplayThreshold(0.0)
+        section.setLevels("3", slicer.qSlicerAstroContoursSection.Sigma)
+        self.assertEqual(section.drawContours(), 0)
+        self.assertIn("noise", section.status())
+        section.setLevels("5", slicer.qSlicerAstroContoursSection.DataUnit)
+        self.assertEqual(section.drawContours(), 1)
         self.delayDisplay("Test passed")

@@ -11,39 +11,6 @@ import slicer
 
 from . import Astro
 
-# column densities are shown in units of 1e19 cm^-2
-COLUMN_DENSITY_UNIT = 1e19
-
-# colour families of the contour levels: (name, colours from the first to the
-# last level, sRGB 0-255)
-FAMILIES = (
-    ("Amber", ((255, 236, 196), (246, 194, 108), (242, 178, 76), (217, 140, 36), (184, 104, 16))),
-    ("Cyan", ((198, 244, 250), (128, 226, 238), (79, 209, 224), (38, 166, 190), (16, 120, 150))),
-    ("Deep blue", ((140, 170, 255), (90, 130, 240), (53, 80, 176), (38, 56, 138), (24, 36, 100))),
-    ("White", ((255, 255, 255), (230, 234, 242), (200, 208, 222), (170, 180, 198), (140, 150, 170))),
-    ("Observatory ramp", ((43, 63, 140), (31, 143, 166), (127, 211, 196), (242, 178, 76), (255, 243, 214))),
-)
-
-
-def familyNames():
-    return [name for name, colours in FAMILIES]
-
-
-def familyColours(name, count):
-    """`count` colours (r, g, b in 0-1) of a family, from the first level to
-    the last."""
-    stops = dict(FAMILIES).get(name, FAMILIES[0][1])
-    colours = []
-    for index in range(count):
-        t = 0.0 if count == 1 else index / (count - 1)
-        position = t * (len(stops) - 1)
-        low = min(int(position), len(stops) - 2)
-        u = position - low
-        rgb = [(stops[low][c] + (stops[low + 1][c] - stops[low][c]) * u) / 255.0 for c in range(3)]
-        colours.append(rgb)
-    return colours
-
-
 def columnDensityFactor(volume):
     """cm^-2 per unit of a map of HI integrated intensity (0 if not one)."""
     if not Astro.isAstroVolume(volume) or Astro.dimensions(volume) != 2:
@@ -119,36 +86,21 @@ def doublingLevels(lowest, highest, maximumLevels=6):
     return levels
 
 
-def contourSources(target, contours):
-    """Datasets whose contours are drawn over the target: {source ID:
-    [segment IDs]}."""
-    sources = {}
-    if contours is None or contours.GetSegmentation() is None:
-        return sources
-    tag = slicer.vtkSlicerAstroVolumeLogic.GetContoursVolumeTagName()
-    segmentation = contours.GetSegmentation()
-    for index in range(segmentation.GetNumberOfSegments()):
-        segmentID = segmentation.GetNthSegmentID(index)
-        value = vtk.reference("")
-        if segmentation.GetSegment(segmentID).GetTag(tag, value) and str(value):
-            sources.setdefault(str(value), []).append(segmentID)
-    return sources
+def contourSources(contours):
+    """Datasets whose contours are drawn in a contours segmentation: {source
+    ID: number of levels} (vtkSlicerAstroVolumeLogic.GetContourSources)."""
+    sourceIDs = vtk.vtkStringArray()
+    levels = vtk.vtkIntArray()
+    slicer.vtkSlicerAstroVolumeLogic.GetContourSources(contours, sourceIDs, levels)
+    return {sourceIDs.GetValue(index): levels.GetValue(index) for index in range(sourceIDs.GetNumberOfValues())}
 
 
-def setSourceVisible(contours, segmentIDs, visible):
-    displayNode = contours.GetDisplayNode() if contours is not None else None
-    if displayNode is None:
-        return
-    if visible:
-        displayNode.SetVisibility(True)
-    for segmentID in segmentIDs:
-        displayNode.SetSegmentVisibility(segmentID, visible)
-
-
-def sourceVisible(contours, segmentIDs):
-    displayNode = contours.GetDisplayNode() if contours is not None else None
-    return displayNode is not None and displayNode.GetVisibility() and \
-        any(displayNode.GetSegmentVisibility(segmentID) for segmentID in segmentIDs)
+def familyColours(family, count):
+    """`count` colours (r, g, b in 0-1) of a contour colour family of the
+    AstroVolume logic, from the first level to the last."""
+    colours = vtk.vtkDoubleArray()
+    slicer.vtkSlicerAstroVolumeLogic.GetContourFamilyColors(family, count, colours)
+    return colours
 
 
 def zeroMomentMap(cube):
@@ -226,11 +178,8 @@ def drawContours(target, source, levels, family, overlay=True):
     levelArray = vtk.vtkDoubleArray()
     for level in levels:
         levelArray.InsertNextValue(level)
-    colours = vtk.vtkDoubleArray()
-    colours.SetNumberOfComponents(3)
-    for rgb in familyColours(family, len(levels)):
-        colours.InsertNextTuple3(*rgb)
-    created = logic.CreateContours(target, source, levelArray, False, overlay, colours, False)
+    created = logic.CreateContours(target, source, levelArray, False, overlay, familyColours(family, len(levels)),
+                                   False)
     return created, logic.GetLastContoursMessage()
 
 

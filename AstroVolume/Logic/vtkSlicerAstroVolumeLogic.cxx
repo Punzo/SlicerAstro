@@ -3800,6 +3800,157 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CreateThresholdMask(vtkMRMLA
   return maskNode;
 }
 
+namespace
+{
+struct ContourFamily
+{
+  const char* Name;
+  unsigned char Stops[5][3];
+};
+const ContourFamily ContourFamilies[5] = {
+  {"Amber", {{255, 236, 196}, {246, 194, 108}, {242, 178, 76}, {217, 140, 36}, {184, 104, 16}}},
+  {"Cyan", {{198, 244, 250}, {128, 226, 238}, {79, 209, 224}, {38, 166, 190}, {16, 120, 150}}},
+  {"Deep blue", {{140, 170, 255}, {90, 130, 240}, {53, 80, 176}, {38, 56, 138}, {24, 36, 100}}},
+  {"White", {{255, 255, 255}, {230, 234, 242}, {200, 208, 222}, {170, 180, 198}, {140, 150, 170}}},
+  {"Observatory ramp", {{43, 63, 140}, {31, 143, 166}, {127, 211, 196}, {242, 178, 76}, {255, 243, 214}}}};
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::GetContourColorFamilies(vtkStringArray* names)
+{
+  if (!names)
+    {
+    return;
+    }
+  names->Initialize();
+  for (const ContourFamily& family : ContourFamilies)
+    {
+    names->InsertNextValue(family.Name);
+    }
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetContourFamilyColors(const char* name, int count, vtkDoubleArray* colors)
+{
+  if (!colors || count < 1)
+    {
+    return false;
+    }
+  const ContourFamily* family = &ContourFamilies[0];
+  for (const ContourFamily& candidate : ContourFamilies)
+    {
+    if (name && !strcmp(candidate.Name, name))
+      {
+      family = &candidate;
+      }
+    }
+  colors->Initialize();
+  colors->SetNumberOfComponents(3);
+  for (int index = 0; index < count; index++)
+    {
+    const double t = count == 1 ? 0. : static_cast<double>(index) / (count - 1);
+    const double position = t * 4.;
+    const int low = std::min(static_cast<int>(position), 3);
+    const double u = position - low;
+    double rgb[3];
+    for (int c = 0; c < 3; c++)
+      {
+      rgb[c] = (family->Stops[low][c] + (family->Stops[low + 1][c] - family->Stops[low][c]) * u) / 255.;
+      }
+    colors->InsertNextTuple(rgb);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::GetContourSources(vtkMRMLSegmentationNode* contours, vtkStringArray* sourceIDs,
+                                                 vtkIntArray* levels)
+{
+  if (!sourceIDs || !levels)
+    {
+    return;
+    }
+  sourceIDs->Initialize();
+  levels->Initialize();
+  vtkSegmentation* segmentation = contours ? contours->GetSegmentation() : nullptr;
+  if (!segmentation)
+    {
+    return;
+    }
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    std::string sourceID;
+    vtkSegment* segment = segmentation->GetSegment(segmentID);
+    if (!segment || !segment->GetTag(GetContoursVolumeTagName(), sourceID) || sourceID.empty())
+      {
+      continue;
+      }
+    const vtkIdType index = sourceIDs->LookupValue(sourceID);
+    if (index < 0)
+      {
+      sourceIDs->InsertNextValue(sourceID);
+      levels->InsertNextValue(1);
+      }
+    else
+      {
+      levels->SetValue(index, levels->GetValue(index) + 1);
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetContourSourceVisibility(vtkMRMLSegmentationNode* contours, const char* sourceID,
+                                                          bool visible)
+{
+  vtkMRMLSegmentationDisplayNode* displayNode = contours ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(contours->GetDisplayNode()) : nullptr;
+  if (!displayNode || !sourceID)
+    {
+    return;
+    }
+  if (visible)
+    {
+    displayNode->SetVisibility(true);
+    }
+  std::vector<std::string> segmentIDs;
+  contours->GetSegmentation()->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    std::string tag;
+    vtkSegment* segment = contours->GetSegmentation()->GetSegment(segmentID);
+    if (segment && segment->GetTag(GetContoursVolumeTagName(), tag) && tag == sourceID)
+      {
+      displayNode->SetSegmentVisibility(segmentID, visible);
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetContourSourceVisibility(vtkMRMLSegmentationNode* contours, const char* sourceID)
+{
+  vtkMRMLSegmentationDisplayNode* displayNode = contours ?
+    vtkMRMLSegmentationDisplayNode::SafeDownCast(contours->GetDisplayNode()) : nullptr;
+  if (!displayNode || !sourceID || !displayNode->GetVisibility())
+    {
+    return false;
+    }
+  std::vector<std::string> segmentIDs;
+  contours->GetSegmentation()->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    std::string tag;
+    vtkSegment* segment = contours->GetSegmentation()->GetSegment(segmentID);
+    if (segment && segment->GetTag(GetContoursVolumeTagName(), tag) && tag == sourceID &&
+        displayNode->GetSegmentVisibility(segmentID))
+      {
+      return true;
+      }
+    }
+  return false;
+}
+
 //----------------------------------------------------------------------------
 double vtkSlicerAstroVolumeLogic::GetHIColumnDensityFactor(vtkMRMLVolumeNode* mapNode)
 {

@@ -313,25 +313,25 @@ class DatasetDrawer(qt.QFrame):
         """A toggle chip per dataset whose contours are drawn over this one
         (e.g. "HI contours · NGC2403")."""
         contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volume, False)
-        for sourceID, segmentIDs in Contours.contourSources(volume, contours).items():
+        for sourceID, levels in Contours.contourSources(contours).items():
             source = slicer.mrmlScene.GetNodeByID(sourceID)
             if source is None:
                 continue
             root = Astro.parentOf(source, Astro.astroVolumes(slicer.mrmlScene)) or source
             kind = "HI contours" if Contours.isHIMap(source) or Contours.isHICube(source) else "contours"
             name = root.GetName() if root is not volume else "self"
-            card.addActionChip(sourceID, f"{kind} · {name}", Contours.sourceVisible(contours, segmentIDs), "contour",
-                               f"Show or hide the contours of {source.GetName()} ({len(segmentIDs)} levels) "
+            visible = slicer.vtkSlicerAstroVolumeLogic.GetContourSourceVisibility(contours, sourceID)
+            card.addActionChip(sourceID, f"{kind} · {name}", visible, "contour",
+                               f"Show or hide the contours of {source.GetName()} ({levels} levels) "
                                f"over {volume.GetName()}.")
         card.connect("actionChipToggled(QString,bool)",
-                     lambda sourceID, on, c=contours, v=volume: self.toggleContours(v, sourceID, on))
+                     lambda sourceID, on, v=volume: self.toggleContours(v, sourceID, on))
 
     def toggleContours(self, volume, sourceID, on):
         contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volume, False)
-        segmentIDs = Contours.contourSources(volume, contours).get(sourceID, [])
-        Contours.setSourceVisible(contours, segmentIDs, on)
+        slicer.vtkSlicerAstroVolumeLogic.SetContourSourceVisibility(contours, sourceID, on)
         if self.workbench.inspector is not None and self.workbench.inspector.volume is volume:
-            self.workbench.inspector.contoursSection.updateSources()
+            self.workbench.inspector.contoursWidget.updateSources()
 
     def applyFilter(self):
         text = self.filterEdit.text.strip().lower()

@@ -243,13 +243,16 @@ class Inspector(qt.QFrame):
         self.displayFold.toolTip = self.displayWidget.toolTip
         self.displayFold.contentLayout().addWidget(self.displayWidget)
         layout.addWidget(self.displayFold)
-        self.contoursSection = Sections.ContoursSection()
+        self.contoursWidget = slicer.qSlicerAstroContoursSection()
+        self.contoursFold = Sections.foldSection("Contours", "levels over the data", "Contours", collapsed=False)
+        self.contoursFold.toolTip = self.contoursWidget.toolTip
+        self.contoursFold.contentLayout().addWidget(self.contoursWidget)
+        layout.addWidget(self.contoursFold)
         self.masksSection = Sections.MasksSection()
         self.sourcesSection = Sections.SourcesSection()
         self.threeDSection = Sections.ThreeDSection()
         self.headerSection = Sections.HeaderSection()
-        for section in (self.contoursSection, self.masksSection, self.sourcesSection, self.threeDSection,
-                        self.headerSection):
+        for section in (self.masksSection, self.sourcesSection, self.threeDSection, self.headerSection):
             layout.addWidget(section.section)
         layout.addStretch(1)
         return scroll
@@ -365,7 +368,9 @@ class Inspector(qt.QFrame):
         self.volume = volume
         self.displayWidget.setVolumeNode(volume)
         self.displayFold.visible = volume is not None
-        for section in (self.contoursSection, self.masksSection, self.sourcesSection,
+        self.contoursWidget.setVolumeNode(volume)
+        self.contoursFold.visible = volume is not None
+        for section in (self.masksSection, self.sourcesSection,
                         self.threeDSection, self.headerSection):
             section.setVolume(volume)
         facts = {name: "" for name in self.factLabels}

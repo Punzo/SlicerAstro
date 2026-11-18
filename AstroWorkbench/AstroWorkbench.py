@@ -458,16 +458,16 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
 
         contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(image, False)
         self.assertIsNotNone(contours)
-        sources = Contours.contourSources(image, contours)
+        sources = Contours.contourSources(contours)
         self.assertEqual(list(sources.keys()), [moment.GetID()])
         levels = Contours.columnDensityLevels(moment, cube)
-        self.assertEqual(len(sources[moment.GetID()]), len(levels))
+        self.assertEqual(sources[moment.GetID()], len(levels))
         self.assertEqual(len(levels), 8)
         np.testing.assert_allclose(np.array(levels[1:]) / np.array(levels[:-1]), 2.0)
         self.assertLess(levels[-1], Contours.columnDensityFactor(moment) * float(moment.GetAttribute("SlicerAstro.DATAMAX")))
         # the contours are on the galaxy: the lowest level covers the centre
         # of the image
-        segment = contours.GetSegmentation().GetSegment(sources[moment.GetID()][0])
+        segment = contours.GetSegmentation().GetNthSegment(0)
         labelmap = segment.GetRepresentation("Binary labelmap")
         dims = labelmap.GetDimensions()
         self.assertEqual(labelmap.GetScalarComponentAsDouble(dims[0] // 2, dims[1] // 2, 0, 0), 1.0)
@@ -480,7 +480,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertTrue(chip.checked)
         chip.click()
         self.process()
-        self.assertFalse(Contours.sourceVisible(contours, sources[moment.GetID()]))
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetContourSourceVisibility(contours, moment.GetID()))
         workbench().refresh()
         self.process()
         card = slicer.util.findChild(workbench().drawer, f"DatasetCard_{image.GetID()}")
@@ -492,15 +492,20 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         # Contours section: 3, 6 sigma of the cube over itself
         workbench().activate(cube)
         self.process()
-        section = workbench().inspector.contoursSection
-        section.source.setCurrentIndex(0)
-        section.levels.text = "3, 6"
-        section.unit.setCurrentIndex(0)
-        section.draw()
+        section = workbench().inspector.contoursWidget
+        section.setSourceNode(None)
+        section.setLevels("3, 6", section.Sigma)
+        self.assertEqual(section.drawContours(), 2)
         self.process()
-        own = Contours.contourSources(cube, slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False))
-        self.assertEqual(len(own.get(cube.GetID(), [])), 2)
-        self.assertIn("2 levels drawn", section.status.text)
+        own = Contours.contourSources(slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False))
+        self.assertEqual(own.get(cube.GetID()), 2)
+        self.assertIn("2 levels drawn", section.status())
+        # its source row toggles the contours of the cube
+        eye = slicer.util.findChild(section, f"ContoursSourceShow_{cube.GetID()}")
+        self.assertTrue(eye.checked)
+        eye.click()
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetContourSourceVisibility(
+            slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False), cube.GetID()))
         self.delayDisplay("Test passed")
 
     def test_Sources(self):

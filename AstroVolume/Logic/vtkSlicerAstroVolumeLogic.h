@@ -382,6 +382,20 @@ public:
                      bool bands, bool overlay, vtkDoubleArray* colors = nullptr, bool visible3D = false);
   std::string GetLastContoursMessage() { return this->LastContoursMessage; }
 
+  /// Colour families of contour levels ("Amber", "Cyan", "Deep blue",
+  /// "White", "Observatory ramp"): names, and count colours (RGB 0-1, 3
+  /// components) of a family from the lowest level to the highest (an
+  /// unknown family gives the first one; false if count < 1 or no array)
+  static void GetContourColorFamilies(vtkStringArray* names);
+  static bool GetContourFamilyColors(const char* family, int count, vtkDoubleArray* colors);
+
+  /// Contours drawn over a volume per source data: the IDs of the source
+  /// volumes and, for each, the number of its levels (segments)
+  static void GetContourSources(vtkMRMLSegmentationNode* contours, vtkStringArray* sourceIDs, vtkIntArray* levels);
+  /// Shows or hides the contours of a source data
+  static void SetContourSourceVisibility(vtkMRMLSegmentationNode* contours, const char* sourceID, bool visible);
+  static bool GetContourSourceVisibility(vtkMRMLSegmentationNode* contours, const char* sourceID);
+
   /// HI column density per unit of a map of integrated intensity (cm^-2 per
   /// Jy/beam km/s, or per K km/s): N_HI = 1.8224e18 cm^-2 int(T_B dv) with
   /// T_B from the beam (Rayleigh-Jeans, at the HI rest frequency). 0 if the
