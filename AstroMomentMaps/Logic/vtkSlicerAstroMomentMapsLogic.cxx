@@ -32,6 +32,9 @@
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLAstroMomentMapsParametersNode.h>
 #include <vtkMRMLTableNode.h>
+#include <vtkMRMLVolumeRenderingDisplayNode.h>
+#include <vtkMRMLScene.h>
+#include <vtkMRMLColorTableNode.h>
 
 // VTK includes
 #include <vtkArrayData.h>
@@ -944,4 +947,71 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroMomentMapsLogic::CreateMomentMapVolume(
+  vtkMRMLAstroVolumeNode* input, const char* name, const char* unit, const char* colorTableName,
+  const char* datamodel)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = this->GetAstroVolumeLogic();
+  if (!scene || !astroVolumeLogic || !input || !input->GetImageData() || !input->GetAstroVolumeDisplayNode() ||
+      !name)
+    {
+    vtkErrorMacro("CreateMomentMapVolume: input data, scene or AstroVolume logic not found");
+    return nullptr;
+    }
+  int dims[3];
+  input->GetImageData()->GetDimensions(dims);
+  vtkNew<vtkImageData> imageData;
+  imageData->SetDimensions(dims[0], dims[1], 1);
+  imageData->SetSpacing(1., 1., 1.);
+  imageData->AllocateScalars(input->GetImageData()->GetScalarType(), 1);
+
+  vtkMRMLAstroVolumeNode* map = vtkMRMLAstroVolumeNode::SafeDownCast(
+    astroVolumeLogic->CloneVolumeWithoutImageData(scene, input, name));
+  if (!map || !map->GetAstroVolumeDisplayNode())
+    {
+    vtkErrorMacro("CreateMomentMapVolume: the map could not be created");
+    return nullptr;
+    }
+  map->SetAttribute("SlicerAstro.NAXIS", "2");
+  map->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
+  map->GetAstroVolumeDisplayNode()->CopyWCS(input->GetAstroVolumeDisplayNode());
+  map->SetAttribute("SlicerAstro.BUNIT", unit ? unit : "");
+  const std::string btype = input->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(std::string());
+  map->SetAttribute("SlicerAstro.BTYPE", btype.c_str());
+  const char* spectralKeys[] = {"NAXIS3", "CDELT3", "CROTA3", "CRPIX3", "CRVAL3", "CTYPE3", "CUNIT3", "DTYPE3",
+                                "DRVAL3", "DUNIT3", "PC1_3", "PC2_3", "PC3_1", "PC3_2", "PC3_3"};
+  for (const char* key : spectralKeys)
+    {
+    map->RemoveAttribute((std::string("SlicerAstro.") + key).c_str());
+    }
+  map->SetAndObserveImageData(imageData);
+  if (colorTableName && *colorTableName)
+    {
+    vtkMRMLColorTableNode* colorTable = vtkMRMLColorTableNode::SafeDownCast(scene->GetFirstNodeByName(colorTableName));
+    if (colorTable)
+      {
+      map->GetAstroVolumeDisplayNode()->SetAndObserveColorNodeID(colorTable->GetID());
+      }
+    else
+      {
+      vtkErrorMacro("CreateMomentMapVolume: the color table " << colorTableName << " was not found");
+      }
+    }
+  map->SetName(name);
+  vtkMRMLNode* noPreset = nullptr;
+  map->SetPresetNode(noPreset);
+  // maps have no volume rendering
+  for (int ii = map->GetNumberOfDisplayNodes() - 1; ii >= 0; ii--)
+    {
+    if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(map->GetNthDisplayNode(ii)))
+      {
+      map->RemoveNthDisplayNodeID(ii);
+      }
+    }
+  map->SetAttribute("SlicerAstro.DATAMODEL", datamodel ? datamodel : "");
+  return map;
 }

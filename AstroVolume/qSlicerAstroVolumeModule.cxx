@@ -775,10 +775,12 @@ void qSlicerAstroVolumeModule::setup()
     this->mrmlScene()->AddDefaultNode(defaultNode);
     }
   vtkMRMLColorTableNode *colorTableDefaultNode = vtkMRMLColorTableNode::SafeDownCast(defaultNode);
+  // the options of the 2D colour functions; "on" means the lookup table is
+  // reversed, inverted or logarithmic (vtkSlicerAstroVolumeLogic::SetColorFunctionOption)
   colorTableDefaultNode->SetAttribute("SlicerAstro.AddFunctions", "on");
-  colorTableDefaultNode->SetAttribute("SlicerAstro.Reverse", "on");
-  colorTableDefaultNode->SetAttribute("SlicerAstro.Inverse", "on");
-  colorTableDefaultNode->SetAttribute("SlicerAstro.Log", "on");
+  colorTableDefaultNode->SetAttribute("SlicerAstro.Reverse", "off");
+  colorTableDefaultNode->SetAttribute("SlicerAstro.Inverse", "off");
+  colorTableDefaultNode->SetAttribute("SlicerAstro.Log", "off");
 
   // Modify ColorNodeTable already allocated
   vtkSmartPointer<vtkCollection> ColorTableNodeCol = vtkSmartPointer<vtkCollection>::Take(
@@ -793,9 +795,9 @@ void qSlicerAstroVolumeModule::setup()
       }
 
     tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
-    tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "on");
-    tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "on");
-    tempColorTableNode->SetAttribute("SlicerAstro.Log", "on");
+    tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+    tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+    tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
     }
 }
 

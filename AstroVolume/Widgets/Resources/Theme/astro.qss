@@ -313,6 +313,16 @@ QLabel[astroRole="chip"] {
   color: @muted@;
   font-size: 11px;
 }
+QToolButton[astroRole="actionChip"] {
+  background: transparent;
+  border: 1px dashed @line-strong@;
+  border-radius: 9px;
+  padding: 1px 8px;
+  color: @muted@;
+  font-size: 11px;
+}
+QToolButton[astroRole="actionChip"]:hover { color: @text@; border-style: solid; }
+QToolButton[astroRole="actionChip"]:checked { background: @accent-soft@; border: 1px solid @accent@; color: @text@; }
 QWidget[astroRole="lineage"] { border: none; border-left: 1px solid @line-strong@; margin-left: 4px; }
 QToolButton[astroRole="product"] {
   border: none;

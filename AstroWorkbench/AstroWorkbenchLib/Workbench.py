@@ -14,6 +14,7 @@ import slicer
 
 from . import Astro
 from . import About
+from . import Contours
 from .Inspector import Inspector
 from .Views import ViewDecorator, ViewVisibility
 
@@ -296,11 +297,36 @@ class DatasetDrawer(qt.QFrame):
             for productID, name, detail, icon, node in Astro.productsOf(volume, slicer.mrmlScene):
                 card.addProduct(productID, name, detail, icon)
             card.setActive(volume.GetID() == activeID)
+            self.addContourChips(card, volume)
             card.connect("clicked()", lambda v=volume: self.workbench.activate(v))
             card.connect("productClicked(QString)", self.workbench.showProduct)
             self.cardsLayout.insertWidget(len(self.cards), card)
             self.cards.append(card)
         self.applyFilter()
+
+    def addContourChips(self, card, volume):
+        """A toggle chip per dataset whose contours are drawn over this one
+        (e.g. "HI contours · NGC2403")."""
+        contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volume, False)
+        for sourceID, segmentIDs in Contours.contourSources(volume, contours).items():
+            source = slicer.mrmlScene.GetNodeByID(sourceID)
+            if source is None:
+                continue
+            root = Astro.parentOf(source, Astro.astroVolumes(slicer.mrmlScene)) or source
+            kind = "HI contours" if Contours.isHIMap(source) or Contours.isHICube(source) else "contours"
+            name = root.GetName() if root is not volume else "self"
+            card.addActionChip(sourceID, f"{kind} · {name}", Contours.sourceVisible(contours, segmentIDs), "contour",
+                               f"Show or hide the contours of {source.GetName()} ({len(segmentIDs)} levels) "
+                               f"over {volume.GetName()}.")
+        card.connect("actionChipToggled(QString,bool)",
+                     lambda sourceID, on, c=contours, v=volume: self.toggleContours(v, sourceID, on))
+
+    def toggleContours(self, volume, sourceID, on):
+        contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volume, False)
+        segmentIDs = Contours.contourSources(volume, contours).get(sourceID, [])
+        Contours.setSourceVisible(contours, segmentIDs, on)
+        if self.workbench.inspector is not None and self.workbench.inspector.volume is volume:
+            self.workbench.inspector.contoursSection.updateSources()
 
     def applyFilter(self):
         text = self.filterEdit.text.strip().lower()
@@ -410,6 +436,11 @@ class StatusBar(qt.QFrame):
                                                    self.onCursor) if self.crosshair else None
         self.clear()
 
+    def showMessage(self, text, milliseconds=8000):
+        """A message in place of the hint, for a few seconds."""
+        self.hint.text = text
+        qt.QTimer.singleShot(milliseconds, lambda: setattr(self.hint, "text", "Ctrl+Shift+W: full Slicer"))
+
     def subtle(self, text):
         return f"<span style='color:{theme().color('subtle').name()}'>{text}</span>"
 
@@ -437,7 +468,7 @@ class StatusBar(qt.QFrame):
         self.labels["ra"].text = f"{self.subtle('RA')} {result['ra']}"
         self.labels["dec"].text = f"{self.subtle('Dec')} {result['dec']}"
         self.labels["velocity"].text = f"{self.subtle('v')} {result['velocity']}" if result["velocity"] else ""
-        unit = result["unit"].replace("JY/BEAM", "Jy/beam")
+        unit = Astro.displayUnit(result["unit"])
         self.labels["value"].text = f"<span style='color:{data}'>{result['value']:.4g} {unit}</span>"
 
     def cleanup(self):
@@ -460,6 +491,11 @@ class Workbench:
         self.refreshTimer.connect("timeout()", self.refresh)
         self.inspector = None
         self.scrubberBar = None
+        self.automaticContours = Contours.AutomaticHIContours()
+        self.automaticContoursTimer = qt.QTimer()
+        self.automaticContoursTimer.setSingleShot(True)
+        self.automaticContoursTimer.setInterval(400)
+        self.automaticContoursTimer.connect("timeout()", self.runAutomaticContours)
         self.shortcuts = []
         self.views = ViewDecorator(self)
         self.visibility = ViewVisibility()
@@ -791,11 +827,26 @@ class Workbench:
             f"QMainWindow::separator:hover {{ background: {hover}; }}")
 
     def scheduleRefresh(self, caller=None, event=None):
+        if event == "EndCloseEvent":
+            # node IDs are reused by the next data
+            self.automaticContours.done.clear()
         self.refreshTimer.start()
+
+    def runAutomaticContours(self):
+        """HI contours over the images that overlap an HI dataset (new pairs
+        only)."""
+        if not self.active or not self.automaticContours.candidates():
+            return
+        updated = self.automaticContours.run()
+        if updated:
+            self.statusBar.showMessage(f"HI contours drawn on {', '.join(updated)}")
+            self.refresh()
 
     def refresh(self):
         if not self.active:
             return
+        if self.automaticContours.candidates():
+            self.automaticContoursTimer.start()
         volume = self.activeVolume()
         self.drawer.refresh()
         self.scrubberBar.setVolume(volume)
@@ -815,6 +866,7 @@ class Workbench:
             return
         self.active = False
         self.refreshTimer.stop()
+        self.automaticContoursTimer.stop()
         for observer in self.sceneObservers:
             slicer.mrmlScene.RemoveObserver(observer)
         self.sceneObservers = []

@@ -67,6 +67,14 @@ public:
                               const QString& iconName);
   Q_INVOKABLE int productCount() const;
 
+  /// Toggle chips of the card (e.g. "HI contours · NGC2403"), below the
+  /// chips: actionChipToggled(id, checked) when clicked
+  Q_INVOKABLE void clearActionChips();
+  Q_INVOKABLE void addActionChip(const QString& id, const QString& text, bool checked,
+                                 const QString& iconName = QString(), const QString& toolTip = QString());
+  Q_INVOKABLE void setActionChipChecked(const QString& id, bool checked);
+  Q_INVOKABLE int actionChipCount() const;
+
 public slots:
   void setVolume(vtkMRMLVolumeNode* volume);
   void setActive(bool active);
@@ -74,6 +82,7 @@ public slots:
 signals:
   void clicked();
   void productClicked(const QString& id);
+  void actionChipToggled(const QString& id, bool checked);
 
 protected slots:
   void onVolumeModified();
@@ -88,6 +97,7 @@ protected:
 
   qSlicerAstroDatasetCardHeader* Header;
   QWidget* ChipsRow;
+  QWidget* ActionChipsRow;
   QWidget* Products;
   QVBoxLayout* ProductsLayout;
   vtkMRMLVolumeNode* Volume{nullptr};

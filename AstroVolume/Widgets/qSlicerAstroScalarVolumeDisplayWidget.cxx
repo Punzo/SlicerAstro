@@ -207,22 +207,6 @@ int StringToInt(const char* str)
   return StringToNumber<int>(str);
 }
 
-//----------------------------------------------------------------------------
-template <typename T> std::string NumberToString(T V)
-{
-  std::string stringValue;
-  std::stringstream strstream;
-  strstream << V;
-  strstream >> stringValue;
-  return stringValue;
-}
-
-//----------------------------------------------------------------------------
-std::string IntToString(int Value)
-{
-  return NumberToString<int>(Value);
-}
-
 } // end namespace
 
 //-----------------------------------------------------------------------------
@@ -867,125 +851,11 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     return;
     }
 
-  // Contours of other data: reprojected on the celestial grid of the active
-  // data (temporary volume with the channels of the other data). Rotated
-  // grids and different celestial frames are handled by the reprojection.
-  vtkMRMLAstroVolumeNode* temporaryVolume = nullptr;
-  if (contoursVolume && masterVolume != contoursVolume)
-    {
-    const QString title = tr("Contours");
-    qSlicerAbstractCoreModule* astroVolumeModule = qSlicerApplication::application() &&
-      qSlicerApplication::application()->moduleManager() ?
-      qSlicerApplication::application()->moduleManager()->module("AstroVolume") : nullptr;
-    vtkSlicerAstroVolumeLogic* astroVolumeLogic = astroVolumeModule ?
-      vtkSlicerAstroVolumeLogic::SafeDownCast(astroVolumeModule->logic()) : nullptr;
-    if (!astroVolumeLogic)
-      {
-      qCritical() << Q_FUNC_INFO << ": AstroVolume logic not found.";
-      return;
-      }
-
-    // same celestial grid: the contours are drawn from the data directly
-    bool sameGrid = masterVolume->GetImageData() && contoursVolume->GetImageData() &&
-      masterVolume->GetImageData()->GetDimensions()[0] == contoursVolume->GetImageData()->GetDimensions()[0] &&
-      masterVolume->GetImageData()->GetDimensions()[1] == contoursVolume->GetImageData()->GetDimensions()[1];
-    const char* gridKeys[] = {"CTYPE1", "CTYPE2", "CRVAL1", "CRVAL2", "CRPIX1", "CRPIX2", "CDELT1", "CDELT2",
-                              "CROTA2", "PC1_1", "PC1_2", "PC2_1", "PC2_2", "EQUINOX", "RADESYS"};
-    for (const char* key : gridKeys)
-      {
-      const std::string attribute = std::string("SlicerAstro.") + key;
-      const char* masterValue = masterVolume->GetAttribute(attribute.c_str());
-      const char* contoursValue = contoursVolume->GetAttribute(attribute.c_str());
-      if ((masterValue == nullptr) != (contoursValue == nullptr) ||
-          (masterValue && strcmp(masterValue, contoursValue)))
-        {
-        sameGrid = false;
-        }
-      }
-
-    if (sameGrid)
-      {
-      masterVolume = contoursVolume;
-      }
-    else
-      {
-      qInfo().noquote() << title << ":" << tr("the data of the contours are reprojected on the grid of %1 "
-                                               "(bilinear interpolation).").arg(masterVolume->GetName());
-      vtkNew<vtkMRMLAstroReprojectParametersNode> reprojectParaNode;
-      reprojectParaNode->SetInputVolumeNodeID(contoursVolume->GetID());
-      reprojectParaNode->SetInputVolumeNodeIDs(contoursVolume->GetID());
-      reprojectParaNode->SetReferenceVolumeNodeID(masterVolume->GetID());
-      reprojectParaNode->SetSpatialGridMode(vtkMRMLAstroReprojectParametersNode::SpatialReference);
-      reprojectParaNode->SetSpectralGridMode(vtkMRMLAstroReprojectParametersNode::SpectralInput);
-      reprojectParaNode->SetInterpolationOrder(vtkMRMLAstroReprojectParametersNode::Bilinear);
-      if (!astroVolumeLogic->Reproject(reprojectParaNode))
-        {
-        const std::string error = astroVolumeLogic->GetLastReprojectError();
-        if (error != "cancelled")
-          {
-          qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, title,
-            tr("The reprojection of %1 on the grid of %2 failed: %3. No contours will be generated.")
-              .arg(contoursVolume->GetName(), masterVolume->GetName(), QString::fromStdString(error)));
-          }
-        return;
-        }
-      vtkMRMLAstroVolumeNode* outputVolume = vtkMRMLAstroVolumeNode::SafeDownCast(
-        this->mrmlScene()->GetNodeByID(reprojectParaNode->GetOutputVolumeNodeID()));
-      if (!outputVolume || !outputVolume->GetAstroVolumeDisplayNode())
-        {
-        qCritical() << Q_FUNC_INFO << ": the reprojected data of the contours were not found.";
-        return;
-        }
-
-      // temporary volume: not rendered in 3D
-      for (int ii = outputVolume->GetNumberOfDisplayNodes() - 1; ii >= 0; ii--)
-        {
-        if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(outputVolume->GetNthDisplayNode(ii)))
-          {
-          outputVolume->RemoveNthDisplayNodeID(ii);
-          }
-        }
-      astroVolumeLogic->CenterVolume(masterVolume);
-      astroVolumeLogic->CenterVolume(outputVolume);
-
-      vtkMRMLAstroVolumeDisplayNode* outputDisplayNode = outputVolume->GetAstroVolumeDisplayNode();
-      vtkMRMLAstroVolumeDisplayNode* referenceDisplayNode = masterVolume->GetAstroVolumeDisplayNode();
-      outputDisplayNode->SetFitSlices(referenceDisplayNode->GetFitSlices());
-      outputDisplayNode->SetContoursColor(referenceDisplayNode->GetContoursColor());
-      outputDisplayNode->SetSpaceQuantities(referenceDisplayNode->GetSpaceQuantities());
-      outputDisplayNode->SetSpace(referenceDisplayNode->GetSpace());
-
-      temporaryVolume = outputVolume;
-      masterVolume = outputVolume;
-      }
-    }
-
-  // segments named after the data of the contours (not the reprojected copy)
-  std::string NamePrefixStdString = contoursVolume->GetName();
-
-  // contours segmentation of the active volume
-  this->contoursSegNode = ContoursSegmentationNode(this->volumeNode(), true);
-  if (!this->contoursSegNode)
-    {
-    qCritical() << Q_FUNC_INFO << ": the contours segmentation of the volume could not be created.";
-    if (temporaryVolume)
-      {
-      this->mrmlScene()->RemoveNode(temporaryVolume);
-      }
-    QApplication::restoreOverrideCursor();
-    return;
-    }
-
-  // the contours are not edited: the Segment Editor keeps its segmentation (mask)
-
-  if (!this->contoursSegNode->GetDisplayNode())
-    {
-    this->contoursSegNode->CreateDefaultDisplayNodes();
-    }
+  // the levels are in the units of the data of the contours
+  masterVolume = contoursVolume;
 
   vtkNew<vtkDoubleArray> Levels;
   vtkNew<vtkDoubleArray> Delimiters;
-  vtkNew<vtkStringArray> SegmentIDs;
   std::stringstream ss(LevelsStdString);
 
   double value;
@@ -1164,210 +1034,35 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     return;
     }
 
-  double range[2];
-  Levels->GetRange(range);
-  if ((range[0] < MIN) || (range[1] > MAX))
+  // contours computed by the logic (contours of other data are reprojected
+  // on the grid of the active volume)
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = AstroVolumeLogic();
+  if (!astroVolumeLogic)
     {
-    for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
-      {
-      if (Levels->GetValue(ii) < MIN || Levels->GetValue(ii) > MAX)
-        {
-        Levels->RemoveTuple(ii);
-        if (renzogram)
-          {
-          if (ii % 2 == 0)
-            {
-            Levels->RemoveTuple(ii+1);
-            }
-          else
-            {
-            Levels->RemoveTuple(ii-1);
-            }
-          }
-        }
-      }
-
-    Levels->Squeeze();
-    if (Levels->GetNumberOfValues() == 0)
-      {
-      QApplication::restoreOverrideCursor();
-      if (temporaryVolume)
-        {
-        this->mrmlScene()->RemoveNode(temporaryVolume);
-        }
-      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, tr("Contours"),
-        tr("All the contour levels are outside the range of the data (%1, %2): "
-           "no contours will be generated.").arg(MIN).arg(MAX));
-      return;
-      }
-    else
-      {
-      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, tr("Contours"),
-        tr("Some contour levels are outside the range of the data (%1, %2): "
-           "they are ignored.").arg(MIN).arg(MAX));
-      }
+    qCritical() << Q_FUNC_INFO << ": AstroVolume logic not found.";
+    QApplication::restoreOverrideCursor();
+    return;
     }
-
-  // The new contours replace the previous ones: all of them, or with
-  // "overlay" only those of the same data (contours of other data stay)
-  vtkSegmentation* contoursSegmentation = this->contoursSegNode->GetSegmentation();
-  std::vector<std::string> previousSegmentIDs;
-  contoursSegmentation->GetSegmentIDs(previousSegmentIDs);
-  for (const std::string& previousSegmentID : previousSegmentIDs)
-    {
-    vtkSegment* previousSegment = contoursSegmentation->GetSegment(previousSegmentID);
-    std::string sourceVolumeID;
-    if (!overlay || (previousSegment &&
-        previousSegment->GetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), sourceVolumeID) &&
-        sourceVolumeID == contoursVolume->GetID()))
-      {
-      contoursSegmentation->RemoveSegment(previousSegmentID);
-      }
-    }
-
-  // Create empty segment in current segmentation
-  vtkIdType LevelDim = 0;
-
-  for (int ii = 0; ii < Levels->GetNumberOfValues(); ii++)
-    {
-    double ContourLevel = Levels->GetValue(ii);
-    double ContourLevelNext = 0.;
-    if (renzogram)
-      {
-      ii++;
-      ContourLevelNext = Levels->GetValue(ii);
-      }
-    std::string SegmentID = NamePrefixStdString;
-    SegmentID += "Contour" + IntToString(ii + 1);
-    SegmentIDs->InsertNextValue(SegmentID.c_str());
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(masterVolume->GetImageData());
-
-    double lower, higher;
-    if (!renzogram)
-      {
-      if (ContourLevel < 0.)
-        {
-        lower = MIN;
-        higher = ContourLevel;
-        }
-      else
-        {
-        lower = ContourLevel;
-        higher = MAX;
-        }
-      }
-    else
-      {
-      if (ContourLevel < 0.)
-        {
-        lower = ContourLevelNext;
-        higher = ContourLevel;
-        }
-      else
-        {
-        lower = ContourLevel;
-        higher = ContourLevelNext;
-        }
-      }
-
-    imageThreshold->ThresholdBetween(lower, higher);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    masterVolume->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-
-    vtkSlicerAstroVolumeLogic::PrepareContoursUpdate(this->contoursSegNode);
-
-    // Each contour level is a segment with its own labelmap (own layer, own
-    // geometry): contours of data with different grids (e.g. 3D HI contours
-    // reprojected on an optical image and 2D contours of the image) and
-    // overlapping levels are kept as they are (a shared layer would resample
-    // or overwrite them)
-    vtkSegmentation* contoursSegmentation = this->contoursSegNode->GetSegmentation();
-    if (contoursSegmentation->GetSegment(SegmentID))
-      {
-      contoursSegmentation->RemoveSegment(SegmentID);
-      }
-    vtkNew<vtkSegment> Segment;
-    Segment->SetName(SegmentID.c_str());
-    vtkDoubleArray* ContoursColor = astroDisplayNode->GetContoursColor();
-    Segment->SetColor(ContoursColor->GetValue(0),
-                      ContoursColor->GetValue(1),
-                      ContoursColor->GetValue(2));
-    // terminology chosen for the contours (color button), else Contour
-    const std::string contoursEntry =
-      vtkSlicerTerminologiesModuleLogic::GetDefaultTerminologyEntryAsString(this->contoursSegNode);
-    Segment->SetTerminology(contoursEntry.empty() ? vtkMRMLAstroTerminology::GetContourEntry() : contoursEntry);
-    // data of the contours: color changes and replacement of the contours
-    Segment->SetTag(vtkSlicerAstroVolumeLogic::GetContoursVolumeTagName(), contoursVolume->GetID());
-    Segment->SetLabelValue(1);
-    Segment->AddRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName(),
-                               modifierLabelmap.GetPointer());
-    if (!contoursSegmentation->AddSegment(Segment, SegmentID))
-      {
-      qCritical() << Q_FUNC_INFO << ": failed to add the contour segment" << SegmentID.c_str();
-      }
-
-    int dims[3];
-    modifierLabelmap->GetDimensions(dims);
-    const vtkIdType levelVoxels = static_cast<vtkIdType>(dims[0]) * dims[1] * dims[2];
-    if (LevelDim < levelVoxels)
-      {
-      LevelDim = levelVoxels;
-      }
-    }
-
-  for (int ii = 0; ii < this->contoursSegNode->GetNumberOfDisplayNodes(); ii++)
-    {
-    vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-      vtkMRMLSegmentationDisplayNode::SafeDownCast(this->contoursSegNode->GetNthDisplayNode(ii));
-    if (!SegmentationDisplayNode)
-      {
-      continue;
-      }
-    if (!overlay)
-      {
-      SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-      }
-    for (int jj = 0; jj < SegmentIDs->GetNumberOfValues(); jj++)
-      {
-      std::string SegmentID = SegmentIDs->GetValue(jj);
-      SegmentationDisplayNode->SetSegmentVisibility(SegmentID, true);
-      if (histo)
-        {
-        SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, true);
-        }
-      else
-        {
-        SegmentationDisplayNode->SetSegmentVisibility3D(SegmentID, false);
-        }
-      SegmentationDisplayNode->SetSegmentVisibility2DFill(SegmentID, false);
-      SegmentationDisplayNode->SetSegmentVisibility2DOutline(SegmentID, true);
-      }
-    }
-
-  // Contours: closed surfaces in 2D, binary labelmaps in 3D (not a mask)
-  vtkSlicerAstroVolumeLogic::SetContoursDisplay(this->contoursSegNode);
-
-  if (temporaryVolume)
-    {
-    this->mrmlScene()->RemoveNode(temporaryVolume->GetAstroVolumeDisplayNode());
-    this->mrmlScene()->RemoveNode(temporaryVolume);
-    }
-
+  const int created = astroVolumeLogic->CreateContours(this->volumeNode(), contoursVolume, Levels,
+                                                       renzogram, overlay, nullptr, histo);
+  const QString message = QString::fromStdString(astroVolumeLogic->GetLastContoursMessage());
   QApplication::restoreOverrideCursor();
+  if (created == 0)
+    {
+    if (message != "cancelled")
+      {
+      qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, tr("Contours"),
+        tr("No contours were generated: %1.").arg(message));
+      }
+    return;
+    }
+  if (!message.isEmpty())
+    {
+    qSlicerAstroVolumeModuleWidget::informUser(this, QMessageBox::Warning, tr("Contours"), message + ".");
+    }
+  this->contoursSegNode = ContoursSegmentationNode(this->volumeNode(), false);
 
   // new contours: shown, outlines of the voxels in 2D (fast)
-  if (this->contoursSegNode && this->contoursSegNode->GetDisplayNode())
-    {
-    this->contoursSegNode->GetDisplayNode()->SetVisibility(true);
-    }
     {
     const QSignalBlocker showBlocker(d->ShowContoursButton);
     d->ShowContoursButton->setChecked(true);
@@ -1375,7 +1070,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::onCreateContours()
     d->SmoothContoursButton->setChecked(false);
     }
   this->updateContoursButtons();
-
 }
 
 // --------------------------------------------------------------------------
@@ -1523,52 +1217,10 @@ void qSlicerAstroScalarVolumeDisplayWidget::setReverse(bool toggled)
     {
     return;
     }
-
-  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
-  if (!colorNode)
-    {
-    return;
-    }
-
-  if (toggled)
-    {
-    colorNode->SetAttribute("SlicerAstro.Reverse", "on");
-    }
-  else
-    {
-    colorNode->SetAttribute("SlicerAstro.Reverse", "off");
-    }
-
-  this->ReverseColorFunction(colorNode);
+  vtkSlicerAstroVolumeLogic::SetColorFunctionOption(displayNode->GetColorNode(), "Reverse", toggled);
 }
 
 // --------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::ReverseColorFunction(vtkMRMLColorNode *colorNode)
-{
-  if (!colorNode)
-    {
-    return;
-    }
-
-  vtkLookupTable* lookupTable = colorNode->GetLookupTable();
-  if (!lookupTable)
-    {
-    return;
-    }
-
-  int wasModifying = colorNode->StartModify();
-  for (int ii = 0; ii < 128; ii++)
-    {
-    double RGBA1[4], RGBA2[4];
-    lookupTable->GetTableValue(ii, RGBA1);
-    lookupTable->GetTableValue(255 - ii, RGBA2);
-    lookupTable->SetTableValue(ii, RGBA2);
-    lookupTable->SetTableValue(255 - ii, RGBA1);
-    }
-
-  colorNode->SetNamesFromColors();
-  colorNode->EndModify(wasModifying);
-}
 
 // --------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode)
@@ -1673,53 +1325,26 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateWidgetFromDisplayMRML()
       d->ReversePushButton->blockSignals(true);
       d->InversePushButton->blockSignals(true);
       d->LogPushButton->blockSignals(true);
-      if (IsColorAttributeOn(colorNode, "SlicerAstro.Reverse"))
+      // the attributes are the state of the lookup table
+      // (vtkSlicerAstroVolumeLogic::SetColorFunctionOption)
+      d->ReversePushButton->setChecked(IsColorAttributeOn(colorNode, "SlicerAstro.Reverse"));
+      d->InversePushButton->setChecked(IsColorAttributeOn(colorNode, "SlicerAstro.Inverse"));
+      d->LogPushButton->setChecked(IsColorAttributeOn(colorNode, "SlicerAstro.Log"));
+      // the scale is not saved with the table: set from the state
+      if (colorNode->GetLookupTable())
         {
-        if (!d->ReversePushButton->isChecked())
+        const bool logScale = IsColorAttributeOn(colorNode, "SlicerAstro.Log");
+        if (logScale != (colorNode->GetLookupTable()->GetScale() == VTK_SCALE_LOG10))
           {
-          this->ReverseColorFunction(colorNode);
+          if (logScale)
+            {
+            colorNode->GetLookupTable()->SetScaleToLog10();
+            }
+          else
+            {
+            colorNode->GetLookupTable()->SetScaleToLinear();
+            }
           }
-        d->ReversePushButton->setChecked(true);
-        }
-      else
-        {
-        if (d->ReversePushButton->isChecked())
-          {
-          this->ReverseColorFunction(colorNode);
-          }
-        d->ReversePushButton->setChecked(false);
-        }
-      if (IsColorAttributeOn(colorNode, "SlicerAstro.Inverse"))
-        {
-        if (!d->InversePushButton->isChecked())
-          {
-          this->InvertColorFunction(colorNode);
-          }
-        d->InversePushButton->setChecked(true);
-        }
-      else
-        {
-        if (d->InversePushButton->isChecked())
-          {
-          this->InvertColorFunction(colorNode);
-          }
-        d->InversePushButton->setChecked(false);
-        }
-      if (IsColorAttributeOn(colorNode, "SlicerAstro.Log"))
-        {
-        if (colorNode->GetLookupTable())
-          {
-          colorNode->GetLookupTable()->SetScaleToLog10();
-          }
-        d->LogPushButton->setChecked(true);
-        }
-      else
-        {
-        if (colorNode->GetLookupTable())
-          {
-          colorNode->GetLookupTable()->SetScaleToLinear();
-          }
-        d->LogPushButton->setChecked(false);
         }
       d->ReversePushButton->blockSignals(false);
       d->InversePushButton->blockSignals(false);
@@ -1815,33 +1440,6 @@ void qSlicerAstroScalarVolumeDisplayWidget::updateTransferFunction()
 }
 
 // -----------------------------------------------------------------------------
-void qSlicerAstroScalarVolumeDisplayWidget::InvertColorFunction(vtkMRMLColorNode *colorNode)
-{
-  if (!colorNode)
-    {
-    return;
-    }
-
-  vtkLookupTable* lookupTable = colorNode->GetLookupTable();
-  if (!lookupTable)
-    {
-    return;
-    }
-
-  int wasModifying = colorNode->StartModify();
-  for (int ii = 0; ii < 256; ii++)
-    {
-    double RGBA[4];
-    lookupTable->GetTableValue(ii, RGBA);
-    RGBA[0] = 1. - RGBA[0];
-    RGBA[1] = 1. - RGBA[1];
-    RGBA[2] = 1. - RGBA[2];
-    lookupTable->SetTableValue(ii, RGBA);
-    }
-
-  colorNode->SetNamesFromColors();
-  colorNode->EndModify(wasModifying);
-}
 
 // -----------------------------------------------------------------------------
 void qSlicerAstroScalarVolumeDisplayWidget::showEvent( QShowEvent * event )
@@ -1872,23 +1470,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::setInverse(bool toggled)
     {
     return;
     }
-
-  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
-  if (!colorNode)
-    {
-    return;
-    }
-
-  if (toggled)
-    {
-    colorNode->SetAttribute("SlicerAstro.Inverse", "on");
-    }
-  else
-    {
-    colorNode->SetAttribute("SlicerAstro.Inverse", "off");
-    }
-
-  this->InvertColorFunction(colorNode);
+  vtkSlicerAstroVolumeLogic::SetColorFunctionOption(displayNode->GetColorNode(), "Inverse", toggled);
 }
 
 // --------------------------------------------------------------------------
@@ -1899,21 +1481,7 @@ void qSlicerAstroScalarVolumeDisplayWidget::setLog(bool toggled)
     {
     return;
     }
-
-  vtkMRMLColorNode *colorNode = displayNode->GetColorNode();
-  if (!colorNode)
-    {
-    return;
-    }
-
-  if (toggled)
-    {
-    colorNode->SetAttribute("SlicerAstro.Log", "on");
-    }
-  else
-    {
-    colorNode->SetAttribute("SlicerAstro.Log", "off");
-    }
+  vtkSlicerAstroVolumeLogic::SetColorFunctionOption(displayNode->GetColorNode(), "Log", toggled);
 }
 
 // --------------------------------------------------------------------------

@@ -251,10 +251,10 @@ QString qSlicerAstroDatasetSelector::defaultSubtitle(vtkMRMLNode* node) const
   volume->GetImageData()->GetDimensions(dims);
   QString text = dims[2] > 1 ? QString("%1 × %2 × %3").arg(dims[0]).arg(dims[1]).arg(dims[2]) :
                                QString("%1 × %2").arg(dims[0]).arg(dims[1]);
-  const char* unit = volume->GetAttribute("SlicerAstro.BUNIT");
-  if (unit && *unit)
+  const QString unit = qSlicerAstroTheme::displayUnit(QString::fromUtf8(volume->GetAttribute("SlicerAstro.BUNIT")));
+  if (!unit.isEmpty())
     {
-    text += QString(" · %1").arg(QString::fromUtf8(unit));
+    text += QString::fromUtf8(" · %1").arg(unit);
     }
   return text;
 }

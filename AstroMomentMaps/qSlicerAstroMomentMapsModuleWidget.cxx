@@ -692,58 +692,7 @@ vtkMRMLAstroVolumeNode* qSlicerAstroMomentMapsModuleWidgetPrivate::createMapVolu
     scene->RemoveNode(existing);
     }
 
-  const int N1 = StringToInt(input->GetAttribute("SlicerAstro.NAXIS1"));
-  const int N2 = StringToInt(input->GetAttribute("SlicerAstro.NAXIS2"));
-  vtkNew<vtkImageData> imageData;
-  imageData->SetDimensions(N1, N2, 1);
-  imageData->SetSpacing(1., 1., 1.);
-  imageData->AllocateScalars(input->GetImageData()->GetScalarType(), 1);
-
-  vtkMRMLAstroVolumeNode* map = vtkMRMLAstroVolumeNode::SafeDownCast(
-    this->logic()->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(scene, input, outSS.str().c_str()));
-  if (!map)
-    {
-    return nullptr;
-    }
-  map->SetAttribute("SlicerAstro.NAXIS", "2");
-  map->GetAstroVolumeDisplayNode()->SetAttribute("SlicerAstro.NAXIS", "2");
-  map->GetAstroVolumeDisplayNode()->CopyWCS(input->GetAstroVolumeDisplayNode());
-  map->SetAttribute("SlicerAstro.BUNIT", unit.c_str());
-  std::string btype = input->GetAstroVolumeDisplayNode()->AddVelocityInfoToDisplayStringZ(std::string());
-  map->SetAttribute("SlicerAstro.BTYPE", btype.c_str());
-  const char* spectralKeys[] = {"NAXIS3", "CDELT3", "CROTA3", "CRPIX3", "CRVAL3", "CTYPE3", "CUNIT3", "DTYPE3",
-                                "DRVAL3", "DUNIT3", "PC1_3", "PC2_3", "PC3_1", "PC3_2", "PC3_3"};
-  for (const char* key : spectralKeys)
-    {
-    map->RemoveAttribute((std::string("SlicerAstro.") + key).c_str());
-    }
-  map->SetAndObserveImageData(imageData);
-
-  if (colorTableName)
-    {
-    vtkMRMLColorTableNode* colorTable = vtkMRMLColorTableNode::SafeDownCast(scene->GetFirstNodeByName(colorTableName));
-    if (colorTable)
-      {
-      map->GetAstroVolumeDisplayNode()->SetAndObserveColorNodeID(colorTable->GetID());
-      }
-    else
-      {
-      qCritical() << Q_FUNC_INFO << ": the color table" << colorTableName << "was not found";
-      }
-    }
-  map->SetName(outSS.str().c_str());
-  vtkMRMLNode* noPreset = nullptr;
-  map->SetPresetNode(noPreset);
-  // maps have no volume rendering
-  for (int ii = map->GetNumberOfDisplayNodes() - 1; ii >= 0; ii--)
-    {
-    if (vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(map->GetNthDisplayNode(ii)))
-      {
-      map->RemoveNthDisplayNodeID(ii);
-      }
-    }
-  map->SetAttribute("SlicerAstro.DATAMODEL", datamodel);
-  return map;
+  return this->logic()->CreateMomentMapVolume(input, outSS.str().c_str(), unit.c_str(), colorTableName, datamodel);
 }
 
 //-----------------------------------------------------------------------------

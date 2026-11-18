@@ -7,7 +7,9 @@ set(MODULE_PYTHON_SCRIPTS
   ${MODULE_NAME}Lib/__init__.py
   ${MODULE_NAME}Lib/About.py
   ${MODULE_NAME}Lib/Astro.py
+  ${MODULE_NAME}Lib/Contours.py
   ${MODULE_NAME}Lib/Inspector.py
+  ${MODULE_NAME}Lib/Sections.py
   ${MODULE_NAME}Lib/Views.py
   ${MODULE_NAME}Lib/Workbench.py
   )

@@ -24,6 +24,7 @@
 #include <QPainter>
 #include <QPainterPath>
 #include <QStyle>
+#include <QSignalBlocker>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -121,10 +122,11 @@ protected:
       imageData->GetDimensions(dims);
       meta = dims[2] > 1 ? QString::fromUtf8("%1×%2×%3").arg(dims[0]).arg(dims[1]).arg(dims[2]) :
                            QString::fromUtf8("%1×%2").arg(dims[0]).arg(dims[1]);
-      const char* unit = this->Volume->GetAttribute("SlicerAstro.BUNIT");
-      if (unit && *unit)
+      const QString unit = qSlicerAstroTheme::displayUnit(
+        QString::fromUtf8(this->Volume->GetAttribute("SlicerAstro.BUNIT")));
+      if (!unit.isEmpty())
         {
-        meta += QString::fromUtf8(" · %1").arg(QString::fromUtf8(unit));
+        meta += QString::fromUtf8(" · %1").arg(unit);
         }
       }
     const int metaY = titleMetrics.height() + 2;
@@ -184,6 +186,7 @@ qSlicerAstroDatasetCard::qSlicerAstroDatasetCard(QWidget* parent)
   : QFrame(parent)
   , Header(new qSlicerAstroDatasetCardHeader(this))
   , ChipsRow(new QWidget(this))
+  , ActionChipsRow(new QWidget(this))
   , Products(new QWidget(this))
   , ProductsLayout(new QVBoxLayout(this->Products))
   , Kind("cube")
@@ -205,6 +208,12 @@ qSlicerAstroDatasetCard::qSlicerAstroDatasetCard(QWidget* parent)
   chipsLayout->addStretch(1);
   this->ChipsRow->hide();
   layout->addWidget(this->ChipsRow);
+  QHBoxLayout* actionChipsLayout = new QHBoxLayout(this->ActionChipsRow);
+  actionChipsLayout->setContentsMargins(0, 0, 0, 0);
+  actionChipsLayout->setSpacing(5);
+  actionChipsLayout->addStretch(1);
+  this->ActionChipsRow->hide();
+  layout->addWidget(this->ActionChipsRow);
   this->Products->setProperty("astroRole", "lineage");
   this->Products->setAttribute(Qt::WA_StyledBackground, true);
   this->ProductsLayout->setContentsMargins(8, 0, 0, 0);
@@ -302,6 +311,64 @@ void qSlicerAstroDatasetCard::setChips(const QStringList& chips)
     layout->insertWidget(layout->count() - 1, chip);
     }
   this->ChipsRow->setVisible(!chips.isEmpty());
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::clearActionChips()
+{
+  QHBoxLayout* layout = qobject_cast<QHBoxLayout*>(this->ActionChipsRow->layout());
+  while (layout->count() > 1)
+    {
+    QLayoutItem* item = layout->takeAt(0);
+    if (item->widget())
+      {
+      item->widget()->deleteLater();
+      }
+    delete item;
+    }
+  this->ActionChipsRow->hide();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::addActionChip(const QString& id, const QString& text, bool checked,
+                                           const QString& iconName, const QString& toolTip)
+{
+  QHBoxLayout* layout = qobject_cast<QHBoxLayout*>(this->ActionChipsRow->layout());
+  QToolButton* chip = new QToolButton(this->ActionChipsRow);
+  chip->setObjectName(QString("ActionChip_%1").arg(id));
+  chip->setProperty("astroRole", "actionChip");
+  chip->setProperty("chipID", id);
+  chip->setCheckable(true);
+  chip->setChecked(checked);
+  chip->setText(text);
+  chip->setToolTip(toolTip);
+  chip->setCursor(Qt::PointingHandCursor);
+  chip->setToolButtonStyle(iconName.isEmpty() ? Qt::ToolButtonTextOnly : Qt::ToolButtonTextBesideIcon);
+  if (!iconName.isEmpty())
+    {
+    chip->setIcon(qSlicerAstroTheme::instance()->icon(iconName, "muted"));
+    chip->setIconSize(QSize(13, 13));
+    }
+  QObject::connect(chip, &QToolButton::toggled, this, [this, id](bool on) { emit this->actionChipToggled(id, on); });
+  layout->insertWidget(layout->count() - 1, chip);
+  this->ActionChipsRow->show();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::setActionChipChecked(const QString& id, bool checked)
+{
+  QToolButton* chip = this->ActionChipsRow->findChild<QToolButton*>(QString("ActionChip_%1").arg(id));
+  if (chip)
+    {
+    const QSignalBlocker blocker(chip);
+    chip->setChecked(checked);
+    }
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroDatasetCard::actionChipCount() const
+{
+  return qobject_cast<QHBoxLayout*>(this->ActionChipsRow->layout())->count() - 1;
 }
 
 //-----------------------------------------------------------------------------

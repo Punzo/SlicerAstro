@@ -7,6 +7,7 @@ import qt
 import slicer
 
 from . import Astro
+from . import Sections
 
 
 def theme():
@@ -99,7 +100,17 @@ STEPS = [
                 datamodels=("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP")),
     ProductStep("Profiles", "module-profiles", "AstroProfiles"),
     ProductStep("PV", "module-pv-diagram", "AstroPVDiagram"),
+    PipelineStep("Reproject", "module-reproject", "AstroReproject"),
 ]
+
+STEP_TOOLTIPS = {
+    "Smooth": "Smooth the cube (box, Gaussian or intensity-driven gradient filter) to bring out faint emission.",
+    "Mask": "Mask the cube: blank or crop the voxels outside a segment or box.",
+    "Moments": "Moment maps: integrated intensity, velocity field and dispersion.",
+    "Profiles": "Integrated spectrum (global profile) with W50, W20, systemic velocity and flux.",
+    "PV": "Position-velocity diagram along a line on the sky.",
+    "Reproject": "Reproject on another grid, mosaic, regrid the spectral axis or match the beams.",
+}
 
 
 class StepButton(qt.QToolButton):
@@ -108,6 +119,7 @@ class StepButton(qt.QToolButton):
     def __init__(self, step, parent=None):
         qt.QToolButton.__init__(self, parent)
         self.step = step
+        self.toolTip = STEP_TOOLTIPS.get(step.name, step.name)
         self.setProperty("astroRole", "step")
         self.setObjectName(f"Step_{step.name}")
         self.checkable = True
@@ -215,110 +227,18 @@ class Inspector(qt.QFrame):
             self.factLabels[name] = value
         layout.addLayout(self.facts)
 
-        # display: colour map, histogram with the window (in units of the
-        # noise; drag to change it)
-        layout.addWidget(overline("Display"))
-        colourRow = qt.QHBoxLayout()
-        colourLabel = qt.QLabel("Colour map")
-        colourLabel.setProperty("astroRole", "label")
-        colourLabel.setFixedWidth(80)
-        colourRow.addWidget(colourLabel)
-        self.colourStrip = qt.QLabel()
-        self.colourStrip.setObjectName("DisplayColourStrip")
-        self.colourStrip.setFixedHeight(16)
-        self.colourStrip.setMinimumWidth(40)
-        self.colourStrip.setScaledContents(True)
-        self.colourStrip.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
-        colourRow.addWidget(self.colourStrip, 1)
-        layout.addLayout(colourRow)
-        self.colourName = qt.QLabel()
-        self.colourName.setProperty("astroRole", "monoLabel")
-        layout.addWidget(self.colourName)
-        self.histogram = slicer.qSlicerAstroSpectrumRangeWidget()
-        self.histogram.setObjectName("DisplayHistogram")
-        self.histogram.setMinimumWidth(40)
-        self.histogram.setToolTip("Histogram of the data (log counts) in units of the noise σ; the amber range "
-                                  "is the window of the 2D display: drag it to change it.")
-        self.histogram.connect("rangeChanged(double,double)", self.onWindowChanged)
-        layout.addWidget(self.histogram)
-        self.windowLabel = qt.QLabel()
-        self.windowLabel.setObjectName("DisplayWindowLabel")
-        self.windowLabel.setProperty("astroRole", "monoLabel")
-        layout.addWidget(self.windowLabel)
-        self.displayObserver = None
-        self.observedDisplay = None
+        self.displaySection = Sections.DisplaySection()
+        layout.addWidget(self.displaySection.section)
+        self.contoursSection = Sections.ContoursSection()
+        self.masksSection = Sections.MasksSection()
+        self.threeDSection = Sections.ThreeDSection()
+        self.headerSection = Sections.HeaderSection()
+        for section in (self.contoursSection, self.masksSection, self.threeDSection, self.headerSection):
+            layout.addWidget(section.section)
         layout.addStretch(1)
         return scroll
 
     # ------------------------------------------------------------------
-    def updateDisplay(self, caller=None, event=None):
-        """Colour map and window of the 2D display of the active data."""
-        volume = self.volume
-        displayNode = volume.GetDisplayNode() if volume is not None else None
-        noise = Astro.noise(volume) if volume is not None else 0.0
-        if displayNode is None or noise <= 0:
-            self.colourStrip.clear()
-            self.colourName.text = ""
-            self.windowLabel.text = ""
-            self.histogram.clearSpectrum()
-            return
-        colorNode = displayNode.GetColorNode()
-        if colorNode is not None and colorNode.GetLookupTable() is not None:
-            table = colorNode.GetLookupTable()
-            low, high = table.GetRange()
-            width = 256
-            image = qt.QImage(width, 16, qt.QImage.Format_RGB32)
-            rgb = [0.0, 0.0, 0.0]
-            for x in range(width):
-                table.GetColor(low + (high - low) * x / (width - 1), rgb)
-                colour = qt.QColor.fromRgbF(rgb[0], rgb[1], rgb[2]).rgb()
-                for y in range(16):
-                    image.setPixel(x, y, colour)
-            self.colourStrip.setPixmap(qt.QPixmap.fromImage(image))
-            self.colourName.text = colorNode.GetName()
-        window, level = displayNode.GetWindow(), displayNode.GetLevel()
-        low, high = (level - window / 2) / noise, (level + window / 2) / noise
-        self.histogram.setRange(low, high)
-        self.windowLabel.text = f"min {low:.1f}σ  ·  max {high:.1f}σ  ·  σ = {Astro.formatFlux(noise, Astro.attribute(volume, 'BUNIT', ''))}"
-
-    def updateHistogram(self):
-        """Histogram of the voxels (sampled) in units of the noise."""
-        volume = self.volume
-        noise = Astro.noise(volume) if volume is not None else 0.0
-        if volume is None or volume.GetImageData() is None or noise <= 0:
-            self.histogram.clearSpectrum()
-            return
-        import numpy as np
-        from vtk.util.numpy_support import vtk_to_numpy
-        values = vtk_to_numpy(volume.GetImageData().GetPointData().GetScalars())
-        step = max(1, values.size // 2000000)
-        sample = values[::step].astype(np.float64) / noise
-        sample = sample[np.isfinite(sample)]
-        if sample.size == 0:
-            self.histogram.clearSpectrum()
-            return
-        top = max(10.0, float(np.percentile(sample, 99.95)))
-        bottom = min(-5.0, float(np.percentile(sample, 0.05)))
-        counts, edges = np.histogram(sample, bins=160, range=(bottom, top))
-        centres = (edges[:-1] + edges[1:]) / 2
-        self.histogram.setSpectrum(list(centres), list(np.log10(counts + 1.0)))
-
-    def onWindowChanged(self, low, high):
-        volume = self.volume
-        displayNode = volume.GetDisplayNode() if volume is not None else None
-        noise = Astro.noise(volume) if volume is not None else 0.0
-        if displayNode is None or noise <= 0:
-            return
-        displayNode.SetAutoWindowLevel(0)
-        displayNode.SetWindowLevel((high - low) * noise, (high + low) / 2 * noise)
-
-    def observeDisplay(self, volume):
-        if self.observedDisplay is not None and self.displayObserver is not None:
-            self.observedDisplay.RemoveObserver(self.displayObserver)
-        self.observedDisplay = volume.GetDisplayNode() if volume is not None else None
-        self.displayObserver = self.observedDisplay.AddObserver("ModifiedEvent", self.updateDisplay) \
-            if self.observedDisplay is not None else None
-
     def buildProcess(self):
         scroll, layout = self.scrollPage()
         header = qt.QHBoxLayout()
@@ -427,17 +347,15 @@ class Inspector(qt.QFrame):
     def setVolume(self, volume):
         changed = volume is not self.volume
         self.volume = volume
-        if changed:
-            self.observeDisplay(volume)
-            self.updateHistogram()
-        self.updateDisplay()
+        for section in (self.displaySection, self.contoursSection, self.masksSection, self.threeDSection, self.headerSection):
+            section.setVolume(volume)
         facts = {name: "" for name in self.factLabels}
         if volume is not None:
             dims = volume.GetImageData().GetDimensions() if volume.GetImageData() else (0, 0, 0)
             facts["Object"] = Astro.attribute(volume, "OBJECT", "").strip() or volume.GetName()
             facts["Telescope"] = Astro.attribute(volume, "TELESCOP", "").strip()
             facts["Dimensions"] = "×".join(str(d) for d in (dims if dims[2] > 1 else dims[:2]))
-            facts["Unit"] = Astro.attribute(volume, "BUNIT", "").replace("JY/BEAM", "Jy/beam")
+            facts["Unit"] = Astro.displayUnit(Astro.attribute(volume, "BUNIT", ""))
             chips = Astro.chips(volume)
             facts["Beam"] = next((chip[:-5] for chip in chips if chip.endswith(" beam")), "")
             velocities = Astro.channelVelocities(volume)
@@ -492,7 +410,8 @@ class Inspector(qt.QFrame):
         self.measureEmpty.visible = count == 0
 
     def cleanup(self):
-        self.observeDisplay(None)
+        self.displaySection.cleanup()
+        self.masksSection.cleanup()
         self.enterPanel(None)
         # the step panels are kept by their modules: they are taken out of
         # the inspector before it is deleted

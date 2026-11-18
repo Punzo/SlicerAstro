@@ -39,34 +39,6 @@ QPointF EventPosition(QMouseEvent* event)
 #endif
 }
 
-//----------------------------------------------------------------------------
-/// About `count` round tick values (1, 2 or 5 times a power of ten) in
-/// [minimum, maximum]
-QVector<double> NiceTicks(double minimum, double maximum, int count)
-{
-  QVector<double> ticks;
-  const double span = maximum - minimum;
-  if (!(span > 0.) || !std::isfinite(span) || count < 1)
-    {
-    return ticks;
-    }
-  const double rough = span / count;
-  const double magnitude = std::pow(10., std::floor(std::log10(rough)));
-  const double fraction = rough / magnitude;
-  const double step = (fraction < 1.5 ? 1. : fraction < 3. ? 2. : fraction < 7. ? 5. : 10.) * magnitude;
-  for (double tick = std::ceil(minimum / step) * step; tick <= maximum + 1e-9 * step; tick += step)
-    {
-    // no "-0"
-    ticks.append(std::abs(tick) < 1e-9 * step ? 0. : tick);
-    }
-  return ticks;
-}
-
-//----------------------------------------------------------------------------
-QString TickLabel(double value)
-{
-  return QString::number(value, 'g', 4).replace('-', QChar(0x2212));
-}
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -195,9 +167,9 @@ QRectF qSlicerAstroSpectrumPlot::plotRect() const
   // room for the labels of the y axis (left) and of the x axis (bottom)
   const QFontMetricsF metrics(qSlicerAstroTheme::instance()->font("monoSmall"));
   double labelWidth = metrics.horizontalAdvance(QStringLiteral("0"));
-  for (double tick : NiceTicks(this->YMin, this->YMax, 4))
+  for (double tick : qSlicerAstroTheme::niceTicks(this->YMin, this->YMax, 4))
     {
-    labelWidth = std::max(labelWidth, metrics.horizontalAdvance(TickLabel(tick)));
+    labelWidth = std::max(labelWidth, metrics.horizontalAdvance(qSlicerAstroTheme::tickLabel(tick)));
     }
   return QRectF(this->rect()).adjusted(labelWidth + 14., 10., -10., -(metrics.height() + 10.));
 }
@@ -284,22 +256,22 @@ void qSlicerAstroSpectrumPlot::paintEvent(QPaintEvent* event)
 
   // grid and tick labels
   painter.setPen(QPen(theme->color("view-line"), 1.));
-  for (double tick : NiceTicks(this->YMin, this->YMax, 4))
+  for (double tick : qSlicerAstroTheme::niceTicks(this->YMin, this->YMax, 4))
     {
     const double y = this->yToPixel(tick);
     painter.setPen(QPen(theme->color("view-line"), 1.));
     painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y));
     painter.setPen(theme->color("view-subtle"));
     painter.drawText(QRectF(0., y - metrics.height() / 2., plot.left() - 6., metrics.height()),
-                     Qt::AlignRight | Qt::AlignVCenter, TickLabel(tick));
+                     Qt::AlignRight | Qt::AlignVCenter, qSlicerAstroTheme::tickLabel(tick));
     }
   double lastLabelRight = -1e9;
-  for (double tick : NiceTicks(this->XMin, this->XMax, 4))
+  for (double tick : qSlicerAstroTheme::niceTicks(this->XMin, this->XMax, 4))
     {
     const double x = this->xToPixel(tick);
     painter.setPen(QPen(theme->color("view-line"), 1.));
     painter.drawLine(QPointF(x, plot.bottom()), QPointF(x, plot.bottom() + 3.));
-    const QString label = TickLabel(tick);
+    const QString label = qSlicerAstroTheme::tickLabel(tick);
     const double width = metrics.horizontalAdvance(label);
     const double left = std::max(0., std::min(x - width / 2., this->width() - width - 2.));
     if (left > lastLabelRight + 6.)
@@ -354,7 +326,7 @@ void qSlicerAstroSpectrumPlot::paintEvent(QPaintEvent* event)
       painter.drawEllipse(QPointF(x, this->yToPixel(value)), 3., 3.);
       }
     QString text = QString("%1 %2  %3 %4")
-      .arg(TickLabel(this->X[this->HoverIndex])).arg(this->XUnit)
+      .arg(qSlicerAstroTheme::tickLabel(this->X[this->HoverIndex])).arg(this->XUnit)
       .arg(std::isfinite(value) ? QString::number(value, 'g', 4).replace('-', QChar(0x2212)) : tr("blank"))
       .arg(this->YUnit).trimmed();
     const double width = metrics.horizontalAdvance(text) + 12.;

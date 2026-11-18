@@ -22,6 +22,7 @@
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
+class vtkMRMLAstroVolumeNode;
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
@@ -56,6 +57,16 @@ public:
   /// \param MRML parameter node
   /// \return Success flag
   bool CalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode);
+
+  /// Output volume of a moment map of a data cube (2D, the celestial WCS of
+  /// the cube, no volume rendering), to be filled by CalculateMomentMaps.
+  /// \param input data cube
+  /// \param name name of the map
+  /// \param unit BUNIT of the map (e.g. "JY/BEAM km/s", "km/s")
+  /// \param colorTableName color table of the map (none: the default one)
+  /// \param datamodel ZEROMOMENTMAP, FIRSTMOMENTMAP or SECONDMOMENTMAP
+  vtkMRMLAstroVolumeNode* CreateMomentMapVolume(vtkMRMLAstroVolumeNode* input, const char* name, const char* unit,
+                                                const char* colorTableName, const char* datamodel);
 
 protected:
   vtkSlicerAstroMomentMapsLogic();

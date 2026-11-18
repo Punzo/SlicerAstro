@@ -146,6 +146,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_ViewsInteraction()
         self.setUp()
         self.test_About()
+        self.setUp()
+        self.test_HIContours()
         self.tearDown()
 
     def cube(self):
@@ -237,19 +239,44 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.process()
         self.assertEqual(scrubber.currentIndex, 5)
 
-        # Inspect > Display: histogram in units of the noise, the window of
-        # the 2D display set from it
+        # Inspect > Display: histogram of the data (counts per bin), window of
+        # the 2D colours (fields, percentages), noise σ of the 3D colours,
+        # colour table options
         inspector = workbench().inspector
+        display = inspector.displaySection
         histogram = slicer.util.findChild(inspector, "DisplayHistogram")
-        self.assertEqual(len(histogram.spectrumX()), 160)
+        counts = np.array(histogram.binCounts())
+        self.assertEqual(len(counts), 180)
+        values = cube[np.isfinite(cube)]
+        self.assertEqual(int(counts.sum()), values.size)
         noise = volume.GetDisplayThreshold()
-        inspector.onWindowChanged(-1.0, 12.0)
+        display.setWindow(-1.0 * noise, 12.0 * noise)
         self.process()
         displayNode = volume.GetDisplayNode()
         self.assertAlmostEqual(displayNode.GetWindow() / noise, 13.0, places=3)
         self.assertAlmostEqual(displayNode.GetLevel() / noise, 5.5, places=3)
-        self.assertIn("max 12.0σ", slicer.util.findChild(inspector, "DisplayWindowLabel").text)
-        self.assertFalse(slicer.util.findChild(inspector, "DisplayColourStrip").pixmap.isNull())
+        self.assertIn("12.0σ", slicer.util.findChild(inspector, "DisplayWindowLabel").text)
+        self.assertAlmostEqual(histogram.windowMaximum / noise, 12.0, places=3)
+        # 99%: 99% of the negative and of the positive values in the window
+        slicer.util.findChild(inspector, "DisplayPercentages").setCurrentIndex(2)
+        self.process()
+        low, high = displayNode.GetLevel() - displayNode.GetWindow() / 2, displayNode.GetLevel() + displayNode.GetWindow() / 2
+        positive, negative = values[values > 0], values[values < 0]
+        self.assertAlmostEqual(np.mean(positive <= high), 0.99, delta=0.002)
+        self.assertAlmostEqual(np.mean(negative >= low), 0.99, delta=0.002)
+        # noise σ of the 3D colour functions
+        display.setNoise(1.5 * noise)
+        self.process()
+        self.assertAlmostEqual(volume.GetDisplayThreshold(), 1.5 * noise, places=9)
+        self.assertAlmostEqual(histogram.noise, 1.5 * noise, places=9)
+        display.setNoise(noise)
+        # colour table options
+        slicer.util.findChild(inspector, "DisplayReverse").click()
+        self.process()
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.GetColorFunctionOption(displayNode.GetColorNode(), "Reverse"))
+        slicer.util.findChild(inspector, "DisplayReverse").click()
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetColorFunctionOption(displayNode.GetColorNode(), "Reverse"))
+        self.assertGreater(slicer.util.findChild(inspector, "DisplayColourTable").count, 1)
 
         # Process: moment maps from the pipeline panel, listed as products
         momentsPanel = slicer.util.findChild(inspector, "PipelinePanel_AstroMomentMaps")
@@ -402,3 +429,74 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         workbench().exit()
         self.process()
         self.assertIsNone(mainWindow.findChild("QShortcut", "WorkbenchShortcut_F1"))
+
+    def test_HIContours(self):
+        """HI contours: drawn automatically over an optical image that
+        overlaps an HI cube (moment 0, levels in column density doubling up
+        to the peak, toggled by the chip of the image card); contours in
+        units of the noise from the Contours section."""
+        import numpy as np
+        import AstroSampleData
+        from AstroWorkbenchLib import Contours
+
+        workbench().enter()
+        self.process()
+        logic = AstroSampleData.AstroSampleDataLogic()
+        cube = logic.downloadSample("NGC2403")
+        image = logic.downloadSample("NGC2403_DSS")
+        workbench().refresh()
+        workbench().runAutomaticContours()
+        self.process(30)
+
+        # column density of the moment 0 (Jy/beam km/s, beam 29.6644" x
+        # 29.3027"): astropy brightness temperature x 1.8224e18 cm^-2
+        moment = next(node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
+                      if node.GetAttribute("SlicerAstro.DATAMODEL") == "ZEROMOMENTMAP")
+        self.assertAlmostEqual(Contours.columnDensityFactor(moment) / 1.269960e21, 1.0, delta=1e-5)
+
+        contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(image, False)
+        self.assertIsNotNone(contours)
+        sources = Contours.contourSources(image, contours)
+        self.assertEqual(list(sources.keys()), [moment.GetID()])
+        levels = Contours.columnDensityLevels(moment, cube)
+        self.assertEqual(len(sources[moment.GetID()]), len(levels))
+        self.assertEqual(len(levels), 8)
+        np.testing.assert_allclose(np.array(levels[1:]) / np.array(levels[:-1]), 2.0)
+        self.assertLess(levels[-1], Contours.columnDensityFactor(moment) * float(moment.GetAttribute("SlicerAstro.DATAMAX")))
+        # the contours are on the galaxy: the lowest level covers the centre
+        # of the image
+        segment = contours.GetSegmentation().GetSegment(sources[moment.GetID()][0])
+        labelmap = segment.GetRepresentation("Binary labelmap")
+        dims = labelmap.GetDimensions()
+        self.assertEqual(labelmap.GetScalarComponentAsDouble(dims[0] // 2, dims[1] // 2, 0, 0), 1.0)
+
+        # the chip of the image card toggles them
+        card = slicer.util.findChild(workbench().drawer, f"DatasetCard_{image.GetID()}")
+        self.assertEqual(card.actionChipCount(), 1)
+        chip = slicer.util.findChild(card, f"ActionChip_{moment.GetID()}")
+        self.assertIn("HI contours · NGC2403", chip.text)
+        self.assertTrue(chip.checked)
+        chip.click()
+        self.process()
+        self.assertFalse(Contours.sourceVisible(contours, sources[moment.GetID()]))
+        workbench().refresh()
+        self.process()
+        card = slicer.util.findChild(workbench().drawer, f"DatasetCard_{image.GetID()}")
+        self.assertFalse(slicer.util.findChild(card, f"ActionChip_{moment.GetID()}").checked)
+
+        # no second run for the same pair
+        self.assertEqual(workbench().automaticContours.candidates(), [])
+
+        # Contours section: 3, 6 sigma of the cube over itself
+        workbench().activate(cube)
+        self.process()
+        section = workbench().inspector.contoursSection
+        section.source.setCurrentIndex(0)
+        section.levels.text = "3, 6"
+        section.unit.setCurrentIndex(0)
+        section.draw()
+        self.process()
+        own = Contours.contourSources(cube, slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False))
+        self.assertEqual(len(own.get(cube.GetID(), [])), 2)
+        self.assertIn("2 levels drawn", section.status.text)
+        self.delayDisplay("Test passed")

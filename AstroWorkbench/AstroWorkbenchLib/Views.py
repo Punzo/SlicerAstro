@@ -196,7 +196,7 @@ class SliceViewBar(ViewBar):
             self.detail.text = f"{orientation} · {volume.GetName()}"
         else:
             self.tag.text = volume.GetName()
-            self.detail.text = Astro.attribute(volume, "BUNIT", "").replace("JY/BEAM", "Jy/beam")
+            self.detail.text = Astro.displayUnit(Astro.attribute(volume, "BUNIT", ""))
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         maximized = layoutNode.GetViewArrangement() == ONE_UP.get(self.viewName)
         self.maximizeButton.setIcon(viewIcon("layout4" if maximized else "layout1"))

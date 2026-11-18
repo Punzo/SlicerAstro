@@ -30,6 +30,8 @@
 #include <QPixmap>
 #include <QPointer>
 #include <QRegularExpression>
+
+#include <cmath>
 #include <QSettings>
 #include <QStyle>
 #include <QStyleHints>
@@ -568,9 +570,39 @@ void qSlicerAstroTheme::setMode(const QString& mode)
 }
 
 //-----------------------------------------------------------------------------
+QVector<double> qSlicerAstroTheme::niceTicks(double minimum, double maximum, int count)
+{
+  QVector<double> ticks;
+  const double span = maximum - minimum;
+  if (!(span > 0.) || !std::isfinite(span) || count < 1)
+    {
+    return ticks;
+    }
+  const double rough = span / count;
+  const double magnitude = std::pow(10., std::floor(std::log10(rough)));
+  const double fraction = rough / magnitude;
+  const double step = (fraction < 1.5 ? 1. : fraction < 3. ? 2. : fraction < 7. ? 5. : 10.) * magnitude;
+  for (double tick = std::ceil(minimum / step) * step; tick <= maximum + 1e-9 * step; tick += step)
+    {
+    ticks.append(std::abs(tick) < 1e-9 * step ? 0. : tick);
+    }
+  return ticks;
+}
+
+//-----------------------------------------------------------------------------
+QString qSlicerAstroTheme::tickLabel(double value)
+{
+  return QString::number(value, 'g', 4).replace('-', QChar(0x2212));
+}
+
+//-----------------------------------------------------------------------------
 QString qSlicerAstroTheme::displayUnit(const QString& unit)
 {
-  QString text = unit;
+  QString text = unit.trimmed();
+  if (text.compare("UNDEFINED", Qt::CaseInsensitive) == 0)
+    {
+    return QString();
+    }
   text.replace(QRegularExpression("\\bJY\\b", QRegularExpression::CaseInsensitiveOption), "Jy");
   text.replace(QRegularExpression("\\bBEAM\\b", QRegularExpression::CaseInsensitiveOption), "beam");
   text.replace(QRegularExpression("\\bKM/S\\b", QRegularExpression::CaseInsensitiveOption), "km/s");

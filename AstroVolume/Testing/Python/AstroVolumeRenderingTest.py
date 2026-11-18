@@ -73,6 +73,10 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_PresetNamesAndFunctions()
         self.setUp()
+        self.test_PresetKeptWhenPresetsAreListed()
+        self.setUp()
+        self.test_ColorFunctionOptions()
+        self.setUp()
         self.test_SceneRestoresColorFunctions()
 
     def test_EnsureMinimumTransferFunctionGap(self):
@@ -236,6 +240,71 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.DefaultPreset)
         self.assertEqual(slicer.vtkMRMLAstroVolumeNode.DefaultPreset,
                          slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
+        self.delayDisplay("Test passed")
+
+    def test_PresetKeptWhenPresetsAreListed(self):
+        """Listing the presets (e.g. the 3D section of the Workbench) loads
+        them once: the preset selector of the AstroVolume panel does not
+        reapply the first preset to the active cube."""
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
+        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
+        slicer.app.processEvents()
+        identifier = slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(volumeNode.GetPresetNode())
+        logic = slicer.modules.astrovolume.logic()
+        first = [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLVolumePropertyNode",
+                                                                      logic.GetPresetsScene())]
+        second = [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLVolumePropertyNode",
+                                                                       logic.GetPresetsScene())]
+        slicer.app.processEvents()
+        self.assertEqual(first, second)
+        self.assertEqual(len(first), 13)
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(volumeNode.GetPresetNode()), identifier)
+        self.delayDisplay("Test passed")
+
+    def test_ColorFunctionOptions(self):
+        """Reverse, inverse and logarithmic 2D colour functions: the attribute
+        is the state of the lookup table (setting the same state twice does
+        not change the table again)."""
+        import numpy as np
+
+        logic = slicer.vtkSlicerAstroVolumeLogic
+        colorNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLColorTableNode", "OptionsTest")
+        colorNode.SetTypeToUser()
+        colorNode.SetNumberOfColors(256)
+        for index in range(256):
+            colorNode.SetColor(index, index / 255.0, 0.5 * index / 255.0, 1.0 - index / 255.0, 1.0)
+        colorNode.SetAttribute("SlicerAstro.AddFunctions", "on")
+
+        def table():
+            rgba = [0.0] * 4
+            values = []
+            for index in range(256):
+                colorNode.GetLookupTable().GetTableValue(index, rgba)
+                values.append(list(rgba))
+            return np.array(values)
+
+        original = table()
+        self.assertTrue(logic.HasColorFunctionOptions(colorNode))
+        self.assertFalse(logic.GetColorFunctionOption(colorNode, "Reverse"))
+        for _ in range(2):
+            self.assertTrue(logic.SetColorFunctionOption(colorNode, "Reverse", True))
+            np.testing.assert_allclose(table(), original[::-1])
+        self.assertTrue(logic.GetColorFunctionOption(colorNode, "Reverse"))
+        self.assertTrue(logic.SetColorFunctionOption(colorNode, "Inverse", True))
+        expected = original[::-1].copy()
+        expected[:, :3] = 1.0 - expected[:, :3]
+        np.testing.assert_allclose(table(), expected)
+        logic.SetColorFunctionOption(colorNode, "Reverse", False)
+        logic.SetColorFunctionOption(colorNode, "Inverse", False)
+        np.testing.assert_allclose(table(), original, atol=1e-12)
+        self.assertTrue(logic.SetColorFunctionOption(colorNode, "Log", True))
+        self.assertEqual(colorNode.GetLookupTable().GetScale(), 1)  # VTK_SCALE_LOG10
+        logic.SetColorFunctionOption(colorNode, "Log", False)
+        self.assertEqual(colorNode.GetLookupTable().GetScale(), 0)
+        self.assertFalse(logic.SetColorFunctionOption(colorNode, "Unknown", True))
         self.delayDisplay("Test passed")
 
     def test_PresetNamesAndFunctions(self):

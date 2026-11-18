@@ -58,11 +58,20 @@ def noise(volume):
     return value if value and math.isfinite(value) and value > 0 else 0.0
 
 
+def displayUnit(unit):
+    """A unit of the header as it is written in text (no "UNDEFINED")."""
+    unit = (unit or "").strip()
+    if unit.upper() == "UNDEFINED":
+        return ""
+    return slicer.app.property("SlicerAstroTheme").displayUnit(unit) if slicer.app.property("SlicerAstroTheme") \
+        else unit.replace("JY/BEAM", "Jy/beam")
+
+
 def formatFlux(value, unit):
-    unit = unit.replace("JY/BEAM", "Jy/beam")
+    unit = displayUnit(unit)
     if unit.startswith("Jy") and value and abs(value) < 0.1:
         return f"{value * 1000:.3g} m{unit}"
-    return f"{value:.3g} {unit}"
+    return f"{value:.3g} {unit}".strip()
 
 
 def formatAngle(degrees):
@@ -119,8 +128,10 @@ def chips(volume):
     velocities = channelVelocities(volume)
     if len(velocities) > 1:
         result.append(f"{abs(velocities[1] - velocities[0]):.2g} {spectralUnit(volume)}")
-    restFrequency = floatAttribute(volume, "RESTFREQ")
-    if not math.isfinite(restFrequency) or restFrequency <= 0:
+    # the line of data with a spectral axis (images get a default rest
+    # frequency at loading)
+    restFrequency = floatAttribute(volume, "RESTFREQ") if dimensions(volume) >= 3 else float("nan")
+    if dimensions(volume) >= 3 and (not math.isfinite(restFrequency) or restFrequency <= 0):
         restFrequency = floatAttribute(volume, "RESTFRQ")
     if math.isfinite(restFrequency) and restFrequency > 0:
         for frequency, name in LINES:
@@ -135,16 +146,29 @@ def astroVolumes(scene):
             if not node.GetHideFromEditors()] if scene else []
 
 
+# outputs of the SlicerAstro modules: "<data>_<token>..." (e.g.
+# NGC2403_mom0th_1, NGC2403_Filtered_2) or a data model of a product
+PRODUCT_TOKENS = ("mom0th", "mom1st", "mom2nd", "Profile", "PVDiagram", "PVSlice", "Filtered", "Crop", "Blank",
+                  "model", "maskedByModel", "Reprojected", "Mosaic", "Weight", "Sensitivity", "Sault", "selection",
+                  "Histogram")
+PRODUCT_DATAMODELS = ("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP", "PROFILE", "PVDIAGRAM", "MODEL")
+
+
 def parentOf(volume, volumes):
     """The dataset a product derives from: the longest name that is a
-    prefix of the product name followed by "_" (e.g. NGC2403_mom0th_1)."""
+    prefix of the product name followed by "_" and the name of a product
+    (e.g. NGC2403_mom0th_1, not NGC2403_DSS)."""
     best = None
     name = volume.GetName() or ""
+    isProduct = attribute(volume, "DATAMODEL", "") in PRODUCT_DATAMODELS
     for other in volumes:
         otherName = other.GetName() or ""
-        if other is volume or not otherName:
+        if other is volume or not otherName or not name.startswith(otherName + "_"):
             continue
-        if name.startswith(otherName + "_") and (best is None or len(otherName) > len(best.GetName())):
+        rest = name[len(otherName) + 1:]
+        if not isProduct and not any(rest.startswith(token) for token in PRODUCT_TOKENS):
+            continue
+        if best is None or len(otherName) > len(best.GetName()):
             best = other
     return best
 
@@ -163,7 +187,7 @@ def productsOf(volume, scene):
             datamodel = attribute(other, "DATAMODEL", "")
             icon = {"ZEROMOMENTMAP": "contour", "FIRSTMOMENTMAP": "spectrum",
                     "SECONDMOMENTMAP": "histogram"}.get(datamodel, "layers" if dimensions(other) >= 3 else "colormap")
-            products.append((other.GetID(), other.GetName(), attribute(other, "BUNIT", ""), icon, other))
+            products.append((other.GetID(), other.GetName(), displayUnit(attribute(other, "BUNIT", "")), icon, other))
     logic = slicer.vtkSlicerAstroVolumeLogic
     for segmentation in slicer.util.getNodesByClass("vtkMRMLSegmentationNode"):
         if not logic.IsMaskSegmentation(segmentation):

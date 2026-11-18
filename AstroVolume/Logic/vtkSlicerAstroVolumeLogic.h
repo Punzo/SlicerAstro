@@ -41,6 +41,7 @@
 #include "vtkSlicerAstroVolumeModuleLogicExport.h"
 
 class vtkMRMLCameraNode;
+class vtkMRMLColorNode;
 class vtkMRMLColorTableNode;
 class vtkMRMLMarkupsNode;
 class vtkMRMLMarkupsROINode;
@@ -56,6 +57,7 @@ class vtkVolumeProperty;
 class vtkImageData;
 class vtkStringArray;
 struct wcsprm;
+class vtkDoubleArray;
 class vtkIntArray;
 
 /// \class vtkSlicerAstroVolumeLogic
@@ -359,6 +361,45 @@ public:
   static const char* GetContoursAttributeName() { return "AstroContours"; }
   static bool IsContoursSegmentation(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Contour levels of data drawn over a volume (its contours segmentation,
+  /// see GetContoursSegmentationForVolume): one segment per level, with its
+  /// own binary labelmap, tagged with the ID of the source data.
+  /// \param target volume the contours are drawn over
+  /// \param source data of the contours: the target itself, or other data,
+  ///   reprojected on the celestial grid of the target (bilinear) unless the
+  ///   grids are the same
+  /// \param levels levels in the units of the source; a positive level
+  ///   selects the voxels above it, a negative one the voxels below it;
+  ///   with bands, pairs (lower, upper) of bands
+  /// \param overlay keep the contours of other data (otherwise all the
+  ///   previous contours of the target are replaced)
+  /// \param colors optional RGB (0-1, 3 components) of each level (of each
+  ///   band); by default the contours colour of the source display node
+  /// \param visible3D contours also shown in 3D
+  /// \return number of contour segments created; GetLastContoursMessage
+  ///   explains a failure (0) or the levels left out (outside the data)
+  int CreateContours(vtkMRMLAstroVolumeNode* target, vtkMRMLAstroVolumeNode* source, vtkDoubleArray* levels,
+                     bool bands, bool overlay, vtkDoubleArray* colors = nullptr, bool visible3D = false);
+  std::string GetLastContoursMessage() { return this->LastContoursMessage; }
+
+  /// HI column density per unit of a map of integrated intensity (cm^-2 per
+  /// Jy/beam km/s, or per K km/s): N_HI = 1.8224e18 cm^-2 int(T_B dv) with
+  /// T_B from the beam (Rayleigh-Jeans, at the HI rest frequency). 0 if the
+  /// map is not an integrated intensity (unit Jy/beam or K times km/s or
+  /// m/s) or a Jy/beam map has no beam.
+  static double GetHIColumnDensityFactor(vtkMRMLVolumeNode* mapNode);
+
+  /// Options of the SlicerAstro 2D colour functions (colour tables with the
+  /// attribute SlicerAstro.AddFunctions "on"): "Reverse" (the colours in
+  /// reverse order), "Inverse" (complementary colours), "Log" (logarithmic
+  /// scale). The attribute SlicerAstro.<option> ("on"/"off") is the state of
+  /// the lookup table: the table is changed only when the state changes.
+  /// \return false for an unknown option or a colour node without lookup table
+  static bool SetColorFunctionOption(vtkMRMLColorNode* colorNode, const char* option, bool on);
+  static bool GetColorFunctionOption(vtkMRMLColorNode* colorNode, const char* option);
+  /// The colour node has the SlicerAstro options (reverse, inverse, log)
+  static bool HasColorFunctionOptions(vtkMRMLColorNode* colorNode);
+
   /// Before adding contour levels as binary labelmaps: binary labelmap as
   /// source representation (the segmentation is marked as contours).
   static void PrepareContoursUpdate(vtkMRMLSegmentationNode* segmentationNode);
@@ -513,6 +554,8 @@ protected:
   ReprojectFunctionType ReprojectFunction;
 #endif
   std::string LastReprojectError;
+  std::string LastContoursMessage;
+  bool PresetsLoaded{false};
 
   /// Measurements of the markups computed again when the active volume
   /// changes (its WCS is used)

@@ -22,6 +22,7 @@
 #include <QFont>
 #include <QIcon>
 #include <QObject>
+#include <QVector>
 #include <QPalette>
 #include <QScopedPointer>
 
@@ -101,6 +102,12 @@ public:
   /// A unit of a FITS header as it is written in text (e.g. JY/BEAM ->
   /// Jy/beam, KM/S -> km/s)
   Q_INVOKABLE static QString displayUnit(const QString& unit);
+
+  /// About `count` round values (1, 2 or 5 times a power of ten) in
+  /// [minimum, maximum], for the ticks of plots
+  static QVector<double> niceTicks(double minimum, double maximum, int count);
+  /// A tick label: 4 significant digits, typographic minus
+  static QString tickLabel(double value);
 
 public slots:
   void setMode(const QString& mode);

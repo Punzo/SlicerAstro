@@ -43,6 +43,8 @@ set(${KIT}_SRCS
   qSlicerAstroDatasetSelector.h
   qSlicerAstroFoldSection.cxx
   qSlicerAstroFoldSection.h
+  qSlicerAstroHistogramWidget.cxx
+  qSlicerAstroHistogramWidget.h
   qSlicerAstroMessageWidget.cxx
   qSlicerAstroMessageWidget.h
   qSlicerAstroPanelHeader.cxx
@@ -83,6 +85,7 @@ set(${KIT}_MOC_SRCS
   qSlicerAstroDatasetCard.h
   qSlicerAstroDatasetSelector.h
   qSlicerAstroFoldSection.h
+  qSlicerAstroHistogramWidget.h
   qSlicerAstroMessageWidget.h
   qSlicerAstroPanelHeader.h
   qSlicerAstroResultCard.h
