@@ -234,6 +234,39 @@ int main(int, char*[])
   Compare<vtkAstroWebGPUImageGradientSmooth, vtkAstroImageGradientSmooth>("gradient paper defaults", VTK_FLOAT, large, true,
     [](vtkAstroImageGradientSmooth* filter) { filter->SetNoise(3.); });
 
+  // Images (one slice): the filters of 2D data in the Smoothing module
+  // (no kernel and no conductance along the missing axis)
+  const int image[3] = {211, 173, 1};
+  for (bool blanks : {false, true})
+    {
+    Compare<vtkAstroWebGPUImageKernelSmooth, vtkAstroImageKernelSmooth>("image kernel 2D", VTK_FLOAT, image, blanks,
+      [](vtkAstroImageKernelSmooth* filter)
+      {
+      vtkNew<vtkDoubleArray> kernel;
+      for (int i = 0; i < 5 * 3; ++i)
+        {
+        kernel->InsertNextValue(0.01 * (i + 1));
+        }
+      filter->SetKernel(kernel, 5, 3, 1);
+      });
+    Compare<vtkAstroWebGPUImageSeparableSmooth, vtkAstroImageSeparableSmooth>("image separable XY", VTK_FLOAT, image,
+      blanks, [](vtkAstroImageSeparableSmooth* filter)
+      {
+      vtkNew<vtkDoubleArray> kx, ky;
+      for (double v : {0.05, 0.1, 0.2, 0.3, 0.2, 0.1, 0.05}) kx->InsertNextValue(v);
+      for (double v : {0.25, 0.5, 0.25}) ky->InsertNextValue(v);
+      filter->SetAxisKernel(0, kx);
+      filter->SetAxisKernel(1, ky);
+      });
+    Compare<vtkAstroWebGPUImageGradientSmooth, vtkAstroImageGradientSmooth>("image gradient", VTK_FLOAT, image, blanks,
+      [](vtkAstroImageGradientSmooth* filter)
+      {
+      filter->SetConductance(0.7, 0.5, 0.);
+      filter->SetNoise(0.8);
+      filter->SetNumberOfIterations(10);
+      });
+    }
+
   // Abort from a progress observer
   {
   vtkSmartPointer<vtkImageData> cube = MakeCube(VTK_FLOAT, dims, true);

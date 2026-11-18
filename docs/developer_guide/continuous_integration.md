@@ -8,7 +8,7 @@ scripts can also be run on your own computer.
 |---|---|---|---|
 | `extension.yml` (Extension (Linux)) | Builds 3D Slicer from source, then SlicerAstro, then runs all the tests; two jobs: `linux` (Qt 6) and `linux-qt5` (Qt 5 in Kitware's build environment) | Ubuntu 24.04; `slicer/buildenv-qt5-almalinux8-gcc14` | weekly (Sunday 03:00 UTC), on demand, on pushes to `master` (not for documentation-only changes) |
 | `dependencies.yml` (Dependencies) | Builds CFITSIO, WCSLIB, ERFA, FFTW and 3DBarolo with the pinned versions and runs a smoke test | Linux, Windows (Visual Studio 2022), macOS arm64 and Intel | changes to `SuperBuild/` or `.github/ci/dependencies/`, on demand |
-| `docs.yml` (Documentation) | Builds this documentation with Sphinx, with warnings as errors, and publishes it to GitHub Pages | Ubuntu | changes to `docs/`; published from `master` only |
+| `docs.yml` (Documentation) | Builds this documentation with Sphinx, with warnings as errors (published by Read the Docs, configured by `.readthedocs.yaml`: the default branch as *latest*, release tags as versions, pull request previews) | Ubuntu | changes to `docs/` |
 
 The full extension is built only on Linux. On Windows and macOS it is built by
 the 3D Slicer extensions factory once SlicerAstro is in the

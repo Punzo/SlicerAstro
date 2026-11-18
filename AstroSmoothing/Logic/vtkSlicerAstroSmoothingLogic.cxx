@@ -248,6 +248,12 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
     vtkInfoMacro("Smoothing: images and spectra are smoothed on the CPU (the OpenGL filters handle cubes).");
     openGL = false;
     }
+  if (dims[1] == 1 && this->UseWebGPU)
+    {
+    // spectra are small: the transfers to the GPU would cost more than the
+    // smoothing (images are smoothed by WebGPU)
+    this->UseWebGPU = false;
+    }
   if (lowerDimensions)
     {
     const int wasModifying = pnode->StartModify();

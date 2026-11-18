@@ -30,7 +30,7 @@ SAMPLE_DATA_SOURCES = (
     # SoFiA 2 mask (segmentation) and source catalogue (table and source points) of WEIN069
     ("WEIN069_MASK", "WEIN069_mask.png", (
         ("WEIN069_mask.fits", "WEIN069_mask", "SegmentationFile",
-         "41384f6974ebc2ebfa1b57b78e8b5260bc937139f42b438a247dbf5fd52c7d60"),
+         "cc78b23cf848b8e4fa4ab29a46659d2f97535ae7c3b65ef037b9427703ab637e"),
         ("WEIN069_cat.txt", "WEIN069_catalogue", "SoFiACatalogFile",
          "ae5d212108a702a20476b8084da2172133355cd0c97de1d0a58b15d803a25322"),
     )),

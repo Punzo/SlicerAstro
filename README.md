@@ -18,8 +18,10 @@ particular of neutral hydrogen (HI) observations.
 
 ## Documentation
 
-The documentation (user guide, modules, developer guide) is in
-[`docs/`](docs/index.md); it is built with Sphinx:
+The documentation (user guide, modules, developer guide) is published on
+[Read the Docs](https://slicerastro.readthedocs.io) (one version per release)
+from [`docs/`](docs/index.md). It is built with Sphinx and MyST, as the Slicer
+documentation:
 
 ```bash
 pip install -r docs/requirements.txt
