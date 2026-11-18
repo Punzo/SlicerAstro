@@ -68,6 +68,7 @@ protected slots:
   void onFieldsEdited();
   void onWindowChanging(double minimum, double maximum);
   void onNoiseChanging(double noise);
+  void onViewRangeChanged(double minimum, double maximum);
   void onVolumeModified(vtkObject* caller);
 
 protected:

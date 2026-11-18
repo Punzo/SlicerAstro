@@ -596,6 +596,17 @@ QString qSlicerAstroTheme::tickLabel(double value)
 }
 
 //-----------------------------------------------------------------------------
+QString qSlicerAstroTheme::formatFlux(double value, const QString& unit)
+{
+  const QString text = qSlicerAstroTheme::displayUnit(unit);
+  if (text.startsWith("Jy") && std::abs(value) < 0.1 && value != 0.)
+    {
+    return QString("%1 m%2").arg(value * 1000., 0, 'g', 3).arg(text);
+    }
+  return QString("%1 %2").arg(value, 0, 'g', 3).arg(text).trimmed();
+}
+
+//-----------------------------------------------------------------------------
 QString qSlicerAstroTheme::displayUnit(const QString& unit)
 {
   QString text = unit.trimmed();

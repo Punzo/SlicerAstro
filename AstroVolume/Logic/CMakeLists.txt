@@ -12,6 +12,8 @@ set(${KIT}_INCLUDE_DIRECTORIES
    ${CFITSIO_INCLUDE_DIR}
    ${vtkFits_INCLUDE_DIRS}
    ${Slicer_AstroLibs_INCLUDE_DIRS}
+   ${vtkSlicerVolumeRenderingModuleLogic_INCLUDE_DIRS}
+   ${vtkSlicerVolumeRenderingModuleMRML_INCLUDE_DIRS}
   )
 
 set(${KIT}_SRCS
@@ -24,6 +26,7 @@ set(${KIT}_TARGET_LIBRARIES
   vtkSlicerVolumesModuleLogic
   vtkSlicerUnitsModuleLogic
   vtkSlicerVolumeRenderingModuleMRML
+  vtkSlicerVolumeRenderingModuleLogic
   vtkSlicerTerminologiesModuleLogic
   )
 

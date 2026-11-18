@@ -3712,41 +3712,14 @@ void qSlicerAstroVolumeModuleWidget::applyPreset(vtkMRMLNode *volumePropertyNode
 {
   Q_D(qSlicerAstroVolumeModuleWidget);
 
-  if (!d->astroVolumeNode || !d->astroVolumeNode->GetAstroVolumeDisplayNode())
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (!d->astroVolumeNode || !astroVolumeLogic)
     {
     return;
     }
-
-  if (!d->volumeRenderingWidget || !volumePropertyNode)
-    {
-    return;
-    }
-
-  qSlicerVolumeRenderingPresetComboBox *PresetComboBox =
-    d->volumeRenderingWidget->findChild<qSlicerVolumeRenderingPresetComboBox*>
-      (QString("PresetComboBox"));
-  if (!PresetComboBox)
-    {
-    return;
-    }
-
-  PresetComboBox->applyPreset(volumePropertyNode);
-
-  vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplayNode = this->volumeRenderingDisplay();
-  vtkMRMLVolumePropertyNode* newVolumePropertyNode =
-    volumeRenderingDisplayNode ? volumeRenderingDisplayNode->GetVolumePropertyNode() : nullptr;
-  if (!newVolumePropertyNode || !d->astroVolumeNode)
-    {
-    return;
-    }
-  // the copy of the preset of this volume: "<preset> · <volume>"
-  const std::string newVolumePropertyNodeName = std::string(volumePropertyNode->GetName()) + " \xC2\xB7 " +
-    d->astroVolumeNode->GetName();
-  newVolumePropertyNode->SetName(newVolumePropertyNodeName.c_str());
-  newVolumePropertyNode->SetAttribute(vtkMRMLAstroVolumeNode::GetPresetIdentifierAttributeName(),
-    vtkMRMLAstroVolumeNode::GetPresetIdentifier(volumePropertyNode).c_str());
-
-  d->astroVolumeNode->SetVolumePropertyNode(newVolumePropertyNode);
+  // the preset of the volume and its shifts are kept (see resetAndApplyPreset)
+  astroVolumeLogic->CopyPresetToVolume(d->astroVolumeNode,
+                                       vtkMRMLVolumePropertyNode::SafeDownCast(volumePropertyNode));
 }
 
 //---------------------------------------------------------------------------
@@ -5486,81 +5459,19 @@ void qSlicerAstroVolumeModuleWidget::onMRMLVolumeDisplayNodeModified()
     return;
     }
 
+  // shift, stretch and opacity shift of the 3D color function (the logic
+  // applies the change from the values already applied)
   int n = StringToInt(d->astroVolumeNode->GetAttribute("SlicerAstro.NAXIS"));
-  if (n == 3)
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  if (n == 3 && astroVolumeLogic)
     {
-    qMRMLVolumePropertyNodeWidget* volumePropertyNodeWidget =
-      d->volumeRenderingWidget->findChild<qMRMLVolumePropertyNodeWidget*>
-        (QString("VolumePropertyNodeWidget"));
-    if (!volumePropertyNodeWidget)
-      {
-      return;
-      }
-
-    ctkVTKVolumePropertyWidget* volumePropertyWidget =
-       volumePropertyNodeWidget->findChild<ctkVTKVolumePropertyWidget*>
-         (QString("VolumePropertyWidget"));
-    if (!volumePropertyWidget)
-      {
-      return;
-      }
-
-    volumePropertyWidget->moveAllPoints(volumeDisplay->GetPresetOffset() -
-                                        volumeDisplay->GetOldPresetOffset(), 0., true);
+    astroVolumeLogic->SetColorFunctionShift(d->astroVolumeNode, volumeDisplay->GetPresetOffset());
+    astroVolumeLogic->SetColorFunctionStretch(d->astroVolumeNode, volumeDisplay->GetPresetStretch());
+    astroVolumeLogic->SetColorFunctionOpacityShift(d->astroVolumeNode, volumeDisplay->GetOpacityShift());
+    const QSignalBlocker offsetBlocker(d->PresetOffsetSlider);
+    const QSignalBlocker stretchBlocker(d->PresetStretchSlider);
     d->PresetOffsetSlider->setValue(volumeDisplay->GetPresetOffset());
-
-    volumeDisplay->DisableModifiedEventOn();
-    volumeDisplay->SetOldPresetOffset(volumeDisplay->GetPresetOffset());
-    volumeDisplay->DisableModifiedEventOff();
-
-    volumePropertyWidget->spreadAllPoints(volumeDisplay->GetPresetStretch() -
-                                          volumeDisplay->GetOldPresetStretch(), true);
     d->PresetStretchSlider->setValue(volumeDisplay->GetPresetStretch());
-
-    volumeDisplay->DisableModifiedEventOn();
-    volumeDisplay->SetOldPresetStretch(volumeDisplay->GetPresetStretch());
-    volumeDisplay->DisableModifiedEventOff();
-
-    vtkVolumeProperty* volumeProperty = volumePropertyWidget->volumeProperty();
-    if (!volumeProperty)
-      {
-      return;
-      }
-
-    vtkPiecewiseFunction* opacities = volumeProperty->GetScalarOpacity();
-    if (!opacities)
-      {
-      return;
-      }
-
-    double OpacityShift = volumeDisplay->GetOpacityShift() -
-                          volumeDisplay->GetOldOpacityShift();
-    for (int ii = 0; ii < opacities->GetSize(); ii++)
-      {
-      double value[4];
-      opacities->GetNodeValue(ii, value);
-      if (fabs(value[1]) < 1.E-4)
-        {
-        continue;
-        }
-      value[1] += OpacityShift;
-      if (value[1] > 1.)
-        {
-        value[1] = 1.;
-        }
-      if (fabs(value[1]) < 1.E-4)
-        {
-        value[1] = 1.E-3;
-        }
-
-      opacities->SetNodeValue(ii, value);
-      }
-
-    volumeProperty->Modified();
-
-    volumeDisplay->DisableModifiedEventOn();
-    volumeDisplay->SetOldOpacityShift(volumeDisplay->GetOpacityShift());
-    volumeDisplay->DisableModifiedEventOff();
     }
 
   d->OpacitySliderWidget->setValue(volumeDisplay->GetOpacityShift());

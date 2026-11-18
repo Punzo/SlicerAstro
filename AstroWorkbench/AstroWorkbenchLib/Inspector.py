@@ -218,26 +218,13 @@ class Inspector(qt.QFrame):
 
     def buildInspect(self):
         scroll, layout = self.scrollPage()
-        layout.addWidget(overline("Dataset"))
-        self.facts = qt.QGridLayout()
-        self.facts.setHorizontalSpacing(14)
-        self.facts.setVerticalSpacing(6)
-        self.factLabels = {}
-        for row, name in enumerate(("Object", "Telescope", "Dimensions", "Unit", "Beam", "Channel width",
-                                    "Noise (σ)", "Spectral axis")):
-            label = qt.QLabel(name)
-            label.setProperty("astroRole", "label")
-            value = qt.QLabel()
-            value.setProperty("astroRole", "mono")
-            value.setObjectName(f"Fact_{name}")
-            value.setTextInteractionFlags(qt.Qt.TextSelectableByMouse)
-            self.facts.addWidget(label, row, 0)
-            self.facts.addWidget(value, row, 1)
-            self.factLabels[name] = value
-        layout.addLayout(self.facts)
-
         # the reusable C++ sections of AstroVolume (the same widgets as the
         # AstroVolume panel), in fold sections
+        self.infoWidget = slicer.qSlicerAstroInfoSection()
+        self.infoFold = Sections.foldSection("Info", "facts, beam, FITS header", "Info", collapsed=False)
+        self.infoFold.toolTip = self.infoWidget.toolTip
+        self.infoFold.contentLayout().addWidget(self.infoWidget)
+        layout.addWidget(self.infoFold)
         self.displayWidget = slicer.qSlicerAstroDisplaySection()
         self.displayFold = Sections.foldSection("Display", "2D colours, window, noise", "Display", collapsed=False)
         self.displayFold.toolTip = self.displayWidget.toolTip
@@ -254,10 +241,12 @@ class Inspector(qt.QFrame):
         self.masksFold.contentLayout().addWidget(self.masksWidget)
         layout.addWidget(self.masksFold)
         self.sourcesSection = Sections.SourcesSection()
-        self.threeDSection = Sections.ThreeDSection()
-        self.headerSection = Sections.HeaderSection()
-        for section in (self.sourcesSection, self.threeDSection, self.headerSection):
-            layout.addWidget(section.section)
+        self.renderingWidget = slicer.qSlicerAstroRenderingSection()
+        self.renderingFold = Sections.foldSection("3D", "rendering of the cube", "ThreeD")
+        self.renderingFold.toolTip = self.renderingWidget.toolTip
+        self.renderingFold.contentLayout().addWidget(self.renderingWidget)
+        layout.addWidget(self.renderingFold)
+        layout.addWidget(self.sourcesSection.section)
         layout.addStretch(1)
         return scroll
 
@@ -370,32 +359,17 @@ class Inspector(qt.QFrame):
     def setVolume(self, volume):
         changed = volume is not self.volume
         self.volume = volume
+        self.infoWidget.setVolumeNode(volume)
+        self.infoFold.visible = volume is not None
         self.displayWidget.setVolumeNode(volume)
         self.displayFold.visible = volume is not None
         self.contoursWidget.setVolumeNode(volume)
         self.contoursFold.visible = volume is not None
         self.masksWidget.setVolumeNode(volume)
         self.masksFold.visible = volume is not None
-        for section in (self.sourcesSection,
-                        self.threeDSection, self.headerSection):
-            section.setVolume(volume)
-        facts = {name: "" for name in self.factLabels}
-        if volume is not None:
-            dims = volume.GetImageData().GetDimensions() if volume.GetImageData() else (0, 0, 0)
-            facts["Object"] = Astro.attribute(volume, "OBJECT", "").strip() or volume.GetName()
-            facts["Telescope"] = Astro.attribute(volume, "TELESCOP", "").strip()
-            facts["Dimensions"] = "×".join(str(d) for d in (dims if dims[2] > 1 else dims[:2]))
-            facts["Unit"] = Astro.displayUnit(Astro.attribute(volume, "BUNIT", ""))
-            chips = Astro.chips(volume)
-            facts["Beam"] = next((chip[:-5] for chip in chips if chip.endswith(" beam")), "")
-            velocities = Astro.channelVelocities(volume)
-            if len(velocities) > 1:
-                facts["Channel width"] = f"{abs(velocities[1] - velocities[0]):.3g} {Astro.spectralUnit(volume)}"
-            noise = Astro.noise(volume)
-            facts["Noise (σ)"] = Astro.formatFlux(noise, Astro.attribute(volume, "BUNIT", "")) if noise else ""
-            facts["Spectral axis"] = Astro.spectralLabel(volume)
-        for name, value in facts.items():
-            self.factLabels[name].text = value or "—"
+        self.renderingWidget.setVolumeNode(volume)
+        self.renderingFold.visible = volume is not None and Astro.dimensions(volume) >= 3
+        self.sourcesSection.setVolume(volume)
         done = 0
         for button in self.stepButtons:
             state = button.step.state(volume)
@@ -440,10 +414,12 @@ class Inspector(qt.QFrame):
         self.measureEmpty.visible = count == 0
 
     def cleanup(self):
+        self.infoWidget.setVolumeNode(None)
         self.displayWidget.setVolumeNode(None)
         self.contoursWidget.setVolumeNode(None)
         self.masksWidget.setEditing(False)
         self.masksWidget.setVolumeNode(None)
+        self.renderingWidget.setVolumeNode(None)
         self.enterPanel(None)
         # the step panels are kept by their modules: they are taken out of
         # the inspector before it is deleted

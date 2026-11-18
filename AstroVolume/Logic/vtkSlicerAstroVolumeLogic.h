@@ -49,10 +49,15 @@ class vtkMRMLAstroReprojectParametersNode;
 class vtkMRMLAstroVolumeNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLSliceNode;
+class vtkMRMLMarkupsFiducialNode;
+class vtkMRMLTableNode;
+class vtkCollection;
 class vtkMRMLVolumePropertyNode;
 class vtkMRMLVolumeNode;
 class vtkSegment;
 class vtkSlicerTerminologiesModuleLogic;
+class vtkSlicerVolumeRenderingLogic;
+class vtkMRMLVolumeRenderingDisplayNode;
 class vtkVolumeProperty;
 class vtkImageData;
 class vtkStringArray;
@@ -136,6 +141,67 @@ public:
   /// lookup tables of the volume rendering would need textures wider than
   /// the GPU allows. Returns true if a transfer function was modified.
   static bool EnsureMinimumTransferFunctionGap(vtkVolumeProperty* volumeProperty, const double scalarRange[2]);
+
+  /// Volume Rendering module logic (set by the AstroVolume module): used to
+  /// create the volume rendering nodes and the cropping box of the volumes
+  void SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic* volumeRenderingLogic);
+  vtkSlicerVolumeRenderingLogic* GetVolumeRenderingLogic();
+
+  /// Volume rendering display node of the volume (created if create is true
+  /// and the Volume Rendering logic is set)
+  vtkMRMLVolumeRenderingDisplayNode* GetVolumeRenderingDisplayNode(vtkMRMLAstroVolumeNode* volumeNode,
+                                                                   bool create);
+
+  /// 3D color function of a volume from a preset of the presets scene
+  /// (GetPresetsScene): the presets are adapted to the noise and range of
+  /// the data (synchronizePresetsToVolumeNode), the preset is copied in the
+  /// volume property of the volume rendering ("<preset> · <volume>"), it
+  /// becomes the preset of the volume (saved with the scene) and, with
+  /// resetShifts, its shift, stretch and opacity shift are set to 0. The
+  /// volume rendering nodes are created if needed. Returns false without
+  /// volume, preset or volume rendering.
+  bool ApplyPreset(vtkMRMLAstroVolumeNode* volumeNode, vtkMRMLVolumePropertyNode* presetNode,
+                   bool resetShifts = true);
+  /// Only the copy of a preset in the volume property of the existing volume
+  /// rendering of the volume ("<preset> · <volume>"), which becomes the
+  /// volume property of the volume: no nodes are created, the presets are
+  /// not adapted and the preset of the volume is not changed. Returns false
+  /// without volume rendering.
+  bool CopyPresetToVolume(vtkMRMLAstroVolumeNode* volumeNode, vtkMRMLVolumePropertyNode* presetNode);
+
+  /// Shift (data units), stretch (data units added to the distance of the
+  /// outer points from the centre) and opacity shift of the 3D color
+  /// function of the volume, from the preset: the change from the values
+  /// stored in its display node (PresetOffset, PresetStretch, OpacityShift)
+  /// is applied to the transfer functions and the values are stored. The
+  /// first and last points of the functions do not move. Returns false
+  /// without volume property.
+  bool SetColorFunctionShift(vtkMRMLAstroVolumeNode* volumeNode, double shift);
+  bool SetColorFunctionStretch(vtkMRMLAstroVolumeNode* volumeNode, double stretch);
+  bool SetColorFunctionOpacityShift(vtkMRMLAstroVolumeNode* volumeNode, double shift);
+
+  /// Transfer functions of a volume property (color and scalar opacity),
+  /// except their first and last points: moved by offset (a point does not
+  /// pass its neighbours), spread by factor away from the centre of the
+  /// points (negative: closer), opacities shifted by shift (in 0.001 - 1;
+  /// zero opacities stay zero). Same rules as vtkControlPointsItem
+  /// (MovePoints, SpreadPoints), used by the transfer function editors.
+  static void MoveTransferFunctionPoints(vtkVolumeProperty* volumeProperty, double offset);
+  static void SpreadTransferFunctionPoints(vtkVolumeProperty* volumeProperty, double factor);
+  static void ShiftOpacities(vtkVolumeProperty* volumeProperty, double shift);
+
+  /// Volume rendering quality (vtkMRMLViewNode::VolumeRenderingQuality) of
+  /// the 3D views showing the volume
+  bool SetVolumeRenderingQuality(vtkMRMLAstroVolumeNode* volumeNode, int quality);
+  int GetVolumeRenderingQuality(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Cropping box (Markups ROI) of the volume rendering, created (fitted to
+  /// the volume) if create is true
+  vtkMRMLMarkupsROINode* GetVolumeRenderingROINode(vtkMRMLAstroVolumeNode* volumeNode, bool create);
+  /// Crop the volume rendering to its box (shown while cropping)
+  bool SetVolumeRenderingCropping(vtkMRMLAstroVolumeNode* volumeNode, bool crop);
+  /// Fit the box to the whole volume
+  bool FitVolumeRenderingROI(vtkMRMLAstroVolumeNode* volumeNode);
 
   /// Replace the anatomical slice orientation presets of a slice node
   /// (Axial, Sagittal, Coronal) with the astronomical ones (XZ, ZY, XY).
@@ -222,6 +288,48 @@ public:
   /// Returns false if the noise is not correlated (e.g. single dish or
   /// optical data) or the cube is too small.
   static bool EstimateBeamFromNoise(vtkMRMLAstroVolumeNode* volumeNode, double beam[3]);
+
+  /// Source catalogues (tables of AstroSoFiACatalog, attribute
+  /// SlicerAstro.SoFiASources) placed on the volume, directly or through
+  /// its mask
+  static void GetSourceCatalogues(vtkMRMLAstroVolumeNode* volumeNode, vtkCollection* tables);
+  /// The volume a catalogue is placed on (its reference cube, or the cube of
+  /// its reference mask)
+  static vtkMRMLAstroVolumeNode* GetSourceCatalogueVolume(vtkMRMLTableNode* table);
+  /// The points of the sources of a catalogue
+  static vtkMRMLMarkupsFiducialNode* GetSourceCataloguePoints(vtkMRMLTableNode* table);
+  /// Select the source of a row of a catalogue: its point becomes the only
+  /// selected one and the slice views are centred on it. Returns the SoFiA
+  /// id of the source ("" if it has none, or for an invalid row).
+  static std::string SelectSource(vtkMRMLTableNode* table, int row);
+  /// Segment of a source (SoFiA id, segment tag SlicerAstro.SourceID) in a
+  /// mask; "" if none
+  static std::string GetSourceSegmentID(vtkMRMLSegmentationNode* mask, const char* sourceID);
+
+  /// Beam of the data in degrees: BMAJ, BMIN (FWHM) and BPA (position angle
+  /// of the major axis, from North to East; 0 if not given). Returns false
+  /// (beam 0) if the data have no beam.
+  static bool GetBeam(vtkMRMLAstroVolumeNode* volumeNode, double beam[3]);
+  /// Set the beam of the data (degrees, saved in the FITS header): the
+  /// larger axis is the major one. Returns false for axes that are not
+  /// positive.
+  static bool SetBeam(vtkMRMLAstroVolumeNode* volumeNode, const double beam[3]);
+
+  /// Velocity definition of the coordinates of a cube (readouts, axes):
+  /// optical or radio. The slice views are updated. Returns false if the
+  /// definition can not be changed (e.g. no velocity axis).
+  static bool SetVelocityDefinition(vtkMRMLAstroVolumeNode* volumeNode, bool optical);
+  static bool IsOpticalVelocityDefinition(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Right ascension in hours, minutes and seconds (true) or in degrees
+  /// (readouts, axes). The slice views are updated.
+  static bool SetRightAscensionSexagesimal(vtkMRMLAstroVolumeNode* volumeNode, bool sexagesimal);
+  static bool IsRightAscensionSexagesimal(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Channel width of a cube at the centre of the field, in the unit of the
+  /// spectral axis (km/s for velocities given in m/s); 0 without spectral
+  /// axis
+  static double GetChannelWidth(vtkMRMLAstroVolumeNode* volumeNode);
 
   /// Mask of a segment on the voxel grid of a volume (input masks of the
   /// modules): unsigned char voxels with the dimensions of the volume, 1
@@ -509,6 +617,12 @@ public:
   /// and counts. Returns false without finite voxels.
   static bool ComputeHistogram(vtkMRMLVolumeNode* volume, int bins, vtkDoubleArray* centres,
                                vtkDoubleArray* counts, vtkIdType maxSamples = 2000000);
+  /// Histogram of the finite voxels between minimum and maximum (e.g. a
+  /// zoomed value axis): bins equal width over [minimum, maximum], voxels
+  /// outside are not counted
+  static bool ComputeHistogramInRange(vtkMRMLVolumeNode* volume, int bins, double minimum, double maximum,
+                                      vtkDoubleArray* centres, vtkDoubleArray* counts,
+                                      vtkIdType maxSamples = 2000000);
 
   /// Window of the 2D colours with a percentage of the negative and of the
   /// positive values of a volume (the extreme values outside; the SlicerAstro
@@ -631,6 +745,7 @@ protected:
   vtkMRMLScene* PresetsScene;
   bool Init;
   vtkWeakPointer<vtkSlicerTerminologiesModuleLogic> TerminologiesLogic;
+  vtkWeakPointer<vtkSlicerVolumeRenderingLogic> VolumeRenderingLogic;
 
 private:
 

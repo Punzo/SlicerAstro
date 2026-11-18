@@ -74,7 +74,7 @@ QPixmap FamilyStrip(const char* family)
 {
   vtkNew<vtkDoubleArray> colors;
   vtkSlicerAstroVolumeLogic::GetContourFamilyColors(family, 5, colors);
-  QImage image(48, 12, QImage::Format_ARGB32);
+  QImage image(50, 12, QImage::Format_ARGB32);
   image.fill(Qt::transparent);
   for (int i = 0; i < 5; i++)
     {
@@ -116,16 +116,6 @@ QLabel* RowLabel(const QString& text, const QString& toolTip, QWidget* parent)
   return label;
 }
 
-//----------------------------------------------------------------------------
-QString FormatNoise(double noise, const QString& unit)
-{
-  const QString text = qSlicerAstroTheme::displayUnit(unit);
-  if (text.startsWith("Jy") && std::abs(noise) < 0.1 && noise != 0.)
-    {
-    return QString("%1 m%2").arg(noise * 1000., 0, 'g', 3).arg(text);
-    }
-  return QString("%1 %2").arg(noise, 0, 'g', 3).arg(text).trimmed();
-}
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -216,7 +206,7 @@ qSlicerAstroContoursSection::qSlicerAstroContoursSection(QWidget* parent)
   d->Colours->setObjectName("ContoursColours");
   d->Colours->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
   d->Colours->setMinimumContentsLength(8);
-  d->Colours->setIconSize(QSize(48, 12));
+  d->Colours->setIconSize(QSize(50, 12));
   d->Colours->setToolTip(tr("Colours of the levels, from the lowest to the highest."));
   vtkNew<vtkStringArray> families;
   vtkSlicerAstroVolumeLogic::GetContourColorFamilies(families);
@@ -381,7 +371,7 @@ void qSlicerAstroContoursSection::onUnitChanged(int index)
   const double noise = source->GetDisplayThreshold();
   if (index == Sigma)
     {
-    d->UnitInfo->setText(noise > 0. ? QString::fromUtf8("σ = %1").arg(FormatNoise(noise, unit)) : tr("σ unknown"));
+    d->UnitInfo->setText(noise > 0. ? QString::fromUtf8("σ = %1").arg(qSlicerAstroTheme::formatFlux(noise, unit)) : tr("σ unknown"));
     }
   else if (index == ColumnDensity)
     {

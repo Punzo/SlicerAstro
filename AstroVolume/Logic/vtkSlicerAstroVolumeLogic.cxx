@@ -73,6 +73,9 @@
 #include <vtkMRMLTransformNode.h>
 #include <vtkMRMLUnitNode.h>
 #include <vtkMRMLViewNode.h>
+#include <vtkMRMLTableNode.h>
+#include <vtkMRMLMarkupsFiducialNode.h>
+#include <vtkSlicerVolumeRenderingLogic.h>
 #include <vtkMRMLVolumeNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
@@ -161,6 +164,15 @@ double StringToDouble(const char* str)
 int StringToInt(const char* str)
 {
   return str ? StringToNumber<int>(str) : 0;
+}
+
+//----------------------------------------------------------------------------
+std::string DoubleToString(double value)
+{
+  std::ostringstream stream;
+  stream.precision(17);
+  stream << value;
+  return stream.str();
 }
 
 //----------------------------------------------------------------------------
@@ -2504,6 +2516,446 @@ bool HasGapSmallerThan(const std::vector<double>& positions, double minimumGap)
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+/// Points of a transfer function (vtkColorTransferFunction: 6 values per
+/// node, vtkPiecewiseFunction: 4), except the first and the last, moved as
+/// vtkControlPointsItem::MovePoints does: in the direction of the offset
+/// first, a point does not pass its neighbours.
+template <class FunctionType, int NodeSize>
+void MoveFunctionPoints(FunctionType* function, double offset)
+{
+  const int size = function ? function->GetSize() : 0;
+  if (size < 3 || offset == 0.)
+    {
+    return;
+    }
+  const int start = offset < 0. ? 1 : size - 2;
+  const int end = offset < 0. ? size - 1 : 0;
+  const int step = offset < 0. ? 1 : -1;
+  for (int index = start; index != end; index += step)
+    {
+    double node[NodeSize];
+    double previous[NodeSize];
+    double next[NodeSize];
+    function->GetNodeValue(index, node);
+    function->GetNodeValue(index - 1, previous);
+    function->GetNodeValue(index + 1, next);
+    node[0] = std::min(std::max(previous[0], node[0] + offset), next[0]);
+    function->SetNodeValue(index, node);
+    }
+}
+
+/// Position of a point, kept between its neighbours
+template <class FunctionType, int NodeSize>
+void SetFunctionPointPosition(FunctionType* function, int index, double x)
+{
+  double node[NodeSize];
+  double neighbour[NodeSize];
+  function->GetNodeValue(index - 1, neighbour);
+  x = std::max(neighbour[0], x);
+  function->GetNodeValue(index + 1, neighbour);
+  x = std::min(x, neighbour[0]);
+  function->GetNodeValue(index, node);
+  node[0] = x;
+  function->SetNodeValue(index, node);
+}
+
+/// Points of a transfer function, except the first and the last, spread
+/// away from (factor > 0) or towards (factor < 0) the centre of these
+/// points, as vtkControlPointsItem::SpreadPoints does
+template <class FunctionType, int NodeSize>
+void SpreadFunctionPoints(FunctionType* function, double factor)
+{
+  const int size = function ? function->GetSize() : 0;
+  const int count = size - 2;
+  if (count <= 0 || factor == 0.)
+    {
+    return;
+    }
+  double node[NodeSize];
+  function->GetNodeValue(1, node);
+  const double minimum = node[0];
+  function->GetNodeValue(count, node);
+  const double maximum = node[0];
+  const double center = (minimum + maximum) / 2.;
+
+  // left part (point k is the node k + 1)
+  int start = 0;
+  int end = count;
+  int step = 1;
+  int median = -1;
+  if (factor < 0.)
+    {
+    for (int k = 0; k < count; k++)
+      {
+      function->GetNodeValue(k + 1, node);
+      if (node[0] > center)
+        {
+        median = k;
+        break;
+        }
+      }
+    if (median == -1)
+      {
+      median = count - 1;
+      }
+    start = median - 1;
+    end = -1;
+    step = -1;
+    }
+  int k = start;
+  for (; k != end; k += step)
+    {
+    function->GetNodeValue(k + 1, node);
+    const double x = node[0];
+    if (x > center || (k != start && x == center))
+      {
+      break;
+      }
+    const double shift = -factor * (minimum != center ? (center - x) / (center - minimum) : std::fabs(x) / 100.);
+    SetFunctionPointPosition<FunctionType, NodeSize>(function, k + 1, std::min(x + shift, center));
+    }
+  // right part
+  start = count - 1;
+  end = k - 1;
+  step = -1;
+  if (factor < 0.)
+    {
+    start = median;
+    end = count;
+    step = 1;
+    }
+  for (k = start; k != end; k += step)
+    {
+    function->GetNodeValue(k + 1, node);
+    const double x = node[0];
+    const double shift = factor * (maximum != center ? (x - center) / (maximum - center) : std::fabs(x) / 100.);
+    SetFunctionPointPosition<FunctionType, NodeSize>(function, k + 1, std::max(x + shift, center));
+    }
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::MoveTransferFunctionPoints(vtkVolumeProperty* volumeProperty, double offset)
+{
+  if (!volumeProperty || offset == 0. || !std::isfinite(offset))
+    {
+    return;
+    }
+  MoveFunctionPoints<vtkPiecewiseFunction, 4>(volumeProperty->GetScalarOpacity(), offset);
+  MoveFunctionPoints<vtkColorTransferFunction, 6>(volumeProperty->GetRGBTransferFunction(), offset);
+  volumeProperty->Modified();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SpreadTransferFunctionPoints(vtkVolumeProperty* volumeProperty, double factor)
+{
+  if (!volumeProperty || factor == 0. || !std::isfinite(factor))
+    {
+    return;
+    }
+  SpreadFunctionPoints<vtkPiecewiseFunction, 4>(volumeProperty->GetScalarOpacity(), factor);
+  SpreadFunctionPoints<vtkColorTransferFunction, 6>(volumeProperty->GetRGBTransferFunction(), factor);
+  volumeProperty->Modified();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::ShiftOpacities(vtkVolumeProperty* volumeProperty, double shift)
+{
+  vtkPiecewiseFunction* opacities = volumeProperty ? volumeProperty->GetScalarOpacity() : nullptr;
+  if (!opacities || shift == 0. || !std::isfinite(shift))
+    {
+    return;
+    }
+  for (int index = 0; index < opacities->GetSize(); index++)
+    {
+    double value[4];
+    opacities->GetNodeValue(index, value);
+    if (std::fabs(value[1]) < 1.e-4)
+      {
+      continue;
+      }
+    value[1] = std::min(value[1] + shift, 1.);
+    if (std::fabs(value[1]) < 1.e-4)
+      {
+      value[1] = 1.e-3;
+      }
+    opacities->SetNodeValue(index, value);
+    }
+  volumeProperty->Modified();
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic* volumeRenderingLogic)
+{
+  this->VolumeRenderingLogic = volumeRenderingLogic;
+}
+
+//----------------------------------------------------------------------------
+vtkSlicerVolumeRenderingLogic* vtkSlicerAstroVolumeLogic::GetVolumeRenderingLogic()
+{
+  return this->VolumeRenderingLogic;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLVolumeRenderingDisplayNode* vtkSlicerAstroVolumeLogic::GetVolumeRenderingDisplayNode(
+  vtkMRMLAstroVolumeNode* volumeNode, bool create)
+{
+  if (!volumeNode || !volumeNode->GetScene())
+    {
+    return nullptr;
+    }
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = nullptr;
+  for (int index = 0; index < volumeNode->GetNumberOfDisplayNodes() && !displayNode; index++)
+    {
+    displayNode = vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(volumeNode->GetNthDisplayNode(index));
+    }
+  if (!displayNode && create && this->VolumeRenderingLogic && volumeNode->GetImageData())
+    {
+    displayNode = this->VolumeRenderingLogic->CreateDefaultVolumeRenderingNodes(volumeNode);
+    }
+  return displayNode;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ApplyPreset(vtkMRMLAstroVolumeNode* volumeNode, vtkMRMLVolumePropertyNode* presetNode,
+                                            bool resetShifts)
+{
+  vtkVolumeProperty* presetProperty = presetNode ? presetNode->GetVolumeProperty() : nullptr;
+  if (!volumeNode || !presetProperty || !presetProperty->GetRGBTransferFunction() ||
+      !this->GetVolumeRenderingDisplayNode(volumeNode, true))
+    {
+    return false;
+    }
+  // the presets adapted to the noise and the range of the data
+  this->synchronizePresetsToVolumeNode(volumeNode);
+  volumeNode->SetPresetNode(this->GetScenePresetNode(presetNode));
+  vtkMRMLAstroVolumeDisplayNode* volumeDisplay = volumeNode->GetAstroVolumeDisplayNode();
+  if (volumeDisplay && resetShifts)
+    {
+    const int wasModifying = volumeDisplay->StartModify();
+    volumeDisplay->SetPresetOffset(0.);
+    volumeDisplay->SetOldPresetOffset(0.);
+    volumeDisplay->SetPresetStretch(0.);
+    volumeDisplay->SetOldPresetStretch(0.);
+    volumeDisplay->SetOpacityShift(0.);
+    volumeDisplay->SetOldOpacityShift(0.);
+    volumeDisplay->EndModify(wasModifying);
+    }
+  return this->CopyPresetToVolume(volumeNode, presetNode);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::CopyPresetToVolume(vtkMRMLAstroVolumeNode* volumeNode,
+                                                   vtkMRMLVolumePropertyNode* presetNode)
+{
+  vtkVolumeProperty* presetProperty = presetNode ? presetNode->GetVolumeProperty() : nullptr;
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, false);
+  vtkMRMLVolumePropertyNode* propertyNode = displayNode ? displayNode->GetVolumePropertyNode() : nullptr;
+  if (!propertyNode || !presetProperty || !presetProperty->GetRGBTransferFunction())
+    {
+    return false;
+    }
+  const double* range = presetProperty->GetRGBTransferFunction()->GetRange();
+  if (range[0] > range[1])
+    {
+    return false;
+    }
+  const int wasModifying = propertyNode->StartModify();
+  propertyNode->CopyContent(presetNode);
+  // the copy of the preset of this volume: "<preset> · <volume>"
+  const std::string name = std::string(presetNode->GetName() ? presetNode->GetName() : "") + " \xC2\xB7 " +
+    (volumeNode->GetName() ? volumeNode->GetName() : "");
+  propertyNode->SetName(name.c_str());
+  propertyNode->SetAttribute(vtkMRMLAstroVolumeNode::GetPresetIdentifierAttributeName(),
+                             vtkMRMLAstroVolumeNode::GetPresetIdentifier(presetNode).c_str());
+  propertyNode->EndModify(wasModifying);
+  volumeNode->SetVolumePropertyNode(propertyNode);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+vtkVolumeProperty* VolumePropertyOf(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLVolumePropertyNode* propertyNode = volumeNode ?
+    vtkMRMLVolumePropertyNode::SafeDownCast(volumeNode->GetVolumePropertyNode()) : nullptr;
+  return propertyNode ? propertyNode->GetVolumeProperty() : nullptr;
+}
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetColorFunctionShift(vtkMRMLAstroVolumeNode* volumeNode, double shift)
+{
+  vtkVolumeProperty* volumeProperty = VolumePropertyOf(volumeNode);
+  vtkMRMLAstroVolumeDisplayNode* volumeDisplay = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  if (!volumeProperty || !volumeDisplay)
+    {
+    return false;
+    }
+  if (volumeDisplay->GetOldPresetOffset() == shift)
+    {
+    // already applied: only the stored value may differ
+    if (volumeDisplay->GetPresetOffset() != shift)
+      {
+      volumeDisplay->SetPresetOffset(shift);
+      }
+    return true;
+    }
+  vtkSlicerAstroVolumeLogic::MoveTransferFunctionPoints(volumeProperty, shift - volumeDisplay->GetOldPresetOffset());
+  const int wasModifying = volumeDisplay->StartModify();
+  volumeDisplay->SetPresetOffset(shift);
+  volumeDisplay->SetOldPresetOffset(shift);
+  volumeDisplay->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetColorFunctionStretch(vtkMRMLAstroVolumeNode* volumeNode, double stretch)
+{
+  vtkVolumeProperty* volumeProperty = VolumePropertyOf(volumeNode);
+  vtkMRMLAstroVolumeDisplayNode* volumeDisplay = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  if (!volumeProperty || !volumeDisplay)
+    {
+    return false;
+    }
+  if (volumeDisplay->GetOldPresetStretch() == stretch)
+    {
+    // already applied: only the stored value may differ
+    if (volumeDisplay->GetPresetStretch() != stretch)
+      {
+      volumeDisplay->SetPresetStretch(stretch);
+      }
+    return true;
+    }
+  vtkSlicerAstroVolumeLogic::SpreadTransferFunctionPoints(volumeProperty,
+                                                          stretch - volumeDisplay->GetOldPresetStretch());
+  const int wasModifying = volumeDisplay->StartModify();
+  volumeDisplay->SetPresetStretch(stretch);
+  volumeDisplay->SetOldPresetStretch(stretch);
+  volumeDisplay->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetColorFunctionOpacityShift(vtkMRMLAstroVolumeNode* volumeNode, double shift)
+{
+  vtkVolumeProperty* volumeProperty = VolumePropertyOf(volumeNode);
+  vtkMRMLAstroVolumeDisplayNode* volumeDisplay = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  if (!volumeProperty || !volumeDisplay)
+    {
+    return false;
+    }
+  if (volumeDisplay->GetOldOpacityShift() == shift)
+    {
+    // already applied: only the stored value may differ
+    if (volumeDisplay->GetOpacityShift() != shift)
+      {
+      volumeDisplay->SetOpacityShift(shift);
+      }
+    return true;
+    }
+  vtkSlicerAstroVolumeLogic::ShiftOpacities(volumeProperty, shift - volumeDisplay->GetOldOpacityShift());
+  const int wasModifying = volumeDisplay->StartModify();
+  volumeDisplay->SetOpacityShift(shift);
+  volumeDisplay->SetOldOpacityShift(shift);
+  volumeDisplay->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingQuality(vtkMRMLAstroVolumeNode* volumeNode, int quality)
+{
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, false);
+  if (!displayNode || !displayNode->GetScene())
+    {
+    return false;
+    }
+  std::vector<vtkMRMLNode*> viewNodes;
+  displayNode->GetScene()->GetNodesByClass("vtkMRMLViewNode", viewNodes);
+  for (vtkMRMLNode* node : viewNodes)
+    {
+    vtkMRMLViewNode* viewNode = vtkMRMLViewNode::SafeDownCast(node);
+    if (viewNode && displayNode->IsDisplayableInView(viewNode->GetID()))
+      {
+      viewNode->SetVolumeRenderingQuality(quality);
+      }
+    }
+  displayNode->Modified();
+  return true;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::GetVolumeRenderingQuality(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, false);
+  if (!displayNode || !displayNode->GetScene())
+    {
+    return -1;
+    }
+  std::vector<vtkMRMLNode*> viewNodes;
+  displayNode->GetScene()->GetNodesByClass("vtkMRMLViewNode", viewNodes);
+  for (vtkMRMLNode* node : viewNodes)
+    {
+    vtkMRMLViewNode* viewNode = vtkMRMLViewNode::SafeDownCast(node);
+    if (viewNode && displayNode->IsDisplayableInView(viewNode->GetID()))
+      {
+      return viewNode->GetVolumeRenderingQuality();
+      }
+    }
+  return -1;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLMarkupsROINode* vtkSlicerAstroVolumeLogic::GetVolumeRenderingROINode(vtkMRMLAstroVolumeNode* volumeNode,
+                                                                           bool create)
+{
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, create);
+  if (!displayNode)
+    {
+    return nullptr;
+    }
+  vtkMRMLMarkupsROINode* roiNode = displayNode->GetMarkupsROINode();
+  if (!roiNode && create && this->VolumeRenderingLogic)
+    {
+    // created on request by the Volume Rendering module, fitted to the volume
+    roiNode = vtkMRMLMarkupsROINode::SafeDownCast(this->VolumeRenderingLogic->CreateROINode(displayNode));
+    }
+  return roiNode;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingCropping(vtkMRMLAstroVolumeNode* volumeNode, bool crop)
+{
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, crop);
+  if (!displayNode)
+    {
+    return !crop;
+    }
+  vtkMRMLMarkupsROINode* roiNode = this->GetVolumeRenderingROINode(volumeNode, crop);
+  displayNode->SetCroppingEnabled(crop);
+  if (roiNode)
+    {
+    roiNode->SetDisplayVisibility(crop);
+    }
+  return !crop || roiNode;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::FitVolumeRenderingROI(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, true);
+  if (!displayNode || !this->VolumeRenderingLogic || !this->GetVolumeRenderingROINode(volumeNode, true))
+    {
+    return false;
+    }
+  this->VolumeRenderingLogic->FitROIToVolume(displayNode);
+  return true;
+}
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(vtkVolumeProperty* volumeProperty,
                                                                  const double scalarRange[2])
 {
@@ -2928,6 +3380,239 @@ void vtkSlicerAstroVolumeLogic::EnsureVolumePropertyTransferFunctionGaps(vtkMRML
   this->UpdatingTransferFunctionGaps = true;
   vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(volumeProperty, range);
   this->UpdatingTransferFunctionGaps = false;
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+double FiniteAttribute(vtkMRMLNode* node, const char* name)
+{
+  const char* value = node ? node->GetAttribute(name) : nullptr;
+  if (!value || !strcmp(value, "UNDEFINED"))
+    {
+    return std::numeric_limits<double>::quiet_NaN();
+    }
+  char* end = nullptr;
+  const double number = std::strtod(value, &end);
+  return end != value ? number : std::numeric_limits<double>::quiet_NaN();
+}
+
+void UpdateSliceViews(vtkMRMLScene* scene)
+{
+  if (!scene)
+    {
+    return;
+    }
+  std::vector<vtkMRMLNode*> sliceNodes;
+  scene->GetNodesByClass("vtkMRMLSliceNode", sliceNodes);
+  for (vtkMRMLNode* sliceNode : sliceNodes)
+    {
+    sliceNode->Modified();
+    }
+}
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::GetSourceCatalogueVolume(vtkMRMLTableNode* table)
+{
+  vtkMRMLScene* scene = table ? table->GetScene() : nullptr;
+  const char* referenceID = table ? table->GetAttribute("SlicerAstro.SoFiAReference") : nullptr;
+  vtkMRMLNode* reference = (scene && referenceID) ? scene->GetNodeByID(referenceID) : nullptr;
+  if (reference && reference->IsA("vtkMRMLSegmentationNode"))
+    {
+    reference = reference->GetNodeReference(vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str());
+    }
+  return vtkMRMLAstroVolumeNode::SafeDownCast(reference);
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::GetSourceCatalogues(vtkMRMLAstroVolumeNode* volumeNode, vtkCollection* tables)
+{
+  if (!tables)
+    {
+    return;
+    }
+  tables->RemoveAllItems();
+  vtkMRMLScene* scene = volumeNode ? volumeNode->GetScene() : nullptr;
+  if (!scene)
+    {
+    return;
+    }
+  std::vector<vtkMRMLNode*> nodes;
+  scene->GetNodesByClass("vtkMRMLTableNode", nodes);
+  for (vtkMRMLNode* node : nodes)
+    {
+    vtkMRMLTableNode* table = vtkMRMLTableNode::SafeDownCast(node);
+    if (table && table->GetAttribute("SlicerAstro.SoFiASources") &&
+        vtkSlicerAstroVolumeLogic::GetSourceCatalogueVolume(table) == volumeNode)
+      {
+      tables->AddItem(table);
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLMarkupsFiducialNode* vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(vtkMRMLTableNode* table)
+{
+  vtkMRMLScene* scene = table ? table->GetScene() : nullptr;
+  const char* pointsID = table ? table->GetAttribute("SlicerAstro.SoFiASources") : nullptr;
+  return (scene && pointsID) ? vtkMRMLMarkupsFiducialNode::SafeDownCast(scene->GetNodeByID(pointsID)) : nullptr;
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::SelectSource(vtkMRMLTableNode* table, int row)
+{
+  vtkMRMLMarkupsFiducialNode* points = vtkSlicerAstroVolumeLogic::GetSourceCataloguePoints(table);
+  if (!points || row < 0 || row >= points->GetNumberOfControlPoints())
+    {
+    return std::string();
+    }
+  const int wasModifying = points->StartModify();
+  for (int index = 0; index < points->GetNumberOfControlPoints(); index++)
+    {
+    points->SetNthControlPointSelected(index, index == row);
+    }
+  points->EndModify(wasModifying);
+  double position[3] = {0., 0., 0.};
+  points->GetNthControlPointPositionWorld(row, position);
+  vtkMRMLSliceNode::JumpAllSlices(points->GetScene(), position[0], position[1], position[2],
+                                  vtkMRMLSliceNode::CenteredJumpSlice);
+  const std::string description = points->GetNthControlPointDescription(row);
+  return description.compare(0, 3, "id ") == 0 ? description.substr(3) : std::string();
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::GetSourceSegmentID(vtkMRMLSegmentationNode* mask, const char* sourceID)
+{
+  vtkSegmentation* segmentation = mask ? mask->GetSegmentation() : nullptr;
+  if (!segmentation || !sourceID || !*sourceID)
+    {
+    return std::string();
+    }
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  for (const std::string& segmentID : segmentIDs)
+    {
+    std::string tag;
+    vtkSegment* segment = segmentation->GetSegment(segmentID);
+    if (segment && segment->GetTag("SlicerAstro.SourceID", tag) && tag == sourceID)
+      {
+      return segmentID;
+      }
+    }
+  return std::string();
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetBeam(vtkMRMLAstroVolumeNode* volumeNode, double beam[3])
+{
+  beam[0] = beam[1] = beam[2] = 0.;
+  const double bmaj = FiniteAttribute(volumeNode, "SlicerAstro.BMAJ");
+  const double bmin = FiniteAttribute(volumeNode, "SlicerAstro.BMIN");
+  const double bpa = FiniteAttribute(volumeNode, "SlicerAstro.BPA");
+  if (!(bmaj > 0.) || !(bmin > 0.))
+    {
+    return false;
+    }
+  beam[0] = bmaj;
+  beam[1] = bmin;
+  beam[2] = std::isfinite(bpa) ? bpa : 0.;
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetBeam(vtkMRMLAstroVolumeNode* volumeNode, const double beam[3])
+{
+  if (!volumeNode || !(beam[0] > 0.) || !(beam[1] > 0.) || !std::isfinite(beam[0]) || !std::isfinite(beam[1]))
+    {
+    return false;
+    }
+  const double bmaj = std::max(beam[0], beam[1]);
+  const double bmin = std::min(beam[0], beam[1]);
+  const double bpa = std::isfinite(beam[2]) ? beam[2] : 0.;
+  const int wasModifying = volumeNode->StartModify();
+  volumeNode->SetAttribute("SlicerAstro.BMAJ", DoubleToString(bmaj).c_str());
+  volumeNode->SetAttribute("SlicerAstro.BMIN", DoubleToString(bmin).c_str());
+  volumeNode->SetAttribute("SlicerAstro.BPA", DoubleToString(bpa).c_str());
+  volumeNode->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetVelocityDefinition(vtkMRMLAstroVolumeNode* volumeNode, bool optical)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  if (!displayNode)
+    {
+    return false;
+    }
+  const bool changed = optical ? displayNode->SetOpticalVelocityDefinition() :
+    displayNode->SetRadioVelocityDefinition();
+  if (changed)
+    {
+    volumeNode->Modified();
+    UpdateSliceViews(volumeNode->GetScene());
+    }
+  return changed;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsOpticalVelocityDefinition(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  return displayNode && !strncmp(displayNode->GetVelocityDefinition().c_str(), "VOPT", 4);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetRightAscensionSexagesimal(vtkMRMLAstroVolumeNode* volumeNode, bool sexagesimal)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  if (!displayNode || !displayNode->SetSpaceQuantity(0, sexagesimal ? "time" : "length"))
+    {
+    return false;
+    }
+  volumeNode->Modified();
+  UpdateSliceViews(volumeNode->GetScene());
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::IsRightAscensionSexagesimal(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  vtkStringArray* quantities = displayNode ? displayNode->GetSpaceQuantities() : nullptr;
+  return quantities && quantities->GetNumberOfValues() > 0 && quantities->GetValue(0) == "time";
+}
+
+//----------------------------------------------------------------------------
+double vtkSlicerAstroVolumeLogic::GetChannelWidth(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLAstroVolumeDisplayNode* displayNode = volumeNode ? volumeNode->GetAstroVolumeDisplayNode() : nullptr;
+  const double channels = FiniteAttribute(volumeNode, "SlicerAstro.NAXIS3");
+  if (!displayNode || !(channels > 1.) || FiniteAttribute(volumeNode, "SlicerAstro.NAXIS") < 3.)
+    {
+    return 0.;
+    }
+  const double nx = FiniteAttribute(volumeNode, "SlicerAstro.NAXIS1");
+  const double ny = FiniteAttribute(volumeNode, "SlicerAstro.NAXIS2");
+  double ijk[3] = {std::isfinite(nx) ? nx * 0.5 : 0., std::isfinite(ny) ? ny * 0.5 : 0., 0.};
+  double first[3] = {0., 0., 0.};
+  double second[3] = {0., 0., 0.};
+  if (!displayNode->GetReferenceSpace(ijk, first))
+    {
+    return 0.;
+    }
+  ijk[2] = 1.;
+  if (!displayNode->GetReferenceSpace(ijk, second))
+    {
+    return 0.;
+    }
+  const char* unit = volumeNode->GetAttribute("SlicerAstro.CUNIT3");
+  std::string lower = unit ? vtksys::SystemTools::LowerCase(unit) : std::string();
+  lower.erase(std::remove(lower.begin(), lower.end(), ' '), lower.end());
+  const double factor = lower == "m/s" ? 0.001 : 1.;
+  const double width = std::fabs(second[2] - first[2]) * factor;
+  return std::isfinite(width) ? width : 0.;
 }
 
 //----------------------------------------------------------------------------
@@ -3696,6 +4381,43 @@ bool vtkSlicerAstroVolumeLogic::ComputeHistogram(vtkMRMLVolumeNode* volume, int 
   for (int i = 0; i < bins; i++)
     {
     centres->SetValue(i, low + (i + 0.5) * width);
+    counts->SetValue(i, histogram[static_cast<size_t>(i)]);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ComputeHistogramInRange(vtkMRMLVolumeNode* volume, int bins, double minimum,
+                                                        double maximum, vtkDoubleArray* centres,
+                                                        vtkDoubleArray* counts, vtkIdType maxSamples)
+{
+  if (!centres || !counts || bins < 1 || !(maximum > minimum) || !std::isfinite(minimum) || !std::isfinite(maximum))
+    {
+    return false;
+    }
+  centres->Initialize();
+  counts->Initialize();
+  const std::vector<double> values = SampleFiniteVoxels(volume, maxSamples);
+  if (values.empty())
+    {
+    return false;
+    }
+  const double width = (maximum - minimum) / bins;
+  std::vector<double> histogram(static_cast<size_t>(bins), 0.);
+  for (double value : values)
+    {
+    if (value < minimum || value > maximum)
+      {
+      continue;
+      }
+    const int bin = std::min(bins - 1, static_cast<int>((value - minimum) / width));
+    histogram[static_cast<size_t>(bin)] += 1.;
+    }
+  centres->SetNumberOfValues(bins);
+  counts->SetNumberOfValues(bins);
+  for (int i = 0; i < bins; i++)
+    {
+    centres->SetValue(i, minimum + (i + 0.5) * width);
     counts->SetValue(i, histogram[static_cast<size_t>(i)]);
     }
   return true;

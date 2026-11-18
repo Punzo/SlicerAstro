@@ -19,6 +19,7 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QWheelEvent>
 
 #include <algorithm>
 #include <cmath>
@@ -64,7 +65,8 @@ qSlicerAstroHistogramWidget::qSlicerAstroHistogramWidget(QWidget* parent)
   this->setMouseTracking(true);
   this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   this->setToolTip(tr("Histogram of the data (counts on a logarithmic axis). Amber: window of the 2D colour "
-                      "function, drag its edges or move it. White dashed line: noise σ of the 3D colour functions, drag it."));
+                      "function, drag its edges or move it. White line with the σ handle: noise σ of the 3D colour functions, "
+                      "drag it. Mouse wheel: zoom the values (e.g. on the noise); double click: all the values."));
   QObject::connect(qSlicerAstroTheme::instance(), SIGNAL(themeChanged()), this, SLOT(update()));
 }
 
@@ -92,13 +94,19 @@ void qSlicerAstroHistogramWidget::setHistogram(const QVector<double>& centres, c
     {
     this->Counts.resize(this->Centres.size());
     }
-  this->XMin = 0.;
-  this->XMax = 1.;
-  if (this->Centres.size() > 1)
+  if (!this->Zoomed)
     {
-    const double halfBin = 0.5 * (this->Centres[1] - this->Centres[0]);
-    this->XMin = this->Centres.first() - halfBin;
-    this->XMax = this->Centres.last() + halfBin;
+    // the values of the data: the whole axis
+    this->XMin = 0.;
+    this->XMax = 1.;
+    if (this->Centres.size() > 1)
+      {
+      const double halfBin = 0.5 * (this->Centres[1] - this->Centres[0]);
+      this->XMin = this->Centres.first() - halfBin;
+      this->XMax = this->Centres.last() + halfBin;
+      }
+    this->ViewMin = this->XMin;
+    this->ViewMax = this->XMax;
     }
   double maximum = 1.;
   for (double count : this->Counts)
@@ -113,6 +121,8 @@ void qSlicerAstroHistogramWidget::setHistogram(const QVector<double>& centres, c
 //-----------------------------------------------------------------------------
 void qSlicerAstroHistogramWidget::clearHistogram()
 {
+  // a new histogram (e.g. of other data) starts with all the values
+  this->Zoomed = false;
   this->setHistogram(QVector<double>(), QVector<double>());
 }
 
@@ -198,15 +208,15 @@ QRectF qSlicerAstroHistogramWidget::plotRect() const
 double qSlicerAstroHistogramWidget::valueToPixel(double value) const
 {
   const QRectF plot = this->plotRect();
-  return plot.left() + (value - this->XMin) / (this->XMax - this->XMin) * plot.width();
+  return plot.left() + (value - this->ViewMin) / (this->ViewMax - this->ViewMin) * plot.width();
 }
 
 //-----------------------------------------------------------------------------
 double qSlicerAstroHistogramWidget::pixelToValue(double pixel) const
 {
   const QRectF plot = this->plotRect();
-  const double value = this->XMin + (pixel - plot.left()) / plot.width() * (this->XMax - this->XMin);
-  return std::max(this->XMin, std::min(value, this->XMax));
+  const double value = this->ViewMin + (pixel - plot.left()) / plot.width() * (this->ViewMax - this->ViewMin);
+  return std::max(this->ViewMin, std::min(value, this->ViewMax));
 }
 
 //-----------------------------------------------------------------------------
@@ -260,29 +270,33 @@ void qSlicerAstroHistogramWidget::paintEvent(QPaintEvent* event)
   painter.fillRect(QRectF(left, plot.top(), right - left, plot.height()), fill);
 
   // bars
+  // (bins of the whole axis, or of the zoomed values)
   QPainterPath bars;
-  bars.moveTo(this->valueToPixel(this->XMin), plot.bottom());
   const double binWidth = this->Centres[1] - this->Centres[0];
+  bars.moveTo(this->valueToPixel(this->Centres.first() - binWidth / 2.), plot.bottom());
   for (int i = 0; i < this->Centres.size(); i++)
     {
     const double y = this->countToPixel(this->Counts[i]);
     bars.lineTo(this->valueToPixel(this->Centres[i] - binWidth / 2.), y);
     bars.lineTo(this->valueToPixel(this->Centres[i] + binWidth / 2.), y);
     }
-  bars.lineTo(this->valueToPixel(this->XMax), plot.bottom());
+  bars.lineTo(this->valueToPixel(this->Centres.last() + binWidth / 2.), plot.bottom());
   bars.closeSubpath();
+  painter.save();
+  painter.setClipRect(plot.adjusted(0., -1., 0., 1.), Qt::IntersectClip);
   QColor data = theme->color("view-data");
   QColor dataFill = data;
   dataFill.setAlphaF(0.35);
   painter.fillPath(bars, dataFill);
   painter.setPen(QPen(data, 1.2));
   painter.drawPath(bars);
+  painter.restore();
 
   // value axis
   painter.setPen(QPen(theme->color("view-line"), 1.));
   painter.drawLine(QPointF(plot.left(), plot.bottom()), QPointF(plot.right(), plot.bottom()));
   double lastRight = -1e9;
-  for (double tick : qSlicerAstroTheme::niceTicks(this->XMin, this->XMax, 4))
+  for (double tick : qSlicerAstroTheme::niceTicks(this->ViewMin, this->ViewMax, 4))
     {
     const double x = this->valueToPixel(tick);
     painter.setPen(QPen(theme->color("view-line"), 1.));
@@ -309,16 +323,28 @@ void qSlicerAstroHistogramWidget::paintEvent(QPaintEvent* event)
   painter.drawLine(QPointF(left, plot.top()), QPointF(left, plot.bottom()));
   painter.drawLine(QPointF(right, plot.top()), QPointF(right, plot.bottom()));
 
-  // noise of the 3D colour functions
-  if (std::isfinite(this->Noise) && this->Noise > this->XMin && this->Noise < this->XMax)
+  // noise σ of the 3D colour functions: a line with a handle on top
+  if (this->noiseVisible())
     {
     const double x = this->valueToPixel(this->Noise);
-    QPen pen(theme->color("view-text"), 1.5, Qt::DashLine);
-    pen.setDashPattern(QVector<qreal>() << 4. << 3.);
-    painter.setPen(pen);
+    const QColor noiseColor = theme->color("view-text");
+    painter.setPen(QPen(noiseColor, 2.));
     painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()));
+    const QRectF handle = this->noiseHandleRect();
+    QPainterPath tab;
+    tab.addRoundedRect(handle, 4., 4.);
+    painter.fillPath(tab, noiseColor);
+    painter.setPen(theme->color("view"));
+    painter.drawText(handle, Qt::AlignCenter, QString::fromUtf8("σ"));
+    }
+  else if (std::isfinite(this->Noise) && this->Noise > 0. && this->Noise > this->XMin && this->Noise < this->XMax)
+    {
+    // outside the zoomed values: a mark on the side of the axis
+    const bool lower = this->Noise < this->ViewMin;
     painter.setPen(theme->color("view-text"));
-    painter.drawText(QPointF(x + 3., plot.top() + metrics.ascent()), QString::fromUtf8("σ"));
+    painter.drawText(QRectF(lower ? plot.left() + 2. : plot.right() - 40., plot.top(), 38., metrics.height()),
+                     (lower ? Qt::AlignLeft : Qt::AlignRight) | Qt::AlignVCenter,
+                     lower ? QString::fromUtf8("◂ σ") : QString::fromUtf8("σ ▸"));
     }
 
   // readout of the bin under the pointer
@@ -355,8 +381,12 @@ void qSlicerAstroHistogramWidget::mousePressEvent(QMouseEvent* event)
   const double x = EventPosition(event).x();
   const double left = this->valueToPixel(this->WindowMin);
   const double right = this->valueToPixel(this->WindowMax);
-  const bool noiseShown = std::isfinite(this->Noise) && this->Noise > this->XMin && this->Noise < this->XMax;
-  if (this->NoiseEditable && noiseShown && std::abs(x - this->valueToPixel(this->Noise)) <= GrabTolerance)
+  // the σ handle first; the σ line when it is the nearest line
+  const double noiseDistance = this->noiseVisible() ? std::abs(x - this->valueToPixel(this->Noise)) :
+    std::numeric_limits<double>::infinity();
+  if (this->NoiseEditable && this->noiseVisible() &&
+      (this->noiseHandleRect().adjusted(-3., -3., 3., 3.).contains(EventPosition(event)) ||
+       (noiseDistance <= GrabTolerance && noiseDistance <= std::min(std::abs(x - left), std::abs(x - right)))))
     {
     this->Drag = NoiseLine;
     }
@@ -394,13 +424,14 @@ void qSlicerAstroHistogramWidget::mouseMoveEvent(QMouseEvent* event)
     if (this->Centres.size() > 1)
       {
       const double binWidth = this->Centres[1] - this->Centres[0];
-      index = static_cast<int>(std::floor((this->pixelToValue(x) - this->XMin) / binWidth));
+      index = static_cast<int>(std::floor((this->pixelToValue(x) - (this->Centres.first() - binWidth / 2.)) / binWidth));
       index = std::max(0, std::min(index, static_cast<int>(this->Centres.size()) - 1));
       }
     const bool nearEdge = std::abs(x - this->valueToPixel(this->WindowMin)) <= GrabTolerance ||
       std::abs(x - this->valueToPixel(this->WindowMax)) <= GrabTolerance ||
-      (this->NoiseEditable && std::isfinite(this->Noise) &&
-       std::abs(x - this->valueToPixel(this->Noise)) <= GrabTolerance);
+      (this->NoiseEditable && this->noiseVisible() &&
+       (std::abs(x - this->valueToPixel(this->Noise)) <= GrabTolerance ||
+        this->noiseHandleRect().contains(EventPosition(event))));
     this->setCursor(nearEdge ? Qt::SizeHorCursor : Qt::ArrowCursor);
     if (index != this->HoverIndex)
       {
@@ -467,4 +498,111 @@ void qSlicerAstroHistogramWidget::leaveEvent(QEvent* event)
     this->HoverIndex = -1;
     this->update();
     }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroHistogramWidget::noiseVisible() const
+{
+  return std::isfinite(this->Noise) && this->Noise > 0. && this->Noise >= this->ViewMin &&
+    this->Noise <= this->ViewMax && this->Centres.size() > 1;
+}
+
+//-----------------------------------------------------------------------------
+QRectF qSlicerAstroHistogramWidget::noiseHandleRect() const
+{
+  const QRectF plot = this->plotRect();
+  const double x = this->valueToPixel(this->Noise);
+  // inside the plot, also when the line is on its edge
+  const double width = 16.;
+  const double left = std::max(plot.left(), std::min(x - width / 2., plot.right() - width));
+  return QRectF(left, plot.top(), width, 15.);
+}
+
+//-----------------------------------------------------------------------------
+QPointF qSlicerAstroHistogramWidget::noiseHandlePosition() const
+{
+  return this->noiseVisible() ? this->noiseHandleRect().center() : QPointF(-1., -1.);
+}
+
+//-----------------------------------------------------------------------------
+double qSlicerAstroHistogramWidget::viewMinimum() const
+{
+  return this->ViewMin;
+}
+
+//-----------------------------------------------------------------------------
+double qSlicerAstroHistogramWidget::viewMaximum() const
+{
+  return this->ViewMax;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroHistogramWidget::isZoomed() const
+{
+  return this->Zoomed;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroHistogramWidget::setViewRange(double minimum, double maximum)
+{
+  if (this->Centres.size() < 2 || !(maximum > minimum))
+    {
+    return;
+    }
+  // within the values of the data, at least 1/1000 of them
+  const double fullWidth = this->XMax - this->XMin;
+  double width = std::max(std::min(maximum - minimum, fullWidth), fullWidth / 1000.);
+  double low = std::max(this->XMin, std::min(minimum, this->XMax - width));
+  const bool zoomed = width < fullWidth * (1. - 1e-9);
+  if (!zoomed)
+    {
+    low = this->XMin;
+    width = fullWidth;
+    }
+  this->ViewMin = low;
+  this->ViewMax = low + width;
+  this->Zoomed = zoomed;
+  this->HoverIndex = -1;
+  this->update();
+  emit this->viewRangeChanged(this->ViewMin, this->ViewMax);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroHistogramWidget::resetZoom()
+{
+  this->setViewRange(this->XMin, this->XMax);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroHistogramWidget::wheelEvent(QWheelEvent* event)
+{
+  if (this->Centres.size() < 2)
+    {
+    return;
+    }
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+  const double x = event->position().x();
+#else
+  const double x = event->posF().x();
+#endif
+  const int delta = event->angleDelta().y();
+  if (delta == 0)
+    {
+    return;
+    }
+  // zoom around the value under the pointer
+  const double anchor = this->pixelToValue(x);
+  const double factor = std::pow(0.8, delta / 120.);
+  const double low = anchor - (anchor - this->ViewMin) * factor;
+  const double high = anchor + (this->ViewMax - anchor) * factor;
+  this->setViewRange(low, high);
+  event->accept();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroHistogramWidget::mouseDoubleClickEvent(QMouseEvent* event)
+{
+  Q_UNUSED(event);
+  this->Drag = None;
+  this->resetZoom();
 }

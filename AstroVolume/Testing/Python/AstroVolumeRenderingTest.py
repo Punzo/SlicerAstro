@@ -78,6 +78,8 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.test_ColorFunctionOptions()
         self.setUp()
         self.test_SceneRestoresColorFunctions()
+        self.setUp()
+        self.test_RenderingSection()
 
     def test_EnsureMinimumTransferFunctionGap(self):
         # Points 1e-9 apart, as created by Slicer for a threshold equal to the
@@ -432,4 +434,169 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
                                   if node.GetName() == "Heat"]), 1)
         finally:
             os.remove(sceneFile)
+        self.delayDisplay("Test passed")
+
+    @staticmethod
+    def functionNodes(volumeProperty):
+        """(x, value...) of the opacity and color transfer functions"""
+        nodes = []
+        for function, size in ((volumeProperty.GetScalarOpacity(), 4), (volumeProperty.GetRGBTransferFunction(), 6)):
+            values = []
+            for index in range(function.GetSize()):
+                node = [0.0] * size
+                function.GetNodeValue(index, node)
+                values.append(node)
+            nodes.append(values)
+        return nodes
+
+    @staticmethod
+    def controlPointsReference(volumeProperty, operation, value):
+        """The transfer functions moved (or spread) by the control points
+        items of VTK (the transfer function editors), first and last points
+        fixed"""
+        copy = vtk.vtkVolumeProperty()
+        copy.DeepCopy(volumeProperty)
+        opacity = vtk.vtkPiecewiseFunction()
+        opacity.DeepCopy(volumeProperty.GetScalarOpacity())
+        color = vtk.vtkColorTransferFunction()
+        color.DeepCopy(volumeProperty.GetRGBTransferFunction())
+        copy.SetScalarOpacity(opacity)
+        copy.SetColor(color)
+        opacityItem = vtk.vtkPiecewiseControlPointsItem()
+        opacityItem.SetPiecewiseFunction(opacity)
+        colorItem = vtk.vtkColorTransferControlPointsItem()
+        colorItem.SetColorTransferFunction(color)
+        for item in (opacityItem, colorItem):
+            if operation == "move":
+                item.MovePoints(vtk.vtkVector2f(value, 0.0), True)
+            else:
+                item.SpreadPoints(value, True)
+        return AstroVolumeRenderingTestTest.functionNodes(copy)
+
+    def assertFunctionsEqual(self, computed, expected, tolerance):
+        for computedFunction, expectedFunction in zip(computed, expected):
+            self.assertEqual(len(computedFunction), len(expectedFunction))
+            for a, b in zip(computedFunction, expectedFunction):
+                for x, y in zip(a, b):
+                    self.assertAlmostEqual(x, y, delta=tolerance)
+
+    def test_RenderingSection(self):
+        """3D section (reusable widget of the AstroVolume panel and the
+        Workbench) and its logic: show in 3D with the default color function,
+        presets scaled to the noise, shift and stretch as the transfer
+        function editors of VTK move the points, opacity shift, the color
+        function follows the noise, crop box, noise in the box, quality;
+        disabled for images."""
+        import AstroSampleData
+
+        volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
+        self.assertIsNotNone(volumeNode)
+        logic = slicer.modules.astrovolume.logic()
+        section = slicer.qSlicerAstroRenderingSection()
+        section.setVolumeNode(volumeNode)
+        self.assertTrue(section.enabled)
+        names = list(section.presetNames())
+        self.assertGreater(len(names), 5)
+
+        # shown in 3D: the default color function
+        section.setRenderingVisible(True)
+        displayNode = logic.GetVolumeRenderingDisplayNode(volumeNode, False)
+        self.assertIsNotNone(displayNode)
+        self.assertTrue(displayNode.GetVisibility())
+        self.assertEqual(section.currentPreset(), slicer.vtkMRMLAstroVolumeNode.DefaultPreset)
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(volumeNode.GetPresetNode()),
+                         "ObservatorySurfaces")
+        propertyNode = volumeNode.GetVolumePropertyNode()
+        self.assertEqual(propertyNode, displayNode.GetVolumePropertyNode())
+        self.assertEqual(propertyNode.GetName(), f"{names[section.currentPreset()]} · {volumeNode.GetName()}")
+
+        # another preset: a copy of the preset of the presets scene, scaled
+        # to the noise of the data
+        index = names.index("Surfaces at 3σ, 7σ")
+        section.applyPreset(index)
+        self.assertEqual(section.currentPreset(), index)
+        presets = slicer.util.getNodesByClass("vtkMRMLVolumePropertyNode", logic.GetPresetsScene())
+        volumeProperty = propertyNode.GetVolumeProperty()
+        self.assertFunctionsEqual(self.functionNodes(volumeProperty),
+                                  self.functionNodes(presets[index].GetVolumeProperty()), 0.0)
+        noise = volumeNode.GetDisplayThreshold()
+        opacityX = [node[0] for node in self.functionNodes(volumeProperty)[0]]
+        self.assertTrue(any(abs(x - 3 * noise) < noise for x in opacityX), (opacityX, noise))
+
+        # shift and stretch: the points move as with the transfer function
+        # editors of VTK (single precision positions there)
+        dataRange = float(volumeNode.GetAttribute("SlicerAstro.DATAMAX")) - \
+            float(volumeNode.GetAttribute("SlicerAstro.DATAMIN"))
+        tolerance = 1e-6 * dataRange
+        for operation, value, setter in (("move", 2.0 * noise, section.setShift),
+                                         ("spread", 1.5 * noise, section.setStretch)):
+            section.applyPreset(index)
+            original = self.functionNodes(volumeProperty)
+            expected = self.controlPointsReference(volumeProperty, operation, value)
+            setter(value)
+            self.assertFunctionsEqual(self.functionNodes(volumeProperty), expected, tolerance)
+            # the inner points moved, the first and last did not
+            moved = [abs(a[0] - b[0]) for a, b in zip(self.functionNodes(volumeProperty)[0], original[0])]
+            self.assertGreater(max(moved[1:-1]), 0.5 * value, operation)
+            self.assertEqual((moved[0], moved[-1]), (0.0, 0.0))
+        # the change from the applied value: a second call does nothing
+        before = self.functionNodes(volumeProperty)
+        section.setStretch(1.5 * noise)
+        self.assertFunctionsEqual(self.functionNodes(volumeProperty), before, 0.0)
+        self.assertAlmostEqual(volumeNode.GetAstroVolumeDisplayNode().GetPresetStretch(), 1.5 * noise)
+        # a negative stretch brings the points closer to the centre
+        section.applyPreset(index)
+        expected = self.controlPointsReference(volumeProperty, "spread", -0.5 * noise)
+        section.setStretch(-0.5 * noise)
+        self.assertFunctionsEqual(self.functionNodes(volumeProperty), expected, tolerance)
+
+        # opacity shift: non-zero opacities, at most 1
+        section.applyPreset(index)
+        opacities = [node[1] for node in self.functionNodes(volumeProperty)[0]]
+        section.setOpacityShift(0.3)
+        shifted = [node[1] for node in self.functionNodes(volumeProperty)[0]]
+        for old, new in zip(opacities, shifted):
+            self.assertAlmostEqual(new, old if abs(old) < 1e-4 else min(old + 0.3, 1.0), places=12)
+
+        # the color function follows the noise: applied again, shifts at 0
+        section.setShift(noise)
+        volumeNode.SetDisplayThreshold(2.0 * noise)
+        slicer.app.processEvents()
+        display = volumeNode.GetAstroVolumeDisplayNode()
+        self.assertEqual((display.GetPresetOffset(), display.GetPresetStretch(), display.GetOpacityShift()),
+                         (0.0, 0.0, 0.0))
+        opacityX = [node[0] for node in self.functionNodes(volumeProperty)[0]]
+        self.assertTrue(any(abs(x - 6 * noise) < noise for x in opacityX), (opacityX, noise))
+        volumeNode.SetDisplayThreshold(noise)
+
+        # crop box and noise of the voxels in the box
+        section.setCropping(True)
+        roiNode = logic.GetVolumeRenderingROINode(volumeNode, False)
+        self.assertIsNotNone(roiNode)
+        self.assertTrue(displayNode.GetCroppingEnabled())
+        self.assertTrue(roiNode.GetDisplayVisibility())
+        section.setCropping(False)
+        self.assertFalse(displayNode.GetCroppingEnabled())
+        center, radius = [0.0] * 3, [0.0] * 3
+        roiNode.GetXYZ(center)
+        roiNode.GetRadiusXYZ(radius)
+        roiNode.SetRadiusXYZ([r / 4 for r in radius])
+        roiNode.SetXYZ([c - r / 2 for c, r in zip(center, radius)])
+        expectedRMS = self.expectedRMS(roiNode, volumeNode)
+        measured = section.computeNoiseInBox()
+        self.assertAlmostEqual(measured / expectedRMS, 1.0, places=5)
+        self.assertAlmostEqual(volumeNode.GetDisplayThreshold() / expectedRMS, 1.0, places=5)
+        self.assertIn("from the box", section.status())
+
+        # quality of the 3D views showing the cube
+        section.setQuality(2)
+        self.assertEqual(logic.GetVolumeRenderingQuality(volumeNode), 2)
+        section.setRenderingVisible(False)
+        self.assertFalse(displayNode.GetVisibility())
+
+        # an image: no 3D rendering
+        image = AstroSampleData.AstroSampleDataLogic().downloadSample("NGC2403_DSS")
+        section.setVolumeNode(image)
+        self.assertFalse(section.enabled)
+        self.assertFalse(slicer.util.findChild(section, "RenderingNote").isHidden())
         self.delayDisplay("Test passed")

@@ -28,7 +28,8 @@
 /// Histogram of the data with the 2D colour window and the noise: counts on a
 /// logarithmic axis, values in the units of the data, the window of the 2D
 /// colour function (amber band, drag its edges or move it) and the noise σ
-/// used by the 3D colour functions (white dashed line, drag it). The value under the
+/// used by the 3D colour functions (white line with a σ handle, drag it). The
+/// mouse wheel zooms the value axis. The value under the
 /// pointer is shown with its multiple of σ and its count.
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroHistogramWidget
   : public QWidget
@@ -38,12 +39,17 @@ class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroHistogramWi
   Q_PROPERTY(double windowMaximum READ windowMaximum)
   Q_PROPERTY(double noise READ noise)
 
+public slots:
+  /// All the values on the axis again (emits viewRangeChanged)
+  void resetZoom();
+
 public:
   explicit qSlicerAstroHistogramWidget(QWidget* parent = nullptr);
   ~qSlicerAstroHistogramWidget() override;
 
   /// Bins: centres (increasing, equal widths) and counts
   Q_INVOKABLE void setHistogram(const QVector<double>& centres, const QVector<double>& counts);
+  /// No bins, and no zoom (the next histogram sets the values of the axis)
   Q_INVOKABLE void clearHistogram();
   Q_INVOKABLE QVector<double> binCentres() const;
   Q_INVOKABLE QVector<double> binCounts() const;
@@ -58,9 +64,17 @@ public:
   double windowMinimum() const;
   double windowMaximum() const;
   double noise() const;
-  /// Limits of the value axis
+  /// Limits of the values of the data (first histogram after a reset)
   Q_INVOKABLE double minimumValue() const;
   Q_INVOKABLE double maximumValue() const;
+  /// Visible part of the value axis (zoomed with the mouse wheel; a
+  /// double click shows all the values again)
+  Q_INVOKABLE double viewMinimum() const;
+  Q_INVOKABLE double viewMaximum() const;
+  Q_INVOKABLE void setViewRange(double minimum, double maximum);
+  Q_INVOKABLE bool isZoomed() const;
+  /// Position of the σ handle (widget coordinates; invalid if not shown)
+  Q_INVOKABLE QPointF noiseHandlePosition() const;
 
   QSize sizeHint() const override;
   QSize minimumSizeHint() const override;
@@ -71,6 +85,9 @@ signals:
   void windowChanged(double minimum, double maximum);
   void noiseChanging(double noise);
   void noiseChanged(double noise);
+  /// The visible values changed: the owner can compute the histogram of
+  /// that range (setHistogram keeps the zoom)
+  void viewRangeChanged(double minimum, double maximum);
 
 protected:
   void paintEvent(QPaintEvent* event) override;
@@ -78,6 +95,10 @@ protected:
   void mouseMoveEvent(QMouseEvent* event) override;
   void mouseReleaseEvent(QMouseEvent* event) override;
   void leaveEvent(QEvent* event) override;
+  void wheelEvent(QWheelEvent* event) override;
+  void mouseDoubleClickEvent(QMouseEvent* event) override;
+  QRectF noiseHandleRect() const;
+  bool noiseVisible() const;
 
   QRectF plotRect() const;
   double valueToPixel(double value) const;
@@ -89,6 +110,9 @@ protected:
   QString Unit;
   double XMin{0.};
   double XMax{1.};
+  double ViewMin{0.};
+  double ViewMax{1.};
+  bool Zoomed{false};
   double LogMax{1.};
   double WindowMin{0.};
   double WindowMax{1.};

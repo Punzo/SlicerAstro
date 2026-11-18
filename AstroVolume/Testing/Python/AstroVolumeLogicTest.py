@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import qt
 
 import slicer
 import vtk
@@ -90,7 +91,7 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         for test in (self.test_EstimateBeamFromNoise, self.test_Histogram, self.test_SnapROIToVoxelGrid,
                      self.test_SegmentMask, self.test_BeamInInfo, self.test_AllBlankCube,
-                     self.test_DisplayHistogramAndWindow, self.test_ContoursSection):
+                     self.test_DisplayHistogramAndWindow, self.test_ContoursSection, self.test_InfoSection):
             self.setUp()
             test()
 
@@ -438,6 +439,40 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         histogram = slicer.util.findChild(section, "DisplayHistogram")
         self.assertEqual(int(sum(histogram.binCounts())), values.size)
         self.assertAlmostEqual(histogram.noise, 2.0)
+
+        # zoom on the noise: the bins of the visible values (logic
+        # ComputeHistogramInRange), all the values again with a double click
+        histogram.resize(380, 150)
+        histogram.setViewRange(-3.0, 9.0)
+        self.assertTrue(histogram.isZoomed())
+        centres = list(histogram.binCentres())
+        self.assertAlmostEqual(centres[0] - (centres[1] - centres[0]) / 2, -3.0, places=9)
+        inRange = values[(values >= -3.0) & (values <= 9.0)]
+        self.assertEqual(int(sum(histogram.binCounts())), inRange.size)
+        rangeCentres, rangeCounts = vtk.vtkDoubleArray(), vtk.vtkDoubleArray()
+        self.assertTrue(logic.ComputeHistogramInRange(volume, 40, -3.0, 9.0, rangeCentres, rangeCounts))
+        expectedCounts, edges = np.histogram(inRange, bins=40, range=(-3.0, 9.0))
+        np.testing.assert_allclose([rangeCounts.GetValue(i) for i in range(40)], expectedCounts)
+
+        # the σ handle is dragged: the noise of the data follows
+        handle = histogram.noiseHandlePosition()
+        self.assertGreater(handle.x(), 0)
+
+        def mouse(eventType, x, y, buttons):
+            event = qt.QMouseEvent(eventType, qt.QPointF(x, y), qt.QPointF(x, y), qt.Qt.LeftButton, buttons,
+                                   qt.Qt.NoModifier)
+            slicer.app.sendEvent(histogram, event)
+
+        target = handle.x() + 40.0
+        mouse(qt.QEvent.MouseButtonPress, handle.x(), handle.y(), qt.Qt.LeftButton)
+        mouse(qt.QEvent.MouseMove, target, handle.y(), qt.Qt.LeftButton)
+        mouse(qt.QEvent.MouseButtonRelease, target, handle.y(), qt.Qt.NoButton)
+        self.assertGreater(histogram.noise, 2.0)
+        self.assertAlmostEqual(volume.GetDisplayThreshold(), histogram.noise, places=9)
+        self.assertGreater(histogram.noiseHandlePosition().x(), handle.x() + 30.0)
+        mouse(qt.QEvent.MouseButtonDblClick, 100.0, 100.0, qt.Qt.LeftButton)
+        self.assertFalse(histogram.isZoomed())
+        self.assertEqual(int(sum(histogram.binCounts())), values.size)
         self.delayDisplay("Test passed")
 
     def test_ContoursSection(self):
@@ -505,4 +540,80 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         self.assertIn("noise", section.status())
         section.setLevels("5", slicer.qSlicerAstroContoursSection.DataUnit)
         self.assertEqual(section.drawContours(), 1)
+        self.delayDisplay("Test passed")
+
+    def test_InfoSection(self):
+        """Info section (reusable widget of the AstroVolume panel and the
+        Workbench) and its logic: facts, beam (GetBeam, SetBeam: estimate,
+        edit, apply; the header precision is kept when the beam is not
+        changed), coordinate conventions (right ascension, velocity
+        definition), channel width, FITS keywords with a filter."""
+        logic = slicer.vtkSlicerAstroVolumeLogic
+        data = self.correlatedNoise((3, 160, 160), 8.0, 5.0, 30.0, seed=11)
+        volume = self.loadCube("info_section", data)
+        beam = [0.0, 0.0, 0.0]
+        self.assertFalse(logic.GetBeam(volume, beam))
+        self.assertEqual(beam, [0.0, 0.0, 0.0])
+
+        section = slicer.qSlicerAstroInfoSection()
+        section.setVolumeNode(volume)
+        self.assertEqual(section.fact("Object"), volume.GetName())
+        self.assertEqual(section.fact("Dimensions"), "160×160×3")
+        self.assertEqual(section.fact("Unit"), "Jy/beam")
+        self.assertEqual(section.fact("Beam"), "—")
+        self.assertIn("No beam", section.beamStatus())
+        # channel width at the centre of the field (radioVelocityWCS)
+        width = logic.GetChannelWidth(volume)
+        self.assertGreater(width, 0.0)
+        self.assertTrue(section.fact("Channel width").startswith(f"{width:.3g} "))
+
+        # estimate (fields only), then apply
+        self.assertTrue(section.estimateBeam())
+        self.assertIn("ESTIMATED", section.beamStatus())
+        self.assertFalse(logic.GetBeam(volume, beam))
+        major = slicer.util.findChild(section, "InfoBeam_BMAJ")
+        self.assertAlmostEqual(major.value / (8.0 * 3.6), 1.0, delta=0.1)
+        self.assertTrue(section.applyBeam())
+        self.assertTrue(logic.GetBeam(volume, beam))
+        self.assertAlmostEqual(beam[0] * 3600.0, major.value, places=6)
+        self.assertIn("applied", section.beamStatus())
+        self.assertNotEqual(section.fact("Beam"), "—")
+
+        # SetBeam: the larger axis is the major one; refused without axes
+        self.assertTrue(logic.SetBeam(volume, [10.0 / 3600, 20.0 / 3600, -15.0]))
+        self.assertTrue(logic.GetBeam(volume, beam))
+        self.assertAlmostEqual(beam[0], 20.0 / 3600, places=15)
+        self.assertAlmostEqual(beam[1], 10.0 / 3600, places=15)
+        self.assertEqual(beam[2], -15.0)
+        self.assertFalse(logic.SetBeam(volume, [0.0, 20.0 / 3600, 0.0]))
+        # the fields follow the data; applying unchanged fields keeps the
+        # full precision of the header
+        precise = "0.0055555555555555558"
+        volume.SetAttribute("SlicerAstro.BMAJ", precise)
+        self.assertAlmostEqual(major.value, 20.0, places=2)
+        self.assertTrue(section.applyBeam())
+        self.assertEqual(volume.GetAttribute("SlicerAstro.BMAJ"), precise)
+
+        # coordinate conventions
+        raFormat = slicer.util.findChild(section, "InfoRightAscension")
+        raFormat.setCurrentIndex(1)
+        self.assertFalse(logic.IsRightAscensionSexagesimal(volume))
+        raFormat.setCurrentIndex(0)
+        self.assertTrue(logic.IsRightAscensionSexagesimal(volume))
+        velocity = slicer.util.findChild(section, "InfoVelocity")
+        velocity.setCurrentIndex(1)
+        self.assertTrue(logic.IsOpticalVelocityDefinition(volume))
+        velocity.setCurrentIndex(0)
+        self.assertFalse(logic.IsOpticalVelocityDefinition(volume))
+
+        # FITS keywords, filtered
+        total = section.keywordRowCount()
+        self.assertGreater(total, 10)
+        section.setKeywordFilter("BMAJ")
+        self.assertEqual(section.keywordRowCount(), 1)
+        section.setKeywordFilter("")
+        self.assertEqual(section.keywordRowCount(), total)
+        section.setVolumeNode(None)
+        self.assertFalse(section.enabled)
+        self.assertEqual(section.fact("Object"), "")
         self.delayDisplay("Test passed")

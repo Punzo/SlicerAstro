@@ -102,6 +102,9 @@ public:
   /// A unit of a FITS header as it is written in text (e.g. JY/BEAM ->
   /// Jy/beam, KM/S -> km/s)
   Q_INVOKABLE static QString displayUnit(const QString& unit);
+  /// A value of the data with its unit, 3 significant digits (small Jy
+  /// values in mJy, e.g. 0.00052 JY/BEAM -> 0.52 mJy/beam)
+  Q_INVOKABLE static QString formatFlux(double value, const QString& unit);
 
   /// About `count` round values (1, 2 or 5 times a power of ten) in
   /// [minimum, maximum], for the ticks of plots

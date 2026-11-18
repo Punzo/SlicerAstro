@@ -45,6 +45,7 @@
 #include <vtkSlicerVolumesLogic.h>
 #include <vtkSlicerUnitsLogic.h>
 #include <vtkSlicerTerminologiesModuleLogic.h>
+#include <vtkSlicerVolumeRenderingLogic.h>
 
 // SlicerQt includes
 #include <qMRMLLayoutManager.h>
@@ -540,6 +541,7 @@ void qSlicerAstroVolumeModule::setup()
     qCritical() << "qSlicerAstroVolumeModule::setup() : volumeRendering module not found!";
     return;
     }
+  logic->SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic::SafeDownCast(d->volumeRendering->logic()));
 
   qSlicerAbstractModuleWidget*  volumeRenderingWidget =
       dynamic_cast<qSlicerAbstractModuleWidget*>

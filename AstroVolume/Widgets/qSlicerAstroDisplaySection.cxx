@@ -58,6 +58,19 @@
 
 namespace
 {
+const int HistogramBins = 180;
+
+//----------------------------------------------------------------------------
+QVector<double> ToVector(vtkDoubleArray* array)
+{
+  QVector<double> values(static_cast<int>(array->GetNumberOfValues()));
+  for (int i = 0; i < values.size(); i++)
+    {
+    values[i] = array->GetValue(i);
+    }
+  return values;
+}
+
 const double Percentages[6] = {95., 98., 99., 99.5, 99.9, 100.};
 const char* Options[3] = {"Reverse", "Inverse", "Log"};
 
@@ -211,6 +224,7 @@ qSlicerAstroDisplaySection::qSlicerAstroDisplaySection(QWidget* parent)
   QObject::connect(d->Histogram, SIGNAL(windowChanged(double,double)), this, SLOT(setWindow(double,double)));
   QObject::connect(d->Histogram, SIGNAL(noiseChanging(double)), this, SLOT(onNoiseChanging(double)));
   QObject::connect(d->Histogram, SIGNAL(noiseChanged(double)), this, SLOT(setNoise(double)));
+  QObject::connect(d->Histogram, SIGNAL(viewRangeChanged(double,double)), this, SLOT(onViewRangeChanged(double,double)));
   layout->addWidget(d->Histogram);
 
   QGridLayout* fields = new QGridLayout();
@@ -292,28 +306,34 @@ void qSlicerAstroDisplaySection::setVolumeNode(vtkMRMLNode* node)
   d->Volume = volume;
   d->ObservedDisplay = displayNode;
 
-  // histogram of the data (computed once per volume)
+  // histogram of the data (computed once per volume, and again for the
+  // zoomed values)
+  d->Histogram->clearHistogram();
   vtkNew<vtkDoubleArray> centres;
   vtkNew<vtkDoubleArray> counts;
-  if (volume && vtkSlicerAstroVolumeLogic::ComputeHistogram(volume, 180, centres, counts))
+  if (volume && vtkSlicerAstroVolumeLogic::ComputeHistogram(volume, HistogramBins, centres, counts))
     {
-    QVector<double> x(static_cast<int>(centres->GetNumberOfValues())), y(x.size());
-    for (int i = 0; i < x.size(); i++)
-      {
-      x[i] = centres->GetValue(i);
-      y[i] = counts->GetValue(i);
-      }
-    d->Histogram->setHistogram(x, y);
-    const double halfBin = x.size() > 1 ? 0.5 * (x[1] - x[0]) : 0.5;
-    d->DataRange[0] = x.first() - halfBin;
-    d->DataRange[1] = x.last() + halfBin;
-    }
-  else
-    {
-    d->Histogram->clearHistogram();
+    d->Histogram->setHistogram(ToVector(centres), ToVector(counts));
+    d->DataRange[0] = d->Histogram->minimumValue();
+    d->DataRange[1] = d->Histogram->maximumValue();
     }
   this->setEnabled(volume != nullptr);
   this->updateFromVolume();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDisplaySection::onViewRangeChanged(double minimum, double maximum)
+{
+  Q_D(qSlicerAstroDisplaySection);
+  vtkNew<vtkDoubleArray> centres;
+  vtkNew<vtkDoubleArray> counts;
+  const bool computed = d->Histogram->isZoomed() ?
+    vtkSlicerAstroVolumeLogic::ComputeHistogramInRange(d->Volume, HistogramBins, minimum, maximum, centres, counts) :
+    vtkSlicerAstroVolumeLogic::ComputeHistogram(d->Volume, HistogramBins, centres, counts);
+  if (computed)
+    {
+    d->Histogram->setHistogram(ToVector(centres), ToVector(counts));
+    }
 }
 
 //-----------------------------------------------------------------------------
