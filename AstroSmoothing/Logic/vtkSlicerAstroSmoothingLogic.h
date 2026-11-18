@@ -35,6 +35,7 @@ class vtkRenderWindow;
 #include <functional>
 #include <string>
 class vtkMRMLAstroSmoothingParametersNode;
+class vtkMRMLAstroVolumeNode;
 
 /// \class vtkSlicerAstroSmoothingLogic
 /// \brief AstroSmoothing module filters a Volume using several techniques.
@@ -81,6 +82,16 @@ public:
   /// \param vtkRenderWindow to init the GPU algorithm
   /// \return Success flag
   int Apply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
+
+  /// Beam of the data after a Gaussian smoothing: the beam of the input
+  /// convolved with the kernel projected on the sky (its 3D covariance,
+  /// rotations included, marginalized over the spectral axis and mapped to
+  /// the sky with the WCS at the centre of the field). Beams as (major, minor,
+  /// position angle): FWHM in arc seconds, degrees from north through east.
+  /// Also the Gaussian of the kernel on the sky (kernel). Returns false if
+  /// the input has no beam or no celestial WCS, or the filter is not Gaussian.
+  static bool ComputeSmoothedBeam(vtkMRMLAstroVolumeNode* input, vtkMRMLAstroSmoothingParametersNode* pnode,
+                                  double newBeam[3], double kernel[3]);
 
   /// GPU backend used when the parameters node selects the GPU hardware:
   /// "WebGPU" (SlicerAstro built against a VTK with WebGPU and a WebGPU

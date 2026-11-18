@@ -3548,6 +3548,51 @@ bool vtkSlicerAstroVolumeLogic::SetColorFunctionOption(vtkMRMLColorNode* colorNo
 }
 
 //----------------------------------------------------------------------------
+vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CreateThresholdMask(vtkMRMLAstroVolumeNode* reference,
+                                                                       vtkMRMLAstroVolumeNode* data,
+                                                                       double threshold, const char* segmentName,
+                                                                       const double color[3])
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene || !reference || !data || !data->GetImageData() || !segmentName)
+    {
+    vtkErrorMacro("CreateThresholdMask: data or scene not found");
+    return nullptr;
+    }
+  vtkSmartPointer<vtkMRMLSegmentationNode> maskNode = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
+    vtkMRMLSegmentationNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLSegmentationNode")));
+  maskNode->SetName(scene->GetUniqueNameByString((std::string(data->GetName()) + "_mask").c_str()));
+  scene->AddNode(maskNode);
+  maskNode->CreateDefaultDisplayNodes();
+  vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(maskNode, reference);
+  double segmentColor[3] = {color[0], color[1], color[2]};
+  const std::string segmentID = maskNode->GetSegmentation()->AddEmptySegment(segmentName, segmentName, segmentColor);
+  vtkSegment* segment = maskNode->GetSegmentation()->GetSegment(segmentID);
+  if (segment)
+    {
+    segment->SetTerminology(vtkMRMLAstroTerminology::GetMaskEntry());
+    }
+  vtkNew<vtkImageThreshold> imageThreshold;
+  imageThreshold->SetInputData(data->GetImageData());
+  imageThreshold->ThresholdBetween(threshold, std::max(threshold, StringToDouble(data->GetAttribute("SlicerAstro.DATAMAX"))));
+  imageThreshold->SetInValue(1);
+  imageThreshold->SetOutValue(0);
+  imageThreshold->SetOutputScalarType(VTK_SHORT);
+  imageThreshold->Update();
+  vtkNew<vtkOrientedImageData> labelmap;
+  labelmap->ShallowCopy(imageThreshold->GetOutput());
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  data->GetIJKToRASMatrix(ijkToRAS);
+  labelmap->SetGeometryFromImageToWorldMatrix(ijkToRAS);
+  if (segment)
+    {
+    segment->AddRepresentation(vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName(), labelmap);
+    }
+  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(maskNode);
+  return maskNode;
+}
+
+//----------------------------------------------------------------------------
 double vtkSlicerAstroVolumeLogic::GetHIColumnDensityFactor(vtkMRMLVolumeNode* mapNode)
 {
   if (!mapNode)

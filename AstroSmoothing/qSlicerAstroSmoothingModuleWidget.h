@@ -48,72 +48,38 @@ public:
   Q_INVOKABLE vtkMRMLAstroSmoothingParametersNode* mrmlAstroSmoothingParametersNode()const;
 
 public slots:
-  /// Slots to run smoothing algorithms.
-  /// It creates the output volume and calls the logic
+  /// Smooth the input data (new output volume)
   void onApply();
 
 protected:
   QScopedPointer<qSlicerAstroSmoothingModuleWidgetPrivate> d_ptr;
 
-  /// Initialization of the qvtk connections between MRML nodes
   virtual void setMRMLScene(vtkMRMLScene*);
 
-  /// Initialization of MRML nodes
   void initializeNodes(bool forceNew = false);
-
-  /// Initialization of MRML parameter node
   void initializeParameterNode(bool forceNew = false);
-
-  /// Initialization of MRML segmentation nodes
   void initializeSegmentations(bool forceNew = false);
 
-  /// Initialization of MRML camera nodes
-  void initializeCameras();
-
 protected slots:
-
-  /// Set the MRML input node
   void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML output node
   void onOutputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML segmentation editor node
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  /// Mask selector: the Segment Editor and the table use the selected mask
-  void onMaskSegmentationChanged(vtkMRMLNode* node);
-  /// Masks only in the selector (not the contours); by default the mask of the input volume
-  void updateMaskSelector();
-
-  /// Update widget GUI from MRML input node
   void onInputVolumeModified();
-
-  /// Update widget GUI from MRML parameter node
   void onMRMLAstroSmoothingParametersNodeModified();
-
-  /// Set the MRML parameter node
   void setMRMLAstroSmoothingParametersNode(vtkMRMLNode*);
-
   void onEndCloseEvent();
   void onEndImportEvent();
   void onStartImportEvent();
 
-  void onAccuracyChanged(double value);
-  void onAutoRunChanged(bool value);
-  void onCurrentFilterChanged(int index);
+  /// The user chose a filter: its default parameters
+  void onFilterSelected(int index);
   void onHardwareChanged(int index);
-  void onKChanged(double value);
-  void onLinkChanged(bool value);
-  void onMasksCommandChanged();
-  void onModeChanged();
-  void onMRMLCameraNodeModified();
-  void onParameterXChanged(double value);
-  void onParameterYChanged(double value);
-  void onParameterZChanged(double value);
-  void onRxChanged(double value);
-  void onRyChanged(double value);
-  void onRzChanged(double value);
-  void onTimeStepChanged(double value);
+  void onGenerateMaskToggled(bool generate);
+  void onLinkToggled(bool link);
+  void onAutoRunToggled(bool autoRun);
+  /// The parameters of the fields (kernel, rotation, accuracy, gradient)
+  void onParametersEdited();
+  /// The result in the views (active volume)
+  void onShowResult();
 
   void onMRMLSelectionNodeModified(vtkObject* sender);
   void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);

@@ -1513,22 +1513,24 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     d->parametersNode->SetFirstMomentVolumeNodeID(nullptr);
     }
 
-  // the maps in the views
+  // the maps in the views (the module panel; the Workbench, which embeds
+  // the panel, arranges its own views and lists the maps as products)
+  const bool modulePanel = !this->property("astroEmbedded").toBool();
   qSlicerApplication* app = qSlicerApplication::application();
-  if (app && app->layoutManager())
+  if (modulePanel && app && app->layoutManager())
     {
     app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement(2);
     }
-  if (generateZero)
+  if (modulePanel && generateZero)
     {
     d->showMap(d->parametersNode->GetZeroMomentVolumeNodeID(), "vtkMRMLSliceNodeRed", "vtkMRMLSliceCompositeNodeRed");
     }
-  if (generateFirst)
+  if (modulePanel && generateFirst)
     {
     d->showMap(d->parametersNode->GetFirstMomentVolumeNodeID(), "vtkMRMLSliceNodeYellow",
                "vtkMRMLSliceCompositeNodeYellow");
     }
-  if (generateSecond)
+  if (modulePanel && generateSecond)
     {
     d->showMap(d->parametersNode->GetSecondMomentVolumeNodeID(), "vtkMRMLSliceNodeGreen",
                "vtkMRMLSliceCompositeNodeGreen");

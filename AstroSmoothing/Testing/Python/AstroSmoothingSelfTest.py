@@ -97,6 +97,8 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         self.test_AstroSmoothingGPU()
         self.setUp()
         self.test_ImagesAndSpectra()
+        self.setUp()
+        self.test_SmoothedBeam()
 
     def smooth(self, parametersNode, configure, hardware=0):
         """Configure the parameters node, run the module (0: CPU, 1: GPU) and return the output voxels."""
@@ -303,7 +305,8 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         image[18:24, 20:30] += 8.0
         image[5, 7] = np.nan
         imagePath = os.path.join(directory, "image.fits")
-        writeFITS(imagePath, image, -32, celestialWCS(crpix=(25.0, 20.0)) + beamCards())
+        # in K: the values are not rescaled with the beam (Jy/beam data are, see test_SmoothedBeam)
+        writeFITS(imagePath, image, -32, celestialWCS(crpix=(25.0, 20.0)) + beamCards("K"))
         spectrum = rng.normal(0.0, 1.0, (1, 64)).astype(np.float32)
         spectrum[0, 30:36] += 6.0
         spectrum[0, 10] = np.nan
@@ -376,4 +379,77 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
                 cpu = self.smooth(parametersNode, configure, hardware=0)
                 gpu = self.smooth(parametersNode, configure, hardware=1)
                 self.assertClose(gpu, cpu, scale, f"GPU {name} {filterName}")
+        self.delayDisplay("Test passed")
+
+    def test_SmoothedBeam(self):
+        """Gaussian smoothing of Jy/beam data: the beam of the output is the
+        beam convolved with the kernel, the data are scaled by the ratio of
+        the beam areas (a point source keeps its peak, the flux is kept); the
+        kernel on the sky follows the WCS (position angle of a rotated
+        kernel)."""
+        import math
+        import os
+        from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
+        from vtkSlicerAstroSmoothingModuleLogicPython import vtkSlicerAstroSmoothingLogic
+
+        directory = os.path.join(slicer.app.temporaryPath, "AstroSmoothingSelfTest")
+        os.makedirs(directory, exist_ok=True)
+        cdelt = 0.001  # degrees: 3.6"
+        beamPixels = 4.0  # FWHM of the beam
+        n, channels = 64, 5
+        y, x = np.mgrid[0:n, 0:n]
+        sigma = beamPixels / (2 * math.sqrt(2 * math.log(2)))
+        source = np.exp(-((x - 32) ** 2 + (y - 32) ** 2) / (2 * sigma ** 2))
+        cube = np.repeat((2.0 * source)[np.newaxis], channels, axis=0).astype(np.float32)  # 2 Jy point source
+        path = os.path.join(directory, "beam.fits")
+        beam = beamPixels * cdelt
+        writeFITS(path, cube, -32, celestialWCS(crpix=(33.0, 33.0), cdelt=(-cdelt, cdelt)) + radioVelocityWCS() +
+                  [("BUNIT", "JY/BEAM"), ("BMAJ", beam), ("BMIN", beam), ("BPA", 0.0)])
+        volumeNode = slicer.util.loadVolume(path)
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroSmoothing")
+        parametersNode = slicer.util.getNode("AstroSmoothingParameters")
+        parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+
+        def gaussian(p):
+            p.SetFilter(GAUSSIAN)
+            p.SetParameterX(3)
+            p.SetParameterY(3)
+            p.SetParameterZ(0)
+            p.SetRx(0)
+            p.SetRy(0)
+            p.SetRz(0)
+            p.SetAccuracy(4)  # the kernel to 4 sigma
+        computed = self.smooth(parametersNode, gaussian)
+        # kernel length: 4 sigma on each side
+        sigmaKernel = 3 / (2 * math.sqrt(2 * math.log(2)))
+        self.assertEqual(parametersNode.GetKernelLengthX(), 2 * math.ceil(4 * sigmaKernel) + 1)
+        output = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        expectedBeam = math.hypot(beamPixels, 3.0) * cdelt
+        self.assertAlmostEqual(float(output.GetAttribute("SlicerAstro.BMAJ")) / expectedBeam, 1.0, delta=1e-6)
+        self.assertAlmostEqual(float(output.GetAttribute("SlicerAstro.BMIN")) / expectedBeam, 1.0, delta=1e-6)
+        # point source: its peak in Jy/beam is kept (sampled Gaussians: 1%)
+        self.assertAlmostEqual(computed[2].max() / cube[2].max(), 1.0, delta=0.01)
+        # flux: sum * pixel area / beam area
+        fluxIn = cube[2].sum() / ((math.pi / (4 * math.log(2))) * beamPixels ** 2)
+        fluxOut = computed[2].sum() / ((math.pi / (4 * math.log(2))) * (expectedBeam / cdelt) ** 2)
+        self.assertAlmostEqual(fluxOut / fluxIn, 1.0, delta=1e-3)
+
+        # rotated elliptical kernel: FWHM 4 x 2 pixels, Rz 30 degrees; with
+        # RA increasing to the left (CDELT1 < 0) its major axis is at
+        # position angle 60 degrees on the sky
+        parametersNode.SetFilter(GAUSSIAN)
+        parametersNode.SetParameterX(4)
+        parametersNode.SetParameterY(2)
+        parametersNode.SetParameterZ(0)
+        parametersNode.SetRz(30)
+        newBeam, kernel = [0.0] * 3, [0.0] * 3
+        self.assertTrue(vtkSlicerAstroSmoothingLogic.ComputeSmoothedBeam(volumeNode, parametersNode, newBeam, kernel))
+        self.assertAlmostEqual(kernel[0], 4 * cdelt * 3600, delta=1e-3)
+        self.assertAlmostEqual(kernel[1], 2 * cdelt * 3600, delta=1e-3)
+        self.assertAlmostEqual(kernel[2], 60.0, delta=0.05)
+        # box filters have no Gaussian beam
+        parametersNode.SetFilter(BOX)
+        self.assertFalse(vtkSlicerAstroSmoothingLogic.ComputeSmoothedBeam(volumeNode, parametersNode, newBeam, kernel))
         self.delayDisplay("Test passed")

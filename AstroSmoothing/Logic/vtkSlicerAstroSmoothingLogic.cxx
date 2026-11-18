@@ -46,6 +46,16 @@
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
+#include <cmath>
+#include <algorithm>
+#include <vtkMRMLAstroVolumeDisplayNode.h>
+#include <vtkSMPTools.h>
+#include <vtkAstroBeams.h>
+#include <vtkDoubleArray.h>
+#include <vtkFloatArray.h>
+#include <vtkMath.h>
+#include <cstdio>
+#include <functional>
 #include <vtkPointData.h>
 #include <vtkRenderWindow.h>
 #include <vtkSmartPointer.h>
@@ -423,6 +433,57 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
   outputImage->SetSpacing(1., 1., 1.);
   int wasModifying = outputVolume->StartModify();
   outputVolume->SetAndObserveImageData(outputImage);
+  // Gaussian smoothing: the beam of the output is the beam of the input
+  // convolved with the kernel; Jy/beam data are scaled by the ratio of the
+  // beam areas, so that point sources keep their peak (CASA imsmooth)
+  double newBeam[3], kernel[3];
+  if (ComputeSmoothedBeam(inputVolume, pnode, newBeam, kernel))
+    {
+    const char* unit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
+    std::string bunit = unit ? unit : "";
+    std::transform(bunit.begin(), bunit.end(), bunit.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+    bunit.erase(std::remove(bunit.begin(), bunit.end(), ' '), bunit.end());
+    double oldBeam[2] = {atof(inputVolume->GetAttribute("SlicerAstro.BMAJ")) * 3600.,
+                         atof(inputVolume->GetAttribute("SlicerAstro.BMIN")) * 3600.};
+    if (bunit == "JY/BEAM")
+      {
+      const double scale = vtkAstroBeams::Area(newBeam[0], newBeam[1]) / vtkAstroBeams::Area(oldBeam[0], oldBeam[1]);
+      vtkDataArray* scalars = outputImage->GetPointData()->GetScalars();
+      vtkFloatArray* floats = vtkFloatArray::SafeDownCast(scalars);
+      vtkDoubleArray* doubles = vtkDoubleArray::SafeDownCast(scalars);
+      if (floats)
+        {
+        float* values = floats->GetPointer(0);
+        const float factor = static_cast<float>(scale);
+        vtkSMPTools::For(0, floats->GetNumberOfValues(), [values, factor](vtkIdType begin, vtkIdType end)
+          {
+          for (vtkIdType i = begin; i < end; i++)
+            {
+            values[i] *= factor;
+            }
+          });
+        }
+      else if (doubles)
+        {
+        double* values = doubles->GetPointer(0);
+        vtkSMPTools::For(0, doubles->GetNumberOfValues(), [values, scale](vtkIdType begin, vtkIdType end)
+          {
+          for (vtkIdType i = begin; i < end; i++)
+            {
+            values[i] *= scale;
+            }
+          });
+        }
+      scalars->Modified();
+      }
+    char value[64];
+    snprintf(value, sizeof(value), "%.17g", newBeam[0] / 3600.);
+    outputVolume->SetAttribute("SlicerAstro.BMAJ", value);
+    snprintf(value, sizeof(value), "%.17g", newBeam[1] / 3600.);
+    outputVolume->SetAttribute("SlicerAstro.BMIN", value);
+    snprintf(value, sizeof(value), "%.17g", newBeam[2]);
+    outputVolume->SetAttribute("SlicerAstro.BPA", value);
+    }
   outputVolume->UpdateRangeAttributes();
   outputVolume->UpdateDisplayThresholdAttributes();
   outputVolume->EndModify(wasModifying);
@@ -637,4 +698,140 @@ int vtkSlicerAstroSmoothingLogic::GradientGPUFilter(vtkMRMLAstroSmoothingParamet
   filter->SetRenderWindow(renderWindow);
   return this->RunSmoothingFilter(pnode, filter, "Intensity driven Gradient Filter (GPU, OpenGL)", false);
 #endif
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroSmoothingLogic::ComputeSmoothedBeam(vtkMRMLAstroVolumeNode* input,
+                                                       vtkMRMLAstroSmoothingParametersNode* pnode,
+                                                       double newBeam[3], double kernel[3])
+{
+  newBeam[0] = newBeam[1] = newBeam[2] = 0.;
+  kernel[0] = kernel[1] = kernel[2] = 0.;
+  if (!input || !pnode || pnode->GetFilter() != 1 || !input->GetImageData() || !input->GetAstroVolumeDisplayNode())
+    {
+    return false;
+    }
+  double beam[3];
+  const char* keys[3] = {"SlicerAstro.BMAJ", "SlicerAstro.BMIN", "SlicerAstro.BPA"};
+  for (int i = 0; i < 3; i++)
+    {
+    const char* value = input->GetAttribute(keys[i]);
+    if (!value || !strcmp(value, "UNDEFINED"))
+      {
+      return false;
+      }
+    beam[i] = atof(value);
+    }
+  if (!(beam[0] > 0.) || !(beam[1] > 0.))
+    {
+    return false;
+    }
+  beam[0] *= 3600.;
+  beam[1] *= 3600.;
+
+  // covariance (pixels^2) of the kernel: exponent in the rotated coordinates
+  // r' = M r (the rows of M as in the kernel of the parameters node), so the
+  // covariance in pixel coordinates is M^T D M
+  const double fwhmToSigma = 1. / (2. * std::sqrt(2. * std::log(2.)));
+  const double degToRad = vtkMath::Pi() / 180.;
+  int dims[3];
+  input->GetImageData()->GetDimensions(dims);
+  const double sigma[3] = {pnode->GetParameterX() * fwhmToSigma,
+                           dims[1] > 1 ? pnode->GetParameterY() * fwhmToSigma : 0.,
+                           dims[2] > 1 ? pnode->GetParameterZ() * fwhmToSigma : 0.};
+  const bool planar = dims[2] == 1;
+  const double rx = (planar ? 0. : pnode->GetRx()) * degToRad;
+  const double ry = (planar ? 0. : pnode->GetRy()) * degToRad;
+  const double rz = (dims[1] > 1 ? pnode->GetRz() : 0.) * degToRad;
+  const double cx = std::cos(rx), sx = std::sin(rx), cy = std::cos(ry), sy = std::sin(ry);
+  const double cz = std::cos(rz), sz = std::sin(rz);
+  const double M[3][3] = {{cy * cz, -cy * sz, sy},
+                          {cz * sx * sy + cx * sz, cx * cz - sx * sy * sz, -cy * sx},
+                          {-cx * cz * sy + sx * sz, cz * sx + cx * sy * sz, cx * cy}};
+  double covariancePixels[2][2] = {{0., 0.}, {0., 0.}};
+  for (int a = 0; a < 2; a++)
+    {
+    for (int b = 0; b < 2; b++)
+      {
+      for (int k = 0; k < 3; k++)
+        {
+        covariancePixels[a][b] += M[k][a] * sigma[k] * sigma[k] * M[k][b];
+        }
+      }
+    }
+
+  // pixel steps on the sky (arc seconds, east and north) at the centre
+  vtkMRMLAstroVolumeDisplayNode* displayNode = input->GetAstroVolumeDisplayNode();
+  if (!displayNode->GetWCSStruct() || displayNode->GetSpace() != std::string("WCS"))
+    {
+    return false;
+    }
+  const double centre[3] = {0.5 * (dims[0] - 1), 0.5 * (dims[1] - 1), 0.};
+  double world0[3], worldI[3], worldJ[3];
+  double ijk[3] = {centre[0], centre[1], centre[2]};
+  displayNode->GetReferenceSpace(ijk, world0);
+  ijk[0] = centre[0] + 1.;
+  displayNode->GetReferenceSpace(ijk, worldI);
+  ijk[0] = centre[0];
+  ijk[1] = centre[1] + 1.;
+  displayNode->GetReferenceSpace(ijk, worldJ);
+  const double cosDec = std::cos(world0[1] * degToRad);
+  // offset to the east in arc seconds (RA unwrapped across 0h)
+  const std::function<double(const double*)> east = [&world0, cosDec](const double* w)
+    {
+    double d = w[0] - world0[0];
+    if (d > 180.)
+      {
+      d -= 360.;
+      }
+    if (d < -180.)
+      {
+      d += 360.;
+      }
+    return d * cosDec * 3600.;
+    };
+  const double J[2][2] = {{east(worldI), east(worldJ)},
+                          {(worldI[1] - world0[1]) * 3600., (worldJ[1] - world0[1]) * 3600.}};
+  double covarianceSky[2][2] = {{0., 0.}, {0., 0.}};
+  for (int a = 0; a < 2; a++)
+    {
+    for (int b = 0; b < 2; b++)
+      {
+      for (int m = 0; m < 2; m++)
+        {
+        for (int n = 0; n < 2; n++)
+          {
+          covarianceSky[a][b] += J[a][m] * covariancePixels[m][n] * J[b][n];
+          }
+        }
+      }
+    }
+  // principal axes: major, minor (FWHM) and the angle of the major axis
+  // from north (y) through east (x)
+  const double xx = covarianceSky[0][0], yy = covarianceSky[1][1], xy = covarianceSky[0][1];
+  const double mean = 0.5 * (xx + yy);
+  const double delta = std::sqrt(0.25 * (xx - yy) * (xx - yy) + xy * xy);
+  const double major = std::sqrt(std::max(mean + delta, 0.)) / fwhmToSigma;
+  const double minor = std::sqrt(std::max(mean - delta, 0.)) / fwhmToSigma;
+  // direction of the major axis (vx east, vy north)
+  double vx = xy, vy = mean + delta - xx;
+  if (std::abs(vx) < 1e-12 && std::abs(vy) < 1e-12)
+    {
+    vx = xx >= yy ? 1. : 0.;
+    vy = xx >= yy ? 0. : 1.;
+    }
+  double pa = std::atan2(vx, vy) / degToRad;
+  while (pa > 90.)
+    {
+    pa -= 180.;
+    }
+  while (pa <= -90.)
+    {
+    pa += 180.;
+    }
+  kernel[0] = major;
+  kernel[1] = minor;
+  kernel[2] = pa;
+  vtkAstroBeams::Convolve(beam, kernel, newBeam);
+  return true;
 }

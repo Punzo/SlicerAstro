@@ -39,6 +39,24 @@
 #include "vtk_glad.h"
 #include "vtkVersionMacros.h"
 
+namespace
+{
+//----------------------------------------------------------------------------
+/// Releases the OpenGL context of a render window when the scope ends
+struct ReleaseContextOnExit
+{
+  explicit ReleaseContextOnExit(vtkRenderWindow* window) : Window(window) {}
+  ~ReleaseContextOnExit()
+    {
+    if (this->Window)
+      {
+      this->Window->ReleaseCurrent();
+      }
+    }
+  vtkRenderWindow* Window;
+};
+} // end of anonymous namespace
+
 vtkStandardNewMacro(vtkAstroOpenGLImageAlgorithmHelper);
 
 //----------------------------------------------------------------------------
@@ -80,6 +98,11 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     this->RenderWindow->UnRegister(this);
     }
   this->RenderWindow->Initialize();
+  // the context of this window (a view of the application may have made
+  // its own context current since the last use); released at the end, so
+  // that the views of the application do not render with it
+  this->RenderWindow->MakeCurrent();
+  const ReleaseContextOnExit releaseContext(this->RenderWindow);
 
   // Is it a 2D or 3D image
   int dims[3];
@@ -222,6 +245,11 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     this->RenderWindow->UnRegister(this);
     }
   this->RenderWindow->Initialize();
+  // the context of this window (a view of the application may have made
+  // its own context current since the last use); released at the end, so
+  // that the views of the application do not render with it
+  this->RenderWindow->MakeCurrent();
+  const ReleaseContextOnExit releaseContext(this->RenderWindow);
 
   // Is it a 2D or 3D image
   int dims[3];
@@ -433,6 +461,11 @@ void vtkAstroOpenGLImageAlgorithmHelper::Execute(
     this->RenderWindow->UnRegister(this);
     }
   this->RenderWindow->Initialize();
+  // the context of this window (a view of the application may have made
+  // its own context current since the last use); released at the end, so
+  // that the views of the application do not render with it
+  this->RenderWindow->MakeCurrent();
+  const ReleaseContextOnExit releaseContext(this->RenderWindow);
 
   // Is it a 2D or 3D image
   int dims[3];

@@ -396,6 +396,24 @@ inline double gauss3D(double x, double sigmax,
 };
 
 
+namespace
+{
+//----------------------------------------------------------------------------
+/// Odd number of samples of a Gaussian kernel extending `accuracy` sigma on
+/// each side of its centre (1 for a kernel of width 0); the accuracy of the
+/// Gaussian is 1 to 5 sigma (the parameter is also the number of iterations
+/// of the gradient filter)
+int KernelLengthForSigma(double sigma, int accuracy)
+{
+  accuracy = std::min(std::max(accuracy, 1), 5);
+  if (!(sigma > 0.))
+    {
+    return 1;
+    }
+  return 2 * static_cast<int>(std::ceil(sigma * accuracy)) + 1;
+}
+} // end of anonymous namespace
+
 //----------------------------------------------------------------------------
 void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 {
@@ -407,11 +425,8 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel1D()
 
   if (this->gaussianKernel1D)
     {
-    int nItems = (int) ((this->GetParameterX() / SigmatoFWHM) * this->GetAccuracy());
-    if (nItems % 2 < 0.001 && nItems > 0.001)
-      {
-      nItems++;
-      }
+    // the kernel extends Accuracy sigma on each side of its centre
+    int nItems = KernelLengthForSigma(this->GetParameterX() / SigmatoFWHM, this->GetAccuracy());
     this->SetKernelLengthX(nItems);
     this->SetKernelLengthY(nItems);
     this->SetKernelLengthZ(nItems);
@@ -459,23 +474,11 @@ void vtkMRMLAstroSmoothingParametersNode::SetGaussianKernel3D()
 
   if (this->gaussianKernel3D)
     {
-    int nItemsX = (int) ((this->GetParameterX() / SigmatoFWHM) * this->GetAccuracy());
-    if (nItemsX % 2 < 0.001)
-      {
-      nItemsX++;
-      }
+    int nItemsX = KernelLengthForSigma(this->GetParameterX() / SigmatoFWHM, this->GetAccuracy());
     this->SetKernelLengthX(nItemsX);
-    int nItemsY = (int) ((this->GetParameterY() / SigmatoFWHM) * this->GetAccuracy());
-    if (nItemsY % 2 < 0.001)
-      {
-      nItemsY++;
-      }
+    int nItemsY = KernelLengthForSigma(this->GetParameterY() / SigmatoFWHM, this->GetAccuracy());
     this->SetKernelLengthY(nItemsY);
-    int nItemsZ = (int) ((this->GetParameterZ() / SigmatoFWHM) * this->GetAccuracy());
-    if (nItemsZ % 2 < 0.001)
-      {
-      nItemsZ++;
-      }
+    int nItemsZ = KernelLengthForSigma(this->GetParameterZ() / SigmatoFWHM, this->GetAccuracy());
     this->SetKernelLengthZ(nItemsZ);
 
     int nItems = nItemsX * nItemsY * nItemsZ;

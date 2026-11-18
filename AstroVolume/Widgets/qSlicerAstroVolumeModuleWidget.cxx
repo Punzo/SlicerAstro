@@ -2459,14 +2459,6 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
 
   // Mask of the smoothed data at 3 RMS: a mask (binary labelmap in 2D and 3D,
   // FITS mask) on the grid of the input data, e.g. for the other modules
-  vtkSmartPointer<vtkMRMLSegmentationNode> maskNode = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
-    vtkMRMLSegmentationNode::SafeDownCast(this->mrmlScene()->CreateNodeByClass("vtkMRMLSegmentationNode")));
-  maskNode->SetName(this->mrmlScene()->GetUniqueNameByString((std::string(volumeTwo->GetName()) + "_mask").c_str()));
-  this->mrmlScene()->AddNode(maskNode);
-  maskNode->CreateDefaultDisplayNodes();
-  vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(maskNode, volumeOne);
-
-  const std::string SegmentTwoName = std::string(volumeTwo->GetName()) + "_3RMS";
   // recommended color of the Mask type of the astronomical terminology
   double maskColor[3] = {0.31, 0.82, 0.88};
   vtkNew<vtkSlicerTerminologyEntry> maskEntry;
@@ -2480,34 +2472,15 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
       maskColor[2] = recommendedColor.blueF();
       }
     }
-  const std::string SegmentTwoID = maskNode->GetSegmentation()->AddEmptySegment(SegmentTwoName, SegmentTwoName, maskColor);
-  if (vtkSegment* maskSegment = maskNode->GetSegmentation()->GetSegment(SegmentTwoID))
+  vtkSlicerAstroVolumeLogic* astroVolumeLogic = vtkSlicerAstroVolumeLogic::SafeDownCast(this->logic());
+  vtkMRMLSegmentationNode* maskNode = astroVolumeLogic ? astroVolumeLogic->CreateThresholdMask(volumeOne, volumeTwo,
+    StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.,
+    (std::string(volumeTwo->GetName()) + "_3RMS").c_str(), maskColor) : nullptr;
+  if (!maskNode)
     {
-    maskSegment->SetTerminology(vtkMRMLAstroTerminology::GetMaskEntry());
+    d->AutoPropagateCheckBox->setChecked(autoPropagate);
+    return;
     }
-    {
-    vtkNew<vtkImageThreshold> imageThreshold;
-    imageThreshold->SetInputData(volumeTwo->GetImageData());
-    double min, max;
-    min = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DisplayThreshold")) * 3.;
-    max = StringToDouble(volumeTwo->GetAttribute("SlicerAstro.DATAMAX"));
-    imageThreshold->ThresholdBetween(min, max);
-    imageThreshold->SetInValue(1);
-    imageThreshold->SetOutValue(0);
-    imageThreshold->SetOutputScalarType(VTK_SHORT);
-    imageThreshold->Update();
-    vtkNew<vtkOrientedImageData> modifierLabelmap;
-    modifierLabelmap->ShallowCopy(imageThreshold->GetOutput());
-    vtkNew<vtkMatrix4x4> IJKToRASMatrix;
-    volumeTwo->GetIJKToRASMatrix(IJKToRASMatrix.GetPointer());
-    modifierLabelmap->SetGeometryFromImageToWorldMatrix(IJKToRASMatrix.GetPointer());
-    if (!vtkSlicerSegmentationsModuleLogic::SetBinaryLabelmapToSegment(
-        modifierLabelmap.GetPointer(), maskNode, SegmentTwoID, vtkSlicerSegmentationsModuleLogic::MODE_REPLACE))
-      {
-      qCritical() << Q_FUNC_INFO << ": Failed to add modifier labelmap to selected segment";
-      }
-    }
-  vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(maskNode);
   vtkMRMLSegmentationDisplayNode* maskDisplayNode =
     vtkMRMLSegmentationDisplayNode::SafeDownCast(maskNode->GetDisplayNode());
   if (maskDisplayNode)

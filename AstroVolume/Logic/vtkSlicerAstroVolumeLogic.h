@@ -389,6 +389,17 @@ public:
   /// m/s) or a Jy/beam map has no beam.
   static double GetHIColumnDensityFactor(vtkMRMLVolumeNode* mapNode);
 
+  /// Mask of the voxels of data above a threshold (e.g. 3 sigma of smoothed
+  /// data): a new mask segmentation (binary labelmap, astronomical Mask
+  /// terminology) on the grid of the reference volume, with one segment.
+  /// \param reference volume of the mask (e.g. the input of the smoothing)
+  /// \param data the thresholded data (the same grid)
+  /// \param threshold lower limit; the voxels up to the maximum of the data
+  /// \param segmentName name of the segment
+  /// \param color colour of the segment (RGB 0-1)
+  vtkMRMLSegmentationNode* CreateThresholdMask(vtkMRMLAstroVolumeNode* reference, vtkMRMLAstroVolumeNode* data,
+                                               double threshold, const char* segmentName, const double color[3]);
+
   /// Options of the SlicerAstro 2D colour functions (colour tables with the
   /// attribute SlicerAstro.AddFunctions "on"): "Reverse" (the colours in
   /// reverse order), "Inverse" (complementary colours), "Log" (logarithmic
