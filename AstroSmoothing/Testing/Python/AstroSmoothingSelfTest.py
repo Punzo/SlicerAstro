@@ -95,6 +95,8 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         self.test_AstroSmoothingSelfTest()
         self.setUp()
         self.test_AstroSmoothingGPU()
+        self.setUp()
+        self.test_ImagesAndSpectra()
 
     def smooth(self, parametersNode, configure, hardware=0):
         """Configure the parameters node, run the module (0: CPU, 1: GPU) and return the output voxels."""
@@ -205,8 +207,18 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         def gradientOddIterations(p):
             gradient(p)
             p.SetAccuracy(7)  # odd number of GPU ping-pong passes
+        def spatialGaussian(p):
+            # no smoothing along the spectral axis (FWHM 0: weights were NaN)
+            p.SetFilter(GAUSSIAN)
+            p.SetParameterX(3)
+            p.SetParameterY(3)
+            p.SetParameterZ(0)
+            p.SetRx(0)
+            p.SetRy(0)
+            p.SetRz(0)
         for name, configure, tolerance in (("box", anisotropicBox, 1e-5),
                                            ("Gaussian", anisotropicGaussian, 1e-5),
+                                           ("Gaussian on the sky only", spatialGaussian, 1e-5),
                                            ("gradient", gradient, 1e-5),
                                            ("gradient (odd iterations)", gradientOddIterations, 1e-5)):
             cpu = self.smooth(parametersNode, configure, hardware=0)
@@ -274,4 +286,94 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
                                      float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold")),
                                      parametersNode.GetAccuracy())
         self.assertClose(computed, expected, scale, "GPU gradient", relativeTolerance=1e-3)
+        self.delayDisplay("Test passed")
+
+    def test_ImagesAndSpectra(self):
+        """Smoothing of 2D images and 1D spectra: only along their axes (the
+        parameters of the missing axes are ignored, and restored after the
+        filter), with blank voxels."""
+        import os
+        from AstroFITSIOTest import beamCards, celestialWCS, writeFITS
+        from vtk.util.numpy_support import vtk_to_numpy
+
+        directory = os.path.join(slicer.app.temporaryPath, "AstroSmoothingSelfTest")
+        os.makedirs(directory, exist_ok=True)
+        rng = np.random.default_rng(3)
+        image = rng.normal(0.0, 1.0, (40, 50)).astype(np.float32)
+        image[18:24, 20:30] += 8.0
+        image[5, 7] = np.nan
+        imagePath = os.path.join(directory, "image.fits")
+        writeFITS(imagePath, image, -32, celestialWCS(crpix=(25.0, 20.0)) + beamCards())
+        spectrum = rng.normal(0.0, 1.0, (1, 64)).astype(np.float32)
+        spectrum[0, 30:36] += 6.0
+        spectrum[0, 10] = np.nan
+        spectrumPath = os.path.join(directory, "spectrum.fits")
+        writeFITS(spectrumPath, spectrum, -32, [("CTYPE1", "VRAD"), ("CRVAL1", 1000.0), ("CDELT1", 5000.0),
+                                                ("CRPIX1", 1.0), ("CUNIT1", "m/s"), ("CTYPE2", "DEC--SIN"),
+                                                ("CRVAL2", 30.0), ("CDELT2", 0.001), ("CRPIX2", 1.0),
+                                                ("CUNIT2", "deg"), ("BUNIT", "JY/BEAM")])
+
+        mainWindow = slicer.util.mainWindow()
+        mainWindow.moduleSelector().selectModule("AstroVolume")
+        mainWindow.moduleSelector().selectModule("AstroSmoothing")
+        parametersNode = slicer.util.getNode("AstroSmoothingParameters")
+
+        for path, axes in ((imagePath, (True, True, False)), (spectrumPath, (True, False, False))):
+            volumeNode = slicer.util.loadVolume(path)
+            self.assertIsNotNone(volumeNode)
+            parametersNode.SetInputVolumeNodeID(volumeNode.GetID())
+            data = voxelArray(volumeNode).astype(np.float64)
+            scale = np.nanmax(np.abs(data))
+            name = "image" if axes[1] else "spectrum"
+            self.assertEqual(data.shape[0], 1)
+
+            def box(p):
+                p.SetFilter(BOX)
+                p.SetParameterX(3)
+                p.SetParameterY(5)
+                p.SetParameterZ(7)
+            computed = self.smooth(parametersNode, box)
+            sizes = (1, oddSize(5) if axes[1] else 1, oddSize(3))
+            expected = referenceKernel(data, np.full(sizes, 1.0 / np.prod(sizes)))
+            self.assertClose(computed, expected, scale, f"{name} box")
+            # the parameters of the user are kept
+            self.assertEqual((parametersNode.GetParameterY(), parametersNode.GetParameterZ()), (5, 7))
+
+            def gaussian(p):
+                p.SetFilter(GAUSSIAN)
+                p.SetParameterX(3)
+                p.SetParameterY(3)
+                p.SetParameterZ(3)
+                p.SetRx(0)
+                p.SetRy(0)
+                p.SetRz(0)
+            computed = self.smooth(parametersNode, gaussian)
+            parametersNode.SetParameterZ(0)
+            if not axes[1]:
+                parametersNode.SetParameterY(0)
+            parametersNode.SetGaussianKernels()
+            kernel3D = vtk_to_numpy(parametersNode.GetGaussianKernel3D()).astype(np.float64).reshape(
+                int(parametersNode.GetKernelLengthZ()), int(parametersNode.GetKernelLengthY()),
+                int(parametersNode.GetKernelLengthX()))
+            expected = referenceKernel(data, kernel3D)
+            self.assertClose(computed, expected, scale, f"{name} Gaussian")
+
+            def gradient(p):
+                p.SetFilter(GRADIENT)
+                p.SetParameterX(0.5)
+                p.SetParameterY(0.5)
+                p.SetParameterZ(0.3)
+                p.SetAccuracy(10)
+            computed = self.smooth(parametersNode, gradient)
+            expected = referenceGradient(data, (0.5, 0.5 if axes[1] else 0.0, 0.0), parametersNode.GetTimeStep(),
+                                         parametersNode.GetK(),
+                                         float(volumeNode.GetAttribute("SlicerAstro.DisplayThreshold")),
+                                         parametersNode.GetAccuracy())
+            self.assertClose(computed, expected, scale, f"{name} gradient", relativeTolerance=1e-4)
+
+            # GPU implementations (one-slice textures), compared with the CPU
+            for filterName, configure in (("box", box), ("Gaussian", gaussian), ("gradient", gradient)):
+                cpu = self.smooth(parametersNode, configure, hardware=0)
+                gpu = self.smooth(parametersNode, configure, hardware=1)
+                self.assertClose(gpu, cpu, scale, f"GPU {name} {filterName}")
         self.delayDisplay("Test passed")

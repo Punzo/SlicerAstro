@@ -181,12 +181,13 @@ void vtkAstroOpenGLImageGaussian::ThreadedRequestData(
   cb.KernelLength = this->KernelLength;
 
 
-  this->FWHM[0] /= SigmatoFWHM;
-  this->FWHM[0] = 2. * this->FWHM[0] * this->FWHM[0];
-  this->FWHM[1] /= SigmatoFWHM;
-  this->FWHM[1] = 2. * this->FWHM[1] * this->FWHM[1];
-  this->FWHM[2] /= SigmatoFWHM;
-  this->FWHM[2] = 2. * this->FWHM[2] * this->FWHM[2];
+  // 2 sigma^2 of each axis; sigma at least 0.001 (as the CPU kernels): no
+  // smoothing along an axis with FWHM 0 (0 / 0 would make the weights NaN)
+  for (int axis = 0; axis < 3; axis++)
+    {
+    const double sigma = std::max(this->FWHM[axis] / SigmatoFWHM, 0.001);
+    this->FWHM[axis] = 2. * sigma * sigma;
+    }
   cb.StandardDev = this->FWHM;
 
   std::string fragShader;

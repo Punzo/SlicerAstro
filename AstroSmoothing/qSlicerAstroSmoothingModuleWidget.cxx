@@ -2065,11 +2065,10 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     }
 
   int n = StringToInt(inputVolume->GetAttribute("SlicerAstro.NAXIS"));
-  // Check Input volume
-  if (n != 3)
+  // cubes, images and spectra (the missing axes are not smoothed)
+  if (n < 1 || n > 3)
     {
-    QString message = QString("Filtering is available only"
-                              " for datacube with dimensionality 3 (NAXIS = 3).");
+    QString message = QString("Filtering is available for data with 1, 2 or 3 axes (NAXIS = 1, 2, 3).");
     qCritical() << Q_FUNC_INFO << ": " << message;
     QMessageBox::warning(nullptr, tr("Failed to run the filter"), message);
     d->parametersNode->SetStatus(0);

@@ -219,6 +219,40 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
     }
 #endif
 
+  // images (2D) and spectra (1D): no smoothing along the missing axes (and
+  // no rotation out of the plane); the parameters of the user are restored
+  vtkMRMLAstroVolumeNode* input = this->GetMRMLScene() && pnode->GetInputVolumeNodeID() ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID())) : nullptr;
+  int dims[3] = {1, 1, 1};
+  if (input && input->GetImageData())
+    {
+    input->GetImageData()->GetDimensions(dims);
+    }
+  const double userParameters[5] = {pnode->GetParameterY(), pnode->GetParameterZ(), pnode->GetRx(),
+                                    pnode->GetRy(), pnode->GetRz()};
+  const bool lowerDimensions = dims[2] == 1 || dims[1] == 1;
+  if (lowerDimensions && openGL)
+    {
+    // the OpenGL filters handle cubes only (one-slice textures give wrong
+    // results): images and spectra are smoothed by the CPU filters
+    vtkInfoMacro("Smoothing: images and spectra are smoothed on the CPU (the OpenGL filters handle cubes).");
+    openGL = false;
+    }
+  if (lowerDimensions)
+    {
+    const int wasModifying = pnode->StartModify();
+    pnode->SetParameterZ(0.);
+    pnode->SetRx(0.);
+    pnode->SetRy(0.);
+    if (dims[1] == 1)
+      {
+      pnode->SetParameterY(0.);
+      pnode->SetRz(0.);
+      }
+    pnode->SetGaussianKernels();
+    pnode->EndModify(wasModifying);
+    }
+
   int success = 0;
   switch (pnode->GetFilter())
     {
@@ -274,6 +308,17 @@ int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pno
         }
       break;
       }
+    }
+  if (lowerDimensions)
+    {
+    const int wasModifying = pnode->StartModify();
+    pnode->SetParameterY(userParameters[0]);
+    pnode->SetParameterZ(userParameters[1]);
+    pnode->SetRx(userParameters[2]);
+    pnode->SetRy(userParameters[3]);
+    pnode->SetRz(userParameters[4]);
+    pnode->SetGaussianKernels();
+    pnode->EndModify(wasModifying);
     }
   return success;
 }
