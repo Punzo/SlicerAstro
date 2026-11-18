@@ -154,7 +154,7 @@ class AstroMaskingSelfTestTest(ScriptedLoadableModuleTest):
         return segmentationNode, segmentID
 
     def selectSegment(self, widget, segmentationNode, segmentID):
-        slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
+        slicer.util.findChild(widget, "RegionButton").setCurrentIndex(1)
         slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
         slicer.app.processEvents()
         slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([segmentID])

@@ -18,15 +18,17 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QAbstractItemView>
+#include <QComboBox>
 #include <QDebug>
+#include <QFormLayout>
+#include <QHBoxLayout>
+#include <QLabel>
 #include <QLineEdit>
-#include <QMessageBox>
+#include <QPushButton>
+#include <QStackedWidget>
 #include <QStringList>
-
-// CTK includes
-#include <ctkFlowLayout.h>
-#include <ctkDoubleSpinBox.h>
-#include <ctkDoubleRangeSlider.h>
+#include <QVBoxLayout>
 
 // VTK includes
 #include <vtkCollection.h>
@@ -50,7 +52,16 @@
 
 // AstroMasking includes
 #include "qSlicerAstroMaskingModuleWidget.h"
-#include "ui_qSlicerAstroMaskingModuleWidget.h"
+
+// AstroVolume widgets includes
+#include <qSlicerAstroDatasetSelector.h>
+#include <qSlicerAstroFoldSection.h>
+#include <qSlicerAstroMessageWidget.h>
+#include <qSlicerAstroPanelHeader.h>
+#include <qSlicerAstroResultCard.h>
+#include <qSlicerAstroRunButton.h>
+#include <qSlicerAstroSegmentedButton.h>
+#include <qSlicerAstroTheme.h>
 
 // Logic includes
 #include <vtkSlicerAstroVolumeLogic.h>
@@ -93,7 +104,7 @@
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroMasking
-class qSlicerAstroMaskingModuleWidgetPrivate: public Ui_qSlicerAstroMaskingModuleWidget
+class qSlicerAstroMaskingModuleWidgetPrivate
 {
   Q_DECLARE_PUBLIC(qSlicerAstroMaskingModuleWidget);
 protected:
@@ -112,13 +123,43 @@ public:
   /// return the logic
   vtkSlicerAstroMaskingLogic* logic() const;
 
-  qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
+  /// The panel of the module (not a copy embedded elsewhere, e.g. in the
+  /// Workbench, which arranges its own views)
+  bool isModulePanel() const;
+  void updateRunButton();
+  void updateResult();
+  /// The stacks have the height of the page shown
+  static void fitStack(QStackedWidget* stack);
+
+  // Panel
+  qSlicerAstroPanelHeader* Header{nullptr};
+  qSlicerAstroDatasetSelector* InputVolumeNodeSelector{nullptr};
+  qSlicerAstroMessageWidget* Message{nullptr};
+  qSlicerAstroSegmentedButton* RegionButton{nullptr};
+  QStackedWidget* RegionStack{nullptr};
+  qMRMLNodeComboBox* ROINodeComboBox{nullptr};
+  QPushButton* ROIFitButton{nullptr};
+  QPushButton* ROIVisibleButton{nullptr};
+  qMRMLNodeComboBox* SegmentationNodeComboBox{nullptr};
+  qMRMLSegmentsTableView* SegmentsTableView{nullptr};
+  qSlicerAstroSegmentedButton* OperationButton{nullptr};
+  QWidget* BlankOptions{nullptr};
+  qSlicerAstroSegmentedButton* BlankRegionButton{nullptr};
+  QLineEdit* BlankValueLineEdit{nullptr};
+  qSlicerAstroFoldSection* AdvancedSection{nullptr};
+  qMRMLNodeComboBox* OutputVolumeNodeSelector{nullptr};
+  qMRMLNodeComboBox* ParametersNodeComboBox{nullptr};
+  qSlicerAstroRunButton* RunButton{nullptr};
+  qSlicerAstroResultCard* ResultCard{nullptr};
+
+  qSlicerAstroVolumeModuleWidget* astroVolumeWidget{nullptr};
   vtkSmartPointer<vtkMRMLAstroMaskingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLMarkupsROINode> InputROINode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
 
   bool FitROI = true;
+  bool CancelRequested = false;
 };
 
 //-----------------------------------------------------------------------------
@@ -145,75 +186,296 @@ void qSlicerAstroMaskingModuleWidgetPrivate::init()
 {
   Q_Q(qSlicerAstroMaskingModuleWidget);
 
-  this->setupUi(q);
-
   qSlicerApplication* app = qSlicerApplication::application();
+  qSlicerAbstractCoreModule* astroVolume = app && app->moduleManager() ?
+    app->moduleManager()->module("AstroVolume") : nullptr;
+  this->astroVolumeWidget = astroVolume ?
+    dynamic_cast<qSlicerAstroVolumeModuleWidget*>(astroVolume->widgetRepresentation()) : nullptr;
 
-  if(!app)
+  QVBoxLayout* rootLayout = new QVBoxLayout(q);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+  rootLayout->setSpacing(0);
+
+  this->Header = new qSlicerAstroPanelHeader(q);
+  this->Header->setTitle(qSlicerAstroMaskingModuleWidget::tr("Masking"));
+  this->Header->setIconName("module-masking");
+  rootLayout->addWidget(this->Header);
+
+  QWidget* body = new QWidget(q);
+  QVBoxLayout* bodyLayout = new QVBoxLayout(body);
+  bodyLayout->setContentsMargins(12, 12, 12, 14);
+  bodyLayout->setSpacing(14);
+  rootLayout->addWidget(body);
+
+  this->InputVolumeNodeSelector = new qSlicerAstroDatasetSelector(body);
+  this->InputVolumeNodeSelector->setObjectName("InputVolumeNodeSelector");
+  this->InputVolumeNodeSelector->setRequiredDimensions(3);
+  this->InputVolumeNodeSelector->setNoneText(qSlicerAstroMaskingModuleWidget::tr("Select a data cube"));
+  this->InputVolumeNodeSelector->setToolTip(qSlicerAstroMaskingModuleWidget::tr(
+    "Data cube to crop or blank (also the active volume of the views)."));
+  bodyLayout->addWidget(this->InputVolumeNodeSelector);
+
+  this->Message = new qSlicerAstroMessageWidget(body);
+  this->Message->setObjectName("MessageWidget");
+  bodyLayout->addWidget(this->Message);
+
+  // Region
+  QWidget* region = new QWidget(body);
+  QVBoxLayout* regionLayout = new QVBoxLayout(region);
+  regionLayout->setContentsMargins(0, 0, 0, 0);
+  regionLayout->setSpacing(8);
+  QLabel* regionTitle = new QLabel(qSlicerAstroMaskingModuleWidget::tr("Region"), region);
+  qSlicerAstroTheme::setLabelRole(regionTitle, "overline");
+  regionLayout->addWidget(regionTitle);
+  this->RegionButton = new qSlicerAstroSegmentedButton(region);
+  this->RegionButton->setObjectName("RegionButton");
+  this->RegionButton->setToolTip(qSlicerAstroMaskingModuleWidget::tr("Region of the operation: a box or a mask."));
+  this->RegionButton->addButton(qSlicerAstroMaskingModuleWidget::tr("Box (ROI)"),
+    qSlicerAstroMaskingModuleWidget::tr("A box on the data: drag its handles in the views."));
+  this->RegionButton->addButton(qSlicerAstroMaskingModuleWidget::tr("Mask"),
+    qSlicerAstroMaskingModuleWidget::tr("A segment of a mask (e.g. a SoFiA source)."));
+  regionLayout->addWidget(this->RegionButton);
+  this->RegionStack = new QStackedWidget(region);
+  QWidget* roiPage = new QWidget(this->RegionStack);
+  QVBoxLayout* roiLayout = new QVBoxLayout(roiPage);
+  roiLayout->setContentsMargins(0, 0, 0, 0);
+  roiLayout->setSpacing(6);
+  this->ROINodeComboBox = new qMRMLNodeComboBox(roiPage);
+  this->ROINodeComboBox->setObjectName("ROINodeComboBox");
+  this->ROINodeComboBox->setNodeTypes(QStringList() << "vtkMRMLMarkupsROINode");
+  this->ROINodeComboBox->setNoneEnabled(false);
+  this->ROINodeComboBox->setAddEnabled(true);
+  this->ROINodeComboBox->setRemoveEnabled(false);
+  this->ROINodeComboBox->setEditEnabled(false);
+  this->ROINodeComboBox->setRenameEnabled(true);
+  this->ROINodeComboBox->setToolTip(qSlicerAstroMaskingModuleWidget::tr("Box of the operation."));
+  roiLayout->addWidget(this->ROINodeComboBox);
+  QHBoxLayout* roiButtons = new QHBoxLayout();
+  roiButtons->setSpacing(6);
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  this->ROIFitButton = new QPushButton(qSlicerAstroMaskingModuleWidget::tr("Fit to the data"), roiPage);
+  this->ROIFitButton->setObjectName("ROIFitButton");
+  this->ROIFitButton->setIcon(theme->icon("roi", "text"));
+  this->ROIFitButton->setToolTip(qSlicerAstroMaskingModuleWidget::tr("The box around the whole cube, on its voxels."));
+  this->ROIVisibleButton = new QPushButton(qSlicerAstroMaskingModuleWidget::tr("Show box"), roiPage);
+  this->ROIVisibleButton->setObjectName("ROIVisibleButton");
+  this->ROIVisibleButton->setCheckable(true);
+  this->ROIVisibleButton->setChecked(true);
+  this->ROIVisibleButton->setIcon(theme->icon("eye", "text"));
+  this->ROIVisibleButton->setToolTip(qSlicerAstroMaskingModuleWidget::tr("Show or hide the box in the views."));
+  roiButtons->addWidget(this->ROIFitButton, 1);
+  roiButtons->addWidget(this->ROIVisibleButton, 1);
+  roiLayout->addLayout(roiButtons);
+  this->RegionStack->addWidget(roiPage);
+  QWidget* maskPage = new QWidget(this->RegionStack);
+  QVBoxLayout* maskLayout = new QVBoxLayout(maskPage);
+  maskLayout->setContentsMargins(0, 0, 0, 0);
+  maskLayout->setSpacing(6);
+  this->SegmentationNodeComboBox = new qMRMLNodeComboBox(maskPage);
+  this->SegmentationNodeComboBox->setObjectName("SegmentationNodeComboBox");
+  this->SegmentationNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLSegmentationNode");
+  this->SegmentationNodeComboBox->setNoneEnabled(true);
+  this->SegmentationNodeComboBox->setAddEnabled(false);
+  this->SegmentationNodeComboBox->setRemoveEnabled(false);
+  this->SegmentationNodeComboBox->setEditEnabled(false);
+  this->SegmentationNodeComboBox->setRenameEnabled(true);
+  this->SegmentationNodeComboBox->setToolTip(qSlicerAstroMaskingModuleWidget::tr(
+    "Mask with the segments. By default the mask of the input data cube."));
+  maskLayout->addWidget(this->SegmentationNodeComboBox);
+  this->SegmentsTableView = new qMRMLSegmentsTableView(maskPage);
+  this->SegmentsTableView->setObjectName("SegmentsTableView");
+  this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+  this->SegmentsTableView->setMinimumHeight(120);
+  this->SegmentsTableView->setMaximumHeight(170);
+  this->SegmentsTableView->setToolTip(qSlicerAstroMaskingModuleWidget::tr("The selected segment is the region."));
+  maskLayout->addWidget(this->SegmentsTableView);
+  this->RegionStack->addWidget(maskPage);
+  regionLayout->addWidget(this->RegionStack);
+  bodyLayout->addWidget(region);
+
+  // Operation
+  QWidget* operation = new QWidget(body);
+  QVBoxLayout* operationLayout = new QVBoxLayout(operation);
+  operationLayout->setContentsMargins(0, 0, 0, 0);
+  operationLayout->setSpacing(8);
+  QLabel* operationTitle = new QLabel(qSlicerAstroMaskingModuleWidget::tr("Operation"), operation);
+  qSlicerAstroTheme::setLabelRole(operationTitle, "overline");
+  operationLayout->addWidget(operationTitle);
+  this->OperationButton = new qSlicerAstroSegmentedButton(operation);
+  this->OperationButton->setObjectName("OperationButton");
+  this->OperationButton->setToolTip(qSlicerAstroMaskingModuleWidget::tr("Crop the cube to the region, or blank voxels."));
+  this->OperationButton->addButton(qSlicerAstroMaskingModuleWidget::tr("Crop"),
+    qSlicerAstroMaskingModuleWidget::tr("A smaller cube: the voxels of the bounding box of the region (with its WCS)."));
+  this->OperationButton->addButton(qSlicerAstroMaskingModuleWidget::tr("Blank"),
+    qSlicerAstroMaskingModuleWidget::tr("The same cube with the voxels inside or outside the region set to a value."));
+  operationLayout->addWidget(this->OperationButton);
+  this->BlankOptions = new QWidget(operation);
+  QHBoxLayout* blankLayout = new QHBoxLayout(this->BlankOptions);
+  blankLayout->setContentsMargins(0, 0, 0, 0);
+  blankLayout->setSpacing(6);
+  this->BlankRegionButton = new qSlicerAstroSegmentedButton(this->BlankOptions);
+  this->BlankRegionButton->setObjectName("BlankRegionButton");
+  this->BlankRegionButton->setToolTip(qSlicerAstroMaskingModuleWidget::tr("Voxels to blank."));
+  this->BlankRegionButton->addButton(qSlicerAstroMaskingModuleWidget::tr("Inside"),
+    qSlicerAstroMaskingModuleWidget::tr("Blank the voxels inside the region."));
+  this->BlankRegionButton->addButton(qSlicerAstroMaskingModuleWidget::tr("Outside"),
+    qSlicerAstroMaskingModuleWidget::tr("Blank the voxels outside the region."));
+  blankLayout->addWidget(this->BlankRegionButton, 2);
+  QLabel* valueLabel = new QLabel(qSlicerAstroMaskingModuleWidget::tr("value"), this->BlankOptions);
+  valueLabel->setProperty("astroRole", "label");
+  blankLayout->addWidget(valueLabel);
+  this->BlankValueLineEdit = new QLineEdit(this->BlankOptions);
+  this->BlankValueLineEdit->setObjectName("BlankValueLineEdit");
+  this->BlankValueLineEdit->setMaximumWidth(80);
+  this->BlankValueLineEdit->setToolTip(qSlicerAstroMaskingModuleWidget::tr(
+    "Value of the blanked voxels: a number, or NaN (blank voxels are ignored by the statistics, moment maps, "
+    "profiles and smoothing)."));
+  valueLabel->setToolTip(this->BlankValueLineEdit->toolTip());
+  blankLayout->addWidget(this->BlankValueLineEdit, 1);
+  operationLayout->addWidget(this->BlankOptions);
+  bodyLayout->addWidget(operation);
+
+  // Advanced
+  this->AdvancedSection = new qSlicerAstroFoldSection(body);
+  this->AdvancedSection->setObjectName("AdvancedSection");
+  this->AdvancedSection->setTitle(qSlicerAstroMaskingModuleWidget::tr("Advanced"));
+  this->AdvancedSection->setSummary(qSlicerAstroMaskingModuleWidget::tr("output, parameter set"));
+  this->AdvancedSection->setSettingsKey("SlicerAstro/AstroMasking/AdvancedCollapsed");
+  QWidget* advancedParent = this->AdvancedSection->contentWidget();
+  QFormLayout* advancedLayout = new QFormLayout();
+  advancedLayout->setContentsMargins(0, 0, 0, 0);
+  advancedLayout->setSpacing(8);
+  this->OutputVolumeNodeSelector = new qMRMLNodeComboBox(advancedParent);
+  this->OutputVolumeNodeSelector->setObjectName("OutputVolumeNodeSelector");
+  this->OutputVolumeNodeSelector->setNodeTypes(QStringList() << "vtkMRMLAstroVolumeNode");
+  this->OutputVolumeNodeSelector->setNoneEnabled(true);
+  this->OutputVolumeNodeSelector->setAddEnabled(false);
+  this->OutputVolumeNodeSelector->setEditEnabled(false);
+  this->OutputVolumeNodeSelector->setRenameEnabled(true);
+  this->OutputVolumeNodeSelector->setSelectNodeUponCreation(false);
+  this->OutputVolumeNodeSelector->setNoneDisplay(qSlicerAstroMaskingModuleWidget::tr("New cube"));
+  this->OutputVolumeNodeSelector->setToolTip(qSlicerAstroMaskingModuleWidget::tr(
+    "Cube replaced by the next operation (a new cube if None)."));
+  this->ParametersNodeComboBox = new qMRMLNodeComboBox(advancedParent);
+  this->ParametersNodeComboBox->setObjectName("ParametersNodeComboBox");
+  this->ParametersNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLAstroMaskingParametersNode");
+  this->ParametersNodeComboBox->setShowHidden(true);
+  this->ParametersNodeComboBox->setAddEnabled(false);
+  this->ParametersNodeComboBox->setEditEnabled(false);
+  this->ParametersNodeComboBox->setRenameEnabled(true);
+  this->ParametersNodeComboBox->setToolTip(qSlicerAstroMaskingModuleWidget::tr("Parameters of the module (saved with the scene)."));
+  for (QWidget* field : {static_cast<QWidget*>(this->OutputVolumeNodeSelector),
+                         static_cast<QWidget*>(this->ParametersNodeComboBox)})
     {
-    qCritical() << "qSlicerAstroMaskingModuleWidgetPrivate::init(): could not find qSlicerApplication!";
-    return;
+    qMRMLNodeComboBox* selector = qobject_cast<qMRMLNodeComboBox*>(field);
+    selector->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    selector->setMinimumWidth(80);
     }
+  QLabel* outputLabel = new QLabel(qSlicerAstroMaskingModuleWidget::tr("Output"), advancedParent);
+  outputLabel->setProperty("astroRole", "label");
+  outputLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+  QLabel* parametersLabel = new QLabel(qSlicerAstroMaskingModuleWidget::tr("Parameter set"), advancedParent);
+  parametersLabel->setProperty("astroRole", "label");
+  parametersLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Preferred);
+  advancedLayout->addRow(outputLabel, this->OutputVolumeNodeSelector);
+  advancedLayout->addRow(parametersLabel, this->ParametersNodeComboBox);
+  this->AdvancedSection->contentLayout()->addLayout(advancedLayout);
+  bodyLayout->addWidget(this->AdvancedSection);
 
-  qSlicerAbstractCoreModule* astroVolume = app->moduleManager()->module("AstroVolume");
-  if (!astroVolume)
-    {
-    qCritical() << "qSlicerAstroSmoothingModuleWidgetPrivate::init : "
-                   "could not find AstroVolume module.";
-    return;
-    }
-
-  this->astroVolumeWidget = dynamic_cast<qSlicerAstroVolumeModuleWidget*>
-    (astroVolume->widgetRepresentation());
+  // Footer
+  QFrame* footer = new QFrame(q);
+  footer->setProperty("astroRole", "panelFooter");
+  QVBoxLayout* footerLayout = new QVBoxLayout(footer);
+  footerLayout->setContentsMargins(12, 12, 12, 12);
+  footerLayout->setSpacing(8);
+  this->RunButton = new qSlicerAstroRunButton(footer);
+  this->RunButton->setObjectName("RunButton");
+  this->RunButton->pushButton()->setObjectName("ApplyButton");
+  footerLayout->addWidget(this->RunButton);
+  this->ResultCard = new qSlicerAstroResultCard(footer);
+  this->ResultCard->setObjectName("ResultCard");
+  this->ResultCard->hide();
+  footerLayout->addWidget(this->ResultCard);
+  rootLayout->addWidget(footer);
+  rootLayout->addStretch(1);
 
   QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(setMRMLAstroMaskingParametersNode(vtkMRMLNode*)));
-
   QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
-
   QObject::connect(this->OutputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onOutputVolumeChanged(vtkMRMLNode*)));
-
   QObject::connect(this->ROINodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
                    q, SLOT(onInputROIChanged(vtkMRMLNode*)));
+  for (QObject* selector : std::vector<QObject*>{this->InputVolumeNodeSelector, this->ParametersNodeComboBox,
+         this->OutputVolumeNodeSelector, this->ROINodeComboBox, this->SegmentationNodeComboBox,
+         this->SegmentsTableView})
+    {
+    QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)), selector, SLOT(setMRMLScene(vtkMRMLScene*)));
+    }
+  QObject::connect(this->RegionButton, SIGNAL(currentIndexChanged(int)), q, SLOT(onRegionChanged(int)));
+  QObject::connect(this->OperationButton, SIGNAL(currentIndexChanged(int)), q, SLOT(onOperationChanged(int)));
+  QObject::connect(this->BlankRegionButton, SIGNAL(currentIndexChanged(int)), q, SLOT(onBlankRegionChanged(int)));
+  QObject::connect(this->BlankValueLineEdit, SIGNAL(editingFinished()), q, SLOT(onBlankValueChanged()));
+  QObject::connect(this->ROIFitButton, SIGNAL(clicked()), q, SLOT(onROIFit()));
+  QObject::connect(this->ROIVisibleButton, SIGNAL(toggled(bool)), q, SLOT(onROIVisibilityChanged(bool)));
+  QObject::connect(this->RunButton, SIGNAL(clicked()), q, SLOT(onApply()));
+  QObject::connect(this->RunButton, SIGNAL(cancelRequested()), q, SLOT(onComputationCancelled()));
+  QObject::connect(this->ResultCard, SIGNAL(showRequested()), q, SLOT(onShowResult()));
+  QObject::connect(this->InputVolumeNodeSelector, &qSlicerAstroDatasetSelector::currentNodeChanged,
+                   q, [this](vtkMRMLNode*) { this->updateRunButton(); });
 
-  QObject::connect(this->ROIModeRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onModeChanged()));
+  theme->applyTo(q);
+  this->updateRunButton();
+}
 
-  QObject::connect(this->SegmentationModeRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onModeChanged()));
+//-----------------------------------------------------------------------------
+bool qSlicerAstroMaskingModuleWidgetPrivate::isModulePanel() const
+{
+  Q_Q(const qSlicerAstroMaskingModuleWidget);
+  return !q->property("astroEmbedded").toBool();
+}
 
-  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidgetPrivate::fitStack(QStackedWidget* stack)
+{
+  for (int page = 0; page < stack->count(); page++)
+    {
+    stack->widget(page)->setSizePolicy(QSizePolicy::Preferred,
+      page == stack->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
+    }
+  stack->adjustSize();
+}
 
-  this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
-  this->SegmentsTableView->hide();
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidgetPrivate::updateRunButton()
+{
+  const bool input = this->InputVolumeNodeSelector->currentNode() != nullptr;
+  const bool blank = this->OperationButton->currentIndex() == 1;
+  this->RunButton->setText(!input ? qSlicerAstroMaskingModuleWidget::tr("Select a data cube") :
+                           blank ? qSlicerAstroMaskingModuleWidget::tr("Blank") :
+                                   qSlicerAstroMaskingModuleWidget::tr("Crop"));
+  this->RunButton->setEnabled(input);
+  this->RunButton->pushButton()->setToolTip(blank ?
+    qSlicerAstroMaskingModuleWidget::tr("Blank the voxels of the region in a new cube.") :
+    qSlicerAstroMaskingModuleWidget::tr("Crop the cube to the region in a new cube."));
+}
 
-  QObject::connect(this->OperationComboBox, SIGNAL(currentTextChanged(QString)),
-                   q, SLOT(onOperationChanged(QString)));
-
-  QObject::connect(this->InsidePushButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onInsideBlankRegionChanged()));
-
-  QObject::connect(this->OutsidePushButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onOutsideBlankRegionChanged()));
-
-  QObject::connect(this->BlankValueLineEdit, SIGNAL(editingFinished()),
-                   q, SLOT(onBlankValueChanged()));
-
-  QObject::connect(this->ApplyButton, SIGNAL(clicked()),
-                   q, SLOT(onApply()));
-
-  QObject::connect(this->CancelButton, SIGNAL(clicked()),
-                   q, SLOT(onComputationCancelled()));
-
-  this->InputCollapsibleButton->setCollapsed(false);
-
-  this->progressBar->hide();
-  this->progressBar->setMinimum(0);
-  this->progressBar->setMaximum(100);
-  this->CancelButton->hide();
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidgetPrivate::updateResult()
+{
+  Q_Q(qSlicerAstroMaskingModuleWidget);
+  vtkMRMLAstroVolumeNode* output = (this->parametersNode && q->mrmlScene() &&
+    this->parametersNode->GetOutputVolumeNodeID()) ? vtkMRMLAstroVolumeNode::SafeDownCast(
+      q->mrmlScene()->GetNodeByID(this->parametersNode->GetOutputVolumeNodeID())) : nullptr;
+  const std::string name = output && output->GetName() ? output->GetName() : "";
+  const bool show = output && output->GetImageData() &&
+    (name.find("_Blank_") != std::string::npos || name.find("_Crop_") != std::string::npos);
+  if (show)
+    {
+    this->ResultCard->setVolume(output);
+    }
+  this->ResultCard->setVisible(show);
 }
 
 //-----------------------------------------------------------------------------
@@ -291,8 +553,12 @@ void qSlicerAstroMaskingModuleWidget::enter()
     return;
     }
 
-  app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
-          (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+  // the module panel shows the input and the output side by side in 3D
+  if (d->isModulePanel())
+    {
+    app->layoutManager()->layoutLogic()->GetLayoutNode()->SetViewArrangement
+            (vtkMRMLLayoutNode::SlicerLayoutDual3DView);
+    }
 
   this->onMRMLAstroMaskingParametersNodeModified();
 
@@ -371,8 +637,6 @@ void qSlicerAstroMaskingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 
   this->onMRMLSelectionNodeModified(d->selectionNode);
   this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-
-  d->InputCollapsibleButton->setCollapsed(false);
 
   // masks added, removed or modified (e.g. the contours)
   this->qvtkReconnect(scene, vtkMRMLScene::NodeAddedEvent, this, SLOT(updateMaskSelector()));
@@ -618,22 +882,22 @@ bool qSlicerAstroMaskingModuleWidget::setMaskSegmentFromSelection()
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
 
-  vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode ?
-    d->segmentEditorNode->GetSegmentationNode() : nullptr;
+  vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+    d->SegmentationNodeComboBox->currentNode());
+  if (!segmentationNode && d->segmentEditorNode)
+    {
+    segmentationNode = d->segmentEditorNode->GetSegmentationNode();
+    }
   if (!d->parametersNode || !segmentationNode || !segmentationNode->GetSegmentation())
     {
-    QString message = QString("No segmentation available!");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
+    d->Message->showMessage("error", tr("No mask: select a segmentation with the segment of the region."));
     return false;
     }
 
   QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
   if (selectedSegmentIDs.size() < 1)
     {
-    QString message = QString("No segment selected from the segmentation node! Please select the segment of the mask.");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
+    d->Message->showMessage("error", tr("Select the segment of the region in the table."));
     return false;
     }
 
@@ -717,7 +981,20 @@ void qSlicerAstroMaskingModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObj
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMaskingModuleWidget::onOperationChanged(QString Operation)
+void qSlicerAstroMaskingModuleWidget::onOperationChanged(int index)
+{
+  Q_D(qSlicerAstroMaskingModuleWidget);
+
+  d->updateRunButton();
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetOperation(index == 1 ? "Blank" : "Crop");
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidget::onRegionChanged(int index)
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
 
@@ -725,8 +1002,33 @@ void qSlicerAstroMaskingModuleWidget::onOperationChanged(QString Operation)
     {
     return;
     }
+  d->parametersNode->SetMode(index == 1 ? "Segmentation" : "ROI");
+}
 
-  d->parametersNode->SetOperation(Operation.toStdString().c_str());
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidget::onBlankRegionChanged(int index)
+{
+  Q_D(qSlicerAstroMaskingModuleWidget);
+
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  d->parametersNode->SetBlankRegion(index == 1 ? "Outside" : "Inside");
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidget::onShowResult()
+{
+  Q_D(qSlicerAstroMaskingModuleWidget);
+
+  vtkSlicerApplicationLogic* appLogic = this->module() ? this->module()->appLogic() : nullptr;
+  if (!d->parametersNode || !d->selectionNode || !appLogic || !d->parametersNode->GetOutputVolumeNodeID())
+    {
+    return;
+    }
+  d->selectionNode->SetActiveVolumeID(d->parametersNode->GetOutputVolumeNodeID());
+  appLogic->PropagateVolumeSelection(0);
 }
 
 //-----------------------------------------------------------------------------
@@ -747,34 +1049,6 @@ void qSlicerAstroMaskingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNod
     {
     d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMaskingModuleWidget::onInsideBlankRegionChanged()
-{
-  Q_D(qSlicerAstroMaskingModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetBlankRegion("Inside");
-  d->parametersNode->Modified();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroMaskingModuleWidget::onOutsideBlankRegionChanged()
-{
-  Q_D(qSlicerAstroMaskingModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetBlankRegion("Outside");
-  d->parametersNode->Modified();
 }
 
 //-----------------------------------------------------------------------------
@@ -851,143 +1125,52 @@ void qSlicerAstroMaskingModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroMaskingModuleWidget::onModeChanged()
-{
-  Q_D(qSlicerAstroMaskingModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  int wasModifying = d->parametersNode->StartModify();
-
-  if (d->ROIModeRadioButton->isChecked())
-    {
-    d->parametersNode->SetMode("ROI");
-    }
-  if (d->SegmentationModeRadioButton->isChecked())
-    {
-    d->parametersNode->SetMode("Segmentation");
-    }
-
-  d->parametersNode->EndModify(wasModifying);
-}
-
-//-----------------------------------------------------------------------------
 void qSlicerAstroMaskingModuleWidget::onMRMLAstroMaskingParametersNodeModified()
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
 
-  if (!d->parametersNode)
+  if (!d->parametersNode || !this->mrmlScene())
     {
     return;
     }
 
   const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
-  vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-
+  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNodeID ? this->mrmlScene()->GetNodeByID(inputVolumeNodeID) : nullptr);
   const char *outputVolumeNodeID = d->parametersNode->GetOutputVolumeNodeID();
-  vtkMRMLAstroVolumeNode *outputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(outputVolumeNodeID));
-  d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNode);
-
+  d->OutputVolumeNodeSelector->setCurrentNode(outputVolumeNodeID ? this->mrmlScene()->GetNodeByID(outputVolumeNodeID) : nullptr);
   d->ROINodeComboBox->setCurrentNode(d->parametersNode->GetROINode());
 
-  if (!(strcmp(d->parametersNode->GetMode(), "ROI")))
-    {  
-    d->ROIModeRadioButton->setChecked(true);
-    d->SegmentsTableView->hide();
-    if (this->isEntered())
-      {
-      this->onROIVisibilityChanged(true);
-      }
-    else
-      {
-      this->onROIVisibilityChanged(false);
-      }
-
-    if (d->segmentEditorNode)
-      {
-      vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-      if (currentSegmentationNode && this->isEntered())
-        {
-        for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
-          {
-          vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-            vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
-          if (!SegmentationDisplayNode)
-            {
-            continue;
-            }
-          SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-          }
-        }
-      }
-    }
-  else if (!(strcmp(d->parametersNode->GetMode(), "Segmentation")))
+  const bool maskMode = d->parametersNode->GetMode() && !strcmp(d->parametersNode->GetMode(), "Segmentation");
+  d->RegionButton->setCurrentIndex(maskMode ? 1 : 0);
+  d->RegionStack->setCurrentIndex(maskMode ? 1 : 0);
+  qSlicerAstroMaskingModuleWidgetPrivate::fitStack(d->RegionStack);
+  // the box is shown while the panel is in use, in box mode
+  this->onROIVisibilityChanged(!maskMode && this->isEntered() && d->ROIVisibleButton->isChecked());
+  vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode ?
+    d->segmentEditorNode->GetSegmentationNode() : nullptr;
+  if (currentSegmentationNode && this->isEntered())
     {
-    d->SegmentationModeRadioButton->setChecked(true);
-    d->SegmentsTableView->show();
-    this->onROIVisibilityChanged(false);
-
-    if (d->segmentEditorNode)
+    for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
       {
-      vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-      if (currentSegmentationNode && this->isEntered())
+      vtkMRMLSegmentationDisplayNode *segmentationDisplayNode =
+        vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
+      if (segmentationDisplayNode)
         {
-        for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
-          {
-          vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-            vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
-          if (!SegmentationDisplayNode)
-            {
-            continue;
-            }
-          SegmentationDisplayNode->SetAllSegmentsVisibility(true);
-          }
+        segmentationDisplayNode->SetAllSegmentsVisibility(maskMode);
         }
       }
     }
 
-  if (!(strcmp(d->parametersNode->GetOperation(), "Blank")))
-    {
-    d->OperationComboBox->setCurrentIndex(0);
-    d->InsidePushButton->show();
-    d->OutsidePushButton->show();
-    d->BlankValueLabel->show();
-    d->BlankValueLineEdit->show();
-    }
-  else if (!(strcmp(d->parametersNode->GetOperation(), "Crop")))
-    {
-    d->OperationComboBox->setCurrentIndex(1);
-    d->InsidePushButton->hide();
-    d->OutsidePushButton->hide();
-    d->BlankValueLabel->hide();
-    d->BlankValueLineEdit->hide();
-    }
-
-  bool InsideState = d->InsidePushButton->blockSignals(true);
-  bool OutsideState = d->OutsidePushButton->blockSignals(true);
-  if (!(strcmp(d->parametersNode->GetBlankRegion(), "Inside")))
-    {
-    d->InsidePushButton->setChecked(true);
-    d->OutsidePushButton->setChecked(false);
-    }
-  else if (!(strcmp(d->parametersNode->GetBlankRegion(), "Outside")))
-    {
-    d->InsidePushButton->setChecked(false);
-    d->OutsidePushButton->setChecked(true);
-    }
-  d->OutsidePushButton->blockSignals(OutsideState);
-  d->InsidePushButton->blockSignals(InsideState);
-
+  const bool blank = d->parametersNode->GetOperation() && !strcmp(d->parametersNode->GetOperation(), "Blank");
+  d->OperationButton->setCurrentIndex(blank ? 1 : 0);
+  d->BlankOptions->setVisible(blank);
+  const bool outside = d->parametersNode->GetBlankRegion() && !strcmp(d->parametersNode->GetBlankRegion(), "Outside");
+  d->BlankRegionButton->setCurrentIndex(outside ? 1 : 0);
   d->BlankValueLineEdit->setText(d->parametersNode->GetBlankValue());
+  d->updateRunButton();
+  d->updateResult();
 
   int status = d->parametersNode->GetStatus();
-
   if(status == 0)
     {
     this->onComputationFinished();
@@ -1001,7 +1184,6 @@ void qSlicerAstroMaskingModuleWidget::onMRMLAstroMaskingParametersNodeModified()
     if(status != -1)
       {
       this->updateProgress(status);
-      qSlicerApplication::application()->processEvents();
       }
     }
 }
@@ -1071,6 +1253,8 @@ void qSlicerAstroMaskingModuleWidget::onApply()
     return;
     }
 
+  d->Message->clearMessage();
+  d->CancelRequested = false;
   d->FitROI = false;
   d->parametersNode->SetStatus(1);
 
@@ -1099,9 +1283,9 @@ void qSlicerAstroMaskingModuleWidget::onApply()
       GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
   if(!inputVolume || !inputVolume->GetImageData())
     {
-    qCritical() <<"qSlicerAstroMaskingModuleWidget::onApply"
-                  " : inputVolume not found!";
+    d->Message->showMessage("error", tr("Select the data cube to crop or blank."));
     d->parametersNode->SetStatus(0);
+    d->FitROI = true;
     return;
     }
 
@@ -1180,24 +1364,24 @@ void qSlicerAstroMaskingModuleWidget::onApply()
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
   // Run computation
+  const bool blank = !strcmp(d->parametersNode->GetOperation(), "Blank");
   if (logic->ApplyMask(d->parametersNode))
     {
-    if (!(strcmp(d->parametersNode->GetOperation(), "Blank")))
+    // the module panel compares the input and the output in 3D (the
+    // Workbench lists the output with the products of the input)
+    if (d->isModulePanel() && d->astroVolumeWidget)
       {
-      d->astroVolumeWidget->setComparative3DViews
-          (inputVolume->GetID(), outputVolume->GetID(), false, true);
+      d->astroVolumeWidget->setComparative3DViews(inputVolume->GetID(), outputVolume->GetID(), false, blank);
       }
-    else if (!(strcmp(d->parametersNode->GetOperation(), "Crop")))
-      {
-      d->astroVolumeWidget->setComparative3DViews
-          (inputVolume->GetID(), outputVolume->GetID(), false, false);
-      }
+    d->Message->showMessage("success", blank ? tr("Blanked cube created") : tr("Cropped cube created"));
     }
   else
     {
-    qCritical() <<"qSlicerAstroMaskingModuleWidget::onApply : "
-                  "ApplyMask error!";
+    const bool cancelled = d->CancelRequested;
     scene->RemoveNode(outputVolume);
+    d->parametersNode->SetOutputVolumeNodeID(nullptr);
+    d->Message->showMessage(cancelled ? "info" : "error", cancelled ? tr("Computation cancelled.") :
+      tr("The operation failed (see the error log)."));
     }
 
   d->parametersNode->SetStatus(0);
@@ -1229,10 +1413,8 @@ void qSlicerAstroMaskingModuleWidget::onApply()
 void qSlicerAstroMaskingModuleWidget::onComputationFinished()
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
-
-  d->CancelButton->hide();
-  d->progressBar->hide();
-  d->ApplyButton->show();
+  d->RunButton->setRunning(false);
+  d->updateResult();
 }
 
 //---------------------------------------------------------------------------
@@ -1342,26 +1524,26 @@ void qSlicerAstroMaskingModuleWidget::onStartImportEvent()
 void qSlicerAstroMaskingModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
-
-  d->parametersNode->SetStatus(-1);
+  d->CancelRequested = true;
+  if (d->parametersNode)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMaskingModuleWidget::updateProgress(int value)
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
-
-  d->progressBar->setValue(value);
+  d->RunButton->setProgress(value);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroMaskingModuleWidget::onComputationStarted()
 {
   Q_D(qSlicerAstroMaskingModuleWidget);
-
-  d->ApplyButton->hide();
-  d->progressBar->show();
-  d->CancelButton->show();
+  d->RunButton->setProgressText(d->OperationButton->currentIndex() == 1 ? tr("Blanking") : tr("Cropping"));
+  d->RunButton->setRunning(true);
 }
 
 //---------------------------------------------------------------------------

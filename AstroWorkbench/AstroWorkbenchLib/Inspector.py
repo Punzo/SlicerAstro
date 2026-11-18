@@ -68,6 +68,8 @@ class PipelineStep:
             self.panel = module.createNewWidgetRepresentation() if module is not None else None
             if self.panel is not None:
                 self.panel.setObjectName(f"PipelinePanel_{self.moduleName}")
+                # embedded: the panel does not rearrange the views
+                self.panel.setProperty("astroEmbedded", True)
         return self.panel
 
 

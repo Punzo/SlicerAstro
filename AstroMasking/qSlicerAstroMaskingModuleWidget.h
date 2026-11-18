@@ -107,10 +107,14 @@ protected slots:
   void onStartImportEvent();
 
   void onBlankValueChanged();
-  void onInsideBlankRegionChanged();
-  void onModeChanged();
-  void onOperationChanged(QString Operation);
-  void onOutsideBlankRegionChanged();
+  /// 0: crop, 1: blank
+  void onOperationChanged(int index);
+  /// 0: box (ROI), 1: mask
+  void onRegionChanged(int index);
+  /// 0: inside, 1: outside
+  void onBlankRegionChanged(int index);
+  /// The result in the views (active volume)
+  void onShowResult();
   void onROIFit();
   void onROIVisibilityChanged(bool visible);
 

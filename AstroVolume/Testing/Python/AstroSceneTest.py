@@ -201,7 +201,7 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
         masking.SetOperation("Blank")
         masking.SetBlankRegion("Outside")
         masking.SetBlankValue("0")
-        slicer.util.findChild(maskingWidget, "SegmentationModeRadioButton").click()
+        slicer.util.findChild(maskingWidget, "RegionButton").setCurrentIndex(1)
         slicer.util.findChild(maskingWidget, "SegmentationNodeComboBox").setCurrentNode(sofiaMask)
         slicer.app.processEvents()
         slicer.util.findChild(maskingWidget, "SegmentsTableView").setSelectedSegmentIDs(

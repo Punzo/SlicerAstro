@@ -47,7 +47,12 @@ def selectMask(widget, segmentationNode, segmentID, checkBoxName="MaskCheckBox")
         else:
             slicer.util.findChild(widget, checkBoxName).setChecked(segmentationNode is not None)
     else:
-        slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
+        # Statistics: radio buttons; Masking: segmented Box (ROI) | Mask
+        regions = slicer.util.findChildren(widget, "RegionButton")
+        if regions:
+            regions[0].setCurrentIndex(1)
+        else:
+            slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
     if segmentationNode is None:
         return
     slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
