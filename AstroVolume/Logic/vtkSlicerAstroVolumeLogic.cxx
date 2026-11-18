@@ -47,6 +47,8 @@
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroSegmentationStorageNode.h>
+#include <vtkMRMLMessageCollection.h>
+#include <vtkMRMLStorageNode.h>
 #include <vtkMRMLAstroTerminology.h>
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
@@ -2629,6 +2631,87 @@ bool vtkSlicerAstroVolumeLogic::EnsureFITSMaskStorageNode(vtkMRMLSegmentationNod
     }
   segmentationNode->SetAndObserveStorageNodeID(newStorageNode->GetID());
   vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(segmentationNode);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::HasFITSMaskHeader(vtkMRMLSegmentationNode* segmentationNode)
+{
+  if (!segmentationNode)
+    {
+    return false;
+    }
+  if (segmentationNode->GetAttribute("SlicerAstro.NAXIS1"))
+    {
+    return true;
+    }
+  vtkMRMLAstroVolumeNode* referenceVolume = vtkMRMLAstroVolumeNode::SafeDownCast(segmentationNode->GetNodeReference(
+    vtkMRMLSegmentationNode::GetReferenceImageGeometryReferenceRole().c_str()));
+  return referenceVolume && referenceVolume->GetAttribute("SlicerAstro.NAXIS1");
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SaveFITSMask(vtkMRMLSegmentationNode* segmentationNode,
+                                             vtkMRMLAstroVolumeNode* referenceVolume, const char* fileName)
+{
+  this->LastMaskSaveError.clear();
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!segmentationNode || !scene || segmentationNode->GetScene() != scene || !fileName || !*fileName)
+    {
+    this->LastMaskSaveError = "No mask or no file name.";
+    return false;
+    }
+  if (vtkSlicerAstroVolumeLogic::IsContoursSegmentation(segmentationNode))
+    {
+    this->LastMaskSaveError = "Contours are not saved as FITS masks.";
+    return false;
+    }
+  if (!vtkSlicerAstroVolumeLogic::HasNonEmptySegments(segmentationNode))
+    {
+    this->LastMaskSaveError = "The mask has no segments or its segments are empty: nothing to save.";
+    return false;
+    }
+  // the FITS header and the geometry of the mask: the ones of the mask read
+  // from file, or of the astronomical volume used as reference
+  if (!vtkSlicerAstroVolumeLogic::HasFITSMaskHeader(segmentationNode))
+    {
+    if (!referenceVolume)
+      {
+      this->LastMaskSaveError = std::string("The segmentation ") + segmentationNode->GetName() +
+        " has no FITS header: give an astronomical data volume as reference.";
+      return false;
+      }
+    segmentationNode->SetReferenceImageGeometryParameterFromVolumeNode(referenceVolume);
+    }
+
+  // FITS mask storage (replaces e.g. a .seg.nrrd storage node)
+  vtkMRMLStorageNode* storageNode = segmentationNode->GetStorageNode();
+  if (storageNode && !storageNode->IsA("vtkMRMLAstroSegmentationStorageNode"))
+    {
+    segmentationNode->SetAndObserveStorageNodeID(nullptr);
+    scene->RemoveNode(storageNode);
+    }
+  this->EnsureFITSMaskStorageNode(segmentationNode);
+  storageNode = segmentationNode->GetStorageNode();
+  if (!storageNode)
+    {
+    this->LastMaskSaveError = "The FITS mask storage could not be created.";
+    return false;
+    }
+  std::string path = fileName;
+  const std::string lower = vtksys::SystemTools::LowerCase(path);
+  if (!vtksys::SystemTools::StringEndsWith(lower, ".fits") && !vtksys::SystemTools::StringEndsWith(lower, ".fits.gz"))
+    {
+    path += ".fits";
+    }
+  storageNode->SetFileName(path.c_str());
+  storageNode->GetUserMessages()->ClearMessages();
+  if (!storageNode->WriteData(segmentationNode))
+    {
+    this->LastMaskSaveError = "The mask could not be saved as FITS mask: " +
+      storageNode->GetUserMessages()->GetAllMessagesAsString();
+    return false;
+    }
   return true;
 }
 

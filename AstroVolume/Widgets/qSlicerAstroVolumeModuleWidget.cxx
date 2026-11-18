@@ -4796,7 +4796,7 @@ void qSlicerAstroVolumeModuleWidget::onSaveFITSMask()
 
   // The FITS header and the geometry of the mask: the ones of the mask read
   // from file, or of the astronomical volume used as reference geometry
-  if (!vtkSlicerAstroVolumeLogic::IsAstroSegmentation(segmentationNode))
+  if (!vtkSlicerAstroVolumeLogic::HasFITSMaskHeader(segmentationNode))
     {
     if (!d->astroVolumeNode)
       {
@@ -4813,53 +4813,31 @@ void qSlicerAstroVolumeModuleWidget::onSaveFITSMask()
       {
       return;
       }
-    segmentationNode->SetReferenceImageGeometryParameterFromVolumeNode(d->astroVolumeNode);
     }
 
-  // FITS mask storage (replaces e.g. a .seg.nrrd storage node)
   vtkMRMLStorageNode* storageNode = segmentationNode->GetStorageNode();
-  if (storageNode && !storageNode->IsA("vtkMRMLAstroSegmentationStorageNode"))
-    {
-    segmentationNode->SetAndObserveStorageNodeID(nullptr);
-    scene->RemoveNode(storageNode);
-    }
-  astroVolumeLogic->EnsureFITSMaskStorageNode(segmentationNode);
-  storageNode = segmentationNode->GetStorageNode();
-  if (!storageNode)
-    {
-    QMessageBox::critical(this, title, tr("The FITS mask storage could not be created."));
-    return;
-    }
-
-  QString defaultFileName = storageNode->GetFileName() ? QString::fromUtf8(storageNode->GetFileName()) : QString();
+  QString defaultFileName = storageNode && storageNode->GetFileName() &&
+    storageNode->IsA("vtkMRMLAstroSegmentationStorageNode") ? QString::fromUtf8(storageNode->GetFileName()) : QString();
   if (defaultFileName.isEmpty())
     {
     const QString directory = scene->GetRootDirectory() ? QString::fromUtf8(scene->GetRootDirectory()) : QDir::homePath();
     defaultFileName = QDir(directory).filePath(QString::fromUtf8(segmentationNode->GetName()) + ".fits");
     }
-  QString fileName = QFileDialog::getSaveFileName(this, title, defaultFileName, tr("FITS mask (*.fits)"));
+  const QString fileName = QFileDialog::getSaveFileName(this, title, defaultFileName, tr("FITS mask (*.fits)"));
   if (fileName.isEmpty())
     {
     return;
     }
-  if (!fileName.endsWith(".fits", Qt::CaseInsensitive) && !fileName.endsWith(".fits.gz", Qt::CaseInsensitive))
+  if (!astroVolumeLogic->SaveFITSMask(segmentationNode, d->astroVolumeNode, fileName.toUtf8().constData()))
     {
-    fileName += ".fits";
-    }
-
-  storageNode->SetFileName(fileName.toUtf8().constData());
-  storageNode->GetUserMessages()->ClearMessages();
-  if (!storageNode->WriteData(segmentationNode))
-    {
-    QMessageBox::critical(this, title,
-      tr("The segmentation could not be saved as FITS mask:\n%1")
-        .arg(QString::fromStdString(storageNode->GetUserMessages()->GetAllMessagesAsString())));
+    QMessageBox::critical(this, title, QString::fromStdString(astroVolumeLogic->GetLastMaskSaveError()));
     return;
     }
   qSlicerApplication* app = qSlicerApplication::application();
   if (app && app->mainWindow() && app->mainWindow()->statusBar())
     {
-    app->mainWindow()->statusBar()->showMessage(tr("Saved %1").arg(fileName), 5000);
+    app->mainWindow()->statusBar()->showMessage(
+      tr("Saved %1").arg(QString::fromUtf8(segmentationNode->GetStorageNode()->GetFileName())), 5000);
     }
 }
 

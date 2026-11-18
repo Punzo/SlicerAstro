@@ -164,6 +164,21 @@ public:
   /// astronomical). Returns true if the segmentation is stored as a FITS mask.
   bool EnsureFITSMaskStorageNode(vtkMRMLSegmentationNode* segmentationNode);
 
+  /// Return true if the segmentation has a FITS header for a FITS mask: it
+  /// was read from a FITS mask, or its reference geometry is an astronomical
+  /// volume
+  static bool HasFITSMaskHeader(vtkMRMLSegmentationNode* segmentationNode);
+
+  /// Save a mask as a FITS mask (integer cube, one label value per segment):
+  /// with the FITS header of the mask read from file, or of referenceVolume
+  /// (its geometry becomes the reference of the mask). A storage node of
+  /// another format is replaced by the FITS mask storage; ".fits" is added
+  /// to fileName when it has no FITS extension. On failure the reason is in
+  /// GetLastMaskSaveError (also for contours and empty masks).
+  bool SaveFITSMask(vtkMRMLSegmentationNode* segmentationNode, vtkMRMLAstroVolumeNode* referenceVolume,
+                    const char* fileName);
+  std::string GetLastMaskSaveError() { return this->LastMaskSaveError; }
+
   /// Astronomical terminology (vtkMRMLAstroTerminology) for the new segments
   /// of an astronomical segmentation: default terminology entry of the node
   /// (Mask for masks, Contour for contours), used by the Segment Editor. An
@@ -593,6 +608,7 @@ protected:
   BackgroundRunnerType BackgroundRunner;
   bool IncompatibleSceneImported{false};
   std::string LastMaskCopyError;
+  std::string LastMaskSaveError;
   ReprojectFunctionType ReprojectFunction;
 #endif
   std::string LastReprojectError;

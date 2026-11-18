@@ -56,6 +56,8 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.test_ContoursOfOtherCube()
         self.setUp()
         self.test_CopyMoveMask()
+        self.setUp()
+        self.test_MasksSection()
 
     def loadWEIN069(self):
         import AstroSampleData
@@ -414,6 +416,107 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(imageMask.GetSegmentation().GetNumberOfSegments(), 2)
         self.assertIsNotNone(maskNode.GetSegmentation().GetSegment("Source"))
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
+        self.delayDisplay("Test passed")
+
+    def test_MasksSection(self):
+        """Masks section (reusable widget of the AstroVolume panel and the
+        Workbench): the mask of the volume and its segments, copy and move of
+        the selected segments, Segment Editor in the section, save as FITS
+        mask (vtkSlicerAstroVolumeLogic.SaveFITSMask: round trip, a
+        segmentation without FITS header takes the one of the data; contours
+        and empty masks are refused)."""
+        import numpy as np
+        from AstroFITSIOTest import celestialWCS, radioVelocityWCS, writeFITS
+        from AstroVolumeLogicTest import segmentMask
+
+        directory = os.path.join(slicer.app.temporaryPath, "AstroVolumeSegmentationsTest")
+        os.makedirs(directory, exist_ok=True)
+        shape = (8, 16, 20)
+
+        def load(name):
+            path = os.path.join(directory, name + ".fits")
+            writeFITS(path, np.ones(shape, dtype=np.float32), -32,
+                      celestialWCS(crpix=(10.5, 8.5)) + radioVelocityWCS(crpix=1.0) + [("BUNIT", "JY/BEAM")])
+            return slicer.util.loadVolume(path)
+
+        cube = load("section_cube")
+        other = load("section_other")
+        maskNode = self.logic.GetMaskSegmentationForVolume(cube, True)
+        masks = {}
+        for name, box in (("Source", np.s_[2:6, 4:10, 5:12]), ("Corner", np.s_[0:2, 0:3, 0:4])):
+            masks[name] = np.zeros(shape, dtype=np.uint8)
+            masks[name][box] = 1
+            segmentID = maskNode.GetSegmentation().AddEmptySegment(name, name)
+            slicer.util.updateSegmentBinaryLabelmapFromArray(masks[name], maskNode, segmentID, cube)
+
+        section = slicer.qSlicerAstroMasksSection()
+        section.setVolumeNode(cube)
+        slicer.app.processEvents()
+        self.assertEqual(section.segmentCount(), 2)
+        self.assertEqual(slicer.util.findChild(section, "MasksSelector").currentNode(), maskNode)
+        self.assertTrue(slicer.util.findChild(section, "MasksSave").enabled)
+        target = slicer.util.findChild(section, "MasksCopyTarget")
+        self.assertEqual([target.itemText(i) for i in range(target.count)], [other.GetName()])
+
+        # move the selected segment, then copy all (nothing selected)
+        table = slicer.util.findChild(section, "MasksTable")
+        table.setSelectedSegmentIDs(["Corner"])
+        self.assertEqual(list(section.selectedSegmentIDs()), ["Corner"])
+        self.assertTrue(section.copySegments(other.GetID(), True))
+        self.assertEqual(section.status(), f"1 segment moved to {other.GetName()}")
+        self.assertIsNone(maskNode.GetSegmentation().GetSegment("Corner"))
+        otherMask = self.logic.GetMaskSegmentationForVolume(other, False)
+        np.testing.assert_array_equal(segmentMask(otherMask, "Corner", other), masks["Corner"])
+        table.setSelectedSegmentIDs([])
+        self.assertTrue(section.copySegments(other.GetID(), False))
+        np.testing.assert_array_equal(segmentMask(otherMask, "Source", other), masks["Source"])
+        self.assertEqual(section.segmentCount(), 1)
+
+        # the Segment Editor of the section edits the mask of the volume
+        section.setEditing(True)
+        editor = section.segmentEditor()
+        self.assertIsNotNone(editor)
+        self.assertEqual(editor.segmentationNode(), maskNode)
+        self.assertEqual(editor.sourceVolumeNode(), cube)
+        section.setEditing(False)
+        self.assertTrue(editor.isHidden())
+
+        # save as FITS mask and load it again
+        path = os.path.join(directory, "section_mask.fits")
+        if os.path.exists(path):
+            os.remove(path)
+        self.assertTrue(section.saveMask(path), section.status())
+        self.assertTrue(os.path.exists(path))
+        loaded = slicer.util.loadSegmentation(path)
+        self.assertEqual(loaded.GetSegmentation().GetNumberOfSegments(), 1)
+        np.testing.assert_array_equal(segmentMask(loaded, loaded.GetSegmentation().GetNthSegmentID(0), cube),
+                                      masks["Source"])
+
+        # a segmentation without FITS header takes the one of the data; the
+        # FITS extension is added
+        plain = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "plain")
+        plain.CreateDefaultDisplayNodes()
+        segmentID = plain.GetSegmentation().AddEmptySegment("Box", "Box")
+        slicer.util.updateSegmentBinaryLabelmapFromArray(masks["Source"], plain, segmentID, cube)
+        plainPath = os.path.join(directory, "section_plain")
+        self.assertTrue(self.logic.SaveFITSMask(plain, cube, plainPath), self.logic.GetLastMaskSaveError())
+        self.assertTrue(os.path.exists(plainPath + ".fits"))
+        self.assertTrue(plain.GetStorageNode().IsA("vtkMRMLAstroSegmentationStorageNode"))
+
+        # refused: contours, empty masks, no header and no reference
+        contours = self.logic.GetContoursSegmentationForVolume(cube, True)
+        self.assertFalse(self.logic.SaveFITSMask(contours, cube, path))
+        self.assertIn("Contours", self.logic.GetLastMaskSaveError())
+        empty = self.logic.GetMaskSegmentationForVolume(other, True)
+        empty.GetSegmentation().RemoveAllSegments()
+        self.assertFalse(self.logic.SaveFITSMask(empty, other, path))
+        self.assertIn("empty", self.logic.GetLastMaskSaveError())
+        section.setVolumeNode(other)
+        self.assertFalse(slicer.util.findChild(section, "MasksSave").enabled)
+        self.assertFalse(slicer.util.findChild(section, "MasksEmpty").isHidden())
+        self.assertTrue(slicer.util.findChild(section, "MasksTable").isHidden())
+        section.setVolumeNode(None)
+        self.assertFalse(section.enabled)
         self.delayDisplay("Test passed")
 
     def test_ContoursChannelMap(self):

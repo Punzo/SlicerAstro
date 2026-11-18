@@ -248,11 +248,15 @@ class Inspector(qt.QFrame):
         self.contoursFold.toolTip = self.contoursWidget.toolTip
         self.contoursFold.contentLayout().addWidget(self.contoursWidget)
         layout.addWidget(self.contoursFold)
-        self.masksSection = Sections.MasksSection()
+        self.masksWidget = slicer.qSlicerAstroMasksSection()
+        self.masksFold = Sections.foldSection("Masks", "segments of the data", "Masks")
+        self.masksFold.toolTip = self.masksWidget.toolTip
+        self.masksFold.contentLayout().addWidget(self.masksWidget)
+        layout.addWidget(self.masksFold)
         self.sourcesSection = Sections.SourcesSection()
         self.threeDSection = Sections.ThreeDSection()
         self.headerSection = Sections.HeaderSection()
-        for section in (self.masksSection, self.sourcesSection, self.threeDSection, self.headerSection):
+        for section in (self.sourcesSection, self.threeDSection, self.headerSection):
             layout.addWidget(section.section)
         layout.addStretch(1)
         return scroll
@@ -370,7 +374,9 @@ class Inspector(qt.QFrame):
         self.displayFold.visible = volume is not None
         self.contoursWidget.setVolumeNode(volume)
         self.contoursFold.visible = volume is not None
-        for section in (self.masksSection, self.sourcesSection,
+        self.masksWidget.setVolumeNode(volume)
+        self.masksFold.visible = volume is not None
+        for section in (self.sourcesSection,
                         self.threeDSection, self.headerSection):
             section.setVolume(volume)
         facts = {name: "" for name in self.factLabels}
@@ -435,7 +441,9 @@ class Inspector(qt.QFrame):
 
     def cleanup(self):
         self.displayWidget.setVolumeNode(None)
-        self.masksSection.cleanup()
+        self.contoursWidget.setVolumeNode(None)
+        self.masksWidget.setEditing(False)
+        self.masksWidget.setVolumeNode(None)
         self.enterPanel(None)
         # the step panels are kept by their modules: they are taken out of
         # the inspector before it is deleted
