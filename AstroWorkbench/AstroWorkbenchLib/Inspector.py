@@ -236,8 +236,13 @@ class Inspector(qt.QFrame):
             self.factLabels[name] = value
         layout.addLayout(self.facts)
 
-        self.displaySection = Sections.DisplaySection()
-        layout.addWidget(self.displaySection.section)
+        # the reusable C++ sections of AstroVolume (the same widgets as the
+        # AstroVolume panel), in fold sections
+        self.displayWidget = slicer.qSlicerAstroDisplaySection()
+        self.displayFold = Sections.foldSection("Display", "2D colours, window, noise", "Display", collapsed=False)
+        self.displayFold.toolTip = self.displayWidget.toolTip
+        self.displayFold.contentLayout().addWidget(self.displayWidget)
+        layout.addWidget(self.displayFold)
         self.contoursSection = Sections.ContoursSection()
         self.masksSection = Sections.MasksSection()
         self.sourcesSection = Sections.SourcesSection()
@@ -358,7 +363,9 @@ class Inspector(qt.QFrame):
     def setVolume(self, volume):
         changed = volume is not self.volume
         self.volume = volume
-        for section in (self.displaySection, self.contoursSection, self.masksSection, self.sourcesSection,
+        self.displayWidget.setVolumeNode(volume)
+        self.displayFold.visible = volume is not None
+        for section in (self.contoursSection, self.masksSection, self.sourcesSection,
                         self.threeDSection, self.headerSection):
             section.setVolume(volume)
         facts = {name: "" for name in self.factLabels}
@@ -422,7 +429,7 @@ class Inspector(qt.QFrame):
         self.measureEmpty.visible = count == 0
 
     def cleanup(self):
-        self.displaySection.cleanup()
+        self.displayWidget.setVolumeNode(None)
         self.masksSection.cleanup()
         self.enterPanel(None)
         # the step panels are kept by their modules: they are taken out of

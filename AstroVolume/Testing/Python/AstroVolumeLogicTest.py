@@ -89,7 +89,8 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
 
     def runTest(self):
         for test in (self.test_EstimateBeamFromNoise, self.test_Histogram, self.test_SnapROIToVoxelGrid,
-                     self.test_SegmentMask, self.test_BeamInInfo, self.test_AllBlankCube):
+                     self.test_SegmentMask, self.test_BeamInInfo, self.test_AllBlankCube,
+                     self.test_DisplayHistogramAndWindow):
             self.setUp()
             test()
 
@@ -396,3 +397,45 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(float(volumeNode.GetAttribute("SlicerAstro.DATAMIN")), 0.)
         self.assertEqual(float(volumeNode.GetAttribute("SlicerAstro.DATAMAX")), 0.)
 
+    def test_DisplayHistogramAndWindow(self):
+        """Histogram of the finite voxels and window of the 2D colours with a
+        percentage of the negative and of the positive values (numpy
+        quantiles); the Display section applies them to the display node."""
+        rng = np.random.default_rng(11)
+        data = rng.normal(0.0, 1.0, (6, 30, 40)).astype(np.float32)
+        data[2, 10:14, 10:16] += 25.0
+        data[0, 0, :5] = np.nan
+        volume = self.loadCube("display", data)
+        logic = slicer.vtkSlicerAstroVolumeLogic
+        centres, counts = vtk.vtkDoubleArray(), vtk.vtkDoubleArray()
+        self.assertTrue(logic.ComputeHistogram(volume, 50, centres, counts))
+        values = data[np.isfinite(data)].astype(np.float64)
+        expectedCounts, edges = np.histogram(values, bins=50, range=(values.min(), values.max()))
+        np.testing.assert_allclose([counts.GetValue(i) for i in range(50)], expectedCounts)
+        np.testing.assert_allclose([centres.GetValue(i) for i in range(50)], (edges[:-1] + edges[1:]) / 2, rtol=1e-12)
+        for percentage in (95.0, 99.5, 100.0):
+            window = [0.0, 0.0]
+            self.assertTrue(logic.ComputeClippedWindow(volume, percentage, window))
+            if percentage == 100.0:
+                expected = (values.min(), values.max())
+            else:
+                expected = (np.quantile(values[values < 0], 1 - percentage / 100),
+                            np.quantile(values[values > 0], percentage / 100))
+            np.testing.assert_allclose(window, expected, rtol=1e-9)
+
+        # the Display section (reusable widget of the AstroVolume panel and
+        # the Workbench)
+        section = slicer.qSlicerAstroDisplaySection()
+        section.setVolumeNode(volume)
+        section.applyPercentage(section.percentages().index(99.5))
+        displayNode = volume.GetDisplayNode()
+        window = [0.0, 0.0]
+        logic.ComputeClippedWindow(volume, 99.5, window)
+        self.assertAlmostEqual(displayNode.GetWindow(), window[1] - window[0], places=6)
+        self.assertAlmostEqual(displayNode.GetLevel(), (window[1] + window[0]) / 2, places=6)
+        section.setNoise(2.0)
+        self.assertAlmostEqual(volume.GetDisplayThreshold(), 2.0)
+        histogram = slicer.util.findChild(section, "DisplayHistogram")
+        self.assertEqual(int(sum(histogram.binCounts())), values.size)
+        self.assertAlmostEqual(histogram.noise, 2.0)
+        self.delayDisplay("Test passed")

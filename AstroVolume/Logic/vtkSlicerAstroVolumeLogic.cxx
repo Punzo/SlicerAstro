@@ -63,6 +63,9 @@
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLSegmentEditorNode.h>
 #include <vtkMRMLSliceNode.h>
+#include <vtkMRMLSliceLayerLogic.h>
+#include <vtkMRMLSliceLogic.h>
+#include <vtkMRMLApplicationLogic.h>
 #include <vtkMRMLSliceViewDisplayableManagerFactory.h>
 #include <vtkMRMLThreeDViewDisplayableManagerFactory.h>
 #include <vtkMRMLTransformNode.h>
@@ -3545,6 +3548,211 @@ bool vtkSlicerAstroVolumeLogic::SetColorFunctionOption(vtkMRMLColorNode* colorNo
   colorNode->Modified();
   colorNode->EndModify(wasModifying);
   return true;
+}
+
+namespace
+{
+//----------------------------------------------------------------------------
+/// The finite voxels of a volume as doubles (at most maxSamples, regularly)
+std::vector<double> SampleFiniteVoxels(vtkMRMLVolumeNode* volume, vtkIdType maxSamples)
+{
+  std::vector<double> values;
+  vtkImageData* image = volume ? volume->GetImageData() : nullptr;
+  vtkDataArray* scalars = image && image->GetPointData() ? image->GetPointData()->GetScalars() : nullptr;
+  if (!scalars)
+    {
+    return values;
+    }
+  const vtkIdType count = scalars->GetNumberOfTuples();
+  const vtkIdType step = std::max<vtkIdType>(1, count / std::max<vtkIdType>(1, maxSamples));
+  values.reserve(static_cast<size_t>(count / step + 1));
+  for (vtkIdType i = 0; i < count; i += step)
+    {
+    const double value = scalars->GetComponent(i, 0);
+    if (std::isfinite(value))
+      {
+      values.push_back(value);
+      }
+    }
+  return values;
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ComputeHistogram(vtkMRMLVolumeNode* volume, int bins, vtkDoubleArray* centres,
+                                                 vtkDoubleArray* counts, vtkIdType maxSamples)
+{
+  if (!centres || !counts || bins < 1)
+    {
+    return false;
+    }
+  centres->Initialize();
+  counts->Initialize();
+  const std::vector<double> values = SampleFiniteVoxels(volume, maxSamples);
+  if (values.empty())
+    {
+    return false;
+    }
+  const std::pair<std::vector<double>::const_iterator, std::vector<double>::const_iterator> range =
+    std::minmax_element(values.begin(), values.end());
+  const double low = *range.first;
+  double high = *range.second;
+  if (!(high > low))
+    {
+    high = low + 1.;
+    }
+  const double width = (high - low) / bins;
+  std::vector<double> histogram(static_cast<size_t>(bins), 0.);
+  for (double value : values)
+    {
+    const int bin = std::min(bins - 1, static_cast<int>((value - low) / width));
+    histogram[static_cast<size_t>(bin)] += 1.;
+    }
+  centres->SetNumberOfValues(bins);
+  counts->SetNumberOfValues(bins);
+  for (int i = 0; i < bins; i++)
+    {
+    centres->SetValue(i, low + (i + 0.5) * width);
+    counts->SetValue(i, histogram[static_cast<size_t>(i)]);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ComputeClippedWindow(vtkMRMLVolumeNode* volume, double percentage, double window[2],
+                                                     vtkIdType maxSamples)
+{
+  std::vector<double> values = SampleFiniteVoxels(volume, maxSamples);
+  if (values.empty())
+    {
+    return false;
+    }
+  std::vector<double> negative, positive;
+  for (double value : values)
+    {
+    if (value < 0.)
+      {
+      negative.push_back(value);
+      }
+    else if (value > 0.)
+      {
+      positive.push_back(value);
+      }
+    }
+  const std::pair<std::vector<double>::iterator, std::vector<double>::iterator> range =
+    std::minmax_element(values.begin(), values.end());
+  window[0] = *range.first;
+  window[1] = *range.second;
+  const double fraction = std::max(0., std::min(percentage / 100., 1.));
+  if (fraction >= 1.)
+    {
+    return true;
+    }
+  // quantiles with linear interpolation (as numpy.quantile)
+  const std::function<double(std::vector<double>&, double)> quantile = [](std::vector<double>& data, double q)
+    {
+    std::sort(data.begin(), data.end());
+    const double position = q * (data.size() - 1);
+    const size_t lower = static_cast<size_t>(std::floor(position));
+    const size_t upper = std::min(lower + 1, data.size() - 1);
+    return data[lower] + (position - lower) * (data[upper] - data[lower]);
+    };
+  if (!negative.empty())
+    {
+    window[0] = quantile(negative, 1. - fraction);
+    }
+  if (!positive.empty())
+    {
+    window[1] = quantile(positive, fraction);
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::FitSlicesToVolume(vtkMRMLAstroVolumeNode* volume)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkMRMLApplicationLogic* appLogic = this->GetMRMLApplicationLogic();
+  if (!scene || !appLogic || !volume || !volume->GetImageData() || !volume->GetAstroVolumeDisplayNode())
+    {
+    return;
+    }
+  std::vector<vtkMRMLNode*> sliceNodes;
+  scene->GetNodesByClass("vtkMRMLSliceNode", sliceNodes);
+  for (vtkMRMLNode* node : sliceNodes)
+    {
+    vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(node);
+    vtkMRMLSliceLogic* sliceLogic = sliceNode ? appLogic->GetSliceLogic(sliceNode) : nullptr;
+    if (!sliceLogic)
+      {
+      continue;
+      }
+    // the data of the view to fit: the volume, or another one fitted
+    int dims[3] = {0, 0, 0};
+    bool apply = false;
+    vtkMRMLSliceLayerLogic* layers[2] = {sliceLogic->GetBackgroundLayer(), sliceLogic->GetForegroundLayer()};
+    for (vtkMRMLSliceLayerLogic* layer : layers)
+      {
+      vtkMRMLAstroVolumeNode* shown = layer ? vtkMRMLAstroVolumeNode::SafeDownCast(layer->GetVolumeNode()) : nullptr;
+      if (!shown || !shown->GetImageData() || !shown->GetAstroVolumeDisplayNode())
+        {
+        continue;
+        }
+      if ((shown == volume && volume->GetAstroVolumeDisplayNode()->GetFitSlices()) ||
+          shown->GetAstroVolumeDisplayNode()->GetFitSlices())
+        {
+        shown->GetImageData()->GetDimensions(dims);
+        apply = true;
+        break;
+        }
+      }
+    if (!apply)
+      {
+      sliceLogic->FitSliceToAll(true);
+      continue;
+      }
+    double rasDimensions[3], rasCenter[3];
+    sliceLogic->GetVolumeRASBox(volume, rasDimensions, rasCenter);
+    double fieldOfView[3];
+    sliceNode->GetFieldOfView(fieldOfView);
+    const std::string orientation = sliceNode->GetOrientation();
+    if (orientation == "PVMajor" || orientation == "PVMinor" || orientation == "Reformat")
+      {
+      fieldOfView[0] = std::sqrt(static_cast<double>(dims[0]) * dims[0] + static_cast<double>(dims[1]) * dims[1]);
+      fieldOfView[1] = dims[2] * 1.2;
+      }
+    else if (orientation == "XY" || orientation == "PVDiagram")
+      {
+      fieldOfView[0] = dims[0];
+      fieldOfView[1] = dims[1];
+      }
+    else if (orientation == "ZY")
+      {
+      fieldOfView[0] = dims[2];
+      fieldOfView[1] = dims[1];
+      }
+    else if (orientation == "XZ")
+      {
+      fieldOfView[0] = dims[0];
+      fieldOfView[1] = dims[2];
+      }
+    else
+      {
+      continue;
+      }
+    sliceNode->SetFieldOfView(fieldOfView[0], fieldOfView[1], fieldOfView[2]);
+    // the origin at the centre of the volume
+    vtkNew<vtkMatrix4x4> sliceToRAS;
+    sliceToRAS->DeepCopy(sliceNode->GetSliceToRAS());
+    sliceToRAS->SetElement(0, 3, rasCenter[0]);
+    sliceToRAS->SetElement(1, 3, rasCenter[1]);
+    sliceToRAS->SetElement(2, 3, rasCenter[2]);
+    sliceNode->GetSliceToRAS()->DeepCopy(sliceToRAS);
+    sliceNode->SetSliceOrigin(0, 0, 0);
+    sliceLogic->SnapSliceOffsetToIJK();
+    sliceNode->UpdateMatrices();
+    sliceNode->Modified();
+    }
 }
 
 //----------------------------------------------------------------------------

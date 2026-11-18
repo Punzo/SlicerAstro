@@ -475,6 +475,23 @@ public:
                                   double binSpacing,
                                   int numberOfBins);
 
+  /// Histogram of the finite voxels of a volume (at most maxSamples voxels,
+  /// sampled regularly): bins between the minimum and the maximum, centres
+  /// and counts. Returns false without finite voxels.
+  static bool ComputeHistogram(vtkMRMLVolumeNode* volume, int bins, vtkDoubleArray* centres,
+                               vtkDoubleArray* counts, vtkIdType maxSamples = 2000000);
+
+  /// Window of the 2D colours with a percentage of the negative and of the
+  /// positive values of a volume (the extreme values outside; the SlicerAstro
+  /// clipping); 100: the minimum and maximum. window: lower, upper.
+  static bool ComputeClippedWindow(vtkMRMLVolumeNode* volume, double percentage, double window[2],
+                                   vtkIdType maxSamples = 2000000);
+
+  /// The 2D views showing the volume (or a volume with FitSlices) fit their
+  /// field of view to the grid of the data (channel maps, position-velocity
+  /// slices), centred on it; the other views fit to all.
+  void FitSlicesToVolume(vtkMRMLAstroVolumeNode* volume);
+
   /// Reprojection with the parameters (service of the AstroReproject module,
   /// which sets the function: the AstroVolume module does not depend on it).
   /// The output volume ID is set in the parameters node. On failure the

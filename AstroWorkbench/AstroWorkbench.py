@@ -245,7 +245,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         # the 2D colours (fields, percentages), noise σ of the 3D colours,
         # colour table options
         inspector = workbench().inspector
-        display = inspector.displaySection
+        display = inspector.displayWidget
         histogram = slicer.util.findChild(inspector, "DisplayHistogram")
         counts = np.array(histogram.binCounts())
         self.assertEqual(len(counts), 180)
