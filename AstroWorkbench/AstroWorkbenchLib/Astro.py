@@ -198,7 +198,30 @@ def productsOf(volume, scene):
         if reference is volume and count > 0:
             products.append((segmentation.GetID(), segmentation.GetName(),
                              f"{count} segment{'s' if count != 1 else ''}", "lasso", segmentation))
+    for table in cataloguesOf(volume):
+        rows = table.GetTable().GetNumberOfRows() if table.GetTable() else 0
+        products.append((table.GetID(), table.GetName(), f"{rows} source{'s' if rows != 1 else ''}", "table", table))
     return products
+
+
+def catalogues(scene=None):
+    """Source catalogues (SoFiA and other catalogues loaded by AstroSoFiACatalog)."""
+    return [node for node in slicer.util.getNodesByClass("vtkMRMLTableNode")
+            if node.GetAttribute("SlicerAstro.SoFiASources")]
+
+
+def catalogueVolume(tableNode):
+    """The dataset a catalogue is placed on: its reference cube, or the cube of
+    its reference mask."""
+    referenceID = tableNode.GetAttribute("SlicerAstro.SoFiAReference") if tableNode is not None else None
+    reference = slicer.mrmlScene.GetNodeByID(referenceID) if referenceID else None
+    if reference is not None and reference.IsA("vtkMRMLSegmentationNode"):
+        reference = reference.GetNodeReference(slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole())
+    return reference if isAstroVolume(reference) else None
+
+
+def cataloguesOf(volume):
+    return [table for table in catalogues() if catalogueVolume(table) is volume]
 
 
 def _matrix(volume, ijkToRAS=True):

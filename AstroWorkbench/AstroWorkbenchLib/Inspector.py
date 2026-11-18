@@ -231,9 +231,11 @@ class Inspector(qt.QFrame):
         layout.addWidget(self.displaySection.section)
         self.contoursSection = Sections.ContoursSection()
         self.masksSection = Sections.MasksSection()
+        self.sourcesSection = Sections.SourcesSection()
         self.threeDSection = Sections.ThreeDSection()
         self.headerSection = Sections.HeaderSection()
-        for section in (self.contoursSection, self.masksSection, self.threeDSection, self.headerSection):
+        for section in (self.contoursSection, self.masksSection, self.sourcesSection, self.threeDSection,
+                        self.headerSection):
             layout.addWidget(section.section)
         layout.addStretch(1)
         return scroll
@@ -347,7 +349,8 @@ class Inspector(qt.QFrame):
     def setVolume(self, volume):
         changed = volume is not self.volume
         self.volume = volume
-        for section in (self.displaySection, self.contoursSection, self.masksSection, self.threeDSection, self.headerSection):
+        for section in (self.displaySection, self.contoursSection, self.masksSection, self.sourcesSection,
+                        self.threeDSection, self.headerSection):
             section.setVolume(volume)
         facts = {name: "" for name in self.factLabels}
         if volume is not None:

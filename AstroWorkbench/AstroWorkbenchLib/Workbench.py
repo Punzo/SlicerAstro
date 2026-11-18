@@ -598,6 +598,16 @@ class Workbench:
             if displayNode is not None:
                 displayNode.SetVisibility(not displayNode.GetVisibility())
             return
+        if node.IsA("vtkMRMLTableNode"):
+            # a catalogue: its sources in Inspect
+            volume = Astro.catalogueVolume(node)
+            if volume is not None and volume is not self.activeVolume():
+                self.activate(volume)
+            self.inspector.tabs["Inspect"].checked = True
+            self.inspector.showTab(0)
+            self.inspector.sourcesSection.setVolume(self.activeVolume(), node.GetID())
+            self.inspector.sourcesSection.section.setCollapsed(False)
+            return
         composite = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceCompositeNodeYellow" if self.layoutIndex() > 0
                                                  else "vtkMRMLSliceCompositeNodeRed")
         sliceNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow" if self.layoutIndex() > 0

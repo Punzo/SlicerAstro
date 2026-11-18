@@ -148,6 +148,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_About()
         self.setUp()
         self.test_HIContours()
+        self.setUp()
+        self.test_Sources()
         self.tearDown()
 
     def cube(self):
@@ -499,4 +501,55 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         own = Contours.contourSources(cube, slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(cube, False))
         self.assertEqual(len(own.get(cube.GetID(), [])), 2)
         self.assertIn("2 levels drawn", section.status.text)
+        self.delayDisplay("Test passed")
+
+    def test_Sources(self):
+        """A SoFiA catalogue: a product of its cube ("N sources"), its table
+        in Inspect > Sources; a click on a source moves the views to it and
+        selects its point."""
+        import AstroSampleData
+
+        workbench().enter()
+        self.process()
+        logic = AstroSampleData.AstroSampleDataLogic()
+        cube = logic.downloadSample("WEIN069")
+        logic.downloadSample("WEIN069_MASK")
+        slicer.util.selectModule("AstroWorkbench")
+        workbench().activate(cube)
+        self.process(30)
+        from AstroWorkbenchLib import Astro
+        catalogues = Astro.cataloguesOf(cube)
+        self.assertEqual(len(catalogues), 1)
+        table = catalogues[0]
+        rows = table.GetTable().GetNumberOfRows()
+        self.assertGreater(rows, 0)
+        products = [product for product in Astro.productsOf(cube, slicer.mrmlScene) if product[4] is table]
+        self.assertEqual(len(products), 1)
+        self.assertIn(f"{rows} source", products[0][2])
+
+        # the product opens the Sources section with the catalogue
+        workbench().showProduct(table.GetID())
+        self.process()
+        section = workbench().inspector.sourcesSection
+        self.assertFalse(section.section.collapsed)
+        self.assertIs(section.tableNode(), table)
+        self.assertEqual(section.table.model().rowCount(), rows)
+
+        # a source: the views move to it, its point is selected
+        points = section.pointList()
+        section.table.selectRow(0)
+        self.process()
+        self.assertTrue(points.GetNthControlPointSelected(0))
+        position = [0.0, 0.0, 0.0]
+        points.GetNthControlPointPositionWorld(0, position)
+        redNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeRed")
+        offset = redNode.GetSliceOffset()
+        normal = [redNode.GetSliceToRAS().GetElement(r, 2) for r in range(3)]
+        self.assertAlmostEqual(offset, sum(n * p for n, p in zip(normal, position)), delta=1.0)
+        self.assertIn(points.GetNthControlPointLabel(0), section.status.text)
+        # points and labels
+        section.pointsButton.checked = True
+        self.assertTrue(points.GetDisplayNode().GetVisibility3D())
+        section.labelsButton.checked = False
+        self.assertFalse(points.GetDisplayNode().GetPointLabelsVisibility())
         self.delayDisplay("Test passed")

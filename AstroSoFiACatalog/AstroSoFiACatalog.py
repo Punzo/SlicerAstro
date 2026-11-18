@@ -756,6 +756,8 @@ class AstroSoFiACatalogLogic(ScriptedLoadableModuleLogic):
                              "of the catalogue are pixel coordinates")
         pointListNode = self.createPointList(catalog, base + "_sources", referenceNode)
         tableNode.SetAttribute("SlicerAstro.SoFiASources", pointListNode.GetID())
+        # the data the sources are placed on (a cube, or the mask of a cube)
+        tableNode.SetAttribute("SlicerAstro.SoFiAReference", referenceNode.GetID())
         if referenceNode.IsA("vtkMRMLSegmentationNode") and "x" in catalog.columns:
             self.nameSegments(catalog, referenceNode)
         return tableNode, pointListNode
