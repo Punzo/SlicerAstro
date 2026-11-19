@@ -108,7 +108,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
     def runTest(self):
         for test in (self.test_AstroStatisticsSelfTest, self.test_Box, self.test_Mask,
                      self.test_MaskDoubleSharedLayer, self.test_SelectedQuantities,
-                     self.test_TotalFluxWithoutBeam):
+                     self.test_TotalFluxWithoutBeam, self.test_WholeDataAndResults):
             self.setUp()
             test()
 
@@ -180,7 +180,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
     def test_Box(self):
         volumeNode, data = self.cube()
         widget, parametersNode = self.openModule(volumeNode)
-        slicer.util.findChild(widget, "ROIModeRadioButton").click()
+        widget.setRegion(1)
         parametersNode.SetTotalFlux(True)
         self.setBox(parametersNode, volumeNode, (5, 3, 2), (18, 15, 8))
         computed = self.compute(widget, parametersNode)
@@ -198,7 +198,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
                                                          segmentID, volumeNode)
         widget, parametersNode = self.openModule(volumeNode)
         parametersNode.SetTotalFlux(True)
-        slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
+        widget.setRegion(2)
         slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
         slicer.app.processEvents()
         slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([segmentID])
@@ -222,7 +222,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(segmentationNode.GetSegmentation().GetNumberOfLayers(), 1)
         widget, parametersNode = self.openModule(volumeNode)
         parametersNode.SetTotalFlux(True)
-        slicer.util.findChild(widget, "SegmentationModeRadioButton").click()
+        widget.setRegion(2)
         slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(segmentationNode)
         for segmentID, mask in ((sourceID, source), (cornerID, corner)):
             slicer.app.processEvents()
@@ -246,10 +246,10 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
         writeFITS(path, data, cards)
         volumeNode = slicer.util.loadVolume(path)
         widget, parametersNode = self.openModule(volumeNode)
-        slicer.util.findChild(widget, "ROIModeRadioButton").click()
+        widget.setRegion(1)
         parametersNode.SetTotalFlux(True)
         slicer.app.processEvents()
-        totalFluxCheckBox = slicer.util.findChild(widget, "TotalFluxCheckBox")
+        totalFluxCheckBox = slicer.util.findChild(widget, "Quantity_TotalFlux")
         self.assertFalse(totalFluxCheckBox.enabled)
         self.assertIn("no beam", totalFluxCheckBox.toolTip)
         self.setBox(parametersNode, volumeNode, (2, 2, 1), (10, 9, 5))
@@ -268,18 +268,40 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
         """Quantities switched off in the widget are not computed (NaN in the table)."""
         volumeNode, data = self.cube()
         widget, parametersNode = self.openModule(volumeNode)
-        slicer.util.findChild(widget, "ROIModeRadioButton").click()
+        widget.setRegion(1)
         self.assertTrue(slicer.modules.astrostatistics.logic().FitROIToInputVolume(parametersNode))
         enabled = {"Npixels": False, "Min": True, "Max": False, "Mean": True, "Std": False,
                    "Median": False, "Sum": True, "TotalFlux": False}
         for name, on in enabled.items():
-            checkBox = slicer.util.findChild(widget, name + "CheckBox")
+            checkBox = slicer.util.findChild(widget, "Quantity_" + name)
             checkBox.setChecked(not on)
             checkBox.setChecked(on)
         computed = self.compute(widget, parametersNode)
         for name, on in enabled.items():
             self.assertEqual(not np.isnan(computed[name]), on, msg=name)
         self.assertStatistics(computed, data, [name for name, on in enabled.items() if on])
+
+    def test_WholeDataAndResults(self):
+        """Whole data (all the voxels, no box), the results of the last
+        calculation in the panel, and a labelled row per calculation."""
+        volumeNode, data = self.cube()
+        widget, parametersNode = self.openModule(volumeNode)
+        widget.setRegion(0)
+        self.assertEqual(parametersNode.GetMode(), "Volume")
+        parametersNode.SetTotalFlux(True)
+        rows = parametersNode.GetTableNode().GetTable().GetNumberOfRows()
+        computed = self.compute(widget, parametersNode)
+        self.assertStatistics(computed, data)
+        table = parametersNode.GetTableNode()
+        self.assertEqual(table.GetTable().GetNumberOfRows(), rows + 1)
+        self.assertEqual(table.GetCellText(rows, 0), f"{volumeNode.GetName()} · whole data")
+        self.assertEqual(table.GetColumnUnitLabel("Mean"), "JY/BEAM")
+        results = widget.resultsText()
+        self.assertIn("Mean = ", results)
+        self.assertIn("Jy/beam", results)
+        self.assertIn("Total flux = ", results)
+        mean = float(slicer.util.findChild(widget, "Result_Mean").text.replace("\u2212", "-"))
+        self.assertAlmostEqual(mean, computed["Mean"], delta=1e-5 * abs(computed["Mean"]))
 
     def test_AstroStatisticsSelfTest(self):
         import AstroSampleData

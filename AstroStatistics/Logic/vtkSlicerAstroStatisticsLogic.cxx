@@ -32,6 +32,9 @@
 #include <vtkMRMLSegmentationNode.h>
 #include <vtkMRMLAstroStatisticsParametersNode.h>
 #include <vtkMRMLTableNode.h>
+#include <vtkSegment.h>
+#include <vtkSegmentation.h>
+#include <vtkMRMLScene.h>
 
 // VTK includes
 #include <vtkArrayData.h>
@@ -173,6 +176,7 @@ void vtkSlicerAstroStatisticsLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode)
 {
+  this->LastError.clear();
 
   if (!pnode)
     {
@@ -193,15 +197,19 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
   if(!inputVolume || !inputVolume->GetImageData())
     {
+    this->LastError = "Select the data.";
     vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
                   " inputVolume not found!");
     return false;
     }
 
-  bool segmentationActive = false;
-  if (!(strcmp(pnode->GetMode(), "Segmentation")))
+  const bool segmentationActive = pnode->GetMode() && !strcmp(pnode->GetMode(), "Segmentation");
+  const bool wholeVolume = pnode->GetMode() && !strcmp(pnode->GetMode(), "Volume");
+  if (!segmentationActive && !wholeVolume && !pnode->GetROINode())
     {
-    segmentationActive = true;
+    this->LastError = "No box (ROI).";
+    vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : roiNode not found!");
+    return false;
     }
 
   // input mask: a segment, on the voxel grid of the data (1 inside)
@@ -216,13 +224,14 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
                                                       maskImage, maskError))
       {
+      this->LastError = maskError;
       vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : " << maskError);
       return false;
       }
     maskVoxels = static_cast<unsigned char*>(maskImage->GetScalarPointer());
     }
 
-  vtkMRMLTableNode* tableNode = pnode->GetTableNode();
+  vtkMRMLTableNode* tableNode = this->EnsureStatisticsTable(pnode);
   if(!tableNode || !tableNode->GetTable())
     {
     vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
@@ -264,6 +273,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   const double unitBeamConv = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume);
   if (pnode->GetTotalFlux() && unitBeamConv <= 0.)
     {
+    this->LastError = "The data have no beam or are not in Jy/beam: no total flux.";
     vtkWarningMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics : the data have no beam (BMAJ, BMIN) "
                     "or are not in Jy/beam: the total flux can not be calculated.");
     }
@@ -500,17 +510,20 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     }
   else
     {
-    vtkMRMLMarkupsROINode *roiNode = pnode->GetROINode();
-    if(!roiNode)
+    // the voxels of the box, or all the voxels
+    double roiBounds[6] = {0., dims[0] - 1., 0., dims[1] - 1., 0., dims[2] - 1.};
+    if (!wholeVolume)
       {
-      vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
-                    " roiNode not found!");
-      computeResult = false;
-      return;
+      vtkMRMLMarkupsROINode *roiNode = pnode->GetROINode();
+      if(!roiNode)
+        {
+        vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
+                      " roiNode not found!");
+        computeResult = false;
+        return;
+        }
+      this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
       }
-
-    double roiBounds[6];
-    this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
 
     const vtkIdType firstElement = static_cast<vtkIdType>(roiBounds[0] + roiBounds[2] * dims[0] +
                                                           roiBounds[4] * numSlice);
@@ -750,12 +763,34 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   start = std::chrono::steady_clock::now();
 
   double NaN = sqrt(-1);
-  int serial = pnode->GetOutputSerial() - 1;
+  // a row per calculation: the data and the region
   tableNode->AddEmptyRow();
-  std::string CellText(inputVolume->GetName());
-  CellText += "_selection_";
-  CellText += IntToString(serial);
+  int serial = tableNode->GetNumberOfRows() - 1;
+  std::string CellText(inputVolume->GetName() ? inputVolume->GetName() : "");
+  CellText += " \xC2\xB7 ";
+  if (segmentationActive)
+    {
+    vtkMRMLSegmentationNode* maskNode = vtkMRMLSegmentationNode::SafeDownCast(
+      this->GetMRMLScene()->GetNodeByID(pnode->GetMaskSegmentationNodeID()));
+    vtkSegment* segment = (maskNode && maskNode->GetSegmentation() && pnode->GetMaskSegmentID()) ?
+      maskNode->GetSegmentation()->GetSegment(pnode->GetMaskSegmentID()) : nullptr;
+    CellText += segment && segment->GetName() ? segment->GetName() : "mask";
+    }
+  else if (wholeVolume)
+    {
+    CellText += "whole data";
+    }
+  else
+    {
+    CellText += pnode->GetROINode() && pnode->GetROINode()->GetName() ? pnode->GetROINode()->GetName() : "box";
+    }
   tableNode->SetCellText(serial, 0, CellText.c_str());
+  // units of the data
+  const char* unit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
+  for (const char* column : {"Min", "Max", "Mean", "Std", "Median", "Sum"})
+    {
+    tableNode->SetColumnUnitLabel(column, unit ? unit : "");
+    }
 
   if (!pnode->GetNpixels())
     {
@@ -818,6 +853,76 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   vtkDebugMacro("Update Time : "<<mtime<<" ms.");
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLTableNode* vtkSlicerAstroStatisticsLogic::EnsureStatisticsTable(vtkMRMLAstroStatisticsParametersNode* pnode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!pnode || !scene)
+    {
+    return nullptr;
+    }
+  vtkMRMLTableNode* tableNode = pnode->GetTableNode();
+  if (tableNode && tableNode->GetTable() && tableNode->GetTable()->GetColumnByName("TotalFlux"))
+    {
+    return tableNode;
+    }
+  tableNode = vtkMRMLTableNode::SafeDownCast(scene->AddNewNodeByClass("vtkMRMLTableNode",
+    scene->GenerateUniqueName("StatisticsTable")));
+  if (!tableNode)
+    {
+    return nullptr;
+    }
+  const int wasModifying = tableNode->StartModify();
+  tableNode->RemoveAllColumns();
+  tableNode->SetUseColumnTitleAsColumnHeader(true);
+  vtkNew<vtkStringArray> selection;
+  selection->SetName("Selection");
+  tableNode->AddColumn(selection);
+  tableNode->SetColumnTitle("Selection", "Selection");
+  // double: exact counts up to 2^53 voxels (cubes larger than 2^31 voxels)
+  // and NaN when a quantity is not computed
+  const char* columns[8][3] = {{"Npixels", "#", "Number of pixels"}, {"Min", "", "Minimum"},
+                               {"Max", "", "Maximum"}, {"Mean", "", "Mean"}, {"Std", "", "Standard deviation"},
+                               {"Median", "", "Median"}, {"Sum", "", "Sum"}, {"TotalFlux", "Jy", "Total Flux"}};
+  for (int i = 0; i < 8; i++)
+    {
+    vtkNew<vtkDoubleArray> column;
+    column->SetName(columns[i][0]);
+    tableNode->AddColumn(column);
+    tableNode->SetColumnUnitLabel(columns[i][0], columns[i][1]);
+    tableNode->SetColumnTitle(columns[i][0], columns[i][2]);
+    }
+  tableNode->EndModify(wasModifying);
+  pnode->SetTableNode(tableNode);
+  pnode->SetOutputSerial(1);
+  return tableNode;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLMarkupsROINode* vtkSlicerAstroStatisticsLogic::EnsureStatisticsROI(vtkMRMLAstroStatisticsParametersNode* pnode)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!pnode || !scene)
+    {
+    return nullptr;
+    }
+  vtkMRMLMarkupsROINode* roiNode = pnode->GetROINode();
+  if (roiNode)
+    {
+    return roiNode;
+    }
+  roiNode = vtkMRMLMarkupsROINode::SafeDownCast(scene->AddNewNodeByClass("vtkMRMLMarkupsROINode",
+    scene->GenerateUniqueName("StatisticsROI")));
+  if (!roiNode)
+    {
+    return nullptr;
+    }
+  roiNode->CreateDefaultDisplayNodes();
+  pnode->SetROINode(roiNode);
+  this->FitROIToInputVolume(pnode);
+  return roiNode;
 }
 
 //----------------------------------------------------------------------------

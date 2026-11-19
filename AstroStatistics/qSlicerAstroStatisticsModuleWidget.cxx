@@ -18,237 +18,178 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QAbstractItemView>
 #include <QAction>
-#include <QDebug>
-#include <QMessageBox>
-#include <QStringList>
+#include <QFormLayout>
+#include <QFrame>
+#include <QGridLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QSignalBlocker>
+#include <QStackedWidget>
+#include <QToolButton>
+#include <QVBoxLayout>
 
 // CTK includes
 #include <ctkFlowLayout.h>
-#include <ctkDoubleSpinBox.h>
-#include <ctkDoubleRangeSlider.h>
 
 // VTK includes
-#include <vtkCollection.h>
-#include <vtkCommand.h>
 #include <vtkDoubleArray.h>
-#include <vtkImageData.h>
-#include <vtkImageReslice.h>
-#include <vtkNew.h>
-#include <vtkMatrix4x4.h>
-#include <vtkPointData.h>
 #include <vtkTable.h>
-#include <vtksys/SystemTools.hxx>
 
 // SlicerQt includes
 #include <qSlicerAbstractCoreModule.h>
 #include <qSlicerApplication.h>
-#include <qSlicerCoreApplication.h>
-#include <qSlicerLayoutManager.h>
-#include <qSlicerModuleManager.h>
-#include <qSlicerUtils.h>
-
-// AstroStatistics includes
-#include "qSlicerAstroStatisticsModuleWidget.h"
-#include "ui_qSlicerAstroStatisticsModuleWidget.h"
-
-// Logic includes
-#include <vtkSlicerAstroVolumeLogic.h>
-#include <vtkSlicerAstroStatisticsLogic.h>
-#include <vtkSlicerSegmentationsModuleLogic.h>
-
-// qMRML includes
-#include <qMRMLSegmentsTableView.h>
-#include <qMRMLSortFilterProxyModel.h>
-#include <qMRMLNodeComboBox.h>
-#include <qMRMLSliceWidget.h>
-#include <qMRMLTableView.h>
-
-// MRMLLogic includes
 #include <vtkSlicerApplicationLogic.h>
-#include <vtkMRMLApplicationLogic.h>
 
 // MRML includes
-#include <vtkMRMLMarkupsROINode.h>
+#include <qMRMLNodeComboBox.h>
+#include <qMRMLSegmentsTableView.h>
+#include <qMRMLSortFilterProxyModel.h>
+#include <qMRMLTableView.h>
 #include <vtkMRMLAstroStatisticsParametersNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLAstroVolumeDisplayNode.h>
-#include <vtkMRMLLayoutLogic.h>
-#include <vtkMRMLLayoutNode.h>
-#include <vtkMRMLSelectionNode.h>
-#include <vtkMRMLSegmentationDisplayNode.h>
-#include <vtkMRMLSegmentationNode.h>
+#include <vtkMRMLMarkupsROINode.h>
+#include <vtkMRMLScene.h>
 #include <vtkMRMLSegmentEditorNode.h>
-#include <vtkMRMLSliceCompositeNode.h>
-#include <vtkMRMLSliceLayerLogic.h>
-#include <vtkMRMLSliceLogic.h>
+#include <vtkMRMLSegmentationNode.h>
+#include <vtkMRMLSelectionNode.h>
 #include <vtkMRMLTableNode.h>
-#include <vtkMRMLUnitNode.h>
-#include <vtkMRMLVolumeNode.h>
-#include <vtkMRMLVolumeRenderingDisplayNode.h>
 
-#include <chrono>
+// AstroVolume includes
+#include <qSlicerAstroDatasetSelector.h>
+#include <qSlicerAstroFoldSection.h>
+#include <qSlicerAstroMessageWidget.h>
+#include <qSlicerAstroPanelHeader.h>
+#include <qSlicerAstroRunButton.h>
+#include <qSlicerAstroSegmentedButton.h>
+#include <qSlicerAstroTheme.h>
+#include <vtkSlicerAstroVolumeLogic.h>
+
+// Logic includes
+#include <vtkSlicerAstroStatisticsLogic.h>
+
+#include <cmath>
+#include <vector>
+
+#include "qSlicerAstroStatisticsModuleWidget.h"
+
+namespace
+{
+/// The quantities: object name of the chip, column of the table, label
+struct Quantity
+{
+  const char* Name;
+  const char* Column;
+  const char* Label;
+  const char* ToolTip;
+};
+
+const Quantity Quantities[] = {
+  {"TotalFlux", "TotalFlux", "Total flux", "Total flux (Jy): the sum of the intensities (Jy/beam) times the pixel "
+                                           "area divided by the beam area (needs Jy/beam data with a beam)."},
+  {"Mean", "Mean", "Mean", "Mean of the voxels."},
+  {"Std", "Std", "Std", "Standard deviation of the voxels."},
+  {"Median", "Median", "Median", "Median of the voxels (slower: the voxels are sorted)."},
+  {"Min", "Min", "Min", "Minimum of the voxels."},
+  {"Max", "Max", "Max", "Maximum of the voxels."},
+  {"Sum", "Sum", "Sum", "Sum of the voxels."},
+  {"Npixels", "Npixels", "N voxels", "Number of voxels (blank voxels are not counted)."}};
+const int NumberOfQuantities = 8;
+
+//----------------------------------------------------------------------------
+bool QuantityOn(vtkMRMLAstroStatisticsParametersNode* node, int index)
+{
+  switch (index)
+    {
+    case 0: return node->GetTotalFlux();
+    case 1: return node->GetMean();
+    case 2: return node->GetStd();
+    case 3: return node->GetMedian();
+    case 4: return node->GetMin();
+    case 5: return node->GetMax();
+    case 6: return node->GetSum();
+    default: return node->GetNpixels();
+    }
+}
+
+//----------------------------------------------------------------------------
+void SetQuantityOn(vtkMRMLAstroStatisticsParametersNode* node, int index, bool on)
+{
+  switch (index)
+    {
+    case 0: node->SetTotalFlux(on); break;
+    case 1: node->SetMean(on); break;
+    case 2: node->SetStd(on); break;
+    case 3: node->SetMedian(on); break;
+    case 4: node->SetMin(on); break;
+    case 5: node->SetMax(on); break;
+    case 6: node->SetSum(on); break;
+    default: node->SetNpixels(on); break;
+    }
+}
+
+//----------------------------------------------------------------------------
+QLabel* Overline(const QString& text, QWidget* parent)
+{
+  QLabel* label = new QLabel(text, parent);
+  qSlicerAstroTheme::setLabelRole(label, "overline");
+  return label;
+}
+
+//----------------------------------------------------------------------------
+const char* ModeName(int region)
+{
+  return region == qSlicerAstroStatisticsModuleWidget::Box ? "ROI" :
+         region == qSlicerAstroStatisticsModuleWidget::Mask ? "Segmentation" : "Volume";
+}
+} // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
-/// \ingroup SlicerAstro_QtModules_AstroStatistics
-class qSlicerAstroStatisticsModuleWidgetPrivate: public Ui_qSlicerAstroStatisticsModuleWidget
+class qSlicerAstroStatisticsModuleWidgetPrivate
 {
   Q_DECLARE_PUBLIC(qSlicerAstroStatisticsModuleWidget);
 protected:
   qSlicerAstroStatisticsModuleWidget* const q_ptr;
 public:
-
   qSlicerAstroStatisticsModuleWidgetPrivate(qSlicerAstroStatisticsModuleWidget& object);
-  ~qSlicerAstroStatisticsModuleWidgetPrivate();
-
   void init();
-  void cleanPointers();
-
   vtkSlicerAstroStatisticsLogic* logic() const;
+  vtkMRMLAstroVolumeNode* inputVolume() const;
+  static void fitStack(QStackedWidget* stack);
+
+  qSlicerAstroPanelHeader* Header{nullptr};
+  qSlicerAstroDatasetSelector* InputVolumeNodeSelector{nullptr};
+  qSlicerAstroMessageWidget* Message{nullptr};
+  qSlicerAstroSegmentedButton* RegionButton{nullptr};
+  QStackedWidget* RegionStack{nullptr};
+  qMRMLNodeComboBox* ROINodeComboBox{nullptr};
+  QPushButton* ROIFitButton{nullptr};
+  QPushButton* ROIVisibleButton{nullptr};
+  qMRMLNodeComboBox* SegmentationNodeComboBox{nullptr};
+  qMRMLSegmentsTableView* SegmentsTableView{nullptr};
+  QToolButton* QuantityButtons[NumberOfQuantities] = {};
+  QFrame* Results{nullptr};
+  QGridLayout* ResultsLayout{nullptr};
+  QLabel* ResultsTitle{nullptr};
+  qSlicerAstroFoldSection* HistorySection{nullptr};
+  qMRMLTableView* TableView{nullptr};
+  qSlicerAstroFoldSection* AdvancedSection{nullptr};
+  qMRMLNodeComboBox* TableNodeComboBox{nullptr};
+  qMRMLNodeComboBox* ParametersNodeComboBox{nullptr};
+  qSlicerAstroRunButton* RunButton{nullptr};
+
   vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode> parametersNode;
-  vtkSmartPointer<vtkMRMLMarkupsROINode> InputROINode;
-  vtkSmartPointer<vtkMRMLTableNode> astroTableNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
-  QAction *CopyAction;
-  QAction *PasteAction;
-  QAction *PlotAction;
 };
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroStatisticsModuleWidgetPrivate methods
-
-//-----------------------------------------------------------------------------
-qSlicerAstroStatisticsModuleWidgetPrivate::qSlicerAstroStatisticsModuleWidgetPrivate(qSlicerAstroStatisticsModuleWidget& object)
+qSlicerAstroStatisticsModuleWidgetPrivate::qSlicerAstroStatisticsModuleWidgetPrivate(
+  qSlicerAstroStatisticsModuleWidget& object)
   : q_ptr(&object)
 {
-  this->parametersNode = nullptr;
-  this->InputROINode = nullptr;
-  this->astroTableNode = nullptr;
-  this->selectionNode = nullptr;
-  this->segmentEditorNode = nullptr;
-  this->CopyAction = nullptr;
-  this->PasteAction = nullptr;
-  this->PlotAction = nullptr;
-}
-
-//-----------------------------------------------------------------------------
-qSlicerAstroStatisticsModuleWidgetPrivate::~qSlicerAstroStatisticsModuleWidgetPrivate()
-{
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidgetPrivate::init()
-{
-  Q_Q(qSlicerAstroStatisticsModuleWidget);
-
-  this->setupUi(q);
-
-  qSlicerApplication* app = qSlicerApplication::application();
-
-  if(!app)
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidgetPrivate::init(): could not find qSlicerApplication!";
-    return;
-    }
-
-  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(setMRMLAstroStatisticsParametersNode(vtkMRMLNode*)));
-
-  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->ROINodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onInputROIChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->TableNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   q, SLOT(onTableNodeChanged(vtkMRMLNode*)));
-
-  QObject::connect(this->ROIModeRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onModeChanged()));
-
-  QObject::connect(this->SegmentationModeRadioButton, SIGNAL(toggled(bool)),
-                   q, SLOT(onModeChanged()));
-
-  QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)),
-                   this->SegmentsTableView, SLOT(setMRMLScene(vtkMRMLScene*)));
-
-  this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
-  this->SegmentsTableView->hide();
-
-  QObject::connect(this->NpixelsCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onNpixelsToggled(bool)));
-
-  QObject::connect(this->MinCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onMinToggled(bool)));
-
-  QObject::connect(this->MaxCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onMaxToggled(bool)));
-
-  QObject::connect(this->MeanCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onMeanToggled(bool)));
-
-  QObject::connect(this->StdCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onStdToggled(bool)));
-
-  QObject::connect(this->SumCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onSumToggled(bool)));
-
-  QObject::connect(this->TotalFluxCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onTotalFluxToggled(bool)));
-
-  QObject::connect(this->MedianCheckBox, SIGNAL(toggled(bool)),
-                   q, SLOT(onMedianToggled(bool)));
-
-  QObject::connect(this->ApplyButton, SIGNAL(clicked()),
-                   q, SLOT(onCalculate()));
-
-  QObject::connect(this->CancelButton, SIGNAL(clicked()),
-                   q, SLOT(onComputationCancelled()));
-
-  this->InputCollapsibleButton->setCollapsed(false);
-
-  this->progressBar->hide();
-  this->progressBar->setMinimum(0);
-  this->progressBar->setMaximum(100);
-  this->CancelButton->hide();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidgetPrivate::cleanPointers()
-{
-  Q_Q(const qSlicerAstroStatisticsModuleWidget);
-
-  if (!q->mrmlScene())
-    {
-    return;
-    }
-
-  // the segmentations and the Segment Editor node are shared with the other
-  // modules (and are the user's data): only the references are dropped
-  this->segmentEditorNode = nullptr;
-  if (this->SegmentsTableView)
-    {
-    this->SegmentsTableView->setSegmentationNode(nullptr);
-    }
-
-  if (this->parametersNode)
-    {
-    q->mrmlScene()->RemoveNode(this->parametersNode);
-    }
-  this->parametersNode = 0;
-
-  if (this->InputROINode)
-    {
-    q->mrmlScene()->RemoveNode(this->InputROINode);
-    }
-  this->InputROINode = 0;
-
-  if (this->astroTableNode)
-    {
-    q->mrmlScene()->RemoveNode(this->astroTableNode);
-    }
-  this->astroTableNode = 0;
 }
 
 //-----------------------------------------------------------------------------
@@ -259,34 +200,316 @@ vtkSlicerAstroStatisticsLogic* qSlicerAstroStatisticsModuleWidgetPrivate::logic(
 }
 
 //-----------------------------------------------------------------------------
-// qSlicerAstroStatisticsModuleWidget methods
-
-//-----------------------------------------------------------------------------
-qSlicerAstroStatisticsModuleWidget::qSlicerAstroStatisticsModuleWidget(QWidget* _parent)
-  : Superclass( _parent )
-  , d_ptr( new qSlicerAstroStatisticsModuleWidgetPrivate(*this) )
+vtkMRMLAstroVolumeNode* qSlicerAstroStatisticsModuleWidgetPrivate::inputVolume() const
 {
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  d->init();
-
-  QObject::connect(d->SegmentationNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
-                   this, SLOT(onMaskSegmentationChanged(vtkMRMLNode*)));
+  Q_Q(const qSlicerAstroStatisticsModuleWidget);
+  return (this->parametersNode && q->mrmlScene() && this->parametersNode->GetInputVolumeNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(q->mrmlScene()->GetNodeByID(this->parametersNode->GetInputVolumeNodeID())) :
+    nullptr;
 }
 
 //-----------------------------------------------------------------------------
-qSlicerAstroStatisticsModuleWidget::~qSlicerAstroStatisticsModuleWidget()
+void qSlicerAstroStatisticsModuleWidgetPrivate::fitStack(QStackedWidget* stack)
 {
+  for (int page = 0; page < stack->count(); page++)
+    {
+    stack->widget(page)->setSizePolicy(QSizePolicy::Preferred,
+      page == stack->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
+    }
+  stack->adjustSize();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidgetPrivate::init()
+{
+  Q_Q(qSlicerAstroStatisticsModuleWidget);
+  qSlicerAstroTheme* theme = qSlicerAstroTheme::instance();
+  QVBoxLayout* rootLayout = new QVBoxLayout(q);
+  rootLayout->setContentsMargins(0, 0, 0, 0);
+  rootLayout->setSpacing(0);
+
+  this->Header = new qSlicerAstroPanelHeader(q);
+  this->Header->setTitle(qSlicerAstroStatisticsModuleWidget::tr("Statistics"));
+  this->Header->setIconName("module-statistics");
+  rootLayout->addWidget(this->Header);
+
+  QWidget* body = new QWidget(q);
+  QVBoxLayout* bodyLayout = new QVBoxLayout(body);
+  bodyLayout->setContentsMargins(12, 12, 12, 14);
+  bodyLayout->setSpacing(14);
+  rootLayout->addWidget(body);
+
+  this->InputVolumeNodeSelector = new qSlicerAstroDatasetSelector(body);
+  this->InputVolumeNodeSelector->setObjectName("InputVolumeNodeSelector");
+  this->InputVolumeNodeSelector->setNoneText(qSlicerAstroStatisticsModuleWidget::tr("Select data"));
+  this->InputVolumeNodeSelector->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
+    "Data of the statistics (also the active volume of the views)."));
+  bodyLayout->addWidget(this->InputVolumeNodeSelector);
+
+  this->Message = new qSlicerAstroMessageWidget(body);
+  this->Message->setObjectName("MessageWidget");
+  bodyLayout->addWidget(this->Message);
+
+  // Where
+  QWidget* region = new QWidget(body);
+  QVBoxLayout* regionLayout = new QVBoxLayout(region);
+  regionLayout->setContentsMargins(0, 0, 0, 0);
+  regionLayout->setSpacing(8);
+  regionLayout->addWidget(Overline(qSlicerAstroStatisticsModuleWidget::tr("Where"), region));
+  this->RegionButton = new qSlicerAstroSegmentedButton(region);
+  this->RegionButton->setObjectName("RegionButton");
+  this->RegionButton->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("Voxels of the statistics."));
+  this->RegionButton->addButton(qSlicerAstroStatisticsModuleWidget::tr("Whole data"),
+    qSlicerAstroStatisticsModuleWidget::tr("All the voxels of the data."));
+  this->RegionButton->addButton(qSlicerAstroStatisticsModuleWidget::tr("Box (ROI)"),
+    qSlicerAstroStatisticsModuleWidget::tr("The voxels in a box: drag its handles in the views."));
+  this->RegionButton->addButton(qSlicerAstroStatisticsModuleWidget::tr("Mask"),
+    qSlicerAstroStatisticsModuleWidget::tr("The voxels of a segment of a mask (e.g. a SoFiA source)."));
+  regionLayout->addWidget(this->RegionButton);
+  this->RegionStack = new QStackedWidget(region);
+  this->RegionStack->addWidget(new QWidget(this->RegionStack));
+  QWidget* roiPage = new QWidget(this->RegionStack);
+  QVBoxLayout* roiLayout = new QVBoxLayout(roiPage);
+  roiLayout->setContentsMargins(0, 0, 0, 0);
+  roiLayout->setSpacing(6);
+  this->ROINodeComboBox = new qMRMLNodeComboBox(roiPage);
+  this->ROINodeComboBox->setObjectName("ROINodeComboBox");
+  this->ROINodeComboBox->setNodeTypes(QStringList() << "vtkMRMLMarkupsROINode");
+  this->ROINodeComboBox->setNoneEnabled(false);
+  this->ROINodeComboBox->setAddEnabled(true);
+  this->ROINodeComboBox->setRemoveEnabled(false);
+  this->ROINodeComboBox->setEditEnabled(false);
+  this->ROINodeComboBox->setRenameEnabled(true);
+  this->ROINodeComboBox->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("Box of the statistics."));
+  roiLayout->addWidget(this->ROINodeComboBox);
+  QHBoxLayout* roiButtons = new QHBoxLayout();
+  roiButtons->setSpacing(6);
+  this->ROIFitButton = new QPushButton(qSlicerAstroStatisticsModuleWidget::tr("Fit to the data"), roiPage);
+  this->ROIFitButton->setObjectName("ROIFitButton");
+  this->ROIFitButton->setIcon(theme->icon("roi", "text"));
+  this->ROIFitButton->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("The box around all the data, on its voxels."));
+  this->ROIVisibleButton = new QPushButton(qSlicerAstroStatisticsModuleWidget::tr("Show box"), roiPage);
+  this->ROIVisibleButton->setObjectName("ROIVisibleButton");
+  this->ROIVisibleButton->setCheckable(true);
+  this->ROIVisibleButton->setChecked(true);
+  this->ROIVisibleButton->setIcon(theme->icon("eye", "text"));
+  this->ROIVisibleButton->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("Show or hide the box in the views."));
+  roiButtons->addWidget(this->ROIFitButton, 1);
+  roiButtons->addWidget(this->ROIVisibleButton, 1);
+  roiLayout->addLayout(roiButtons);
+  this->RegionStack->addWidget(roiPage);
+  QWidget* maskPage = new QWidget(this->RegionStack);
+  QVBoxLayout* maskLayout = new QVBoxLayout(maskPage);
+  maskLayout->setContentsMargins(0, 0, 0, 0);
+  maskLayout->setSpacing(6);
+  this->SegmentationNodeComboBox = new qMRMLNodeComboBox(maskPage);
+  this->SegmentationNodeComboBox->setObjectName("SegmentationNodeComboBox");
+  this->SegmentationNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLSegmentationNode");
+  this->SegmentationNodeComboBox->setNoneEnabled(true);
+  this->SegmentationNodeComboBox->setAddEnabled(false);
+  this->SegmentationNodeComboBox->setRemoveEnabled(false);
+  this->SegmentationNodeComboBox->setEditEnabled(false);
+  this->SegmentationNodeComboBox->setRenameEnabled(true);
+  this->SegmentationNodeComboBox->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
+    "Mask with the segments. By default the mask of the data."));
+  maskLayout->addWidget(this->SegmentationNodeComboBox);
+  this->SegmentsTableView = new qMRMLSegmentsTableView(maskPage);
+  this->SegmentsTableView->setObjectName("SegmentsTableView");
+  this->SegmentsTableView->setSelectionMode(QAbstractItemView::SingleSelection);
+  this->SegmentsTableView->setMinimumHeight(120);
+  this->SegmentsTableView->setMaximumHeight(170);
+  this->SegmentsTableView->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("The selected segment is the region."));
+  maskLayout->addWidget(this->SegmentsTableView);
+  this->RegionStack->addWidget(maskPage);
+  regionLayout->addWidget(this->RegionStack);
+  bodyLayout->addWidget(region);
+
+  // Quantities
+  QWidget* quantities = new QWidget(body);
+  QVBoxLayout* quantitiesLayout = new QVBoxLayout(quantities);
+  quantitiesLayout->setContentsMargins(0, 0, 0, 0);
+  quantitiesLayout->setSpacing(8);
+  quantitiesLayout->addWidget(Overline(qSlicerAstroStatisticsModuleWidget::tr("Quantities"), quantities));
+  QWidget* chips = new QWidget(quantities);
+  ctkFlowLayout* chipsLayout = new ctkFlowLayout(chips);
+  chipsLayout->setContentsMargins(0, 0, 0, 0);
+  chipsLayout->setHorizontalSpacing(6);
+  chipsLayout->setVerticalSpacing(6);
+  chipsLayout->setPreferredExpandingDirections(Qt::Vertical);
+  chipsLayout->setAlignItems(false);
+  for (int i = 0; i < NumberOfQuantities; i++)
+    {
+    QToolButton* chip = new QToolButton(chips);
+    chip->setObjectName(QString("Quantity_%1").arg(Quantities[i].Name));
+    chip->setProperty("astroRole", "actionChip");
+    chip->setProperty("quantity", i);
+    chip->setText(qSlicerAstroStatisticsModuleWidget::tr(Quantities[i].Label));
+    chip->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(Quantities[i].ToolTip));
+    chip->setCheckable(true);
+    chip->setCursor(Qt::PointingHandCursor);
+    QObject::connect(chip, SIGNAL(toggled(bool)), q, SLOT(onQuantityToggled(bool)));
+    chipsLayout->addWidget(chip);
+    this->QuantityButtons[i] = chip;
+    }
+  quantitiesLayout->addWidget(chips);
+  bodyLayout->addWidget(quantities);
+
+  // Result of the last calculation
+  QWidget* result = new QWidget(body);
+  QVBoxLayout* resultLayout = new QVBoxLayout(result);
+  resultLayout->setContentsMargins(0, 0, 0, 0);
+  resultLayout->setSpacing(8);
+  this->ResultsTitle = Overline(qSlicerAstroStatisticsModuleWidget::tr("Result"), result);
+  resultLayout->addWidget(this->ResultsTitle);
+  this->Results = new QFrame(result);
+  this->Results->setObjectName("Results");
+  this->Results->setProperty("astroRole", "card");
+  this->Results->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
+    "Results of the last calculation (all the calculations are rows of the table below)."));
+  this->ResultsLayout = new QGridLayout(this->Results);
+  this->ResultsLayout->setContentsMargins(10, 6, 10, 6);
+  this->ResultsLayout->setHorizontalSpacing(10);
+  this->ResultsLayout->setVerticalSpacing(6);
+  resultLayout->addWidget(this->Results);
+  bodyLayout->addWidget(result);
+
+  // History: the table of all the calculations
+  this->HistorySection = new qSlicerAstroFoldSection(body);
+  this->HistorySection->setObjectName("HistorySection");
+  this->HistorySection->setTitle(qSlicerAstroStatisticsModuleWidget::tr("History"));
+  this->HistorySection->setSummary(qSlicerAstroStatisticsModuleWidget::tr("table of the calculations"));
+  this->HistorySection->setSettingsKey("SlicerAstro/AstroStatistics/HistoryCollapsed");
+  this->TableView = new qMRMLTableView(this->HistorySection->contentWidget());
+  this->TableView->setObjectName("TableView");
+  this->TableView->setMinimumHeight(160);
+  this->TableView->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
+    "A row per calculation (saved with the scene). Select columns to plot them."));
+  this->HistorySection->contentLayout()->addWidget(this->TableView);
+  QHBoxLayout* tableButtons = new QHBoxLayout();
+  tableButtons->setSpacing(4);
+  const char* actions[3][3] = {{"copy", "Copy", "Copy the selected cells (Ctrl+C)."},
+                               {"paste", "Paste", "Paste in the selected cells (Ctrl+V)."},
+                               {"plot", "Plot", "Plot the selected columns: the first is the X axis."}};
+  for (int i = 0; i < 3; i++)
+    {
+    QPushButton* button = new QPushButton(qSlicerAstroStatisticsModuleWidget::tr(actions[i][1]),
+                                          this->HistorySection->contentWidget());
+    button->setObjectName(QString("Table%1Button").arg(actions[i][1]));
+    button->setIcon(theme->icon(actions[i][0], "text"));
+    button->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(actions[i][2]));
+    tableButtons->addWidget(button);
+    const char* tableSlots[3] = {SLOT(copySelection()), SLOT(pasteSelection()), SLOT(plotSelection())};
+    QObject::connect(button, SIGNAL(clicked()), this->TableView, tableSlots[i]);
+    }
+  tableButtons->addStretch(1);
+  this->HistorySection->contentLayout()->addLayout(tableButtons);
+  bodyLayout->addWidget(this->HistorySection);
+
+  // Advanced
+  this->AdvancedSection = new qSlicerAstroFoldSection(body);
+  this->AdvancedSection->setObjectName("AdvancedSection");
+  this->AdvancedSection->setTitle(qSlicerAstroStatisticsModuleWidget::tr("Advanced"));
+  this->AdvancedSection->setSummary(qSlicerAstroStatisticsModuleWidget::tr("table, parameter set"));
+  this->AdvancedSection->setSettingsKey("SlicerAstro/AstroStatistics/AdvancedCollapsed");
+  QWidget* advancedParent = this->AdvancedSection->contentWidget();
+  QFormLayout* advancedLayout = new QFormLayout();
+  advancedLayout->setContentsMargins(0, 0, 0, 0);
+  advancedLayout->setSpacing(8);
+  this->TableNodeComboBox = new qMRMLNodeComboBox(advancedParent);
+  this->TableNodeComboBox->setObjectName("TableNodeComboBox");
+  this->TableNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLTableNode");
+  this->TableNodeComboBox->setNoneEnabled(false);
+  this->TableNodeComboBox->setAddEnabled(false);
+  this->TableNodeComboBox->setEditEnabled(false);
+  this->TableNodeComboBox->setRenameEnabled(true);
+  this->TableNodeComboBox->setToolTip(qSlicerAstroStatisticsModuleWidget::tr("Table of the calculations."));
+  this->ParametersNodeComboBox = new qMRMLNodeComboBox(advancedParent);
+  this->ParametersNodeComboBox->setObjectName("ParametersNodeComboBox");
+  this->ParametersNodeComboBox->setNodeTypes(QStringList() << "vtkMRMLAstroStatisticsParametersNode");
+  this->ParametersNodeComboBox->setShowHidden(true);
+  this->ParametersNodeComboBox->setAddEnabled(false);
+  this->ParametersNodeComboBox->setEditEnabled(false);
+  this->ParametersNodeComboBox->setRenameEnabled(true);
+  this->ParametersNodeComboBox->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
+    "Parameters of the module (saved with the scene)."));
+  for (qMRMLNodeComboBox* selector : {this->TableNodeComboBox, this->ParametersNodeComboBox})
+    {
+    selector->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    selector->setMinimumWidth(80);
+    }
+  QLabel* tableLabel = new QLabel(qSlicerAstroStatisticsModuleWidget::tr("Table"), advancedParent);
+  tableLabel->setProperty("astroRole", "label");
+  QLabel* parametersLabel = new QLabel(qSlicerAstroStatisticsModuleWidget::tr("Parameter set"), advancedParent);
+  parametersLabel->setProperty("astroRole", "label");
+  advancedLayout->addRow(tableLabel, this->TableNodeComboBox);
+  advancedLayout->addRow(parametersLabel, this->ParametersNodeComboBox);
+  this->AdvancedSection->contentLayout()->addLayout(advancedLayout);
+  bodyLayout->addWidget(this->AdvancedSection);
+
+  // Footer
+  QFrame* footer = new QFrame(q);
+  footer->setProperty("astroRole", "panelFooter");
+  QVBoxLayout* footerLayout = new QVBoxLayout(footer);
+  footerLayout->setContentsMargins(12, 12, 12, 12);
+  this->RunButton = new qSlicerAstroRunButton(footer);
+  this->RunButton->setObjectName("RunButton");
+  this->RunButton->pushButton()->setObjectName("ApplyButton");
+  this->RunButton->setText(qSlicerAstroStatisticsModuleWidget::tr("Compute statistics"));
+  this->RunButton->pushButton()->setToolTip(qSlicerAstroStatisticsModuleWidget::tr(
+    "Compute the quantities in the region: a new row of the table."));
+  footerLayout->addWidget(this->RunButton);
+  rootLayout->addWidget(footer);
+  rootLayout->addStretch(1);
+
+  QObject::connect(this->ParametersNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(setMRMLAstroStatisticsParametersNode(vtkMRMLNode*)));
+  QObject::connect(this->InputVolumeNodeSelector, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onInputVolumeChanged(vtkMRMLNode*)));
+  QObject::connect(this->ROINodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onInputROIChanged(vtkMRMLNode*)));
+  QObject::connect(this->TableNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onTableNodeChanged(vtkMRMLNode*)));
+  QObject::connect(this->SegmentationNodeComboBox, SIGNAL(currentNodeChanged(vtkMRMLNode*)),
+                   q, SLOT(onMaskSegmentationChanged(vtkMRMLNode*)));
+  for (QObject* selector : std::vector<QObject*>{this->InputVolumeNodeSelector, this->ParametersNodeComboBox,
+         this->ROINodeComboBox, this->SegmentationNodeComboBox, this->SegmentsTableView, this->TableNodeComboBox,
+         this->TableView})
+    {
+    QObject::connect(q, SIGNAL(mrmlSceneChanged(vtkMRMLScene*)), selector, SLOT(setMRMLScene(vtkMRMLScene*)));
+    }
+  QObject::connect(this->RegionButton, SIGNAL(currentIndexChanged(int)), q, SLOT(onRegionChanged(int)));
+  QObject::connect(this->ROIFitButton, SIGNAL(clicked()), q, SLOT(onROIFit()));
+  QObject::connect(this->ROIVisibleButton, SIGNAL(toggled(bool)), q, SLOT(onROIVisibilityChanged(bool)));
+  QObject::connect(this->RunButton, SIGNAL(clicked()), q, SLOT(onCalculate()));
+  QObject::connect(this->RunButton, SIGNAL(cancelRequested()), q, SLOT(onComputationCancelled()));
+  this->fitStack(this->RegionStack);
+  theme->applyTo(q);
+}
+
+//-----------------------------------------------------------------------------
+qSlicerAstroStatisticsModuleWidget::qSlicerAstroStatisticsModuleWidget(QWidget* _parent)
+  : Superclass(_parent)
+  , d_ptr(new qSlicerAstroStatisticsModuleWidgetPrivate(*this))
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  d->init();
+}
+
+//-----------------------------------------------------------------------------
+qSlicerAstroStatisticsModuleWidget::~qSlicerAstroStatisticsModuleWidget() = default;
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::setup()
+{
+  this->Superclass::setup();
 }
 
 //----------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::enter()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
   this->Superclass::enter();
-
   this->onMRMLAstroStatisticsParametersNodeModified();
-
   this->updateMaskSelector();
   this->onMaskSegmentationChanged(d->SegmentationNodeComboBox->currentNode());
 }
@@ -295,7 +518,6 @@ void qSlicerAstroStatisticsModuleWidget::enter()
 void qSlicerAstroStatisticsModuleWidget::exit()
 {
   this->Superclass::exit();
-
   this->onROIVisibilityChanged(false);
 }
 
@@ -303,1000 +525,433 @@ void qSlicerAstroStatisticsModuleWidget::exit()
 void qSlicerAstroStatisticsModuleWidget::setMRMLScene(vtkMRMLScene* scene)
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
   if (!scene)
     {
     return;
     }
-
   this->Superclass::setMRMLScene(scene);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::setMRMLScene : appLogic not found!";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
+  vtkSlicerApplicationLogic* appLogic = this->module() ? this->module()->appLogic() : nullptr;
+  d->selectionNode = appLogic ? appLogic->GetSelectionNode() : nullptr;
   if (!d->selectionNode)
     {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::setMRMLScene : selectionNode not found!";
     return;
     }
-
-  this->initializeNodes();
-
-  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
-                      this, SLOT(onEndCloseEvent()));
-  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent,
-                      this, SLOT(onStartImportEvent()));
-  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent,
-                      this, SLOT(onEndImportEvent()));
-  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent,
-                      this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
-  this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceAddedEvent,
-                      this, SLOT(onMRMLSelectionNodeReferenceAdded(vtkObject*)));
-  this->qvtkReconnect(d->selectionNode, vtkMRMLNode::ReferenceRemovedEvent,
-                      this, SLOT(onMRMLSelectionNodeReferenceRemoved(vtkObject*)));
-
+  this->initializeParameterNode();
+  this->initializeSegmentations();
+  this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent, this, SLOT(onEndCloseEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::StartImportEvent, this, SLOT(onStartImportEvent()));
+  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent, this, SLOT(onEndImportEvent()));
+  this->qvtkReconnect(d->selectionNode, vtkCommand::ModifiedEvent, this, SLOT(onMRMLSelectionNodeModified(vtkObject*)));
   this->onMRMLSelectionNodeModified(d->selectionNode);
-  this->onMRMLSelectionNodeReferenceAdded(d->selectionNode);
-
-  d->InputCollapsibleButton->setCollapsed(false);
-
   // masks added, removed or modified (e.g. the contours)
   this->qvtkReconnect(scene, vtkMRMLScene::NodeAddedEvent, this, SLOT(updateMaskSelector()));
   this->qvtkReconnect(scene, vtkMRMLScene::NodeRemovedEvent, this, SLOT(updateMaskSelector()));
-  this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent, this, SLOT(updateMaskSelector()));
   this->updateMaskSelector();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::initializeNodes(bool forceNew /*= false*/)
-{
-  this->initializeParameterNode(forceNew);
-
-  this->initializeSegmentations(forceNew);
-
-  this->initializeROINode(forceNew);
-
-  this->initializeTableNode(forceNew);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onEndCloseEvent()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndCloseEvent :"
-                   " appLogic not found!";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndCloseEvent"
-                   " : selectionNode not found!";
-    return;
-    }
-
-  this->initializeNodes(true);
-  this->onMRMLAstroStatisticsParametersNodeModified();
-
-  if (!this->isEntered())
-    {
-    this->onROIVisibilityChanged(false);
-    }
-  d->OutputCollapsibleButton->setCollapsed(true);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onEndImportEvent()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndImportEvent :"
-                   " appLogic not found!";
-    return;
-    }
-
-  d->selectionNode = appLogic->GetSelectionNode();
-  if (!d->selectionNode)
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onEndImportEvent"
-                   " : selectionNode not found!";
-    return;
-    }
-
-  this->initializeNodes();
-  this->onMRMLAstroStatisticsParametersNodeModified();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onInputROIChanged(vtkMRMLNode *node)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsROINode* roiNode = vtkMRMLMarkupsROINode::SafeDownCast(node);
-  if (d->InputROINode == roiNode)
-    {
-    return;
-    }
-
-  d->InputROINode = roiNode;
-  d->parametersNode->SetROINode(roiNode);
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::initializeParameterNode(bool forceNew /*= false*/)
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
   if (!this->mrmlScene() || !d->selectionNode)
     {
     return;
     }
-
-  vtkMRMLAstroStatisticsParametersNode *astroParametersNode = nullptr;
-  unsigned int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroStatisticsParametersNode");
-  if(numNodes > 0 && !forceNew)
+  vtkMRMLAstroStatisticsParametersNode* parametersNode = nullptr;
+  const int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLAstroStatisticsParametersNode");
+  if (numNodes > 0 && !forceNew)
     {
-    astroParametersNode = vtkMRMLAstroStatisticsParametersNode::SafeDownCast
-      (this->mrmlScene()->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroStatisticsParametersNode"));
+    parametersNode = vtkMRMLAstroStatisticsParametersNode::SafeDownCast(
+      this->mrmlScene()->GetNthNodeByClass(numNodes - 1, "vtkMRMLAstroStatisticsParametersNode"));
     }
   else
     {
-    vtkSmartPointer<vtkMRMLNode> parametersNode;
-    vtkMRMLNode *foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLAstroStatisticsParametersNode");
-    parametersNode.TakeReference(foo);
-    this->mrmlScene()->AddNode(parametersNode);
-
-    astroParametersNode = vtkMRMLAstroStatisticsParametersNode::SafeDownCast(parametersNode);
-    int wasModifying = astroParametersNode->StartModify();
-    astroParametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
-    astroParametersNode->EndModify(wasModifying);
+    parametersNode = vtkMRMLAstroStatisticsParametersNode::SafeDownCast(
+      this->mrmlScene()->AddNewNodeByClass("vtkMRMLAstroStatisticsParametersNode"));
+    if (parametersNode)
+      {
+      parametersNode->SetInputVolumeNodeID(d->selectionNode->GetActiveVolumeID());
+      parametersNode->SetMode("Volume");
+      }
     }
-
-  d->ParametersNodeComboBox->setCurrentNode(astroParametersNode);
+  // the box and the table of the module (the box selector selects a box)
+  if (parametersNode && d->logic())
+    {
+    d->logic()->EnsureStatisticsROI(parametersNode);
+    d->logic()->EnsureStatisticsTable(parametersNode);
+    }
+  d->ParametersNodeComboBox->setCurrentNode(parametersNode);
+  this->setMRMLAstroStatisticsParametersNode(parametersNode);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::initializeROINode(bool forceNew /*= false*/)
+void qSlicerAstroStatisticsModuleWidget::initializeSegmentations()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!this->mrmlScene() || !d->parametersNode)
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene)
     {
     return;
     }
-
-  vtkSmartPointer<vtkMRMLNode> roiNode = nullptr;
-
-  if (!forceNew)
+  vtkMRMLSegmentEditorNode* editorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
+    scene->GetSingletonNode("SegmentEditor", "vtkMRMLSegmentEditorNode"));
+  if (!editorNode)
     {
-    if (d->parametersNode->GetROINode())
-      {
-      roiNode = d->parametersNode->GetROINode();
-      }
-    else
-      {
-      vtkSmartPointer<vtkCollection> roiNodes = vtkSmartPointer<vtkCollection>::Take
-          (this->mrmlScene()->GetNodesByClass("vtkMRMLMarkupsROINode"));
-
-      for (int ii = roiNodes->GetNumberOfItems() - 1; ii >= 0 ; ii--)
-        {
-        vtkMRMLNode* tempROINode = vtkMRMLNode::SafeDownCast(roiNodes->GetItemAsObject(ii));
-        if (!tempROINode)
-          {
-          continue;
-          }
-        std::string ROIName = tempROINode->GetName();
-        std::size_t found = ROIName.find("StatisticsROI");
-        if (found != std::string::npos)
-          {
-          roiNode = tempROINode;
-          break;
-          }
-        }
-      }
-
-    if (roiNode)
-      {
-      d->InputROINode = vtkMRMLMarkupsROINode::SafeDownCast(roiNode);
-      d->parametersNode->SetROINode(d->InputROINode);
-      return;
-      }
+    vtkNew<vtkMRMLSegmentEditorNode> newEditorNode;
+    newEditorNode->SetSingletonTag("SegmentEditor");
+    editorNode = vtkMRMLSegmentEditorNode::SafeDownCast(scene->AddNode(newEditorNode));
     }
-
-  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLMarkupsROINode");
-  roiNode.TakeReference(foo);
-  std::string ROINodeName = this->mrmlScene()->GenerateUniqueName("StatisticsROI");
-  roiNode->SetName(ROINodeName.c_str());
-  this->mrmlScene()->AddNode(roiNode);
-
-  d->InputROINode = vtkMRMLMarkupsROINode::SafeDownCast(roiNode);
-  d->parametersNode->SetROINode(d->InputROINode);
-  int wasModifyingROI = d->InputROINode->StartModify();
-  this->onROIFit();
-  d->InputROINode->EndModify(wasModifyingROI);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::initializeTableNode(bool forceNew /*= false*/)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!this->mrmlScene() || !d->parametersNode)
-    {
-    return;
-    }
-
-  vtkSmartPointer<vtkMRMLNode> tableNode = nullptr;
-
-  if (!forceNew)
-    {
-    if (d->parametersNode->GetTableNode())
-      {
-      tableNode = d->parametersNode->GetTableNode();
-      }
-    else
-      {
-      vtkSmartPointer<vtkCollection> TableNodes = vtkSmartPointer<vtkCollection>::Take
-          (this->mrmlScene()->GetNodesByClass("vtkMRMLTableNode"));
-
-      for (int ii = TableNodes->GetNumberOfItems() - 1; ii >= 0 ; ii--)
-        {
-        vtkMRMLNode* tempTableNode = vtkMRMLNode::SafeDownCast(TableNodes->GetItemAsObject(ii));
-        if (!tempTableNode)
-          {
-          continue;
-          }
-        std::string TableName = tempTableNode->GetName();
-        std::size_t found = TableName.find("StatisticsTable");
-        if (found != std::string::npos)
-          {
-          tableNode = tempTableNode;
-          break;
-          }
-        }
-      }
-
-    if (tableNode)
-      {
-      d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
-      d->parametersNode->SetTableNode(d->astroTableNode);
-      return;
-      }
-    }
-
-  vtkMRMLNode * foo = this->mrmlScene()->CreateNodeByClass("vtkMRMLTableNode");
-  tableNode.TakeReference(foo);
-  std::string paramsTableNodeName = this->mrmlScene()->GenerateUniqueName("StatisticsTable");
-  tableNode->SetName(paramsTableNodeName.c_str());
-  this->mrmlScene()->AddNode(tableNode);
-
-  d->astroTableNode = vtkMRMLTableNode::SafeDownCast(tableNode);
-  int wasModifying = d->astroTableNode->StartModify();
-  d->astroTableNode->RemoveAllColumns();
-  d->astroTableNode->SetUseColumnTitleAsColumnHeader(true);
-
-  vtkStringArray* Selection = vtkStringArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Selection)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Selection Column.";
-    return;
-    }
-  Selection->SetName("Selection");
-  d->astroTableNode->SetColumnUnitLabel("Selection", "");
-  d->astroTableNode->SetColumnTitle("Selection", "Selection");
-
-  // double: exact counts up to 2^53 voxels (cubes larger than 2^31 voxels)
-  // and NaN when the quantity is not computed
-  vtkNew<vtkDoubleArray> Npixels;
-  Npixels->SetName("Npixels");
-  d->astroTableNode->AddColumn(Npixels.GetPointer());
-  d->astroTableNode->SetColumnUnitLabel("Npixels", "#");
-  d->astroTableNode->SetColumnTitle("Npixels", "Number of pixels");
-
-  d->astroTableNode->SetDefaultColumnType("double");
-  vtkDoubleArray* Min = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Min)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Min Column.";
-    return;
-    }
-  Min->SetName("Min");
-  d->astroTableNode->SetColumnUnitLabel("Min", "Jy/beam");
-  d->astroTableNode->SetColumnTitle("Min", "Minimum");
-
-  vtkDoubleArray* Max = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Max)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Max Column.";
-    return;
-    }
-  Max->SetName("Max");
-  d->astroTableNode->SetColumnUnitLabel("Max", "Jy/beam");
-  d->astroTableNode->SetColumnTitle("Max", "Maximum");
-
-  vtkDoubleArray* Mean = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Mean)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Mean Column.";
-    return;
-    }
-  Mean->SetName("Mean");
-  d->astroTableNode->SetColumnUnitLabel("Mean", "Jy/beam");
-  d->astroTableNode->SetColumnTitle("Mean", "Mean");
-
-  vtkDoubleArray* Std = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Std)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Std Column.";
-    return;
-    }
-  Std->SetName("Std");
-  d->astroTableNode->SetColumnUnitLabel("Std", "Jy/beam");
-  d->astroTableNode->SetColumnTitle("Std", "Standard deviation");
-
-  vtkDoubleArray* Median = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Median)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Median Column.";
-    return;
-    }
-  Median->SetName("Median");
-  d->astroTableNode->SetColumnUnitLabel("Median", "Jy/beam");
-  d->astroTableNode->SetColumnTitle("Median", "Median");
-
-  vtkDoubleArray* Sum = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!Sum)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the Sum Column.";
-    return;
-    }
-  Sum->SetName("Sum");
-  d->astroTableNode->SetColumnUnitLabel("Sum", "Jy/beam");
-  d->astroTableNode->SetColumnTitle("Sum", "Sum");
-
-  vtkDoubleArray* TotalFlux = vtkDoubleArray::SafeDownCast(d->astroTableNode->AddColumn());
-  if (!TotalFlux)
-    {
-    qCritical() <<"qSlicerAstroModelingModuleWidget::initializeTableNode : "
-                  "Unable to find the TotalFlux Column.";
-    return;
-    }
-  TotalFlux->SetName("TotalFlux");
-  d->astroTableNode->SetColumnUnitLabel("TotalFlux", "Jy");
-  d->astroTableNode->SetColumnTitle("TotalFlux", "Total Flux");
-
-  d->astroTableNode->EndModify(wasModifying);
-
-  d->parametersNode->SetTableNode(d->astroTableNode);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::initializeSegmentations(bool forceNew /*= false*/)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!this->mrmlScene())
-    {
-    return;
-    }
-
-  std::string segmentEditorSingletonTag = "SegmentEditor";
-  vtkMRMLSegmentEditorNode *segmentEditorNodeSingleton = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->GetSingletonNode(segmentEditorSingletonTag.c_str(), "vtkMRMLSegmentEditorNode"));
-
-  if (!segmentEditorNodeSingleton)
-    {
-    d->segmentEditorNode = vtkSmartPointer<vtkMRMLSegmentEditorNode>::New();
-    d->segmentEditorNode->SetSingletonTag(segmentEditorSingletonTag.c_str());
-    d->segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-    this->mrmlScene()->AddNode(d->segmentEditorNode));
-    }
-  else
-    {
-    d->segmentEditorNode = segmentEditorNodeSingleton;
-    }
-
-  this->qvtkReconnect(d->segmentEditorNode, vtkCommand::ModifiedEvent,
+  this->qvtkReconnect(d->segmentEditorNode, editorNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onSegmentEditorNodeModified(vtkObject*)));
-
-  this->onSegmentEditorNodeModified(d->segmentEditorNode);
-
-  if (!d->segmentEditorNode->GetSegmentationNode() || forceNew)
-    {
-    // the mask of the active astronomical volume (no segmentation without data)
-    vtkSlicerAstroVolumeLogic* astroVolumeLogic = d->logic() ? d->logic()->GetAstroVolumeLogic() : nullptr;
-    vtkMRMLSelectionNode* activeSelectionNode = (this->module() && this->module()->appLogic()) ?
-      this->module()->appLogic()->GetSelectionNode() : nullptr;
-    vtkMRMLAstroVolumeNode* activeVolume = (activeSelectionNode && activeSelectionNode->GetActiveVolumeID()) ?
-      vtkMRMLAstroVolumeNode::SafeDownCast(this->mrmlScene()->GetNodeByID(activeSelectionNode->GetActiveVolumeID())) : nullptr;
-    vtkMRMLSegmentationNode* activeMask = (astroVolumeLogic && activeVolume) ?
-      astroVolumeLogic->GetMaskSegmentationForVolume(activeVolume, true) : nullptr;
-    if (activeMask)
-      {
-      d->segmentEditorNode->SetAndObserveSegmentationNode(activeMask);
-      }
-    }
-
-  if (d->segmentEditorNode->GetSegmentationNode())
-    {
-    d->segmentEditorNode->GetSegmentationNode()->CreateDefaultDisplayNodes();
-    }
+  d->segmentEditorNode = editorNode;
 }
 
 //-----------------------------------------------------------------------------
-bool qSlicerAstroStatisticsModuleWidget::setMaskSegmentFromSelection()
+void qSlicerAstroStatisticsModuleWidget::onStartImportEvent()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  vtkMRMLSegmentationNode* segmentationNode = d->segmentEditorNode ?
-    d->segmentEditorNode->GetSegmentationNode() : nullptr;
-  if (!d->parametersNode || !segmentationNode || !segmentationNode->GetSegmentation())
+  // the nodes of the module are replaced by the ones of the scene
+  this->qvtkDisconnect(d->parametersNode, vtkCommand::ModifiedEvent,
+                       this, SLOT(onMRMLAstroStatisticsParametersNodeModified()));
+  if (d->parametersNode && this->mrmlScene())
     {
-    QString message = QString("No segmentation available!");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
-    return false;
+    this->mrmlScene()->RemoveNode(d->parametersNode);
     }
-
-  QStringList selectedSegmentIDs = d->SegmentsTableView->selectedSegmentIDs();
-  if (selectedSegmentIDs.size() < 1)
-    {
-    QString message = QString("No segment selected from the segmentation node! Please select the segment of the mask.");
-    qCritical() << Q_FUNC_INFO << ": " << message;
-    QMessageBox::warning(nullptr, tr("Failed to select a mask"), message);
-    return false;
-    }
-
-  // the logic reads the segment directly (no label map volume)
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetMaskSegmentationNodeID(segmentationNode->GetID());
-  d->parametersNode->SetMaskSegmentID(selectedSegmentIDs[0].toUtf8().constData());
-  d->parametersNode->EndModify(wasModifying);
-  return true;
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::setup()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  // Create shortcuts for copy/paste
-  d->CopyAction = new QAction(this);
-  d->CopyAction->setIcon(QIcon(":Icons/Medium/SlicerEditCopy.png"));
-  d->CopyAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-  // set CTRL+C shortcut
-  d->CopyAction->setShortcuts(QKeySequence::Copy);
-  d->CopyAction->setToolTip(tr("Copy"));
-  this->addAction(d->CopyAction);
-  d->PasteAction = new QAction(this);
-  d->PasteAction->setIcon(QIcon(":Icons/Medium/SlicerEditPaste.png"));
-  d->PasteAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-  // set CTRL+V shortcut
-  d->PasteAction->setShortcuts(QKeySequence::Paste);
-  d->PasteAction->setToolTip(tr("Paste"));
-  this->addAction(d->PasteAction);
-  d->PlotAction = new QAction(this);
-  d->PlotAction->setIcon(QIcon(":Icons/Medium/SlicerInteractivePlotting.png"));
-  d->PlotAction->setShortcutContext(Qt::WidgetWithChildrenShortcut);
-  // set CTRL+P shortcut
-  d->PlotAction->setShortcuts(QKeySequence::Print);
-  d->PlotAction->setToolTip(tr("Generate an Interactive Plot based on user-selection of"
-                                " the columns of the table. The First (from left to right)"
-                                " Column will be used as X-Axis and each additional Column"
-                                " will be plotted in the same Plot as Y-Axis. "
-                                "If the selection is only one Column, the Column will be"
-                                " used as Y-Axis and the X-Axis will be indexes."));
-  this->addAction(d->PlotAction);
-
-  // Connect copy, paste and plot actions
-  d->AstroStatisticsCopyButton->setDefaultAction(d->CopyAction);
-  this->connect(d->CopyAction, SIGNAL(triggered()), d->TableView, SLOT(copySelection()));
-  d->AstroStatisticsPasteButton->setDefaultAction(d->PasteAction);
-  this->connect(d->PasteAction, SIGNAL(triggered()), d->TableView, SLOT(pasteSelection()));
-  d->AstroStatisticsPlotButton->setDefaultAction(d->PlotAction);
-  this->connect(d->PlotAction, SIGNAL(triggered()), d->TableView, SLOT(plotSelection()));
-
-  // Table View resize options
-  d->TableView->resizeColumnsToContents();
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMRMLSelectionNodeReferenceAdded(vtkObject *sender)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
-
-  if (!selectionNode)
-    {
-    return;
-    }
-
-  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-      selectionNode->GetNodeReference("SegmentEditorNodeRef"));
-
-  if (!segmentEditorNode)
-    {
-    return;
-    }
-
-  d->segmentEditorNode = segmentEditorNode;
-}
-
-//--------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMRMLSelectionNodeReferenceRemoved(vtkObject *sender)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
-
-  if (!selectionNode)
-    {
-    return;
-    }
-
-  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(
-      selectionNode->GetNodeReference("SegmentEditorNodeRef"));
-
-  if (!segmentEditorNode)
-    {
-    return;
-    }
-
-  d->segmentEditorNode = segmentEditorNode;
+  d->parametersNode = nullptr;
+  d->SegmentsTableView->setSegmentationNode(nullptr);
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onNpixelsToggled(bool toggled)
+void qSlicerAstroStatisticsModuleWidget::onEndImportEvent()
 {
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetNpixels(toggled);
+  this->initializeParameterNode();
+  this->initializeSegmentations();
+  this->onMRMLAstroStatisticsParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onStdToggled(bool toggled)
+void qSlicerAstroStatisticsModuleWidget::onEndCloseEvent()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetStd(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onROIFit()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  d->logic()->SnapROIToVoxelGrid(d->parametersNode);
-  d->logic()->FitROIToInputVolume(d->parametersNode);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onROIVisibilityChanged(bool visible)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLMarkupsROINode *ROINode = d->parametersNode->GetROINode();
-  if(!ROINode)
-    {
-    return;
-    }
-
-  ROINode->SetDisplayVisibility(visible);
+  vtkSlicerApplicationLogic* appLogic = this->module() ? this->module()->appLogic() : nullptr;
+  d->selectionNode = appLogic ? appLogic->GetSelectionNode() : nullptr;
+  this->initializeParameterNode(true);
+  this->initializeSegmentations();
+  this->onMRMLAstroStatisticsParametersNodeModified();
+  d->Message->clearMessage();
 }
 
 //--------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::setMRMLAstroStatisticsParametersNode(vtkMRMLNode* mrmlNode)
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!mrmlNode)
+  vtkMRMLAstroStatisticsParametersNode* parametersNode = vtkMRMLAstroStatisticsParametersNode::SafeDownCast(mrmlNode);
+  if (!parametersNode || parametersNode == d->parametersNode.GetPointer())
     {
     return;
     }
-
-  vtkMRMLAstroStatisticsParametersNode* AstroStatisticsParaNode =
-      vtkMRMLAstroStatisticsParametersNode::SafeDownCast(mrmlNode);
-
-  this->qvtkReconnect(d->parametersNode, AstroStatisticsParaNode, vtkCommand::ModifiedEvent,
+  this->qvtkReconnect(d->parametersNode, parametersNode, vtkCommand::ModifiedEvent,
                       this, SLOT(onMRMLAstroStatisticsParametersNodeModified()));
-
-  d->parametersNode = AstroStatisticsParaNode;
-
+  d->parametersNode = parametersNode;
   this->onMRMLAstroStatisticsParametersNodeModified();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onInputVolumeChanged(vtkMRMLNode *mrmlNode)
+vtkMRMLAstroStatisticsParametersNode* qSlicerAstroStatisticsModuleWidget::mrmlAstroStatisticsParametersNode() const
 {
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode || !d->selectionNode)
-    {
-    return;
-    }
-
-  vtkSlicerApplicationLogic *appLogic = this->module()->appLogic();
-  if (!appLogic)
-    {
-    return;
-    }
-
-  if (mrmlNode)
-    {
-    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    d->selectionNode->SetActiveVolumeID(mrmlNode->GetID());
-    }
-  else
-    {
-    d->selectionNode->SetActiveVolumeID(nullptr);
-    d->selectionNode->SetActiveVolumeID(nullptr);
-    }
-
-  this->updateMaskSelector();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMaxToggled(bool toggled)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetMax(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMeanToggled(bool toggled)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetMean(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMedianToggled(bool toggled)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetMedian(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMinToggled(bool toggled)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetMin(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onModeChanged()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  int wasModifying = d->parametersNode->StartModify();
-
-  if (d->ROIModeRadioButton->isChecked())
-    {
-    d->parametersNode->SetMode("ROI");
-    }
-  if (d->SegmentationModeRadioButton->isChecked())
-    {
-    d->parametersNode->SetMode("Segmentation");
-    }
-
-  d->parametersNode->EndModify(wasModifying);
+  Q_D(const qSlicerAstroStatisticsModuleWidget);
+  return d->parametersNode;
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::onMRMLAstroStatisticsParametersNodeModified()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
+  if (!d->parametersNode || !this->mrmlScene())
     {
     return;
     }
-
-  const char *inputVolumeNodeID = d->parametersNode->GetInputVolumeNodeID();
-  vtkMRMLAstroVolumeNode *inputVolumeNode = vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->mrmlScene()->GetNodeByID(inputVolumeNodeID));
-  d->InputVolumeNodeSelector->setCurrentNode(inputVolumeNode);
-
+  vtkMRMLAstroVolumeNode* inputVolume = d->inputVolume();
+  {
+  const QSignalBlocker inputBlocker(d->InputVolumeNodeSelector);
+  const QSignalBlocker roiBlocker(d->ROINodeComboBox);
+  const QSignalBlocker tableBlocker(d->TableNodeComboBox);
+  const QSignalBlocker regionBlocker(d->RegionButton);
+  d->InputVolumeNodeSelector->setCurrentNode(inputVolume);
   d->ROINodeComboBox->setCurrentNode(d->parametersNode->GetROINode());
   d->TableNodeComboBox->setCurrentNode(d->parametersNode->GetTableNode());
-
-  if (!(strcmp(d->parametersNode->GetMode(), "ROI")))
-    {  
-    d->ROIModeRadioButton->setChecked(true);
-    d->SegmentsTableView->hide();
-    if (this->isEntered())
-      {
-      this->onROIVisibilityChanged(true);
-      }
-    else
-      {
-      this->onROIVisibilityChanged(false);
-      }
-
-    if (d->segmentEditorNode)
-      {
-      vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-      if (currentSegmentationNode && this->isEntered())
-        {
-        for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
-          {
-          vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-            vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
-          if (!SegmentationDisplayNode)
-            {
-            continue;
-            }
-          SegmentationDisplayNode->SetAllSegmentsVisibility(false);
-          }
-        }
-      }
-    }
-  else if (!(strcmp(d->parametersNode->GetMode(), "Segmentation")))
-    {
-    d->SegmentationModeRadioButton->setChecked(true);
-    d->SegmentsTableView->show();
-    this->onROIVisibilityChanged(false);
-
-    if (d->segmentEditorNode)
-      {
-      vtkMRMLSegmentationNode* currentSegmentationNode = d->segmentEditorNode->GetSegmentationNode();
-      if (currentSegmentationNode && this->isEntered())
-        {
-        for (int ii = 0; ii < currentSegmentationNode->GetNumberOfDisplayNodes(); ii++)
-          {
-          vtkMRMLSegmentationDisplayNode *SegmentationDisplayNode =
-            vtkMRMLSegmentationDisplayNode::SafeDownCast(currentSegmentationNode->GetNthDisplayNode(ii));
-          if (!SegmentationDisplayNode)
-            {
-            continue;
-            }
-          SegmentationDisplayNode->SetAllSegmentsVisibility(true);
-          }
-        }
-      }
-    }
-
+  const char* mode = d->parametersNode->GetMode() ? d->parametersNode->GetMode() : "ROI";
+  const int region = !strcmp(mode, "Segmentation") ? Mask : !strcmp(mode, "Volume") ? WholeData : Box;
+  d->RegionButton->setCurrentIndex(region);
+  d->RegionStack->setCurrentIndex(region);
+  d->fitStack(d->RegionStack);
+  }
   d->TableView->setMRMLTableNode(d->parametersNode->GetTableNode());
-
-  d->MaxCheckBox->setChecked(d->parametersNode->GetMax());
-  d->MeanCheckBox->setChecked(d->parametersNode->GetMean());
-  d->MedianCheckBox->setChecked(d->parametersNode->GetMedian());
-  d->MinCheckBox->setChecked(d->parametersNode->GetMin());
-  d->NpixelsCheckBox->setChecked(d->parametersNode->GetNpixels());
-  d->StdCheckBox->setChecked(d->parametersNode->GetStd());
-  d->SumCheckBox->setChecked(d->parametersNode->GetSum());
-  d->TotalFluxCheckBox->setChecked(d->parametersNode->GetTotalFlux());
+  for (int i = 0; i < NumberOfQuantities; i++)
+    {
+    const QSignalBlocker blocker(d->QuantityButtons[i]);
+    d->QuantityButtons[i]->setChecked(QuantityOn(d->parametersNode, i));
+    }
   // total flux (Jy) only for data in Jy/beam with a beam
-  const bool fluxDefined = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolumeNode) > 0.;
-  d->TotalFluxCheckBox->setEnabled(fluxDefined);
-  d->TotalFluxCheckBox->setToolTip(fluxDefined ?
-    tr("Total flux (Jy): the sum of the intensities (Jy/beam) times the pixel area divided by the beam area "
-       "(pi / (4 ln 2) BMAJ BMIN).") :
-    tr("Not available: the data have no beam (BMAJ, BMIN missing or not positive in the FITS header) or are "
-       "not in Jy/beam, so the total flux in Jy can not be calculated."));
-
-  int status = d->parametersNode->GetStatus();
-
-  if(status == 0)
+  const bool fluxDefined = vtkSlicerAstroVolumeLogic::GetJyBeamToJyFactor(inputVolume) > 0.;
+  d->QuantityButtons[0]->setEnabled(fluxDefined);
+  d->QuantityButtons[0]->setToolTip(fluxDefined ? tr(Quantities[0].ToolTip) :
+    tr("Not available: the data have no beam (BMAJ, BMIN) or are not in Jy/beam, so the total flux in Jy can "
+       "not be calculated."));
+  const bool box = d->RegionButton->currentIndex() == Box;
+  this->onROIVisibilityChanged(box && this->isEntered() && d->ROIVisibleButton->isChecked());
+  d->RunButton->setEnabled(inputVolume != nullptr);
+  d->RunButton->setText(inputVolume ? tr("Compute statistics") : tr("Select data"));
+  const int status = d->parametersNode->GetStatus();
+  d->RunButton->setRunning(status > 0 && status < 100);
+  if (status > 0 && status < 100)
     {
-    this->onComputationFinished();
+    d->RunButton->setProgress(status);
     }
-  else
-    {
-    if(status == 1)
-      {
-      this->onComputationStarted();
-      }
-    if(status != -1)
-      {
-      this->updateProgress(status);
-      qSlicerApplication::application()->processEvents();
-      }
-    }
+  this->updateResults();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onMRMLSelectionNodeModified(vtkObject *sender)
+void qSlicerAstroStatisticsModuleWidget::updateResults()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!sender)
+  while (QLayoutItem* item = d->ResultsLayout->takeAt(0))
+    {
+    delete item->widget();
+    delete item;
+    }
+  vtkMRMLTableNode* tableNode = d->parametersNode ? d->parametersNode->GetTableNode() : nullptr;
+  vtkTable* table = tableNode ? tableNode->GetTable() : nullptr;
+  const int row = table ? static_cast<int>(table->GetNumberOfRows()) - 1 : -1;
+  d->Results->setVisible(row >= 0);
+  d->ResultsTitle->setVisible(row >= 0);
+  if (row < 0)
     {
     return;
     }
+  d->ResultsTitle->setText(QString::fromUtf8("RESULT · %1").arg(
+    QString::fromStdString(tableNode->GetCellText(row, 0)).toUpper()));
+  int line = 0;
+  for (int i = 0; i < NumberOfQuantities; i++)
+    {
+    vtkDataArray* column = vtkDataArray::SafeDownCast(table->GetColumnByName(Quantities[i].Column));
+    const double value = column && row < column->GetNumberOfTuples() ? column->GetTuple1(row) : NAN;
+    if (!std::isfinite(value))
+      {
+      continue;
+      }
+    QLabel* name = new QLabel(tr(Quantities[i].Label), d->Results);
+    name->setProperty("astroRole", "label");
+    QLabel* number = new QLabel(i == NumberOfQuantities - 1 ? QString::number(value, 'f', 0) :
+                                QString::number(value, 'g', 6).replace('-', QChar(0x2212)), d->Results);
+    number->setProperty("astroRole", "mono");
+    number->setObjectName(QString("Result_%1").arg(Quantities[i].Name));
+    number->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    QLabel* unit = new QLabel(qSlicerAstroTheme::displayUnit(QString::fromStdString(
+      tableNode->GetColumnUnitLabel(Quantities[i].Column))), d->Results);
+    unit->setProperty("astroRole", "unit");
+    d->ResultsLayout->addWidget(name, line, 0);
+    d->ResultsLayout->addWidget(number, line, 1, Qt::AlignRight);
+    d->ResultsLayout->addWidget(unit, line, 2);
+    line++;
+    }
+  d->ResultsLayout->setColumnStretch(0, 1);
+}
 
-  vtkMRMLSelectionNode *selectionNode =
-      vtkMRMLSelectionNode::SafeDownCast(sender);
+//-----------------------------------------------------------------------------
+QString qSlicerAstroStatisticsModuleWidget::resultsText() const
+{
+  Q_D(const qSlicerAstroStatisticsModuleWidget);
+  QStringList lines;
+  for (int row = 0; row < d->ResultsLayout->rowCount(); row++)
+    {
+    QStringList parts;
+    for (int column = 0; column < 3; column++)
+      {
+      QLayoutItem* item = d->ResultsLayout->itemAtPosition(row, column);
+      QLabel* label = item ? qobject_cast<QLabel*>(item->widget()) : nullptr;
+      parts << (label ? label->text() : QString());
+      }
+    if (!parts[0].isEmpty())
+      {
+      lines << QString("%1 = %2 %3").arg(parts[0], parts[1], parts[2]).trimmed();
+      }
+    }
+  return lines.join("\n");
+}
 
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onMRMLSelectionNodeModified(vtkObject* sender)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  vtkMRMLSelectionNode* selectionNode = vtkMRMLSelectionNode::SafeDownCast(sender);
   if (!selectionNode || !d->parametersNode)
     {
     return;
     }
-
-  if (d->parametersNode->GetInputVolumeNodeID() && selectionNode->GetActiveVolumeID())
+  const char* activeID = selectionNode->GetActiveVolumeID();
+  const char* inputID = d->parametersNode->GetInputVolumeNodeID();
+  if ((!activeID && !inputID) || (activeID && inputID && !strcmp(activeID, inputID)))
     {
-    if(!strcmp(d->parametersNode->GetInputVolumeNodeID(), selectionNode->GetActiveVolumeID()))
-      {
-      return;
-      }
+    return;
     }
-
-  int wasModifying = d->parametersNode->StartModify();
-  d->parametersNode->SetInputVolumeNodeID(selectionNode->GetActiveVolumeID());
-  d->parametersNode->EndModify(wasModifying);
-
+  d->parametersNode->SetInputVolumeNodeID(activeID);
   this->onROIFit();
+  this->updateMaskSelector();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onInputVolumeChanged(vtkMRMLNode* mrmlNode)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  if (d->selectionNode)
+    {
+    d->selectionNode->SetActiveVolumeID(mrmlNode ? mrmlNode->GetID() : nullptr);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onInputROIChanged(vtkMRMLNode* node)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  vtkMRMLMarkupsROINode* roiNode = vtkMRMLMarkupsROINode::SafeDownCast(node);
+  if (d->parametersNode && d->parametersNode->GetROINode() != roiNode)
+    {
+    d->parametersNode->SetROINode(roiNode);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onTableNodeChanged(vtkMRMLNode* mrmlNode)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  vtkMRMLTableNode* tableNode = vtkMRMLTableNode::SafeDownCast(mrmlNode);
+  if (d->parametersNode && d->parametersNode->GetTableNode() != tableNode)
+    {
+    d->parametersNode->SetTableNode(tableNode);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::setRegion(int region)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  d->RegionButton->setCurrentIndex(region);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onRegionChanged(int index)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  d->RegionStack->setCurrentIndex(index);
+  d->fitStack(d->RegionStack);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  if (index == Box && d->logic())
+    {
+    d->logic()->EnsureStatisticsROI(d->parametersNode);
+    }
+  d->parametersNode->SetMode(ModeName(index));
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onQuantityToggled(bool on)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  QObject* chip = this->sender();
+  if (chip && d->parametersNode)
+    {
+    SetQuantityOn(d->parametersNode, chip->property("quantity").toInt(), on);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onROIFit()
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  if (d->logic() && d->parametersNode && d->parametersNode->GetROINode())
+    {
+    d->logic()->SnapROIToVoxelGrid(d->parametersNode);
+    d->logic()->FitROIToInputVolume(d->parametersNode);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::onROIVisibilityChanged(bool visible)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  vtkMRMLMarkupsROINode* roiNode = d->parametersNode ? d->parametersNode->GetROINode() : nullptr;
+  if (roiNode)
+    {
+    roiNode->SetDisplayVisibility(visible);
+    }
 }
 
 //-----------------------------------------------------------------------------
 void qSlicerAstroStatisticsModuleWidget::onCalculate()
 {
-  Q_D(const qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  vtkSlicerAstroStatisticsLogic* logic = d->logic();
+  if (!d->parametersNode || !logic || !this->mrmlScene())
     {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onCalculate : "
-                   "parametersNode not found!";
     return;
     }
-
-  vtkSlicerAstroStatisticsLogic *logic = d->logic();
-  if (!logic)
+  d->Message->clearMessage();
+  // the region: the selected segment of the mask
+  if (d->RegionButton->currentIndex() == Mask)
     {
-    qCritical() <<"qSlicerAstroStatisticsModuleWidget::onCalculate : "
-                  "vtkSlicerAstroStatisticsLogic not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  if (!this->mrmlScene())
-    {
-    qCritical() << "qSlicerAstroStatisticsModuleWidget::onCalculate : "
-                   "scene not found!";
-    d->parametersNode->SetStatus(0);
-    return;
-    }
-
-  d->parametersNode->SetStatus(1);
-
-  if (!(strcmp(d->parametersNode->GetMode(), "Segmentation")))
-    {
-    if (!this->setMaskSegmentFromSelection())
+    vtkMRMLSegmentationNode* mask = vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+    const QStringList selected = d->SegmentsTableView->selectedSegmentIDs();
+    if (!mask || selected.isEmpty())
       {
-      qCritical() <<"qSlicerAstroStatisticsModuleWidget::onCalculate : "
-                    "setMaskSegmentFromSelection failed!";
-      d->parametersNode->SetStatus(0);
+      d->Message->showMessage("warning", tr("Select a segment of the mask."));
       return;
       }
+    const int wasModifying = d->parametersNode->StartModify();
+    d->parametersNode->SetMaskSegmentationNodeID(mask->GetID());
+    d->parametersNode->SetMaskSegmentID(selected[0].toUtf8().constData());
+    d->parametersNode->EndModify(wasModifying);
     }
-
-  // Run computation
-  if (!logic->CalculateStatistics(d->parametersNode))
+  else if (d->RegionButton->currentIndex() == Box)
     {
-    qCritical() <<"qSlicerAstroStatisticsModuleWidget::onCalculate : "
-                  "CalculateStatistics error!";
+    logic->EnsureStatisticsROI(d->parametersNode);
     }
-
+  logic->EnsureStatisticsTable(d->parametersNode);
+  d->parametersNode->SetStatus(1);
+  const bool computed = logic->CalculateStatistics(d->parametersNode);
   d->parametersNode->SetStatus(0);
-  d->OutputCollapsibleButton->setCollapsed(false);
+  const QString message = QString::fromStdString(logic->GetLastError());
+  if (!computed)
+    {
+    d->Message->showMessage("error", message.isEmpty() ? tr("The statistics could not be computed.") : message);
+    }
+  else if (!message.isEmpty())
+    {
+    d->Message->showMessage("warning", message);
+    }
+  this->updateResults();
 }
 
 //-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onComputationFinished()
+void qSlicerAstroStatisticsModuleWidget::onComputationCancelled()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-  d->CancelButton->hide();
-  d->progressBar->hide();
-  d->ApplyButton->show();
+  if (d->parametersNode)
+    {
+    d->parametersNode->SetStatus(-1);
+    }
 }
 
 //---------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onSegmentEditorNodeModified(vtkObject *sender)
+void qSlicerAstroStatisticsModuleWidget::onSegmentEditorNodeModified(vtkObject* sender)
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!sender)
-    {
-    return;
-    }
-
-  vtkMRMLSegmentEditorNode *segmentEditorNode =
-    vtkMRMLSegmentEditorNode::SafeDownCast(sender);
-  if (!segmentEditorNode)
-    {
-    return;
-    }
-
-  vtkMRMLSegmentationNode* segmentationNode =
-    segmentEditorNode->GetSegmentationNode();
-  if (!segmentationNode)
-    {
-    return;
-    }
-
-  // the mask selector follows the Segment Editor (masks only, not the
-  // contours); the table shows the selected mask (onMaskSegmentationChanged)
-  if (this->isEntered() && d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
+  vtkMRMLSegmentEditorNode* segmentEditorNode = vtkMRMLSegmentEditorNode::SafeDownCast(sender);
+  vtkMRMLSegmentationNode* segmentationNode = segmentEditorNode ? segmentEditorNode->GetSegmentationNode() : nullptr;
+  // the mask selector follows the Segment Editor (masks only, not the contours)
+  if (segmentationNode && this->isEntered() && d->SegmentationNodeComboBox->currentNode() != segmentationNode &&
       vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
     {
     d->SegmentationNodeComboBox->setCurrentNode(segmentationNode);
@@ -1307,7 +962,6 @@ void qSlicerAstroStatisticsModuleWidget::onSegmentEditorNodeModified(vtkObject *
 void qSlicerAstroStatisticsModuleWidget::onMaskSegmentationChanged(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
   vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
   d->SegmentsTableView->setSegmentationNode(segmentationNode);
   // the Segment Editor node is shared: only the module in use sets it
@@ -1322,34 +976,28 @@ void qSlicerAstroStatisticsModuleWidget::onMaskSegmentationChanged(vtkMRMLNode* 
 void qSlicerAstroStatisticsModuleWidget::updateMaskSelector()
 {
   Q_D(qSlicerAstroStatisticsModuleWidget);
-
   vtkMRMLScene* scene = this->mrmlScene();
-  if (!scene || !d->SegmentationNodeComboBox || scene->IsBatchProcessing())
+  if (!scene || scene->IsBatchProcessing())
     {
     return;
     }
-
   QStringList hiddenNodeIDs;
   std::vector<vtkMRMLNode*> nodes;
   scene->GetNodesByClass("vtkMRMLSegmentationNode", nodes);
   for (vtkMRMLNode* node : nodes)
     {
     vtkMRMLSegmentationNode* segmentationNode = vtkMRMLSegmentationNode::SafeDownCast(node);
-    if (segmentationNode && segmentationNode->GetID() &&
-        !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
+    if (segmentationNode && segmentationNode->GetID() && !vtkSlicerAstroVolumeLogic::IsMaskSegmentation(segmentationNode))
       {
       hiddenNodeIDs << QString::fromUtf8(segmentationNode->GetID());
       }
     }
   d->SegmentationNodeComboBox->sortFilterProxyModel()->setHiddenNodeIDs(hiddenNodeIDs);
 
-  // by default the mask of the input volume
-  vtkMRMLSegmentationNode* currentNode =
-    vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
+  // by default the mask of the input data
+  vtkMRMLSegmentationNode* currentNode = vtkMRMLSegmentationNode::SafeDownCast(d->SegmentationNodeComboBox->currentNode());
   vtkMRMLSegmentationNode* editorNode = d->segmentEditorNode ? d->segmentEditorNode->GetSegmentationNode() : nullptr;
-  vtkMRMLVolumeNode* inputVolume = (d->parametersNode && d->parametersNode->GetInputVolumeNodeID()) ?
-    vtkMRMLVolumeNode::SafeDownCast(scene->GetNodeByID(d->parametersNode->GetInputVolumeNodeID())) : nullptr;
-  vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, inputVolume,
+  vtkMRMLSegmentationNode* mask = vtkSlicerAstroVolumeLogic::GetMaskForVolume(scene, d->inputVolume(),
     currentNode ? currentNode : editorNode);
   if (!mask && !currentNode && vtkSlicerAstroVolumeLogic::IsMaskSegmentation(editorNode))
     {
@@ -1364,89 +1012,3 @@ void qSlicerAstroStatisticsModuleWidget::updateMaskSelector()
     d->SegmentationNodeComboBox->setCurrentNode(nullptr);
     }
 }
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onSumToggled(bool toggled)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetSum(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onStartImportEvent()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  d->cleanPointers();
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onTableNodeChanged(vtkMRMLNode *mrmlNode)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  vtkMRMLTableNode *tableNode = vtkMRMLTableNode::SafeDownCast(mrmlNode);
-  if (d->astroTableNode == tableNode)
-    {
-    return;
-    }
-
-  d->astroTableNode = tableNode;
-  d->parametersNode->SetTableNode(tableNode);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onTotalFluxToggled(bool toggled)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-
-  if (!d->parametersNode)
-    {
-    return;
-    }
-
-  d->parametersNode->SetTotalFlux(toggled);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onComputationCancelled()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  d->parametersNode->SetStatus(-1);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::updateProgress(int value)
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  d->progressBar->setValue(value);
-}
-
-//-----------------------------------------------------------------------------
-void qSlicerAstroStatisticsModuleWidget::onComputationStarted()
-{
-  Q_D(qSlicerAstroStatisticsModuleWidget);
-  d->ApplyButton->hide();
-  d->progressBar->show();
-  d->CancelButton->show();
-}
-
-//---------------------------------------------------------------------------
-vtkMRMLAstroStatisticsParametersNode* qSlicerAstroStatisticsModuleWidget::
-mrmlAstroStatisticsParametersNode()const
-{
-  Q_D(const qSlicerAstroStatisticsModuleWidget);
-  return d->parametersNode;
-}
-

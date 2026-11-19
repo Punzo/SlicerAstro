@@ -31,106 +31,67 @@
 class qSlicerAstroStatisticsModuleWidgetPrivate;
 class vtkMRMLAstroStatisticsParametersNode;
 class vtkMRMLNode;
+class vtkObject;
 
 /// \ingroup SlicerAstro_QtModules_AstroStatistics
+/// Panel of the AstroStatistics module: the data, the region (whole data, a
+/// box or a segment of a mask), the quantities, the results of the last
+/// calculation and the table of the earlier ones. The calculation is in
+/// vtkSlicerAstroStatisticsLogic.
 class Q_SLICERASTRO_QTMODULES_ASTROSTATISTICS_EXPORT qSlicerAstroStatisticsModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
+  QVTK_OBJECT
 
 public:
-
   typedef qSlicerAbstractModuleWidget Superclass;
-  qSlicerAstroStatisticsModuleWidget(QWidget *parent=0);
-  virtual ~qSlicerAstroStatisticsModuleWidget();
+  qSlicerAstroStatisticsModuleWidget(QWidget *parent=nullptr);
+  ~qSlicerAstroStatisticsModuleWidget() override;
 
-  virtual void enter();
-  virtual void exit();
+  enum Region { WholeData = 0, Box, Mask };
 
-  /// Get vtkMRMLAstroStatisticsParametersNode
-  Q_INVOKABLE vtkMRMLAstroStatisticsParametersNode* mrmlAstroStatisticsParametersNode()const;
+  void enter() override;
+  void exit() override;
+
+  Q_INVOKABLE vtkMRMLAstroStatisticsParametersNode* mrmlAstroStatisticsParametersNode() const;
+  /// Text of the results of the last calculation, one "name = value unit"
+  /// per line
+  Q_INVOKABLE QString resultsText() const;
 
 public slots:
-  /// Slots to calculate the statistics.
-  /// It creates the output volumes and calls the logic
+  /// Calculate the statistics of the region (a row of the table)
   void onCalculate();
+  /// Region (Region)
+  void setRegion(int region);
 
 protected:
   QScopedPointer<qSlicerAstroStatisticsModuleWidgetPrivate> d_ptr;
 
-  /// Initialization of the qvtk connections between MRML nodes
-  virtual void setMRMLScene(vtkMRMLScene*);
-
-  /// Initialization of MRML nodes
-  void initializeNodes(bool forceNew = false);
-
-  /// Initialization of MRML parameter node
+  void setMRMLScene(vtkMRMLScene*) override;
+  void setup() override;
   void initializeParameterNode(bool forceNew = false);
-
-  /// Initialization of MRML segmentation nodes
-  void initializeSegmentations(bool forceNew = false);
-
-  /// Initialization of MRML ROI node
-  void initializeROINode(bool forceNew = false);
-
-  /// Initialization of MRML table node
-  void initializeTableNode(bool forceNew = false);
-
-  /// Set the segment selected in the segments table as the input mask
-  /// (segmentation and segment IDs in the MRML parameter node of the module)
-  bool setMaskSegmentFromSelection();
-
-  /// Initialization of module widgets
-  virtual void setup();
+  void initializeSegmentations();
 
 protected slots:
-
-  /// Set the MRML input node
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML ROI node
-  void onInputROIChanged(vtkMRMLNode* node);
-
-  /// Set the MRML segmentation editor node
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  /// Mask selector: the Segment Editor and the table use the selected mask
-  void onMaskSegmentationChanged(vtkMRMLNode* node);
-  /// Masks only in the selector (not the contours); by default the mask of the input volume
-  void updateMaskSelector();
-
-  /// Set the MRML table node
-  void onTableNodeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Update widget GUI from MRML parameter node
-  void onMRMLAstroStatisticsParametersNodeModified();
-
-  /// Set the MRML parameter node
   void setMRMLAstroStatisticsParametersNode(vtkMRMLNode*);
-
-  void onEndCloseEvent();
-  void onEndImportEvent();
-  void onStartImportEvent();
-
-  void onMaxToggled(bool toggled);
-  void onMeanToggled(bool toggled);
-  void onMedianToggled(bool toggled);
-  void onMinToggled(bool toggled);
-  void onModeChanged();
-  void onNpixelsToggled(bool toggled);
+  void onMRMLAstroStatisticsParametersNodeModified();
+  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
+  void onInputROIChanged(vtkMRMLNode* node);
+  void onTableNodeChanged(vtkMRMLNode* mrmlNode);
+  void onRegionChanged(int index);
+  void onQuantityToggled(bool on);
   void onROIFit();
   void onROIVisibilityChanged(bool visible);
-  void onSumToggled(bool toggled);
-  void onStdToggled(bool toggled);
-  void onTotalFluxToggled(bool toggled);
-
+  void onMaskSegmentationChanged(vtkMRMLNode* node);
+  void onSegmentEditorNodeModified(vtkObject* sender);
+  void updateMaskSelector();
+  void updateResults();
   void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-
-  void onComputationStarted();
+  void onStartImportEvent();
+  void onEndImportEvent();
+  void onEndCloseEvent();
   void onComputationCancelled();
-  void onComputationFinished();
-  void updateProgress(int value);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroStatisticsModuleWidget);

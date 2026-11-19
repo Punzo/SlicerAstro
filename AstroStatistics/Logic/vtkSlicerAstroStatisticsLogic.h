@@ -27,7 +27,11 @@ class vtkSlicerAstroVolumeLogic;
 
 // AstroStatisticss includes
 #include "vtkSlicerAstroStatisticsModuleLogicExport.h"
+
+#include <string>
 class vtkMRMLAstroStatisticsParametersNode;
+class vtkMRMLMarkupsROINode;
+class vtkMRMLTableNode;
 
 /// \class vtkSlicerAstroStatisticsLogic
 /// \brief Calculate statistics given selection (ROI or segmentation).
@@ -55,7 +59,20 @@ public:
   /// Run statistics calculation algorithm
   /// \param MRML parameter node
   /// \return Success flag
+  /// The region is set by the Mode of the parameters node: "Volume" (all
+  /// the voxels), "ROI" (the box) or "Segmentation" (a segment of a mask).
+  /// The results are added as a row of the table of the parameters node
+  /// (EnsureStatisticsTable). On failure the reason is in GetLastError.
   bool CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode);
+  std::string GetLastError() { return this->LastError; }
+
+  /// The table of the results of the parameters node: created if needed
+  /// (columns Selection, Npixels, Min, Max, Mean, Std, Median, Sum,
+  /// TotalFlux; one row per calculation), units of the input data
+  vtkMRMLTableNode* EnsureStatisticsTable(vtkMRMLAstroStatisticsParametersNode* pnode);
+  /// The box (ROI) of the parameters node: created if needed (fitted to the
+  /// input data)
+  vtkMRMLMarkupsROINode* EnsureStatisticsROI(vtkMRMLAstroStatisticsParametersNode* pnode);
 
   /// Sets ROI to fit to input volume.
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.
@@ -73,6 +90,7 @@ public:
   virtual bool IsROIAlignedWithInputVolume(vtkMRMLAstroStatisticsParametersNode* parametersNode);
 
 protected:
+  std::string LastError;
   vtkSlicerAstroStatisticsLogic();
   virtual ~vtkSlicerAstroStatisticsLogic();
 
