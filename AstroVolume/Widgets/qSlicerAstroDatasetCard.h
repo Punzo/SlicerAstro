@@ -66,6 +66,8 @@ public:
   Q_INVOKABLE void addProduct(const QString& id, const QString& name, const QString& detail,
                               const QString& iconName);
   Q_INVOKABLE int productCount() const;
+  /// Delete button of the card (emits deleteRequested)
+  Q_INVOKABLE QToolButton* deleteButton() const;
 
   /// Toggle chips of the card (e.g. "HI contours · NGC2403"), below the
   /// chips: actionChipToggled(id, checked) when clicked
@@ -83,6 +85,8 @@ signals:
   void clicked();
   void productClicked(const QString& id);
   void actionChipToggled(const QString& id, bool checked);
+  /// The delete button was clicked (the owner removes the dataset)
+  void deleteRequested();
 
 protected slots:
   void onVolumeModified();
@@ -94,12 +98,15 @@ protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
   /// Drag of the dataset or of a product to a view
   void startDrag(const QString& nodeID);
+  /// Product name elided to the width of its button (detail kept)
+  static void elideProductText(QToolButton* button);
 
   qSlicerAstroDatasetCardHeader* Header;
   QWidget* ChipsRow;
   QWidget* ActionChipsRow;
   QWidget* Products;
   QVBoxLayout* ProductsLayout;
+  QToolButton* DeleteButton{nullptr};
   vtkMRMLVolumeNode* Volume{nullptr};
   QString Kind;
   QStringList Chips;

@@ -17,6 +17,9 @@
 // Qt includes
 #include <QComboBox>
 #include <QGridLayout>
+
+// CTK includes
+#include <ctkFlowLayout.h>
 #include <QHBoxLayout>
 #include <QImage>
 #include <QLabel>
@@ -99,11 +102,18 @@ QPixmap ColourStrip(vtkMRMLColorNode* colorNode, int width = 48, int height = 12
 }
 
 //----------------------------------------------------------------------------
-QToolButton* OptionButton(const QString& text, const QString& toolTip, const QString& objectName, QWidget* parent)
+QToolButton* OptionButton(const QString& text, const QString& toolTip, const QString& objectName, QWidget* parent,
+                          const QString& iconName = QString())
 {
   QToolButton* button = new QToolButton(parent);
   button->setProperty("astroRole", "actionChip");
   button->setText(text);
+  if (!iconName.isEmpty())
+    {
+    button->setIcon(qSlicerAstroTheme::instance()->icon(iconName, "muted"));
+    button->setIconSize(QSize(14, 14));
+    button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    }
   button->setCheckable(true);
   button->setToolTip(toolTip);
   button->setObjectName(objectName);
@@ -189,31 +199,38 @@ qSlicerAstroDisplaySection::qSlicerAstroDisplaySection(QWidget* parent)
   QObject::connect(d->ColourTable, SIGNAL(activated(int)), this, SLOT(onColorTableActivated(int)));
   top->addWidget(RowLabel(tr("Colours"), d->ColourTable->toolTip(), this), 0, 0);
   top->addWidget(d->ColourTable, 0, 1);
-  QHBoxLayout* options = new QHBoxLayout();
-  options->setSpacing(4);
+  // the options wrap to the width of the panel
+  QWidget* optionsWidget = new QWidget(this);
+  optionsWidget->setObjectName("DisplayOptions");
+  ctkFlowLayout* options = new ctkFlowLayout(optionsWidget);
+  options->setContentsMargins(0, 0, 0, 0);
+  options->setHorizontalSpacing(4);
+  options->setVerticalSpacing(4);
+  options->setAlignItems(false);
+  options->setPreferredExpandingDirections(Qt::Vertical);
   const QString texts[3] = {tr("Reverse"), tr("Invert"), tr("Log")};
   const QString tips[3] = {tr("Colours in reverse order (low values get the colours of the high ones)."),
                            tr("Complementary colours (e.g. black on white)."),
                            tr("Logarithmic scale of the colours (faint emission brighter).")};
   const char* names[3] = {"DisplayReverse", "DisplayInverse", "DisplayLog"};
+  const char* icons[3] = {"reverse", "invert", "log"};
   for (int i = 0; i < 3; i++)
     {
-    d->OptionButtons[i] = OptionButton(texts[i], tips[i], names[i], this);
+    d->OptionButtons[i] = OptionButton(texts[i], tips[i], names[i], this, icons[i]);
     d->OptionButtons[i]->setProperty("colorOption", Options[i]);
     QObject::connect(d->OptionButtons[i], SIGNAL(toggled(bool)), this, SLOT(onOptionToggled(bool)));
     options->addWidget(d->OptionButtons[i]);
     }
   d->InterpolateButton = OptionButton(tr("Smooth"), tr("Interpolate between the pixels in the 2D views (off: "
-                                                       "the pixels of the data)."), "DisplayInterpolate", this);
+                                                       "the pixels of the data)."), "DisplayInterpolate", this, "smoothing");
   d->FitSlicesButton = OptionButton(tr("Fit views"), tr("The 2D views fit their field of view to the grid of "
                                                          "the data (channel maps, position-velocity slices)."),
-                                    "DisplayFitSlices", this);
+                                    "DisplayFitSlices", this, "expand");
   QObject::connect(d->InterpolateButton, SIGNAL(toggled(bool)), this, SLOT(onInterpolateToggled(bool)));
   QObject::connect(d->FitSlicesButton, SIGNAL(toggled(bool)), this, SLOT(onFitSlicesToggled(bool)));
   options->addWidget(d->InterpolateButton);
   options->addWidget(d->FitSlicesButton);
-  options->addStretch(1);
-  top->addLayout(options, 1, 1);
+  top->addWidget(optionsWidget, 1, 0, 1, 2);
   top->setColumnStretch(1, 1);
   layout->addLayout(top);
 

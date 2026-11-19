@@ -1200,8 +1200,9 @@ void qSlicerAstroReprojectModuleWidget::setMRMLAstroReprojectParametersNode(vtkM
 void qSlicerAstroReprojectModuleWidget::onMRMLAstroReprojectParametersNodeModified()
 {
   Q_D(qSlicerAstroReprojectModuleWidget);
-  if (!d->parametersNode || !this->mrmlScene())
+  if (!d->parametersNode || !this->mrmlScene() || this->mrmlScene()->IsClosing())
     {
+    // scene closing: the selectors may still list removed nodes
     return;
     }
   Parameters* p = d->parametersNode;
@@ -1210,8 +1211,13 @@ void qSlicerAstroReprojectModuleWidget::onMRMLAstroReprojectParametersNodeModifi
   // inputs
   const QSignalBlocker inputsBlocker(d->InputVolumesComboBox);
   const std::vector<std::string> ids = SplitList(p->GetInputVolumeNodeIDs());
-  for (vtkMRMLNode* node : d->InputVolumesComboBox->nodes())
+  for (int index = 0; index < d->InputVolumesComboBox->nodeCount(); index++)
     {
+    vtkMRMLNode* node = d->InputVolumesComboBox->nodeFromIndex(index);
+    if (!node || !node->GetID())
+      {
+      continue;
+      }
     const bool checked = std::find(ids.begin(), ids.end(), std::string(node->GetID())) != ids.end();
     d->InputVolumesComboBox->setCheckState(node, checked ? Qt::Checked : Qt::Unchecked);
     }

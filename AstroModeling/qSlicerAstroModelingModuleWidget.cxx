@@ -3725,10 +3725,7 @@ void qSlicerAstroModelingModuleWidget::onMaskActiveToggled(bool active)
     return;
     }
   d->parametersNode->SetMaskActive(active);
-  if (d->SearchGroupBox)
-    {
-    d->SearchGroupBox->setVisible(!active);
-    }
+  this->updateAdvancedVisibility();
 }
 
 //-----------------------------------------------------------------------------
@@ -3801,7 +3798,6 @@ void qSlicerAstroModelingModuleWidget::updateBBaroloParameterWidgets()
   d->SearchThresholdSpinBox->setValue(d->parametersNode->GetSearchThreshold());
   d->SearchMinChannelsSpinBox->setValue(d->parametersNode->GetSearchMinChannels());
   d->SearchGrowthCutSpinBox->setValue(d->parametersNode->GetSearchGrowthCut());
-  d->SearchGroupBox->setVisible(!d->parametersNode->GetMaskActive());
   for (size_t index = 0; index < blocked.size(); index++)
     {
     widgets[index]->blockSignals(blocked[index]);
@@ -3813,13 +3809,37 @@ void qSlicerAstroModelingModuleWidget::setInitialParametersVisible(bool visible)
 {
   Q_D(qSlicerAstroModelingModuleWidget);
 
-  // the initial parameters (and their estimate) and the advanced parameters
-  // are set in Manual mode only: in Automatic mode 3DBarolo estimates them
+  // the initial parameters (and their estimate) are set in Manual mode only:
+  // in Automatic mode 3DBarolo estimates them
   if (d->InitialParametersWidget)
     {
     d->InitialParametersWidget->setVisible(visible);
     }
-  d->AdvancedCollapsibleButton->setVisible(visible);
+  this->updateAdvancedVisibility();
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::updateAdvancedVisibility()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+  if (!d->parametersNode)
+    {
+    return;
+    }
+  const bool automatic = d->parametersNode->GetMode() && !strcmp(d->parametersNode->GetMode(), "Automatic");
+  const bool mask = d->parametersNode->GetMaskActive();
+  // Advanced: fit options (Manual mode) and the source search (no input
+  // mask); nothing to set in Automatic mode with an input mask. The fold
+  // section holds the contents of the (hidden) .ui collapsible button.
+  QWidget* advancedSection = this->findChild<QWidget*>("Section_Advanced");
+  if (advancedSection)
+    {
+    advancedSection->setVisible(!automatic || !mask);
+    }
+  if (d->SearchGroupBox)
+    {
+    d->SearchGroupBox->setVisible(!mask);
+    }
 }
 
 //-----------------------------------------------------------------------------
@@ -4581,7 +4601,7 @@ void qSlicerAstroModelingModuleWidget::updateBeamFromVolume(vtkMRMLAstroVolumeNo
   // visible status: an estimated beam must be checked by the user
   d->BeamStatusLabel->setText(source.isEmpty() ? QString() :
     fromHeader ? tr("Beam %1.").arg(source) :
-    tr("Beam ESTIMATED: the FITS header has no beam; %1 (about 10% accuracy). It is used for the model and saved "
+    tr("Beam ESTIMATED: the FITS header has no beam; %1. It is used for the model and saved "
        "with the data: check it or enter the beam of the observation.").arg(source));
   d->BeamStatusLabel->setStyleSheet(fromHeader ? QString() : QString("QLabel { color: #d07000; font-weight: bold; }"));
   if (!fromHeader && volumeNode)
@@ -5521,6 +5541,18 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
 
   if (d->parametersNode->GetFitSuccess())
     {
+    // the input mask is hidden: the model and its contours are compared
+    // with the data
+    vtkMRMLSegmentationNode* inputMask = (d->parametersNode->GetMaskActive() &&
+      d->parametersNode->GetMaskSegmentationNodeID()) ? vtkMRMLSegmentationNode::SafeDownCast(
+        scene->GetNodeByID(d->parametersNode->GetMaskSegmentationNodeID())) : nullptr;
+    if (inputMask && inputMask->GetDisplayNode() &&
+        (d->parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::CREATE ||
+         d->parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::FIT))
+      {
+      inputMask->GetDisplayNode()->SetVisibility(false);
+      }
+
     int wasModifying = outputVolume->StartModify();
     outputVolume->UpdateRangeAttributes();
     outputVolume->UpdateDisplayThresholdAttributes();

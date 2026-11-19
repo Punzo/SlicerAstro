@@ -21,9 +21,12 @@ scaling, thresholds. The slice views show the WCS axes and the beam.
 ## 3D display
 
 Volume rendering with presets of the colour and opacity functions (3D colour
-functions), defined in multiples of the noise σ of the data; a region of
-interest (ROI) crops the rendering and measures the noise inside it (*RMS in
-ROI*).
+functions), defined in multiples of the noise σ of the data. The active cube
+is shown in 3D automatically (up to 1 GB of voxels; larger cubes with
+*Shown in 3D*). The box (a region of interest): *Show* shows or hides it in
+the views, *Crop* renders only the cube inside it, *Fit* fits it to the cube
+and *Noise* measures the noise of the voxels inside it, which becomes the
+noise σ of the data.
 
 | 3D colour function | Rendering |
 |---|---|
@@ -32,9 +35,10 @@ ROI*).
 | Surfaces at 3σ, 7σ | two surfaces |
 | Surfaces at 3σ, 7σ, 15σ | three surfaces, green, blue and red |
 | Surfaces every 3σ · rainbow | eight surfaces, from 3σ to 24σ |
-| Surfaces at 3σ, 7σ, 15σ · Observatory | three surfaces in colours safe for colour-blind people (teal, mint, amber), faint outside (default) |
+| Surfaces at 3σ, 7σ, 15σ · Observatory | three surfaces in colours safe for colour-blind people (Okabe–Ito sky blue, yellow, vermillion), bright on the dark background (default) |
 | Surfaces every 3σ · Observatory | eight surfaces along the Observatory colour map |
 | Emission 3σ–25σ · Observatory, magma, viridis | continuous rendering of the emission from 3σ to 25σ, opacity and colour rising with the intensity (magma and viridis are perceptually uniform colour maps) |
+| Emission and absorption at ±3σ, ±7σ, ±15σ | the Observatory surfaces of the emission and three surfaces of the absorption (negative values, e.g. HI absorbed against a radio continuum source) in reddish purple, lighter for deeper absorption |
 
 The names are shown in the selector; scenes store a stable identifier of
 each function (e.g. `ThreeSurfaces`).

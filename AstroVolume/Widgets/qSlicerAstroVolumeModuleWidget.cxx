@@ -197,6 +197,11 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi()
   infoPage->layout()->addWidget(this->InfoSection);
 
   // the pages are as tall as the page shown (not the tallest page)
+  // the sections at the top of their page
+  for (int page = 0; page < this->Pages->count(); page++)
+    {
+    qobject_cast<QVBoxLayout*>(this->Pages->widget(page)->layout())->addStretch(1);
+    }
   QObject::connect(this->Tabs, &qSlicerAstroSegmentedButton::currentIndexChanged, this->Pages, [this](int index)
     {
     for (int page = 0; page < this->Pages->count(); page++)
@@ -205,7 +210,7 @@ void qSlicerAstroVolumeModuleWidgetPrivate::setupUi()
         page == index ? QSizePolicy::Preferred : QSizePolicy::Ignored);
       }
     this->Pages->setCurrentIndex(index);
-    this->Pages->adjustSize();
+    this->Pages->updateGeometry();
     });
   QObject::connect(this->DatasetSelector, &qSlicerAstroDatasetSelector::currentNodeChanged,
                    q, &qSlicerAstroVolumeModuleWidget::onDatasetSelected);
@@ -284,12 +289,8 @@ void qSlicerAstroVolumeModuleWidget::onSelectionNodeModified()
   if (logic)
     {
     logic->updateIntensityUnitsNode(volume);
-    if (volume)
-      {
-      // the volume rendering of a cube is prepared; with automatic display,
-      // the volume is shown in the views
-      logic->ShowActiveVolume(volume);
-      }
+    // the logic shows the new active volume (3D rendering prepared and,
+    // with automatic display, shown in the views)
     }
   {
   const QSignalBlocker blocker(d->DatasetSelector);

@@ -77,6 +77,74 @@ SAMPLE_DATA_SOURCES = (
 )
 
 
+# Description of each sample (Workbench sample list, About window,
+# documentation): (short description, details, credit). Full provenance and
+# acknowledgements: release notes of SampleData-v2.
+SAMPLE_DATA_INFO = {
+    "WEIN069": (
+        "HI cube · galaxy group with a tidal tail",
+        "WEIN069, a companion, a tidal tail and a faint filament between them. Sub-cube of the "
+        "Westerbork Synthesis Radio Telescope (WSRT) Zone of Avoidance Perseus-Pisces Filament survey.",
+        "Ramatsoku et al. 2016, MNRAS 460, 923"),
+    "WEIN069_MASK": (
+        "SoFiA 2 mask and source catalogue of WEIN069",
+        "Source mask (loaded as a segmentation) and source catalogue (table and labelled points) made "
+        "by SoFiA 2.7.1 from the WEIN069 cube.",
+        "Westmeier et al. 2021, MNRAS 506, 3962"),
+    "NGC2403": (
+        "HI cube · spiral galaxy, 30″ beam",
+        "NGC 2403 at low resolution (beam 29.7″ × 29.3″, 2.58 km/s channels) from HALOGAS DR1, cropped "
+        "to the emission: the faint extraplanar HI. Used by the Modeling (3DBarolo) and Reproject modules.",
+        "Fraternali et al. 2002, AJ 123, 3124; Heald et al. 2011, A&A 526, A118"),
+    "NGC2403_DSS": (
+        "Optical image of the NGC 2403 field",
+        "Digitized Sky Survey 2 red image, 24′ × 24′, with standard WCS and plate solution.",
+        "DSS2, STScI/AURA"),
+    "NGC891": (
+        "HI cube · edge-on disk with extraplanar gas",
+        "NGC 891 and its companion UGC 1807 (WSRT, beam 35.1″ × 32.2″, 8.24 km/s channels) from HALOGAS "
+        "DR1: the HI halo above the disk.",
+        "Oosterloo, Fraternali & Sancisi 2007, AJ 134, 1019; Heald et al. 2011"),
+    "NGC3198": (
+        "HI cube · regularly rotating disk",
+        "NGC 3198 (WSRT, beam 35.2″ × 33.5″, 4.12 km/s channels) from HALOGAS DR1: a regular rotating "
+        "disk, suited to tilted-ring models (3DBarolo).",
+        "Heald et al. 2011, A&A 526, A118"),
+    "NGC4631": (
+        "HI cube · interacting group with tidal streams",
+        "NGC 4631 and NGC 4656 (WSRT, beam 45.0″ × 39.1″, 4.12 km/s channels) from HALOGAS DR1, binned "
+        "2 × 2: the tidal streams of the interaction.",
+        "Heald et al. 2011, A&A 526, A118"),
+    "Antennae_HI": (
+        "HI cube · Antennae galaxies (NGC 4038/4039)",
+        "VLA HI cube (beam 20.7″ × 15.4″, 5.2 km/s channels): the two tidal tails and a tidal dwarf "
+        "galaxy candidate.",
+        "Hibbard et al. 2001, AJ 122, 2969"),
+    "Antennae_CO": (
+        "CO(2-1) cubes · Antennae, north and south",
+        "ALMA Science Verification mosaics of NGC 4038 and of NGC 4039 with the overlap region (0.3″ pixels, "
+        "20 km/s channels): mosaicking and reprojection.",
+        "ALMA ADS/JAO.ALMA#2011.0.00003.SV"),
+    "Antennae_MUSE": (
+        "Hα and [N II] cubes · Antennae (VLT/MUSE)",
+        "Two MUSE pointings, spectral cutouts 6570–6650 Å with the stellar continuum subtracted (line "
+        "emission only), 0.2″ pixels.",
+        "Weilbacher et al. 2018, A&A 611, A95; ESO programme 095.B-0042(A)"),
+    "Antennae_R": (
+        "Optical R-band image · Antennae",
+        "CTIO 0.9 m R-band image of the Antennae.",
+        "Hibbard et al. 2001, AJ 122, 2969"),
+}
+
+
+def sampleThumbnailPath(sampleName):
+    """Thumbnail file of a sample (None if unknown)."""
+    for name, thumbnail, _ in SAMPLE_DATA_SOURCES:
+        if name == sampleName:
+            return os.path.join(os.path.dirname(__file__), "Resources", "Icons", thumbnail)
+    return None
+
+
 class AstroSampleData(ScriptedLoadableModule):
     def __init__(self, parent):
         ScriptedLoadableModule.__init__(self, parent)

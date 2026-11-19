@@ -50,6 +50,8 @@ QPushButton {
 QPushButton:hover { background: @hover@; }
 QPushButton:pressed { background: @line@; }
 QPushButton:disabled { color: @subtle@; border-color: @line@; background: @panel@; }
+QPushButton:checked { background: @accent-soft-strong@; border-color: @accent@; color: @accent-ink@; }
+QPushButton:checked:hover { background: @accent-soft@; }
 QPushButton[astroRole="primary"] {
   background: @accent@;
   border-color: @accent@;
@@ -199,7 +201,8 @@ QTableCornerButton::section { background: @panel@; border: none; }
 /* Scroll bars */
 QScrollBar:vertical { background: transparent; width: 10px; margin: 0px; }
 QScrollBar:horizontal { background: transparent; height: 10px; margin: 0px; }
-QScrollBar::handle { background: @line-strong@; border-radius: 4px; min-height: 24px; min-width: 24px; margin: 2px; }
+QScrollBar::handle { background: @line-strong@; border-radius: 3px; min-height: 24px; min-width: 24px; margin: 2px; }
+/* rounded ends: the radius is half the handle width (10px - 2 x 2px margin); Qt draws square corners for larger radii */
 QScrollBar::handle:hover { background: @subtle@; }
 QScrollBar::add-line, QScrollBar::sub-line { width: 0px; height: 0px; }
 QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
@@ -345,3 +348,33 @@ QToolButton[astroRole="step"] {
 }
 QToolButton[astroRole="step"]:hover { background: @hover@; }
 QToolButton[astroRole="step"]:checked { background: @accent-soft@; border-color: @accent@; }
+
+/* Sample data cards (Workbench): thumbnail, name and description */
+QToolButton[astroRole="sampleCard"] { text-align: left; padding: 6px 8px; border: 1px solid transparent; border-radius: 8px; color: @text@; }
+QToolButton[astroRole="sampleCard"]:hover { background: @raised@; border-color: @line@; }
+
+/* Text areas (e.g. the 3DBarolo log): theme colours, not the white base of
+   the application palette */
+QPlainTextEdit, QTextEdit, QTextBrowser {
+  background: @raised@;
+  color: @text@;
+  border: 1px solid @line@;
+  border-radius: 6px;
+  selection-background-color: @accent-soft-strong@;
+  selection-color: @text@;
+}
+QPlainTextEdit[readOnly="true"], QTextEdit[readOnly="true"] { font-family: "@mono-family@"; font-size: 11px; }
+
+/* Group boxes: no white fill of the application palette */
+QGroupBox {
+  background: transparent;
+  border: 1px solid @line@;
+  border-radius: 8px;
+  margin-top: 14px;
+  padding: 8px 6px 6px 6px;
+}
+QGroupBox::title { subcontrol-origin: margin; left: 8px; padding: 0 4px; color: @muted@; }
+
+/* Workspaces (Workbench): logbook entries */
+QFrame[astroRole="workspaceEntry"] { background: @raised@; border: 1px solid @line@; border-radius: 10px; }
+QFrame[astroRole="workspaceEntry"]:hover { border-color: @line-strong@; }

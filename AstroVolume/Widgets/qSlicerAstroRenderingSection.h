@@ -66,8 +66,10 @@ public slots:
   void setShift(double shift);
   void setStretch(double stretch);
   void setOpacityShift(double shift);
-  /// Crop the rendering to the box (shown while cropping)
+  /// Crop the rendering to the box
   void setCropping(bool crop);
+  /// Show or hide the box (created, fitted to the cube, when shown first)
+  void setBoxVisible(bool visible);
   /// Fit the box to the whole cube
   void fitBox();
   /// Noise of the voxels in the box: it becomes the noise of the data

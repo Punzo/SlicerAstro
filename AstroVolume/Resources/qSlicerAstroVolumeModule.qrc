@@ -40,5 +40,7 @@
         <file alias="Emission 3σ–25σ · magma">Icons/Presets/MagmaEmission.png</file>
         <!-- ViridisEmission -->
         <file alias="Emission 3σ–25σ · viridis">Icons/Presets/ViridisEmission.png</file>
+        <!-- EmissionAbsorption -->
+        <file alias="Emission and absorption at ±3σ, ±7σ, ±15σ">Icons/Presets/EmissionAbsorption.png</file>
     </qresource>
 </RCC>

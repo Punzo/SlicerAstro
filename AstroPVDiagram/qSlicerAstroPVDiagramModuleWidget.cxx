@@ -756,16 +756,10 @@ void qSlicerAstroPVDiagramModuleWidget::initializeMomentMapNode(bool forceNew /*
       pvMomentMapNodes.push_back(astroVolume);
       PVSecondMomentMapNode = PVSecondMomentMapNode ? PVSecondMomentMapNode : astroVolume;
       }
-    // AstroMomentMaps module (<input>_mom0th_<n>, <input>_mom2nd_<n>): the last one
-    else if (suffix.find("_mom0th_") == 0)
-      {
-      ZeroMomentMapNode = astroVolume;
-      }
-    else if (suffix.find("_mom2nd_") == 0)
-      {
-      SecondMomentMapNode = astroVolume;
-      }
     }
+  // the moment maps of the cube (AstroMomentMaps module, "<input>_mom0"...)
+  ZeroMomentMapNode = vtkSlicerAstroVolumeLogic::GetMomentMap(inputVolume, 0);
+  SecondMomentMapNode = vtkSlicerAstroVolumeLogic::GetMomentMap(inputVolume, 2);
 
   // recalculated: the maps of this module
   if (forceNew)

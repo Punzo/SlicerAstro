@@ -7,6 +7,8 @@ is hidden and the Workbench is installed around the views:
 
 Leaving the mode (the full Slicer button, Ctrl+Shift+W) restores everything."""
 
+import os
+
 import qt
 import vtk
 
@@ -17,6 +19,7 @@ from . import About
 from . import Contours
 from .Inspector import Inspector
 from .Views import ViewDecorator, ViewVisibility
+from . import Workspaces
 
 VIEW_COLOR = (7 / 255.0, 10 / 255.0, 18 / 255.0)
 
@@ -77,12 +80,20 @@ class HeaderBar(qt.QFrame):
         self.navigateButton = iconButton("pointer", "Navigate: pan, zoom, scroll through the channels", checkable=True)
         self.navigateButton.checked = True
         self.crosshairButton = iconButton("target", "Crosshair: the same position in all the views", checkable=True)
+        self.pointsButton = iconButton("point", "Points: sky positions and velocities (e.g. sources); click to "
+                                                "place, several in a row (Esc to stop)", checkable=True)
         self.lineButton = iconButton("ruler", "Line: angular separation and velocity difference", checkable=True)
         self.curveButton = iconButton("curve", "Curve: length on the sky and velocity range along it", checkable=True)
+        self.closedCurveButton = iconButton("closedCurve", "Closed curve: perimeter and area on the sky",
+                                            checkable=True)
         self.angleButton = iconButton("angle", "Angle on the sky", checkable=True)
         self.roiButton = iconButton("roi", "ROI box", checkable=True)
+        for name, button in (("WorkbenchToolPoints", self.pointsButton),
+                             ("WorkbenchToolClosedCurve", self.closedCurveButton)):
+            button.setObjectName(name)
         for button, separator in ((self.navigateButton, False), (self.crosshairButton, True),
-                                  (self.lineButton, False), (self.curveButton, False), (self.angleButton, False),
+                                  (self.pointsButton, False), (self.lineButton, False), (self.curveButton, False),
+                                  (self.closedCurveButton, False), (self.angleButton, False),
                                   (self.roiButton, False)):
             self.toolGroup.addButton(button)
             layout.addWidget(button)
@@ -91,7 +102,9 @@ class HeaderBar(qt.QFrame):
         self.navigateButton.connect("clicked()", lambda: self.workbench.setInteraction("navigate"))
         self.crosshairButton.connect("clicked()", lambda: self.workbench.setInteraction("crosshair"))
         self.lineButton.connect("clicked()", lambda: self.workbench.setInteraction("line"))
+        self.pointsButton.connect("clicked()", lambda: self.workbench.setInteraction("points"))
         self.curveButton.connect("clicked()", lambda: self.workbench.setInteraction("curve"))
+        self.closedCurveButton.connect("clicked()", lambda: self.workbench.setInteraction("closedCurve"))
         self.angleButton.connect("clicked()", lambda: self.workbench.setInteraction("angle"))
         self.roiButton.connect("clicked()", lambda: self.workbench.setInteraction("roi"))
         layout.addStretch(1)
@@ -158,6 +171,7 @@ class Rail(qt.QFrame):
         self.group = qt.QButtonGroup(self)
         self.buttons = {}
         for name, icon, text, enabled in (("data", "layers", "Data", True), ("samples", "module-sample-data", "Samples", True),
+                                          ("workspaces", "folder", "Spaces", True),
                                           ("sky", "globe", "Sky", False), ("layers", "colormap", "Layers", False)):
             button = qt.QToolButton()
             button.setProperty("astroRole", "rail")
@@ -171,6 +185,7 @@ class Rail(qt.QFrame):
             button.toolTip = {
                 "data": "Datasets: the loaded data with their previews and derived products.",
                 "samples": "Sample data: public HI cubes and images to try SlicerAstro.",
+                "workspaces": "Workspaces: save the scene with a screenshot of the views; open a saved one.",
             }.get(name, f"{text}: coming with the next steps of SlicerAstro 2.0")
             self.group.addButton(button)
             layout.addWidget(button, 0, qt.Qt.AlignHCenter)
@@ -188,7 +203,8 @@ class DatasetDrawer(qt.QFrame):
         self.workbench = workbench
         self.setProperty("astroRole", "drawer")
         self.setObjectName("DatasetDrawer")
-        self.setFixedWidth(300)
+        # wider if the contents need it (e.g. with the vertical scroll bar)
+        self.setMinimumWidth(300)
         self.cards = []
         layout = qt.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -224,6 +240,7 @@ class DatasetDrawer(qt.QFrame):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(qt.QFrame.NoFrame)
         scroll.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        slicer.qSlicerAstroScrollAreaFitter(scroll)
         self.cardsWidget = qt.QWidget()
         self.cardsLayout = qt.QVBoxLayout(self.cardsWidget)
         self.cardsLayout.setContentsMargins(0, 0, 4, 0)
@@ -239,25 +256,45 @@ class DatasetDrawer(qt.QFrame):
 
         # sample data
         samples = qt.QWidget()
-        samplesLayout = qt.QVBoxLayout(samples)
-        samplesLayout.setContentsMargins(14, 14, 14, 10)
-        samplesLayout.setSpacing(8)
+        samplesPageLayout = qt.QVBoxLayout(samples)
+        samplesPageLayout.setContentsMargins(14, 14, 14, 10)
+        samplesPageLayout.setSpacing(8)
         title = qt.QLabel("Sample data")
         title.setProperty("astroRole", "title")
-        samplesLayout.addWidget(title)
+        samplesPageLayout.addWidget(title)
         note = qt.QLabel("Public HI cubes and images, downloaded once and cached.")
         note.setProperty("astroRole", "label")
         note.wordWrap = True
-        samplesLayout.addWidget(note)
+        samplesPageLayout.addWidget(note)
+        samplesScroll = qt.QScrollArea()
+        samplesScroll.setObjectName("SamplesScrollArea")
+        samplesScroll.setWidgetResizable(True)
+        samplesScroll.setFrameShape(qt.QFrame.NoFrame)
+        samplesScroll.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        slicer.qSlicerAstroScrollAreaFitter(samplesScroll)
+        samplesList = qt.QWidget()
+        samplesLayout = qt.QVBoxLayout(samplesList)
+        samplesLayout.setContentsMargins(0, 0, 4, 0)
+        samplesLayout.setSpacing(4)
+        samplesScroll.setWidget(samplesList)
+        samplesPageLayout.addWidget(samplesScroll, 1)
         self.samplesLayout = samplesLayout
         self.samplesFilled = False
         samplesLayout.addStretch(1)
         self.stack.addWidget(samples)
 
+        # workspaces
+        self.workspacesPage = Workspaces.WorkspacesPage(workbench)
+        self.workspacesPage.setObjectName("WorkspacesPage")
+        self.stack.addWidget(self.workspacesPage)
+
     def showPage(self, name):
         if name == "samples":
             self.fillSamples()
             self.stack.setCurrentIndex(1)
+        elif name == "workspaces":
+            self.workspacesPage.refresh()
+            self.stack.setCurrentIndex(2)
         else:
             self.stack.setCurrentIndex(0)
 
@@ -270,14 +307,33 @@ class DatasetDrawer(qt.QFrame):
             sources = SampleData.SampleDataLogic.sampleDataSourcesByCategory("Astronomy")
         except Exception:
             sources = []
+        try:
+            import AstroSampleData
+            info = AstroSampleData.SAMPLE_DATA_INFO
+        except Exception:
+            info = {}
         for index, source in enumerate(sources):
-            button = qt.QPushButton(source.sampleName)
+            short, details, credit = info.get(source.sampleName, ("", "", ""))
+            # a card: thumbnail, name, short description; details and credit
+            # in the tooltip
+            button = qt.QToolButton()
             button.setObjectName(f"Sample_{source.sampleName}")
-            button.setProperty("astroRole", "ghost")
-            button.setIcon(theme().icon("download", "muted"))
-            button.setStyleSheet("text-align: left;")
+            button.setProperty("astroRole", "sampleCard")
+            button.setToolButtonStyle(qt.Qt.ToolButtonTextBesideIcon)
+            button.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
+            button.setAutoRaise(True)
+            thumbnail = getattr(source, "thumbnailFileName", None)
+            if thumbnail and os.path.exists(thumbnail):
+                button.setIcon(qt.QIcon(thumbnail))
+            else:
+                button.setIcon(theme().icon("download", "muted"))
+            button.setIconSize(qt.QSize(56, 56))
+            button.text = f"{source.sampleName}\n{short}" if short else source.sampleName
+            button.toolTip = "<br>".join(text for text in (
+                f"<b>{source.sampleName}</b>", details, f"<i>{credit}</i>" if credit else "",
+                "Click: download (once, then cached) and load.") if text)
             button.connect("clicked()", lambda s=source: self.downloadSample(s))
-            self.samplesLayout.insertWidget(2 + index, button)
+            self.samplesLayout.insertWidget(index, button)
 
     def downloadSample(self, source):
         import SampleData
@@ -305,9 +361,41 @@ class DatasetDrawer(qt.QFrame):
             self.addContourChips(card, volume)
             card.connect("clicked()", lambda v=volume: self.workbench.activate(v))
             card.connect("productClicked(QString)", self.workbench.showProduct)
+            card.connect("deleteRequested()", lambda v=volume: self.deleteDataset(v))
             self.cardsLayout.insertWidget(len(self.cards), card)
             self.cards.append(card)
         self.applyFilter()
+
+    def deleteDataset(self, volume, ask=True, withProducts=None):
+        """Remove a dataset from the scene; its products (moment maps, masks,
+        catalogues...) too if chosen. Returns True if removed."""
+        products = [node for _, _, _, _, node in Astro.productsOf(volume, slicer.mrmlScene)]
+        if ask:
+            box = qt.QMessageBox(slicer.util.mainWindow())
+            box.setWindowTitle("Delete dataset")
+            box.setIcon(qt.QMessageBox.Question)
+            box.setText(f"Delete {volume.GetName()} from the scene?")
+            allButton = None
+            if products:
+                box.setInformativeText(f"It has {len(products)} product{'s' if len(products) != 1 else ''}.")
+                allButton = box.addButton("Dataset and products", qt.QMessageBox.DestructiveRole)
+            onlyButton = box.addButton("Dataset only" if products else "Delete", qt.QMessageBox.AcceptRole)
+            box.addButton(qt.QMessageBox.Cancel)
+            box.exec_()
+            if box.clickedButton() not in (allButton, onlyButton) or box.clickedButton() is None:
+                return False
+            withProducts = allButton is not None and box.clickedButton() == allButton
+        nodes = ([volume] + products) if withProducts else [volume]
+        if not withProducts:
+            # its own contours and mask go with it (they have its grid)
+            logic = slicer.modules.astrovolume.logic()
+            nodes += [node for node in (logic.GetContoursSegmentationForVolume(volume, False),)
+                      if node is not None]
+        for node in nodes:
+            if node.GetScene() is not None:
+                slicer.mrmlScene.RemoveNode(node)
+        self.refresh()
+        return True
 
     def addContourChips(self, card, volume):
         """A toggle chip per dataset whose contours are drawn over this one
@@ -435,7 +523,8 @@ class StatusBar(qt.QFrame):
             layout.addWidget(label)
             self.labels[name] = label
         layout.addStretch(1)
-        self.hint = qt.QLabel("Ctrl+Shift+W: full Slicer")
+        # messages of the Workbench (empty otherwise)
+        self.hint = qt.QLabel("")
         self.hint.setProperty("astroRole", "label")
         layout.addWidget(self.hint)
         self.crosshair = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLCrosshairNode")
@@ -444,9 +533,9 @@ class StatusBar(qt.QFrame):
         self.clear()
 
     def showMessage(self, text, milliseconds=8000):
-        """A message in place of the hint, for a few seconds."""
+        """A message in the status bar, for a few seconds."""
         self.hint.text = text
-        qt.QTimer.singleShot(milliseconds, lambda: setattr(self.hint, "text", "Ctrl+Shift+W: full Slicer"))
+        qt.QTimer.singleShot(milliseconds, lambda: setattr(self.hint, "text", "") if self.hint.text == text else None)
 
     def subtle(self, text):
         return f"<span style='color:{theme().color('subtle').name()}'>{text}</span>"
@@ -620,10 +709,48 @@ class Workbench:
                                                  else "vtkMRMLSliceCompositeNodeRed")
         sliceNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeYellow" if self.layoutIndex() > 0
                                                  else "vtkMRMLSliceNodeRed")
+        logic = slicer.modules.astrovolume.logic()
+        dataset = self.activeVolume()
+        shown = composite.GetBackgroundVolumeID() == node.GetID()
+        if Astro.dimensions(node) >= 3:
+            # a derived cube (e.g. smoothed): in 3D instead of the dataset
+            rendering = logic.GetVolumeRenderingDisplayNode(node, False)
+            shown = shown or bool(rendering is not None and rendering.GetVisibility())
+            if shown:
+                self.showProductHidden(node, dataset, composite)
+                return
+            logic.PrepareVolumeRendering(node)
+            if dataset is not None and dataset is not node:
+                logic.SetVolumeRenderingVisibility(dataset, False, False)
+            # fitted and centred in the 3D views
+            logic.SetVolumeRenderingVisibility(node, True, True)
+        elif shown:
+            # second click: hidden, the dataset is shown again
+            self.showProductHidden(node, dataset, composite)
+            return
         composite.SetBackgroundVolumeID(node.GetID())
+        # maps and channel maps in the sky plane
         sliceNode.SetOrientation("XZ")
         sliceNode.SetOrientation("XY")
-        slicer.app.applicationLogic().FitSliceToAll()
+        self.fitSliceView(sliceNode)
+
+    def fitSliceView(self, sliceNode):
+        """Fit one view to its data, keeping its orientation (the fit of the
+        application logic resets the orientations of all the views)."""
+        sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode) if sliceNode is not None else None
+        if sliceLogic is not None:
+            sliceLogic.FitSliceToAll()
+
+    def showProductHidden(self, node, dataset, composite):
+        """Hide a product shown by showProduct: the dataset in its place."""
+        logic = slicer.modules.astrovolume.logic()
+        if Astro.dimensions(node) >= 3:
+            logic.SetVolumeRenderingVisibility(node, False, False)
+            if dataset is not None and dataset is not node:
+                logic.SetVolumeRenderingVisibility(dataset, True, True)
+        if composite.GetBackgroundVolumeID() == node.GetID():
+            composite.SetBackgroundVolumeID(dataset.GetID() if dataset is not None and dataset is not node else None)
+            self.fitSliceView(slicer.mrmlScene.GetNodeByID(composite.GetID().replace("CompositeNode", "Node")))
 
     # ------------------------------------------------------------------
     THREE_VIEWS = 3501
@@ -717,12 +844,14 @@ class Workbench:
         if crosshair is not None:
             crosshair.SetCrosshairMode(slicer.vtkMRMLCrosshairNode.ShowBasic if mode == "crosshair"
                                        else slicer.vtkMRMLCrosshairNode.NoCrosshair)
-        placeClasses = {"line": "vtkMRMLMarkupsLineNode", "curve": "vtkMRMLMarkupsCurveNode",
+        placeClasses = {"points": "vtkMRMLMarkupsFiducialNode", "line": "vtkMRMLMarkupsLineNode",
+                        "curve": "vtkMRMLMarkupsCurveNode", "closedCurve": "vtkMRMLMarkupsClosedCurveNode",
                         "angle": "vtkMRMLMarkupsAngleNode", "roi": "vtkMRMLMarkupsROINode"}
         if mode in placeClasses:
             selection = slicer.app.applicationLogic().GetSelectionNode()
             selection.SetReferenceActivePlaceNodeClassName(placeClasses[mode])
-            interaction.SetPlaceModePersistence(0)
+            # points: several in a row (one list); the others: one markup
+            interaction.SetPlaceModePersistence(1 if mode == "points" else 0)
             interaction.SetCurrentInteractionMode(slicer.vtkMRMLInteractionNode.Place)
         else:
             interaction.SetCurrentInteractionMode(slicer.vtkMRMLInteractionNode.ViewTransform)
@@ -730,10 +859,32 @@ class Workbench:
     def styleViews(self):
         """Views on the ink background, with the view bars of the Workbench
         instead of Slicer's view controllers and vertical slice sliders."""
-        for viewNode in slicer.util.getNodesByClass("vtkMRMLViewNode"):
-            viewNode.SetBackgroundColor(*VIEW_COLOR)
-            viewNode.SetBackgroundColor2(*VIEW_COLOR)
+        self.style3DViews()
         self.views.install()
+
+    def style3DViews(self):
+        """3D views: dark background in both themes (the colour functions are
+        made for a dark sky) and no bounding box. The default view node of the
+        scene has the same values, so the views keep them when a scene is
+        closed or loaded (the view nodes are reset to the default node)."""
+        scene = slicer.mrmlScene
+        if "defaultViewNode" not in self.saved:
+            self.saved["defaultViewNode"] = scene.GetDefaultNodeByClass("vtkMRMLViewNode")
+        default = slicer.vtkMRMLViewNode()
+        previous = self.saved["defaultViewNode"]
+        if previous is not None:
+            default.Copy(previous)
+        default.SetBackgroundColor(*VIEW_COLOR)
+        default.SetBackgroundColor2(*VIEW_COLOR)
+        default.SetBoxVisible(False)
+        scene.AddDefaultNode(default)
+        for viewNode in slicer.util.getNodesByClass("vtkMRMLViewNode"):
+            if tuple(viewNode.GetBackgroundColor()) != VIEW_COLOR:
+                viewNode.SetBackgroundColor(*VIEW_COLOR)
+            if tuple(viewNode.GetBackgroundColor2()) != VIEW_COLOR:
+                viewNode.SetBackgroundColor2(*VIEW_COLOR)
+            if viewNode.GetBoxVisible():
+                viewNode.SetBoxVisible(False)
 
     # ------------------------------------------------------------------
     def dock(self, widget, area, name):
@@ -770,7 +921,7 @@ class Workbench:
             "docks": [(dock, dock.visible) for dock in mainWindow.findChildren("QDockWidget")],
             "corners": [mainWindow.corner(corner) for corner in (qt.Qt.BottomLeftCorner, qt.Qt.BottomRightCorner)],
             "layout": layoutManager.layout,
-            "views": [(node.GetID(), node.GetBackgroundColor(), node.GetBackgroundColor2())
+            "views": [(node.GetID(), node.GetBackgroundColor(), node.GetBackgroundColor2(), node.GetBoxVisible())
                       for node in slicer.util.getNodesByClass("vtkMRMLViewNode")],
         }
         mainWindow.menuBar().visible = False
@@ -785,7 +936,7 @@ class Workbench:
         self.header = HeaderBar(self)
         self.toolbar(self.header, qt.Qt.TopToolBarArea, "WorkbenchHeaderBar")
         left = qt.QWidget()
-        left.setFixedWidth(360)
+        left.setMinimumWidth(360)
         leftLayout = qt.QHBoxLayout(left)
         leftLayout.setContentsMargins(0, 0, 0, 0)
         leftLayout.setSpacing(0)
@@ -844,6 +995,8 @@ class Workbench:
         if event == "EndCloseEvent":
             # node IDs are reused by the next data
             self.automaticContours.done.clear()
+        if event in ("EndCloseEvent", "EndImportEvent"):
+            self.style3DViews()
         self.refreshTimer.start()
 
     def runAutomaticContours(self):
@@ -916,11 +1069,19 @@ class Workbench:
         mainWindow.restoreState(self.saved["state"])
         self.views.remove()
         self.visibility.exit()
-        for nodeID, color, color2 in self.saved["views"]:
+        # default view node of the scene restored
+        previousDefault = self.saved.pop("defaultViewNode", None)
+        if previousDefault is not None:
+            slicer.mrmlScene.AddDefaultNode(previousDefault)
+        else:
+            slicer.mrmlScene.AddDefaultNode(slicer.vtkMRMLViewNode())
+        # backgrounds and boxes of the 3D views (after the view decorator)
+        for nodeID, color, color2, boxVisible in self.saved["views"]:
             node = slicer.mrmlScene.GetNodeByID(nodeID)
             if node is not None:
                 node.SetBackgroundColor(*color)
                 node.SetBackgroundColor2(*color2)
+                node.SetBoxVisible(boxVisible)
 
     def toggle(self):
         if self.active:

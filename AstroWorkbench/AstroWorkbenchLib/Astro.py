@@ -147,8 +147,8 @@ def astroVolumes(scene):
 
 
 # outputs of the SlicerAstro modules: "<data>_<token>..." (e.g.
-# NGC2403_mom0th_1, NGC2403_Filtered_2) or a data model of a product
-PRODUCT_TOKENS = ("mom0th", "mom1st", "mom2nd", "Profile", "PVDiagram", "PVSlice", "Filtered", "Crop", "Blank",
+# NGC2403_mom0, NGC2403_Filtered_2) or a data model of a product
+PRODUCT_TOKENS = ("mom0", "mom1", "mom2", "Profile", "PVDiagram", "PVSlice", "Filtered", "Crop", "Blank",
                   "model", "maskedByModel", "Reprojected", "Mosaic", "Weight", "Sensitivity", "Sault", "selection",
                   "Histogram")
 PRODUCT_DATAMODELS = ("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP", "PROFILE", "PVDIAGRAM", "MODEL")
@@ -157,7 +157,7 @@ PRODUCT_DATAMODELS = ("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP", "PRO
 def parentOf(volume, volumes):
     """The dataset a product derives from: the longest name that is a
     prefix of the product name followed by "_" and the name of a product
-    (e.g. NGC2403_mom0th_1, not NGC2403_DSS)."""
+    (e.g. NGC2403_mom0, not NGC2403_DSS)."""
     best = None
     name = volume.GetName() or ""
     isProduct = attribute(volume, "DATAMODEL", "") in PRODUCT_DATAMODELS
@@ -185,6 +185,9 @@ def productsOf(volume, scene):
     for other in volumes:
         if parentOf(other, volumes) is volume:
             datamodel = attribute(other, "DATAMODEL", "")
+            if datamodel == "PROFILE":
+                # spectra of the Profiles panel: shown in its plot, not data
+                continue
             icon = {"ZEROMOMENTMAP": "contour", "FIRSTMOMENTMAP": "spectrum",
                     "SECONDMOMENTMAP": "histogram"}.get(datamodel, "layers" if dimensions(other) >= 3 else "colormap")
             products.append((other.GetID(), other.GetName(), displayUnit(attribute(other, "BUNIT", "")), icon, other))

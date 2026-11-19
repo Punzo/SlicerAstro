@@ -164,6 +164,15 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
         self.assertIn("%.1f" % w20, slicer.util.findChild(widget, "W20Value").text)
         self.assertIn("%.1f" % systemic, slicer.util.findChild(widget, "SystemicVelocityValue").text.replace("\u2212", "-"))
         self.assertTrue(slicer.util.findChild(widget, "PlotViewButton").enabled)
+        # Open in plot view: a layout with a plot view, also after a layout
+        # without one (plot widgets of previous layouts stay alive)
+        layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
+        for layout in (slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView, slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView):
+            layoutNode.SetViewArrangement(layout)
+            slicer.app.processEvents()
+            slicer.util.findChild(widget, "PlotViewButton").click()
+            slicer.app.processEvents()
+            self.assertIn("vtkMRMLPlotViewNode", layoutNode.GetCurrentLayoutDescription())
         csvPath = os.path.join(slicer.app.temporaryPath, "AstroProfilesSelfTest.csv")
         self.assertTrue(widget.exportCSV(csvPath))
         exported = np.genfromtxt(csvPath, delimiter=",", skip_header=1)

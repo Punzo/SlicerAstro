@@ -1,6 +1,7 @@
 """Inspector of the Workbench: Inspect (facts of the active dataset),
-Process (pipeline strip of the processing steps, each step with its panel),
-Measure (sky measurements of the markups) and Model (3DBarolo)."""
+Process (pipeline strip of the processing steps, each step with its panel)
+and Model (3DBarolo). Sky measurements of the markups are shown by Slicer's
+markups (SlicerAstro measurements on the sky)."""
 
 import qt
 
@@ -101,7 +102,8 @@ STEPS = [
     ProductStep("Moments", "module-moment-maps", "AstroMomentMaps",
                 datamodels=("ZEROMOMENTMAP", "FIRSTMOMENTMAP", "SECONDMOMENTMAP")),
     ProductStep("Profiles", "module-profiles", "AstroProfiles"),
-    ProductStep("PV", "module-pv-diagram", "AstroPVDiagram"),
+    ProductStep("PV slice", "module-pv-slice", "AstroPVSlice"),
+    ProductStep("PV diagram", "module-pv-diagram", "AstroPVDiagram"),
     PipelineStep("Reproject", "module-reproject", "AstroReproject"),
 ]
 
@@ -110,7 +112,8 @@ STEP_TOOLTIPS = {
     "Mask": "Mask the cube: blank or crop the voxels outside a segment or box.",
     "Moments": "Moment maps: integrated intensity, velocity field and dispersion.",
     "Profiles": "Integrated spectrum (global profile) with W50, W20, systemic velocity and flux.",
-    "PV": "Position-velocity diagram along a line on the sky.",
+    "PV slice": "Position-velocity slice through the cube along a straight line on the sky.",
+    "PV diagram": "Position-velocity diagram along a curve on the sky (e.g. a spiral arm or a tidal tail).",
     "Reproject": "Reproject on another grid, mosaic, regrid the spectral axis or match the beams.",
 }
 
@@ -175,7 +178,7 @@ class Inspector(qt.QFrame):
         self.tabGroup = qt.QButtonGroup(self)
         self.stack = qt.QStackedWidget()
         self.tabs = {}
-        for index, name in enumerate(("Inspect", "Process", "Measure", "Model")):
+        for index, name in enumerate(("Inspect", "Process", "Model")):
             button = qt.QToolButton()
             button.setProperty("astroRole", "tab")
             button.setObjectName(f"InspectorTab_{name}")
@@ -183,7 +186,6 @@ class Inspector(qt.QFrame):
                 "Inspect": "Facts of the active dataset, its colours, contours, masks, sources, 3D and header.",
                 "Process": "Processing steps of the active dataset: smoothing, masking, moments, profiles, "
                            "position-velocity, reprojection.",
-                "Measure": "Sizes on the sky and velocity differences of the lines, curves and angles drawn.",
                 "Model": "Tilted-ring model of a galaxy with 3DBarolo.",
             }[name]
             button.text = name
@@ -198,7 +200,6 @@ class Inspector(qt.QFrame):
 
         self.stack.addWidget(self.buildInspect())
         self.stack.addWidget(self.buildProcess())
-        self.stack.addWidget(self.buildMeasure())
         self.stack.addWidget(self.buildModel())
         self.tabs["Process"].checked = True
         self.stack.setCurrentIndex(1)
@@ -209,6 +210,8 @@ class Inspector(qt.QFrame):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(qt.QFrame.NoFrame)
         scroll.setHorizontalScrollBarPolicy(qt.Qt.ScrollBarAlwaysOff)
+        # wide enough for the contents and the vertical scroll bar
+        slicer.qSlicerAstroScrollAreaFitter(scroll)
         page = qt.QWidget()
         layout = qt.QVBoxLayout(page)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -285,20 +288,6 @@ class Inspector(qt.QFrame):
         layout.addStretch(1)
         return scroll
 
-    def buildMeasure(self):
-        scroll, layout = self.scrollPage()
-        layout.addWidget(overline("Measurements on the sky"))
-        self.measureLayout = qt.QVBoxLayout()
-        self.measureLayout.setSpacing(8)
-        layout.addLayout(self.measureLayout)
-        self.measureEmpty = qt.QLabel("Draw a line, an angle or a curve with the tools of the header: "
-                                      "their sizes on the sky and velocity differences appear here.")
-        self.measureEmpty.setProperty("astroRole", "label")
-        self.measureEmpty.wordWrap = True
-        layout.addWidget(self.measureEmpty)
-        layout.addStretch(1)
-        return scroll
-
     def buildModel(self):
         scroll, layout = self.scrollPage()
         layout.addWidget(overline("3DBarolo · tilted rings"))
@@ -312,8 +301,6 @@ class Inspector(qt.QFrame):
     def showTab(self, index):
         self.stack.setCurrentIndex(index)
         if index == 2:
-            self.updateMeasurements()
-        if index == 3:
             panel = self.modelStep.widget()
             if panel is not None and self.modelContainer.indexOf(panel) < 0:
                 self.modelContainer.addWidget(panel)
@@ -386,38 +373,6 @@ class Inspector(qt.QFrame):
         if self.stepGroup.checkedId() < 0:
             self.stepButtons[2].checked = True
             self.showStep(2)
-        self.updateMeasurements()
-
-    def updateMeasurements(self):
-        while self.measureLayout.count():
-            item = self.measureLayout.takeAt(0)
-            if item.widget() is not None:
-                item.widget().deleteLater()
-        count = 0
-        for node in slicer.util.getNodesByClass("vtkMRMLMarkupsNode"):
-            if node.IsA("vtkMRMLMarkupsROINode") or node.GetNumberOfControlPoints() < 2:
-                continue
-            values = []
-            for index in range(node.GetNumberOfMeasurements()):
-                measurement = node.GetNthMeasurement(index)
-                if measurement is not None and measurement.GetEnabled() and measurement.GetValueDefined():
-                    values.append(f"{measurement.GetName()}: {measurement.GetValueWithUnitsAsPrintableString()}")
-            card = qt.QFrame()
-            card.setProperty("astroRole", "card")
-            cardLayout = qt.QVBoxLayout(card)
-            cardLayout.setContentsMargins(10, 10, 10, 10)
-            cardLayout.setSpacing(4)
-            title = qt.QLabel(node.GetName())
-            title.setStyleSheet("font-weight: 600;")
-            cardLayout.addWidget(title)
-            for text in values or ["(no measurement)"]:
-                value = qt.QLabel(text)
-                value.setProperty("astroRole", "mono")
-                value.wordWrap = True
-                cardLayout.addWidget(value)
-            self.measureLayout.addWidget(card)
-            count += 1
-        self.measureEmpty.visible = count == 0
 
     def cleanup(self):
         self.infoWidget.setVolumeNode(None)

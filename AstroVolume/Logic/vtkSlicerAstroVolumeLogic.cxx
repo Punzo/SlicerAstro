@@ -827,6 +827,7 @@ void vtkSlicerAstroVolumeLogic::AddAstroColorTables()
 //----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
 {
+  this->ShownActiveVolumeID.clear();
   this->UpdateSliceOrientationPresets();
   // the closing of the scene emptied the singleton color table
   this->AddAstroTerminologyColorTable();
@@ -897,6 +898,11 @@ void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndImport()
       cameraNode->SetParallelScale(75.);
       }
     }
+
+  // the active volume of the scene (its references, e.g. the 3D color
+  // function, are restored now)
+  this->ShownActiveVolumeID.clear();
+  this->ShowSelectedActiveVolume();
 }
 
 //----------------------------------------------------------------------------
@@ -2373,10 +2379,13 @@ unsigned int ColorMapRgb(const ColorStops& stops, double value)
 
 //----------------------------------------------------------------------------
 /// Thin surfaces at multiples of the noise (half width 0.2 level, at most
-/// half the noise for high levels); levels outside of the data are skipped
-void SetPresetShells(vtkMRMLVolumePropertyNode* node, const std::vector<PresetShell>& shells,
+/// half the noise for high levels); negative multiples are absorption;
+/// levels outside of the data are skipped
+void SetPresetShells(vtkMRMLVolumePropertyNode* node, std::vector<PresetShell> shells,
                      double noise, double min, double max)
 {
+  std::sort(shells.begin(), shells.end(),
+            [](const PresetShell& a, const PresetShell& b) { return a.Sigma < b.Sigma; });
   vtkPiecewiseFunction* opacity = node->GetScalarOpacity();
   vtkColorTransferFunction* color = node->GetColor();
   opacity->RemoveAllPoints();
@@ -2388,7 +2397,8 @@ void SetPresetShells(vtkMRMLVolumePropertyNode* node, const std::vector<PresetSh
   for (const PresetShell& shell : shells)
     {
     const double level = shell.Sigma * noise;
-    const double halfWidth = (shell.Sigma < 10. ? 0.2 * shell.Sigma : 0.5) * noise;
+    const double absoluteSigma = std::fabs(shell.Sigma);
+    const double halfWidth = (absoluteSigma < 10. ? 0.2 * absoluteSigma : 0.5) * noise;
     if (level - halfWidth <= min || level + halfWidth >= max)
       {
       continue;
@@ -2804,7 +2814,18 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
     // viridis colour maps)
     if (preset == "ObservatorySurfaces")
       {
-      std::vector<PresetShell> shells = {{3., 0.12, 0x1F8FA6}, {7., 0.3, 0x7FD3C4}, {15., 0.9, 0xF2B24C}};
+      // Okabe-Ito sky blue, yellow and vermillion: distinct for colour-blind
+      // people and bright on the dark background
+      std::vector<PresetShell> shells = {{3., 0.3, 0x56B4E9}, {7., 0.45, 0xF0E442}, {15., 0.9, 0xD55E00}};
+      SetPresetShells(volumePropertyNode, shells, noise, min, max);
+      }
+    if (preset == "EmissionAbsorption")
+      {
+      // emission as ObservatorySurfaces; absorption (negative values, e.g.
+      // against a continuum source) in Okabe-Ito reddish purple, lighter
+      // for deeper absorption
+      std::vector<PresetShell> shells = {{-15., 0.9, 0xF7DDEE}, {-7., 0.45, 0xE3A5CB}, {-3., 0.3, 0xCC79A7},
+                                         {3., 0.3, 0x56B4E9}, {7., 0.45, 0xF0E442}, {15., 0.9, 0xD55E00}};
       SetPresetShells(volumePropertyNode, shells, noise, min, max);
       }
     if (preset == "ObservatoryShells")
@@ -2814,7 +2835,7 @@ bool vtkSlicerAstroVolumeLogic::synchronizePresetsToVolumeNode(vtkMRMLNode *node
         {
         PresetShell shell;
         shell.Sigma = 3. * k;
-        shell.Opacity = 0.04 + 0.11 * (k - 1);
+        shell.Opacity = 0.12 + 0.1 * (k - 1);
         shell.Rgb = ColorMapRgb(ObservatoryStops(), (k - 1) / 7.);
         shells.push_back(shell);
         }
@@ -3277,6 +3298,31 @@ bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingVisibility(vtkMRMLAstroVolumeN
 }
 
 //----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::ShowSelectedActiveVolume()
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!scene || scene->IsImporting() || scene->IsClosing() || scene->IsRestoring() || scene->IsBatchProcessing())
+    {
+    return;
+    }
+  vtkMRMLSelectionNode* selectionNode =
+    vtkMRMLSelectionNode::SafeDownCast(scene->GetNodeByID("vtkMRMLSelectionNodeSingleton"));
+  const std::string activeVolumeID =
+    (selectionNode && selectionNode->GetActiveVolumeID()) ? selectionNode->GetActiveVolumeID() : "";
+  if (activeVolumeID == this->ShownActiveVolumeID)
+    {
+    return;
+    }
+  this->ShownActiveVolumeID = activeVolumeID;
+  vtkMRMLAstroVolumeNode* volumeNode = activeVolumeID.empty() ? nullptr :
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(activeVolumeID.c_str()));
+  if (volumeNode)
+    {
+    this->ShowActiveVolume(volumeNode);
+    }
+}
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroVolumeLogic::ShowActiveVolume(vtkMRMLAstroVolumeNode* volumeNode)
 {
   vtkMRMLScene* scene = volumeNode ? volumeNode->GetScene() : nullptr;
@@ -3307,7 +3353,10 @@ bool vtkSlicerAstroVolumeLogic::ShowActiveVolume(vtkMRMLAstroVolumeNode* volumeN
       otherDisplay->SetVisibility(false);
       }
     }
-  if (cube)
+  vtkImageData* imageData = volumeNode->GetImageData();
+  const double megabytes = imageData ? static_cast<double>(imageData->GetNumberOfPoints()) *
+    imageData->GetScalarSize() * imageData->GetNumberOfScalarComponents() / (1024. * 1024.) : 0.;
+  if (cube && megabytes <= this->AutoShow3DMaximumMegabytes)
     {
     this->SetVolumeRenderingVisibility(volumeNode, true, true);
     }
@@ -3475,11 +3524,18 @@ bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingCropping(vtkMRMLAstroVolumeNod
     }
   vtkMRMLMarkupsROINode* roiNode = this->GetVolumeRenderingROINode(volumeNode, crop);
   displayNode->SetCroppingEnabled(crop);
+  return !crop || roiNode;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingROIVisibility(vtkMRMLAstroVolumeNode* volumeNode, bool visible)
+{
+  vtkMRMLMarkupsROINode* roiNode = this->GetVolumeRenderingROINode(volumeNode, visible);
   if (roiNode)
     {
-    roiNode->SetDisplayVisibility(crop);
+    roiNode->SetDisplayVisibility(visible);
     }
-  return !crop || roiNode;
+  return !visible || roiNode;
 }
 
 //----------------------------------------------------------------------------
@@ -4755,6 +4811,9 @@ void vtkSlicerAstroVolumeLogic::ProcessMRMLNodesEvents(vtkObject* caller, unsign
       this->MeasurementsActiveVolumeID = activeVolumeID;
       this->UpdateAllAstroMeasurements();
       }
+    // the new active volume is shown (3D rendering prepared and, with
+    // AutoShowActiveVolume, shown in the views)
+    this->ShowSelectedActiveVolume();
     return;
     }
   vtkMRMLVolumePropertyNode* volumePropertyNode = vtkMRMLVolumePropertyNode::SafeDownCast(caller);
@@ -5211,6 +5270,7 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CreateThresholdMask(vtkMRMLA
   vtkSmartPointer<vtkMRMLSegmentationNode> maskNode = vtkSmartPointer<vtkMRMLSegmentationNode>::Take(
     vtkMRMLSegmentationNode::SafeDownCast(scene->CreateNodeByClass("vtkMRMLSegmentationNode")));
   maskNode->SetName(scene->GetUniqueNameByString((std::string(data->GetName()) + "_mask").c_str()));
+  maskNode->SetAttribute(vtkSlicerAstroVolumeLogic::GetThresholdMaskAttributeName(), data->GetID());
   scene->AddNode(maskNode);
   maskNode->CreateDefaultDisplayNodes();
   vtkSlicerAstroVolumeLogic::SetMaskReferenceVolume(maskNode, reference);
@@ -5239,6 +5299,89 @@ vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::CreateThresholdMask(vtkMRMLA
     }
   vtkSlicerAstroVolumeLogic::SetBinaryLabelmapDisplay(maskNode);
   return maskNode;
+}
+
+//----------------------------------------------------------------------------
+const char* vtkSlicerAstroVolumeLogic::GetMomentMapReferenceRole(int order)
+{
+  switch (order)
+    {
+    case 0: return "SlicerAstroMomentMap0";
+    case 1: return "SlicerAstroMomentMap1";
+    case 2: return "SlicerAstroMomentMap2";
+    default: return nullptr;
+    }
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroVolumeLogic::GetMomentMapName(vtkMRMLNode* cube, int order)
+{
+  if (!cube || !cube->GetName() || order < 0 || order > 2)
+    {
+    return std::string();
+    }
+  return std::string(cube->GetName()) + "_mom" + std::to_string(order);
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroVolumeLogic::GetMomentMap(vtkMRMLAstroVolumeNode* cube, int order)
+{
+  const char* role = vtkSlicerAstroVolumeLogic::GetMomentMapReferenceRole(order);
+  vtkMRMLAstroVolumeNode* map = (cube && role) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(cube->GetNodeReference(role)) : nullptr;
+  return (map && map != cube && map->GetScene() && map->GetImageData()) ? map : nullptr;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::SetMomentMap(vtkMRMLAstroVolumeNode* cube, int order, vtkMRMLAstroVolumeNode* map)
+{
+  const char* role = vtkSlicerAstroVolumeLogic::GetMomentMapReferenceRole(order);
+  if (!cube || !role || map == cube)
+    {
+    return;
+    }
+  vtkMRMLAstroVolumeNode* previous = vtkMRMLAstroVolumeNode::SafeDownCast(cube->GetNodeReference(role));
+  cube->SetNodeReferenceID(role, map ? map->GetID() : nullptr);
+  vtkMRMLScene* scene = previous ? previous->GetScene() : nullptr;
+  if (previous && previous != map && previous != cube && scene)
+    {
+    // display (2D and 3D) and storage nodes of the previous map
+    std::vector<vtkMRMLNode*> owned;
+    for (int i = 0; i < previous->GetNumberOfDisplayNodes(); i++)
+      {
+      owned.push_back(previous->GetNthDisplayNode(i));
+      }
+    owned.push_back(previous->GetStorageNode());
+    scene->RemoveNode(previous);
+    for (vtkMRMLNode* node : owned)
+      {
+      if (node && node->GetScene())
+        {
+        scene->RemoveNode(node);
+        }
+      }
+    }
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLSegmentationNode* vtkSlicerAstroVolumeLogic::GetThresholdMaskOf(vtkMRMLScene* scene, vtkMRMLNode* data)
+{
+  if (!scene || !data || !data->GetID())
+    {
+    return nullptr;
+    }
+  std::vector<vtkMRMLNode*> segmentations;
+  scene->GetNodesByClass("vtkMRMLSegmentationNode", segmentations);
+  // the last mask made from the data
+  for (std::vector<vtkMRMLNode*>::reverse_iterator it = segmentations.rbegin(); it != segmentations.rend(); ++it)
+    {
+    const char* source = (*it)->GetAttribute(vtkSlicerAstroVolumeLogic::GetThresholdMaskAttributeName());
+    if (source && !strcmp(source, data->GetID()))
+      {
+      return vtkMRMLSegmentationNode::SafeDownCast(*it);
+      }
+    }
+  return nullptr;
 }
 
 namespace

@@ -1,3 +1,5 @@
+import os
+
 import qt
 
 import slicer
@@ -36,7 +38,7 @@ A workspace for spectral cubes around the views: the datasets with previews
 computed from the data (moment-0 map and integrated spectrum) and their
 products, a scrubber of the spectral axis over the integrated spectrum, an
 inspector with the processing pipeline (smoothing, masks, moment maps,
-profiles, PV diagrams), measurements on the sky and 3DBarolo, and the sky
+profiles, PV diagrams) and 3DBarolo, and the sky
 coordinates under the cursor.<br>
 Open it from this module or with {SHORTCUT}; the full Slicer button (or
 {SHORTCUT}) goes back to the Slicer interface, the developer button shows the
@@ -140,6 +142,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_EnterExit()
         self.setUp()
         self.test_DatasetsAndScrubber()
+        self.setUp()
+        self.test_ViewBarsAndWorkspaces()
+        self.setUp()
+        self.test_ScrollAreasFit()
         self.setUp()
         self.test_Theme()
         self.setUp()
@@ -290,6 +296,143 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         card = slicer.util.findChild(mainWindow, f"DatasetCard_{volume.GetID()}")
         self.assertGreaterEqual(card.productCount(), 3)
         self.assertEqual(slicer.util.findChild(inspector, "StepState_Moments").text, "done")
+        # one moment map per order and per cube, shared by the modules: a
+        # second run replaces them
+        logic = slicer.vtkSlicerAstroVolumeLogic
+        mom0 = logic.GetMomentMap(volume, 0)
+        self.assertIsNotNone(mom0)
+        self.assertEqual(mom0.GetName(), volume.GetName() + "_mom0")
+        products = card.productCount()
+        slicer.util.findChild(momentsPanel, "ApplyButton").click()
+        self.process(30)
+        workbench().refresh()
+        self.process()
+        card = slicer.util.findChild(mainWindow, f"DatasetCard_{volume.GetID()}")
+        self.assertEqual(card.productCount(), products)
+        self.assertEqual(len([node for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")
+                              if node.GetName() == volume.GetName() + "_mom0"]), 1)
+
+        # a product click shows a map in the sky plane; a second click hides it
+        mom0 = logic.GetMomentMap(volume, 0)
+        for name in ("Red", "Yellow", "Green"):
+            composite = slicer.mrmlScene.GetNodeByID(f"vtkMRMLSliceCompositeNode{name}")
+            if composite.GetBackgroundVolumeID() == mom0.GetID():
+                composite.SetBackgroundVolumeID(volume.GetID())
+        workbench().showProduct(mom0.GetID())
+        self.process()
+        composites = [slicer.mrmlScene.GetNodeByID(f"vtkMRMLSliceCompositeNode{name}") for name in ("Red", "Yellow")]
+        shown = [composite for composite in composites if composite.GetBackgroundVolumeID() == mom0.GetID()]
+        self.assertEqual(len(shown), 1)
+        sliceNode = slicer.mrmlScene.GetNodeByID(shown[0].GetID().replace("CompositeNode", "Node"))
+        self.assertEqual(sliceNode.GetOrientation(), "XY",
+                         f"{shown[0].GetID()} layout {workbench().layoutIndex()}")
+        workbench().showProduct(mom0.GetID())
+        self.process()
+        self.assertNotEqual(shown[0].GetBackgroundVolumeID(), mom0.GetID())
+
+        # product names: elided to the card, the full name in the tooltip
+        button = slicer.util.findChild(card, f"Product_{mom0.GetID()}")
+        self.assertIn(mom0.GetName(), button.toolTip)
+
+        # dataset deleted with its products
+        mapIDs = [logic.GetMomentMap(volume, order).GetID() for order in (0, 1, 2) if logic.GetMomentMap(volume, order)]
+        self.assertTrue(workbench().drawer.deleteDataset(volume, ask=False, withProducts=True))
+        self.process()
+        self.assertIsNone(volume.GetScene())
+        for mapID in mapIDs:
+            self.assertIsNone(slicer.mrmlScene.GetNodeByID(mapID))
+
+    def test_ViewBarsAndWorkspaces(self):
+        """View bars: WCS axes and slice in 3D. Workspaces: saved with a
+        preview, listed, renamed, opened and deleted."""
+        import tempfile
+        from AstroWorkbenchLib import Workspaces
+        volume = self.cube()
+        workbench().enter()
+        self.process(30)
+        mainWindow = slicer.util.mainWindow()
+        redNode = slicer.mrmlScene.GetNodeByID("vtkMRMLSliceNodeRed")
+        axes = slicer.util.findChild(mainWindow, "ViewAxes_Red")
+        axes.checked = False
+        self.assertEqual(redNode.GetRulerType(), slicer.vtkMRMLAbstractViewNode.RulerTypeNone)
+        axes.checked = True
+        self.assertNotEqual(redNode.GetRulerType(), slicer.vtkMRMLAbstractViewNode.RulerTypeNone)
+        slice3D = slicer.util.findChild(mainWindow, "ViewSliceIn3D_Red")
+        slice3D.checked = True
+        self.assertTrue(redNode.GetSliceVisible())
+        slice3D.checked = False
+        self.assertFalse(redNode.GetSliceVisible())
+        self.assertEqual(len(slicer.util.findChildren(mainWindow, "ViewLink_Red")), 0)
+
+        directory = tempfile.mkdtemp(prefix="AstroWorkspaces")
+        folder = Workspaces.saveWorkspace("Test WEIN069", "a note", directory)
+        self.assertTrue(os.path.isfile(os.path.join(folder, Workspaces.SCENE_FILE)))
+        self.assertTrue(os.path.isfile(os.path.join(folder, Workspaces.PREVIEW_FILE)))
+        listed = Workspaces.listWorkspaces(directory)
+        self.assertEqual([entry["name"] for entry in listed], ["Test WEIN069"])
+        # datasets by their object (FITS OBJECT, e.g. PP08AB for WEIN069)
+        self.assertEqual(listed[0]["datasets"], [volume.GetAttribute("SlicerAstro.OBJECT").strip()])
+        self.assertEqual(Workspaces.dateGroup(listed[0]["modified"]), "Today")
+        with self.assertRaises(FileExistsError):
+            Workspaces.saveWorkspace("Test WEIN069", "", directory)
+        folder = Workspaces.renameWorkspace(folder, "Renamed")
+        self.assertEqual(Workspaces.listWorkspaces(directory)[0]["name"], "Renamed")
+        slicer.mrmlScene.Clear(0)
+        self.assertTrue(Workspaces.loadWorkspace(folder))
+        self.process()
+        names = [node.GetName() for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")]
+        self.assertIn("WEIN069", names)
+        self.assertTrue(Workspaces.deleteWorkspace(folder))
+        self.assertEqual(Workspaces.listWorkspaces(directory), [])
+        os.rmdir(directory)
+
+    def assertScrollAreasFit(self, root, where):
+        """No visible scroll area clips its contents (the vertical scroll bar
+        never covers them)."""
+        for scrollArea in root.findChildren("QScrollArea"):
+            contents = scrollArea.widget()
+            if contents is None or not scrollArea.isVisible() or not contents.isVisible():
+                continue
+            viewport = scrollArea.viewport()
+            self.assertLessEqual(contents.width, viewport.width,
+                                 f"{where}: {scrollArea.objectName or scrollArea.className()} clips its contents "
+                                 f"({contents.width} > {viewport.width} px)")
+
+    def test_ScrollAreasFit(self):
+        """On a short window (vertical scroll bars shown), the scroll areas of
+        the Workbench and of the SlicerAstro module panels are wide enough for
+        their contents and the scroll bar."""
+        volume = self.cube()
+        mainWindow = slicer.util.mainWindow()
+        size = mainWindow.size
+        mainWindow.resize(1400, 600)
+        try:
+            # classic Slicer: the module panels
+            for module in ("AstroVolume", "AstroSmoothing", "AstroMasking", "AstroMomentMaps", "AstroProfiles",
+                           "AstroStatistics", "AstroPVSlice", "AstroPVDiagram", "AstroReproject"):
+                slicer.util.selectModule(module)
+                self.process(10)
+                panel = mainWindow.findChild("QDockWidget", "PanelDockWidget")
+                self.assertScrollAreasFit(panel, module)
+            workbench().enter()
+            self.process(30)
+            for page in ("data", "samples", "workspaces"):
+                workbench().rail.buttons[page].click()
+                self.process(10)
+                self.assertScrollAreasFit(mainWindow, f"drawer {page}")
+            workbench().rail.buttons["data"].click()
+            inspector = workbench().inspector
+            for index, name in enumerate(("Inspect", "Process", "Model")):
+                inspector.tabs[name].click()
+                self.process(10)
+                self.assertScrollAreasFit(inspector, f"inspector {name}")
+            inspector.tabs["Process"].click()
+            for index, button in enumerate(inspector.stepButtons):
+                button.click()
+                self.process(10)
+                self.assertScrollAreasFit(inspector, f"process step {index}")
+        finally:
+            mainWindow.resize(size)
 
     def test_Theme(self):
         """The theme switch restyles the Workbench."""

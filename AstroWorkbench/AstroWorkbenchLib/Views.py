@@ -3,7 +3,7 @@ view background in both themes, replacing Slicer's view controllers.
 
 Slice views: what the view shows (e.g. "XY · ch 59 · 132.45 km/s", "PV",
 a map with its unit), orientation, layers (background, foreground and its
-opacity), link, fit and maximize; the slice offset slider of Slicer is shown
+opacity), WCS axes, slice in 3D, fit and maximize; the slice offset slider of Slicer is shown
 vertically along the right side of the view.
 3D view: the volume and its rendering, look from an axis (astronomical axis
 labels), reset the camera, show/hide the volume rendering, maximize."""
@@ -131,9 +131,12 @@ class SliceViewBar(ViewBar):
         self.beamButton = self.button("beam", "Show the beam of the data", True, f"ViewBeam_{self.viewName}")
         self.beamButton.connect("toggled(bool)", self.setBeamVisible)
         self.frame = None
-        self.linkButton = self.button("link", "Link the views (same slice, zoom and layers)", True,
-                                      f"ViewLink_{self.viewName}")
-        self.linkButton.connect("toggled(bool)", self.setLinked)
+        self.axesButton = self.button("grid", "Show the WCS axes (coordinates along the borders of the view)", True,
+                                      f"ViewAxes_{self.viewName}")
+        self.axesButton.connect("toggled(bool)", self.setAxesVisible)
+        self.slice3DButton = self.button("cube3d", "Show this slice in the 3D views", True,
+                                         f"ViewSliceIn3D_{self.viewName}")
+        self.slice3DButton.connect("toggled(bool)", self.setSliceVisibleIn3D)
         self.fitButton = self.button("target", "Fit the data to the view", objectName=f"ViewFit_{self.viewName}")
         self.fitButton.connect("clicked()", self.fit)
         self.maximizeButton = self.button("layout1", "Maximize this view / back to four views",
@@ -176,9 +179,12 @@ class SliceViewBar(ViewBar):
         self.beamButton.checked = self.sliceNode.GetAttribute("SlicerAstro.Beam") == "on"
         self.beamButton.blockSignals(False)
         self.updateOverlays(volume)
-        self.linkButton.blockSignals(True)
-        self.linkButton.checked = bool(self.compositeNode.GetLinkedControl())
-        self.linkButton.blockSignals(False)
+        for button, checked in ((self.axesButton,
+                                 self.sliceNode.GetRulerType() != slicer.vtkMRMLAbstractViewNode.RulerTypeNone),
+                                (self.slice3DButton, bool(self.sliceNode.GetSliceVisible()))):
+            button.blockSignals(True)
+            button.checked = checked
+            button.blockSignals(False)
         if volume is None:
             self.tag.text = orientation
             self.detail.text = "no data"
@@ -241,9 +247,13 @@ class SliceViewBar(ViewBar):
         opacity.setDefaultWidget(row)
         self.layersMenu.addAction(opacity)
 
-    def setLinked(self, linked):
-        for composite in slicer.util.getNodesByClass("vtkMRMLSliceCompositeNode"):
-            composite.SetLinkedControl(linked)
+    def setAxesVisible(self, visible):
+        """WCS axes of the view (SlicerAstro draws them with the ruler type)."""
+        self.sliceNode.SetRulerType(slicer.vtkMRMLAbstractViewNode.RulerTypeThin if visible
+                                    else slicer.vtkMRMLAbstractViewNode.RulerTypeNone)
+
+    def setSliceVisibleIn3D(self, visible):
+        self.sliceNode.SetSliceVisible(visible)
 
     def fit(self):
         sliceLogic = slicer.app.applicationLogic().GetSliceLogic(self.sliceNode)
@@ -477,6 +487,7 @@ class ViewVisibility:
         self.extra = {}
         self.defaultNode = None
         self.observers = []
+        self.observedRenderings = set()
         self.timer = qt.QTimer()
         self.timer.setSingleShot(True)
         self.timer.setInterval(50)
@@ -525,9 +536,19 @@ class ViewVisibility:
         return [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLSliceNode")] + \
                [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLViewNode")]
 
+    def observeRenderings(self):
+        """3D renderings shown or hidden (e.g. the automatic 3D display of the
+        active cube): the masks of the cube follow it into the 3D views."""
+        for displayNode in slicer.util.getNodesByClass("vtkMRMLVolumeRenderingDisplayNode"):
+            if displayNode.GetID() in self.observedRenderings:
+                continue
+            self.observedRenderings.add(displayNode.GetID())
+            self.observers.append((displayNode, displayNode.AddObserver("ModifiedEvent", self.schedule)))
+
     def update(self):
         if not self.active:
             return
+        self.observeRenderings()
         showing = self.viewsShowing()
         role = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
         for segmentation in slicer.util.getNodesByClass("vtkMRMLSegmentationNode"):
@@ -570,6 +591,9 @@ class ViewVisibility:
             displayNode.SetShowInAllViewsByDefault(False)
             displayNode.SetViewNodeIDs(keep + [viewNodeID])
             displayNode.SetVisibility(True)
+            # fitted and centred in the view (cameras of the views showing it)
+            if volume.IsA("vtkMRMLAstroVolumeNode"):
+                slicer.modules.astrovolume.logic().SetVolumeRenderingVisibility(volume, True, True)
         self.update()
 
     def exit(self):
@@ -578,6 +602,7 @@ class ViewVisibility:
         for node, tag in self.observers:
             node.RemoveObserver(tag)
         self.observers = []
+        self.observedRenderings = set()
         scene = slicer.mrmlScene
         if self.defaultNode is not None:
             scene.AddDefaultNode(self.defaultNode)

@@ -444,7 +444,7 @@ void qSlicerAstroMaskingModuleWidgetPrivate::fitStack(QStackedWidget* stack)
     stack->widget(page)->setSizePolicy(QSizePolicy::Preferred,
       page == stack->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
     }
-  stack->adjustSize();
+  stack->updateGeometry();
 }
 
 //-----------------------------------------------------------------------------

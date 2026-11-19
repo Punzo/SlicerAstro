@@ -120,6 +120,9 @@ signals:
 
 protected:
   bool eventFilter(QObject* watched, QEvent* event) override;
+  /// qSlicerAstroScrollAreaFitter on the scroll area showing the widget
+  /// (false if the widget is in no scroll area)
+  static bool fitScrollAreaOf(QWidget* widget);
 
   QScopedPointer<qSlicerAstroThemePrivate> d_ptr;
 

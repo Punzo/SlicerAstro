@@ -20,15 +20,22 @@
 // Qt includes
 #include <QFrame>
 
+// VTK includes
+#include <vtkWeakPointer.h>
+
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
 class QLabel;
 class QPushButton;
+class QToolButton;
+class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeNode;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
-/// A result of a panel (e.g. a moment map): preview, name, unit and a Show
-/// button that puts it in the views.
+/// A result of a panel (e.g. a moment map): preview, name, unit, a Show
+/// button that puts it in the views, an eye button for the mask made from the
+/// result (shown only when there is one, e.g. "Make a mask" of Smoothing) and
+/// a delete button that removes the result from the scene.
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroResultCard
   : public QFrame
 {
@@ -45,18 +52,39 @@ public:
   QString subtitle() const;
   void setSubtitle(const QString& subtitle);
 
-  /// Preview, name and unit of a volume
+  /// Preview, name and unit of a volume (and its mask, if any)
   Q_INVOKABLE void setVolume(vtkMRMLVolumeNode* volume);
+  Q_INVOKABLE vtkMRMLVolumeNode* volume() const;
+  /// Mask made from the result (vtkSlicerAstroVolumeLogic::GetThresholdMaskOf)
+  Q_INVOKABLE vtkMRMLSegmentationNode* maskNode() const;
   Q_INVOKABLE QPushButton* showButton() const;
+  Q_INVOKABLE QToolButton* maskButton() const;
+  Q_INVOKABLE QToolButton* deleteButton() const;
+
+public slots:
+  /// Show or hide the mask of the result in the views
+  void setMaskVisible(bool visible);
+  /// Remove the result from the scene (no confirmation; the delete button
+  /// asks first)
+  void deleteResult();
 
 signals:
   void showRequested();
+  /// The result was removed from the scene
+  void deleted();
+
+protected slots:
+  void onDeleteClicked();
 
 protected:
   QLabel* ThumbnailLabel;
   QLabel* TitleLabel;
   QLabel* SubtitleLabel;
   QPushButton* ShowButton;
+  QToolButton* MaskButton;
+  QToolButton* DeleteButton;
+  vtkWeakPointer<vtkMRMLVolumeNode> Volume;
+  vtkWeakPointer<vtkMRMLSegmentationNode> Mask;
 };
 
 #endif

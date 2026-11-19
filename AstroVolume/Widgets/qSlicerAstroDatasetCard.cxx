@@ -17,6 +17,7 @@
 // Qt includes
 #include <QApplication>
 #include <QDrag>
+#include <QFontMetrics>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMimeData>
@@ -201,7 +202,21 @@ qSlicerAstroDatasetCard::qSlicerAstroDatasetCard(QWidget* parent)
   QVBoxLayout* layout = new QVBoxLayout(this);
   layout->setContentsMargins(10, 10, 10, 10);
   layout->setSpacing(9);
-  layout->addWidget(this->Header);
+  QHBoxLayout* headerRow = new QHBoxLayout();
+  headerRow->setContentsMargins(0, 0, 0, 0);
+  headerRow->setSpacing(4);
+  headerRow->addWidget(this->Header, 1);
+  this->DeleteButton = new QToolButton(this);
+  this->DeleteButton->setObjectName("DatasetDelete");
+  this->DeleteButton->setProperty("astroRole", "toolbar");
+  this->DeleteButton->setAutoRaise(true);
+  this->DeleteButton->setIconSize(QSize(15, 15));
+  this->DeleteButton->setIcon(qSlicerAstroTheme::instance()->icon("trash", "muted"));
+  this->DeleteButton->setToolTip(tr("Delete this dataset (and, if chosen, its products) from the scene."));
+  this->DeleteButton->setCursor(Qt::ArrowCursor);
+  QObject::connect(this->DeleteButton, &QToolButton::clicked, this, &qSlicerAstroDatasetCard::deleteRequested);
+  headerRow->addWidget(this->DeleteButton, 0, Qt::AlignTop);
+  layout->addLayout(headerRow);
   QHBoxLayout* chipsLayout = new QHBoxLayout(this->ChipsRow);
   chipsLayout->setContentsMargins(0, 0, 0, 0);
   chipsLayout->setSpacing(5);
@@ -395,9 +410,15 @@ void qSlicerAstroDatasetCard::addProduct(const QString& id, const QString& name,
   button->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
   button->setIcon(qSlicerAstroTheme::instance()->icon(iconName, "subtle"));
   button->setIconSize(QSize(14, 14));
-  button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+  // long names are elided (middle) to the width of the card; the tooltip
+  // has the full name
+  button->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+  button->setMinimumWidth(40);
+  button->setProperty("productName", name);
+  button->setProperty("productDetail", detail);
   button->setText(detail.isEmpty() ? name : QString("%1   %2").arg(name, detail));
-  button->setToolTip(tr("%1\nClick: show. Drag: show in one view.").arg(name));
+  button->setToolTip(tr("%1\nClick: show. Drag: show in one view.").arg(
+    detail.isEmpty() ? name : QString("%1 (%2)").arg(name, detail)));
   button->setProperty("nodeID", id);
   button->installEventFilter(this);
   QObject::connect(button, &QToolButton::clicked, this, [this, id]() { emit this->productClicked(id); });
@@ -452,6 +473,10 @@ bool qSlicerAstroDatasetCard::eventFilter(QObject* watched, QEvent* event)
 {
   // products: dragged to a view
   QToolButton* button = qobject_cast<QToolButton*>(watched);
+  if (button && event->type() == QEvent::Resize && button->property("productName").isValid())
+    {
+    qSlicerAstroDatasetCard::elideProductText(button);
+    }
   if (button && event->type() == QEvent::MouseButtonPress)
     {
     button->setProperty("pressPosition", static_cast<QMouseEvent*>(event)->pos());
@@ -494,4 +519,28 @@ void qSlicerAstroDatasetCard::startDrag(const QString& nodeID)
     drag->setHotSpot(QPoint(38, 29));
     }
   drag->exec(Qt::CopyAction);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetCard::elideProductText(QToolButton* button)
+{
+  const QString name = button->property("productName").toString();
+  const QString detail = button->property("productDetail").toString();
+  const QFontMetrics metrics(button->font());
+  const QString separator("   ");
+  // text room: width minus the icon and the padding of the style
+  const int room = button->width() - button->iconSize().width() - 22;
+  const int detailWidth = detail.isEmpty() ? 0 : metrics.horizontalAdvance(separator + detail);
+  QString elidedName = metrics.elidedText(name, Qt::ElideMiddle, std::max(24, room - detailWidth));
+  const QString text = detail.isEmpty() ? elidedName : elidedName + separator + detail;
+  if (button->text() != text)
+    {
+    button->setText(text);
+    }
+}
+
+//-----------------------------------------------------------------------------
+QToolButton* qSlicerAstroDatasetCard::deleteButton() const
+{
+  return this->DeleteButton;
 }

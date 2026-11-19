@@ -301,10 +301,16 @@ class AboutDialog(qt.QDialog):
             "Fonts: Atkinson Hyperlegible Next and Mono (Braille Institute of America, SIL Open Font "
             "Licence 1.1). Logo, icons and the Observatory and Daylight themes: SlicerAstro."))
         layout.addWidget(overline("Sample data"))
+        try:
+            import AstroSampleData
+            samples = AstroSampleData.SAMPLE_DATA_INFO
+        except Exception:
+            samples = {}
+        for name, (short, details, credit) in samples.items():
+            layout.addWidget(paragraph(f"<b>{name}</b> · {short}<br>{details}<br><i>{credit}</i>"))
         layout.addWidget(paragraph(
-            "WEIN069 from the WSRT ZoA Perseus-Pisces Filament survey (Ramatsoku et al. 2016, MNRAS, 460, 923), "
-            "HALOGAS DR1 (Heald et al. 2011), the Digitized Sky "
-            "Survey (STScI/AURA) and masks and catalogues made with SoFiA-2 (Westmeier et al. 2021)."))
+            "Provenance, preparation and the acknowledgements requested by each survey: release notes of "
+            "<a href='https://github.com/Punzo/SlicerAstro/releases/tag/SampleData-v2'>SampleData-v2</a>."))
         layout.addStretch(1)
         return widget
 

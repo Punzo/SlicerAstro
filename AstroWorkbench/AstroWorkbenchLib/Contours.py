@@ -106,18 +106,15 @@ def familyColours(family, count):
 def zeroMomentMap(cube):
     """Moment 0 of an HI cube for its contours: an existing moment-0 map of
     the cube, or a new one (voxels above 3 sigma, all the channels)."""
-    for productID, name, detail, icon, node in Astro.productsOf(cube, slicer.mrmlScene):
-        if node.IsA("vtkMRMLAstroVolumeNode") and Astro.attribute(node, "DATAMODEL", "") == "ZEROMOMENTMAP":
-            return node
+    existing = slicer.vtkSlicerAstroVolumeLogic.GetMomentMap(cube, 0)
+    if existing is not None:
+        return existing
     noise = Astro.noise(cube)
     velocities = Astro.channelVelocities(cube)
     if noise <= 0 or len(velocities) < 2:
         return None
     logic = slicer.modules.astromomentmaps.logic()
     unit = (Astro.attribute(cube, "BUNIT", "") + " km/s").strip()
-    serial = 1
-    while slicer.mrmlScene.GetFirstNodeByName(f"{cube.GetName()}_mom0th_{serial}") is not None:
-        serial += 1
     parameters = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLAstroMomentMapsParametersNode")
     parameters.SetHideFromEditors(True)
     try:
@@ -131,13 +128,16 @@ def zeroMomentMap(cube):
         parameters.SetIntensityMax(Astro.floatAttribute(cube, "DATAMAX", 1e30))
         parameters.SetVelocityMin(min(velocities) - channelWidth)
         parameters.SetVelocityMax(max(velocities) + channelWidth)
-        moment = logic.CreateMomentMapVolume(cube, f"{cube.GetName()}_mom0th_{serial}", unit, "", "ZEROMOMENTMAP")
+        # the moment-0 map of the cube shared by the modules ("<cube>_mom0")
+        moment = logic.CreateMomentMapVolume(cube, slicer.vtkSlicerAstroVolumeLogic.GetMomentMapName(cube, 0),
+                                             unit, "", "ZEROMOMENTMAP")
         if moment is None:
             return None
         parameters.SetZeroMomentVolumeNodeID(moment.GetID())
         if not logic.CalculateMomentMaps(parameters):
             slicer.mrmlScene.RemoveNode(moment)
             return None
+        slicer.vtkSlicerAstroVolumeLogic.SetMomentMap(cube, 0, moment)
         return moment
     finally:
         slicer.mrmlScene.RemoveNode(parameters)

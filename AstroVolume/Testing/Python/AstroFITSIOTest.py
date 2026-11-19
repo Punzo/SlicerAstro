@@ -567,11 +567,19 @@ class AstroFITSIOTestTest(ScriptedLoadableModuleTest):
                     if line.startswith(key):
                         return int(line.split()[1]) / 1024.
         gc.collect()
-        before = status("VmRSS")
-        with open("/proc/self/clear_refs", "w") as f:
-            f.write("5")
-        node = self.load(path)
-        return node, status("VmHWM") - before
+        # memory of the reader only: no automatic 3D rendering (its texture is
+        # in the system memory with software rendering)
+        logic = slicer.modules.astrovolume.logic()
+        autoShow = logic.GetAutoShowActiveVolume()
+        logic.SetAutoShowActiveVolume(False)
+        try:
+            before = status("VmRSS")
+            with open("/proc/self/clear_refs", "w") as f:
+                f.write("5")
+            node = self.load(path)
+            return node, status("VmHWM") - before
+        finally:
+            logic.SetAutoShowActiveVolume(autoShow)
 
     def test_Memory(self):
         """Peak memory of loading a 256 MB cube (plain and gzip compressed):

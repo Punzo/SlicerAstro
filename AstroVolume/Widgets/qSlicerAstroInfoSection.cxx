@@ -18,12 +18,14 @@
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QFileInfo>
+#include <QFrame>
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMap>
+#include <QPushButton>
 #include <QSignalBlocker>
 #include <QTableWidget>
 #include <QToolButton>
@@ -72,19 +74,6 @@ QString FormatAngle(double degrees)
 }
 
 //----------------------------------------------------------------------------
-QToolButton* IconButton(const QString& iconName, const QString& toolTip, const QString& objectName, QWidget* parent)
-{
-  QToolButton* button = new QToolButton(parent);
-  button->setProperty("astroRole", "toolbar");
-  button->setIcon(qSlicerAstroTheme::instance()->icon(iconName, "muted"));
-  button->setIconSize(QSize(16, 16));
-  button->setToolTip(toolTip);
-  button->setAutoRaise(true);
-  button->setObjectName(objectName);
-  return button;
-}
-
-//----------------------------------------------------------------------------
 QLabel* RowLabel(const QString& text, const QString& toolTip, QWidget* parent)
 {
   QLabel* label = new QLabel(text, parent);
@@ -104,8 +93,8 @@ public:
   qSlicerAstroSegmentedButton* Velocity{nullptr};
   QLabel* VelocityLabel{nullptr};
   qSlicerAstroValueField* Beam[3] = {nullptr, nullptr, nullptr};
-  QToolButton* EstimateButton{nullptr};
-  QToolButton* ApplyButton{nullptr};
+  QPushButton* EstimateButton{nullptr};
+  QPushButton* ApplyButton{nullptr};
   QLabel* BeamStatus{nullptr};
   QToolButton* HeaderToggle{nullptr};
   QLineEdit* Filter{nullptr};
@@ -125,7 +114,11 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   layout->setSpacing(8);
 
   // facts
-  QGridLayout* facts = new QGridLayout();
+  QFrame* factsCard = new QFrame(this);
+  factsCard->setObjectName("InfoFacts");
+  factsCard->setProperty("astroRole", "card");
+  QGridLayout* facts = new QGridLayout(factsCard);
+  facts->setContentsMargins(12, 10, 12, 10);
   facts->setHorizontalSpacing(12);
   facts->setVerticalSpacing(4);
   const QMap<QString, QString> factToolTips = {
@@ -154,7 +147,7 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
     row++;
     }
   facts->setColumnStretch(1, 1);
-  layout->addLayout(facts);
+  layout->addWidget(factsCard);
 
   // coordinate conventions of the readouts and axes
   QGridLayout* conventions = new QGridLayout();
@@ -175,10 +168,14 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   d->Velocity->addButton(tr("radio"), tr("Radio velocities: v = c (f0 − f) / f0."));
   d->Velocity->addButton(tr("optical"), tr("Optical velocities: v = c (f0 − f) / f."));
   QObject::connect(d->Velocity, SIGNAL(currentIndexChanged(int)), this, SLOT(onVelocityDefinitionChanged(int)));
+  for (QWidget* segmented : {static_cast<QWidget*>(d->RightAscension), static_cast<QWidget*>(d->Velocity)})
+    {
+    segmented->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    }
   d->VelocityLabel = RowLabel(tr("Velocity"), d->Velocity->toolTip(), this);
-  conventions->addWidget(d->VelocityLabel, 1, 0);
-  conventions->addWidget(d->Velocity, 1, 1);
-  conventions->setColumnStretch(2, 1);
+  conventions->addWidget(d->VelocityLabel, 0, 2);
+  conventions->addWidget(d->Velocity, 0, 3);
+  conventions->setColumnStretch(4, 1);
   layout->addLayout(conventions);
 
   // beam
@@ -186,7 +183,11 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   beamRow->setSpacing(4);
   const QString beamToolTip = tr("Beam of the data (needed for fluxes in Jy and column densities; drawn in the "
                                  "slice views; saved in the FITS header).");
-  beamRow->addWidget(RowLabel(tr("Beam"), beamToolTip, this));
+  QLabel* beamTitle = new QLabel(tr("Beam"), this);
+  qSlicerAstroTheme::setLabelRole(beamTitle, "overline");
+  beamTitle->setToolTip(beamToolTip);
+  layout->addSpacing(4);
+  layout->addWidget(beamTitle);
   const char* beamNames[3] = {"BMAJ", "BMIN", "BPA"};
   const QString beamUnits[3] = {QString::fromUtf8("″"), QString::fromUtf8("″"), QString::fromUtf8("°")};
   const QString beamTips[3] = {tr("Major axis (FWHM) of the beam, arc seconds."),
@@ -204,16 +205,22 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
     QObject::connect(d->Beam[i], SIGNAL(valueChanged(double)), this, SLOT(onBeamEdited()));
     beamRow->addWidget(d->Beam[i], 1);
     }
-  d->EstimateButton = IconButton("beam", tr("Estimate the beam from the noise (spatial autocorrelation of the "
-                                            "first and last channels, about 10% accuracy); then apply it."),
-                                 "InfoEstimateBeam", this);
-  QObject::connect(d->EstimateButton, &QToolButton::clicked, this, [this]() { this->estimateBeam(); });
-  d->ApplyButton = IconButton("check", tr("Apply the beam of the fields to the data (saved in the FITS header)."),
-                              "InfoApplyBeam", this);
-  QObject::connect(d->ApplyButton, &QToolButton::clicked, this, [this]() { this->applyBeam(); });
-  beamRow->addWidget(d->EstimateButton);
-  beamRow->addWidget(d->ApplyButton);
   layout->addLayout(beamRow);
+  QHBoxLayout* beamButtons = new QHBoxLayout();
+  beamButtons->setSpacing(6);
+  d->EstimateButton = new QPushButton(qSlicerAstroTheme::instance()->icon("beam", "text"), tr("Estimate from noise"),
+                                      this);
+  d->EstimateButton->setObjectName("InfoEstimateBeam");
+  d->EstimateButton->setToolTip(tr("Estimate the beam from the noise (spatial autocorrelation of the first and last "
+                                   "channels) into the fields; then apply it."));
+  QObject::connect(d->EstimateButton, &QPushButton::clicked, this, [this]() { this->estimateBeam(); });
+  d->ApplyButton = new QPushButton(qSlicerAstroTheme::instance()->icon("check", "text"), tr("Apply"), this);
+  d->ApplyButton->setObjectName("InfoApplyBeam");
+  d->ApplyButton->setToolTip(tr("Apply the beam of the fields to the data (saved in the FITS header)."));
+  QObject::connect(d->ApplyButton, &QPushButton::clicked, this, [this]() { this->applyBeam(); });
+  beamButtons->addWidget(d->EstimateButton, 1);
+  beamButtons->addWidget(d->ApplyButton, 1);
+  layout->addLayout(beamButtons);
   d->BeamStatus = new QLabel(this);
   d->BeamStatus->setObjectName("InfoBeamStatus");
   d->BeamStatus->setProperty("astroRole", "monoLabel");
@@ -252,6 +259,7 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   d->Table->setMinimumWidth(80);
   d->Table->setToolTip(tr("FITS keywords of the data (as read, with the values used by SlicerAstro)."));
   layout->addWidget(d->Table);
+  layout->addStretch(1);
   this->setHeaderVisible(false);
   this->setEnabled(false);
 }
@@ -450,7 +458,7 @@ bool qSlicerAstroInfoSection::estimateBeam()
     const QSignalBlocker blocker(d->Beam[i]);
     d->Beam[i]->setValue(values[i]);
     }
-  d->BeamStatus->setText(tr("Beam ESTIMATED from the noise (about 10% accuracy): check it, then apply it"));
+  d->BeamStatus->setText(tr("Beam ESTIMATED from the noise: check it, then apply it"));
   return true;
 }
 

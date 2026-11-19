@@ -189,6 +189,11 @@ public:
   /// volume rendering is prepared when AutoShowActiveVolume is off (e.g.
   /// while comparison views are arranged).
   bool ShowActiveVolume(vtkMRMLAstroVolumeNode* volumeNode);
+  /// Cubes larger than this (MB of voxels) are not shown in 3D automatically
+  /// by ShowActiveVolume (the volume rendering uploads the whole cube to the
+  /// graphics memory); default 1024 MB. They can be shown on request.
+  vtkSetMacro(AutoShow3DMaximumMegabytes, double);
+  vtkGetMacro(AutoShow3DMaximumMegabytes, double);
   vtkSetMacro(AutoShowActiveVolume, bool);
   vtkGetMacro(AutoShowActiveVolume, bool);
   vtkBooleanMacro(AutoShowActiveVolume, bool);
@@ -227,8 +232,11 @@ public:
   /// Cropping box (Markups ROI) of the volume rendering, created (fitted to
   /// the volume) if create is true
   vtkMRMLMarkupsROINode* GetVolumeRenderingROINode(vtkMRMLAstroVolumeNode* volumeNode, bool create);
-  /// Crop the volume rendering to its box (shown while cropping)
+  /// Crop the volume rendering to its box (the box is not shown or hidden)
   bool SetVolumeRenderingCropping(vtkMRMLAstroVolumeNode* volumeNode, bool crop);
+  /// Show or hide the box of the volume rendering (created, fitted to the
+  /// volume, when shown the first time)
+  bool SetVolumeRenderingROIVisibility(vtkMRMLAstroVolumeNode* volumeNode, bool visible);
   /// Fit the box to the whole volume
   bool FitVolumeRenderingROI(vtkMRMLAstroVolumeNode* volumeNode);
 
@@ -483,6 +491,18 @@ public:
   static const char* GetContoursReferenceRole() { return "SlicerAstroContours"; }
   static const char* GetMaskReferenceRole() { return "SlicerAstroMask"; }
 
+  /// Moment maps of a cube: one map per order (0, 1, 2) and per cube, shared
+  /// by all the modules (Moment maps, PV slice, PV diagram, Workbench), named
+  /// GetMomentMapName ("<cube>_mom0", "_mom1", "_mom2") and referenced by the
+  /// cube (role GetMomentMapReferenceRole(order)).
+  static const char* GetMomentMapReferenceRole(int order);
+  static std::string GetMomentMapName(vtkMRMLNode* cube, int order);
+  /// The moment map of the cube (nullptr if none, or without data)
+  static vtkMRMLAstroVolumeNode* GetMomentMap(vtkMRMLAstroVolumeNode* cube, int order);
+  /// The new moment map of the cube: the previous one (if another node) is
+  /// removed from the scene with its display and storage nodes
+  static void SetMomentMap(vtkMRMLAstroVolumeNode* cube, int order, vtkMRMLAstroVolumeNode* map);
+
   /// Point the camera at the volume: focal point at the center of the RAS
   /// bounds of the volume (or at focalPoint, if given), camera along
   /// directionOfProjection (from the camera to the focal point) at the
@@ -576,6 +596,11 @@ public:
   /// \param color colour of the segment (RGB 0-1)
   vtkMRMLSegmentationNode* CreateThresholdMask(vtkMRMLAstroVolumeNode* reference, vtkMRMLAstroVolumeNode* data,
                                                double threshold, const char* segmentName, const double color[3]);
+  /// Mask made by CreateThresholdMask from the data (e.g. the mask of a
+  /// smoothed cube): attribute GetThresholdMaskAttributeName() of the mask is
+  /// the ID of the data; nullptr if none
+  static vtkMRMLSegmentationNode* GetThresholdMaskOf(vtkMRMLScene* scene, vtkMRMLNode* data);
+  static const char* GetThresholdMaskAttributeName() { return "SlicerAstro.ThresholdMaskOf"; }
 
   /// Options of the SlicerAstro 2D colour functions (colour tables with the
   /// attribute SlicerAstro.AddFunctions "on"): "Reverse" (the colours in
@@ -774,6 +799,11 @@ protected:
   void UpdateAllAstroMeasurements();
   void ObserveSelectionNode();
   std::string MeasurementsActiveVolumeID;
+  /// active volume last shown by ShowActiveVolume (selection observer)
+  std::string ShownActiveVolumeID;
+  /// ShowActiveVolume for the active volume of the selection node, once per
+  /// active volume (not during scene import or close)
+  void ShowSelectedActiveVolume();
 
   /// Handle MRML node scene ended events
   virtual void OnMRMLSceneEndImport() override;
@@ -787,6 +817,7 @@ protected:
   vtkWeakPointer<vtkSlicerTerminologiesModuleLogic> TerminologiesLogic;
   vtkWeakPointer<vtkSlicerVolumeRenderingLogic> VolumeRenderingLogic;
   bool AutoShowActiveVolume{true};
+  double AutoShow3DMaximumMegabytes{1024.};
 
 private:
 

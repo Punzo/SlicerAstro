@@ -185,30 +185,42 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         displayNode = volumeNode.GetAstroVolumeRenderingDisplayNode()
         self.assertIsNotNone(displayNode)
 
-        # Crop creates the cropping ROI, fitted to the volume, and shows it
+        # Show box (eye) creates the ROI, fitted to the volume, and shows it
         self.assertIsNone(displayNode.GetMarkupsROINode())
-        cropButton = slicer.util.findChild(widget, "RenderingCrop")
-        cropButton.checked = True
+        boxButton = slicer.util.findChild(widget, "RenderingBoxVisible")
+        boxButton.checked = True
         slicer.app.processEvents()
         roiNode = displayNode.GetMarkupsROINode()
         self.assertIsNotNone(roiNode)
         self.assertTrue(roiNode.IsA("vtkMRMLMarkupsROINode"))
         self.assertTrue(roiNode.GetDisplayVisibility())
-        self.assertTrue(displayNode.GetCroppingEnabled())
+        self.assertFalse(displayNode.GetCroppingEnabled())
         lower, upper = self.roiExtentIJK(roiNode, volumeNode)
         self.assertEqual(list(lower), [0, 0, 0])
         self.assertEqual(list(upper), [d - 1 for d in volumeNode.GetImageData().GetDimensions()])
 
-        # No cropping: the ROI is hidden, not deleted
-        cropButton.checked = False
+        # Crop does not change the visibility of the box
+        cropButton = slicer.util.findChild(widget, "RenderingCrop")
+        cropButton.checked = True
+        slicer.app.processEvents()
+        self.assertTrue(displayNode.GetCroppingEnabled())
+        self.assertTrue(roiNode.GetDisplayVisibility())
+        boxButton.checked = False
         slicer.app.processEvents()
         self.assertFalse(roiNode.GetDisplayVisibility())
+        self.assertTrue(displayNode.GetCroppingEnabled())
         self.assertIs(displayNode.GetMarkupsROINode(), roiNode)
+        cropButton.checked = False
+        slicer.app.processEvents()
+        self.assertFalse(displayNode.GetCroppingEnabled())
+        self.assertFalse(roiNode.GetDisplayVisibility())
 
-        # Noise in the box: whole cube, then a corner of the cube
+        # Noise in the box: whole cube, then a corner of the cube; the box
+        # stays hidden
         rmsButton = slicer.util.findChild(widget, "RenderingNoiseInBox")
         rmsButton.click()
         slicer.app.processEvents()
+        self.assertFalse(roiNode.GetDisplayVisibility())
         self.assertAlmostEqual(volumeNode.GetDisplayThreshold(), self.expectedRMS(roiNode, volumeNode),
                                delta=1e-5 * self.expectedRMS(roiNode, volumeNode))  # stored with 6 digits
 
@@ -263,7 +275,7 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
                                                                        logic.GetPresetsScene())]
         slicer.app.processEvents()
         self.assertEqual(first, second)
-        self.assertEqual(len(first), 13)
+        self.assertEqual(len(first), 14)
         self.assertEqual(slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(volumeNode.GetPresetNode()), identifier)
         self.delayDisplay("Test passed")
 
@@ -324,23 +336,31 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         presetsScene = logic.GetPresetsScene()
         identifiers = ["LowConstantOpacity", "MediumConstantOpacity", "HighConstantOpacity", "OneSurfaceGreen",
                        "OneSurfaceWhite", "TwoSurfaces", "ThreeSurfaces", "BrightSurfaces", "ObservatorySurfaces",
-                       "ObservatoryShells", "ObservatoryEmission", "MagmaEmission", "ViridisEmission"]
+                       "ObservatoryShells", "ObservatoryEmission", "MagmaEmission", "ViridisEmission",
+                       "EmissionAbsorption"]
         presets = [presetsScene.GetNthNodeByClass(i, "vtkMRMLVolumePropertyNode")
                    for i in range(presetsScene.GetNumberOfNodesByClass("vtkMRMLVolumePropertyNode"))]
         self.assertEqual([slicer.vtkMRMLAstroVolumeNode.GetPresetIdentifier(p) for p in presets], identifiers)
         for preset in presets:
             self.assertIn("σ", preset.GetName())
-        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.ViridisEmissionPreset, len(identifiers) - 1)
+        self.assertEqual(slicer.vtkMRMLAstroVolumeNode.EmissionAbsorptionPreset, len(identifiers) - 1)
 
         # functions scaled to the noise
         logic.synchronizePresetsToVolumeNode(volumeNode)
         noise = volumeNode.GetDisplayThreshold()
         dataMax = float(volumeNode.GetAttribute("SlicerAstro.DATAMAX"))
         surfaces = presets[identifiers.index("ObservatorySurfaces")].GetVolumeProperty().GetScalarOpacity()
-        for sigma, opacity in ((3, 0.12), (7, 0.3), (15, 0.9)):
+        for sigma, opacity in ((3, 0.3), (7, 0.45), (15, 0.9)):
             if sigma * noise * 1.2 < dataMax:
                 self.assertAlmostEqual(surfaces.GetValue(sigma * noise), opacity, places=3)
                 self.assertLess(surfaces.GetValue(sigma * noise * 1.25), 0.05)
+        # absorption: surfaces at negative multiples of the noise too
+        dataMin = float(volumeNode.GetAttribute("SlicerAstro.DATAMIN"))
+        both = presets[identifiers.index("EmissionAbsorption")].GetVolumeProperty().GetScalarOpacity()
+        self.assertAlmostEqual(both.GetValue(3 * noise), 0.3, places=3)
+        self.assertLess(both.GetValue(0.), 0.01)
+        if -3.6 * noise > dataMin:
+            self.assertAlmostEqual(both.GetValue(-3 * noise), 0.3, places=3)
         emission = presets[identifiers.index("ObservatoryEmission")].GetVolumeProperty().GetScalarOpacity()
         self.assertAlmostEqual(emission.GetValue(3 * noise), 0.04, places=3)
         self.assertLess(emission.GetValue(2 * noise), 0.01)
@@ -572,7 +592,12 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         roiNode = logic.GetVolumeRenderingROINode(volumeNode, False)
         self.assertIsNotNone(roiNode)
         self.assertTrue(displayNode.GetCroppingEnabled())
+        self.assertFalse(roiNode.GetDisplayVisibility())
+        section.setBoxVisible(True)
         self.assertTrue(roiNode.GetDisplayVisibility())
+        self.assertTrue(slicer.util.findChild(section, "RenderingBoxVisible").checked)
+        section.setBoxVisible(False)
+        self.assertFalse(roiNode.GetDisplayVisibility())
         section.setCropping(False)
         self.assertFalse(displayNode.GetCroppingEnabled())
         center, radius = [0.0] * 3, [0.0] * 3

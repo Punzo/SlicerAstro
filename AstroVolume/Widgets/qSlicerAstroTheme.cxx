@@ -16,6 +16,7 @@
 
 // Qt includes
 #include <QApplication>
+#include <QScrollArea>
 #include <QDebug>
 #include <QDir>
 #include <QEvent>
@@ -40,6 +41,7 @@
 #include <QVariant>
 #include <QWidget>
 
+#include "qSlicerAstroScrollAreaFitter.h"
 #include "qSlicerAstroTheme.h"
 
 namespace
@@ -324,6 +326,12 @@ bool qSlicerAstroTheme::eventFilter(QObject* watched, QEvent* event)
     {
     this->setMode("system");
     }
+  // a themed panel shown in a scroll area
+  QWidget* widget = qobject_cast<QWidget*>(watched);
+  if (widget && watched != qApp && event->type() == QEvent::Show && qSlicerAstroTheme::fitScrollAreaOf(widget))
+    {
+    widget->removeEventFilter(this);
+    }
   return QObject::eventFilter(watched, event);
 }
 
@@ -520,6 +528,28 @@ void qSlicerAstroTheme::applyTo(QWidget* widget)
     d->Widgets.append(widget);
     }
   d->restyle(widget, this);
+  // the scroll area showing the panel (e.g. the module panel of Slicer) is
+  // kept wide enough for the panel and its vertical scroll bar; the panel may
+  // be placed in it later (shown)
+  if (!qSlicerAstroTheme::fitScrollAreaOf(widget))
+    {
+    widget->installEventFilter(this);
+    }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroTheme::fitScrollAreaOf(QWidget* widget)
+{
+  for (QWidget* parent = widget ? widget->parentWidget() : nullptr; parent; parent = parent->parentWidget())
+    {
+    QScrollArea* scrollArea = qobject_cast<QScrollArea*>(parent);
+    if (scrollArea)
+      {
+      qSlicerAstroScrollAreaFitter::install(scrollArea);
+      return true;
+      }
+    }
+  return false;
 }
 
 //-----------------------------------------------------------------------------

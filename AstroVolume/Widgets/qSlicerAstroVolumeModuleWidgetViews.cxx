@@ -98,12 +98,6 @@ template <typename T> T StringToNumber(const char* num)
 }
 
 //----------------------------------------------------------------------------
-int StringToInt(const char* str)
-{
-  return StringToNumber<int>(str);
-}
-
-//----------------------------------------------------------------------------
 double StringToDouble(const char* str)
 {
   return StringToNumber<double>(str);
@@ -123,24 +117,6 @@ template <typename T> std::string NumberToString(T V)
 std::string DoubleToString(double Value)
 {
   return NumberToString<double>(Value);
-}
-
-//----------------------------------------------------------------------------
-template <typename T> bool isNaN(T Value)
-{
-  return Value != Value;
-}
-
-//----------------------------------------------------------------------------
-bool DoubleIsNaN(double Value)
-{
-  return isNaN<double>(Value);
-}
-
-//----------------------------------------------------------------------------
-bool DoubleIsInf(double Value)
-{
-  return !DoubleIsNaN(Value) && DoubleIsNaN(Value - Value);
 }
 
 } // end namespace

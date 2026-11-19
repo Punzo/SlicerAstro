@@ -80,12 +80,6 @@ template <typename T> std::string NumberToString(T V)
 }
 
 //----------------------------------------------------------------------------
-std::string IntToString(int Value)
-{
-  return NumberToString<int>(Value);
-}
-
-//----------------------------------------------------------------------------
 template <typename T> bool isNaN(T value)
 {
   return value != value;

@@ -25,6 +25,10 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFormLayout>
+
+// STD includes
+#include <cstring>
+
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -1286,7 +1290,7 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
     d->RegionStack->widget(page)->setSizePolicy(QSizePolicy::Preferred,
       page == d->RegionStack->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
     }
-  d->RegionStack->adjustSize();
+  d->RegionStack->updateGeometry();
   d->SegmentsTableView->setEnabled(maskActive);
   bool wasBlocked = d->MaskApertureCheckBox->blockSignals(true);
   d->MaskApertureCheckBox->setChecked(d->parametersNode->GetMaskAperture());
@@ -1596,9 +1600,12 @@ void qSlicerAstroProfilesModuleWidget::onOpenPlotView()
     {
     return;
     }
-  // the plot view, unless the layout already has one
+  // a layout with a plot view, unless the current layout shows one (plot
+  // widgets of previous layouts stay alive, hidden: plotViewCount() does not
+  // tell whether one is shown)
   vtkMRMLLayoutNode* layoutNode = app->layoutManager()->layoutLogic()->GetLayoutNode();
-  if (layoutNode && app->layoutManager()->plotViewCount() == 0)
+  const char* description = layoutNode ? layoutNode->GetCurrentLayoutDescription() : nullptr;
+  if (layoutNode && (!description || !strstr(description, "vtkMRMLPlotViewNode")))
     {
     layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
     }

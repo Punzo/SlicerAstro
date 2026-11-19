@@ -169,6 +169,8 @@ class VTK_MRML_ASTRO_EXPORT vtkMRMLAstroVolumeNode : public vtkMRMLScalarVolumeN
       ObservatoryEmissionPreset,
       MagmaEmissionPreset,
       ViridisEmissionPreset,
+      /// surfaces of emission and of absorption (negative values)
+      EmissionAbsorptionPreset,
       /// default of the data: the surfaces at 3, 7 and 15 sigma in colours
       /// safe for colour-blind people
       DefaultPreset = ObservatorySurfacesPreset

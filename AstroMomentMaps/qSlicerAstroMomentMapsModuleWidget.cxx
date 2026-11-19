@@ -166,9 +166,8 @@ public:
   void showMap(const char* volumeID, const char* sliceNodeID, const char* compositeNodeID);
   /// Output volume of a moment map: the previous output of the same kind
   /// is replaced
-  vtkMRMLAstroVolumeNode* createMapVolume(vtkMRMLAstroVolumeNode* input, const char* existingID,
-                                          const char* suffix, const std::string& unit,
-                                          const char* colorTableName, const char* datamodel, int serial);
+  vtkMRMLAstroVolumeNode* createMapVolume(vtkMRMLAstroVolumeNode* input, int order, const std::string& unit,
+                                          const char* colorTableName, const char* datamodel);
 
   // Panel
   qSlicerAstroPanelHeader* Header{nullptr};
@@ -671,32 +670,19 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::showMap(const char* volumeID, co
 
 //-----------------------------------------------------------------------------
 vtkMRMLAstroVolumeNode* qSlicerAstroMomentMapsModuleWidgetPrivate::createMapVolume(
-  vtkMRMLAstroVolumeNode* input, const char* existingID, const char* suffix, const std::string& unit,
-  const char* colorTableName, const char* datamodel, int serial)
+  vtkMRMLAstroVolumeNode* input, int order, const std::string& unit, const char* colorTableName,
+  const char* datamodel)
 {
-  Q_Q(qSlicerAstroMomentMapsModuleWidget);
-  vtkMRMLScene* scene = q->mrmlScene();
-  std::ostringstream outSS;
-  outSS << input->GetName() << "_" << suffix << "_" << serial;
-
-  // the previous map of the same kind is replaced (never the input)
-  vtkMRMLAstroVolumeNode* existing = existingID ?
-    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(existingID)) : nullptr;
-  if (existing && existing != input &&
-      std::string(existing->GetName()).find(std::string("_") + suffix + "_") != std::string::npos)
+  // one map per order and per cube, shared with the other modules
+  // ("<cube>_mom0"...): the previous one is replaced
+  vtkMRMLAstroVolumeNode* map = this->logic()->CreateMomentMapVolume(
+    input, vtkSlicerAstroVolumeLogic::GetMomentMapName(input, order).c_str(), unit.c_str(), colorTableName,
+    datamodel);
+  if (map)
     {
-    scene->RemoveNode(existing->GetStorageNode());
-    scene->RemoveNode(existing->GetAstroVolumeDisplayNode());
-    vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay =
-      vtkMRMLVolumeRenderingDisplayNode::SafeDownCast(existing->GetDisplayNode());
-    if (volumeRenderingDisplay)
-      {
-      scene->RemoveNode(volumeRenderingDisplay->GetROINode());
-      }
-    scene->RemoveNode(existing);
+    vtkSlicerAstroVolumeLogic::SetMomentMap(input, order, map);
     }
-
-  return this->logic()->CreateMomentMapVolume(input, outSS.str().c_str(), unit.c_str(), colorTableName, datamodel);
+  return map;
 }
 
 //-----------------------------------------------------------------------------
@@ -1313,7 +1299,7 @@ void qSlicerAstroMomentMapsModuleWidget::onMRMLAstroMomentMapsParametersNodeModi
     d->VoxelSelectionStack->widget(page)->setSizePolicy(QSizePolicy::Preferred,
       page == d->VoxelSelectionStack->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
     }
-  d->VoxelSelectionStack->adjustSize();
+  d->VoxelSelectionStack->updateGeometry();
   d->SegmentsTableView->setEnabled(maskActive);
   // with a mask the logic uses all the channels
   d->VelocityRangeWidget->setEnabled(!maskActive);
@@ -1446,7 +1432,6 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
 
   d->CancelRequested = false;
   d->parametersNode->SetStatus(1);
-  const int serial = d->parametersNode->GetOutputSerial();
   const bool generateZero = d->parametersNode->GetGenerateZero();
   const bool generateFirst = d->parametersNode->GetGenerateFirst();
   const bool generateSecond = d->parametersNode->GetGenerateSecond();
@@ -1459,24 +1444,20 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     {
     std::string unit = inputVolume->GetAttribute("SlicerAstro.BUNIT") ? inputVolume->GetAttribute("SlicerAstro.BUNIT") : "";
     unit += " km/s";
-    zeroMomentVolume = d->createMapVolume(inputVolume, d->parametersNode->GetZeroMomentVolumeNodeID(),
-                                          "mom0th", unit, nullptr, "ZEROMOMENTMAP", serial);
+    zeroMomentVolume = d->createMapVolume(inputVolume, 0, unit, nullptr, "ZEROMOMENTMAP");
     d->parametersNode->SetZeroMomentVolumeNodeID(zeroMomentVolume ? zeroMomentVolume->GetID() : nullptr);
     }
   if (generateFirst || generateSecond)
     {
-    firstMomentVolume = d->createMapVolume(inputVolume, d->parametersNode->GetFirstMomentVolumeNodeID(),
-                                           "mom1st", "km/s", "VelocityField", "FIRSTMOMENTMAP", serial);
+    firstMomentVolume = d->createMapVolume(inputVolume, 1, "km/s", "VelocityField", "FIRSTMOMENTMAP");
     d->parametersNode->SetFirstMomentVolumeNodeID(firstMomentVolume ? firstMomentVolume->GetID() : nullptr);
     }
   if (generateSecond)
     {
-    secondMomentVolume = d->createMapVolume(inputVolume, d->parametersNode->GetSecondMomentVolumeNodeID(),
-                                            "mom2nd", "km/s", "Rainbow", "SECONDMOMENTMAP", serial);
+    secondMomentVolume = d->createMapVolume(inputVolume, 2, "km/s", "Rainbow", "SECONDMOMENTMAP");
     d->parametersNode->SetSecondMomentVolumeNodeID(secondMomentVolume ? secondMomentVolume->GetID() : nullptr);
     }
 
-  d->parametersNode->SetOutputSerial(serial + 1);
 
   // Run computation
   if (!logic->CalculateMomentMaps(d->parametersNode))

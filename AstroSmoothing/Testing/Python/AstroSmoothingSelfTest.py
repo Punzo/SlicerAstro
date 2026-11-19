@@ -231,6 +231,32 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(tuple(volumeNode.GetImageData().GetSpacing()), (1.0, 1.0, 1.0))
         self.assertTrue(np.array_equal(voxelArray(volumeNode), cube, equal_nan=True))
 
+        # result card: mask of the result shown and hidden, result deleted
+        self.delayDisplay("Result card")
+        parametersNode.SetMasksCommand("Generate")
+        self.smooth(parametersNode, isotropicBox)
+        slicer.app.processEvents()
+        widget = slicer.modules.astrosmoothing.widgetRepresentation()
+        card = slicer.util.findChild(widget, "ResultCard")
+        outputVolume = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
+        self.assertFalse(card.isHidden())
+        self.assertEqual(card.volume().GetID(), outputVolume.GetID())
+        mask = card.maskNode()
+        self.assertIsNotNone(mask)
+        self.assertEqual(mask.GetAttribute("SlicerAstro.ThresholdMaskOf"), outputVolume.GetID())
+        self.assertFalse(card.maskButton().isHidden())
+        card.maskButton().click()
+        self.assertEqual(bool(mask.GetDisplayNode().GetVisibility()), card.maskButton().checked)
+        card.maskButton().click()
+        self.assertEqual(bool(mask.GetDisplayNode().GetVisibility()), card.maskButton().checked)
+        outputID = outputVolume.GetID()
+        card.deleteResult()
+        slicer.app.processEvents()
+        self.assertIsNone(slicer.mrmlScene.GetNodeByID(outputID))
+        self.assertTrue(card.isHidden())
+        self.assertIsNotNone(slicer.mrmlScene.GetNodeByID(mask.GetID()))
+        parametersNode.SetMasksCommand("Skip")
+
         self.delayDisplay("Test passed")
 
     def test_AstroSmoothingGPU(self):

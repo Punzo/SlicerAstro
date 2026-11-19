@@ -523,7 +523,7 @@ int vtkMRMLAstroVolumeNode::GetPresetIndex()
     {
     "LowConstantOpacity", "MediumConstantOpacity", "HighConstantOpacity", "OneSurfaceGreen",
     "OneSurfaceWhite", "TwoSurfaces", "ThreeSurfaces", "BrightSurfaces", "ObservatorySurfaces",
-    "ObservatoryShells", "ObservatoryEmission", "MagmaEmission", "ViridisEmission"
+    "ObservatoryShells", "ObservatoryEmission", "MagmaEmission", "ViridisEmission", "EmissionAbsorption"
     };
   for (int index = 0; index < static_cast<int>(sizeof(identifiers) / sizeof(identifiers[0])); index++)
     {
