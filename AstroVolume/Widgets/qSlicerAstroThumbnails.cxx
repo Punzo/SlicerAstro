@@ -263,6 +263,12 @@ QImage ComputeImage(vtkMRMLVolumeNode* volume)
         {
         color = std::isfinite(value) ? qSlicerAstroThumbnails::dopplerColor(t) : QColor(0x070A12);
         }
+      else if (!std::isfinite(value))
+        {
+        // blank pixels (e.g. of moment maps): background, not the top of the
+        // stretch (std::min(1., NaN) is 1)
+        color = QColor(0x070A12);
+        }
       else
         {
         t = std::max(0., std::min(1., t));

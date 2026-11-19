@@ -31,6 +31,7 @@
 #include <vtkMRMLLayoutLogic.h>
 #include <vtkMRMLLayoutNode.h>
 #include <vtkMRMLMarkupsDisplayNode.h>
+#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLMarkupsLineNode.h>
 #include <vtkMRMLMeasurement.h>
 #include <vtkMRMLSliceLogic.h>
@@ -42,6 +43,7 @@
 #include <vtkCacheManager.h>
 #include <vtkGeneralTransform.h>
 #include <vtkImageData.h>
+#include <vtkMath.h>
 #include <vtkMatrix3x3.h>
 #include <vtkMatrix4x4.h>
 #include <vtkNew.h>
@@ -49,6 +51,10 @@
 #include <vtkSmartPointer.h>
 #include <vtkTransform.h>
 #include <vtkVersion.h>
+
+#include <algorithm>
+#include <cmath>
+#include <limits>
 
 // SlicerQt includes
 #include <qMRMLSliceWidget.h>
@@ -197,10 +203,14 @@ bool vtkSlicerAstroPVSliceLogic::Calculate0thMomentMap(vtkMRMLAstroPVSliceParame
     return false;
     }
 
-  // Create Astro Volume for the moment map
-  std::string name = inputVolume->GetName();
-  name += "_";
-  name += this->GetMRMLScene()->GetUniqueNameByString("PVSliceMomentMap");
+  // the moment-0 map of the cube shared by the modules ("<cube>_mom0")
+  vtkMRMLAstroVolumeNode* sharedMap = vtkSlicerAstroVolumeLogic::GetMomentMap(inputVolume, 0);
+  if (sharedMap)
+    {
+    pnode->SetMomentMapNodeID(sharedMap->GetID());
+    return true;
+    }
+  std::string name = vtkSlicerAstroVolumeLogic::GetMomentMapName(inputVolume, 0);
 
   vtkMRMLAstroVolumeNode* MomentMapNode = vtkMRMLAstroVolumeNode::SafeDownCast
      (this->GetAstroVolumeLogic()->CloneVolumeWithoutImageData(this->GetMRMLScene(), inputVolume, name.c_str()));
@@ -251,8 +261,8 @@ bool vtkSlicerAstroPVSliceLogic::Calculate0thMomentMap(vtkMRMLAstroPVSliceParame
 
   // Set the Origin
   double Origin[3];
+  // (the origin of the cube, as the maps of the Moment maps module)
   inputVolume->GetOrigin(Origin);
-  Origin[1] = -Origin[1];
   MomentMapNode->SetOrigin(Origin);
 
   vtkNew<vtkMRMLAstroMomentMapsParametersNode> momentMapParametersNode;
@@ -316,9 +326,11 @@ bool vtkSlicerAstroPVSliceLogic::Calculate0thMomentMap(vtkMRMLAstroPVSliceParame
     {
     vtkErrorMacro("vtkSlicerAstroPVSliceLogic::CalculateAndSet0thMomentMap :"
                   " MomentMaps calculations failed.");
+    this->GetMRMLScene()->RemoveNode(MomentMapNode);
     return false;
     }
 
+  vtkSlicerAstroVolumeLogic::SetMomentMap(inputVolume, 0, MomentMapNode);
   pnode->SetMomentMapNodeID(MomentMapNode->GetID());
 
   return true;
@@ -1081,4 +1093,378 @@ bool vtkSlicerAstroPVSliceLogic::UpdatePV(vtkMRMLAstroPVSliceParametersNode *pno
                                  FieldOfView[2]);
 
   return true;
+}
+
+//----------------------------------------------------------------------------
+namespace
+{
+const double Degree = vtkMath::Pi() / 180.;
+
+/// Moment map and line of the parameters node
+bool PVNodes(vtkMRMLScene* scene, vtkMRMLAstroPVSliceParametersNode* pnode, vtkMRMLAstroVolumeNode*& map,
+             vtkMRMLMarkupsLineNode*& line)
+{
+  map = (scene && pnode && pnode->GetMomentMapNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetMomentMapNodeID())) : nullptr;
+  line = (scene && pnode && pnode->GetLineNodeID()) ?
+    vtkMRMLMarkupsLineNode::SafeDownCast(scene->GetNodeByID(pnode->GetLineNodeID())) : nullptr;
+  return map && map->GetImageData() && map->GetAstroVolumeDisplayNode() && line &&
+    line->GetNumberOfDefinedControlPoints() >= 2;
+}
+
+/// Ends of the line in the IJK coordinates of the moment map
+void LineEndsIJK(vtkMRMLAstroVolumeNode* map, vtkMRMLMarkupsLineNode* line, double ijk1[3], double ijk2[3])
+{
+  vtkNew<vtkMatrix4x4> rasToIJK;
+  map->GetRASToIJKMatrix(rasToIJK);
+  double ras[4] = {0., 0., 0., 1.};
+  double ijk[4] = {0., 0., 0., 1.};
+  line->GetLineStartPosition(ras);
+  rasToIJK->MultiplyPoint(ras, ijk);
+  std::copy(ijk, ijk + 3, ijk1);
+  line->GetLineEndPosition(ras);
+  ras[3] = 1.;
+  rasToIJK->MultiplyPoint(ras, ijk);
+  std::copy(ijk, ijk + 3, ijk2);
+}
+
+/// The ends of the line at IJK positions of the moment map (on its plane)
+void SetLineEndsIJK(vtkMRMLAstroVolumeNode* map, vtkMRMLMarkupsLineNode* line, const double ijk1[3],
+                    const double ijk2[3])
+{
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  map->GetIJKToRASMatrix(ijkToRAS);
+  double ijk[4] = {ijk1[0], ijk1[1], 0., 1.};
+  double ras1[4] = {0., 0., 0., 1.};
+  double ras2[4] = {0., 0., 0., 1.};
+  ijkToRAS->MultiplyPoint(ijk, ras1);
+  ijk[0] = ijk2[0];
+  ijk[1] = ijk2[1];
+  ijkToRAS->MultiplyPoint(ijk, ras2);
+  const int wasModifying = line->StartModify();
+  line->SetLineStartPosition(ras1);
+  line->SetLineEndPosition(ras2);
+  line->EndModify(wasModifying);
+}
+
+/// Position angle (degrees from North to East, 0-180) and separation
+/// (degrees) of two sky positions (degrees)
+void SkyGeometry(const double world1[3], const double world2[3], double* positionAngle, double* separation)
+{
+  const double a1 = world1[0] * Degree;
+  const double d1 = world1[1] * Degree;
+  const double a2 = world2[0] * Degree;
+  const double d2 = world2[1] * Degree;
+  const double cosine = std::sin(d1) * std::sin(d2) + std::cos(d1) * std::cos(d2) * std::cos(a2 - a1);
+  *separation = std::acos(std::max(-1., std::min(1., cosine))) / Degree;
+  // from the first end to the second: East is increasing right ascension
+  double angle = std::atan2(std::sin(a2 - a1) * std::cos(d2),
+                            std::cos(d1) * std::sin(d2) - std::sin(d1) * std::cos(d2) * std::cos(a2 - a1)) / Degree;
+  angle = std::fmod(angle + 360., 180.);
+  *positionAngle = angle;
+}
+
+/// Bearing (position angle, degrees from North to East, 0-360) of world2
+/// seen from world1 (degrees)
+double Bearing(const double world1[3], const double world2[3])
+{
+  const double a1 = world1[0] * Degree;
+  const double d1 = world1[1] * Degree;
+  const double a2 = world2[0] * Degree;
+  const double d2 = world2[1] * Degree;
+  const double angle = std::atan2(std::sin(a2 - a1) * std::cos(d2),
+                                  std::cos(d1) * std::sin(d2) - std::sin(d1) * std::cos(d2) * std::cos(a2 - a1));
+  return std::fmod(angle / Degree + 360., 360.);
+}
+
+/// Sky position (degrees) at an angular distance (degrees) from a centre
+/// along a great circle with the bearing (degrees from North to East)
+void Destination(const double center[2], double bearing, double distance, double world[3])
+{
+  const double a0 = center[0] * Degree;
+  const double d0 = center[1] * Degree;
+  const double b = bearing * Degree;
+  const double r = distance * Degree;
+  const double sinD = std::sin(d0) * std::cos(r) + std::cos(d0) * std::sin(r) * std::cos(b);
+  const double d = std::asin(std::max(-1., std::min(1., sinD)));
+  const double a = a0 + std::atan2(std::sin(b) * std::sin(r) * std::cos(d0), std::cos(r) - std::sin(d0) * sinD);
+  world[0] = std::fmod(a / Degree + 360., 360.);
+  world[1] = d / Degree;
+  world[2] = 0.;
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::GetLineSky(vtkMRMLAstroPVSliceParametersNode* pnode, double center[2],
+                                            double* positionAngle, double* length)
+{
+  vtkMRMLAstroVolumeNode* map = nullptr;
+  vtkMRMLMarkupsLineNode* line = nullptr;
+  if (!PVNodes(this->GetMRMLScene(), pnode, map, line))
+    {
+    return false;
+    }
+  double ijk1[3] = {0., 0., 0.};
+  double ijk2[3] = {0., 0., 0.};
+  LineEndsIJK(map, line, ijk1, ijk2);
+  const double ijkCenter[3] = {0.5 * (ijk1[0] + ijk2[0]), 0.5 * (ijk1[1] + ijk2[1]), 0.};
+  ijk1[2] = ijk2[2] = 0.;
+  double world1[3] = {0., 0., 0.};
+  double world2[3] = {0., 0., 0.};
+  double worldCenter[3] = {0., 0., 0.};
+  vtkMRMLAstroVolumeDisplayNode* display = map->GetAstroVolumeDisplayNode();
+  if (!display->GetReferenceSpace(ijk1, world1) || !display->GetReferenceSpace(ijk2, world2) ||
+      !display->GetReferenceSpace(ijkCenter, worldCenter))
+    {
+    return false;
+    }
+  double separation = 0.;
+  double angle = 0.;
+  SkyGeometry(world1, world2, &angle, &separation);
+  // the position angle at the centre of the line (the meridians converge:
+  // the bearing changes along the line)
+  angle = std::fmod(Bearing(worldCenter, world2), 180.);
+  center[0] = worldCenter[0];
+  center[1] = worldCenter[1];
+  if (positionAngle)
+    {
+    *positionAngle = angle;
+    }
+  if (length)
+    {
+    *length = separation * 60.;
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::SetLineSky(vtkMRMLAstroPVSliceParametersNode* pnode, const double center[2],
+                                            double positionAngle, double length)
+{
+  vtkMRMLAstroVolumeNode* map = nullptr;
+  vtkMRMLMarkupsLineNode* line = nullptr;
+  if (!PVNodes(this->GetMRMLScene(), pnode, map, line) || !(length > 0.) || !std::isfinite(center[0]) ||
+      !std::isfinite(center[1]) || !std::isfinite(positionAngle))
+    {
+    return false;
+    }
+  // the ends at half the length from the centre, on the great circle with
+  // the position angle at the centre
+  const double half = 0.5 * length / 60.;
+  double world1[3] = {0., 0., 0.};
+  double world2[3] = {0., 0., 0.};
+  Destination(center, positionAngle + 180., half, world1);
+  Destination(center, positionAngle, half, world2);
+  double ijk1[3] = {0., 0., 0.};
+  double ijk2[3] = {0., 0., 0.};
+  vtkMRMLAstroVolumeDisplayNode* display = map->GetAstroVolumeDisplayNode();
+  if (!display->GetIJKSpace(world1, ijk1) || !display->GetIJKSpace(world2, ijk2))
+    {
+    return false;
+    }
+  SetLineEndsIJK(map, line, ijk1, ijk2);
+  const int wasModifying = pnode->StartModify();
+  pnode->SetLineCenter(static_cast<int>(std::lround(0.5 * (ijk1[0] + ijk2[0]))),
+                       static_cast<int>(std::lround(0.5 * (ijk1[1] + ijk2[1]))));
+  pnode->SetLineAngle(positionAngle);
+  pnode->SetLineOldAngle(positionAngle);
+  pnode->EndModify(wasModifying);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::CenterLineOnPeak(vtkMRMLAstroPVSliceParametersNode* pnode)
+{
+  vtkMRMLAstroVolumeNode* map = nullptr;
+  vtkMRMLMarkupsLineNode* line = nullptr;
+  double center[2] = {0., 0.};
+  double angle = 0.;
+  double length = 0.;
+  if (!PVNodes(this->GetMRMLScene(), pnode, map, line) || !this->GetLineSky(pnode, center, &angle, &length))
+    {
+    return false;
+    }
+  vtkImageData* image = map->GetImageData();
+  int dims[3] = {0, 0, 0};
+  image->GetDimensions(dims);
+  double peak = -std::numeric_limits<double>::infinity();
+  int peakIJK[2] = {-1, -1};
+  for (int j = 0; j < dims[1]; j++)
+    {
+    for (int i = 0; i < dims[0]; i++)
+      {
+      const double value = image->GetScalarComponentAsDouble(i, j, 0, 0);
+      if (std::isfinite(value) && value > peak)
+        {
+        peak = value;
+        peakIJK[0] = i;
+        peakIJK[1] = j;
+        }
+      }
+    }
+  const double ijk[3] = {static_cast<double>(peakIJK[0]), static_cast<double>(peakIJK[1]), 0.};
+  double world[3] = {0., 0., 0.};
+  if (peakIJK[0] < 0 || !map->GetAstroVolumeDisplayNode()->GetReferenceSpace(ijk, world))
+    {
+    return false;
+    }
+  const double peakCenter[2] = {world[0], world[1]};
+  return this->SetLineSky(pnode, peakCenter, angle, length);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::AlignLineWithMajorAxis(vtkMRMLAstroPVSliceParametersNode* pnode)
+{
+  vtkMRMLAstroVolumeNode* map = nullptr;
+  vtkMRMLMarkupsLineNode* line = nullptr;
+  double center[2] = {0., 0.};
+  double angle = 0.;
+  double length = 0.;
+  if (!PVNodes(this->GetMRMLScene(), pnode, map, line) || !this->GetLineSky(pnode, center, &angle, &length))
+    {
+    return false;
+    }
+  vtkImageData* image = map->GetImageData();
+  int dims[3] = {0, 0, 0};
+  image->GetDimensions(dims);
+  double peak = 0.;
+  for (int j = 0; j < dims[1]; j++)
+    {
+    for (int i = 0; i < dims[0]; i++)
+      {
+      const double value = image->GetScalarComponentAsDouble(i, j, 0, 0);
+      if (std::isfinite(value))
+        {
+        peak = std::max(peak, value);
+        }
+      }
+    }
+  if (!(peak > 0.))
+    {
+    return false;
+    }
+  // intensity-weighted centroid and second moments of the emission
+  double weight = 0.;
+  double mi = 0.;
+  double mj = 0.;
+  for (int j = 0; j < dims[1]; j++)
+    {
+    for (int i = 0; i < dims[0]; i++)
+      {
+      const double value = image->GetScalarComponentAsDouble(i, j, 0, 0);
+      if (std::isfinite(value) && value > 0.2 * peak)
+        {
+        weight += value;
+        mi += value * i;
+        mj += value * j;
+        }
+      }
+    }
+  mi /= weight;
+  mj /= weight;
+  double sii = 0.;
+  double sjj = 0.;
+  double sij = 0.;
+  for (int j = 0; j < dims[1]; j++)
+    {
+    for (int i = 0; i < dims[0]; i++)
+      {
+      const double value = image->GetScalarComponentAsDouble(i, j, 0, 0);
+      if (std::isfinite(value) && value > 0.2 * peak)
+        {
+        sii += value * (i - mi) * (i - mi);
+        sjj += value * (j - mj) * (j - mj);
+        sij += value * (i - mi) * (j - mj);
+        }
+      }
+    }
+  // direction of the largest eigenvalue, in pixels
+  const double theta = 0.5 * std::atan2(2. * sij, sii - sjj);
+  const double ijkCentroid[3] = {mi, mj, 0.};
+  const double ijkAlong[3] = {mi + 10. * std::cos(theta), mj + 10. * std::sin(theta), 0.};
+  double worldCentroid[3] = {0., 0., 0.};
+  double worldAlong[3] = {0., 0., 0.};
+  vtkMRMLAstroVolumeDisplayNode* display = map->GetAstroVolumeDisplayNode();
+  if (!display->GetReferenceSpace(ijkCentroid, worldCentroid) || !display->GetReferenceSpace(ijkAlong, worldAlong))
+    {
+    return false;
+    }
+  double majorAngle = 0.;
+  double separation = 0.;
+  SkyGeometry(worldCentroid, worldAlong, &majorAngle, &separation);
+  const double centroid[2] = {worldCentroid[0], worldCentroid[1]};
+  return this->SetLineSky(pnode, centroid, majorAngle, length);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::ConstrainLine(vtkMRMLAstroPVSliceParametersNode* pnode)
+{
+  vtkMRMLAstroVolumeNode* map = nullptr;
+  vtkMRMLMarkupsLineNode* line = nullptr;
+  if (this->ConstrainingLine || !PVNodes(this->GetMRMLScene(), pnode, map, line))
+    {
+    return false;
+    }
+  // moving the points fires point events again (Markups ignore
+  // DisableModifiedEvent for them): the points move only when needed
+  this->ConstrainingLine = true;
+  double ijk1[3] = {0., 0., 0.};
+  double ijk2[3] = {0., 0., 0.};
+  LineEndsIJK(map, line, ijk1, ijk2);
+  if (std::fabs(ijk1[2]) > 1.e-3 || std::fabs(ijk2[2]) > 1.e-3)
+    {
+    SetLineEndsIJK(map, line, ijk1, ijk2);
+    }
+  pnode->SetLineCenter(static_cast<int>(0.5 * (ijk1[0] + ijk2[0])), static_cast<int>(0.5 * (ijk1[1] + ijk2[1])));
+  this->ConstrainingLine = false;
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroPVSliceLogic::SetPVCamera(vtkMRMLAstroPVSliceParametersNode* pnode, int view)
+{
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  vtkMRMLAstroVolumeNode* volume = (scene && pnode && pnode->GetInputVolumeNodeID()) ?
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(pnode->GetInputVolumeNodeID())) : nullptr;
+  vtkMRMLCameraNode* camera = scene ? vtkSlicerAstroVolumeLogic::GetThreeDViewCameraNode(scene, "vtkMRMLViewNode1") :
+    nullptr;
+  if (!volume || !volume->GetImageData() || !camera)
+    {
+    return false;
+    }
+  if (view == SkyView)
+    {
+    // looking along the velocity axis (A in RAS), north up
+    const double directionOfProjection[3] = {0., -1., 0.};
+    const double viewUp[3] = {0., 0., 1.};
+    return vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(camera, volume, directionOfProjection, viewUp);
+    }
+  vtkMRMLMarkupsLineNode* line = pnode->GetLineNodeID() ?
+    vtkMRMLMarkupsLineNode::SafeDownCast(scene->GetNodeByID(pnode->GetLineNodeID())) : nullptr;
+  if (!line || line->GetNumberOfDefinedControlPoints() < 2)
+    {
+    return false;
+    }
+  double position1[3] = {0., 0., 0.};
+  double position2[3] = {0., 0., 0.};
+  line->GetLineStartPosition(position1);
+  line->GetLineEndPosition(position2);
+  // the line in the sky plane (R, S in RAS), velocity up (A)
+  double along[3] = {position2[0] - position1[0], 0., position2[2] - position1[2]};
+  const double norm = std::sqrt(along[0] * along[0] + along[2] * along[2]);
+  if (!(norm > 0.))
+    {
+    return false;
+    }
+  along[0] /= norm;
+  along[2] /= norm;
+  double bounds[6] = {0., 0., 0., 0., 0., 0.};
+  volume->GetRASBounds(bounds);
+  const double focalPoint[3] = {0.5 * (position1[0] + position2[0]), 0.5 * (bounds[2] + bounds[3]),
+                                0.5 * (position1[2] + position2[2])};
+  const double viewUp[3] = {0., 1., 0.};
+  // along the line, or facing the PV plane (perpendicular to the line)
+  const double directionOfProjection[3] = {view == AlongLineView ? along[0] : -along[2], 0.,
+                                           view == AlongLineView ? along[2] : along[0]};
+  return vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(camera, volume, directionOfProjection, viewUp, focalPoint);
 }

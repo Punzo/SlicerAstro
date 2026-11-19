@@ -99,6 +99,33 @@ public:
   /// \return Success flag
   bool UpdatePV(vtkMRMLAstroPVSliceParametersNode *pnode);
 
+  /// The line on the sky: centre (RA, Dec in degrees), position angle of the
+  /// line (degrees from North to East, 0-180) and length (arcmin), from its
+  /// ends with the WCS of the moment map. Returns false without line, moment
+  /// map or WCS.
+  bool GetLineSky(vtkMRMLAstroPVSliceParametersNode* pnode, double center[2], double* positionAngle,
+                  double* length);
+  /// Place the line on the sky (centre in degrees, position angle in degrees
+  /// from North to East, length in arcmin); the line centre of the
+  /// parameters node follows
+  bool SetLineSky(vtkMRMLAstroPVSliceParametersNode* pnode, const double center[2], double positionAngle,
+                  double length);
+  /// The line centred on the peak of the moment map (same angle and length)
+  bool CenterLineOnPeak(vtkMRMLAstroPVSliceParametersNode* pnode);
+  /// The line along the major axis of the emission of the moment map: the
+  /// pixels above 20% of the peak, weighted by their value (second moments),
+  /// through their centroid (same length)
+  bool AlignLineWithMajorAxis(vtkMRMLAstroPVSliceParametersNode* pnode);
+  /// The line kept on the plane of the moment map (e.g. after a drag in a
+  /// view) and the line centre of the parameters node updated. Returns false
+  /// without a complete line.
+  bool ConstrainLine(vtkMRMLAstroPVSliceParametersNode* pnode);
+
+  enum PVCameraView { SkyView = 0, AlongLineView, FaceOnView };
+  /// The camera of the first 3D view: on the sky (along the velocity axis,
+  /// north up), along the line, or facing the PV plane (velocity up)
+  bool SetPVCamera(vtkMRMLAstroPVSliceParametersNode* pnode, int view);
+
 protected:
   vtkSlicerAstroPVSliceLogic();
   virtual ~vtkSlicerAstroPVSliceLogic();
@@ -109,6 +136,7 @@ private:
 
   class vtkInternal;
   vtkInternal* Internal;
+  bool ConstrainingLine{false};
 };
 
 #endif

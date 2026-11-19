@@ -20,104 +20,69 @@
 #ifndef __qSlicerAstroPVSliceModuleWidget_h
 #define __qSlicerAstroPVSliceModuleWidget_h
 
+// CTK includes
+#include <ctkVTKObject.h>
+
 // SlicerQt includes
 #include "qSlicerAbstractModuleWidget.h"
 
 #include "qSlicerAstroPVSliceModuleExport.h"
 
-// CTK includes
-#include <ctkVTKObject.h>
-
-class qMRMLWidget;
 class qSlicerAstroPVSliceModuleWidgetPrivate;
-class vtkMRMLAstroPVSliceParametersNode;
 class vtkMRMLNode;
-class vtkRenderWindowInteractor;
-class vtkRenderWindow;
-class vtkRenderer;
+class vtkObject;
 
 /// \ingroup SlicerAstro_QtModules_AstroPVSlice
+/// Position-velocity slice through a cube along a straight line on the sky.
+/// The line is drawn on the moment-0 map of the cube (the map shared by the
+/// modules, <cube>_mom0) in the panel preview and in the red view; it is
+/// moved by dragging (ends, centre) or by its centre, position angle and
+/// length on the sky. The yellow view shows the PV slice, the 3D view the
+/// cube from the sky, along the line or facing the PV plane. The behaviour
+/// is in vtkSlicerAstroPVSliceLogic.
 class Q_SLICERASTRO_QTMODULES_ASTROPVSLICE_EXPORT qSlicerAstroPVSliceModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
+  QVTK_OBJECT
 
 public:
-
   typedef qSlicerAbstractModuleWidget Superclass;
-  qSlicerAstroPVSliceModuleWidget(QWidget *parent=nullptr);
+  qSlicerAstroPVSliceModuleWidget(QWidget *parent=0);
   virtual ~qSlicerAstroPVSliceModuleWidget();
 
-  virtual void enter();
-  virtual void exit();
+  void enter() override;
+  void exit() override;
 
-  /// Get vtkMRMLAstroPVSliceParametersNode
-  Q_INVOKABLE vtkMRMLAstroPVSliceParametersNode* mrmlAstroPVSliceParametersNode()const;
-  /// Get render window for view widget
-  Q_INVOKABLE static vtkRenderWindow* renderWindow(qMRMLWidget* viewWidget);
-  /// Get renderer for view widget
-  Q_INVOKABLE static vtkRenderer* renderer(qMRMLWidget* viewWidget);
+  /// Centre (RA, Dec in degrees), position angle (degrees, North to East)
+  /// and length (arcmin) of the line; empty without line
+  Q_INVOKABLE QList<double> lineSky() const;
+
+public slots:
+  void setMRMLScene(vtkMRMLScene*) override;
+  /// The cube of the PV slice
+  void setInputVolume(vtkMRMLNode* node);
+  /// The line on the sky (centre in degrees, position angle in degrees from
+  /// North to East, length in arcmin)
+  void setLineSky(double rightAscension, double declination, double positionAngle, double length);
+  /// The line centred on the peak of the moment map
+  void centerOnPeak();
+  /// The line along the major axis of the emission
+  void alignWithMajorAxis();
+  /// 3D view: 0 sky, 1 along the line, 2 facing the PV plane
+  void setCameraView(int view);
+
+protected slots:
+  void setMRMLAstroPVSliceParametersNode(vtkMRMLNode* node);
+  void onParametersNodeModified();
+  void onLineModified();
+  void onSkyFieldEdited();
+  void onSelectionNodeModified();
+  void onEndCloseEvent();
+  void onEndImportEvent();
 
 protected:
   QScopedPointer<qSlicerAstroPVSliceModuleWidgetPrivate> d_ptr;
-
-  /// Callback function invoked when interaction happens
-  static void processEvents(vtkObject* caller, unsigned long eid,
-                            void* clientData, void* callData);
-
-  /// Initialization of the qvtk connections between MRML nodes
-  virtual void setMRMLScene(vtkMRMLScene*);
-
-  /// Initialization of MRML nodes
-  void initializeNodes(bool forceNew = false);
-
-  /// Initialization of MRML parameter node
-  void initializeParameterNode(bool forceNew = false);
-
-  /// Initialization of MRML moment map node
-  void initializeMomentMapNode(bool forceNew = false);
-
-  /// Initialization of MRML Line node
-  void initializeLineNode(bool InitLinePositions = true);
-
-protected slots:
-
-  /// Set the MRML input node
-  void onInputVolumeChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML moment map input node
-  void onMomentMapChanged(vtkMRMLNode* mrmlNode);
-
-  /// Set the MRML Line node
-  void onLineChanged(vtkMRMLNode* mrmlNode);
-
-  /// Update widget GUI from MRML Line node
-  void onMRMLPVSliceLineNodeModified();
-
-  /// Update widget GUI from MRML Line node
-  void onMRMLAstroPVSliceCenterModified();
-
-  /// Update widget GUI from MRML parameter node
-  void onMRMLAstroPVSliceParametersNodeModified();
-
-  /// Set the MRML parameter node
-  void setMRMLAstroPVSliceParametersNode(vtkMRMLNode*);
-
-  void on3DViewParallel();
-  void on3DViewPerpendicular();
-
-  void onEndCloseEvent();
-  void onEndImportEvent();
-  void onStartImportEvent();
-
-  void onRotateLineChanged(double theta);
-  void onLineCenterRightAscensionWCSChanged(double value);
-  void onLineCenterDeclinationWCSChanged(double value);
-  void onLineCenterRightAscensionIJKChanged(double value);
-  void onLineCenterDeclinationIJKChanged(double value);
-  void onSetLineCenterClicked();
-
-  void onMRMLSelectionNodeModified(vtkObject* sender);
 
 private:
   Q_DECLARE_PRIVATE(qSlicerAstroPVSliceModuleWidget);
