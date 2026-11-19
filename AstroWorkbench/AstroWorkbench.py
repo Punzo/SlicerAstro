@@ -147,6 +147,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_ScrollAreasFit()
         self.setUp()
+        self.test_HeaderTools()
+        self.setUp()
         self.test_Theme()
         self.setUp()
         self.test_ViewsInteraction()
@@ -438,6 +440,47 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
                 self.assertScrollAreasFit(inspector, f"process step {index}")
         finally:
             mainWindow.resize(size)
+
+    def test_HeaderTools(self):
+        """Placement tools: clicked again, placement ends; placement ended in
+        the views (right click), navigation is checked again. The developer
+        button follows the Python console. No toolbar menu on a right click."""
+        self.cube()
+        workbench().enter()
+        self.process()
+        header = workbench().header
+        interaction = slicer.app.applicationLogic().GetInteractionNode()
+        for button in (header.pointsButton, header.lineButton, header.closedCurveButton):
+            button.click()
+            self.process()
+            self.assertEqual(interaction.GetCurrentInteractionMode(), interaction.Place)
+            self.assertTrue(button.checked)
+            button.click()
+            self.process()
+            self.assertEqual(interaction.GetCurrentInteractionMode(), interaction.ViewTransform)
+            self.assertTrue(header.navigateButton.checked)
+        header.curveButton.click()
+        self.process()
+        # placement ended in a view (right click switches to navigation)
+        interaction.SetCurrentInteractionMode(interaction.ViewTransform)
+        self.process()
+        self.assertTrue(header.navigateButton.checked)
+        self.assertFalse(header.curveButton.checked)
+        self.assertEqual(slicer.app.applicationLogic().GetSelectionNode().GetActivePlaceNodeClassName(),
+                         "vtkMRMLMarkupsCurveNode")
+        mainWindow = slicer.util.mainWindow()
+        self.assertEqual(mainWindow.contextMenuPolicy, qt.Qt.PreventContextMenu)
+        console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
+        if console is not None:
+            header.developerButton.click()
+            self.process()
+            self.assertTrue(console.visible)
+            console.close()
+            self.process()
+            self.assertFalse(header.developerButton.checked)
+        workbench().exit()
+        self.process()
+        self.assertNotEqual(mainWindow.contextMenuPolicy, qt.Qt.PreventContextMenu)
 
     def test_Theme(self):
         """The theme switch restyles the Workbench."""

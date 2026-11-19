@@ -3861,13 +3861,13 @@ void qSlicerAstroModelingModuleWidget::updateAdvancedVisibility()
     }
   const bool automatic = d->parametersNode->GetMode() && !strcmp(d->parametersNode->GetMode(), "Automatic");
   const bool mask = d->parametersNode->GetMaskActive();
-  // Advanced: fit options (Manual mode) and the source search (no input
-  // mask); nothing to set in Automatic mode with an input mask. The fold
-  // section holds the contents of the (hidden) .ui collapsible button.
+  // Advanced: fit options and source search of Manual mode; in Automatic
+  // mode 3DBarolo chooses them (the whole section hidden). The fold section
+  // holds the contents of the (hidden) .ui collapsible button.
   QWidget* advancedSection = this->findChild<QWidget*>("Section_Advanced");
   if (advancedSection)
     {
-    advancedSection->setVisible(!automatic || !mask);
+    advancedSection->setVisible(!automatic);
     }
   if (d->SearchGroupBox)
     {

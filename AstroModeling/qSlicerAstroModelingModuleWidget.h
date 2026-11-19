@@ -230,8 +230,8 @@ protected slots:
   void updateBBaroloParameterWidgets();
   /// Initial parameters rows (Manual mode only)
   void setInitialParametersVisible(bool visible);
-  /// Advanced section: shown in Manual mode, and in Automatic mode without
-  /// input mask (source search); the source search without input mask only
+  /// Advanced section: shown in Manual mode only; its source search without
+  /// input mask only
   void updateAdvancedVisibility();
 
 private:

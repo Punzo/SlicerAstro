@@ -189,10 +189,14 @@ void qSlicerAstroResultCard::onDeleteClicked()
     {
     return;
     }
-  const QMessageBox::StandardButton answer = QMessageBox::question(this, tr("Delete result"),
-    tr("Delete %1? It is removed from the scene.").arg(QString::fromUtf8(this->Volume->GetName())),
-    QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
-  if (answer == QMessageBox::Yes)
+  // a dialog of the window with the whole theme (as a child of the card it
+  // would get only a part of the style sheet of the panel)
+  QMessageBox box(QMessageBox::Question, tr("Delete result"),
+                  tr("Delete %1? It is removed from the scene.").arg(QString::fromUtf8(this->Volume->GetName())),
+                  QMessageBox::Yes | QMessageBox::No, this->window());
+  box.setDefaultButton(QMessageBox::No);
+  qSlicerAstroTheme::instance()->applyTo(&box);
+  if (box.exec() == QMessageBox::Yes)
     {
     this->deleteResult();
     }

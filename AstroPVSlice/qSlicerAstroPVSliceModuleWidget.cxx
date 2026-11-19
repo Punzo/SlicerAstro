@@ -713,7 +713,8 @@ void qSlicerAstroPVSliceModuleWidget::exit()
   Q_D(qSlicerAstroPVSliceModuleWidget);
   this->Superclass::exit();
   vtkMRMLMarkupsLineNode* line = d->lineNode();
-  if (line && !this->property("astroEmbedded").toBool())
+  // the line is shown only while the module (or its Workbench step) is open
+  if (line)
     {
     line->SetDisplayVisibility(0);
     }

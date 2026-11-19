@@ -372,6 +372,7 @@ class DatasetDrawer(qt.QFrame):
         products = [node for _, _, _, _, node in Astro.productsOf(volume, slicer.mrmlScene)]
         if ask:
             box = qt.QMessageBox(slicer.util.mainWindow())
+            theme().applyTo(box)
             box.setWindowTitle("Delete dataset")
             box.setIcon(qt.QMessageBox.Question)
             box.setText(f"Delete {volume.GetName()} from the scene?")
@@ -674,6 +675,15 @@ class Workbench:
         self.visibility.update()
         self.setActiveView(key)
 
+    def onConsoleVisibilityChanged(self, visible):
+        """The console closed with its own button: the developer button
+        unchecked."""
+        button = self.header.developerButton
+        if button.checked != visible:
+            button.blockSignals(True)
+            button.checked = visible
+            button.blockSignals(False)
+
     def setPythonConsoleVisible(self, visible):
         mainWindow = slicer.util.mainWindow()
         console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
@@ -838,15 +848,44 @@ class Workbench:
             self.setActiveView("Red")
             self.scrubberBar.onIndexChanged(self.scrubberBar.scrubber.currentIndex)
 
+    PLACE_CLASSES = {"points": "vtkMRMLMarkupsFiducialNode", "line": "vtkMRMLMarkupsLineNode",
+                     "curve": "vtkMRMLMarkupsCurveNode", "closedCurve": "vtkMRMLMarkupsClosedCurveNode",
+                     "angle": "vtkMRMLMarkupsAngleNode", "roi": "vtkMRMLMarkupsROINode"}
+
+    def toolButtons(self):
+        header = self.header
+        return {"navigate": header.navigateButton, "crosshair": header.crosshairButton,
+                "points": header.pointsButton, "line": header.lineButton, "curve": header.curveButton,
+                "closedCurve": header.closedCurveButton, "angle": header.angleButton, "roi": header.roiButton}
+
+    def checkTool(self, mode):
+        button = self.toolButtons().get(mode)
+        if button is not None and not button.checked:
+            button.blockSignals(True)
+            button.checked = True
+            button.blockSignals(False)
+
+    def onInteractionModeChanged(self, caller=None, event=None):
+        """Placement ended outside the header (right click, Esc, last point):
+        the placement button is unchecked (navigation again)."""
+        interaction = slicer.app.applicationLogic().GetInteractionNode()
+        if self.tool in self.PLACE_CLASSES and interaction.GetCurrentInteractionMode() != interaction.Place:
+            self.tool = "navigate"
+            self.checkTool("navigate")
+
     def setInteraction(self, mode):
         interaction = slicer.app.applicationLogic().GetInteractionNode()
+        # the placement button clicked again: placement ended
+        if mode == getattr(self, "tool", None) and mode in self.PLACE_CLASSES and \
+                interaction.GetCurrentInteractionMode() == interaction.Place:
+            mode = "navigate"
+        self.tool = mode
+        self.checkTool(mode)
         crosshair = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLCrosshairNode")
         if crosshair is not None:
             crosshair.SetCrosshairMode(slicer.vtkMRMLCrosshairNode.ShowBasic if mode == "crosshair"
                                        else slicer.vtkMRMLCrosshairNode.NoCrosshair)
-        placeClasses = {"points": "vtkMRMLMarkupsFiducialNode", "line": "vtkMRMLMarkupsLineNode",
-                        "curve": "vtkMRMLMarkupsCurveNode", "closedCurve": "vtkMRMLMarkupsClosedCurveNode",
-                        "angle": "vtkMRMLMarkupsAngleNode", "roi": "vtkMRMLMarkupsROINode"}
+        placeClasses = self.PLACE_CLASSES
         if mode in placeClasses:
             selection = slicer.app.applicationLogic().GetSelectionNode()
             selection.SetReferenceActivePlaceNodeClassName(placeClasses[mode])
@@ -903,6 +942,7 @@ class Workbench:
         bar.setMovable(False)
         bar.setFloatable(False)
         bar.setStyleSheet("QToolBar { border: none; padding: 0px; spacing: 0px; }")
+        bar.setContextMenuPolicy(qt.Qt.PreventContextMenu)
         bar.addWidget(widget)
         slicer.util.mainWindow().addToolBar(area, bar)
         self.widgets.append(bar)
@@ -966,6 +1006,19 @@ class Workbench:
             self.sceneObservers.append(slicer.mrmlScene.AddObserver(event, self.scheduleRefresh))
         selection = slicer.app.applicationLogic().GetSelectionNode()
         self.selectionObserver = selection.AddObserver(vtk.vtkCommand.ModifiedEvent, self.scheduleRefresh)
+        # the tool buttons follow the interaction mode (placement ended by a
+        # right click), the developer button the Python console
+        self.tool = "navigate"
+        interaction = slicer.app.applicationLogic().GetInteractionNode()
+        self.interactionObserver = interaction.AddObserver(interaction.InteractionModeChangedEvent,
+                                                           self.onInteractionModeChanged)
+        console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
+        if console is not None:
+            console.connect("visibilityChanged(bool)", self.onConsoleVisibilityChanged)
+            self.onConsoleVisibilityChanged(console.visible)
+        # no menu of the toolbars and docks of Slicer on a right click
+        self.saved["contextMenuPolicy"] = mainWindow.contextMenuPolicy
+        mainWindow.setContextMenuPolicy(qt.Qt.PreventContextMenu)
         # shortcuts of the Workbench (removed when leaving it)
         self.shortcuts = []
         for keys, callback in (("F1", lambda: About.showAbout()),
@@ -1038,6 +1091,12 @@ class Workbench:
             slicer.mrmlScene.RemoveObserver(observer)
         self.sceneObservers = []
         slicer.app.applicationLogic().GetSelectionNode().RemoveObserver(self.selectionObserver)
+        slicer.app.applicationLogic().GetInteractionNode().RemoveObserver(self.interactionObserver)
+        mainWindow = slicer.util.mainWindow()
+        console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
+        if console is not None:
+            console.disconnect("visibilityChanged(bool)", self.onConsoleVisibilityChanged)
+        mainWindow.setContextMenuPolicy(self.saved.get("contextMenuPolicy", qt.Qt.DefaultContextMenu))
         for shortcut in self.shortcuts:
             shortcut.delete()
         self.shortcuts = []

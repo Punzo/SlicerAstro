@@ -3005,7 +3005,7 @@
            <item row="0" column="1">
             <widget class="ctkSliderWidget" name="YellowSliceSliderWidget">
              <property name="toolTip">
-              <string>Rotate the Yellow Slice respect to the velocity axes</string>
+              <string>Rotate the position-velocity slice along the major axis around the velocity axis</string>
              </property>
              <property name="minimum">
               <double>-200.000000000000000</double>
@@ -3021,7 +3021,7 @@
            <item row="1" column="1">
             <widget class="ctkSliderWidget" name="GreenSliceSliderWidget">
              <property name="toolTip">
-              <string>Rotate the Green Slice respect to the velocity axes</string>
+              <string>Rotate the position-velocity slice along the minor axis around the velocity axis</string>
              </property>
              <property name="minimum">
               <double>-200.000000000000000</double>
@@ -3040,14 +3040,14 @@
            <item row="0" column="0">
             <widget class="QLabel" name="YellowSliceLabel">
              <property name="text">
-              <string>Yellow Slice:</string>
+              <string>Major axis:</string>
              </property>
             </widget>
            </item>
            <item row="1" column="0">
             <widget class="QLabel" name="GreenSliceLabel">
              <property name="text">
-              <string>Green Slice:</string>
+              <string>Minor axis:</string>
              </property>
             </widget>
            </item>

@@ -51,12 +51,6 @@ SHORTCUTS = [
         ("Insert · Keypad 0", "reset the camera"),
         ("Ctrl+B", "tilt lock"),
     ]),
-    ("Data", [
-        ("Ctrl+O", "add data"),
-        ("Ctrl+S", "save"),
-        ("Ctrl+W", "close the scene"),
-        ("Ctrl+F", "find a module"),
-    ]),
 ]
 
 
@@ -193,11 +187,13 @@ class AboutDialog(qt.QDialog):
     def buildAbout(self):
         widget, layout = self.page()
         layout.addWidget(paragraph(
-            "SlicerAstro brings radio and optical astronomical data into 3D Slicer: FITS cubes and "
-            "images with their world coordinates, volume rendering and slice views of the sky and of "
-            "the velocity axis, smoothing, masks and SoFiA sources, moment maps, profiles, "
-            "position-velocity diagrams, kinematic modelling with 3DBarolo, reprojection and mosaics. "
-            "The Workbench gathers them around the views.", role=""))
+            "SlicerAstro is an extension of 3D Slicer for the interactive visualisation and analysis of "
+            "three-dimensional astronomical data, above all HI (neutral hydrogen) data cubes. A cube is "
+            "treated as a 3D object, two axes on the sky and one along the velocity, so that faint and "
+            "complex structures, such as tidal tails, filaments and gas around galaxies, can be explored "
+            "by linking 3D renderings, slices, plots and quantitative analysis in one place, always in "
+            "sky and velocity coordinates. It brings the interactive visual analytics developed for "
+            "medical imaging to astronomy.", role=""))
         layout.addWidget(overline("Versions"))
         grid = qt.QGridLayout()
         grid.setHorizontalSpacing(18)
@@ -293,7 +289,9 @@ class AboutDialog(qt.QDialog):
             "<a href='https://github.com/liberfa/erfa'>ERFA</a> (BSD-3) · "
             "<a href='https://www.fftw.org'>FFTW</a> (GPL-2) · "
             "<a href='https://github.com/editeodoro/Bbarolo'>3DBarolo</a> (E. Di Teodoro, GPL-2) · "
-            "exact overlap of the reprojection from astropy reproject and Montage (BSD-3). "
+            "the exact-overlap reprojection uses the spherical-polygon overlap code of "
+            "<a href='https://github.com/astropy/reproject'>astropy reproject</a>, derived from "
+            "<a href='http://montage.ipac.caltech.edu'>Montage</a> (Caltech/IPAC; both BSD-3). "
             "Because of FFTW and 3DBarolo the packages as a whole are under the GPL; the SlicerAstro "
             "sources are BSD."))
         layout.addWidget(overline("Design"))

@@ -478,6 +478,8 @@ void qSlicerAstroMasksSection::setEditing(bool editing)
     d->Editor->setSegmentationNodeSelectorVisible(false);
     d->Editor->setSourceVolumeNodeSelectorVisible(false);
     d->Editor->setSwitchToSegmentationsButtonVisible(false);
+    // masks are shown in 3D from the Masks section (no 3D surface button)
+    d->Editor->setShow3DButtonVisible(false);
     d->EditorHolder->addWidget(d->Editor);
     }
   if (!d->Editor)
