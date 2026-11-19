@@ -286,10 +286,9 @@ vtkMRMLAstroVolumeNode* vtkSlicerAstroPVDiagramLogic::CreateMomentMapVolume(vtkM
   imageDataTemp->AllocateScalars(inputVolume->GetImageData()->GetScalarType(), 1);
   momentMapNode->SetAndObserveImageData(imageDataTemp.GetPointer());
 
-  // Set the Origin
+  // the origin of the cube (as the maps of the Moment maps module)
   double Origin[3];
   inputVolume->GetOrigin(Origin);
-  Origin[1] = -Origin[1];
   momentMapNode->SetOrigin(Origin);
 
   return momentMapNode;
@@ -311,6 +310,22 @@ bool vtkSlicerAstroPVDiagramLogic::CalculateMomentMap(vtkMRMLAstroPVDiagramParam
     vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateMomentMap :"
                   " inputVolume not found.");
     return false;
+    }
+
+  // the moment map of the cube shared by the modules ("<cube>_mom0",
+  // "<cube>_mom2"), computed once
+  vtkMRMLAstroVolumeNode* sharedMap = vtkSlicerAstroVolumeLogic::GetMomentMap(inputVolume, order);
+  if (sharedMap)
+    {
+    if (order == 0)
+      {
+      pnode->SetMomentMapNodeID(sharedMap->GetID());
+      }
+    else
+      {
+      pnode->SetNodeReferenceID(vtkSlicerAstroPVDiagramLogic::GetSecondMomentMapReferenceRole(), sharedMap->GetID());
+      }
+    return true;
     }
 
   vtkMRMLAstroVolumeDisplayNode * astroMrmlDisplayNode = inputVolume->GetAstroVolumeDisplayNode();
@@ -396,9 +411,12 @@ bool vtkSlicerAstroPVDiagramLogic::CalculateMomentMap(vtkMRMLAstroPVDiagramParam
     {
     vtkErrorMacro("vtkSlicerAstroPVDiagramLogic::CalculateMomentMap :"
                   " MomentMaps calculations failed.");
+    this->GetMRMLScene()->RemoveNode(momentMapNode);
     return false;
     }
 
+  momentMapNode->SetName(vtkSlicerAstroVolumeLogic::GetMomentMapName(inputVolume, order).c_str());
+  vtkSlicerAstroVolumeLogic::SetMomentMap(inputVolume, order, momentMapNode);
   if (order == 0)
     {
     pnode->SetMomentMapNodeID(momentMapNode->GetID());

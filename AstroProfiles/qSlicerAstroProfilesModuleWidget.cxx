@@ -793,6 +793,7 @@ void qSlicerAstroProfilesModuleWidget::setMRMLScene(vtkMRMLScene* scene)
   // masks added, removed or modified (e.g. the contours)
   this->qvtkReconnect(scene, vtkMRMLScene::NodeAddedEvent, this, SLOT(updateMaskSelector()));
   this->qvtkReconnect(scene, vtkMRMLScene::NodeRemovedEvent, this, SLOT(updateMaskSelector()));
+  this->qvtkReconnect(scene, vtkMRMLScene::NodeRemovedEvent, this, SLOT(onSceneNodeRemoved()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndImportEvent, this, SLOT(updateMaskSelector()));
   this->updateMaskSelector();
 
@@ -1874,4 +1875,11 @@ mrmlAstroProfilesParametersNode()const
 {
   Q_D(const qSlicerAstroProfilesModuleWidget);
   return d->parametersNode;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::onSceneNodeRemoved()
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+  d->updateResults();
 }

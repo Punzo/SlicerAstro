@@ -195,6 +195,113 @@ class Rail(qt.QFrame):
         layout.addStretch(1)
 
 
+class ElidedLabel(qt.QLabel):
+    """A label elided to its width (full text in the tooltip); it never
+    widens its parent."""
+
+    def __init__(self, text="", mode=qt.Qt.ElideRight, parent=None):
+        qt.QLabel.__init__(self, parent)
+        self.fullText = text
+        self.mode = mode
+        self.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Preferred)
+        self.setMinimumWidth(24)
+        self.setText(text)
+
+    def resizeEvent(self, event):
+        qt.QLabel.resizeEvent(self, event)
+        metrics = qt.QFontMetrics(self.font)
+        elided = metrics.elidedText(self.fullText, self.mode, max(10, self.width))
+        if elided != self.text:
+            self.setText(elided)
+        self.toolTip = self.fullText if elided != self.fullText else ""
+
+
+class SampleCard(qt.QFrame):
+    """A sample data set: a wide image band (3D rendering on black with the
+    Observatory colour function, or the image) over its name, kind,
+    description and credit; downloaded (once, then cached) and loaded on a
+    click."""
+
+    BAND_HEIGHT = 112
+
+    def __init__(self, source, short, details, credit, onClicked=None, parent=None):
+        qt.QFrame.__init__(self, parent)
+        self.source = source
+        self.onClicked = onClicked
+        self.setObjectName(f"Sample_{source.sampleName}")
+        self.setProperty("astroRole", "sampleCard")
+        self.setAttribute(qt.Qt.WA_Hover, True)
+        self.setCursor(qt.Qt.PointingHandCursor)
+        self.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
+        kind, _, description = short.partition(" · ")
+        if not description:
+            kind, description = "", short
+        layout = qt.QVBoxLayout(self)
+        layout.setContentsMargins(6, 6, 6, 10)
+        layout.setSpacing(6)
+        path = getattr(source, "thumbnailFileName", None)
+        self.image = qt.QPixmap(path) if path and os.path.exists(path) else qt.QPixmap()
+        self.band = qt.QLabel()
+        self.band.setObjectName("SampleThumbnail")
+        self.band.setFixedHeight(self.BAND_HEIGHT)
+        self.band.setSizePolicy(qt.QSizePolicy.Ignored, qt.QSizePolicy.Fixed)
+        self.band.setStyleSheet("background: #000000; border-radius: 6px;")
+        layout.addWidget(self.band)
+        texts = qt.QVBoxLayout()
+        texts.setContentsMargins(6, 0, 6, 0)
+        texts.setSpacing(2)
+        titleRow = qt.QHBoxLayout()
+        titleRow.setSpacing(6)
+        title = ElidedLabel(source.sampleName, qt.Qt.ElideMiddle)
+        title.setObjectName("SampleName")
+        title.setStyleSheet("font-weight: 700;")
+        titleRow.addWidget(title, 1)
+        if kind:
+            chip = qt.QLabel(kind)
+            chip.setObjectName("SampleKind")
+            chip.setProperty("astroRole", "chip")
+            titleRow.addWidget(chip)
+        cached = self.isCached()
+        state = qt.QLabel()
+        state.setObjectName("SampleState")
+        state.setPixmap(theme().icon("check" if cached else "download", "muted").pixmap(14, 14))
+        state.toolTip = "Downloaded (cached): loaded at once." if cached else "Downloaded once, then cached."
+        titleRow.addWidget(state)
+        texts.addLayout(titleRow)
+        descriptionLabel = ElidedLabel(description)
+        descriptionLabel.setObjectName("SampleDescription")
+        descriptionLabel.setProperty("astroRole", "label")
+        texts.addWidget(descriptionLabel)
+        creditLabel = ElidedLabel(credit)
+        creditLabel.setObjectName("SampleCredit")
+        creditLabel.setProperty("astroRole", "monoLabel")
+        texts.addWidget(creditLabel)
+        layout.addLayout(texts)
+        self.setToolTip("<br>".join(text for text in (
+            f"<b>{source.sampleName}</b>", details, f"<i>{credit}</i>" if credit else "",
+            "Click: load (downloaded once, then cached).") if text))
+
+    def resizeEvent(self, event):
+        qt.QFrame.resizeEvent(self, event)
+        # the image cropped to the band (centre)
+        width = max(16, self.band.width)
+        if self.image.isNull():
+            return
+        scaled = self.image.scaled(width, self.BAND_HEIGHT, qt.Qt.KeepAspectRatioByExpanding,
+                                   qt.Qt.SmoothTransformation)
+        self.band.setPixmap(scaled.copy((scaled.width() - width) // 2, (scaled.height() - self.BAND_HEIGHT) // 2,
+                                        width, self.BAND_HEIGHT))
+
+    def isCached(self):
+        names = getattr(self.source, "fileNames", None) or []
+        return bool(names) and all(os.path.exists(os.path.join(slicer.app.cachePath, name)) for name in names)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == qt.Qt.LeftButton and self.rect.contains(event.pos()) and self.onClicked:
+            self.onClicked()
+        qt.QFrame.mouseReleaseEvent(self, event)
+
+
 class DatasetDrawer(qt.QFrame):
     """Datasets with previews computed from the data, and the sample data."""
 
@@ -275,7 +382,7 @@ class DatasetDrawer(qt.QFrame):
         samplesList = qt.QWidget()
         samplesLayout = qt.QVBoxLayout(samplesList)
         samplesLayout.setContentsMargins(0, 0, 4, 0)
-        samplesLayout.setSpacing(4)
+        samplesLayout.setSpacing(10)
         samplesScroll.setWidget(samplesList)
         samplesPageLayout.addWidget(samplesScroll, 1)
         self.samplesLayout = samplesLayout
@@ -314,26 +421,8 @@ class DatasetDrawer(qt.QFrame):
             info = {}
         for index, source in enumerate(sources):
             short, details, credit = info.get(source.sampleName, ("", "", ""))
-            # a card: thumbnail, name, short description; details and credit
-            # in the tooltip
-            button = qt.QToolButton()
-            button.setObjectName(f"Sample_{source.sampleName}")
-            button.setProperty("astroRole", "sampleCard")
-            button.setToolButtonStyle(qt.Qt.ToolButtonTextBesideIcon)
-            button.setSizePolicy(qt.QSizePolicy.Expanding, qt.QSizePolicy.Fixed)
-            button.setAutoRaise(True)
-            thumbnail = getattr(source, "thumbnailFileName", None)
-            if thumbnail and os.path.exists(thumbnail):
-                button.setIcon(qt.QIcon(thumbnail))
-            else:
-                button.setIcon(theme().icon("download", "muted"))
-            button.setIconSize(qt.QSize(56, 56))
-            button.text = f"{source.sampleName}\n{short}" if short else source.sampleName
-            button.toolTip = "<br>".join(text for text in (
-                f"<b>{source.sampleName}</b>", details, f"<i>{credit}</i>" if credit else "",
-                "Click: download (once, then cached) and load.") if text)
-            button.connect("clicked()", lambda s=source: self.downloadSample(s))
-            self.samplesLayout.insertWidget(index, button)
+            card = SampleCard(source, short, details, credit, lambda s=source: self.downloadSample(s))
+            self.samplesLayout.insertWidget(index, card)
 
     def downloadSample(self, source):
         import SampleData
@@ -369,7 +458,9 @@ class DatasetDrawer(qt.QFrame):
     def deleteDataset(self, volume, ask=True, withProducts=None):
         """Remove a dataset from the scene; its products (moment maps, masks,
         catalogues...) too if chosen. Returns True if removed."""
-        products = [node for _, _, _, _, node in Astro.productsOf(volume, slicer.mrmlScene)]
+        # the listed products and everything else made from the dataset
+        # (source points, profiles, masks and contours of the modules)
+        products = Astro.derivedNodes(volume, slicer.mrmlScene)
         if ask:
             box = qt.QMessageBox(slicer.util.mainWindow())
             theme().applyTo(box)
@@ -378,7 +469,9 @@ class DatasetDrawer(qt.QFrame):
             box.setText(f"Delete {volume.GetName()} from the scene?")
             allButton = None
             if products:
-                box.setInformativeText(f"It has {len(products)} product{'s' if len(products) != 1 else ''}.")
+                listed = len(Astro.productsOf(volume, slicer.mrmlScene))
+                box.setInformativeText(f"It has {listed} product{'s' if listed != 1 else ''} "
+                                       "(and their masks, contours and catalogue points).")
                 allButton = box.addButton("Dataset and products", qt.QMessageBox.DestructiveRole)
             onlyButton = box.addButton("Dataset only" if products else "Delete", qt.QMessageBox.AcceptRole)
             box.addButton(qt.QMessageBox.Cancel)
@@ -386,13 +479,15 @@ class DatasetDrawer(qt.QFrame):
             if box.clickedButton() not in (allButton, onlyButton) or box.clickedButton() is None:
                 return False
             withProducts = allButton is not None and box.clickedButton() == allButton
-        nodes = ([volume] + products) if withProducts else [volume]
-        if not withProducts:
-            # its own contours and mask go with it (they have its grid)
-            logic = slicer.modules.astrovolume.logic()
-            nodes += [node for node in (logic.GetContoursSegmentationForVolume(volume, False),)
-                      if node is not None]
-        for node in nodes:
+        if withProducts:
+            nodes = products
+        else:
+            # its own contours go with it (they have its grid)
+            contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volume, False)
+            nodes = [contours] if contours is not None else []
+        # the products first, the dataset last: the panels showing the
+        # dataset change their input once
+        for node in nodes + [volume]:
             if node.GetScene() is not None:
                 slicer.mrmlScene.RemoveNode(node)
         self.refresh()
@@ -582,6 +677,7 @@ class Workbench:
         self.saved = {}
         self.widgets = []
         self.sceneObservers = []
+        self.observedSegmentations = {}
         self.refreshTimer = qt.QTimer()
         self.refreshTimer.setSingleShot(True)
         self.refreshTimer.setInterval(200)
@@ -1044,12 +1140,32 @@ class Workbench:
             f"QMainWindow::separator {{ background: {bg}; width: 6px; height: 6px; }}"
             f"QMainWindow::separator:hover {{ background: {hover}; }}")
 
+    def observeSegmentations(self):
+        """Segments added or removed (e.g. in the base mask of a cube): the
+        products of the datasets change."""
+        for segmentation in slicer.util.getNodesByClass("vtkMRMLSegmentationNode"):
+            if segmentation.GetID() in self.observedSegmentations:
+                continue
+            tags = [segmentation.AddObserver(event, self.scheduleRefresh)
+                    for event in (slicer.vtkSegmentation.SegmentAdded, slicer.vtkSegmentation.SegmentRemoved)]
+            self.observedSegmentations[segmentation.GetID()] = (segmentation, tags)
+
+    def unobserveSegmentations(self):
+        for segmentation, tags in self.observedSegmentations.values():
+            for tag in tags:
+                segmentation.RemoveObserver(tag)
+        self.observedSegmentations = {}
+
     def scheduleRefresh(self, caller=None, event=None):
         if event == "EndCloseEvent":
             # node IDs are reused by the next data
             self.automaticContours.done.clear()
         if event in ("EndCloseEvent", "EndImportEvent"):
             self.style3DViews()
+        if event == "EndCloseEvent":
+            self.unobserveSegmentations()
+        if self.active:
+            self.observeSegmentations()
         self.refreshTimer.start()
 
     def runAutomaticContours(self):
@@ -1090,6 +1206,7 @@ class Workbench:
         for observer in self.sceneObservers:
             slicer.mrmlScene.RemoveObserver(observer)
         self.sceneObservers = []
+        self.unobserveSegmentations()
         slicer.app.applicationLogic().GetSelectionNode().RemoveObserver(self.selectionObserver)
         slicer.app.applicationLogic().GetInteractionNode().RemoveObserver(self.interactionObserver)
         mainWindow = slicer.util.mainWindow()

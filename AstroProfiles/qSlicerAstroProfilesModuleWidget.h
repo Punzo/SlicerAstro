@@ -101,6 +101,9 @@ protected slots:
   void onMaskSegmentationChanged(vtkMRMLNode* node);
   /// Masks only in the selector (not the contours); by default the mask of the input volume
   void updateMaskSelector();
+  /// A node removed (e.g. the profile deleted with its dataset): the plot
+  /// and the measurements follow
+  void onSceneNodeRemoved();
 
   /// Update widget GUI from MRML input node
   void onInputVolumeModified();

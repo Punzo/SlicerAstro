@@ -207,6 +207,53 @@ def productsOf(volume, scene):
     return products
 
 
+def derivedNodes(volume, scene):
+    """Everything made from a dataset, in the order of deletion (the dataset
+    itself not included): source points of its catalogues, plot series and
+    tables of its profiles, catalogues, segmentations on its grid or on the
+    grid of its products (masks, contours, 3DBarolo masks and contours),
+    then the derived volumes (products of products first)."""
+    volumes = astroVolumes(scene)
+    derived = []
+    pending = [volume]
+    while pending:
+        parent = pending.pop()
+        for other in volumes:
+            if other is not volume and other not in derived and parentOf(other, volumes) is parent:
+                derived.append(other)
+                pending.append(other)
+    grids = [volume] + derived
+    nodes = []
+    logic = slicer.vtkSlicerAstroVolumeLogic
+    catalogueTables = cataloguesOf(volume)
+    for table in catalogueTables:
+        points = logic.GetSourceCataloguePoints(table)
+        if points is not None:
+            nodes.append(points)
+    # profiles: their tables (referenced by the profile volumes) and the plot
+    # series showing them
+    profileTables = []
+    for product in derived:
+        referenced = product.GetNodeReference("SlicerAstro.ProfileTable")
+        if referenced is not None:
+            profileTables.append(referenced)
+    for series in slicer.util.getNodesByClass("vtkMRMLPlotSeriesNode"):
+        if series.GetTableNode() in profileTables:
+            nodes.append(series)
+    nodes += profileTables + catalogueTables
+    role = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
+    for segmentation in slicer.util.getNodesByClass("vtkMRMLSegmentationNode"):
+        if segmentation.GetNodeReference(role) in grids:
+            nodes.append(segmentation)
+    nodes += list(reversed(derived))
+    # each node once, in this order
+    unique = []
+    for node in nodes:
+        if node is not None and node not in unique:
+            unique.append(node)
+    return unique
+
+
 def catalogues(scene=None):
     """Source catalogues (SoFiA and other catalogues loaded by AstroSoFiACatalog)."""
     return [node for node in slicer.util.getNodesByClass("vtkMRMLTableNode")

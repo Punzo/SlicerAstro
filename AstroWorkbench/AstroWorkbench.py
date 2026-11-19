@@ -149,6 +149,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.setUp()
         self.test_HeaderTools()
         self.setUp()
+        self.test_DeleteDatasetWithEverything()
+        self.setUp()
         self.test_Theme()
         self.setUp()
         self.test_ViewsInteraction()
@@ -481,6 +483,62 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         workbench().exit()
         self.process()
         self.assertNotEqual(mainWindow.contextMenuPolicy, qt.Qt.PreventContextMenu)
+
+    def test_DeleteDatasetWithEverything(self):
+        """A dataset with a SoFiA catalogue (points), a profile (table, plot
+        series), a PV diagram and its base mask (listed once it has a
+        segment), deleted with its products: nothing made from it is left
+        and the application keeps working."""
+        import AstroSampleData
+        sampleData = AstroSampleData.AstroSampleDataLogic()
+        volume = sampleData.downloadSample("WEIN069")
+        sampleData.downloadSample("WEIN069_MASK")
+        selection = slicer.app.applicationLogic().GetSelectionNode()
+        selection.SetActiveVolumeID(volume.GetID())
+        workbench().enter()
+        self.process(30)
+        from AstroWorkbenchLib import Astro
+        # the base mask of the cube: a product once it has a segment
+        baseMask = slicer.modules.astrovolume.logic().GetMaskSegmentationForVolume(volume, True)
+        self.assertIsNotNone(baseMask)
+        baseMask.GetSegmentation().AddEmptySegment("tail")
+        self.process(30)
+        workbench().refresh()
+        card = slicer.util.findChild(slicer.util.mainWindow(), f"DatasetCard_{volume.GetID()}")
+        self.assertIsNotNone(slicer.util.findChild(card, f"Product_{baseMask.GetID()}"))
+        # profile and PV diagram
+        slicer.util.selectModule("AstroProfiles")
+        profiles = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroProfilesParametersNode")
+        profiles.SetInputVolumeNodeID(volume.GetID())
+        slicer.util.findChild(slicer.modules.astroprofiles.widgetRepresentation(), "ApplyButton").click()
+        self.process(20)
+        slicer.util.selectModule("AstroPVDiagram")
+        line = slicer.util.getNode("PVDiagramLine")
+        line.AddControlPoint(0, 0, 0)
+        line.AddControlPoint(30, 0, 0)
+        line.AddControlPoint(30, 0, 40)
+        self.process(20)
+        derived = Astro.derivedNodes(volume, slicer.mrmlScene)
+        classes = {node.GetClassName() for node in derived}
+        self.assertIn("vtkMRMLMarkupsFiducialNode", classes)
+        self.assertIn("vtkMRMLPlotSeriesNode", classes)
+        self.assertIn("vtkMRMLTableNode", classes)
+        derivedIDs = [node.GetID() for node in derived]
+        workbench().enter()
+        self.process()
+        self.assertTrue(workbench().drawer.deleteDataset(volume, ask=False, withProducts=True))
+        self.process(30)
+        self.assertIsNone(volume.GetScene())
+        for nodeID in derivedIDs:
+            self.assertIsNone(slicer.mrmlScene.GetNodeByID(nodeID), nodeID)
+        self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), 0)
+        # the plot of the Profiles panel cleared
+        plot = slicer.util.findChild(slicer.modules.astroprofiles.widgetRepresentation(), "SpectrumPlot")
+        self.assertEqual(len(plot.spectrumY()), 0)
+        # the application keeps working: new data
+        other = sampleData.downloadSample("WEIN069")
+        self.assertIsNotNone(other)
+        self.process(20)
 
     def test_Theme(self):
         """The theme switch restyles the Workbench."""

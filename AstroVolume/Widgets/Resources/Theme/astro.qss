@@ -350,8 +350,9 @@ QToolButton[astroRole="step"]:hover { background: @hover@; }
 QToolButton[astroRole="step"]:checked { background: @accent-soft@; border-color: @accent@; }
 
 /* Sample data cards (Workbench): thumbnail, name and description */
-QToolButton[astroRole="sampleCard"] { text-align: left; padding: 6px 8px; border: 1px solid transparent; border-radius: 8px; color: @text@; }
-QToolButton[astroRole="sampleCard"]:hover { background: @raised@; border-color: @line@; }
+QFrame[astroRole="sampleCard"] { background: @raised@; border: 1px solid @line@; border-radius: 10px; }
+QFrame[astroRole="sampleCard"]:hover { border-color: @line-strong@; }
+QFrame[astroRole="sampleCard"] QLabel { background: transparent; }
 
 /* Text areas (e.g. the 3DBarolo log): theme colours, not the white base of
    the application palette */
