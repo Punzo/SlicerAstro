@@ -154,7 +154,9 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
             if table.GetAttribute("SlicerAstro.SoFiASources"):
                 self.track(table)
         for markups in slicer.util.getNodesByClass("vtkMRMLMarkupsFiducialNode"):
-            self.track(markups)
+            # the source points (not the empty point lists of the modules)
+            if markups.GetNumberOfControlPoints() > 0:
+                self.track(markups)
 
         # contours: a type of the terminology and a custom color
         moduleWidget = self.selectModule("AstroVolume")

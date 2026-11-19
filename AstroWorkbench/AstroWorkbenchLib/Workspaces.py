@@ -139,8 +139,10 @@ def loadWorkspace(folder):
     description = readDescription(folder)
     if description is None:
         return False
+    # the current scene is closed first (as File > Close Scene), then the
+    # workspace replaces it
     slicer.mrmlScene.Clear(0)
-    slicer.util.loadScene(description["scene"])
+    slicer.util.loadScene(description["scene"], {"clear": True})
     layout = description.get("layout")
     if layout is not None and slicer.app.layoutManager() is not None:
         slicer.app.layoutManager().setLayout(int(layout))

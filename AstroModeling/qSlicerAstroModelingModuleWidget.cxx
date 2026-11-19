@@ -1800,7 +1800,26 @@ void qSlicerAstroModelingModuleWidget::initializeFiducialNodes(bool forceNew /*=
     return;
     }
 
+  // the points of the module in this scene: found again (the ones of a
+  // closed scene are no longer used), created if missing
+  d->fiducialNodeMajor = nullptr;
+  d->fiducialNodeMinor = nullptr;
   int numNodes = this->mrmlScene()->GetNumberOfNodesByClass("vtkMRMLMarkupsFiducialNode");
+  if (!forceNew)
+    {
+    numNodes = 0;
+    std::vector<vtkMRMLNode*> pointLists;
+    this->mrmlScene()->GetNodesByClass("vtkMRMLMarkupsFiducialNode", pointLists);
+    for (vtkMRMLNode* pointList : pointLists)
+      {
+      const std::string name = pointList->GetName() ? pointList->GetName() : "";
+      if (name.find("MarkupsFiducialsMajor") != std::string::npos ||
+          name.find("MarkupsFiducialsMinor") != std::string::npos)
+        {
+        numNodes++;
+        }
+      }
+    }
   if(numNodes == 0 || forceNew)
     {
     std::string MarkupsFiducialMajorName("MarkupsFiducialsMajor");
@@ -1859,6 +1878,20 @@ void qSlicerAstroModelingModuleWidget::initializeFiducialNodes(bool forceNew /*=
         d->fiducialNodeMinor = tempMarkupsFiducialMinor;
         }
       }
+    }
+
+  // one of the two missing (e.g. deleted by the user): created
+  if (!d->fiducialNodeMajor)
+    {
+    std::string ID = MarkupsLogic->AddNewFiducialNode
+      (this->mrmlScene()->GenerateUniqueName("MarkupsFiducialsMajor").c_str());
+    d->fiducialNodeMajor = vtkMRMLMarkupsFiducialNode::SafeDownCast(this->mrmlScene()->GetNodeByID(ID));
+    }
+  if (!d->fiducialNodeMinor)
+    {
+    std::string ID = MarkupsLogic->AddNewFiducialNode
+      (this->mrmlScene()->GenerateUniqueName("MarkupsFiducialsMinor").c_str());
+    d->fiducialNodeMinor = vtkMRMLMarkupsFiducialNode::SafeDownCast(this->mrmlScene()->GetNodeByID(ID));
     }
 }
 

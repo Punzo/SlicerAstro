@@ -377,11 +377,16 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             Workspaces.saveWorkspace("Test WEIN069", "", directory)
         folder = Workspaces.renameWorkspace(folder, "Renamed")
         self.assertEqual(Workspaces.listWorkspaces(directory)[0]["name"], "Renamed")
-        slicer.mrmlScene.Clear(0)
+        # opening a workspace replaces the scene: other data loaded meanwhile
+        # are removed, the data of the workspace are there once
+        import SampleData
+        other = SampleData.downloadSample("NGC2403")
+        self.assertIsNotNone(other)
         self.assertTrue(Workspaces.loadWorkspace(folder))
         self.process()
         names = [node.GetName() for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode")]
-        self.assertIn("WEIN069", names)
+        self.assertEqual(names.count("WEIN069"), 1, names)
+        self.assertNotIn("NGC2403", names)
         self.assertTrue(Workspaces.deleteWorkspace(folder))
         self.assertEqual(Workspaces.listWorkspaces(directory), [])
         os.rmdir(directory)
