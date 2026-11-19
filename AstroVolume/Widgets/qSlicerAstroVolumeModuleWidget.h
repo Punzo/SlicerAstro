@@ -20,70 +20,77 @@
 #ifndef __qSlicerAstroVolumeModuleWidget_h
 #define __qSlicerAstroVolumeModuleWidget_h
 
-// CTK includes
+// STD includes
 #include <functional>
+#include <string>
+
+// Qt includes
 #include <QMessageBox>
+
+// CTK includes
 #include <ctkVTKObject.h>
 
-// SlicerQt includes
+// Slicer includes
 #include "qSlicerAbstractModuleWidget.h"
 
-// AstroVolume includes
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
-// Segmentation includes
-#include "vtkMRMLSegmentationNode.h"
-
-// VTK includes
 #include <vtkWeakPointer.h>
 
-class qMRMLAstroVolumeInfoWidget;
-class qSlicerAstroVolumeDisplayWidget;
+class qSlicerAstroContoursSection;
+class qSlicerAstroDisplaySection;
+class qSlicerAstroInfoSection;
+class qSlicerAstroMasksSection;
+class qSlicerAstroRenderingSection;
+class qSlicerAstroSourcesSection;
 class qSlicerAstroVolumeModuleWidgetPrivate;
-class qSlicerAbstractModuleWidget;
 class vtkMRMLAstroVolumeNode;
-class vtkMRMLMarkupsROINode;
 class vtkMRMLNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLVolumeRenderingDisplayNode;
+class vtkObject;
 
-/// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
+/// \ingroup SlicerAstro_QtModules_AstroVolume
+/// Panel of the AstroVolume module: the active data and the reusable
+/// sections of AstroVolume in tabs (Display: Display and Contours; 3D;
+/// Masks: Masks and Sources; Info). The Workbench embeds the same sections.
+/// The panel also arranges the comparison views of the other modules
+/// (qSlicerAstroVolumeModuleWidgetViews.cxx).
 class Q_SLICERASTRO_QTMODULES_ASTROVOLUME_WIDGETS_EXPORT qSlicerAstroVolumeModuleWidget :
   public qSlicerAbstractModuleWidget
 {
   Q_OBJECT
   QVTK_OBJECT
+
 public:
-
   typedef qSlicerAbstractModuleWidget Superclass;
-  qSlicerAstroVolumeModuleWidget(QWidget *parent=0);
-  virtual ~qSlicerAstroVolumeModuleWidget();
+  qSlicerAstroVolumeModuleWidget(QWidget *parent=nullptr);
+  ~qSlicerAstroVolumeModuleWidget() override;
 
-  /// Get AstroVolumeDispalyWidget
-  Q_INVOKABLE qSlicerAstroVolumeDisplayWidget* astroVolumeDisplayWidget()const;
+  enum Tab { DisplayTab = 0, RenderingTab, MasksTab, InfoTab };
 
-  /// Get AstroVolumeInfoWidget
-  Q_INVOKABLE qMRMLAstroVolumeInfoWidget* astroVolumeInfoWidget()const;
+  /// The sections of the panel
+  Q_INVOKABLE qSlicerAstroDisplaySection* displaySection() const;
+  Q_INVOKABLE qSlicerAstroContoursSection* contoursSection() const;
+  Q_INVOKABLE qSlicerAstroRenderingSection* renderingSection() const;
+  Q_INVOKABLE qSlicerAstroMasksSection* masksSection() const;
+  Q_INVOKABLE qSlicerAstroSourcesSection* sourcesSection() const;
+  Q_INVOKABLE qSlicerAstroInfoSection* infoSection() const;
+  /// Tab shown (Tab)
+  Q_INVOKABLE int currentTab() const;
 
-  /// Get volumeRenderingDisplay
-  Q_INVOKABLE vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay()const;
+  /// Volume rendering of the active volume (nullptr if none)
+  Q_INVOKABLE vtkMRMLVolumeRenderingDisplayNode* volumeRenderingDisplay() const;
+  /// The active volume is shown automatically in the views
+  /// (vtkSlicerAstroVolumeLogic::AutoShowActiveVolume)
+  Q_INVOKABLE bool autoShowActiveVolume() const;
 
-  /// Get volumeRenderingWidget
-  Q_INVOKABLE qSlicerAbstractModuleWidget* volumeRenderingWidget()const;
-
-  virtual void enter();
-  virtual void exit();
+  void enter() override;
+  void exit() override;
 
 public slots:
-
-  /// Clear the selection of the current 3D color function presets
-  void clearPresets();
-
-  /// Changing the rendering quality
-  void onCurrentQualityControlChanged(int);
-
-  /// Activate/Deactivate the 3D rendering
-  void onVisibilityChanged(bool visibility);
+  void setCurrentTab(int tab);
+  void setAutoShowActiveVolume(bool show);
 
   /// Set comparative layout 1 (used by smoothing module)
   void setComparative3DViews(const char* volumeNodeOneID,
@@ -115,9 +122,6 @@ public slots:
                                 double greenRAS[3],
                                 bool overrideSegments = false);
 
-  /// IDs of the segments of the contours of the Modeling module (segmentation
-  /// "AstroModelingContoursSeg"): data and model at the contour level, and
-  /// region of the model
   /// Questions and messages to the user (e.g. reprojection issues and their
   /// fixes): also in the application log. In testing mode no dialog is
   /// shown and the answer to a question is Yes.
@@ -134,118 +138,35 @@ public slots:
                               const std::function<int()>& progress,
                               const std::function<void()>& cancel);
 
+  /// IDs of the segments of the contours of the Modeling module (segmentation
+  /// "AstroModelingContoursSeg"): data and model at the contour level, and
+  /// region of the model
   static const char* modelingDataContoursSegmentID();
   static const char* modelingModelContoursSegmentID();
   static const char* modelingModelMaskSegmentID();
 
-  /// Utility function to be connected with generic signals
+  /// The active volume of the panel (and of the views)
   void setMRMLVolumeNode(vtkMRMLNode* node);
 
-  /// Set the MRML node of interest
-  void setMRMLVolumeNode(vtkMRMLAstroVolumeNode* volumeNode);
-
-  /// Utility function to start to rock the view
+  /// Rock the 3D views
   void startRockView();
-
-  /// Utility function to stop to rock the view
   void stopRockView();
 
 protected slots:
-  void applyPreset(vtkMRMLNode* volumePropertyNode);
-  void fitROIToVolume();
-  void onCalculateRMS();
-  void onCreateHistogram();
-  void onCreateSurfaceButtonToggled(vtkMRMLSegmentationNode*);
-  void onCropToggled(bool toggle);
-  void onDisplayThresholdValueChanged(double DisplayThreshold);
-  void onEditSelectedSegment();
-  void onSaveFITSMask();
-  void onCopyMask();
-  void onMoveMask();
-  /// Copy (move) the selected segments of the mask (all if none is selected)
-  /// to the mask of the volume selected in "Copy to". Returns true on success.
-  bool copyMaskSegments(bool move);
-  void updateMaskSelector();
-  void updateSaveFITSMaskButton();
-  void onSegmentationNodeChanged(vtkMRMLNode* node);
-  void onHistoClippingChanged(double percentage);
-  void onHistoClippingChanged1();
-  void onHistoClippingChanged2();
-  void onHistoClippingChanged3();
-  void onHistoClippingChanged4();
-  void onHistoClippingChanged5();
-  void onInputVolumeChanged(vtkMRMLNode *node);
-  void onLockToggled(bool toggled);
-  void onMRMLDisplayROINodeModified(vtkObject*);
-  void onMRMLPlotChartNodeHistogramModified();
+  void onDatasetSelected(vtkMRMLNode* node);
+  void onSelectionNodeModified();
   void onMRMLSceneEndImportEvent();
   void onMRMLSceneEndCloseEvent();
-  void onMRMLSceneStartImportEvent();
-  void onMRMLSelectionNodeModified(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceAdded(vtkObject* sender);
-  void onMRMLSelectionNodeReferenceRemoved(vtkObject* sender);
-  void onMRMLTableMaxNodeModified();
-  void onMRMLTableMinNodeModified();
-  void onMRMLTableThresholdNodeModified();
-  void onMRMLVolumeNodeModified();
-  void onMRMLVolumeDisplayNodeModified();
-  void onMRMLVolumeNodeDisplayThresholdModified(bool forcePreset = true);
-  void onMRMLVolumeRenderingDisplayNodeModified(vtkObject* sender);
-  void onMRMLViewNodeModified(vtkObject* sender);
-  void onOffsetValueChanged(double offsetValue);
-  void onOpacityValueChanged(double Opacity);
-  void onPlotSelectionChanged(vtkStringArray* mrmlPlotDataIDs, vtkCollection* selectionCol);
-  void onROICropDisplayCheckBoxToggled(bool toggle);
-  void onSegmentEditorNodeModified(vtkObject* sender);
-  void onStretchValueChanged(double stretchValue);
-  void resetAndApplyPreset(vtkMRMLNode* volumePropertyNode);
-  void resetOffset(vtkMRMLNode* node);
-  void resetOffsetStep(vtkMRMLNode* node);
-  void resetOpacityShift(vtkMRMLNode* node);
-  void resetStretch(vtkMRMLNode* node);
-  void resetStretchStep(vtkMRMLNode* node);
-  void setDisplayConnection();
-  void setDisplayROIEnabled(bool visibility);
-  void setOpticalVelocity();
-  void setRADegreeUnit();
-  void setRASexagesimalUnit();
-  void setRadioVelocity();
-  void synchronizeScalarDisplayNode();
-  /// Widen too narrow gaps in the default volume rendering transfer functions.
-  void ensureVolumeRenderingTransferFunctionGaps();
-  /// ROI of the volume rendering (cropping, RMS); created fitted to the volume if \a create.
-  vtkMRMLMarkupsROINode* volumeRenderingROINode(bool create);
-  void updatePresets(vtkMRMLNode* node);
-  void updateWidgetsFromIntensityNode();
-
-signals:
-  void segmentEditorNodeChanged(bool enabled);
 
 protected:
   QScopedPointer<qSlicerAstroVolumeModuleWidgetPrivate> d_ptr;
 
-  /// Initialization of module widgets
-  virtual void setup();
+  void setup() override;
+  void setMRMLScene(vtkMRMLScene*) override;
 
-  /// Initialization of MRML scene
-  virtual void setMRMLScene(vtkMRMLScene*);
-
-  /// Initialization of MRML color nodes
-  void initializeColorNodes();
-
-  /// Initialization of MRML plot nodes
-  void initializePlotNodes(bool forceNew = false);
-
-  /// Initialization of MRML segmentation nodes
-  void initializeSegmentations(bool forceNew = false);
-
-  /// Update master representation in segmentation to a given representation.
-  /// Used before adding a certain segment to a segmentation, making sure the user knows if data loss is possible.
-  /// 1. Segmentation is empty or master is unspecified -> Master is changed to the segment's representation type
-  /// 2. Segmentation is non-empty and master matches the representation -> No action
-  /// 3. Segmentation is non-empty and master differs -> Choice presented to user
-  /// \return False only if user chose not to change master representation on option 3, or if error occurred, otherwise true
-  bool updateMasterRepresentationInSegmentation(vtkSegmentation* segmentation, QString representation);
+  /// The volume rendering of a cube ready to be shown (logic
+  /// PrepareVolumeRendering): used by the comparison views
+  void prepareVolumeRendering(vtkMRMLAstroVolumeNode* volume);
 
   /// Contours of the Modeling module: create or recompute in place the
   /// segment segmentID (voxels of volume in [lower, upper]), named name

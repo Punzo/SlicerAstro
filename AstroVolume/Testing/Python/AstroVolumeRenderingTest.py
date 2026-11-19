@@ -181,14 +181,14 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.assertIsNotNone(volumeNode)
         slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
         slicer.app.processEvents()
-        widget = slicer.modules.astrovolume.widgetRepresentation()
+        widget = slicer.modules.astrovolume.widgetRepresentation().renderingSection()
         displayNode = volumeNode.GetAstroVolumeRenderingDisplayNode()
         self.assertIsNotNone(displayNode)
 
-        # Display ROI creates the cropping ROI, fitted to the volume, and shows it
+        # Crop creates the cropping ROI, fitted to the volume, and shows it
         self.assertIsNone(displayNode.GetMarkupsROINode())
-        displayROICheckBox = slicer.util.findChild(widget, "ROICropDisplayCheckBox")
-        displayROICheckBox.checked = True
+        cropButton = slicer.util.findChild(widget, "RenderingCrop")
+        cropButton.checked = True
         slicer.app.processEvents()
         roiNode = displayNode.GetMarkupsROINode()
         self.assertIsNotNone(roiNode)
@@ -199,13 +199,14 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(list(lower), [0, 0, 0])
         self.assertEqual(list(upper), [d - 1 for d in volumeNode.GetImageData().GetDimensions()])
 
-        # Hiding the ROI keeps it
-        displayROICheckBox.checked = False
+        # No cropping: the ROI is hidden, not deleted
+        cropButton.checked = False
         slicer.app.processEvents()
         self.assertFalse(roiNode.GetDisplayVisibility())
+        self.assertIs(displayNode.GetMarkupsROINode(), roiNode)
 
-        # RMS in ROI: whole cube, then a corner of the cube
-        rmsButton = slicer.util.findChild(widget, "CalculateRMSPushButton")
+        # Noise in the box: whole cube, then a corner of the cube
+        rmsButton = slicer.util.findChild(widget, "RenderingNoiseInBox")
         rmsButton.click()
         slicer.app.processEvents()
         self.assertAlmostEqual(volumeNode.GetDisplayThreshold(), self.expectedRMS(roiNode, volumeNode),
@@ -348,9 +349,8 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
 
         # a new function chosen in the selector: the copy of the volume keeps
         # the identifier, named "<preset> · <volume>"
-        widget = slicer.modules.astrovolume.widgetRepresentation()
-        slicer.util.findChild(widget, "PresetsNodeComboBox").setCurrentNodeIndex(
-            slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
+        widget = slicer.modules.astrovolume.widgetRepresentation().renderingSection()
+        widget.applyPreset(slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
         slicer.app.processEvents()
         self.assertEqual(volumeNode.GetPresetIndex(), slicer.vtkMRMLAstroVolumeNode.ObservatorySurfacesPreset)
         copy = volumeNode.GetVolumePropertyNode()
@@ -386,19 +386,17 @@ class AstroVolumeRenderingTestTest(ScriptedLoadableModuleTest):
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
         slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
         slicer.app.processEvents()
-        widget = slicer.modules.astrovolume.widgetRepresentation()
-        slicer.util.findChild(widget, "PresetsNodeComboBox").setCurrentNodeIndex(
-            slicer.vtkMRMLAstroVolumeNode.OneSurfaceWhitePreset)
+        moduleWidget = slicer.modules.astrovolume.widgetRepresentation()
+        widget = moduleWidget.renderingSection()
+        widget.applyPreset(slicer.vtkMRMLAstroVolumeNode.OneSurfaceWhitePreset)
         slicer.app.processEvents()
-        for name, fraction in (("PresetOffsetSlider", 0.7), ("PresetStretchSlider", 0.6), ("OpacitySliderWidget", 0.3)):
+        for name, fraction in (("RenderingShift", 0.7), ("RenderingStretch", 0.6), ("RenderingOpacity", 0.3)):
             slider = slicer.util.findChild(widget, name)
             slider.value = slider.minimum + fraction * (slider.maximum - slider.minimum)
             slicer.app.processEvents()
         displayNode = volumeNode.GetAstroVolumeDisplayNode()
         # 2D color table chosen in the selector, as by the user
-        import qt
-        displayWidget = slicer.util.findChildren(widget, className="qSlicerAstroScalarVolumeDisplayWidget")[0]
-        colorSelector = slicer.util.findChild(displayWidget, "ColorTableComboBox").findChild(qt.QComboBox)
+        colorSelector = slicer.util.findChild(moduleWidget.displaySection(), "DisplayColourTable")
         heatIndex = [colorSelector.itemText(i) for i in range(colorSelector.count)].index("Heat")
         colorSelector.setCurrentIndex(heatIndex)
         colorSelector.activated(heatIndex)

@@ -339,39 +339,38 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
         slicer.util.selectModule("AstroVolume")
         slicer.app.processEvents()
-        widget = slicer.modules.astrovolume.widgetRepresentation()
-        major = slicer.util.findChild(widget, "BeamMajorSpinBox")
-        minor = slicer.util.findChild(widget, "BeamMinorSpinBox")
-        angle = slicer.util.findChild(widget, "BeamPASpinBox")
-        status = slicer.util.findChild(widget, "BeamStatusLabel")
+        widget = slicer.modules.astrovolume.widgetRepresentation().infoSection()
+        major = slicer.util.findChild(widget, "InfoBeam_BMAJ")
+        minor = slicer.util.findChild(widget, "InfoBeam_BMIN")
+        angle = slicer.util.findChild(widget, "InfoBeam_BPA")
         # not estimated automatically
         self.assertEqual(major.value, 0.)
-        self.assertIn("no beam", status.text)
+        self.assertIn("no beam", widget.beamStatus().lower())
         self.assertEqual(volumeNode.GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED")
         self.assertEqual(slicer.vtkSlicerAstroVolumeLogic.GetJyBeamToJyFactor(volumeNode), 0.)
 
         # estimate: the fields, not the data
-        slicer.util.findChild(widget, "EstimateBeamPushButton").click()
+        slicer.util.findChild(widget, "InfoEstimateBeam").click()
         self.assertAlmostEqual(major.value / (8.0 * 3.6), 1.0, delta=0.1)
         self.assertAlmostEqual(minor.value / (5.0 * 3.6), 1.0, delta=0.1)
         self.assertLess(abs(angle.value - 30.), 8.)
-        self.assertIn("ESTIMATED", status.text)
+        self.assertIn("ESTIMATED", widget.beamStatus())
         self.assertEqual(volumeNode.GetAttribute("SlicerAstro.BMAJ"), "UNDEFINED")
 
         # apply: the beam of the data
-        slicer.util.findChild(widget, "ApplyBeamPushButton").click()
+        slicer.util.findChild(widget, "InfoApplyBeam").click()
         self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BMAJ")) * 3600., major.value, places=6)
         self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BMIN")) * 3600., minor.value, places=6)
         self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BPA")), angle.value, places=6)
         self.assertGreater(slicer.vtkSlicerAstroVolumeLogic.GetJyBeamToJyFactor(volumeNode), 0.)
-        self.assertIn("applied", status.text)
+        self.assertIn("applied", widget.beamStatus())
 
         # a beam entered by the user
         major.value = 40.
         minor.value = 30.
         angle.value = -10.
-        self.assertIn("not applied", status.text)
-        slicer.util.findChild(widget, "ApplyBeamPushButton").click()
+        self.assertIn("not applied", widget.beamStatus())
+        slicer.util.findChild(widget, "InfoApplyBeam").click()
         self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BMAJ")), 40. / 3600., places=12)
         self.assertAlmostEqual(float(volumeNode.GetAttribute("SlicerAstro.BPA")), -10., places=12)
 
@@ -381,9 +380,9 @@ class AstroVolumeLogicTestTest(ScriptedLoadableModuleTest):
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(withBeam.GetID())
         slicer.app.processEvents()
         self.assertAlmostEqual(major.value, 0.0082401093 * 3600., places=2)
-        self.assertNotIn("no beam", status.text)
+        self.assertNotIn("no beam", widget.beamStatus().lower())
         header = withBeam.GetAttribute("SlicerAstro.BMAJ")
-        slicer.util.findChild(widget, "ApplyBeamPushButton").click()
+        slicer.util.findChild(widget, "InfoApplyBeam").click()
         self.assertEqual(withBeam.GetAttribute("SlicerAstro.BMAJ"), header)
         self.delayDisplay("Test passed")
 

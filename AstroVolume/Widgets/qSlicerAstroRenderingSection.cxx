@@ -36,10 +36,8 @@
 // MRML includes
 #include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
-#include <vtkMRMLCameraNode.h>
 #include <vtkMRMLMarkupsROINode.h>
 #include <vtkMRMLScene.h>
-#include <vtkMRMLViewNode.h>
 #include <vtkMRMLVolumePropertyNode.h>
 #include <vtkMRMLVolumeRenderingDisplayNode.h>
 
@@ -289,6 +287,11 @@ void qSlicerAstroRenderingSection::setVolumeNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroRenderingSection);
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (volume && !volume->GetScene())
+    {
+    // removed from the scene (e.g. while the scene is closed)
+    volume = nullptr;
+    }
   if (volume != d->Volume.GetPointer())
     {
     d->LastResult.clear();
@@ -415,37 +418,9 @@ void qSlicerAstroRenderingSection::setRenderingVisible(bool visible)
     {
     return;
     }
+  // shown the first time: the default color function, cameras on the cube
   const bool created = !logic->GetVolumeRenderingDisplayNode(d->Volume, false);
-  vtkMRMLVolumeRenderingDisplayNode* displayNode = logic->GetVolumeRenderingDisplayNode(d->Volume, visible);
-  if (!displayNode)
-    {
-    return;
-    }
-  if (visible && !d->Volume->GetVolumePropertyNode())
-    {
-    // the default color function, scaled to the noise
-    logic->ApplyPreset(d->Volume, d->preset(vtkMRMLAstroVolumeNode::DefaultPreset), true);
-    }
-  displayNode->SetVisibility(visible);
-  if (visible && created && d->Volume->GetScene())
-    {
-    // looking along the velocity axis, north up, centered on the cube
-    const double directionOfProjection[3] = {0., -1., 0.};
-    const double viewUp[3] = {0., 0., 1.};
-    std::vector<vtkMRMLNode*> cameras;
-    d->Volume->GetScene()->GetNodesByClass("vtkMRMLCameraNode", cameras);
-    for (vtkMRMLNode* node : cameras)
-      {
-      vtkMRMLCameraNode* camera = vtkMRMLCameraNode::SafeDownCast(node);
-      const char* viewID = camera ? camera->GetLayoutName() : nullptr;
-      vtkMRMLViewNode* view = (viewID && d->Volume->GetScene()) ? vtkMRMLViewNode::SafeDownCast(
-        d->Volume->GetScene()->GetSingletonNode(viewID, "vtkMRMLViewNode")) : nullptr;
-      if (camera && (!view || displayNode->IsDisplayableInView(view->GetID())))
-        {
-        vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(camera, d->Volume, directionOfProjection, viewUp);
-        }
-      }
-    }
+  logic->SetVolumeRenderingVisibility(d->Volume, visible, created);
   this->updateFromVolume();
 }
 

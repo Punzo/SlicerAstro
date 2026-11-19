@@ -293,6 +293,11 @@ void qSlicerAstroDisplaySection::setVolumeNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroDisplaySection);
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (volume && !volume->GetScene())
+    {
+    // removed from the scene (e.g. while the scene is closed)
+    volume = nullptr;
+    }
   if (volume == d->Volume.GetPointer() && (!volume || volume->GetAstroVolumeDisplayNode() == d->ObservedDisplay.GetPointer()))
     {
     this->updateFromVolume();

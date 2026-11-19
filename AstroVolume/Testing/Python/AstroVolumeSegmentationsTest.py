@@ -132,12 +132,13 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         slicer.util.selectModule("AstroVolume")
         slicer.app.processEvents()
         moduleWidget = slicer.modules.astrovolume.widgetRepresentation()
-        displayWidget = moduleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")
+        displayWidget = moduleWidget.contoursSection()
         self.assertIsNotNone(displayWidget)
         contoursNode, maskNode = self.segmentationsOfVolume(volumeNode)
         contours = contoursNode.GetSegmentation()
 
-        displayWidget.onCreateContours()
+        displayWidget.setLevels("3, 6, 12", slicer.qSlicerAstroContoursSection.Sigma)
+        displayWidget.drawContours()
         slicer.app.processEvents()
         numberOfLevels = contours.GetNumberOfSegments()
         self.assertGreater(numberOfLevels, 0)
@@ -154,13 +155,13 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), 0)
 
         # created again: replaced, not added
-        displayWidget.onCreateContours()
+        displayWidget.drawContours()
         slicer.app.processEvents()
         self.assertEqual(contours.GetNumberOfSegments(), numberOfLevels)
         self.assertEqual(contours.GetNumberOfLayers(), numberOfLevels)
 
         # show / hide
-        showButton = slicer.util.findChild(displayWidget, "ShowContoursButton")
+        showButton = slicer.util.findChild(displayWidget, "ContoursShow")
         displayNode = contoursNode.GetDisplayNode()
         self.assertTrue(showButton.checked)
         showButton.click()
@@ -169,7 +170,7 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertTrue(displayNode.GetVisibility())
 
         # smooth: closed surfaces in 2D, binary labelmaps again when off
-        smoothButton = slicer.util.findChild(displayWidget, "SmoothContoursButton")
+        smoothButton = slicer.util.findChild(displayWidget, "ContoursSmooth")
         smoothButton.click()
         slicer.app.processEvents()
         self.assertTrue(contours.ContainsRepresentation(surfaceName))
@@ -179,7 +180,7 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(displayNode.GetPreferredDisplayRepresentationName2D(), labelmapName)
 
         # delete
-        deleteButton = slicer.util.findChild(displayWidget, "DeleteContoursButton")
+        deleteButton = slicer.util.findChild(displayWidget, "ContoursDelete")
         deleteButton.click()
         self.assertEqual(contours.GetNumberOfSegments(), 0)
         self.assertIs(self.logic.GetContoursSegmentationForVolume(volumeNode, False), contoursNode)
@@ -247,12 +248,11 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         slicer.util.selectModule("AstroVolume")
         slicer.app.processEvents()
         moduleWidget = slicer.modules.astrovolume.widgetRepresentation()
-        displayWidget = moduleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")
-        self.assertIsNotNone(displayWidget)
-        slicer.util.findChild(displayWidget, "ContoursVolumeNodeSelector").setCurrentNode(sourceNode)
-        slicer.util.findChild(displayWidget, "ContourLevelsLineEdit").text = "0.25; 0.5; 0.75"
+        displayWidget = moduleWidget.contoursSection()
+        displayWidget.setSourceNode(sourceNode)
+        displayWidget.setLevels("0.25; 0.5; 0.75", slicer.qSlicerAstroContoursSection.DataUnit)
         numberOfVolumes = slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode")
-        displayWidget.onCreateContours()
+        self.assertEqual(displayWidget.drawContours(), 3, displayWidget.status())
         slicer.app.processEvents()
 
         # the reprojected copy was temporary
@@ -292,16 +292,16 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(activeNode.GetID())
         slicer.util.selectModule("AstroVolume")
         slicer.app.processEvents()
-        displayWidget = slicer.modules.astrovolume.widgetRepresentation().findChild(
-            "qSlicerAstroScalarVolumeDisplayWidget")
-        slicer.util.findChild(displayWidget, "ContoursVolumeNodeSelector").setCurrentNode(sourceNode)
+        displayWidget = slicer.modules.astrovolume.widgetRepresentation().contoursSection()
+        displayWidget.setSourceNode(sourceNode)
         slicer.app.processEvents()
         after = vtk.vtkMatrix4x4()
         activeNode.GetIJKToRASMatrix(after)
         for row in range(4):
             for column in range(4):
                 self.assertEqual(after.GetElement(row, column), before.GetElement(row, column))
-        self.assertFalse(slicer.util.findChild(displayWidget, "Contours2DSliderWidget").isVisibleTo(displayWidget))
+        self.assertTrue(slicer.util.findChild(displayWidget, "ContoursChannel").isHidden())
+        self.assertEqual(displayWidget.channel(), -1)
         self.delayDisplay("Test passed")
 
     def test_CopyMoveMask(self):
@@ -393,25 +393,25 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         self.assertGreater(np.count_nonzero(expected), 0)
         np.testing.assert_array_equal(computed, expected)
 
-        # move (Copy and Move buttons of the AstroVolume module): the segments
-        # leave the mask
+        # move (Copy and Move buttons of the Masks section of the AstroVolume
+        # module): the segments leave the mask
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(cube.GetID())
         slicer.util.selectModule("AstroVolume")
         slicer.app.processEvents()
-        widget = slicer.modules.astrovolume.widgetRepresentation()
-        slicer.util.findChild(widget, "SegmentationNodeComboBox").setCurrentNode(maskNode)
+        widget = slicer.modules.astrovolume.widgetRepresentation().masksSection()
+        widget.setMaskNode(maskNode)
         slicer.app.processEvents()
-        slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs(["Corner"])
-        slicer.util.findChild(widget, "CopyMaskTargetSelector").setCurrentNode(smoothed)
-        slicer.util.findChild(widget, "MoveMaskPushButton").click()
+        slicer.util.findChild(widget, "MasksTable").setSelectedSegmentIDs(["Corner"])
+        self.assertTrue(widget.copySegments(smoothed.GetID(), True), widget.status())
         slicer.app.processEvents()
         self.assertIsNone(maskNode.GetSegmentation().GetSegment("Corner"))
         smoothedMask = self.logic.GetMaskSegmentationForVolume(smoothed, False)
         np.testing.assert_array_equal(segmentMask(smoothedMask, "Corner", smoothed), corner.astype(np.uint8))
         # nothing selected: all the segments are copied
-        slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([])
-        slicer.util.findChild(widget, "CopyMaskTargetSelector").setCurrentNode(image)
-        slicer.util.findChild(widget, "CopyMaskPushButton").click()
+        slicer.util.findChild(widget, "MasksTable").setSelectedSegmentIDs([])
+        target = slicer.util.findChild(widget, "MasksCopyTarget")
+        target.setCurrentIndex(target.findData(image.GetID()))
+        slicer.util.findChild(widget, "MasksCopy").click()
         imageMask = self.logic.GetMaskSegmentationForVolume(image, False)
         self.assertEqual(imageMask.GetSegmentation().GetNumberOfSegments(), 2)
         self.assertIsNotNone(maskNode.GetSegmentation().GetSegment("Source"))
@@ -543,10 +543,11 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         slicer.app.applicationLogic().PropagateVolumeSelection()
         slicer.util.selectModule("AstroVolume")
         slicer.app.processEvents()
-        displayWidget = slicer.modules.astrovolume.widgetRepresentation().findChild("qSlicerAstroScalarVolumeDisplayWidget")
-        slicer.util.findChild(displayWidget, "ContoursVolumeNodeSelector").setCurrentNode(cubeNode)
-        slicer.util.findChild(displayWidget, "ContourLevelsLineEdit").text = "0.5"
-        displayWidget.onCreateContours()
+        displayWidget = slicer.modules.astrovolume.widgetRepresentation().contoursSection()
+        displayWidget.setSourceNode(cubeNode)
+        self.assertEqual(displayWidget.channel(), 10)  # the middle channel
+        displayWidget.setLevels("0.5", slicer.qSlicerAstroContoursSection.DataUnit)
+        self.assertGreater(displayWidget.drawContours(), 0, displayWidget.status())
         slicer.app.processEvents()
 
         # the user zooms and pans the views
@@ -564,8 +565,11 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
                     tuple(round(v, 6) for v in sliceNode.GetXYZOrigin()),
                     tuple(round(matrix.GetElement(i, 3), 6) for i in range(3)))
         before = {name: state(sliceNode) for name, sliceNode in sliceNodes.items()}
-        slider = slicer.util.findChild(displayWidget, "Contours2DSliderWidget")
+        slider = slicer.util.findChild(displayWidget, "ContoursChannel")
+        self.assertFalse(slider.isHidden())
         slider.value = slider.value + 5
+        self.assertEqual(displayWidget.channel(), 15)
+        self.assertTrue(slicer.util.findChild(displayWidget, "ContoursChannelInfo").text.startswith("channel 15:"))
         slicer.app.processEvents()
 
         for name, sliceNode in sliceNodes.items():

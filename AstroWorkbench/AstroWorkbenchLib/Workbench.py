@@ -760,10 +760,6 @@ class Workbench:
     def enter(self):
         if self.active:
             return
-        # the AstroVolume panel adds the colour tables of SlicerAstro (e.g.
-        # VelocityField) to the scene: created here when Slicer started in
-        # the Workbench
-        slicer.modules.astrovolume.widgetRepresentation()
         mainWindow = slicer.util.mainWindow()
         layoutManager = slicer.app.layoutManager()
         self.saved = {

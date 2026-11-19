@@ -50,6 +50,9 @@ public:
 
   /// Text of the last result (levels drawn, or why not)
   Q_INVOKABLE QString status() const;
+  /// Channel map (contours of a cube over a 2D image): the channel of the
+  /// cube shown over the image (-1: not a channel map)
+  Q_INVOKABLE int channel() const;
 
 public slots:
   /// The volume the contours are drawn over (nullptr: none)
@@ -65,6 +68,8 @@ public slots:
   void deleteContours();
   /// Updates the list of the sources and the buttons
   void updateSources();
+  /// Channel map: the image is placed at this channel of the cube
+  void setChannel(double channel);
 
 protected slots:
   void onSourceChanged(int index);

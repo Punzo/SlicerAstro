@@ -22,6 +22,9 @@
 #include <QImage>
 #include <QLabel>
 #include <QLineEdit>
+
+// CTK includes
+#include <ctkSliderWidget.h>
 #include <QPixmap>
 #include <QPushButton>
 #include <QSignalBlocker>
@@ -31,12 +34,18 @@
 // VTK includes
 #include <vtkCommand.h>
 #include <vtkDoubleArray.h>
+#include <vtkImageData.h>
 #include <vtkIntArray.h>
 #include <vtkNew.h>
 #include <vtkStringArray.h>
+#include <vtkSmartPointer.h>
+#include <vtkSegmentationConverter.h>
+#include <vtkSegmentation.h>
+#include <vtkSegment.h>
 #include <vtkWeakPointer.h>
 
 // MRML includes
+#include <vtkMRMLAstroVolumeDisplayNode.h>
 #include <vtkMRMLAstroVolumeNode.h>
 #include <vtkMRMLScene.h>
 #include <vtkMRMLSegmentationDisplayNode.h>
@@ -50,12 +59,15 @@
 #include <qSlicerApplication.h>
 #include <qSlicerModuleManager.h>
 
+#include <atomic>
 #include <cmath>
+#include <string>
 #include <vector>
 
 #include "qSlicerAstroContoursSection.h"
 #include "qSlicerAstroSegmentedButton.h"
 #include "qSlicerAstroTheme.h"
+#include "qSlicerAstroVolumeModuleWidget.h"
 
 namespace
 {
@@ -137,6 +149,10 @@ public:
   QToolButton* SmoothButton{nullptr};
   QToolButton* DeleteButton{nullptr};
   QLabel* Status{nullptr};
+  QLabel* ChannelLabel{nullptr};
+  ctkSliderWidget* Channel{nullptr};
+  QLabel* ChannelInfo{nullptr};
+  bool isChannelMap() const;
   QWidget* Sources{nullptr};
   QVBoxLayout* SourcesLayout{nullptr};
 };
@@ -216,6 +232,24 @@ qSlicerAstroContoursSection::qSlicerAstroContoursSection(QWidget* parent)
     }
   grid->addWidget(RowLabel(tr("Colours"), d->Colours->toolTip(), this), 3, 0);
   grid->addWidget(d->Colours, 3, 1, 1, 2);
+
+  // channel map: contours of a cube over a 2D image
+  d->Channel = new ctkSliderWidget(this);
+  d->Channel->setObjectName("ContoursChannel");
+  d->Channel->setDecimals(0);
+  d->Channel->setSingleStep(1.);
+  d->Channel->setPageStep(1.);
+  d->Channel->setToolTip(tr("Channel map: the channel of the cube whose contours are shown over the image (the "
+                            "image and the XY views move to it)."));
+  QObject::connect(d->Channel, SIGNAL(valueChanged(double)), this, SLOT(setChannel(double)));
+  d->ChannelLabel = RowLabel(tr("Channel"), d->Channel->toolTip(), this);
+  grid->addWidget(d->ChannelLabel, 4, 0);
+  grid->addWidget(d->Channel, 4, 1, 1, 2);
+  d->ChannelInfo = new QLabel(this);
+  d->ChannelInfo->setObjectName("ContoursChannelInfo");
+  d->ChannelInfo->setProperty("astroRole", "monoLabel");
+  d->ChannelInfo->setToolTip(tr("Channel of the cube over the image and its velocity."));
+  grid->addWidget(d->ChannelInfo, 5, 1, 1, 2);
   grid->setColumnStretch(1, 1);
   layout->addLayout(grid);
 
@@ -252,6 +286,11 @@ qSlicerAstroContoursSection::qSlicerAstroContoursSection(QWidget* parent)
   d->SourcesLayout->setContentsMargins(0, 0, 0, 0);
   d->SourcesLayout->setSpacing(2);
   layout->addWidget(d->Sources);
+  for (QWidget* widget : {static_cast<QWidget*>(d->ChannelLabel), static_cast<QWidget*>(d->Channel),
+                          static_cast<QWidget*>(d->ChannelInfo)})
+    {
+    widget->setVisible(false);
+    }
   this->setEnabled(false);
 }
 
@@ -270,6 +309,11 @@ void qSlicerAstroContoursSection::setVolumeNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroContoursSection);
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (volume && !volume->GetScene())
+    {
+    // removed from the scene (e.g. while the scene is closed)
+    volume = nullptr;
+    }
   const bool changed = volume != d->Volume.GetPointer();
   vtkMRMLScene* scene = volume ? volume->GetScene() : nullptr;
   if (scene != d->Scene.GetPointer())
@@ -348,6 +392,71 @@ void qSlicerAstroContoursSection::onSourceChanged(int index)
   Q_UNUSED(index);
   Q_D(qSlicerAstroContoursSection);
   this->onUnitChanged(d->Unit->currentIndex());
+  // channel map (a cube over the image): from the middle channel
+  const bool channelMap = d->isChannelMap();
+  for (QWidget* widget : {static_cast<QWidget*>(d->ChannelLabel), static_cast<QWidget*>(d->Channel),
+                          static_cast<QWidget*>(d->ChannelInfo)})
+    {
+    widget->setVisible(channelMap);
+    }
+  if (channelMap)
+    {
+    const int channels = d->sourceVolume()->GetImageData()->GetDimensions()[2];
+    {
+    const QSignalBlocker blocker(d->Channel);
+    d->Channel->setRange(0., channels - 1);
+    d->Channel->setValue(std::floor(channels * 0.5));
+    }
+    this->setChannel(d->Channel->value());
+    }
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroContoursSectionPrivate::isChannelMap() const
+{
+  vtkMRMLAstroVolumeNode* source = this->sourceVolume();
+  const char* imageAxes = this->Volume ? this->Volume->GetAttribute("SlicerAstro.NAXIS") : nullptr;
+  const char* sourceAxes = source ? source->GetAttribute("SlicerAstro.NAXIS") : nullptr;
+  return source && source != this->Volume.GetPointer() && source->GetImageData() && imageAxes && sourceAxes &&
+    QString(imageAxes).toInt() == 2 && QString(sourceAxes).toInt() == 3;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroContoursSection::setChannel(double channel)
+{
+  Q_D(qSlicerAstroContoursSection);
+  if (!d->isChannelMap())
+    {
+    return;
+    }
+  if (d->Channel->value() != channel)
+    {
+    const QSignalBlocker blocker(d->Channel);
+    d->Channel->setValue(channel);
+    }
+  vtkMRMLAstroVolumeNode* source = d->sourceVolume();
+  vtkSlicerAstroVolumeLogic::SetContoursChannel(d->Volume, source, d->Channel->value());
+  double velocity = 0.;
+  const int index = vtkSlicerAstroVolumeLogic::GetContoursChannel(d->Volume, source, &velocity);
+  if (index < 0)
+    {
+    d->ChannelInfo->setText(tr("outside of the data"));
+    return;
+    }
+  QString unit = QString::fromUtf8(source->GetAttribute("SlicerAstro.CUNIT3")).trimmed();
+  unit = unit.compare("m/s", Qt::CaseInsensitive) == 0 ? QString("km/s") : unit;
+  vtkMRMLAstroVolumeDisplayNode* display = source->GetAstroVolumeDisplayNode();
+  const QString definition = display ? QString::fromStdString(display->GetVelocityDefinition()) : QString();
+  d->ChannelInfo->setText(std::isfinite(velocity) ?
+    tr("channel %1: %2 %3 %4").arg(index).arg(velocity, 0, 'f', 1).arg(unit, definition).trimmed() :
+    tr("channel %1").arg(index));
+}
+
+//-----------------------------------------------------------------------------
+int qSlicerAstroContoursSection::channel() const
+{
+  Q_D(const qSlicerAstroContoursSection);
+  return d->isChannelMap() ? static_cast<int>(d->Channel->value()) : -1;
 }
 
 //-----------------------------------------------------------------------------
@@ -467,12 +576,72 @@ void qSlicerAstroContoursSection::setContoursSmooth(bool smooth)
 {
   Q_D(qSlicerAstroContoursSection);
   vtkMRMLSegmentationNode* contours = d->contoursNode(false);
-  if (contours)
+  vtkSegmentation* segmentation = contours ? contours->GetSegmentation() : nullptr;
+  if (!segmentation)
     {
-    QApplication::setOverrideCursor(Qt::WaitCursor);
-    vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(contours, smooth);
-    QApplication::restoreOverrideCursor();
+    return;
     }
+  const char* labelmapName = vtkSegmentationConverter::GetSegmentationBinaryLabelmapRepresentationName();
+  const char* surfaceName = vtkSegmentationConverter::GetSegmentationClosedSurfaceRepresentationName();
+  if (!smooth || segmentation->ContainsRepresentation(surfaceName))
+    {
+    vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(contours, smooth);
+    return;
+    }
+
+  // Closed surfaces of the contours, in the background (one segment at a
+  // time: progress and cancel). The worker converts copies of the segments
+  // (no scene objects); the surfaces are added to the segments afterwards.
+  std::vector<std::string> segmentIDs;
+  segmentation->GetSegmentIDs(segmentIDs);
+  std::vector<vtkSmartPointer<vtkSegmentation> > copies;
+  for (const std::string& segmentID : segmentIDs)
+    {
+    vtkSmartPointer<vtkSegmentation> copy = vtkSmartPointer<vtkSegmentation>::New();
+    copy->SetSourceRepresentationName(labelmapName);
+    vtkNew<vtkSegment> segmentCopy;
+    segmentCopy->DeepCopy(segmentation->GetSegment(segmentID));
+    copy->AddSegment(segmentCopy, segmentID);
+    copies.push_back(copy);
+    }
+  std::atomic<int> converted{0};
+  std::atomic<bool> cancelled{false};
+  const int total = static_cast<int>(copies.size());
+  qSlicerAstroVolumeModuleWidget::runInBackground(this, tr("Computing the smooth contour lines..."),
+    [&copies, &converted, &cancelled, surfaceName]()
+      {
+      for (const vtkSmartPointer<vtkSegmentation>& copy : copies)
+        {
+        if (cancelled)
+          {
+          return;
+          }
+        copy->CreateRepresentation(surfaceName);
+        converted++;
+        }
+      },
+    [&converted, total]() { return total > 0 ? (100 * converted) / total : 100; },
+    [&cancelled]() { cancelled = true; });
+
+  if (cancelled || d->contoursNode(false) != contours)
+    {
+    const QSignalBlocker blocker(d->SmoothButton);
+    d->SmoothButton->setChecked(false);
+    return;
+    }
+  for (size_t ii = 0; ii < segmentIDs.size(); ii++)
+    {
+    vtkSegment* segment = segmentation->GetSegment(segmentIDs[ii]);
+    vtkSegment* segmentCopy = copies[ii]->GetSegment(segmentIDs[ii]);
+    vtkDataObject* surface = segmentCopy ? segmentCopy->GetRepresentation(surfaceName) : nullptr;
+    if (segment && surface)
+      {
+      segment->AddRepresentation(surfaceName, surface);
+      segmentation->InvokeEvent(vtkSegmentation::RepresentationModified, (void*)segmentIDs[ii].c_str());
+      }
+    }
+  segmentation->InvokeEvent(vtkSegmentation::ContainedRepresentationNamesModified);
+  vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(contours, true);
 }
 
 //-----------------------------------------------------------------------------

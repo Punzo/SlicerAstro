@@ -162,7 +162,6 @@ qSlicerAstroMasksSection::qSlicerAstroMasksSection(QWidget* parent)
   d->MaskSelector->setAddEnabled(true);
   d->MaskSelector->setRemoveEnabled(false);
   d->MaskSelector->setRenameEnabled(true);
-  d->MaskSelector->setBaseName(tr("Mask"));
   d->MaskSelector->setToolTip(tr("Mask of the data: its own mask, a mask loaded from a FITS file (e.g. SoFiA) or "
                                  "a new one. The chosen mask becomes the mask of the data."));
   QObject::connect(d->MaskSelector, qOverload<vtkMRMLNode*>(&qMRMLNodeComboBox::currentNodeChanged),
@@ -286,6 +285,11 @@ void qSlicerAstroMasksSection::setVolumeNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroMasksSection);
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (volume && !volume->GetScene())
+    {
+    // removed from the scene (e.g. while the scene is closed)
+    volume = nullptr;
+    }
   vtkMRMLScene* scene = volume ? volume->GetScene() : nullptr;
   if (scene != d->Scene.GetPointer())
     {

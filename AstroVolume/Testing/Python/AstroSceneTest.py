@@ -158,13 +158,14 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
 
         # contours: a type of the terminology and a custom color
         moduleWidget = self.selectModule("AstroVolume")
-        displayWidget = moduleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")
-        displayWidget.onCreateContours()
+        contoursSection = moduleWidget.contoursSection()
+        contoursSection.setLevels("3, 6, 12", slicer.qSlicerAstroContoursSection.Sigma)
+        self.assertEqual(contoursSection.drawContours(), 3)
         slicer.app.processEvents()
         contoursNode = cube.GetNodeReference(astroLogic.GetContoursReferenceRole())
         self.assertGreater(contoursNode.GetSegmentation().GetNumberOfSegments(), 0)
         slicer.vtkSlicerTerminologiesModuleLogic.SetDefaultTerminologyEntryAsString(contoursNode, TIDAL_TAIL)
-        displayWidget.onColorChanged(qt.QColor(80, 200, 120))
+        contoursNode.GetSegmentation().GetNthSegment(0).SetColor(80 / 255.0, 200 / 255.0, 120 / 255.0)
         slicer.app.processEvents()
 
         # smoothing: box filter

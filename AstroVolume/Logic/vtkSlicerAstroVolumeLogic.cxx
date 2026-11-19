@@ -53,6 +53,9 @@
 #include <vtkMRMLAstroVolumeStorageNode.h>
 #include <vtkMRMLCameraNode.h>
 #include <vtkMRMLColorTableNode.h>
+#include <vtkMRMLColorTableStorageNode.h>
+#include <vtkMRMLProceduralColorNode.h>
+#include <vtkMRMLProceduralColorStorageNode.h>
 #include <vtkMRMLColorNode.h>
 #include <vtkLookupTable.h>
 #include <vtkMRMLDisplayNode.h>
@@ -214,6 +217,7 @@ void vtkSlicerAstroVolumeLogic::SetMRMLSceneInternal(vtkMRMLScene * newScene)
   events->InsertNextValue(vtkMRMLScene::EndCloseEvent);
   this->SetAndObserveMRMLSceneEventsInternal(newScene, events.GetPointer());
   this->ObserveSelectionNode();
+  this->AddAstroColorTables();
 }
 
 //----------------------------------------------------------------------------
@@ -413,11 +417,420 @@ void vtkSlicerAstroVolumeLogic::UpdateSliceOrientationPresets()
 }
 
 //----------------------------------------------------------------------------
+void vtkSlicerAstroVolumeLogic::AddAstroColorTables()
+{
+  if (!this->GetMRMLScene() || this->GetMRMLScene()->IsClosing())
+    {
+    return;
+    }
+
+  // Add Astro 2D color functions
+  vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Heat"));
+  if (colorNodes->GetNumberOfItems() == 0)
+    {
+    vtkNew<vtkMRMLColorTableNode> HeatColorTableNode;
+    HeatColorTableNode->SetType(vtkMRMLColorTableNode::User);
+    HeatColorTableNode->SetName("Heat");
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    // when loaded, instead of adding a copy
+    HeatColorTableNode->SetSingletonTag("SlicerAstro.Heat");
+    HeatColorTableNode->SetDescription("A scale from red to yellow.");
+    HeatColorTableNode->SetNumberOfColors(256);
+
+    // Red component
+    vtkNew<vtkLookupTable> RedLookupTable;
+    RedLookupTable->SetNumberOfTableValues(85);
+    RedLookupTable->SetTableRange(0, 85);
+    RedLookupTable->SetHueRange(0, 0);
+    RedLookupTable->SetSaturationRange(1,1);
+    RedLookupTable->SetValueRange(0.,1);
+    RedLookupTable->SetRampToLinear();
+    RedLookupTable->ForceBuild();
+
+    // Green component
+    vtkNew<vtkLookupTable> GreenLookupTable;
+    GreenLookupTable->SetNumberOfTableValues(256);
+    GreenLookupTable->SetTableRange(0, 256);
+    GreenLookupTable->SetHueRange(0.333, 0.333);
+    GreenLookupTable->SetSaturationRange(1,1);
+    GreenLookupTable->SetValueRange(0.,1);
+    GreenLookupTable->SetRampToLinear();
+    GreenLookupTable->ForceBuild();
+
+    // Blue component
+    vtkNew<vtkLookupTable> BlueLookupTable;
+    BlueLookupTable->SetNumberOfTableValues(85);
+    BlueLookupTable->SetTableRange(0, 85);
+    BlueLookupTable->SetHueRange(0.667, 0.667);
+    BlueLookupTable->SetSaturationRange(1,1);
+    BlueLookupTable->SetValueRange(0,1);
+    BlueLookupTable->SetRampToLinear();
+    BlueLookupTable->ForceBuild();
+
+    for (int ii = 0; ii < 85; ii++)
+      {
+      double RGBRed[3], RGBGreen[3], RGBA[4];
+      RedLookupTable->GetTableValue(ii, RGBRed);
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
+
+      RGBA[0] = RGBRed[0];
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 85; ii < 171; ii++)
+      {
+      double RGBGreen[3], RGBA[4];
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
+
+      RGBA[0] = 1.;
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 171; ii < 256; ii++)
+      {
+      double RGBGreen[3], RGBBlue[3], RGBA[4];
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
+      BlueLookupTable->GetTableValue(ii - 171, RGBBlue);
+
+      RGBA[0] = 1.;
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = RGBBlue[2];
+      RGBA[3] = 1.;
+      HeatColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+
+    HeatColorTableNode->SetNamesFromColors();
+    this->GetMRMLScene()->AddNode(HeatColorTableNode.GetPointer());
+    }
+
+  colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Ronekers"));
+  if (colorNodes->GetNumberOfItems() == 0)
+    {
+    vtkNew<vtkMRMLColorTableNode> RonekersColorTableNode;
+    RonekersColorTableNode->SetType(vtkMRMLColorTableNode::User);
+    RonekersColorTableNode->SetName("Ronekers");
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    // when loaded, instead of adding a copy
+    RonekersColorTableNode->SetSingletonTag("SlicerAstro.Ronekers");
+    RonekersColorTableNode->SetDescription("Discrete rainbow color function. Very useful to visualize for Astro HI datasets.");
+    RonekersColorTableNode->SetNumberOfColors(256);
+
+    for (int ii = 0; ii < 28; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.199;
+      RGBA[1] = 0.199;
+      RGBA[2] = 0.199;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 28; ii < 53; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.473;
+      RGBA[1] = 0.;
+      RGBA[2] = 0.606;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 53; ii < 78; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.;
+      RGBA[1] = 0.;
+      RGBA[2] = 0.781;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 78; ii < 103; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.371;
+      RGBA[1] = 0.652;
+      RGBA[2] = 0.922;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 103; ii < 128; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.;
+      RGBA[1] = 0.566;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 128; ii < 153; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 0.;
+      RGBA[1] = 0.961;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 153; ii < 178; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 1.;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 178; ii < 203; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 0.691;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 203; ii < 228; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 0.;
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 228; ii < 256; ii++)
+      {
+      double RGBA[4];
+
+      RGBA[0] = 1.;
+      RGBA[1] = 1.;
+      RGBA[2] = 1.;
+      RGBA[3] = 1.;
+      RonekersColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+
+    RonekersColorTableNode->SetNamesFromColors();
+    this->GetMRMLScene()->AddNode(RonekersColorTableNode.GetPointer());
+    }
+
+  colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClassByName("vtkMRMLColorTableNode","VelocityField"));
+  if (colorNodes->GetNumberOfItems() == 0)
+    {
+    vtkNew<vtkMRMLColorTableNode> VelocityFieldColorTableNode;
+    VelocityFieldColorTableNode->SetType(vtkMRMLColorTableNode::User);
+    VelocityFieldColorTableNode->SetName("VelocityField");
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    // when loaded, instead of adding a copy
+    VelocityFieldColorTableNode->SetSingletonTag("SlicerAstro.VelocityField");
+    VelocityFieldColorTableNode->SetDescription("A scale from blue to red.");
+    VelocityFieldColorTableNode->SetNumberOfColors(256);
+
+    // Red component
+    vtkNew<vtkLookupTable> RedLookupTable;
+    RedLookupTable->SetNumberOfTableValues(128);
+    RedLookupTable->SetTableRange(0, 128);
+    RedLookupTable->SetHueRange(0, 0);
+    RedLookupTable->SetSaturationRange(1,1);
+    RedLookupTable->SetValueRange(0.,1);
+    RedLookupTable->SetRampToLinear();
+    RedLookupTable->ForceBuild();
+
+    // Green component
+    vtkNew<vtkLookupTable> GreenLookupTable;
+    GreenLookupTable->SetNumberOfTableValues(128);
+    GreenLookupTable->SetTableRange(0, 128);
+    GreenLookupTable->SetHueRange(0.333, 0.333);
+    GreenLookupTable->SetSaturationRange(1,1);
+    GreenLookupTable->SetValueRange(0.,1);
+    GreenLookupTable->SetRampToLinear();
+    GreenLookupTable->ForceBuild();
+
+    // Blue component
+    vtkNew<vtkLookupTable> BlueLookupTable;
+    BlueLookupTable->SetNumberOfTableValues(128);
+    BlueLookupTable->SetTableRange(0, 128);
+    BlueLookupTable->SetHueRange(0.667, 0.667);
+    BlueLookupTable->SetSaturationRange(1,1);
+    BlueLookupTable->SetValueRange(0,1);
+    BlueLookupTable->SetRampToLinear();
+    BlueLookupTable->ForceBuild();
+
+    VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(0, 0, 0, 0);
+    for (int ii = 1; ii < 128; ii++)
+      {
+      double RGBBlue[3], RGBGreen[3], RGBA[4];
+      int blueIndex = 128 - ii;
+      BlueLookupTable->GetTableValue(blueIndex, RGBBlue);
+      GreenLookupTable->GetTableValue(ii, RGBGreen);
+
+      RGBA[0] = 0.;
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = RGBBlue[2];
+      RGBA[3] = 1.;
+
+      VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    for (int ii = 128; ii < 255; ii++)
+      {
+      double RGBGreen[3], RGBRed[3], RGBA[4];
+      int redIndex = ii - 128;
+      int greeIndex = 128 - (redIndex);
+      GreenLookupTable->GetTableValue(greeIndex, RGBGreen);
+      RedLookupTable->GetTableValue(redIndex, RGBRed);
+
+      RGBA[0] = RGBRed[0];
+      RGBA[1] = RGBGreen[1];
+      RGBA[2] = 0.;
+      RGBA[3] = 1.;
+
+      VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(ii, RGBA);
+      }
+    VelocityFieldColorTableNode->GetLookupTable()->SetTableValue(255, 0, 0, 0);
+    VelocityFieldColorTableNode->SetNamesFromColors();
+    this->GetMRMLScene()->AddNode(VelocityFieldColorTableNode.GetPointer());
+    }
+
+  colorNodes = vtkSmartPointer<vtkCollection>::Take
+      (this->GetMRMLScene()->GetNodesByClassByName("vtkMRMLColorTableNode","Rainbow"));
+  if (colorNodes->GetNumberOfItems() == 0)
+    {
+    // Add Rainbow
+    vtkNew<vtkMRMLColorTableNode> RainbowTableNode;
+    RainbowTableNode->SetName("Rainbow");
+    RainbowTableNode->SetType(vtkMRMLColorTableNode::User);
+    RainbowTableNode->SetDescription("Goes from red to purple, passing through the colors of the rainbow in between.");
+    RainbowTableNode->SetNumberOfColors(256);
+    RainbowTableNode->GetLookupTable()->SetNumberOfTableValues(256);
+    RainbowTableNode->GetLookupTable()->SetHueRange(0., 0.8);
+    RainbowTableNode->GetLookupTable()->SetSaturationRange(1,1);
+    RainbowTableNode->GetLookupTable()->SetValueRange(1,1);
+    RainbowTableNode->GetLookupTable()->SetRampToLinear();
+    RainbowTableNode->GetLookupTable()->ForceBuild();
+    RainbowTableNode->SetColor(0, 0, 0, 0);
+    RainbowTableNode->SetColor(255, 0, 0, 0);
+    RainbowTableNode->SetNamesFromColors();
+    this->GetMRMLScene()->AddNode(RainbowTableNode.GetPointer());
+    }
+  else
+    {
+    vtkMRMLColorTableNode* RainbowTableNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
+    RainbowTableNode->SetName("Rainbow");
+    RainbowTableNode->SetType(vtkMRMLColorTableNode::User);
+    RainbowTableNode->SetDescription("Goes from red to purple, passing through the colors of the rainbow in between.");
+    RainbowTableNode->SetNumberOfColors(256);
+    RainbowTableNode->GetLookupTable()->SetNumberOfTableValues(256);
+    RainbowTableNode->GetLookupTable()->SetHueRange(0., 0.8);
+    RainbowTableNode->GetLookupTable()->SetSaturationRange(1,1);
+    RainbowTableNode->GetLookupTable()->SetValueRange(1,1);
+    RainbowTableNode->GetLookupTable()->SetRampToLinear();
+    RainbowTableNode->GetLookupTable()->ForceBuild();
+    RainbowTableNode->SetColor(0, 0, 0, 0);
+    RainbowTableNode->SetColor(255, 0, 0, 0);
+    RainbowTableNode->SetNamesFromColors();
+    }
+
+  // Remove unwanted 2D color functions
+  colorNodes = vtkSmartPointer<vtkCollection>::Take(
+      this->GetMRMLScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+  for (int ii = 0; ii < colorNodes->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+            (colorNodes->GetItemAsObject(ii));
+    if (!tempColorTableNode)
+      {
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "Grey") ||
+        !strcmp(tempColorTableNode->GetName(), "Heat") ||
+        !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
+        !strcmp(tempColorTableNode->GetName(), "VelocityField") ||
+        !strcmp(tempColorTableNode->GetName(), "Rainbow"))
+      {
+      tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");
+      tempColorTableNode->SetAttribute("SlicerAstro.Reverse", "off");
+      tempColorTableNode->SetAttribute("SlicerAstro.Inverse", "off");
+      tempColorTableNode->SetAttribute("SlicerAstro.Log", "off");
+      continue;
+      }
+    if (!strcmp(tempColorTableNode->GetName(), "GenericColors") ||
+        !strcmp(tempColorTableNode->GetName(), "DarkBrightChartColors") ||
+        !strcmp(tempColorTableNode->GetName(), "Random"))
+      {
+      continue;
+      }
+    // color table of the astronomical terminology of the segments
+    if (tempColorTableNode->GetSingletonTag() &&
+        !strcmp(tempColorTableNode->GetSingletonTag(), vtkSlicerAstroVolumeLogic::GetAstroTerminologyColorTableSingletonTag()))
+      {
+      continue;
+      }
+
+    vtkMRMLColorTableStorageNode* tempColorTableStorageNode =
+      vtkMRMLColorTableStorageNode::SafeDownCast
+        (tempColorTableNode->GetStorageNode());
+    this->GetMRMLScene()->RemoveNode(tempColorTableStorageNode);
+    this->GetMRMLScene()->RemoveNode(tempColorTableNode);
+    }
+
+  vtkSmartPointer<vtkCollection> ProceduralColorTableNodeCol =
+    vtkSmartPointer<vtkCollection>::Take(
+      this->GetMRMLScene()->GetNodesByClass("vtkMRMLProceduralColorNode"));
+  for (int ii = 0; ii < ProceduralColorTableNodeCol->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLProceduralColorNode* tempProceduralColorTableNode = vtkMRMLProceduralColorNode::SafeDownCast
+            (ProceduralColorTableNodeCol->GetItemAsObject(ii));
+    if (!tempProceduralColorTableNode)
+      {
+      continue;
+      }
+
+    vtkMRMLProceduralColorStorageNode* tempProceduralColorTableStorageNode =
+      vtkMRMLProceduralColorStorageNode::SafeDownCast
+        (tempProceduralColorTableNode->GetStorageNode());
+    this->GetMRMLScene()->RemoveNode(tempProceduralColorTableStorageNode);
+    this->GetMRMLScene()->RemoveNode(tempProceduralColorTableNode);
+    }
+
+  // GenericColors, DarkBrightChartColors and Random (color tables of Slicer,
+  // e.g. for segments and labels) are kept unmodified: copies of them were
+  // saved with the scene and could not be read again (Random)
+
+  // Ensure Lookup Table is updated
+  colorNodes = vtkSmartPointer<vtkCollection>::Take(
+      this->GetMRMLScene()->GetNodesByClass("vtkMRMLColorTableNode"));
+  for (int ii = 0; ii < colorNodes->GetNumberOfItems(); ii++)
+    {
+    vtkMRMLColorTableNode* tempColorTableNode = vtkMRMLColorTableNode::SafeDownCast
+            (colorNodes->GetItemAsObject(ii));
+    if (!tempColorTableNode)
+      {
+      continue;
+      }
+    tempColorTableNode->GetLookupTable()->Modified();
+    }
+}
+
+//----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::OnMRMLSceneEndClose()
 {
   this->UpdateSliceOrientationPresets();
   // the closing of the scene emptied the singleton color table
   this->AddAstroTerminologyColorTable();
+  this->AddAstroColorTables();
 }
 
 //----------------------------------------------------------------------------
@@ -2714,6 +3127,18 @@ vtkMRMLVolumeRenderingDisplayNode* vtkSlicerAstroVolumeLogic::GetVolumeRendering
   if (!displayNode && create && this->VolumeRenderingLogic && volumeNode->GetImageData())
     {
     displayNode = this->VolumeRenderingLogic->CreateDefaultVolumeRenderingNodes(volumeNode);
+    // hidden until shown (SetVolumeRenderingVisibility, with its color
+    // function)
+    if (displayNode)
+      {
+      displayNode->SetVisibility(false);
+      }
+    // the default transfer functions of Slicer (rendered until a preset is
+    // applied) with gaps wide enough for the lookup table textures
+    if (displayNode && displayNode->GetVolumePropertyNode())
+      {
+      this->EnsureVolumePropertyTransferFunctionGaps(displayNode->GetVolumePropertyNode());
+      }
     }
   return displayNode;
 }
@@ -2772,6 +3197,120 @@ bool vtkSlicerAstroVolumeLogic::CopyPresetToVolume(vtkMRMLAstroVolumeNode* volum
                              vtkMRMLAstroVolumeNode::GetPresetIdentifier(presetNode).c_str());
   propertyNode->EndModify(wasModifying);
   volumeNode->SetVolumePropertyNode(propertyNode);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::PrepareVolumeRendering(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  const char* naxis = volumeNode ? volumeNode->GetAttribute("SlicerAstro.NAXIS") : nullptr;
+  if (!volumeNode || !volumeNode->GetImageData() || !naxis || StringToInt(naxis) < 3)
+    {
+    return false;
+    }
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, true);
+  if (!displayNode)
+    {
+    return false;
+    }
+  if (volumeNode->GetVolumePropertyNode() && volumeNode->GetPresetNode())
+    {
+    // the color function of the volume is kept (with its shifts): the
+    // presets are only adapted to the noise of the data
+    this->synchronizePresetsToVolumeNode(volumeNode);
+    if (displayNode->GetVolumePropertyNode() != volumeNode->GetVolumePropertyNode())
+      {
+      displayNode->SetAndObserveVolumePropertyNodeID(volumeNode->GetVolumePropertyNode()->GetID());
+      }
+    return true;
+    }
+  vtkMRMLScene* presets = this->GetPresetsScene();
+  std::vector<vtkMRMLNode*> presetNodes;
+  if (presets)
+    {
+    presets->GetNodesByClass("vtkMRMLVolumePropertyNode", presetNodes);
+    }
+  const int index = vtkMRMLAstroVolumeNode::DefaultPreset;
+  if (index < 0 || index >= static_cast<int>(presetNodes.size()))
+    {
+    return false;
+    }
+  return this->ApplyPreset(volumeNode, vtkMRMLVolumePropertyNode::SafeDownCast(presetNodes[index]), true);
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetVolumeRenderingVisibility(vtkMRMLAstroVolumeNode* volumeNode, bool visible,
+                                                             bool centerCameras)
+{
+  if (visible && !this->PrepareVolumeRendering(volumeNode))
+    {
+    return false;
+    }
+  vtkMRMLVolumeRenderingDisplayNode* displayNode = this->GetVolumeRenderingDisplayNode(volumeNode, false);
+  if (!displayNode)
+    {
+    return !visible;
+    }
+  displayNode->SetVisibility(visible);
+  vtkMRMLScene* scene = volumeNode->GetScene();
+  if (!visible || !centerCameras || !scene)
+    {
+    return true;
+    }
+  // looking along the velocity axis, north up, centered on the cube
+  const double directionOfProjection[3] = {0., -1., 0.};
+  const double viewUp[3] = {0., 0., 1.};
+  std::vector<vtkMRMLNode*> cameras;
+  scene->GetNodesByClass("vtkMRMLCameraNode", cameras);
+  for (vtkMRMLNode* node : cameras)
+    {
+    vtkMRMLCameraNode* camera = vtkMRMLCameraNode::SafeDownCast(node);
+    const char* layoutName = camera ? camera->GetLayoutName() : nullptr;
+    vtkMRMLViewNode* view = layoutName ?
+      vtkMRMLViewNode::SafeDownCast(scene->GetSingletonNode(layoutName, "vtkMRMLViewNode")) : nullptr;
+    if (camera && (!view || displayNode->IsDisplayableInView(view->GetID())))
+      {
+      vtkSlicerAstroVolumeLogic::CenterCameraOnVolume(camera, volumeNode, directionOfProjection, viewUp);
+      }
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::ShowActiveVolume(vtkMRMLAstroVolumeNode* volumeNode)
+{
+  vtkMRMLScene* scene = volumeNode ? volumeNode->GetScene() : nullptr;
+  if (!scene || scene->IsImporting())
+    {
+    return false;
+    }
+  const bool cube = this->PrepareVolumeRendering(volumeNode);
+  if (!this->AutoShowActiveVolume)
+    {
+    return true;
+    }
+  vtkMRMLApplicationLogic* appLogic = this->GetMRMLApplicationLogic();
+  if (appLogic)
+    {
+    appLogic->PropagateBackgroundVolumeSelection(1);
+    }
+  // one cube in the 3D views
+  std::vector<vtkMRMLNode*> volumes;
+  scene->GetNodesByClass("vtkMRMLAstroVolumeNode", volumes);
+  for (vtkMRMLNode* node : volumes)
+    {
+    vtkMRMLAstroVolumeNode* other = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+    vtkMRMLVolumeRenderingDisplayNode* otherDisplay = (other && other != volumeNode) ?
+      this->GetVolumeRenderingDisplayNode(other, false) : nullptr;
+    if (otherDisplay)
+      {
+      otherDisplay->SetVisibility(false);
+      }
+    }
+  if (cube)
+    {
+    this->SetVolumeRenderingVisibility(volumeNode, true, true);
+    }
   return true;
 }
 
@@ -3377,8 +3916,13 @@ void vtkSlicerAstroVolumeLogic::EnsureVolumePropertyTransferFunctionGaps(vtkMRML
     range[1] = center + halfWidth;
     }
 
+  // one modification of the node: the views are rendered with both
+  // functions corrected (an event per function rendered the color function
+  // with its gaps still too small)
   this->UpdatingTransferFunctionGaps = true;
+  const int wasModifying = volumePropertyNode->StartModify();
   vtkSlicerAstroVolumeLogic::EnsureMinimumTransferFunctionGap(volumeProperty, range);
+  volumePropertyNode->EndModify(wasModifying);
   this->UpdatingTransferFunctionGaps = false;
 }
 
@@ -3501,6 +4045,98 @@ std::string vtkSlicerAstroVolumeLogic::GetSourceSegmentID(vtkMRMLSegmentationNod
       }
     }
   return std::string();
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::SetContoursChannel(vtkMRMLAstroVolumeNode* image, vtkMRMLAstroVolumeNode* cube,
+                                                   double channel)
+{
+  vtkImageData* imageData = image ? image->GetImageData() : nullptr;
+  vtkImageData* cubeData = cube ? cube->GetImageData() : nullptr;
+  if (!imageData || !cubeData || StringToInt(image->GetAttribute("SlicerAstro.NAXIS")) != 2 ||
+      StringToInt(cube->GetAttribute("SlicerAstro.NAXIS")) != 3)
+    {
+    return false;
+    }
+  int dims[3] = {0, 0, 0};
+  int cubeDims[3] = {0, 0, 0};
+  imageData->GetDimensions(dims);
+  cubeData->GetDimensions(cubeDims);
+  // the origin of the centered image, moved along its third axis (the
+  // velocity axis of the centered cube) to the channel
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  image->GetIJKToRASMatrix(ijkToRAS);
+  const double ijkOrigin[4] = {-dims[0] * 0.5, -dims[1] * 0.5, channel - cubeDims[2] * 0.5, 0.};
+  double rasOrigin[4] = {0., 0., 0., 0.};
+  ijkToRAS->MultiplyPoint(ijkOrigin, rasOrigin);
+  image->SetOrigin(rasOrigin);
+
+  // the XY views follow the image
+  double center[4] = {dims[0] * 0.5, dims[1] * 0.5, 0., 1.};
+  double centerRAS[4] = {0., 0., 0., 1.};
+  image->GetIJKToRASMatrix(ijkToRAS);
+  ijkToRAS->MultiplyPoint(center, centerRAS);
+  vtkMRMLScene* scene = image->GetScene();
+  std::vector<vtkMRMLNode*> sliceNodes;
+  if (scene)
+    {
+    scene->GetNodesByClass("vtkMRMLSliceNode", sliceNodes);
+    }
+  for (vtkMRMLNode* node : sliceNodes)
+    {
+    vtkMRMLSliceNode* sliceNode = vtkMRMLSliceNode::SafeDownCast(node);
+    if (sliceNode && sliceNode->GetOrientation() == "XY")
+      {
+      sliceNode->JumpSliceByOffsetting(centerRAS[0], centerRAS[1], centerRAS[2]);
+      }
+    }
+  return true;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::GetContoursChannel(vtkMRMLAstroVolumeNode* image, vtkMRMLAstroVolumeNode* cube,
+                                                  double* velocity)
+{
+  if (velocity)
+    {
+    *velocity = std::numeric_limits<double>::quiet_NaN();
+    }
+  vtkImageData* imageData = image ? image->GetImageData() : nullptr;
+  vtkImageData* cubeData = cube ? cube->GetImageData() : nullptr;
+  if (!imageData || !cubeData || StringToInt(image->GetAttribute("SlicerAstro.NAXIS")) != 2 ||
+      StringToInt(cube->GetAttribute("SlicerAstro.NAXIS")) != 3)
+    {
+    return -1;
+    }
+  int dims[3] = {0, 0, 0};
+  int cubeDims[3] = {0, 0, 0};
+  imageData->GetDimensions(dims);
+  cubeData->GetDimensions(cubeDims);
+  vtkNew<vtkMatrix4x4> imageIJKToRAS;
+  vtkNew<vtkMatrix4x4> cubeRASToIJK;
+  image->GetIJKToRASMatrix(imageIJKToRAS);
+  cube->GetRASToIJKMatrix(cubeRASToIJK);
+  const double center[4] = {dims[0] * 0.5, dims[1] * 0.5, 0., 1.};
+  double ras[4] = {0., 0., 0., 1.};
+  double cubeIJK[4] = {0., 0., 0., 1.};
+  imageIJKToRAS->MultiplyPoint(center, ras);
+  cubeRASToIJK->MultiplyPoint(ras, cubeIJK);
+  const int channel = static_cast<int>(std::lround(cubeIJK[2]));
+  if (channel < 0 || channel >= cubeDims[2])
+    {
+    return -1;
+    }
+  vtkMRMLAstroVolumeDisplayNode* cubeDisplay = cube->GetAstroVolumeDisplayNode();
+  const double ijk[3] = {cubeDims[0] * 0.5, cubeDims[1] * 0.5, static_cast<double>(channel)};
+  double world[3] = {0., 0., 0.};
+  if (velocity && cubeDisplay && cubeDisplay->GetReferenceSpace(ijk, world))
+    {
+    const char* unit = cube->GetAttribute("SlicerAstro.CUNIT3");
+    std::string lower = unit ? vtksys::SystemTools::LowerCase(unit) : std::string();
+    lower.erase(std::remove(lower.begin(), lower.end(), ' '), lower.end());
+    *velocity = lower == "m/s" ? world[2] * 0.001 : world[2];
+    }
+  return channel;
 }
 
 //----------------------------------------------------------------------------

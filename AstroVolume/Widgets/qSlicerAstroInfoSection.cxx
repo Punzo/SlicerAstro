@@ -286,6 +286,11 @@ void qSlicerAstroInfoSection::setVolumeNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroInfoSection);
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (volume && !volume->GetScene())
+    {
+    // removed from the scene (e.g. while the scene is closed)
+    volume = nullptr;
+    }
   this->qvtkReconnect(d->Volume, volume, vtkCommand::ModifiedEvent, this, SLOT(updateFromVolume()));
   this->qvtkReconnect(d->Volume, volume, vtkMRMLAstroVolumeNode::DisplayThresholdModifiedEvent,
                       this, SLOT(updateFromVolume()));

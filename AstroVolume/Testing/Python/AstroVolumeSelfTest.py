@@ -173,24 +173,16 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
 
     astroVolume.SetDisplayThreshold(0.001)
     self.delayDisplay('Changing 3D Display Threshold', 700)
-    QPushButtonList = astroVolumeModuleWidget.findChildren(qt.QPushButton)
-    for QPushButton in (QPushButtonList):
-        if QPushButton.name == "CalculateRMSPushButton":
-            PushButton = QPushButton
-
-    PushButton.click()
+    renderingSection = astroVolumeModuleWidget.renderingSection()
+    self.assertGreater(renderingSection.computeNoiseInBox(), 0.)
     self.delayDisplay('Calculating rms on ROI (full datacube)', 700)
 
-    QComboBoxList = astroVolumeModuleWidget.findChildren(qt.QComboBox)
-    for QComboBox in (QComboBoxList):
-        if QComboBox.name == "QualityControlComboBox":
-            ComboBox = QComboBox
-
-    ComboBox.setCurrentIndex(2)
+    renderingSection.setQuality(2)
+    self.assertEqual(slicer.modules.astrovolume.logic().GetVolumeRenderingQuality(astroVolume), 2)
     self.delayDisplay('Setting rendering maximum quality', 700)
 
-    presetComboBox = astroVolumeModuleWidget.findChild("qSlicerPresetComboBox")
-    presetComboBox.setCurrentNodeIndex(6)
+    renderingSection.applyPreset(6)
+    self.assertEqual(renderingSection.currentPreset(), 6)
 
     # The SoFiA mask of WEIN069 is loaded directly as a segmentation
     self.downloadWEIN069Mask()
@@ -199,8 +191,9 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     self.assertEqual(maskNode.GetSegmentation().GetNumberOfSegments(), 3)
     self.delayDisplay('Loading segmentation', 700)
 
-    astroScalarWidget = astroVolumeModuleWidget.findChild("qSlicerAstroScalarVolumeDisplayWidget")
-    astroScalarWidget.onCreateContours()
+    contoursSection = astroVolumeModuleWidget.contoursSection()
+    contoursSection.setLevels("3, 6", slicer.qSlicerAstroContoursSection.Sigma)
+    self.assertEqual(contoursSection.drawContours(), 2, contoursSection.status())
     # The contours are segments of the contours segmentation of the volume (not of the mask)
     astroVolumeLogic = slicer.modules.astrovolume.logic()
     contoursNode = astroVolumeLogic.GetContoursSegmentationForVolume(astroVolume, False)
@@ -223,27 +216,27 @@ class AstroVolumeSelfTestTest(unittest.TestCase):
     self.assertTrue(storageNode is None or not storageNode.IsA("vtkMRMLAstroSegmentationStorageNode"))
 
     # Masks section: the mask (binary labelmaps, shown as labelmaps) but not the contours
-    maskSelector = slicer.util.findChild(astroVolumeModuleWidget, "SegmentationNodeComboBox")
+    masksSection = astroVolumeModuleWidget.masksSection()
+    maskSelector = slicer.util.findChild(masksSection, "MasksSelector")
     slicer.app.processEvents()
     hidden = maskSelector.sortFilterProxyModel().hiddenNodeIDs
     self.assertIn(contoursNode.GetID(), hidden)
     self.assertNotIn(maskNode.GetID(), hidden)
     # The table shows the selected mask, never the contours, and the Segment
     # Editor is not switched to the contours
-    segmentsTable = slicer.util.findChild(astroVolumeModuleWidget, "SegmentsTableView")
+    segmentsTable = slicer.util.findChild(masksSection, "MasksTable")
     self.assertIsNot(segmentsTable.segmentationNode(), contoursNode)
     self.assertIs(segmentsTable.segmentationNode(), maskSelector.currentNode())
     editorNode = slicer.mrmlScene.GetSingletonNode("SegmentEditor", "vtkMRMLSegmentEditorNode")
     if editorNode:
       self.assertIsNot(editorNode.GetSegmentationNode(), contoursNode)
-    astroScalarWidget.onCreateContours()
+    contoursSection.drawContours()
     slicer.app.processEvents()
     self.assertIsNot(segmentsTable.segmentationNode(), contoursNode)
     maskDisplay = maskNode.GetDisplayNode()
     self.assertEqual(maskDisplay.GetPreferredDisplayRepresentationName2D(), labelmapName)
     self.assertEqual(maskDisplay.GetPreferredDisplayRepresentationName3D(), labelmapName)
     self.assertEqual(maskNode.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
-    self.assertEqual(slicer.util.findChild(astroVolumeModuleWidget, "CollapsibleButton_CopyMoveSegment").text, "Masks")
 
     # Cloud Lasso editor effect on the mask: active, the mask stays binary labelmaps
     segmentEditorWidget = slicer.qMRMLSegmentEditorWidget()

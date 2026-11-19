@@ -169,10 +169,13 @@ class AstroTerminologyTestTest(ScriptedLoadableModuleTest):
         editorWidget.setSegmentationNode(None)
         editorWidget.setMRMLSegmentEditorNode(None)
 
-        # the color button of the contours chooses a type of the terminology
-        slicer.util.mainWindow().moduleSelector().selectModule("AstroVolume")
-        colorButton = slicer.util.findChild(slicer.modules.astrovolume.widgetRepresentation(), "ColorPickerButton")
-        self.assertEqual(colorButton.className(), "qSlicerTerminologySelectorButton")
+        # contours drawn by the Contours section: segments of the Contour type
+        section = slicer.qSlicerAstroContoursSection()
+        section.setVolumeNode(volumeNode)
+        section.setLevels("3", slicer.qSlicerAstroContoursSection.Sigma)
+        self.assertEqual(section.drawContours(), 1, section.status())
+        contours = slicer.modules.astrovolume.logic().GetContoursSegmentationForVolume(volumeNode, False)
+        self.assertEqual(self.typeName(contours.GetSegmentation().GetNthSegment(0).GetTerminology()), "Contour")
 
         # an entry chosen by the user is kept
         slicer.vtkSlicerTerminologiesModuleLogic.SetDefaultTerminologyEntryAsString(maskNode, GAS_CLOUD)

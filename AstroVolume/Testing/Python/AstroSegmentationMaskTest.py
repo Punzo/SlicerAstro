@@ -557,9 +557,9 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         volumeNode = AstroSampleData.AstroSampleDataLogic().downloadSample("WEIN069")
         dims = volumeNode.GetImageData().GetDimensions()
         slicer.util.selectModule("AstroVolume")
-        widget = slicer.modules.astrovolume.widgetRepresentation()
-        selector = slicer.util.findChild(widget, "SegmentationNodeComboBox")
-        saveButton = slicer.util.findChild(widget, "SaveFITSMaskPushButton")
+        widget = slicer.modules.astrovolume.widgetRepresentation().masksSection()
+        selector = slicer.util.findChild(widget, "MasksSelector")
+        saveButton = slicer.util.findChild(widget, "MasksSave")
 
         segmentationNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode")
         segmentationNode.CreateDefaultDisplayNodes()
@@ -605,8 +605,8 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         # the loaded cube gets its mask (a FITS mask), shown by the module
         slicer.util.selectModule("Data")
         slicer.util.selectModule("AstroVolume")
-        widget = slicer.modules.astrovolume.widgetRepresentation()
-        selector = slicer.util.findChild(widget, "SegmentationNodeComboBox")
+        widget = slicer.modules.astrovolume.widgetRepresentation().masksSection()
+        selector = slicer.util.findChild(widget, "MasksSelector")
         referenceRole = slicer.vtkMRMLSegmentationNode.GetReferenceImageGeometryReferenceRole()
         slicer.app.processEvents()
         self.assertIsNone(slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroVolumeNode"))
@@ -621,15 +621,16 @@ class AstroSegmentationMaskTestTest(ScriptedLoadableModuleTest):
         self.assertEqual(moduleMask.GetName(), "WEIN069_mask")
         self.assertShownIn3D(moduleMask)
 
-        # Edit: the Segment Editor edits the mask with the active cube as source volume
+        # Edit: the Segment Editor of the Masks section edits the mask with the
+        # active cube as source volume
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volumeNode.GetID())
-        slicer.util.findChild(widget, "pushButton_EditSelected").click()
+        slicer.util.findChild(widget, "MasksEdit").click()
         slicer.app.processEvents()
-        self.assertEqual(slicer.util.selectedModule(), "SegmentEditor")
-        editor = slicer.modules.segmenteditor.widgetRepresentation().self().editor
+        editor = widget.segmentEditor()
+        self.assertIsNotNone(editor)
         self.assertIs(editor.segmentationNode(), moduleMask)
         self.assertIs(editor.sourceVolumeNode(), volumeNode)
-        slicer.util.selectModule("AstroVolume")
+        widget.setEditing(False)
         self.assertEqual(moduleMask.GetStorageNode().GetClassName(), "vtkMRMLAstroSegmentationStorageNode")
 
         # Masks section, "Create new Segmentation": a mask of the active cube

@@ -235,6 +235,11 @@ void qSlicerAstroSourcesSection::setVolumeNode(vtkMRMLNode* node)
 {
   Q_D(qSlicerAstroSourcesSection);
   vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(node);
+  if (volume && !volume->GetScene())
+    {
+    // removed from the scene (e.g. while the scene is closed)
+    volume = nullptr;
+    }
   vtkMRMLScene* scene = volume ? volume->GetScene() : nullptr;
   if (scene != d->Scene.GetPointer())
     {

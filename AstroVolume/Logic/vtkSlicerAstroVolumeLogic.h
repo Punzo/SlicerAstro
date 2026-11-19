@@ -142,6 +142,11 @@ public:
   /// the GPU allows. Returns true if a transfer function was modified.
   static bool EnsureMinimumTransferFunctionGap(vtkVolumeProperty* volumeProperty, const double scalarRange[2]);
 
+  /// Color tables of SlicerAstro in the scene (Heat, Ronekers, VelocityField
+  /// and the astronomical versions of other tables), added when the logic
+  /// gets a scene and after a scene is closed
+  void AddAstroColorTables();
+
   /// Volume Rendering module logic (set by the AstroVolume module): used to
   /// create the volume rendering nodes and the cropping box of the volumes
   void SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic* volumeRenderingLogic);
@@ -168,6 +173,30 @@ public:
   /// not adapted and the preset of the volume is not changed. Returns false
   /// without volume rendering.
   bool CopyPresetToVolume(vtkMRMLAstroVolumeNode* volumeNode, vtkMRMLVolumePropertyNode* presetNode);
+
+  /// Volume rendering of a cube ready to be shown: the volume rendering
+  /// nodes are created if needed, the presets are adapted to the noise and
+  /// the range of the data, a new cube gets the default 3D color function
+  /// (vtkMRMLAstroVolumeNode::DefaultPreset) and a cube with a color function
+  /// (e.g. loaded from a scene) keeps it. Returns false for images, spectra
+  /// or without volume rendering.
+  bool PrepareVolumeRendering(vtkMRMLAstroVolumeNode* volumeNode);
+
+  /// Show a volume that becomes active (AstroVolume module): in the slice
+  /// views (background, fitted) and, for a cube, in the 3D views (prepared
+  /// by PrepareVolumeRendering, cameras looking along the velocity axis,
+  /// north up); the 3D renderings of the other volumes are hidden. Only the
+  /// volume rendering is prepared when AutoShowActiveVolume is off (e.g.
+  /// while comparison views are arranged).
+  bool ShowActiveVolume(vtkMRMLAstroVolumeNode* volumeNode);
+  vtkSetMacro(AutoShowActiveVolume, bool);
+  vtkGetMacro(AutoShowActiveVolume, bool);
+  vtkBooleanMacro(AutoShowActiveVolume, bool);
+
+  /// Show or hide a cube in the 3D views (prepared by PrepareVolumeRendering
+  /// when shown); centerCameras points the cameras of the views showing it
+  /// at the cube along the velocity axis, north up
+  bool SetVolumeRenderingVisibility(vtkMRMLAstroVolumeNode* volumeNode, bool visible, bool centerCameras = true);
 
   /// Shift (data units), stretch (data units added to the distance of the
   /// outer points from the centre) and opacity shift of the 3D color
@@ -505,6 +534,17 @@ public:
                      bool bands, bool overlay, vtkDoubleArray* colors = nullptr, bool visible3D = false);
   std::string GetLastContoursMessage() { return this->LastContoursMessage; }
 
+  /// Channel map: contours of a cube over a 2D image. The image is placed at
+  /// the channel (fractional index of the cube) along the velocity axis, so
+  /// that the contours of that channel are on it; the XY slice views follow
+  /// the image (moved along their normal, zoom and panning kept). Returns
+  /// false unless image is 2D and cube is 3D.
+  static bool SetContoursChannel(vtkMRMLAstroVolumeNode* image, vtkMRMLAstroVolumeNode* cube, double channel);
+  /// The channel of the cube at the plane of the image (-1: outside of the
+  /// cube, or not a channel map) and its velocity (in km/s for velocities in
+  /// m/s, otherwise in the unit of the spectral axis; NaN if unknown)
+  static int GetContoursChannel(vtkMRMLAstroVolumeNode* image, vtkMRMLAstroVolumeNode* cube, double* velocity);
+
   /// Colour families of contour levels ("Amber", "Cyan", "Deep blue",
   /// "White", "Observatory ramp"): names, and count colours (RGB 0-1, 3
   /// components) of a family from the lowest level to the highest (an
@@ -746,6 +786,7 @@ protected:
   bool Init;
   vtkWeakPointer<vtkSlicerTerminologiesModuleLogic> TerminologiesLogic;
   vtkWeakPointer<vtkSlicerVolumeRenderingLogic> VolumeRenderingLogic;
+  bool AutoShowActiveVolume{true};
 
 private:
 
