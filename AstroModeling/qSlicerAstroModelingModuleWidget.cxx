@@ -4672,7 +4672,47 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneNodeAboutToBeRemoved(vtkObject
   Q_UNUSED(sender);
   Q_D(qSlicerAstroModelingModuleWidget);
   vtkMRMLNode* node = vtkMRMLNode::SafeDownCast(nodeObject);
-  if (!node || !node->GetID() || !d->workerRunning() || !d->workerParametersNode)
+  if (!node || !node->GetID())
+    {
+    return;
+    }
+  // the input cube removed (e.g. a dataset deleted with its products): the
+  // operation in progress is stopped and the results of the module made
+  // from the cube are cleared (rings table and plots, points of the
+  // rotation curves, data and model contours)
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (d->parametersNode && d->parametersNode->GetInputVolumeNodeID() &&
+      !strcmp(d->parametersNode->GetInputVolumeNodeID(), node->GetID()) &&
+      scene && !scene->IsClosing() && !scene->IsImporting())
+    {
+    if (d->workerRunning())
+      {
+      d->stopWorker();
+      d->parametersNode->SetStatus(0);
+      }
+    vtkMRMLTableNode* table = d->parametersNode->GetParamsTableNode();
+    if (table && table->GetTable() && table->GetTable()->GetNumberOfRows() > 0)
+      {
+      table->GetTable()->SetNumberOfRows(0);
+      table->GetTable()->Modified();
+      table->Modified();
+      }
+    for (vtkMRMLMarkupsFiducialNode* points : {d->fiducialNodeMajor.GetPointer(), d->fiducialNodeMinor.GetPointer()})
+      {
+      if (points && points->GetScene() && points->GetNumberOfControlPoints() > 0)
+        {
+        points->RemoveAllControlPoints();
+        }
+      }
+    vtkMRMLSegmentationNode* contours =
+      vtkMRMLSegmentationNode::SafeDownCast(scene->GetFirstNodeByName("AstroModelingContoursSeg"));
+    if (contours && contours->GetSegmentation() && contours->GetSegmentation()->GetNumberOfSegments() > 0)
+      {
+      contours->GetSegmentation()->RemoveAllSegments();
+      }
+    return;
+    }
+  if (!d->workerRunning() || !d->workerParametersNode)
     {
     return;
     }

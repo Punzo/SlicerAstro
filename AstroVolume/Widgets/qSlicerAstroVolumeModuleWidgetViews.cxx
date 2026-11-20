@@ -351,7 +351,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     }
 
   ThreeDView1->renderer()->ResetCameraClippingRange();
-  ThreeDView1->renderer()->Render();
+  // through the render window (its OpenGL context current), not the
+  // renderer alone: rendering a renderer with another context current
+  // corrupts the OpenGL state cache of VTK (GL_ACTIVE_TEXTURE ... errors)
+  ThreeDView1->scheduleRender();
 
   qMRMLThreeDWidget* ThreeDWidget2 = app->layoutManager()->threeDWidget(1);
   if(!ThreeDWidget2)
@@ -372,7 +375,10 @@ void qSlicerAstroVolumeModuleWidget::setComparative3DViews(const char* volumeNod
     }
 
   ThreeDView2->renderer()->ResetCameraClippingRange();
-  ThreeDView2->renderer()->Render();
+  // through the render window (its OpenGL context current), not the
+  // renderer alone: rendering a renderer with another context current
+  // corrupts the OpenGL state cache of VTK (GL_ACTIVE_TEXTURE ... errors)
+  ThreeDView2->scheduleRender();
 
   if (!generateMasks)
     {
@@ -602,7 +608,10 @@ void qSlicerAstroVolumeModuleWidget::setThreeComparativeView(const char *volumeN
     }
 
   ThreeDView->renderer()->ResetCameraClippingRange();
-  ThreeDView->renderer()->Render();
+  // through the render window (its OpenGL context current), not the
+  // renderer alone: rendering a renderer with another context current
+  // corrupts the OpenGL state cache of VTK (GL_ACTIVE_TEXTURE ... errors)
+  ThreeDView->scheduleRender();
 
   vtkMRMLSliceCompositeNode* redSliceComposite = vtkMRMLSliceCompositeNode::SafeDownCast
     (this->mrmlScene()->GetNodeByID("vtkMRMLSliceCompositeNodeRed"));
@@ -1004,7 +1013,10 @@ void qSlicerAstroVolumeModuleWidget::setQuantitative3DView(const char *volumeNod
     }
 
   ThreeDView->renderer()->ResetCameraClippingRange();
-  ThreeDView->renderer()->Render();
+  // through the render window (its OpenGL context current), not the
+  // renderer alone: rendering a renderer with another context current
+  // corrupts the OpenGL state cache of VTK (GL_ACTIVE_TEXTURE ... errors)
+  ThreeDView->scheduleRender();
 
   // Create Segmentations
   if (!d->segmentEditorNode)

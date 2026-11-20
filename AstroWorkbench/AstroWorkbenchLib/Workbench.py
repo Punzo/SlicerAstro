@@ -49,6 +49,74 @@ def iconButton(iconName, toolTip, role="toolbar", checkable=False, parent=None, 
     return button
 
 
+class ColorFunctionDrag:
+    """The colour-function tool in the 3D views: a left drag moves the 3D
+    colour function of the rendered cube along the data values (left-right,
+    the whole range of the data across the view) and shifts its opacities
+    (up-down). The camera does not move meanwhile."""
+
+    EVENTS = ("LeftButtonPressEvent", "MouseMoveEvent", "LeftButtonReleaseEvent")
+
+    def __init__(self, workbench):
+        self.workbench = workbench
+        self.observers = []
+        self.drag = None
+
+    def setEnabled(self, enabled):
+        self.remove()
+        if not enabled:
+            return
+        layoutManager = slicer.app.layoutManager()
+        for index in range(layoutManager.threeDViewCount):
+            view = layoutManager.threeDWidget(index).threeDView()
+            interactor = view.interactor()
+            viewNodeID = view.mrmlViewNode().GetID()
+            for event in self.EVENTS:
+                # before the interactor style of the view (it would rotate)
+                tag = interactor.AddObserver(event, lambda caller, eventName, v=view, i=viewNodeID:
+                                             self.onEvent(caller, eventName, v, i), 10.0)
+                self.observers.append((interactor, tag))
+
+    def remove(self):
+        for interactor, tag in self.observers:
+            interactor.RemoveObserver(tag)
+        self.observers = []
+        self.drag = None
+
+    def abort(self, interactor):
+        for observed, tag in self.observers:
+            if observed is interactor:
+                command = interactor.GetCommand(tag)
+                if command is not None:
+                    command.SetAbortFlag(1)
+
+    def onEvent(self, interactor, eventName, view, viewNodeID):
+        if eventName == "LeftButtonPressEvent":
+            volume = self.workbench.visibility.renderedVolume(viewNodeID)
+            displayNode = volume.GetAstroVolumeDisplayNode() if volume is not None else None
+            if displayNode is None:
+                return
+            maximum = Astro.floatAttribute(volume, "DATAMAX", 1.0)
+            minimum = Astro.floatAttribute(volume, "DATAMIN", 0.0)
+            width = maximum - minimum if maximum > minimum else 1.0
+            self.drag = {"volume": volume, "position": interactor.GetEventPosition(), "width": width,
+                         "shift": displayNode.GetPresetOffset(), "opacity": displayNode.GetOpacityShift(),
+                         "size": view.renderWindow().GetSize()}
+            self.abort(interactor)
+        elif eventName == "MouseMoveEvent" and self.drag is not None:
+            drag = self.drag
+            x, y = interactor.GetEventPosition()
+            dx = (x - drag["position"][0]) / max(1, drag["size"][0])
+            dy = (y - drag["position"][1]) / max(1, drag["size"][1])
+            logic = slicer.modules.astrovolume.logic()
+            logic.SetColorFunctionShift(drag["volume"], drag["shift"] + dx * drag["width"])
+            logic.SetColorFunctionOpacityShift(drag["volume"], max(-1.0, min(1.0, drag["opacity"] + dy)))
+            self.abort(interactor)
+        elif eventName == "LeftButtonReleaseEvent" and self.drag is not None:
+            self.drag = None
+            self.abort(interactor)
+
+
 class HeaderBar(qt.QFrame):
     """Title, context, tools, layout, theme and the way back to Slicer."""
 
@@ -80,6 +148,11 @@ class HeaderBar(qt.QFrame):
         self.navigateButton = iconButton("pointer", "Navigate: pan, zoom, scroll through the channels", checkable=True)
         self.navigateButton.checked = True
         self.crosshairButton = iconButton("target", "Crosshair: the same position in all the views", checkable=True)
+        self.colorFunctionButton = iconButton(
+            "colormap", "Colour function: drag in a 2D view to change its window (left-right: contrast, "
+                        "up-down: brightness); drag in a 3D view to move its 3D colour function along the "
+                        "data values (left-right) and its opacity (up-down). Inspect follows.", checkable=True)
+        self.colorFunctionButton.setObjectName("WorkbenchToolColorFunction")
         self.pointsButton = iconButton("point", "Points: sky positions and velocities (e.g. sources); click to "
                                                 "place, several in a row (Esc to stop)", checkable=True)
         self.lineButton = iconButton("ruler", "Line: angular separation and velocity difference", checkable=True)
@@ -91,7 +164,8 @@ class HeaderBar(qt.QFrame):
         for name, button in (("WorkbenchToolPoints", self.pointsButton),
                              ("WorkbenchToolClosedCurve", self.closedCurveButton)):
             button.setObjectName(name)
-        for button, separator in ((self.navigateButton, False), (self.crosshairButton, True),
+        for button, separator in ((self.navigateButton, False), (self.crosshairButton, False),
+                                  (self.colorFunctionButton, True),
                                   (self.pointsButton, False), (self.lineButton, False), (self.curveButton, False),
                                   (self.closedCurveButton, False), (self.angleButton, False),
                                   (self.roiButton, False)):
@@ -101,6 +175,7 @@ class HeaderBar(qt.QFrame):
                 layout.addWidget(self.separator())
         self.navigateButton.connect("clicked()", lambda: self.workbench.setInteraction("navigate"))
         self.crosshairButton.connect("clicked()", lambda: self.workbench.setInteraction("crosshair"))
+        self.colorFunctionButton.connect("clicked()", lambda: self.workbench.setInteraction("colorFunction"))
         self.lineButton.connect("clicked()", lambda: self.workbench.setInteraction("line"))
         self.pointsButton.connect("clicked()", lambda: self.workbench.setInteraction("points"))
         self.curveButton.connect("clicked()", lambda: self.workbench.setInteraction("curve"))
@@ -640,7 +715,9 @@ class ScrubberBar(qt.QFrame):
             return
         self.updating = True
         try:
-            self.scrubber.setCurrentIndex(Astro.channelOfSlice(self.volume, self.sliceNode))
+            channel = Astro.channelOfSlice(self.volume, self.sliceNode)
+            self.scrubber.setCurrentIndex(channel)
+            self.syncChannel(channel)
         finally:
             self.updating = False
 
@@ -652,8 +729,28 @@ class ScrubberBar(qt.QFrame):
             if self.sliceNode.GetOrientation() != "XY":
                 self.sliceNode.SetOrientation("XY")
             Astro.setSliceToChannel(self.volume, self.sliceNode, index)
+            self.syncChannel(index)
         finally:
             self.updating = False
+
+    def syncChannel(self, channel):
+        """The other channel maps (XY views) showing data on the same voxels
+        (the cube, its smoothed, blanked... copies) follow the channel: the
+        views stay linked."""
+        layoutManager = slicer.app.layoutManager()
+        if layoutManager is None or self.volume is None:
+            return
+        for name in layoutManager.sliceViewNames():
+            widget = layoutManager.sliceWidget(name)
+            sliceNode = widget.mrmlSliceNode() if widget is not None else None
+            if sliceNode is None or sliceNode is self.sliceNode or sliceNode.GetOrientation() != "XY":
+                continue
+            backgroundID = widget.mrmlSliceCompositeNode().GetBackgroundVolumeID()
+            background = slicer.mrmlScene.GetNodeByID(backgroundID) if backgroundID else None
+            if background is None or Astro.dimensions(background) < 3 or not Astro.sameGrid(background, self.volume):
+                continue
+            if Astro.channelOfSlice(background, sliceNode) != channel:
+                Astro.setSliceToChannel(background, sliceNode, channel)
 
     def cleanup(self):
         self.scrubber.setPlaying(False)
@@ -761,6 +858,7 @@ class Workbench:
         self.shortcuts = []
         self.views = ViewDecorator(self)
         self.visibility = ViewVisibility()
+        self.colorFunctionDrag = ColorFunctionDrag(self)
         self.activeViewKey = "Red"
 
     # ------------------------------------------------------------------
@@ -830,24 +928,57 @@ class Workbench:
         if key.startswith("3D"):
             if Astro.dimensions(node) < 3:
                 return
-            self.visibility.renderInView(node, viewNodeID)
+            # data on the sky grid of what the view renders (e.g. a smoothed
+            # copy of the cube): the camera is kept
+            rendered = self.visibility.renderedVolume(viewNodeID)
+            self.visibility.renderInView(node, viewNodeID,
+                                         centerCamera=rendered is None or not Astro.sameSkyGrid(rendered, node))
         else:
             sliceNode = slicer.mrmlScene.GetNodeByID(viewNodeID)
             composite = slicer.app.layoutManager().sliceWidget(key).mrmlSliceCompositeNode()
-            composite.SetBackgroundVolumeID(node.GetID())
-            composite.SetForegroundVolumeID(None)
             orientation = sliceNode.GetOrientation() if Astro.dimensions(node) >= 3 else "XY"
-            sliceNode.SetOrientation("XZ" if orientation == "XY" else "XY")
-            sliceNode.SetOrientation(orientation)
-            sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
-            if sliceLogic is not None:
-                sliceLogic.FitSliceToAll()
-        # the dropped data become the active dataset (without moving the
-        # other views)
-        if Astro.dimensions(node) >= 3 or self.activeVolume() is None:
-            slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(node.GetID())
+            self.showInSliceView(sliceNode, composite, node, orientation)
+        # dropped data of another dataset: that dataset becomes the active
+        # one (a product keeps its source active: the scrubber, Inspect and
+        # the other views stay with the source)
+        source = Astro.sourceOf(node)
+        if self.activeVolume() is None or (Astro.dimensions(source) >= 3 and source is not self.activeVolume()):
+            slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(source.GetID())
         self.visibility.update()
         self.setActiveView(key)
+
+    def showInSliceView(self, sliceNode, composite, node, orientation=None):
+        """Data shown in a slice view. Data on the sky grid of what the view
+        shows (the dataset and its products) keep the view (zoom, pan and
+        channel; a 2D map moves the view to its plane only); other data: the
+        orientation is set and the view fitted."""
+        previousID = composite.GetBackgroundVolumeID()
+        previous = slicer.mrmlScene.GetNodeByID(previousID) if previousID else None
+        composite.SetBackgroundVolumeID(node.GetID())
+        composite.SetForegroundVolumeID(None)
+        sliceLogic = slicer.app.applicationLogic().GetSliceLogic(sliceNode)
+        orientation = orientation or sliceNode.GetOrientation()
+        if (previous is not None and previous is not node and sliceNode.GetOrientation() == orientation
+                and Astro.sameSkyGrid(previous, node)):
+            if Astro.sameGrid(previous, node) or sliceLogic is None:
+                return
+            if Astro.dimensions(node) >= 3 and orientation == "XY":
+                # back to a cube: the channel of the scrubber
+                scrubber = self.scrubberBar
+                channel = scrubber.scrubber.currentIndex if scrubber is not None and scrubber.scrubber.count() > 0 else None
+                if channel is not None and channel >= 0:
+                    Astro.setSliceToChannel(node, sliceNode, channel)
+                    return
+            # a map: its plane (zoom and pan kept)
+            bounds = [0.0] * 6
+            sliceLogic.GetVolumeSliceBounds(node, bounds)
+            sliceLogic.SetSliceOffset(0.5 * (bounds[4] + bounds[5]))
+            return
+        # another orientation first: the slice is recomputed for the new data
+        sliceNode.SetOrientation("XZ" if orientation == "XY" else "XY")
+        sliceNode.SetOrientation(orientation)
+        if sliceLogic is not None:
+            sliceLogic.FitSliceToAll()
 
     def onConsoleVisibilityChanged(self, visible):
         """The console closed with its own button: the developer button
@@ -906,17 +1037,17 @@ class Workbench:
             logic.PrepareVolumeRendering(node)
             if dataset is not None and dataset is not node:
                 logic.SetVolumeRenderingVisibility(dataset, False, False)
-            # fitted and centred in the 3D views
-            logic.SetVolumeRenderingVisibility(node, True, True)
+            # in place of the dataset: the cameras are kept (centred only for
+            # data elsewhere on the sky)
+            logic.SetVolumeRenderingVisibility(node, True, dataset is None or not Astro.sameSkyGrid(dataset, node))
+            self.views.refresh()
+            return
         elif shown:
             # second click: hidden, the dataset is shown again
             self.showProductHidden(node, dataset, composite)
             return
-        composite.SetBackgroundVolumeID(node.GetID())
-        # maps and channel maps in the sky plane
-        sliceNode.SetOrientation("XZ")
-        sliceNode.SetOrientation("XY")
-        self.fitSliceView(sliceNode)
+        # maps in the sky plane (the zoom and pan of the view kept)
+        self.showInSliceView(sliceNode, composite, node, "XY")
 
     def fitSliceView(self, sliceNode):
         """Fit one view to its data, keeping its orientation (the fit of the
@@ -931,10 +1062,14 @@ class Workbench:
         if Astro.dimensions(node) >= 3:
             logic.SetVolumeRenderingVisibility(node, False, False)
             if dataset is not None and dataset is not node:
-                logic.SetVolumeRenderingVisibility(dataset, True, True)
+                logic.SetVolumeRenderingVisibility(dataset, True, not Astro.sameSkyGrid(dataset, node))
         if composite.GetBackgroundVolumeID() == node.GetID():
-            composite.SetBackgroundVolumeID(dataset.GetID() if dataset is not None and dataset is not node else None)
-            self.fitSliceView(slicer.mrmlScene.GetNodeByID(composite.GetID().replace("CompositeNode", "Node")))
+            sliceNode = slicer.mrmlScene.GetNodeByID(composite.GetID().replace("CompositeNode", "Node"))
+            if dataset is not None and dataset is not node:
+                self.showInSliceView(sliceNode, composite, dataset)
+            else:
+                composite.SetBackgroundVolumeID(None)
+        self.views.refresh()
 
     # ------------------------------------------------------------------
     THREE_VIEWS = 3501
@@ -1012,6 +1147,9 @@ class Workbench:
         if not self.active:
             return
         self.styleViews()
+        # the colour-function tool on the 3D views of the new layout
+        if getattr(self, "tool", None) == "colorFunction":
+            self.colorFunctionDrag.setEnabled(True)
         layouts = self.layouts()
         arrangement = slicer.app.layoutManager().layoutLogic().GetLayoutNode().GetViewArrangement()
         switch = self.header.layoutButton
@@ -1089,6 +1227,7 @@ class Workbench:
     def toolButtons(self):
         header = self.header
         return {"navigate": header.navigateButton, "crosshair": header.crosshairButton,
+                "colorFunction": header.colorFunctionButton,
                 "points": header.pointsButton, "line": header.lineButton, "curve": header.curveButton,
                 "closedCurve": header.closedCurveButton, "angle": header.angleButton, "roi": header.roiButton}
 
@@ -1104,6 +1243,11 @@ class Workbench:
         the placement button is unchecked (navigation again)."""
         interaction = slicer.app.applicationLogic().GetInteractionNode()
         if self.tool in self.PLACE_CLASSES and interaction.GetCurrentInteractionMode() != interaction.Place:
+            self.tool = "navigate"
+            self.checkTool("navigate")
+        elif self.tool == "colorFunction" and interaction.GetCurrentInteractionMode() != interaction.AdjustWindowLevel:
+            # window/level ended elsewhere (e.g. a placement started)
+            self.colorFunctionDrag.setEnabled(False)
             self.tool = "navigate"
             self.checkTool("navigate")
 
@@ -1126,8 +1270,12 @@ class Workbench:
             # points: several in a row (one list); the others: one markup
             interaction.SetPlaceModePersistence(1 if mode == "points" else 0)
             interaction.SetCurrentInteractionMode(slicer.vtkMRMLInteractionNode.Place)
+        elif mode == "colorFunction":
+            # 2D views: window/level of Slicer; 3D views: the drag below
+            interaction.SetCurrentInteractionMode(slicer.vtkMRMLInteractionNode.AdjustWindowLevel)
         else:
             interaction.SetCurrentInteractionMode(slicer.vtkMRMLInteractionNode.ViewTransform)
+        self.colorFunctionDrag.setEnabled(mode == "colorFunction")
 
     def styleViews(self):
         """Views on the ink background, with the view bars of the Workbench
@@ -1338,10 +1486,16 @@ class Workbench:
         self.views.refresh()
         self.visibility.update()
         if volume is not None:
-            context = [Astro.attribute(volume, "OBJECT", "").strip(), Astro.attribute(volume, "TELESCOP", "").strip()]
-            self.header.contextLabel.text = " · ".join(part for part in context if part) or volume.GetName()
+            # the active dataset (its object and telescope in the tooltip:
+            # OBJECT is often a survey field name, unclear on its own)
+            self.header.contextLabel.text = volume.GetName()
+            details = [("Object", Astro.attribute(volume, "OBJECT", "").strip()),
+                       ("Telescope", Astro.attribute(volume, "TELESCOP", "").strip())]
+            self.header.contextLabel.toolTip = "\n".join(
+                [f"Active dataset: {volume.GetName()}"] + [f"{key}: {value}" for key, value in details if value])
         else:
             self.header.contextLabel.text = ""
+            self.header.contextLabel.toolTip = "Active dataset"
 
     def exit(self):
         if not self.active:
@@ -1349,6 +1503,13 @@ class Workbench:
         self.active = False
         self.refreshTimer.stop()
         self.automaticContoursTimer.stop()
+        self.colorFunctionDrag.remove()
+        if getattr(self, "tool", None) == "colorFunction":
+            # Slicer's own window/level mode is not left on
+            slicer.app.applicationLogic().GetInteractionNode().SetCurrentInteractionMode(
+                slicer.vtkMRMLInteractionNode.ViewTransform)
+            self.tool = "navigate"
+            self.checkTool("navigate")
         for observer in self.sceneObservers:
             slicer.mrmlScene.RemoveObserver(observer)
         self.sceneObservers = []

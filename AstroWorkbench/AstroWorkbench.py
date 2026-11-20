@@ -169,6 +169,8 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_HIContours()
         self.setUp()
         self.test_Sources()
+        self.setUp()
+        self.test_ProductsKeepViews()
         self.tearDown()
 
     def cube(self):
@@ -394,13 +396,45 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.assertTrue(os.path.isfile(os.path.join(folder, Workspaces.PREVIEW_FILE)))
         listed = Workspaces.listWorkspaces(directory)
         self.assertEqual([entry["name"] for entry in listed], ["Test WEIN069"])
-        # datasets by their object (FITS OBJECT, e.g. PP08AB for WEIN069)
-        self.assertEqual(listed[0]["datasets"], [volume.GetAttribute("SlicerAstro.OBJECT").strip()])
+        # datasets by name; their objects (FITS OBJECT, e.g. PP08AB for
+        # WEIN069) only for the filter
+        self.assertEqual(listed[0]["datasets"], ["WEIN069"])
+        self.assertEqual(listed[0]["objects"], [volume.GetAttribute("SlicerAstro.OBJECT").strip()])
         self.assertEqual(Workspaces.dateGroup(listed[0]["modified"]), "Today")
         with self.assertRaises(FileExistsError):
             Workspaces.saveWorkspace("Test WEIN069", "", directory)
         folder = Workspaces.renameWorkspace(folder, "Renamed")
         self.assertEqual(Workspaces.listWorkspaces(directory)[0]["name"], "Renamed")
+        self.assertTrue(Workspaces.setWorkspaceNotes(folder, "other notes"))
+        self.assertEqual(Workspaces.listWorkspaces(directory)[0]["notes"], "other notes")
+        # exported as a zip: the folder with the scene, preview and description
+        import zipfile
+        archivePath = os.path.join(tempfile.mkdtemp(prefix="AstroWorkspaceZip"), "renamed.zip")
+        self.assertEqual(Workspaces.exportWorkspace(folder, archivePath), archivePath)
+        with zipfile.ZipFile(archivePath) as archive:
+            self.assertEqual(sorted(archive.namelist()),
+                             sorted(f"Renamed/{name}" for name in (Workspaces.SCENE_FILE, Workspaces.PREVIEW_FILE,
+                                                                   Workspaces.DESCRIPTION_FILE)))
+        os.remove(archivePath)
+        os.rmdir(os.path.dirname(archivePath))
+        # the card of the page: name and notes edited in place
+        page = Workspaces.WorkspacesPage(workbench())
+        entry = Workspaces.WorkspaceEntry(page, Workspaces.readDescription(folder))
+        self.assertEqual(len(slicer.util.findChildren(entry, "WorkspaceRename")), 0)
+        self.assertEqual(len(slicer.util.findChildren(entry, "WorkspaceExport")), 1)
+        entry.notesEdit.text = "edited in the card"
+        entry.onNotesEdited()
+        self.assertEqual(Workspaces.readDescription(folder)["notes"], "edited in the card")
+        entry.titleEdit.text = "Renamed in the card"
+        entry.onTitleEdited()
+        folder = entry.description["folder"]
+        self.assertEqual(Workspaces.readDescription(folder)["name"], "Renamed in the card")
+        # the logbook refresh scheduled by the rename runs; the widgets are
+        # released by Python (a deleteLater would run only at the exit of
+        # the application, after Python)
+        self.process()
+        entry = None
+        page = None
         # opening a workspace replaces the scene: other data loaded meanwhile
         # are removed, the data of the workspace are there once
         import SampleData
@@ -574,6 +608,7 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
                          "vtkMRMLMarkupsCurveNode")
         mainWindow = slicer.util.mainWindow()
         self.assertEqual(mainWindow.contextMenuPolicy, qt.Qt.PreventContextMenu)
+        self.checkColorFunctionTool(header, interaction)
         console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
         if console is not None:
             header.developerButton.click()
@@ -585,6 +620,50 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         workbench().exit()
         self.process()
         self.assertNotEqual(mainWindow.contextMenuPolicy, qt.Qt.PreventContextMenu)
+
+    def checkColorFunctionTool(self, header, interaction):
+        """Colour-function tool: window/level of Slicer in the 2D views; a
+        drag in the 3D view moves the 3D colour function (shift left-right,
+        opacity up-down) without moving the camera, and Inspect follows."""
+        volume = workbench().activeVolume()
+        self.assertIsNotNone(volume)
+        logic = slicer.modules.astrovolume.logic()
+        logic.PrepareVolumeRendering(volume)
+        logic.SetVolumeRenderingVisibility(volume, True, True)
+        self.process()
+        header.colorFunctionButton.click()
+        self.process()
+        self.assertTrue(header.colorFunctionButton.checked)
+        self.assertEqual(interaction.GetCurrentInteractionMode(), interaction.AdjustWindowLevel)
+        layoutManager = slicer.app.layoutManager()
+        view = layoutManager.threeDWidget(0).threeDView()
+        camera = view.cameraNode()
+        position = list(camera.GetPosition())
+        displayNode = volume.GetAstroVolumeDisplayNode()
+        shift, opacity = displayNode.GetPresetOffset(), displayNode.GetOpacityShift()
+        width, height = view.renderWindow().GetSize()
+        interactor = view.interactor()
+        x, y = width // 2, height // 2
+        interactor.SetEventInformation(x, y)
+        interactor.InvokeEvent("LeftButtonPressEvent")
+        interactor.SetEventInformation(x + width // 4, y + height // 10)
+        interactor.InvokeEvent("MouseMoveEvent")
+        interactor.InvokeEvent("LeftButtonReleaseEvent")
+        self.process()
+        dataRange = (float(volume.GetAttribute("SlicerAstro.DATAMAX")) -
+                     float(volume.GetAttribute("SlicerAstro.DATAMIN")))
+        self.assertAlmostEqual(displayNode.GetPresetOffset() - shift, 0.25 * dataRange, delta=0.02 * dataRange)
+        self.assertAlmostEqual(displayNode.GetOpacityShift() - opacity, 0.1, delta=0.02)
+        for a, b in zip(camera.GetPosition(), position):
+            self.assertAlmostEqual(a, b, places=3)
+        # Inspect follows (3D section of the dataset)
+        shiftSlider = slicer.util.findChild(workbench().inspector, "RenderingShift")
+        self.assertAlmostEqual(shiftSlider.value, displayNode.GetPresetOffset(), delta=0.01 * dataRange)
+        # back to navigation: Slicer's window/level mode is off
+        header.navigateButton.click()
+        self.process()
+        self.assertEqual(interaction.GetCurrentInteractionMode(), interaction.ViewTransform)
+        self.assertEqual(workbench().colorFunctionDrag.observers, [])
 
     def test_DeleteDatasetWithEverything(self):
         """A dataset with a SoFiA catalogue (points), a profile (table, plot
@@ -621,7 +700,28 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         line.AddControlPoint(30, 0, 0)
         line.AddControlPoint(30, 0, 40)
         self.process(20)
+        # results of Modeling made from the cube (rings table, points of the
+        # rotation curves, data and model contours, model cube)
+        slicer.util.selectModule("AstroModeling")
+        self.process(20)
+        modeling = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroModelingParametersNode")
+        modeling.SetInputVolumeNodeID(volume.GetID())
+        self.process(10)
+        rings = modeling.GetParamsTableNode()
+        self.assertIsNotNone(rings)
+        rings.GetTable().SetNumberOfRows(3)
+        rings.Modified()
+        majorPoints = slicer.util.getFirstNodeByName("MarkupsFiducialsMajor")
+        self.assertIsNotNone(majorPoints)
+        majorPoints.AddControlPoint(1, 2, 3)
+        modelContours = slicer.mrmlScene.GetFirstNodeByName("AstroModelingContoursSeg")
+        if modelContours is None:
+            modelContours = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLSegmentationNode", "AstroModelingContoursSeg")
+        modelContours.GetSegmentation().AddEmptySegment("DataContours")
+        model = slicer.modules.volumes.logic().CloneVolume(slicer.mrmlScene, volume, volume.GetName() + "_model_1")
+        self.process(10)
         derived = Astro.derivedNodes(volume, slicer.mrmlScene)
+        self.assertIn(model, derived)
         classes = {node.GetClassName() for node in derived}
         self.assertIn("vtkMRMLMarkupsFiducialNode", classes)
         self.assertIn("vtkMRMLPlotSeriesNode", classes)
@@ -635,6 +735,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         for nodeID in derivedIDs:
             self.assertIsNone(slicer.mrmlScene.GetNodeByID(nodeID), nodeID)
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLAstroVolumeNode"), 0)
+        # the results of Modeling cleared
+        self.assertEqual(rings.GetTable().GetNumberOfRows(), 0)
+        self.assertEqual(majorPoints.GetNumberOfControlPoints(), 0)
+        self.assertTrue(modelContours.GetScene() is None or modelContours.GetSegmentation().GetNumberOfSegments() == 0)
         # the plot of the Profiles panel cleared
         plot = slicer.util.findChild(slicer.modules.astroprofiles.widgetRepresentation(), "SpectrumPlot")
         self.assertEqual(len(plot.spectrumY()), 0)
@@ -642,6 +746,89 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         other = sampleData.downloadSample("WEIN069")
         self.assertIsNotNone(other)
         self.process(20)
+
+    def test_ProductsKeepViews(self):
+        """A product on the voxels of the dataset (e.g. its smoothed copy),
+        clicked or dropped on a view: the views keep their zoom, channel and
+        camera, the dataset stays active and the channel maps stay linked."""
+        from AstroWorkbenchLib import Astro
+        volume = self.cube()
+        selection = slicer.app.applicationLogic().GetSelectionNode()
+        selection.SetActiveVolumeID(volume.GetID())
+        smoothed = slicer.modules.volumes.logic().CloneVolume(slicer.mrmlScene, volume,
+                                                              volume.GetName() + "_Filtered_Box_1")
+        self.assertTrue(Astro.sameGrid(volume, smoothed))
+        wb = workbench()
+        wb.enter()
+        wb.setViewLayout(2)
+        self.wait(0.6)
+        layoutManager = slicer.app.layoutManager()
+        red = layoutManager.sliceWidget("Red").mrmlSliceNode()
+        yellow = layoutManager.sliceWidget("Yellow").mrmlSliceNode()
+        wb.setActiveView("Red")
+        wb.scrubberBar.scrubber.currentIndex = 20
+        self.process()
+        fov = list(red.GetFieldOfView())
+        red.SetFieldOfView(fov[0] / 2, fov[1] / 2, fov[2])
+        camera = layoutManager.threeDWidget(0).threeDView().cameraNode()
+        camera.GetCamera().Azimuth(50)
+        camera.Modified()
+        self.process()
+        position = list(camera.GetPosition())
+        redFOV = list(red.GetFieldOfView())
+
+        # click: rendered in 3D in place of the dataset, the camera kept
+        wb.showProduct(smoothed.GetID())
+        self.wait(0.4)
+        logic = slicer.modules.astrovolume.logic()
+        self.assertTrue(logic.GetVolumeRenderingDisplayNode(smoothed, False).GetVisibility())
+        for a, b in zip(camera.GetPosition(), position):
+            self.assertAlmostEqual(a, b, places=3)
+        self.assertIs(wb.activeVolume(), volume)
+        bar = wb.views.bars["3D0"]
+        bar.refresh()
+        self.assertIn(smoothed.GetName(), bar.detail.text)
+        # second click: the dataset again, the camera kept
+        wb.showProduct(smoothed.GetID())
+        self.wait(0.4)
+        for a, b in zip(camera.GetPosition(), position):
+            self.assertAlmostEqual(a, b, places=3)
+
+        # dropped on the red view: zoom and channel kept, dataset active
+        wb.dropNode("Red", smoothed.GetID())
+        self.wait(0.4)
+        composite = layoutManager.sliceWidget("Red").mrmlSliceCompositeNode()
+        self.assertEqual(composite.GetBackgroundVolumeID(), smoothed.GetID())
+        for a, b in zip(red.GetFieldOfView(), redFOV):
+            self.assertAlmostEqual(a, b, places=3)
+        self.assertEqual(Astro.channelOfSlice(smoothed, red), 20)
+        self.assertIs(wb.activeVolume(), volume)
+        # the channel maps are linked: the cube in yellow follows the
+        # scrubber moving the red one
+        yellowComposite = layoutManager.sliceWidget("Yellow").mrmlSliceCompositeNode()
+        yellowComposite.SetBackgroundVolumeID(volume.GetID())
+        yellow.SetOrientation("XY")
+        wb.setActiveView("Red")
+        wb.scrubberBar.scrubber.currentIndex = 30
+        self.process()
+        self.assertEqual(Astro.channelOfSlice(smoothed, red), 30)
+        self.assertEqual(Astro.channelOfSlice(volume, yellow), 30)
+
+        # Inspect: the dataset or one of its products, chosen in its selector
+        inspector = wb.inspector
+        wb.refresh()
+        self.wait(0.4)
+        selector = inspector.inspectSelector
+        self.assertFalse(selector.isHidden())
+        self.assertEqual(sorted(selector.nodeIDFilter()), sorted([volume.GetID(), smoothed.GetID()]))
+        selector.setCurrentNode(smoothed)
+        self.process()
+        self.assertIs(inspector.inspected, smoothed)
+        self.assertIs(wb.activeVolume(), volume)
+        # kept by the refreshes of the Workbench
+        wb.refresh()
+        self.wait(0.4)
+        self.assertIs(inspector.inspected, smoothed)
 
     def test_Theme(self):
         """The theme switch restyles the Workbench."""

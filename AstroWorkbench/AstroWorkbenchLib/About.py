@@ -112,7 +112,7 @@ class AboutDialog(qt.QDialog):
         headerLayout.setSpacing(16)
         logo = qt.QLabel()
         logo.setObjectName("AboutLogo")
-        logo.setPixmap(qt.QIcon(":/AstroTheme/Logo/SlicerAstroLogo.svg").pixmap(76, 76))
+        logo.setPixmap(qt.QIcon(":/AstroTheme/Logo/SlicerAstroLogo.svg").pixmap(114, 114))
         headerLayout.addWidget(logo)
         titles = qt.QVBoxLayout()
         titles.setSpacing(2)
@@ -192,8 +192,7 @@ class AboutDialog(qt.QDialog):
             "treated as a 3D object, two axes on the sky and one along the velocity, so that faint and "
             "complex structures, such as tidal tails, filaments and gas around galaxies, can be explored "
             "by linking 3D renderings, slices, plots and quantitative analysis in one place, always in "
-            "sky and velocity coordinates. It brings the interactive visual analytics developed for "
-            "medical imaging to astronomy.", role=""))
+            "sky and velocity coordinates.", role=""))
         layout.addWidget(overline("Versions"))
         grid = qt.QGridLayout()
         grid.setHorizontalSpacing(18)

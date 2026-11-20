@@ -104,6 +104,19 @@ void qSlicerAstroDatasetSelector::setRequiredDimensions(int dimensions)
 }
 
 //-----------------------------------------------------------------------------
+QStringList qSlicerAstroDatasetSelector::nodeIDFilter() const
+{
+  return this->NodeIDFilter;
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroDatasetSelector::setNodeIDFilter(const QStringList& nodeIDs)
+{
+  this->NodeIDFilter = nodeIDs;
+  this->update();
+}
+
+//-----------------------------------------------------------------------------
 QString qSlicerAstroDatasetSelector::subtitle() const
 {
   return this->Subtitle;
@@ -146,6 +159,11 @@ QString qSlicerAstroDatasetSelector::currentNodeID() const
 bool qSlicerAstroDatasetSelector::accepts(vtkMRMLNode* node) const
 {
   if (!node || node->GetHideFromEditors())
+    {
+    return false;
+    }
+  if (!this->NodeIDFilter.isEmpty() &&
+      (!node->GetID() || !this->NodeIDFilter.contains(QString::fromUtf8(node->GetID()))))
     {
     return false;
     }

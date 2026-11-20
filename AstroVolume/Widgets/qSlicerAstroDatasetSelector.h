@@ -61,6 +61,10 @@ public:
   void setSubtitle(const QString& subtitle);
   QString noneText() const;
   void setNoneText(const QString& text);
+  /// Only these nodes (IDs) can be selected (e.g. a dataset and its
+  /// products); empty: any node of the types
+  Q_INVOKABLE QStringList nodeIDFilter() const;
+  Q_INVOKABLE void setNodeIDFilter(const QStringList& nodeIDs);
 
   Q_INVOKABLE vtkMRMLNode* currentNode() const;
   Q_INVOKABLE QString currentNodeID() const;
@@ -97,6 +101,7 @@ protected:
   int RequiredDimensions{0};
   QString Subtitle;
   QString NoneText;
+  QStringList NodeIDFilter;
 };
 
 #endif

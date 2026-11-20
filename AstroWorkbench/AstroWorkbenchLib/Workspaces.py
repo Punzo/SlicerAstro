@@ -52,13 +52,17 @@ def _now():
 
 
 def _datasets():
-    names = []
-    for node in slicer.util.getNodesByClass("vtkMRMLAstroVolumeNode"):
-        if node.GetHideFromEditors():
-            continue
+    """Names of the datasets of the scene (and their objects, FITS OBJECT, for
+    the filter of the logbook)."""
+    from . import Astro
+    names, objects = [], []
+    # the datasets, not their products (moment maps, smoothed copies...)
+    for node in Astro.rootDatasets(slicer.mrmlScene):
+        names.append(node.GetName())
         objectName = node.GetAttribute("SlicerAstro.OBJECT")
-        names.append(objectName.strip() if objectName and objectName.strip() else node.GetName())
-    return sorted(set(names))
+        if objectName and objectName.strip():
+            objects.append(objectName.strip())
+    return sorted(set(names)), sorted(set(objects))
 
 
 def saveScreenshot(path):
@@ -91,11 +95,13 @@ def saveWorkspace(name, notes="", directory=None, overwrite=False):
         return None
     layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode() if slicer.app.layoutManager() else None
     created = description.get("created") if description else None
+    datasets, objects = _datasets()
     data = {
         "name": name,
         "created": created or _now(),
         "modified": _now(),
-        "datasets": _datasets(),
+        "datasets": datasets,
+        "objects": objects,
         "layout": layoutNode.GetViewArrangement() if layoutNode is not None else None,
         "notes": notes,
         "application": "SlicerAstro " + _version(),
@@ -159,11 +165,44 @@ def renameWorkspace(folder, name):
         if os.path.exists(target):
             raise FileExistsError(f'A workspace named "{name}" exists')
         shutil.move(folder, target)
-    data = {key: value for key, value in description.items() if key not in ("folder", "preview", "scene")}
-    data["name"] = name
-    with open(os.path.join(target, DESCRIPTION_FILE), "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=2, ensure_ascii=False)
+    description["name"] = name
+    _writeDescription(target, description)
     return target
+
+
+def _writeDescription(folder, description):
+    data = {key: value for key, value in description.items() if key not in ("folder", "preview", "scene")}
+    with open(os.path.join(folder, DESCRIPTION_FILE), "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=2, ensure_ascii=False)
+
+
+def setWorkspaceNotes(folder, notes):
+    """New notes of a workspace; returns False if it is not a workspace."""
+    description = readDescription(folder)
+    if description is None:
+        return False
+    description["notes"] = notes
+    _writeDescription(folder, description)
+    return True
+
+
+def exportWorkspace(folder, path):
+    """The workspace folder (scene, preview, description) as a zip file at
+    path, with the folder at the top of the archive; returns path (None if
+    it is not a workspace)."""
+    import zipfile
+    if readDescription(folder) is None:
+        return None
+    root = os.path.basename(os.path.normpath(folder))
+    with zipfile.ZipFile(path, "w") as archive:
+        for entry in sorted(os.listdir(folder)):
+            source = os.path.join(folder, entry)
+            if not os.path.isfile(source):
+                continue
+            # the scene bundle and the preview are compressed already
+            compression = zipfile.ZIP_STORED if entry.endswith((".mrb", ".png")) else zipfile.ZIP_DEFLATED
+            archive.write(source, f"{root}/{entry}", compress_type=compression)
+    return path
 
 
 def deleteWorkspace(folder):
@@ -221,21 +260,29 @@ class WorkspaceEntry(qt.QFrame):
             preview.setProperty("astroRole", "label")
         preview.toolTip = "Double-click: open this workspace."
         layout.addWidget(preview)
-        title = qt.QLabel(description.get("name", ""))
-        title.setStyleSheet("font-weight: 600;")
-        title.toolTip = description["folder"]
-        layout.addWidget(title)
+        # name and notes edited in place (saved when the editing finishes)
+        self.titleEdit = qt.QLineEdit(description.get("name", ""))
+        self.titleEdit.setObjectName("WorkspaceTitle")
+        self.titleEdit.setProperty("astroRole", "inlineEdit")
+        self.titleEdit.setProperty("inlineTitle", True)
+        self.titleEdit.toolTip = "Name of the workspace: click to rename it.\n" + description["folder"]
+        self.titleEdit.connect("editingFinished()", self.onTitleEdited)
+        layout.addWidget(self.titleEdit)
         modified = description.get("modified", "").replace("T", " ")
         datasets = ", ".join(description.get("datasets", []))
         meta = qt.QLabel(f"{modified} · {datasets}" if datasets else modified)
         meta.setProperty("astroRole", "monoLabel")
         meta.wordWrap = True
+        objects = ", ".join(description.get("objects", []))
+        meta.toolTip = f"Saved {modified}. Datasets: {datasets or '-'}" + (f". Objects: {objects}" if objects else "")
         layout.addWidget(meta)
-        if description.get("notes"):
-            notes = qt.QLabel(description["notes"])
-            notes.setProperty("astroRole", "label")
-            notes.wordWrap = True
-            layout.addWidget(notes)
+        self.notesEdit = qt.QLineEdit(description.get("notes", ""))
+        self.notesEdit.setObjectName("WorkspaceNotesEdit")
+        self.notesEdit.setProperty("astroRole", "inlineEdit")
+        self.notesEdit.placeholderText = "Add notes"
+        self.notesEdit.toolTip = "Notes of the workspace: click to edit them."
+        self.notesEdit.connect("editingFinished()", self.onNotesEdited)
+        layout.addWidget(self.notesEdit)
         actions = qt.QHBoxLayout()
         actions.setSpacing(2)
         for text, icon, tip, slot, objectName in (
@@ -249,7 +296,8 @@ class WorkspaceEntry(qt.QFrame):
             button.connect("clicked()", slot)
             actions.addWidget(button)
         actions.addStretch(1)
-        for icon, tip, slot, objectName in (("settings", "Rename this workspace.", self.rename, "WorkspaceRename"),
+        for icon, tip, slot, objectName in (("archive", "Export this workspace as a zip file (scene, preview "
+                                             "and description), e.g. to share it.", self.export, "WorkspaceExport"),
                                             ("trash", "Delete this workspace (its folder).", self.delete,
                                              "WorkspaceDelete")):
             button = qt.QToolButton()
@@ -283,13 +331,40 @@ class WorkspaceEntry(qt.QFrame):
                           os.path.dirname(self.description["folder"]), overwrite=True)
         self.page.refresh()
 
-    def rename(self):
-        name = qt.QInputDialog.getText(slicer.util.mainWindow(), "Rename workspace", "Name:",
-                                       qt.QLineEdit.Normal, self.description.get("name", ""))
-        if name and name.strip():
-            with slicer.util.tryWithErrorDisplay("The workspace could not be renamed."):
-                renameWorkspace(self.description["folder"], name.strip())
-            self.page.refresh()
+    def onTitleEdited(self):
+        name = self.titleEdit.text.strip()
+        if not name or name == self.description.get("name", ""):
+            self.titleEdit.text = self.description.get("name", "")
+            return
+        try:
+            self.description["folder"] = renameWorkspace(self.description["folder"], name)
+            self.description["name"] = name
+        except Exception as error:
+            self.titleEdit.text = self.description.get("name", "")
+            self.page.workbench.statusBar.showMessage(f"The workspace could not be renamed: {error}")
+            return
+        # the logbook is rebuilt after this signal (it deletes this entry)
+        qt.QTimer.singleShot(0, self.page.refresh)
+
+    def onNotesEdited(self):
+        notes = self.notesEdit.text.strip()
+        if notes == self.description.get("notes", ""):
+            return
+        if setWorkspaceNotes(self.description["folder"], notes):
+            self.description["notes"] = notes
+
+    def export(self):
+        name = folderName(self.description.get("name", "workspace"))
+        defaultPath = os.path.join(os.path.expanduser("~"), name + ".zip")
+        path = qt.QFileDialog.getSaveFileName(slicer.util.mainWindow(), "Export workspace", defaultPath,
+                                              "Zip files (*.zip)")
+        if not path:
+            return
+        if not path.lower().endswith(".zip"):
+            path += ".zip"
+        with slicer.util.tryWithErrorDisplay("The workspace could not be exported.", waitCursor=True):
+            exportWorkspace(self.description["folder"], path)
+            self.page.workbench.statusBar.showMessage(f"Workspace exported: {path}")
 
     def delete(self):
         answer = qt.QMessageBox.question(slicer.util.mainWindow(), "Delete workspace",
@@ -383,7 +458,7 @@ class WorkspacesPage(qt.QWidget):
         count = 0
         for description in listWorkspaces():
             haystack = " ".join([description.get("name", ""), " ".join(description.get("datasets", [])),
-                                 description.get("notes", "")]).lower()
+                                 " ".join(description.get("objects", [])), description.get("notes", "")]).lower()
             if text and text not in haystack:
                 continue
             entryGroup = dateGroup(description.get("modified"))

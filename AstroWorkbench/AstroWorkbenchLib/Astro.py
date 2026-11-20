@@ -290,6 +290,60 @@ def _matrix(volume, ijkToRAS=True):
     return matrix
 
 
+def sameSkyGrid(volume, other, tolerance=1e-6):
+    """True if two volumes share their pixels on the sky (same columns and
+    rows in RAS; they may differ along the spectral axis, e.g. a cube and its
+    moment maps, or a cube and its smoothed or blanked copy)."""
+    if not isAstroVolume(volume) or not isAstroVolume(other):
+        return False
+    if volume is other:
+        return True
+    a, b = _matrix(volume), _matrix(other)
+    dimsA = volume.GetImageData().GetDimensions() if volume.GetImageData() else None
+    dimsB = other.GetImageData().GetDimensions() if other.GetImageData() else None
+    if dimsA is None or dimsB is None or dimsA[0] != dimsB[0] or dimsA[1] != dimsB[1]:
+        return False
+    scale = max(abs(a.GetElement(r, c)) for r in range(3) for c in range(3)) or 1.0
+    for column in (0, 1):
+        for row in range(3):
+            if abs(a.GetElement(row, column) - b.GetElement(row, column)) > tolerance * scale:
+                return False
+    # origins: equal, or apart along the spectral axis only
+    delta = [b.GetElement(row, 3) - a.GetElement(row, 3) for row in range(3)]
+    axis = [a.GetElement(row, 2) for row in range(3)]
+    axisNorm = sum(value * value for value in axis) ** 0.5 or 1.0
+    along = sum(delta[row] * axis[row] for row in range(3)) / axisNorm
+    across = [delta[row] - along * axis[row] / axisNorm for row in range(3)]
+    return sum(value * value for value in across) ** 0.5 <= tolerance * scale * 10
+
+
+def sameGrid(volume, other, tolerance=1e-6):
+    """True if two volumes share their voxels (same sky grid and the same
+    channels), e.g. a cube and its smoothed or blanked copy."""
+    if not sameSkyGrid(volume, other, tolerance):
+        return False
+    if dimensions(volume) != dimensions(other):
+        return False
+    a, b = _matrix(volume), _matrix(other)
+    for row in range(3):
+        for column in (2, 3):
+            if abs(a.GetElement(row, column) - b.GetElement(row, column)) > 1e-6 * max(1.0, abs(a.GetElement(row, column))):
+                return False
+    return volume.GetImageData().GetDimensions()[2] == other.GetImageData().GetDimensions()[2]
+
+
+def sourceOf(volume, scene=None):
+    """The dataset a product derives from (its root), or the volume itself."""
+    volumes = astroVolumes(scene or slicer.mrmlScene)
+    current = volume
+    for _ in range(16):
+        parent = parentOf(current, volumes) if current is not None else None
+        if parent is None:
+            return current
+        current = parent
+    return current
+
+
 def channelOfSlice(volume, sliceNode):
     """Channel (k) of the volume shown by a slice view."""
     sliceToRAS = sliceNode.GetSliceToRAS()

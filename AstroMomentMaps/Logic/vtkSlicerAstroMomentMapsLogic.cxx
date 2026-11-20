@@ -25,6 +25,8 @@
 #include <memory>
 #include <vtkSlicerAstroSMPTools.h>
 #include <type_traits>
+#include <algorithm>
+#include <cmath>
 #include <vector>
 
 // MRML includes
@@ -43,6 +45,7 @@
 #include <vtkImageData.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
+#include <vtkDataArray.h>
 #include <vtkPointData.h>
 #include <vtkSmartPointer.h>
 #include <vtkStringArray.h>
@@ -88,6 +91,42 @@ bool DoubleIsNaN(double Value)
 bool FloatIsNaN(float Value)
 {
   return isNaN<float>(Value);
+}
+
+//----------------------------------------------------------------------------
+/// Values at two fractions of the sorted finite voxels of an image (sampled:
+/// at most about 200000 voxels); false if it has no finite voxels or the
+/// two values are equal.
+bool PercentileRange(vtkImageData* image, double lowFraction, double highFraction, double range[2])
+{
+  vtkDataArray* scalars = image && image->GetPointData() ? image->GetPointData()->GetScalars() : nullptr;
+  if (!scalars)
+    {
+    return false;
+    }
+  const vtkIdType count = scalars->GetNumberOfTuples();
+  const vtkIdType step = std::max<vtkIdType>(1, count / 200000);
+  std::vector<double> values;
+  values.reserve(static_cast<size_t>(count / step + 1));
+  for (vtkIdType i = 0; i < count; i += step)
+    {
+    const double value = scalars->GetComponent(i, 0);
+    if (std::isfinite(value))
+      {
+      values.push_back(value);
+      }
+    }
+  if (values.size() < 2)
+    {
+    return false;
+    }
+  const size_t low = static_cast<size_t>(lowFraction * (values.size() - 1));
+  const size_t high = static_cast<size_t>(highFraction * (values.size() - 1));
+  std::nth_element(values.begin(), values.begin() + low, values.end());
+  range[0] = values[low];
+  std::nth_element(values.begin(), values.begin() + high, values.end());
+  range[1] = values[high];
+  return range[1] > range[0];
 }
 
 //----------------------------------------------------------------------------
@@ -954,8 +993,17 @@ bool vtkSlicerAstroMomentMapsLogic::StartCalculateMomentMaps(vtkMRMLAstroMomentM
         FirstMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
         double min = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
         double max = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
+        // window: 2nd to 98th percentile of the map (a few outlying pixels,
+        // e.g. noise at the edges, do not squeeze the colours of the galaxy;
+        // the thumbnails use the same stretch)
         double window = max-min;
         double level = 0.5*(max+min);
+        double percentiles[2];
+        if (PercentileRange(FirstMomentVolume->GetImageData(), 0.02, 0.98, percentiles))
+          {
+          window = percentiles[1] - percentiles[0];
+          level = 0.5 * (percentiles[0] + percentiles[1]);
+          }
         FirstMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
         FirstMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
         FirstMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
@@ -971,8 +1019,17 @@ bool vtkSlicerAstroMomentMapsLogic::StartCalculateMomentMaps(vtkMRMLAstroMomentM
         SecondMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
         double min = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
         double max = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
+        // window: 2nd to 98th percentile of the map (a few outlying pixels,
+        // e.g. noise at the edges, do not squeeze the colours of the galaxy;
+        // the thumbnails use the same stretch)
         double window = max-min;
         double level = 0.5*(max+min);
+        double percentiles[2];
+        if (PercentileRange(SecondMomentVolume->GetImageData(), 0.02, 0.98, percentiles))
+          {
+          window = percentiles[1] - percentiles[0];
+          level = 0.5 * (percentiles[0] + percentiles[1]);
+          }
         SecondMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
         SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
         SecondMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);

@@ -117,6 +117,17 @@ QLineEdit, QAbstractSpinBox {
 }
 QLineEdit:focus, QAbstractSpinBox:focus { border-color: @data@; }
 QLineEdit:disabled, QAbstractSpinBox:disabled { color: @subtle@; background: @panel@; }
+/* text edited in place (e.g. the name and notes of a workspace card): plain
+   text until hovered or focused */
+QLineEdit[astroRole="inlineEdit"] {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 0px 4px;
+  min-height: 22px;
+}
+QLineEdit[astroRole="inlineEdit"]:hover { border-color: @line@; }
+QLineEdit[astroRole="inlineEdit"]:focus { border-color: @data@; background: @raised@; }
+QLineEdit[astroRole="inlineEdit"][inlineTitle="true"] { font-weight: 600; }
 /* fields have no steppers (keyboard and wheel still step); the buttons are
    kept with no width: without buttons a styled spin box loses its edit area */
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button { width: 0px; border: none; }

@@ -221,6 +221,16 @@ class Inspector(qt.QFrame):
 
     def buildInspect(self):
         scroll, layout = self.scrollPage()
+        # what Inspect shows: the active dataset or one of its products
+        self.inspectSelector = slicer.qSlicerAstroDatasetSelector()
+        self.inspectSelector.setObjectName("InspectDataset")
+        self.inspectSelector.nodeTypes = ["vtkMRMLAstroVolumeNode"]
+        self.inspectSelector.toolTip = ("Data shown in Inspect: the active dataset or one of its products "
+                                        "(moment maps, smoothed or blanked cubes, models...).")
+        self.inspectSelector.setMRMLScene(slicer.mrmlScene)
+        self.inspectSelector.connect("currentNodeChanged(vtkMRMLNode*)", self.onInspectedChanged)
+        layout.addWidget(self.inspectSelector)
+        self.inspected = None
         # the reusable C++ sections of AstroVolume (the same widgets as the
         # AstroVolume panel), in fold sections
         self.infoWidget = slicer.qSlicerAstroInfoSection()
@@ -354,9 +364,22 @@ class Inspector(qt.QFrame):
             except (AttributeError, ValueError):
                 pass
 
-    def setVolume(self, volume):
-        changed = volume is not self.volume
-        self.volume = volume
+    def familyOf(self, volume):
+        """The dataset and its products that are data (volumes)."""
+        if volume is None:
+            return []
+        products = [node for productID, name, detail, icon, node in Astro.productsOf(volume, slicer.mrmlScene)
+                    if node.IsA("vtkMRMLAstroVolumeNode")]
+        return [volume] + products
+
+    def onInspectedChanged(self, node):
+        if node is None or node is self.inspected:
+            return
+        self.inspect(node)
+
+    def inspect(self, volume):
+        """The sections of Inspect show a volume (the dataset or a product)."""
+        self.inspected = volume
         self.infoWidget.setVolumeNode(volume)
         self.infoFold.visible = volume is not None
         self.displayWidget.setVolumeNode(volume)
@@ -371,6 +394,20 @@ class Inspector(qt.QFrame):
         self.sourcesFold.visible = volume is not None
         count = self.sourcesWidget.catalogueCount()
         self.sourcesFold.summary = f"{count} catalogue{'s' if count != 1 else ''}" if count else "catalogues"
+
+    def setVolume(self, volume):
+        changed = volume is not self.volume
+        self.volume = volume
+        # Inspect: the dataset, or the product of the dataset chosen in the
+        # selector (kept while it is a product of the active dataset)
+        family = self.familyOf(volume)
+        self.inspectSelector.setNodeIDFilter([node.GetID() for node in family])
+        self.inspectSelector.visible = len(family) > 1
+        inspected = self.inspected if self.inspected in family else volume
+        self.inspectSelector.blockSignals(True)
+        self.inspectSelector.setCurrentNode(inspected)
+        self.inspectSelector.blockSignals(False)
+        self.inspect(inspected)
         done = 0
         for button in self.stepButtons:
             state = button.step.state(volume)
@@ -383,6 +420,7 @@ class Inspector(qt.QFrame):
             self.showStep(2)
 
     def cleanup(self):
+        self.inspected = None
         self.infoWidget.setVolumeNode(None)
         self.displayWidget.setVolumeNode(None)
         self.contoursWidget.setVolumeNode(None)

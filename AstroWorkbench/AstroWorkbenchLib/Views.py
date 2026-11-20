@@ -197,6 +197,10 @@ class SliceViewBar(ViewBar):
             self.tag.text = "XY"
             if 0 <= channel < len(velocities):
                 self.detail.text = f"ch {channel} · {velocities[channel]:.2f} {Astro.spectralUnit(volume)}"
+                # a product (e.g. a smoothed copy): its name, so that the
+                # views can be told apart
+                if volume is not self.workbench.activeVolume():
+                    self.detail.text = f"{volume.GetName()} · {self.detail.text}"
             else:
                 self.detail.text = volume.GetName()
         elif Astro.dimensions(volume) >= 3:
@@ -288,15 +292,22 @@ class ThreeDViewBar(ViewBar):
         self.maximizeButton.connect("clicked()", self.toggleMaximized)
         self.refresh()
 
+    def shownVolume(self):
+        """The cube rendered in this view (e.g. a smoothed copy shown in
+        place of the dataset), otherwise the active dataset."""
+        rendered = self.workbench.visibility.renderedVolume(self.viewNode.GetID()) \
+            if getattr(self.workbench, "visibility", None) is not None else None
+        return rendered if rendered is not None else self.workbench.activeVolume()
+
     def renderingDisplayNode(self):
-        volume = self.workbench.activeVolume()
+        volume = self.shownVolume()
         if volume is None:
             return None
         logic = slicer.modules.volumerendering.logic()
         return logic.GetFirstVolumeRenderingDisplayNode(volume)
 
     def refresh(self, caller=None, event=None):
-        volume = self.workbench.activeVolume()
+        volume = self.shownVolume()
         displayNode = self.renderingDisplayNode()
         details = [volume.GetName()] if volume is not None else ["no data"]
         presetNode = volume.GetPresetNode() if volume is not None else None
@@ -707,9 +718,19 @@ class ViewVisibility:
             displayNode.SetVisibility(True)
         self.update()
 
-    def renderInView(self, volume, viewNodeID):
+    def renderedVolume(self, viewNodeID):
+        """The astronomical volume rendered in a 3D view (None if none)."""
+        for displayNode in slicer.util.getNodesByClass("vtkMRMLVolumeRenderingDisplayNode"):
+            volume = displayNode.GetDisplayableNode()
+            if (volume is not None and volume.IsA("vtkMRMLAstroVolumeNode") and displayNode.GetVisibility()
+                    and displayNode.IsDisplayableInView(viewNodeID)):
+                return volume
+        return None
+
+    def renderInView(self, volume, viewNodeID, centerCamera=True):
         """Volume rendering of a cube in one 3D view (the other volumes are
-        no more rendered there)."""
+        no more rendered there); centerCamera: the camera is pointed at the
+        cube, otherwise kept."""
         logic = slicer.modules.volumerendering.logic()
         viewIDs = [node.GetID() for node in slicer.util.getNodesByClass("vtkMRMLViewNode")]
         displayNode = logic.GetFirstVolumeRenderingDisplayNode(volume)
@@ -729,7 +750,7 @@ class ViewVisibility:
             displayNode.SetVisibility(True)
             # fitted and centred in the view (cameras of the views showing it)
             if volume.IsA("vtkMRMLAstroVolumeNode"):
-                slicer.modules.astrovolume.logic().SetVolumeRenderingVisibility(volume, True, True)
+                slicer.modules.astrovolume.logic().SetVolumeRenderingVisibility(volume, True, centerCamera)
         self.update()
 
     def exit(self):
