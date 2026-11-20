@@ -1,6 +1,7 @@
 import time
 
 import numpy as np
+import qt
 
 import slicer
 import vtk
@@ -164,6 +165,29 @@ class AstroModelingSelfTestTest(ScriptedLoadableModuleTest):
         self.assertTrue(np.all(dispersion > 2.) and np.all(dispersion < 40.), dispersion)
         residualNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetResidualVolumeNodeID() or "")
         self.assertIsNotNone(residualNode)
+
+        # plot of selected columns of the rings table: its own chart, the
+        # titles of the columns (not those of the rotation curve plot)
+        tableView = slicer.util.findChild(widget, "TableView")
+        table = tableView.mrmlTableNode()
+        names = [table.GetTable().GetColumnName(index) for index in range(table.GetNumberOfColumns())]
+        selectionModel = tableView.selectionModel()
+        selectionModel.clearSelection()
+        for name in ("Radii", "Inc"):
+            index = tableView.model().index(0, names.index(name))
+            selectionModel.select(index, qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Columns)
+        widget.onPlotSelection()
+        chart = slicer.util.getFirstNodeByClassByName("vtkMRMLPlotChartNode", "ModelingSelectionChart")
+        self.assertIsNotNone(chart)
+        self.assertEqual(chart.GetXAxisTitle(), "%s (%s)" % (table.GetColumnTitle("Radii") or "Radii",
+                                                             table.GetColumnUnitLabel("Radii")))
+        self.assertTrue(chart.GetYAxisTitle().startswith(table.GetColumnTitle("Inc") or "Inc"), chart.GetYAxisTitle())
+        # several columns: only their common unit on the y axis
+        for name in ("Inc", "Phi"):
+            index = tableView.model().index(0, names.index(name))
+            selectionModel.select(index, qt.QItemSelectionModel.Select | qt.QItemSelectionModel.Columns)
+        widget.onPlotSelection()
+        self.assertEqual(chart.GetYAxisTitle(), table.GetColumnUnitLabel("Inc"))
 
         # the model recomputed from the rings of the table (not edited) is the
         # fitted model: same rings, same units (e.g. densities in 1E20 cm^-2)

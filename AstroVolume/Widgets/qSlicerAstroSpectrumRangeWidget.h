@@ -56,6 +56,13 @@ public:
   QSize sizeHint() const override;
   QSize minimumSizeHint() const override;
 
+  /// The channels of the line ("Auto from line"): where the spectrum is
+  /// above its noise around its peak (baseline and noise from the median and
+  /// the median absolute deviation; channels above 1.5 sigma around the peak,
+  /// plus two). Sets the range and emits rangeChanged. Returns an empty text,
+  /// or why the range is unchanged (too few channels, no line).
+  Q_INVOKABLE QString setRangeFromLine();
+
 public slots:
   /// Range in x units (clamped to the x axis); no signal
   void setRange(double minimum, double maximum);

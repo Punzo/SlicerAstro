@@ -376,3 +376,66 @@ void qSlicerAstroSpectrumRangeWidget::mouseReleaseEvent(QMouseEvent* event)
   this->Drag = None;
   emit this->rangeChanged(this->RangeMin, this->RangeMax);
 }
+
+//-----------------------------------------------------------------------------
+QString qSlicerAstroSpectrumRangeWidget::setRangeFromLine()
+{
+  const QVector<double> spectrum = this->spectrumY();
+  const QVector<double> velocities = this->spectrumX();
+  std::vector<double> values;
+  for (double value : spectrum)
+    {
+    if (std::isfinite(value))
+      {
+      values.push_back(value);
+      }
+    }
+  if (values.size() < 5 || velocities.size() != spectrum.size())
+    {
+    return tr("The cube has too few channels to find the line.");
+    }
+  // baseline and noise of the spectrum: median and median absolute deviation
+  std::vector<double> sorted = values;
+  std::nth_element(sorted.begin(), sorted.begin() + sorted.size() / 2, sorted.end());
+  const double baseline = sorted[sorted.size() / 2];
+  std::vector<double> deviations;
+  for (double value : values)
+    {
+    deviations.push_back(std::abs(value - baseline));
+    }
+  std::nth_element(deviations.begin(), deviations.begin() + deviations.size() / 2, deviations.end());
+  const double sigma = 1.4826 * deviations[deviations.size() / 2];
+  int peak = -1;
+  for (int k = 0; k < spectrum.size(); k++)
+    {
+    if (std::isfinite(spectrum[k]) && (peak < 0 || spectrum[k] > spectrum[peak]))
+      {
+      peak = k;
+      }
+    }
+  if (peak < 0 || spectrum[peak] - baseline < 5. * sigma)
+    {
+    return tr("No line above the noise of the integrated spectrum: the range is unchanged.");
+    }
+  // the channels around the peak above 1.5 times the noise, plus two
+  int first = peak, last = peak;
+  const double limit = baseline + 1.5 * sigma;
+  while (first > 0 && (!std::isfinite(spectrum[first - 1]) || spectrum[first - 1] > limit))
+    {
+    first--;
+    }
+  while (last < spectrum.size() - 1 && (!std::isfinite(spectrum[last + 1]) || spectrum[last + 1] > limit))
+    {
+    last++;
+    }
+  first = std::max(0, first - 2);
+  last = std::min(static_cast<int>(spectrum.size()) - 1, last + 2);
+  const double halfChannel = velocities.size() > 1 ? 0.5 * std::abs(velocities[1] - velocities[0]) : 0.;
+  const double v1 = std::min(velocities[first], velocities[last]) - halfChannel;
+  const double v2 = std::max(velocities[first], velocities[last]) + halfChannel;
+  const double minimum = std::max(v1, this->minimumX());
+  const double maximum = std::min(v2, this->maximumX());
+  this->setRange(minimum, maximum);
+  emit this->rangeChanged(minimum, maximum);
+  return QString();
+}

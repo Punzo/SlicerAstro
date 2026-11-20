@@ -313,7 +313,25 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   // from a worker thread); the scene is modified before and after them only.
   vtkNew<vtkMRMLAstroStatisticsParametersNode> progressNode;
   bool computeResult = true;
-  std::function<void()> compute = [&]()
+  // what the computation uses in the worker thread, prepared here in the
+  // GUI thread (vtkSlicerAstroVolumeLogic::RunInBackground): the voxels held
+  // (shared, not copied), the bounds of the box (from its node and the
+  // geometry of the volume) and a copy of the parameters
+  vtkSmartPointer<vtkImageData> heldInput = inputVolume->GetImageData();
+  double boxBounds[6] = {0., 0., 0., 0., 0., 0.};
+  bool boxBoundsValid = false;
+  if (!segmentationActive && !wholeVolume && pnode->GetROINode())
+    {
+    const int* boxDims = inputVolume->GetImageData()->GetDimensions();
+    boxBounds[1] = boxDims[0] - 1.;
+    boxBounds[3] = boxDims[1] - 1.;
+    boxBounds[5] = boxDims[2] - 1.;
+    this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(pnode->GetROINode(), inputVolume, boxBounds);
+    boxBoundsValid = true;
+    }
+  vtkNew<vtkMRMLAstroStatisticsParametersNode> workerParameters;
+  workerParameters->Copy(pnode);
+  std::function<void()> compute = [&, pnode = workerParameters.GetPointer()]()
   {
   progressNode->SetStatus(1);
 
@@ -508,15 +526,14 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     double roiBounds[6] = {0., dims[0] - 1., 0., dims[1] - 1., 0., dims[2] - 1.};
     if (!wholeVolume)
       {
-      vtkMRMLMarkupsROINode *roiNode = pnode->GetROINode();
-      if(!roiNode)
+      if (!boxBoundsValid)
         {
         vtkErrorMacro("vtkSlicerAstroStatisticsLogic::CalculateStatistics :"
                       " roiNode not found!");
         computeResult = false;
         return;
         }
-      this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(roiNode, inputVolume, roiBounds);
+      std::copy(boxBounds, boxBounds + 6, roiBounds);
       }
 
     const vtkIdType firstElement = static_cast<vtkIdType>(roiBounds[0] + roiBounds[2] * dims[0] +

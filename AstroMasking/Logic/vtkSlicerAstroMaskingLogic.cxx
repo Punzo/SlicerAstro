@@ -323,6 +323,10 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   // Blanking: parallel loop (vtkSMPTools) in the background runner of the
   // AstroVolume logic (e.g. a worker thread, the GUI responsive with a
   // progress dialog); progress and cancel through a node without observers
+  // the voxels used by the computation in the worker thread are held here
+  // (shared, not copied; vtkSlicerAstroVolumeLogic::RunInBackground)
+  vtkSmartPointer<vtkImageData> heldInput = inputVolume->GetImageData();
+  vtkSmartPointer<vtkImageData> heldOutput = outputVolume->GetImageData();
   vtkNew<vtkMRMLAstroMaskingParametersNode> progressNode;
   progressNode->SetStatus(1);
   pnode->SetStatus(1);

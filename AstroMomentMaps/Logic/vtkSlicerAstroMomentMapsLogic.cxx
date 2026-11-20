@@ -338,13 +338,25 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   // from a worker thread); the scene is modified before and after them only.
   vtkNew<vtkMRMLAstroMomentMapsParametersNode> progressNode;
   bool computeResult = true;
-  std::function<void()> compute = [&]()
+  // what the computation uses in the worker thread, prepared here in the
+  // GUI thread (vtkSlicerAstroVolumeLogic::RunInBackground): the voxel
+  // buffers held (shared, not copied), a copy of the WCS, the attributes and
+  // a copy of the parameters
+  vtkSmartPointer<vtkImageData> heldInput = inputVolume->GetImageData();
+  vtkSmartPointer<vtkImageData> heldSecondMoment = SecondMomentVolume ? SecondMomentVolume->GetImageData() : nullptr;
+  vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> workerDisplay =
+    vtkSlicerAstroVolumeLogic::CopyDisplayNodeForWorker(inputVolume);
+  const double inputNAXIS1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
+  const double inputNAXIS2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
+  vtkNew<vtkMRMLAstroMomentMapsParametersNode> workerParameters;
+  workerParameters->Copy(pnode);
+  std::function<void()> compute = [&, pnode = workerParameters.GetPointer()]()
   {
   progressNode->SetStatus(1);
 
   const double NaN = sqrt(-1);
 
-  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = workerDisplay;
   if (!astroDisplay)
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
@@ -353,8 +365,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     return;
     }
   double ijk[3], world[3];
-  ijk[0] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1")) * 0.5;
-  ijk[1] = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS2")) * 0.5;
+  ijk[0] = inputNAXIS1 * 0.5;
+  ijk[1] = inputNAXIS2 * 0.5;
   double VelFactor = 1.;
 
   struct wcsprm* WCS = astroDisplay->GetWCSStruct();

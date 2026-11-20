@@ -63,6 +63,8 @@ public slots:
 
   /// Slots to fit the data.
   void onFit();
+  /// Plot of the selected columns of the rings table, with their titles
+  void onPlotSelection();
 
   /// Slots to run the computations.
   /// It creates the output volume and calls the logic
@@ -164,6 +166,8 @@ protected slots:
   void onMRMLSceneEndCloseEvent();
   void onMRMLSceneStartCloseEvent();
   void onMRMLSceneNodeAboutToBeRemoved(vtkObject* sender, vtkObject* node);
+  /// The velocity definition of the input restored after an operation
+  void restoreInputVelocityDefinition();
   void onMRMLSceneStartImportEvent();
 
   void centerPVOffset();

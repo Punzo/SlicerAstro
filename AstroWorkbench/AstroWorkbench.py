@@ -179,6 +179,15 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         for _ in range(count):
             slicer.app.processEvents()
 
+    def wait(self, seconds=0.5):
+        """Events processed for a while (the refresh of the Workbench is
+        delayed by its timer)."""
+        import time
+        end = time.time() + seconds
+        while time.time() < end:
+            slicer.app.processEvents()
+            time.sleep(0.01)
+
     def test_EnterExit(self):
         """The chrome of Slicer is hidden and restored."""
         mainWindow = slicer.util.mainWindow()
@@ -454,10 +463,9 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
 
     def test_LayoutsAndPlot(self):
         """The layout buttons of the header (one checked, following the
-        layout); the layout with a plot shows the spectrum of the cube in a
-        plot view with a view bar and the dark view colours, restored when
-        leaving the Workbench."""
-        import numpy as np
+        layout); the layout with a plot shows the profiles of the cube (none
+        before one is computed) in a plot view with a view bar and the dark
+        view colours, restored when leaving the Workbench."""
         volume = self.cube()
         slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volume.GetID())
         workbench().enter()
@@ -473,25 +481,33 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
             self.assertEqual(switch.currentIndex, index)
             self.assertEqual([button.checked for button in switch.buttons],
                              [i == index for i in range(switch.count())])
-        # the plot: spectrum of the cube (sum per channel; WEIN069 has no beam)
+        # the plot: empty (dark) until a profile of the cube is computed
         plotWidget = layoutManager.plotWidget(0)
         self.assertIsNotNone(plotWidget)
         self.assertFalse(plotWidget.plotController().visible)
         self.assertIn("Plot0", workbench().views.bars)
-        chart = slicer.mrmlScene.GetNodeByID(plotWidget.mrmlPlotViewNode().GetPlotChartNodeID())
+        self.assertFalse(plotWidget.mrmlPlotViewNode().GetPlotChartNodeID())
+        renderer = plotWidget.plotView().chart().GetScene().GetRenderer()
+        self.assertEqual(tuple(round(value * 255) for value in renderer.GetBackground()), (7, 10, 18))
+        # a profile computed in Profiles: in the plot view
+        slicer.util.selectModule("AstroProfiles")
+        profiles = slicer.mrmlScene.GetFirstNodeByClass("vtkMRMLAstroProfilesParametersNode")
+        profiles.SetInputVolumeNodeID(volume.GetID())
+        panel = slicer.modules.astroprofiles.widgetRepresentation()
+        slicer.util.findChild(panel, "ApplyButton").click()
+        self.wait()
+        chart = slicer.mrmlScene.GetNodeByID(plotWidget.mrmlPlotViewNode().GetPlotChartNodeID() or "")
         self.assertIsNotNone(chart)
-        self.assertEqual(chart.GetAttribute("SlicerAstro.SpectrumOf"), volume.GetID())
-        table = chart.GetNthPlotSeriesNode(0).GetTableNode().GetTable()
-        from vtk.util.numpy_support import vtk_to_numpy
-        dims = volume.GetImageData().GetDimensions()
-        values = vtk_to_numpy(volume.GetImageData().GetPointData().GetScalars()).reshape(dims[2], -1)
-        expected = np.nansum(values.astype(np.float64), axis=1)
-        self.assertEqual(table.GetNumberOfRows(), values.shape[0])
-        for channel in (0, values.shape[0] // 2, values.shape[0] - 1):
-            self.assertAlmostEqual(table.GetValue(channel, 1).ToDouble(), expected[channel],
-                                   delta=1e-6 * max(1.0, abs(expected[channel])))
+        self.assertEqual(chart.GetName(), "ProfileChart")
         background = plotWidget.plotView().chart().GetBackgroundBrush().GetColorObject()
         self.assertEqual((background.GetRed(), background.GetGreen(), background.GetBlue()), (7, 10, 18))
+        # "Open in plot view" of Profiles: the layout with a plot (3 views)
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+        self.process(20)
+        slicer.util.findChild(panel, "PlotViewButton").click()
+        self.process(20)
+        self.assertEqual(layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement(), workbench().PLOT_VIEWS)
+        self.assertEqual(switch.currentIndex, 3)
         # a layout set elsewhere (maximized plot): no button checked; back
         layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView)
         self.process(20)

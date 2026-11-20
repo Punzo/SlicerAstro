@@ -6569,3 +6569,55 @@ std::string vtkSlicerAstroVolumeLogic::GetLibraryVersions()
   versions << "CFITSIO " << major << "." << minor << ";WCSLIB " << wcslib_version(nullptr);
   return versions.str();
 }
+
+//----------------------------------------------------------------------------
+vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> vtkSlicerAstroVolumeLogic::CopyDisplayNodeForWorker(
+  vtkMRMLAstroVolumeNode* volume)
+{
+  vtkMRMLAstroVolumeDisplayNode* display = volume ? volume->GetAstroVolumeDisplayNode() : nullptr;
+  if (!display)
+    {
+    return nullptr;
+    }
+  vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> copy = vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode>::New();
+  copy->Copy(display);
+  if (!copy->GetWCSStruct())
+    {
+    return nullptr;
+    }
+  return copy;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroVolumeLogic::AddPlotLayout(vtkMRMLLayoutNode* layoutNode)
+{
+  const int layoutID = 3502;
+  if (layoutNode && !layoutNode->IsLayoutDescription(layoutID))
+    {
+    const char* description =
+      "<layout type=\"vertical\" split=\"true\">"
+      " <item splitSize=\"620\">"
+      "  <layout type=\"horizontal\" split=\"true\">"
+      "   <item>"
+      "    <view class=\"vtkMRMLSliceNode\" singletontag=\"Red\">"
+      "     <property name=\"viewlabel\" action=\"default\">R</property>"
+      "     <property name=\"viewcolor\" action=\"default\">#F34A33</property>"
+      "    </view>"
+      "   </item>"
+      "   <item>"
+      "    <view class=\"vtkMRMLViewNode\" singletontag=\"1\">"
+      "     <property name=\"viewlabel\" action=\"default\">1</property>"
+      "    </view>"
+      "   </item>"
+      "  </layout>"
+      " </item>"
+      " <item splitSize=\"380\">"
+      "  <view class=\"vtkMRMLPlotViewNode\" singletontag=\"PlotView1\">"
+      "   <property name=\"viewlabel\" action=\"default\">P</property>"
+      "  </view>"
+      " </item>"
+      "</layout>";
+    layoutNode->AddLayoutDescription(layoutID, description);
+    }
+  return layoutID;
+}

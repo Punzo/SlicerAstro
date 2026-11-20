@@ -31,6 +31,7 @@
 #include <Utilities/fatal.hh>
 
 // STD includes
+#include <map>
 #include <memory>
 #include <algorithm>
 #include <vector>
@@ -67,6 +68,7 @@
 #include <vtkCacheManager.h>
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
+#include <vtkMatrix4x4.h>
 #include <vtkNew.h>
 #include <vtkObjectFactory.h>
 #include <vtkPointData.h>
@@ -100,6 +102,19 @@ public:
   Model::Galfit<double> *fitD;
   /// Abort requested (RequestAbort, or status -1 of the parameter node)
   std::atomic<bool> AbortRequested{false};
+
+  /// Private copies used by an operation in a worker thread
+  /// (PrepareWorkerData): node ID in the scene -> private copy
+  struct WorkerData
+    {
+    bool Prepared{false};
+    std::map<std::string, vtkSmartPointer<vtkMRMLAstroVolumeNode> > Volumes;
+    vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> InputDisplay;
+    vtkSmartPointer<vtkImageData> Mask;
+    std::string OutputFolder;
+    std::string InputID;
+    };
+  WorkerData Worker;
 };
 
 //----------------------------------------------------------------------------
@@ -808,6 +823,194 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTable(vtkMRMLAstroModelingParame
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+// Private copy of a volume of the scene (not in a scene): name, attributes,
+// geometry. Its voxels are the voxels of the original (shared, no copy of
+// the data): the copy keeps them alive until the operation ends, also if the
+// volume is removed from the scene meanwhile.
+vtkSmartPointer<vtkMRMLAstroVolumeNode> PrivateVolumeCopy(vtkMRMLAstroVolumeNode* source)
+{
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> copy = vtkSmartPointer<vtkMRMLAstroVolumeNode>::New();
+  copy->SetName(source->GetName());
+  const std::vector<std::string> names = source->GetAttributeNames();
+  for (const std::string& name : names)
+    {
+    copy->SetAttribute(name.c_str(), source->GetAttribute(name.c_str()));
+    }
+  vtkNew<vtkMatrix4x4> ijkToRAS;
+  source->GetIJKToRASMatrix(ijkToRAS);
+  copy->SetIJKToRASMatrix(ijkToRAS);
+  if (source->GetImageData())
+    {
+    copy->SetAndObserveImageData(source->GetImageData());
+    }
+  return copy;
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroModelingLogic::PrepareWorkerData(vtkMRMLAstroModelingParametersNode* pnode, std::string& error)
+{
+  this->FinishWorkerData(false);
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  if (!pnode || !scene)
+    {
+    error = "parameters or scene not found";
+    return false;
+    }
+  vtkInternal::WorkerData& worker = this->Internal->Worker;
+  vtkMRMLAstroVolumeNode* input = vtkMRMLAstroVolumeNode::SafeDownCast(
+    pnode->GetInputVolumeNodeID() ? scene->GetNodeByID(pnode->GetInputVolumeNodeID()) : nullptr);
+  vtkMRMLAstroVolumeDisplayNode* inputDisplay = input ? input->GetAstroVolumeDisplayNode() : nullptr;
+  if (!input || !input->GetImageData() || !inputDisplay)
+    {
+    error = "input volume not found";
+    return false;
+    }
+  // the voxels of the input are only read
+  worker.Volumes[input->GetID()] = PrivateVolumeCopy(input);
+  worker.InputID = input->GetID();
+  // own WCS (3DBarolo works with the optical velocity definition)
+  worker.InputDisplay = vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode>::New();
+  worker.InputDisplay->Copy(inputDisplay);
+  if (!worker.InputDisplay->GetWCSStruct())
+    {
+    worker.Volumes.clear();
+    worker.InputDisplay = nullptr;
+    error = "the WCS of the input volume could not be copied";
+    return false;
+    }
+  // the model and residuals are written in the voxels of the volumes (no
+  // copy: the views show them updated when the operation ends)
+  const char* writtenIDs[2] = {pnode->GetOutputVolumeNodeID(), pnode->GetResidualVolumeNodeID()};
+  for (const char* nodeID : writtenIDs)
+    {
+    vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(nodeID ? scene->GetNodeByID(nodeID) : nullptr);
+    if (volume && volume != input)
+      {
+      worker.Volumes[volume->GetID()] = PrivateVolumeCopy(volume);
+      }
+    }
+  // input mask on the grid of the input
+  if (pnode->GetMaskActive())
+    {
+    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+      maskSegmentationID ? scene->GetNodeByID(maskSegmentationID) : nullptr);
+    worker.Mask = vtkSmartPointer<vtkImageData>::New();
+    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), input,
+                                                      worker.Mask, error))
+      {
+      worker.Volumes.clear();
+      worker.InputDisplay = nullptr;
+      worker.Mask = nullptr;
+      return false;
+      }
+    }
+  worker.OutputFolder = scene->GetCacheManager() && scene->GetCacheManager()->GetRemoteCacheDirectory() ?
+    scene->GetCacheManager()->GetRemoteCacheDirectory() : "";
+  worker.Prepared = true;
+  return true;
+}
+
+//----------------------------------------------------------------------------
+void vtkSlicerAstroModelingLogic::FinishWorkerData(bool apply)
+{
+  vtkInternal::WorkerData& worker = this->Internal->Worker;
+  // the voxels written by the operation (model, residuals) are shared with
+  // the volumes of the scene: they are marked modified here, in the GUI
+  // thread (the views and the other observers update)
+  if (apply && worker.Prepared && this->GetMRMLScene())
+    {
+    for (const std::pair<const std::string, vtkSmartPointer<vtkMRMLAstroVolumeNode> >& entry : worker.Volumes)
+      {
+      vtkMRMLAstroVolumeNode* volume = vtkMRMLAstroVolumeNode::SafeDownCast(
+        this->GetMRMLScene()->GetNodeByID(entry.first.c_str()));
+      if (volume && volume->GetImageData() && volume->GetImageData() == entry.second->GetImageData() &&
+          entry.first != worker.InputID)
+        {
+        volume->GetImageData()->Modified();
+        }
+      }
+    }
+  worker.Volumes.clear();
+  worker.InputDisplay = nullptr;
+  worker.Mask = nullptr;
+  worker.OutputFolder.clear();
+  worker.InputID.clear();
+  worker.Prepared = false;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroModelingLogic::IsWorkerDataPrepared() const
+{
+  return this->Internal->Worker.Prepared;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeNode* vtkSlicerAstroModelingLogic::GetOperationVolume(const char* nodeID)
+{
+  if (!nodeID)
+    {
+    return nullptr;
+    }
+  vtkInternal::WorkerData& worker = this->Internal->Worker;
+  if (worker.Prepared)
+    {
+    std::map<std::string, vtkSmartPointer<vtkMRMLAstroVolumeNode> >::iterator found = worker.Volumes.find(nodeID);
+    return found != worker.Volumes.end() ? found->second.GetPointer() : nullptr;
+    }
+  return this->GetMRMLScene() ? vtkMRMLAstroVolumeNode::SafeDownCast(this->GetMRMLScene()->GetNodeByID(nodeID))
+                              : nullptr;
+}
+
+//----------------------------------------------------------------------------
+vtkMRMLAstroVolumeDisplayNode* vtkSlicerAstroModelingLogic::GetOperationDisplayNode(vtkMRMLAstroVolumeNode* inputVolume)
+{
+  if (this->Internal->Worker.Prepared)
+    {
+    return this->Internal->Worker.InputDisplay;
+    }
+  return inputVolume ? inputVolume->GetAstroVolumeDisplayNode() : nullptr;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroModelingLogic::GetOperationMask(vtkMRMLAstroModelingParametersNode* pnode,
+                                                   vtkMRMLAstroVolumeNode* inputVolume, vtkImageData* maskImage,
+                                                   std::string& error)
+{
+  vtkInternal::WorkerData& worker = this->Internal->Worker;
+  if (worker.Prepared)
+    {
+    if (!worker.Mask)
+      {
+      error = "the input mask was not prepared";
+      return false;
+      }
+    maskImage->ShallowCopy(worker.Mask);
+    return true;
+    }
+  const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
+  vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
+    maskSegmentationID && this->GetMRMLScene() ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
+  return vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
+                                                      maskImage, error);
+}
+
+//----------------------------------------------------------------------------
+std::string vtkSlicerAstroModelingLogic::GetOperationOutputFolder()
+{
+  if (this->Internal->Worker.Prepared)
+    {
+    return this->Internal->Worker.OutputFolder;
+    }
+  vtkMRMLScene* scene = this->GetMRMLScene();
+  return scene && scene->GetCacheManager() && scene->GetCacheManager()->GetRemoteCacheDirectory() ?
+    scene->GetCacheManager()->GetRemoteCacheDirectory() : "";
+}
+
+//----------------------------------------------------------------------------
 int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParametersNode* pnode,
                                               vtkMRMLTableNode *tnode)
 {
@@ -829,7 +1032,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+      (this->GetOperationVolume(pnode->GetInputVolumeNodeID()));
   if(!inputVolume || !inputVolume->GetImageData())
     {
     vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
@@ -839,7 +1042,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+      (this->GetOperationVolume(pnode->GetOutputVolumeNodeID()));
   if(!outputVolume || !outputVolume->GetImageData())
     {
     vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
@@ -849,7 +1052,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
 
   vtkMRMLAstroVolumeNode *residualVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetResidualVolumeNodeID()));
+      (this->GetOperationVolume(pnode->GetResidualVolumeNodeID()));
   if(!residualVolume || !residualVolume->GetImageData())
     {
     vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
@@ -865,11 +1068,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
   if (maskActive)
     {
     std::string maskError;
-    const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
-    vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
-      maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
-    if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
-                                                      maskImage, maskError))
+    if (!this->GetOperationMask(pnode, inputVolume, maskImage, maskError))
       {
       vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel : " << maskError);
       return 0;
@@ -902,7 +1101,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
     }
 
   vtkMRMLAstroVolumeDisplayNode* inputVolumeDisplay =
-    inputVolume->GetAstroVolumeDisplayNode();
+    this->GetOperationDisplayNode(inputVolume);
   if (!inputVolumeDisplay)
     {
     vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::OperateModel :"
@@ -945,7 +1144,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
   this->Internal->head = new Header;
 
   this->Internal->par->setImageFile(file);
-  string outputFolder = this->GetMRMLScene()->GetCacheManager()->GetRemoteCacheDirectory();
+  string outputFolder = this->GetOperationOutputFolder();
   outputFolder += "/";
   this->Internal->par->setOutfolder(outputFolder);
   this->Internal->par->setVerbosity(true);
@@ -1254,7 +1453,7 @@ int vtkSlicerAstroModelingLogic::OperateModelInternal(vtkMRMLAstroModelingParame
   this->Internal->head->setDrval3(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DRVAL3")));
   this->Internal->head->setDataMin(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN")));
   this->Internal->head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
-  if(!this->Internal->head->saveWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()))
+  if(!this->Internal->head->saveWCSStruct(this->GetOperationDisplayNode(inputVolume)->GetWCSStruct()))
     {
     pnode->SetStatus(100);
     pnode->SetFitSuccess(false);
@@ -2134,7 +2333,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
   vtkMRMLAstroVolumeNode *inputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetInputVolumeNodeID()));
+      (this->GetOperationVolume(pnode->GetInputVolumeNodeID()));
   if(!inputVolume)
     {
     vtkModelingWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
@@ -2144,7 +2343,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
   vtkMRMLAstroVolumeNode *outputVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetOutputVolumeNodeID()));
+      (this->GetOperationVolume(pnode->GetOutputVolumeNodeID()));
   if(!outputVolume)
     {
     vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
@@ -2154,7 +2353,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
   vtkMRMLAstroVolumeNode *residualVolume =
     vtkMRMLAstroVolumeNode::SafeDownCast
-      (this->GetMRMLScene()->GetNodeByID(pnode->GetResidualVolumeNodeID()));
+      (this->GetOperationVolume(pnode->GetResidualVolumeNodeID()));
   if(!residualVolume)
     {
     vtkModelingWarningMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
@@ -2186,7 +2385,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
     }
 
   vtkMRMLAstroVolumeDisplayNode* inputVolumeDisplay =
-    inputVolume->GetAstroVolumeDisplayNode();
+    this->GetOperationDisplayNode(inputVolume);
   if (!inputVolumeDisplay)
     {
     vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable :"
@@ -2228,11 +2427,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
     if (pnode->GetMaskActive())
       {
       std::string maskError;
-      const char* maskSegmentationID = pnode->GetMaskSegmentationNodeID();
-      vtkMRMLSegmentationNode* maskSegmentationNode = vtkMRMLSegmentationNode::SafeDownCast(
-        maskSegmentationID ? this->GetMRMLScene()->GetNodeByID(maskSegmentationID) : nullptr);
-      if (!vtkSlicerAstroVolumeLogic::CreateSegmentMask(maskSegmentationNode, pnode->GetMaskSegmentID(), inputVolume,
-                                                        maskImage, maskError))
+      if (!this->GetOperationMask(pnode, inputVolume, maskImage, maskError))
         {
         vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : " << maskError);
         return 0;
@@ -2259,7 +2454,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
 
     string file = inputVolume->GetName();
     this->Internal->par->setImageFile(file);
-    string outputFolder = this->GetMRMLScene()->GetCacheManager()->GetRemoteCacheDirectory();
+    string outputFolder = this->GetOperationOutputFolder();
     outputFolder += "/";
     this->Internal->par->setOutfolder(outputFolder);
     this->Internal->par->setVerbosity(false);
@@ -2535,7 +2730,7 @@ int vtkSlicerAstroModelingLogic::UpdateModelFromTableInternal(vtkMRMLAstroModeli
     this->Internal->head->setDrval3(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DRVAL3")));
     this->Internal->head->setDataMin(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMIN")));
     this->Internal->head->setDataMax(StringToDouble(inputVolume->GetAttribute("SlicerAstro.DATAMAX")));
-    if(!this->Internal->head->saveWCSStruct(inputVolume->GetAstroVolumeDisplayNode()->GetWCSStruct()))
+    if(!this->Internal->head->saveWCSStruct(this->GetOperationDisplayNode(inputVolume)->GetWCSStruct()))
       {
       vtkModelingErrorMacro("vtkSlicerAstroModelingLogic::UpdateModelFromTable : the WCS copy failed!");
       return 0;

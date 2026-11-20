@@ -126,7 +126,7 @@ class HeaderBar(qt.QFrame):
         self.developerButton.setObjectName("DeveloperButton")
         self.developerButton.connect("toggled(bool)", self.workbench.setPythonConsoleVisible)
         layout.addWidget(self.developerButton)
-        self.fullSlicerButton = iconButton("expand", "Full Slicer interface (Ctrl+Shift+W)")
+        self.fullSlicerButton = iconButton("exitWorkbench", "Leave the Workbench: full Slicer interface (Ctrl+Shift+W)")
         self.fullSlicerButton.setObjectName("FullSlicerButton")
         # the header is deleted by exit(): called after the click is handled
         self.fullSlicerButton.connect("clicked()", lambda: qt.QTimer.singleShot(0, self.workbench.exit))
@@ -548,21 +548,9 @@ class DatasetDrawer(qt.QFrame):
             nodes = [contours] if contours is not None else []
         # the products first, the dataset last: the panels showing the
         # dataset change their input once
-        volumeID = volume.GetID()
         for node in nodes + [volume]:
             if node.GetScene() is not None:
                 slicer.mrmlScene.RemoveNode(node)
-        # its spectrum in the plot view: emptied
-        for chart in slicer.util.getNodesByClass("vtkMRMLPlotChartNode"):
-            if chart.GetAttribute(Workbench.WORKBENCH_SPECTRUM) == "chart" and \
-                    chart.GetAttribute("SlicerAstro.SpectrumOf") == volumeID:
-                series = chart.GetNthPlotSeriesNode(0)
-                table = series.GetTableNode() if series is not None else None
-                if table is not None:
-                    table.GetTable().Initialize()
-                    table.Modified()
-                chart.SetTitle("")
-                chart.RemoveAttribute("SlicerAstro.SpectrumOf")
         self.refresh()
         return True
 
@@ -975,30 +963,9 @@ class Workbench:
  </item>
 </layout>"""
 
+    # the layout with a plot of SlicerAstro (vtkSlicerAstroVolumeLogic):
+    # channel map and 3D view above, plot view below
     PLOT_VIEWS = 3502
-    PLOT_VIEWS_LAYOUT = """
-<layout type="vertical" split="true">
- <item splitSize="620">
-  <layout type="horizontal" split="true">
-   <item>
-    <view class="vtkMRMLSliceNode" singletontag="Red">
-     <property name="viewlabel" action="default">R</property>
-     <property name="viewcolor" action="default">#F34A33</property>
-    </view>
-   </item>
-   <item>
-    <view class="vtkMRMLViewNode" singletontag="1">
-     <property name="viewlabel" action="default">1</property>
-    </view>
-   </item>
-  </layout>
- </item>
- <item splitSize="380">
-  <view class="vtkMRMLPlotViewNode" singletontag="PlotView1">
-   <property name="viewlabel" action="default">P</property>
-  </view>
- </item>
-</layout>"""
 
     def layouts(self):
         """Layouts of the switch: one view, three views (channel map,
@@ -1006,8 +973,7 @@ class Workbench:
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         if not layoutNode.IsLayoutDescription(self.THREE_VIEWS):
             layoutNode.AddLayoutDescription(self.THREE_VIEWS, self.THREE_VIEWS_LAYOUT)
-        if not layoutNode.IsLayoutDescription(self.PLOT_VIEWS):
-            layoutNode.AddLayoutDescription(self.PLOT_VIEWS, self.PLOT_VIEWS_LAYOUT)
+        slicer.vtkSlicerAstroVolumeLogic.AddPlotLayout(layoutNode)
         return (slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView, self.THREE_VIEWS,
                 slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView, self.PLOT_VIEWS)
 
@@ -1025,6 +991,20 @@ class Workbench:
         self.styleViews()
         self.arrangeViews()
 
+    def toggleMaximized(self, oneUp):
+        """Maximize button of a view: the view alone; clicked again, back to
+        the layout before."""
+        layoutManager = slicer.app.layoutManager()
+        arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
+        if arrangement == oneUp:
+            previous = getattr(self, "layoutBeforeMaximize", None)
+            layoutManager.setLayout(previous if previous is not None
+                                    else slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+        else:
+            self.layoutBeforeMaximize = arrangement
+            layoutManager.setLayout(oneUp)
+        self.styleViews()
+
     def onLayoutChanged(self, arrangement=None):
         """Layout changed elsewhere (maximize buttons of the views, "Open in
         plot view" of Profiles): view bars on the new views, the layout
@@ -1040,99 +1020,28 @@ class Workbench:
         else:
             switch.clear()
 
-    WORKBENCH_SPECTRUM = "SlicerAstro.WorkbenchSpectrum"
-
     def showSpectrumPlot(self, volume):
-        """The plot view of the layout with a plot: the profiles made in
-        Process for this cube if any, otherwise the spectrum of the cube
-        (flux per channel in Jy with a beam and Jy/beam data, otherwise the
-        sum of the values per channel)."""
+        """The plot view of the layout with a plot: the profiles of the cube
+        computed in Process (Profiles); empty until one is computed."""
         layoutManager = slicer.app.layoutManager()
         arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
         if arrangement not in (self.PLOT_VIEWS, slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView):
             return None
         plotWidget = layoutManager.plotWidget(0) if layoutManager.plotViewCount > 0 else None
-        if plotWidget is None or volume is None or Astro.dimensions(volume) < 3:
+        if plotWidget is None:
             return None
         chart = None
         profiles = slicer.util.getFirstNodeByClassByName("vtkMRMLPlotChartNode", "ProfileChart")
-        if profiles is not None and profiles.GetNumberOfPlotSeriesNodes() > 0:
+        if volume is not None and profiles is not None:
             for index in range(profiles.GetNumberOfPlotSeriesNodes()):
                 series = profiles.GetNthPlotSeriesNode(index)
-                if series is not None and series.GetName().startswith(volume.GetName()):
+                if series is not None and series.GetName().startswith(volume.GetName() + "_Profile"):
                     chart = profiles
                     break
-        if chart is None:
-            chart = self.spectrumChart(volume)
-        plotWidget.mrmlPlotViewNode().SetPlotChartNodeID(chart.GetID())
-        return chart
-
-    def spectrumChart(self, volume):
-        import numpy as np
-        scene = slicer.mrmlScene
-        chart = None
-        for node in slicer.util.getNodesByClass("vtkMRMLPlotChartNode"):
-            if node.GetAttribute(self.WORKBENCH_SPECTRUM) == "chart":
-                chart = node
-        if chart is None:
-            chart = scene.AddNewNodeByClass("vtkMRMLPlotChartNode", "Spectrum")
-            chart.SetAttribute(self.WORKBENCH_SPECTRUM, "chart")
-            chart.SetHideFromEditors(True)
-            table = scene.AddNewNodeByClass("vtkMRMLTableNode", "SpectrumTable")
-            table.SetAttribute(self.WORKBENCH_SPECTRUM, "table")
-            table.SetHideFromEditors(True)
-            series = scene.AddNewNodeByClass("vtkMRMLPlotSeriesNode", "Spectrum")
-            series.SetAttribute(self.WORKBENCH_SPECTRUM, "series")
-            series.SetHideFromEditors(True)
-            series.SetPlotType(slicer.vtkMRMLPlotSeriesNode.PlotTypeScatter)
-            series.SetMarkerStyle(slicer.vtkMRMLPlotSeriesNode.MarkerStyleNone)
-            series.SetLineWidth(2)
-            series.SetColor(242 / 255.0, 178 / 255.0, 76 / 255.0)
-            series.SetAndObserveTableNodeID(table.GetID())
-            chart.AddAndObservePlotSeriesNodeID(series.GetID())
-            chart.SetLegendVisibility(False)
-        series = chart.GetNthPlotSeriesNode(0)
-        table = series.GetTableNode()
-        if chart.GetAttribute("SlicerAstro.SpectrumOf") == volume.GetID() and \
-                chart.GetAttribute("SlicerAstro.SpectrumMTime") == str(volume.GetImageData().GetMTime()):
-            return chart
-        from vtk.util.numpy_support import vtk_to_numpy
-        dims = volume.GetImageData().GetDimensions()
-        values = vtk_to_numpy(volume.GetImageData().GetPointData().GetScalars()).reshape(dims[2], -1)
-        sums = np.nansum(values.astype(np.float64), axis=1)
-        unit = Astro.displayUnit(Astro.attribute(volume, "BUNIT", ""))
-        yTitle = f"Sum per channel ({unit})" if unit else "Sum per channel"
-        if Astro.hasBeam(volume) and Astro.attribute(volume, "BUNIT", "").strip().upper() in ("JY/BEAM", "JY/B"):
-            cdelt1 = abs(Astro.floatAttribute(volume, "CDELT1"))
-            cdelt2 = abs(Astro.floatAttribute(volume, "CDELT2"))
-            bmaj = Astro.floatAttribute(volume, "BMAJ")
-            bmin = Astro.floatAttribute(volume, "BMIN")
-            if cdelt1 > 0 and cdelt2 > 0 and bmin > 0:
-                beamPixels = np.pi / (4 * np.log(2)) * bmaj * bmin / (cdelt1 * cdelt2)
-                sums = sums / beamPixels
-                yTitle = "Flux per channel (Jy)"
-        velocities = Astro.channelVelocities(volume)
-        xTitle = f"Velocity ({Astro.spectralUnit(volume)})"
-        vtkTable = table.GetTable()
-        vtkTable.Initialize()
-        x = vtk.vtkDoubleArray()
-        x.SetName("velocity")
-        y = vtk.vtkDoubleArray()
-        y.SetName("flux")
-        for velocity, value in zip(velocities, sums):
-            x.InsertNextValue(velocity)
-            y.InsertNextValue(float(value))
-        vtkTable.AddColumn(x)
-        vtkTable.AddColumn(y)
-        table.Modified()
-        series.SetXColumnName("velocity")
-        series.SetYColumnName("flux")
-        series.SetName(volume.GetName())
-        chart.SetTitle(f"{volume.GetName()} · spectrum of the cube")
-        chart.SetXAxisTitle(xTitle)
-        chart.SetYAxisTitle(yTitle)
-        chart.SetAttribute("SlicerAstro.SpectrumOf", volume.GetID())
-        chart.SetAttribute("SlicerAstro.SpectrumMTime", str(volume.GetImageData().GetMTime()))
+        viewNode = plotWidget.mrmlPlotViewNode()
+        chartID = chart.GetID() if chart is not None else None
+        if viewNode.GetPlotChartNodeID() != chartID:
+            viewNode.SetPlotChartNodeID(chartID)
         return chart
 
     def arrangeViews(self):
@@ -1424,6 +1333,8 @@ class Workbench:
         self.setActiveView(self.activeViewKey)
         self.statusBar.clear()
         self.inspector.setVolume(volume)
+        # a profile computed meanwhile: in the plot view
+        self.showSpectrumPlot(volume)
         self.views.refresh()
         self.visibility.update()
         if volume is not None:

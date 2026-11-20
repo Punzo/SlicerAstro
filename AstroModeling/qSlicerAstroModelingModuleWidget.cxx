@@ -26,6 +26,7 @@
 #include <QSpinBox>
 #include <QLineEdit>
 #include <QGroupBox>
+#include <QHeaderView>
 #include <QFormLayout>
 #include <QComboBox>
 #include <QCheckBox>
@@ -164,6 +165,10 @@ public:
   /// not use the 3DBarolo objects or the nodes being removed. Its results are
   /// discarded (onWorkFinished is ignored once).
   void stopWorker();
+  /// Private copies of the data of the operation for the worker thread
+  /// (vtkSlicerAstroModelingLogic::PrepareWorkerData), made in the GUI
+  /// thread before it starts. On failure the operation is not started.
+  bool prepareWorkerData();
   bool ignoreWorkFinished = false;
   // segment of the contours segmentation of the module (data, model, region
   // of the model): the segmentation node if the segment exists
@@ -214,6 +219,9 @@ public:
   QDoubleSpinBox* SearchGrowthCutSpinBox{nullptr};
   vtkSmartPointer<vtkMRMLAstroModelingParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLTableNode> internalTableNode;
+  /// Copy of the parameters table read by Calculate (UPDATE) in the worker
+  /// thread (the table of the scene can be edited meanwhile)
+  vtkSmartPointer<vtkMRMLTableNode> workerTableNode;
   vtkSmartPointer<vtkMRMLTableNode> astroTableNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   vtkSmartPointer<vtkMRMLSegmentEditorNode> segmentEditorNode;
@@ -1295,6 +1303,10 @@ void qSlicerAstroModelingModuleWidgetPrivate::stopWorker()
     {
     this->thread->wait();
     }
+  if (this->logic())
+    {
+    this->logic()->FinishWorkerData(false);
+    }
   if (this->workerProgressTimer)
     {
     this->workerProgressTimer->stop();
@@ -1302,6 +1314,27 @@ void qSlicerAstroModelingModuleWidgetPrivate::stopWorker()
   this->workerParametersNode = nullptr;
   this->calculatingModel = false;
   this->ignoreWorkFinished = true;
+}
+
+//-----------------------------------------------------------------------------
+bool qSlicerAstroModelingModuleWidgetPrivate::prepareWorkerData()
+{
+  std::string error;
+  if (this->logic() && this->workerParametersNode && this->logic()->PrepareWorkerData(this->workerParametersNode, error))
+    {
+    return true;
+    }
+  const QString message = qSlicerAstroModelingModuleWidget::tr("3DBarolo: the operation could not start (%1).")
+    .arg(QString::fromStdString(error));
+  qCritical().noquote() << message;
+  this->appendOutputLog(message + "\n");
+  this->workerParametersNode = nullptr;
+  this->calculatingModel = false;
+  if (this->parametersNode)
+    {
+    this->parametersNode->SetStatus(0);
+    }
+  return false;
 }
 
 //-----------------------------------------------------------------------------
@@ -2970,7 +3003,18 @@ void qSlicerAstroModelingModuleWidget::onCalculateAndVisualize()
   d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
   d->workerParametersNode->Copy(d->parametersNode);
   d->workerParametersNode->SetOperation(vtkMRMLAstroModelingParametersNode::UPDATE);
-  d->worker->SetTableNode(d->parametersNode->GetParamsTableNode());
+  // the worker thread uses only private copies (table, volumes, mask)
+  d->workerTableNode = vtkSmartPointer<vtkMRMLTableNode>::New();
+  if (d->parametersNode->GetParamsTableNode())
+    {
+    d->workerTableNode->Copy(d->parametersNode->GetParamsTableNode());
+    }
+  if (!d->prepareWorkerData())
+    {
+    this->restoreInputVelocityDefinition();
+    return;
+    }
+  d->worker->SetTableNode(d->workerTableNode);
   d->worker->SetAstroModelingParametersNode(d->workerParametersNode);
   d->worker->SetAstroModelingLogic(d->logic());
   d->workerProgressTimer->start();
@@ -3975,6 +4019,97 @@ void qSlicerAstroModelingModuleWidget::onOutputVolumeChanged(vtkMRMLNode *mrmlNo
     {
     d->parametersNode->SetOutputVolumeNodeID(nullptr);
     }
+}
+
+//-----------------------------------------------------------------------------
+namespace
+{
+// "Radius (arcsec)": title and unit of a column of the rings table
+std::string ColumnLabel(vtkMRMLTableNode* table, const std::string& column)
+{
+  if (column.empty())
+    {
+    return std::string("Index");
+    }
+  std::string title = table ? table->GetColumnTitle(column) : std::string();
+  if (title.empty())
+    {
+    title = column;
+    }
+  const std::string unit = table ? table->GetColumnUnitLabel(column) : std::string();
+  return unit.empty() ? title : title + " (" + unit + ")";
+}
+} // end of anonymous namespace
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onPlotSelection()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+  vtkMRMLScene* scene = this->mrmlScene();
+  vtkMRMLTableNode* table = d->TableView ? d->TableView->mrmlTableNode() : nullptr;
+  if (!scene || !table || !d->selectionNode)
+    {
+    return;
+    }
+  // the selected columns in a chart of their own: the plot of a selection of
+  // Slicer reuses the active chart, whose axis titles are those of the rings
+  // plot shown before (e.g. the rotation velocity)
+  vtkMRMLPlotChartNode* chart = vtkMRMLPlotChartNode::SafeDownCast(
+    scene->GetFirstNode("ModelingSelectionChart", "vtkMRMLPlotChartNode"));
+  if (!chart)
+    {
+    vtkNew<vtkMRMLPlotChartNode> newChart;
+    newChart->SetName("ModelingSelectionChart");
+    scene->AddNode(newChart);
+    chart = newChart;
+    }
+  d->selectionNode->SetActivePlotChartID(chart->GetID());
+  d->TableView->plotSelection();
+
+  // axis titles from the columns: x the first selected column; y the other
+  // column, or with several columns only their common unit (the legend
+  // names them; columns with different units share no y title)
+  std::string xTitle;
+  std::vector<std::string> yLabels;
+  std::vector<std::string> yUnits;
+  for (int index = 0; index < chart->GetNumberOfPlotSeriesNodes(); index++)
+    {
+    vtkMRMLPlotSeriesNode* series = chart->GetNthPlotSeriesNode(index);
+    if (!series)
+      {
+      continue;
+      }
+    if (xTitle.empty())
+      {
+      xTitle = ColumnLabel(table, series->GetXColumnName());
+      }
+    yLabels.push_back(ColumnLabel(table, series->GetYColumnName()));
+    yUnits.push_back(series->GetYColumnName().empty() ? std::string() :
+                     table->GetColumnUnitLabel(series->GetYColumnName()));
+    }
+  std::string yTitle;
+  std::string title;
+  if (yLabels.size() == 1)
+    {
+    yTitle = yLabels[0];
+    title = yLabels[0] + " vs " + xTitle;
+    }
+  else if (!yLabels.empty())
+    {
+    bool sameUnit = !yUnits[0].empty();
+    for (const std::string& unit : yUnits)
+      {
+      sameUnit = sameUnit && unit == yUnits[0];
+      }
+    yTitle = sameUnit ? yUnits[0] : std::string();
+    title = std::string("Rings vs ") + xTitle;
+    }
+  int wasModifying = chart->StartModify();
+  chart->SetXAxisTitle(xTitle.c_str());
+  chart->SetYAxisTitle(yTitle.c_str());
+  chart->SetTitle(title.c_str());
+  chart->SetLegendVisibility(yLabels.size() > 1);
+  chart->EndModify(wasModifying);
 }
 
 //--------------------------------------------------------------------------
@@ -5035,6 +5170,13 @@ void qSlicerAstroModelingModuleWidget::onApply()
   // the worker thread works on a copy of the parameters
   d->workerParametersNode = vtkSmartPointer<vtkMRMLAstroModelingParametersNode>::New();
   d->workerParametersNode->Copy(d->parametersNode);
+  // the worker thread uses only private copies (volumes, mask; the table is
+  // the internal copy)
+  if (!d->prepareWorkerData())
+    {
+    this->restoreInputVelocityDefinition();
+    return;
+    }
 
   d->worker->SetTableNode(d->internalTableNode);
   d->worker->SetAstroModelingParametersNode(d->workerParametersNode);
@@ -5431,7 +5573,12 @@ void qSlicerAstroModelingModuleWidget::setup()
   d->AstroModelingPasteButton->setDefaultAction(d->PasteAction);
   this->connect(d->PasteAction, SIGNAL(triggered()), d->TableView, SLOT(pasteSelection()));
   d->AstroModelingPlotButton->setDefaultAction(d->PlotAction);
-  this->connect(d->PlotAction, SIGNAL(triggered()), d->TableView, SLOT(plotSelection()));
+  this->connect(d->PlotAction, SIGNAL(triggered()), this, SLOT(onPlotSelection()));
+  const QString tableToolTip = tr("Rings of the model. To plot parameters: select their columns with Ctrl + click "
+                                  "on the column headers (the first selected column is the x axis, e.g. Radius), "
+                                  "then Plot (Ctrl+P). Columns with the same unit read best together.");
+  d->TableView->setToolTip(tableToolTip);
+  d->TableView->horizontalHeader()->setToolTip(tableToolTip);
 
   // Table View resize options
   d->TableView->resizeColumnsToContents();
@@ -5447,6 +5594,24 @@ void qSlicerAstroModelingModuleWidget::onWeightingFunctionChanged(int flag)
     return;
     }
   d->parametersNode->SetWeightingFunction(flag);
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::restoreInputVelocityDefinition()
+{
+  Q_D(qSlicerAstroModelingModuleWidget);
+  // velocity definition of the input restored (converted to optical before
+  // the operation)
+  if (d->restoreRadioVelocity && d->parametersNode && this->mrmlScene())
+    {
+    vtkMRMLAstroVolumeNode* input = vtkMRMLAstroVolumeNode::SafeDownCast(
+      this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
+    if (input && input->GetAstroVolumeDisplayNode())
+      {
+      input->GetAstroVolumeDisplayNode()->SetRadioVelocityDefinition();
+      }
+    }
+  d->restoreRadioVelocity = false;
 }
 
 //-----------------------------------------------------------------------------
@@ -5469,23 +5634,23 @@ void qSlicerAstroModelingModuleWidget::onWorkFinished()
     {
     d->appendOutputLog(QString::fromStdString(d->logic()->TakeLog()));
     }
+  // the model and residuals computed in the private copies: to the volumes
+  // of the scene (in the GUI thread), unless the operation failed or was
+  // cancelled
+  if (d->logic())
+    {
+    const bool succeeded = d->worker->GetLastResult() != 0 &&
+      !(d->workerParametersNode && d->workerParametersNode->GetStatus() == -1);
+    d->logic()->FinishWorkerData(succeeded);
+    }
+  d->workerTableNode = nullptr;
   if (d->workerParametersNode && d->parametersNode)
     {
     d->parametersNode->Copy(d->workerParametersNode);
     }
   d->workerParametersNode = nullptr;
 
-  // velocity definition of the input restored
-  if (d->restoreRadioVelocity && d->parametersNode && this->mrmlScene())
-    {
-    vtkMRMLAstroVolumeNode* input = vtkMRMLAstroVolumeNode::SafeDownCast(
-      this->mrmlScene()->GetNodeByID(d->parametersNode->GetInputVolumeNodeID()));
-    if (input && input->GetAstroVolumeDisplayNode())
-      {
-      input->GetAstroVolumeDisplayNode()->SetRadioVelocityDefinition();
-      }
-    }
-  d->restoreRadioVelocity = false;
+  this->restoreInputVelocityDefinition();
 
   // Calculate and Visualize Model: visualization of the model of the table
   if (d->parametersNode && d->parametersNode->GetOperation() == vtkMRMLAstroModelingParametersNode::UPDATE)

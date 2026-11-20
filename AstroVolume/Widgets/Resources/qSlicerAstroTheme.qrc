@@ -38,6 +38,17 @@
         <file alias="Icons/layout3.svg">Icons/Astro/layout3.svg</file>
         <file alias="Icons/layout4.svg">Icons/Astro/layout4.svg</file>
         <file alias="Icons/layoutPlot.svg">Icons/Astro/layoutPlot.svg</file>
+        <file alias="Icons/pvViewSky.svg">Icons/Astro/pvViewSky.svg</file>
+        <file alias="Icons/pvViewAlongLine.svg">Icons/Astro/pvViewAlongLine.svg</file>
+        <file alias="Icons/pvViewFaceOn.svg">Icons/Astro/pvViewFaceOn.svg</file>
+        <file alias="Icons/viewMaximize.svg">Icons/Astro/viewMaximize.svg</file>
+        <file alias="Icons/viewRestore.svg">Icons/Astro/viewRestore.svg</file>
+        <file alias="Icons/viewFit.svg">Icons/Astro/viewFit.svg</file>
+        <file alias="Icons/viewOrientation.svg">Icons/Astro/viewOrientation.svg</file>
+        <file alias="Icons/viewCamera.svg">Icons/Astro/viewCamera.svg</file>
+        <file alias="Icons/sliceIn3D.svg">Icons/Astro/sliceIn3D.svg</file>
+        <file alias="Icons/wcsAxes.svg">Icons/Astro/wcsAxes.svg</file>
+        <file alias="Icons/exitWorkbench.svg">Icons/Astro/exitWorkbench.svg</file>
         <file alias="Icons/link.svg">Icons/Astro/link.svg</file>
         <file alias="Icons/lock.svg">Icons/Astro/lock.svg</file>
         <file alias="Icons/module-masking.svg">Icons/Astro/module-masking.svg</file>

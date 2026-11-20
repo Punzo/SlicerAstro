@@ -64,6 +64,7 @@
 #include <string>
 #include <vector>
 
+#include "qSlicerAstroBackgroundRunner.h"
 #include "qSlicerAstroContoursSection.h"
 #include "qSlicerAstroSegmentedButton.h"
 #include "qSlicerAstroTheme.h"
@@ -590,8 +591,10 @@ void qSlicerAstroContoursSection::setContoursSmooth(bool smooth)
     }
 
   // Closed surfaces of the contours, in the background (one segment at a
-  // time: progress and cancel). The worker converts copies of the segments
-  // (no scene objects); the surfaces are added to the segments afterwards.
+  // time: progress and cancel). The worker converts segments of its own
+  // (no scene objects) whose labelmaps are the labelmaps of the contours
+  // (shared, read only, not copied); the surfaces are added to the segments
+  // of the contours afterwards, in the GUI thread.
   std::vector<std::string> segmentIDs;
   segmentation->GetSegmentIDs(segmentIDs);
   std::vector<vtkSmartPointer<vtkSegmentation> > copies;
@@ -599,29 +602,44 @@ void qSlicerAstroContoursSection::setContoursSmooth(bool smooth)
     {
     vtkSmartPointer<vtkSegmentation> copy = vtkSmartPointer<vtkSegmentation>::New();
     copy->SetSourceRepresentationName(labelmapName);
+    vtkSegment* segment = segmentation->GetSegment(segmentID);
     vtkNew<vtkSegment> segmentCopy;
-    segmentCopy->DeepCopy(segmentation->GetSegment(segmentID));
+    segmentCopy->DeepCopyMetadata(segment);
+    segmentCopy->AddRepresentation(labelmapName, segment->GetRepresentation(labelmapName));
     copy->AddSegment(segmentCopy, segmentID);
     copies.push_back(copy);
     }
   std::atomic<int> converted{0};
   std::atomic<bool> cancelled{false};
   const int total = static_cast<int>(copies.size());
-  qSlicerAstroVolumeModuleWidget::runInBackground(this, tr("Computing the smooth contour lines..."),
-    [&copies, &converted, &cancelled, surfaceName]()
+  // through the logic: the computation is known as running (e.g. the timers
+  // of the Workbench wait for it)
+  const std::function<void()> work = [&copies, &converted, &cancelled, surfaceName]()
+    {
+    for (const vtkSmartPointer<vtkSegmentation>& copy : copies)
       {
-      for (const vtkSmartPointer<vtkSegmentation>& copy : copies)
+      if (cancelled)
         {
-        if (cancelled)
-          {
-          return;
-          }
-        copy->CreateRepresentation(surfaceName);
-        converted++;
+        return;
         }
-      },
-    [&converted, total]() { return total > 0 ? (100 * converted) / total : 100; },
-    [&cancelled]() { cancelled = true; });
+      copy->CreateRepresentation(surfaceName);
+      converted++;
+      }
+    };
+  const std::function<int()> progress = [&converted, total]()
+    {
+    return total > 0 ? (100 * converted) / total : 100;
+    };
+  const std::function<void()> cancel = [&cancelled]() { cancelled = true; };
+  vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
+  if (logic)
+    {
+    logic->RunInBackground(tr("Computing the smooth contour lines...").toStdString(), work, progress, cancel);
+    }
+  else
+    {
+    qSlicerAstroBackgroundRunner::run(this, tr("Computing the smooth contour lines..."), work, progress, cancel);
+    }
 
   if (cancelled || d->contoursNode(false) != contours)
     {

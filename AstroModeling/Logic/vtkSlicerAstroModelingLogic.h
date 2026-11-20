@@ -22,6 +22,8 @@
 
 // Slicer includes
 #include "vtkSlicerModuleLogic.h"
+class vtkImageData;
+class vtkMRMLAstroVolumeNode;
 class vtkMRMLTableNode;
 class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
@@ -86,6 +88,24 @@ public:
   int UpdateModelFromTable(vtkMRMLAstroModelingParametersNode *pnode,
                            vtkMRMLTableNode *tableNode = nullptr);
 
+  /// An operation in a worker thread (OperateModel, UpdateModelFromTable)
+  /// must not look up or change the nodes of the scene: the GUI thread
+  /// changes the scene meanwhile (views, panels, the user).
+  /// PrepareWorkerData (GUI thread, before the worker starts) gives the
+  /// operation private nodes: the input, model and residual volumes (name,
+  /// attributes, geometry; their voxels are shared with the volumes of the
+  /// scene, no copy of the data, and kept alive until the operation ends even
+  /// if a volume is removed), a copy of the display node of the input (own
+  /// WCS: 3DBarolo converts it to the optical velocity definition, the views
+  /// keep using theirs) and the input mask. The operation uses only these.
+  /// FinishWorkerData (GUI thread, after the worker ended) marks the model
+  /// and residual voxels modified (if apply) and releases the private nodes.
+  /// Without PrepareWorkerData the operations use the scene (e.g. scripts
+  /// running them in the GUI thread).
+  bool PrepareWorkerData(vtkMRMLAstroModelingParametersNode* pnode, std::string& error);
+  void FinishWorkerData(bool apply);
+  bool IsWorkerDataPrepared() const;
+
   /// Clean all the pointers of the instantiated calsses of 3DBarolo
   void cleanPointers();
 
@@ -104,6 +124,15 @@ protected:
                            vtkMRMLTableNode *tnode);
   int UpdateModelFromTableInternal(vtkMRMLAstroModelingParametersNode *pnode,
                                    vtkMRMLTableNode *tableNode);
+
+  /// Node of an operation: the private copy (PrepareWorkerData) or the node
+  /// of the scene.
+  vtkMRMLAstroVolumeNode* GetOperationVolume(const char* nodeID);
+  vtkMRMLAstroVolumeDisplayNode* GetOperationDisplayNode(vtkMRMLAstroVolumeNode* inputVolume);
+  /// Input mask of an operation (1 inside) on the grid of inputVolume
+  bool GetOperationMask(vtkMRMLAstroModelingParametersNode* pnode, vtkMRMLAstroVolumeNode* inputVolume,
+                        vtkImageData* maskImage, std::string& error);
+  std::string GetOperationOutputFolder();
 
   vtkSlicerAstroModelingLogic();
   virtual ~vtkSlicerAstroModelingLogic();

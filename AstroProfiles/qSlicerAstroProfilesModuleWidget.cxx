@@ -64,6 +64,8 @@
 #include <qSlicerAstroRunButton.h>
 #include <qSlicerAstroSegmentedButton.h>
 #include <qSlicerAstroSpectrumPlot.h>
+#include <qSlicerAstroSpectrumRangeWidget.h>
+#include <qSlicerAstroThumbnails.h>
 #include <qSlicerAstroTheme.h>
 #include <qSlicerAstroValueField.h>
 
@@ -204,6 +206,9 @@ public:
   qSlicerAstroFoldSection* AdvancedSection{nullptr};
   qSlicerAstroValueField* VelocityMinField{nullptr};
   qSlicerAstroValueField* VelocityMaxField{nullptr};
+  qSlicerAstroSpectrumRangeWidget* VelocityRangeWidget{nullptr};
+  QPushButton* AutoRangeButton{nullptr};
+  QLabel* VelocityNote{nullptr};
   qSlicerAstroValueField* IntensityMaxField{nullptr};
   qMRMLNodeComboBox* ProfileVolumeNodeSelector{nullptr};
   qMRMLNodeComboBox* ParametersNodeComboBox{nullptr};
@@ -270,6 +275,49 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
   this->Message = new qSlicerAstroMessageWidget(body);
   this->Message->setObjectName("MessageWidget");
   bodyLayout->addWidget(this->Message);
+
+  // Velocity range over the integrated spectrum (as in Moment maps)
+  QWidget* velocity = new QWidget(body);
+  QVBoxLayout* velocityLayout = new QVBoxLayout(velocity);
+  velocityLayout->setContentsMargins(0, 0, 0, 0);
+  velocityLayout->setSpacing(8);
+  QHBoxLayout* velocityHeader = new QHBoxLayout();
+  velocityHeader->addWidget(Overline(qSlicerAstroProfilesModuleWidget::tr("Velocity range"), velocity));
+  velocityHeader->addStretch(1);
+  this->AutoRangeButton = new QPushButton(qSlicerAstroProfilesModuleWidget::tr("Auto from line"), velocity);
+  this->AutoRangeButton->setObjectName("AutoRangeButton");
+  this->AutoRangeButton->setProperty("astroRole", "ghost");
+  this->AutoRangeButton->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "The channels of the line: where the integrated spectrum is above its noise, around the peak."));
+  velocityHeader->addWidget(this->AutoRangeButton);
+  velocityLayout->addLayout(velocityHeader);
+  this->VelocityRangeWidget = new qSlicerAstroSpectrumRangeWidget(velocity);
+  this->VelocityRangeWidget->setObjectName("VelocityRangeWidget");
+  this->VelocityRangeWidget->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Channels of the profile: drag over the integrated spectrum, or drag the edges of the range."));
+  velocityLayout->addWidget(this->VelocityRangeWidget);
+  QGridLayout* velocityFields = new QGridLayout();
+  velocityFields->setSpacing(6);
+  this->VelocityMinField = new qSlicerAstroValueField(velocity);
+  this->VelocityMinField->setObjectName("VelocityMinField");
+  this->VelocityMinField->setUnit("km/s");
+  this->VelocityMinField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Lower velocity of the channels of the profile (Cube only: a mask uses all the channels)."));
+  this->VelocityMaxField = new qSlicerAstroValueField(velocity);
+  this->VelocityMaxField->setObjectName("VelocityMaxField");
+  this->VelocityMaxField->setUnit("km/s");
+  this->VelocityMaxField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
+    "Upper velocity of the channels of the profile (Cube only: a mask uses all the channels)."));
+  velocityFields->addWidget(this->VelocityMinField, 0, 0);
+  velocityFields->addWidget(this->VelocityMaxField, 0, 1);
+  velocityLayout->addLayout(velocityFields);
+  this->VelocityNote = new QLabel(qSlicerAstroProfilesModuleWidget::tr(
+    "With a mask, the mask selects the voxels in all the channels."), velocity);
+  this->VelocityNote->setProperty("astroRole", "note");
+  this->VelocityNote->setWordWrap(true);
+  this->VelocityNote->hide();
+  velocityLayout->addWidget(this->VelocityNote);
+  bodyLayout->addWidget(velocity);
 
   // Region
   QWidget* region = new QWidget(body);
@@ -400,7 +448,7 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
   // Advanced
   this->AdvancedSection = new qSlicerAstroFoldSection(body);
   this->AdvancedSection->setObjectName("AdvancedSection");
-  this->AdvancedSection->setSummary(qSlicerAstroProfilesModuleWidget::tr("velocity range, upper limit, output"));
+  this->AdvancedSection->setSummary(qSlicerAstroProfilesModuleWidget::tr("upper limit, output"));
   this->AdvancedSection->setSettingsKey("SlicerAstro/AstroProfiles/AdvancedCollapsed");
   QWidget* advancedParent = this->AdvancedSection->contentWidget();
   QFormLayout* advancedLayout = new QFormLayout();
@@ -422,18 +470,6 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
       }
     advancedLayout->addRow(label, field);
     };
-  this->VelocityMinField = new qSlicerAstroValueField(advancedParent);
-  this->VelocityMinField->setObjectName("VelocityMinField");
-  this->VelocityMinField->setUnit("km/s");
-  this->VelocityMinField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
-    "Lower velocity of the channels of the profile (Cube only: a mask uses all the channels)."));
-  this->VelocityMaxField = new qSlicerAstroValueField(advancedParent);
-  this->VelocityMaxField->setObjectName("VelocityMaxField");
-  this->VelocityMaxField->setUnit("km/s");
-  this->VelocityMaxField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
-    "Upper velocity of the channels of the profile (Cube only: a mask uses all the channels)."));
-  addRow(qSlicerAstroProfilesModuleWidget::tr("From"), this->VelocityMinField);
-  addRow(qSlicerAstroProfilesModuleWidget::tr("To"), this->VelocityMaxField);
   this->IntensityMaxField = new qSlicerAstroValueField(advancedParent);
   this->IntensityMaxField->setObjectName("IntensityMaxField");
   this->IntensityMaxField->setToolTip(qSlicerAstroProfilesModuleWidget::tr(
@@ -508,6 +544,31 @@ void qSlicerAstroProfilesModuleWidgetPrivate::init()
   QObject::connect(this->MaskApertureCheckBox, SIGNAL(toggled(bool)), q, SLOT(onMaskApertureToggled(bool)));
   QObject::connect(this->ThresholdField, SIGNAL(valueChanged(double)), q, SLOT(onThresholdChanged(double)));
   QObject::connect(this->IntensityMaxField, SIGNAL(valueChanged(double)), q, SLOT(onIntensityMaxChanged(double)));
+  QObject::connect(this->VelocityRangeWidget, SIGNAL(rangeChanged(double,double)),
+                   q, SLOT(onVelocityRangeChanged(double,double)));
+  QObject::connect(this->VelocityRangeWidget, &qSlicerAstroSpectrumRangeWidget::rangeChanging,
+                   q, [this](double minimum, double maximum)
+    {
+    // the fields follow the drag
+    bool wasBlocked = this->VelocityMinField->blockSignals(true);
+    this->VelocityMinField->setValue(minimum);
+    this->VelocityMinField->blockSignals(wasBlocked);
+    wasBlocked = this->VelocityMaxField->blockSignals(true);
+    this->VelocityMaxField->setValue(maximum);
+    this->VelocityMaxField->blockSignals(wasBlocked);
+    });
+  QObject::connect(this->AutoRangeButton, &QPushButton::clicked, q, [this]()
+    {
+    const QString reason = this->VelocityRangeWidget->setRangeFromLine();
+    if (reason.isEmpty())
+      {
+      this->Message->clearMessage();
+      }
+    else
+      {
+      this->Message->showMessage("info", reason);
+      }
+    });
   QObject::connect(this->VelocityMinField, SIGNAL(valueChanged(double)), q, SLOT(onVelocityFieldsChanged()));
   QObject::connect(this->VelocityMaxField, SIGNAL(valueChanged(double)), q, SLOT(onVelocityFieldsChanged()));
   QObject::connect(this->RunButton, SIGNAL(clicked()), q, SLOT(onCalculate()));
@@ -923,7 +984,7 @@ void qSlicerAstroProfilesModuleWidget::initializePlotNodes(bool forceNew  /*= fa
       d->plotChartNodeProfile->SetName("ProfileChart");
       d->plotChartNodeProfile->SetTitle("Profile");
       d->plotChartNodeProfile->SetXAxisTitle("Velocity (km/s)");
-      d->plotChartNodeProfile->SetYAxisTitle("Total flux per channel (Jy)");
+      d->plotChartNodeProfile->SetYAxisTitle("Flux per channel (Jy)");
       d->plotChartNodeProfile->SetEnablePointMoveAlongX(false);
       d->plotChartNodeProfile->SetEnablePointMoveAlongY(false);
       this->mrmlScene()->AddNode(d->plotChartNodeProfile);
@@ -1168,6 +1229,18 @@ void qSlicerAstroProfilesModuleWidget::onInputVolumeModified()
     field->setSingleStep(channelWidth > 0. ? channelWidth : (Vmax - Vmin) / 200.);
     field->blockSignals(wasBlocked);
     }
+  // the integrated spectrum under the velocity range (velocity of each
+  // channel at the centre of the field)
+  QVector<double> channelVelocities(std::max(channels, 0));
+  for (int k = 0; k < channels; k++)
+    {
+    double channelIJK[3] = {ijk[0], ijk[1], static_cast<double>(k)};
+    double channelWorld[3];
+    astroMrmlDisplayNode->GetReferenceSpace(channelIJK, channelWorld);
+    channelVelocities[k] = channelWorld[2] * velocityFactor;
+    }
+  d->VelocityRangeWidget->setSpectrum(channelVelocities,
+                                      qSlicerAstroThumbnails::instance()->integratedSpectrum(astroMrmlNode));
 
   double min = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMIN"));
   double max = StringToDouble(astroMrmlNode->GetAttribute("SlicerAstro.DATAMAX"));
@@ -1300,6 +1373,10 @@ void qSlicerAstroProfilesModuleWidget::onMRMLAstroProfilesParametersNodeModified
   // with a mask the logic uses all the channels and no threshold
   d->VelocityMinField->setEnabled(!maskActive);
   d->VelocityMaxField->setEnabled(!maskActive);
+  d->VelocityRangeWidget->setEnabled(!maskActive);
+  d->AutoRangeButton->setEnabled(!maskActive);
+  d->VelocityNote->setVisible(maskActive);
+  d->VelocityRangeWidget->setRange(d->parametersNode->GetVelocityMin(), d->parametersNode->GetVelocityMax());
   d->IntensityMaxField->setEnabled(!maskActive);
 
   wasBlocked = d->VelocityMinField->blockSignals(true);
@@ -1575,13 +1652,25 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   plotSeriesNode->SetAndObserveTableNodeID(tableNode->GetID());
   plotSeriesNode->SetXColumnName(tableNode->GetColumnName(0));
   plotSeriesNode->SetYColumnName(tableNode->GetColumnName(1));
+  // colour-blind safe colours (Okabe-Ito, without black: visible on the
+  // dark plots of SlicerAstro and on the light ones of Slicer), one per
+  // profile of the chart
+  const double profileColors[7][3] = {{230., 159., 0.}, {86., 180., 233.}, {0., 158., 115.}, {204., 121., 167.},
+                                      {213., 94., 0.}, {0., 114., 178.}, {240., 228., 66.}};
+  const int colorIndex = d->plotChartNodeProfile ? d->plotChartNodeProfile->GetNumberOfPlotSeriesNodes() % 7 : 0;
+  plotSeriesNode->SetColor(profileColors[colorIndex][0] / 255., profileColors[colorIndex][1] / 255.,
+                           profileColors[colorIndex][2] / 255.);
   scene->AddNode(plotSeriesNode.GetPointer());
-  plotSeriesNode->SetUniqueColor();
 
   if (d->plotChartNodeProfile)
     {
-    d->plotChartNodeProfile->SetYAxisTitle(jansky ? "Total flux per channel (Jy)" :
-      (std::string("Sum of the intensities per channel (") + (bunit && *bunit ? bunit : "no unit") + ")").c_str());
+    QString unit = qSlicerAstroTheme::displayUnit(QString::fromUtf8(bunit ? bunit : ""));
+    if (unit.isEmpty())
+      {
+      unit = tr("no unit");
+      }
+    d->plotChartNodeProfile->SetYAxisTitle(jansky ? "Flux per channel (Jy)" :
+      (std::string("Sum per channel (") + unit.toStdString() + ")").c_str());
     d->plotChartNodeProfile->AddAndObservePlotSeriesNodeID(plotSeriesNode->GetID());
     }
 
@@ -1608,7 +1697,8 @@ void qSlicerAstroProfilesModuleWidget::onOpenPlotView()
   const char* description = layoutNode ? layoutNode->GetCurrentLayoutDescription() : nullptr;
   if (layoutNode && (!description || !strstr(description, "vtkMRMLPlotViewNode")))
     {
-    layoutNode->SetViewArrangement(vtkMRMLLayoutNode::SlicerLayoutConventionalPlotView);
+    // channel map, 3D view and plot (the layout with a plot of SlicerAstro)
+    layoutNode->SetViewArrangement(vtkSlicerAstroVolumeLogic::AddPlotLayout(layoutNode));
     }
   if (d->selectionNode)
     {

@@ -1141,6 +1141,27 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
       }
     }
 
+  // what the computation uses in the worker thread, prepared here in the
+  // GUI thread (vtkSlicerAstroVolumeLogic::RunInBackground): own copies of
+  // the WCS of the inputs (the views use theirs meanwhile) and the voxels
+  // held (shared, not copied)
+  std::vector<vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> > workerDisplays;
+  std::vector<vtkSmartPointer<vtkImageData> > heldData;
+  for (std::size_t index = 0; index < inputs.size() && index < volumes.size(); index++)
+    {
+    vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> display =
+      vtkSlicerAstroVolumeLogic::CopyDisplayNodeForWorker(volumes[index]);
+    if (!display)
+      {
+      this->LastError = std::string("the WCS of ") + inputs[index].Name + " could not be copied";
+      return false;
+      }
+    inputs[index].WCS = display->GetWCSStruct();
+    workerDisplays.push_back(display);
+    heldData.push_back(inputs[index].Data);
+    heldData.push_back(inputs[index].PrimaryBeam);
+    }
+
   // computation (background runner: progress and cancel)
   vtkAstroReprojector::Outputs outputs;
   std::atomic<int> progress{0};

@@ -78,6 +78,7 @@
 #include <qSlicerAstroVolumeModule.h>
 #include "qSlicerAstroMouseMoveCompressor.h"
 #include <qSlicerAstroTheme.h>
+#include <qSlicerAstroBackgroundRunner.h>
 #include <qSlicerAstroVolumeModuleWidget.h>
 #include <qSlicerAstroSegmentationReader.h>
 #include <qSlicerAstroVolumeReader.h>
@@ -470,9 +471,9 @@ void qSlicerAstroVolumeModule::setup()
                                  const std::function<int()>& progress, const std::function<void()>& cancel)
     {
     qSlicerApplication* application = qSlicerApplication::application();
-    qSlicerAstroVolumeModuleWidget::runInBackground(
+    qSlicerAstroBackgroundRunner::run(
       application ? application->mainWindow() : nullptr,
-      qSlicerAstroVolumeModuleWidget::tr(label.c_str()), work, progress, cancel);
+      QObject::tr(label.c_str()), work, progress, cancel);
     });
 
   // Astronomical terminology of the segments (instead of the medical ones as

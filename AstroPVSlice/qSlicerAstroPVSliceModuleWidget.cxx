@@ -54,6 +54,7 @@
 #include <qSlicerAstroPanelHeader.h>
 #include <qSlicerAstroSegmentedButton.h>
 #include <qSlicerAstroTheme.h>
+#include <QToolButton>
 #include <qSlicerAstroValueField.h>
 #include <vtkSlicerAstroVolumeLogic.h>
 
@@ -319,6 +320,12 @@ void qSlicerAstroPVSliceModuleWidgetPrivate::init()
     qSlicerAstroPVSliceModuleWidget::tr("Looking along the line: the PV plane seen edge-on."));
   this->CameraButton->addButton(qSlicerAstroPVSliceModuleWidget::tr("Face-on"),
     qSlicerAstroPVSliceModuleWidget::tr("Facing the PV plane, velocity up."));
+  const char* cameraIcons[3] = {"pvViewSky", "pvViewAlongLine", "pvViewFaceOn"};
+  for (int index = 0; index < 3; index++)
+    {
+    this->CameraButton->button(index)->setIcon(qSlicerAstroTheme::instance()->icon(cameraIcons[index], "muted"));
+    this->CameraButton->button(index)->setIconSize(QSize(16, 16));
+    }
   viewLayout->addWidget(this->CameraButton);
   controls->addWidget(viewWidget);
   bodyLayout->addStretch(1);

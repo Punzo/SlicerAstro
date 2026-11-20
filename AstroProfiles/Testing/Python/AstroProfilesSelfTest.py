@@ -244,7 +244,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
                 self.assertGreater(np.count_nonzero(computed == 0.), 0)
             # WEIN069 has no beam: the sum of the intensities
             chart = slicer.util.getFirstNodeByName("ProfileChart")
-            self.assertEqual(chart.GetYAxisTitle(), "Sum of the intensities per channel (JY/BEAM)")
+            self.assertEqual(chart.GetYAxisTitle(), "Sum per channel (Jy/beam)")
             slicer.util.findChild(widget, "RegionButton").setCurrentIndex(0)
         self.delayDisplay("Test passed")
 
@@ -292,7 +292,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             np.testing.assert_allclose(computed[valid], expected[valid], rtol=1e-5, atol=1e-7, err_msg=name)
             title = slicer.util.getFirstNodeByName("ProfileChart").GetYAxisTitle()
             if name == "beam":
-                self.assertEqual(title, "Total flux per channel (Jy)")
+                self.assertEqual(title, "Flux per channel (Jy)")
                 # Jy: the sum of the intensities times pixel area / beam area
                 # (CDELT 0.001 deg, beam 0.004 x 0.003 deg)
                 cube = voxelArray(volumeNode).astype(np.float64)
@@ -300,8 +300,8 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
                 factor = 0.001 * 0.001 / (np.pi / (4. * np.log(2.)) * 0.004 * 0.003)
                 np.testing.assert_allclose(computed[2:8], sums[2:8] * factor, rtol=1e-5)
             else:
-                self.assertEqual(title, "Sum of the intensities per channel (%s)" %
-                                 ("JY/BEAM" if name == "nobeam" else "K"))
+                self.assertEqual(title, "Sum per channel (%s)" %
+                                 ("Jy/beam" if name == "nobeam" else "K"))
         self.delayDisplay("Test passed")
 
     def test_Measurements(self):

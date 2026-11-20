@@ -120,7 +120,8 @@ class SliceViewBar(ViewBar):
         self.setProperty("viewName", self.viewName)
 
         self.orientationButton, self.orientationMenu = self.menuButton(
-            "compass", "Orientation of the view", f"ViewOrientation_{self.viewName}")
+            "viewOrientation", "Orientation of the slice: sky plane (XY) or position-velocity (XZ, ZY)",
+            f"ViewOrientation_{self.viewName}")
         for orientation, text in (("XY", "XY · sky plane"), ("XZ", "XZ · position-velocity (RA)"),
                                   ("ZY", "ZY · position-velocity (Dec)")):
             action = self.orientationMenu.addAction(text)
@@ -132,15 +133,15 @@ class SliceViewBar(ViewBar):
         self.beamButton = self.button("beam", "Show the beam of the data", True, f"ViewBeam_{self.viewName}")
         self.beamButton.connect("toggled(bool)", self.setBeamVisible)
         self.frame = None
-        self.axesButton = self.button("grid", "Show the WCS axes (coordinates along the borders of the view)", True,
+        self.axesButton = self.button("wcsAxes", "Show the WCS axes (coordinates along the borders of the view)", True,
                                       f"ViewAxes_{self.viewName}")
         self.axesButton.connect("toggled(bool)", self.setAxesVisible)
-        self.slice3DButton = self.button("cube3d", "Show this slice in the 3D views", True,
+        self.slice3DButton = self.button("sliceIn3D", "Show this slice in the 3D views", True,
                                          f"ViewSliceIn3D_{self.viewName}")
         self.slice3DButton.connect("toggled(bool)", self.setSliceVisibleIn3D)
-        self.fitButton = self.button("target", "Fit the data to the view", objectName=f"ViewFit_{self.viewName}")
+        self.fitButton = self.button("viewFit", "Fit the data to the view", objectName=f"ViewFit_{self.viewName}")
         self.fitButton.connect("clicked()", self.fit)
-        self.maximizeButton = self.button("layout1", "Maximize this view / back to four views",
+        self.maximizeButton = self.button("viewMaximize", "Maximize this view / back to the previous layout",
                                           objectName=f"ViewMaximize_{self.viewName}")
         self.maximizeButton.connect("clicked()", self.toggleMaximized)
 
@@ -206,7 +207,7 @@ class SliceViewBar(ViewBar):
             self.detail.text = Astro.displayUnit(Astro.attribute(volume, "BUNIT", ""))
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         maximized = layoutNode.GetViewArrangement() == ONE_UP.get(self.viewName)
-        self.maximizeButton.setIcon(viewIcon("layout4" if maximized else "layout1"))
+        self.maximizeButton.setIcon(viewIcon("viewRestore" if maximized else "viewMaximize"))
 
     def setOrientation(self, orientation):
         # another orientation first: the slice is recomputed for the data
@@ -262,13 +263,9 @@ class SliceViewBar(ViewBar):
             sliceLogic.FitSliceToAll()
 
     def toggleMaximized(self):
-        layoutManager = slicer.app.layoutManager()
-        arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
         oneUp = ONE_UP.get(self.viewName)
-        if oneUp is None:
-            return
-        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView if arrangement == oneUp else oneUp)
-        self.workbench.styleViews()
+        if oneUp is not None:
+            self.workbench.toggleMaximized(oneUp)
 
 
 class ThreeDViewBar(ViewBar):
@@ -280,11 +277,13 @@ class ThreeDViewBar(ViewBar):
         self.tag.text = "3D"
         self.visibilityButton = self.button("eye", "Show or hide the volume rendering", True, "View3DVisibility")
         self.visibilityButton.connect("toggled(bool)", self.setRenderingVisible)
-        self.axesButton, self.axesMenu = self.menuButton("compass", "Look from an axis", "View3DAxes")
+        self.axesButton, self.axesMenu = self.menuButton("viewCamera", "Look at the data from an axis (north, south, east, west, along the velocity)",
+                                                         "View3DAxes")
         self.axesMenu.connect("aboutToShow()", self.fillAxesMenu)
-        self.resetButton = self.button("target", "Reset the camera to the data", objectName="View3DReset")
+        self.resetButton = self.button("viewFit", "Fit the data to the view (camera reset to the data)",
+                                       objectName="View3DReset")
         self.resetButton.connect("clicked()", self.resetCamera)
-        self.maximizeButton = self.button("layout1", "Maximize this view / back to four views",
+        self.maximizeButton = self.button("viewMaximize", "Maximize this view / back to the previous layout",
                                           objectName="View3DMaximize")
         self.maximizeButton.connect("clicked()", self.toggleMaximized)
         self.refresh()
@@ -310,7 +309,7 @@ class ThreeDViewBar(ViewBar):
         self.visibilityButton.blockSignals(False)
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         maximized = layoutNode.GetViewArrangement() == slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView
-        self.maximizeButton.setIcon(viewIcon("layout4" if maximized else "layout1"))
+        self.maximizeButton.setIcon(viewIcon("viewRestore" if maximized else "viewMaximize"))
 
     def setRenderingVisible(self, visible):
         displayNode = self.renderingDisplayNode()
@@ -336,11 +335,7 @@ class ThreeDViewBar(ViewBar):
         view.resetCamera()
 
     def toggleMaximized(self):
-        layoutManager = slicer.app.layoutManager()
-        arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
-        oneUp = slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView
-        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView if arrangement == oneUp else oneUp)
-        self.workbench.styleViews()
+        self.workbench.toggleMaximized(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
 
 
 
@@ -359,9 +354,9 @@ class PlotViewBar(ViewBar):
         self.plotWidget = plotWidget
         self.viewNode = plotWidget.mrmlPlotViewNode()
         self.tag.text = "PLOT"
-        self.fitButton = self.button("expand", "Fit the plot to its data", objectName="ViewPlotFit")
+        self.fitButton = self.button("viewFit", "Fit the plot to its data", objectName="ViewPlotFit")
         self.fitButton.connect("clicked()", lambda: self.plotWidget.plotView().fitToContent())
-        self.maximizeButton = self.button("layout1", "Maximize this view / back to the views with a plot",
+        self.maximizeButton = self.button("viewMaximize", "Maximize this view / back to the views with a plot",
                                           objectName="ViewPlotMaximize")
         self.maximizeButton.connect("clicked()", self.toggleMaximized)
         self.observe(self.viewNode, vtk.vtkCommand.ModifiedEvent, self.refresh)
@@ -372,6 +367,10 @@ class PlotViewBar(ViewBar):
     def chart(self):
         view = self.plotWidget.plotView()
         return view.chart() if view is not None else None
+
+    def renderer(self, chart):
+        scene = chart.GetScene() if chart is not None else None
+        return scene.GetRenderer() if scene is not None else None
 
     def chartParts(self, chart):
         axes = [chart.GetAxis(index) for index in range(4)]
@@ -394,6 +393,7 @@ class PlotViewBar(ViewBar):
                                background.GetAlpha()),
                 "title": chart.GetTitleProperties().GetColor(),
                 "legend": chart.GetLegend().GetLabelProperties().GetColor(),
+                "renderer": self.renderer(chart).GetBackground() if self.renderer(chart) is not None else None,
                 "axes": [],
             }
             for axis in self.chartParts(chart):
@@ -406,6 +406,10 @@ class PlotViewBar(ViewBar):
                     "grid": (gridPen.GetRed(), gridPen.GetGreen(), gridPen.GetBlue(), gridPen.GetAlpha()),
                 })
         chart.GetBackgroundBrush().SetColor(*_rgb(VIEW), 255)
+        # the renderer too: an empty plot (no chart) shows only the renderer
+        renderer = self.renderer(chart)
+        if renderer is not None:
+            renderer.SetBackground(*[value / 255.0 for value in _rgb(VIEW)])
         chart.GetTitleProperties().SetColor(*text)
         chart.GetLegend().GetLabelProperties().SetColor(*text)
         chart.GetLegend().GetBrush().SetColor(*_rgb(VIEW), 220)
@@ -422,6 +426,9 @@ class PlotViewBar(ViewBar):
         if chart is None or self.saved is None:
             return
         chart.GetBackgroundBrush().SetColor(*self.saved["background"])
+        renderer = self.renderer(chart)
+        if renderer is not None and self.saved.get("renderer") is not None:
+            renderer.SetBackground(*self.saved["renderer"])
         chart.GetTitleProperties().SetColor(*self.saved["title"])
         chart.GetLegend().GetLabelProperties().SetColor(*self.saved["legend"])
         chart.GetLegend().GetBrush().SetColor(255, 255, 255, 255)
@@ -443,17 +450,14 @@ class PlotViewBar(ViewBar):
         chartID = self.viewNode.GetPlotChartNodeID() if self.viewNode is not None else None
         chart = slicer.mrmlScene.GetNodeByID(chartID) if chartID else None
         title = chart.GetTitle() if chart is not None else ""
-        self.detail.text = title or (chart.GetName() if chart is not None else "no plot")
+        self.detail.text = title or (chart.GetName() if chart is not None else
+                                     "no profile yet · compute one in Process › Profiles")
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         maximized = layoutNode.GetViewArrangement() == slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView
-        self.maximizeButton.setIcon(viewIcon("layoutPlot" if maximized else "layout1"))
+        self.maximizeButton.setIcon(viewIcon("viewRestore" if maximized else "viewMaximize"))
 
     def toggleMaximized(self):
-        layoutManager = slicer.app.layoutManager()
-        arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
-        oneUp = slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView
-        layoutManager.setLayout(self.workbench.PLOT_VIEWS if arrangement == oneUp else oneUp)
-        self.workbench.styleViews()
+        self.workbench.toggleMaximized(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView)
 
     def cleanup(self):
         self.restoreChartStyle()

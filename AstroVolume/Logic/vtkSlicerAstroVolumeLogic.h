@@ -46,7 +46,9 @@ class vtkMRMLColorTableNode;
 class vtkMRMLMarkupsNode;
 class vtkMRMLMarkupsROINode;
 class vtkMRMLAstroReprojectParametersNode;
+class vtkMRMLAstroVolumeDisplayNode;
 class vtkMRMLAstroVolumeNode;
+class vtkMRMLLayoutNode;
 class vtkMRMLSegmentationNode;
 class vtkMRMLSliceNode;
 class vtkMRMLMarkupsFiducialNode;
@@ -713,6 +715,11 @@ public:
   void SetReprojectFunction(const ReprojectFunctionType& function);
 #endif
 
+  /// Layout with a plot of SlicerAstro: the channel map (red) and the 3D
+  /// view above, a plot view below. Added to the layout node if needed;
+  /// returns its view arrangement ID (Profiles, AstroWorkbench).
+  static int AddPlotLayout(vtkMRMLLayoutNode* layoutNode);
+
   /// True while a computation runs with RunInBackground (the GUI processes
   /// events meanwhile, e.g. timers: they must not start other computations
   /// or remove the data in use).
@@ -722,11 +729,29 @@ public:
     }
 
 #ifndef __VTK_WRAP__
+  /// Copy of the display node of a volume with its own WCS, not in a scene,
+  /// for a computation in a worker thread (made in the GUI thread before the
+  /// work). WCSLIB functions write into their wcsprm: a WCS must not be used
+  /// by two threads, and the views use the WCS of the volume meanwhile. Only
+  /// the small WCS structs are copied, not the data.
+  static vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> CopyDisplayNodeForWorker(vtkMRMLAstroVolumeNode* volume);
+
   /// Runner of long computations (e.g. a worker thread, the GUI responsive
   /// with a progress dialog): runs work and returns when it is done. label
   /// describes the work, progress returns its progress (0-100) and cancel
-  /// requests to stop it. The work must not modify the scene (no MRML events
-  /// from a worker thread).
+  /// requests to stop it.
+  /// Thread safety of the work (it runs in a worker thread while the GUI
+  /// thread runs its timers and renders the views):
+  /// - it uses only what was prepared before, in the GUI thread: voxel
+  ///   buffers held with vtkSmartPointer (shared, never copied: they stay
+  ///   valid even if a node is removed meanwhile), WCS copies
+  ///   (CopyDisplayNodeForWorker), values read from the nodes (attributes,
+  ///   parameters, ROI bounds) or copies of parameters nodes;
+  /// - it does not look up, read or change nodes of the scene (no MRML
+  ///   events from a worker thread);
+  /// - its results are given to the nodes after it, in the GUI thread.
+  /// The runner blocks the user input meanwhile (only Cancel), so the data
+  /// are not removed by the user during the work.
   typedef std::function<void(const std::string& label, const std::function<void()>& work,
                              const std::function<int()>& progress,
                              const std::function<void()>& cancel)> BackgroundRunnerType;
