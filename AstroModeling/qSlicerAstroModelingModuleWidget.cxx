@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QAbstractSpinBox>
 #include <QAction>
 #include <QDebug>
 #include <QToolButton>
@@ -31,6 +32,7 @@
 #include <QLabel>
 #include <QHBoxLayout>
 #include <QGridLayout>
+#include <QPointer>
 #include <QProgressBar>
 #include <QDoubleSpinBox>
 #include <QMessageBox>
@@ -87,6 +89,7 @@
 #include <qSlicerAstroPanelHeader.h>
 #include <qSlicerAstroSegmentedButton.h>
 #include <qSlicerAstroTheme.h>
+#include <qSlicerAstroValueField.h>
 #include "ui_qSlicerAstroModelingModuleWidget.h"
 #include "qSlicerAstroModelingModuleWorker.h"
 
@@ -177,7 +180,9 @@ public:
   void appendOperationHeader(int operation);
 
   vtkSlicerAstroModelingLogic* logic() const;
-  qSlicerAstroVolumeModuleWidget* astroVolumeWidget;
+  /// Panel of the AstroVolume module (owned by that module; null once it is
+  /// deleted, e.g. when the modules are unloaded at exit)
+  QPointer<qSlicerAstroVolumeModuleWidget> astroVolumeWidget;
   /// Beam (FWHM major and minor axes in arcsec, position angle in degrees)
   QLabel* BeamLabel{nullptr};
   QLabel* BeamStatusLabel{nullptr};
@@ -261,7 +266,7 @@ public:
 qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate(qSlicerAstroModelingModuleWidget& object)
   : q_ptr(&object)
 {
-  this->astroVolumeWidget = 0;
+  this->astroVolumeWidget = nullptr;
   this->parametersNode = 0;
   this->internalTableNode = 0;
   this->astroTableNode = 0;
@@ -299,10 +304,7 @@ qSlicerAstroModelingModuleWidgetPrivate::qSlicerAstroModelingModuleWidgetPrivate
 //-----------------------------------------------------------------------------
 qSlicerAstroModelingModuleWidgetPrivate::~qSlicerAstroModelingModuleWidgetPrivate()
 {
-  if (this->astroVolumeWidget)
-    {
-    delete this->astroVolumeWidget;
-    }
+  // astroVolumeWidget belongs to the AstroVolume module (not deleted here)
 
   // the thread first: the worker runs in it
   if (this->thread)
@@ -536,21 +538,29 @@ void qSlicerAstroModelingModuleWidgetPrivate::init()
     "Beam of the data (BMAJ, BMIN, BPA): FWHM of the major and minor axes in arcsec, position "
     "angle of the major axis in degrees (from North to East). Read from the FITS header; if the "
     "header has no beam, it is estimated from the noise and can be edited.");
-  this->BeamMajorSpinBox = new QDoubleSpinBox(beamWidget);
-  this->BeamMinorSpinBox = new QDoubleSpinBox(beamWidget);
-  this->BeamPASpinBox = new QDoubleSpinBox(beamWidget);
-  QDoubleSpinBox* beamSpinBoxes[3] = {this->BeamMajorSpinBox, this->BeamMinorSpinBox, this->BeamPASpinBox};
-  const char* beamPrefixes[3] = {"major ", "minor ", "PA "};
+  // the same fields as the beam of the Info section of AstroVolume (value
+  // with its unit); the spin boxes inside them are used by the panel
+  beamLayout->setSpacing(4);
   const char* beamNames[3] = {"BeamMajorSpinBox", "BeamMinorSpinBox", "BeamPASpinBox"};
+  const QString beamUnits[3] = {QString::fromUtf8("″"), QString::fromUtf8("″"), QString::fromUtf8("°")};
+  const QString beamTips[3] = {
+    qSlicerAstroModelingModuleWidget::tr("Major axis (FWHM) of the beam, arc seconds."),
+    qSlicerAstroModelingModuleWidget::tr("Minor axis (FWHM) of the beam, arc seconds."),
+    qSlicerAstroModelingModuleWidget::tr("Position angle of the major axis, degrees from North to East.")};
+  QDoubleSpinBox** beamSpinBoxes[3] = {&this->BeamMajorSpinBox, &this->BeamMinorSpinBox, &this->BeamPASpinBox};
   for (int i = 0; i < 3; i++)
     {
-    beamSpinBoxes[i]->setObjectName(beamNames[i]);
-    beamSpinBoxes[i]->setDecimals(2);
-    beamSpinBoxes[i]->setRange(i < 2 ? 0. : -180., i < 2 ? 36000. : 180.);
-    beamSpinBoxes[i]->setPrefix(QString::fromUtf8(beamPrefixes[i]));
-    beamSpinBoxes[i]->setSuffix(i < 2 ? QString(" arcsec") : QString(" deg"));
-    beamSpinBoxes[i]->setToolTip(beamToolTip);
-    beamLayout->addWidget(beamSpinBoxes[i]);
+    qSlicerAstroValueField* field = new qSlicerAstroValueField(beamWidget);
+    field->setObjectName(QString("%1Field").arg(beamNames[i]));
+    field->setDecimals(2);
+    field->setRange(i < 2 ? 0. : -180., i < 2 ? 36000. : 180.);
+    field->setUnit(beamUnits[i]);
+    field->setToolTip(beamTips[i] + "\n\n" + beamToolTip);
+    field->setMinimumWidth(50);
+    *beamSpinBoxes[i] = field->spinBox();
+    (*beamSpinBoxes[i])->setObjectName(beamNames[i]);
+    (*beamSpinBoxes[i])->setToolTip(field->toolTip());
+    beamLayout->addWidget(field, 1);
     }
   this->BeamLabel = new QLabel(qSlicerAstroModelingModuleWidget::tr("Beam:"), this->FittingParametersCollapsibleButton);
   this->BeamLabel->setToolTip(beamToolTip);
@@ -1179,6 +1189,17 @@ void qSlicerAstroModelingModuleWidgetPrivate::restructurePanel()
   const int bodyIndex = moduleLayout->indexOf(body);
   moduleLayout->insertWidget(bodyIndex + 1, footer);
   moduleLayout->insertWidget(bodyIndex + 2, after);
+  // the fields of the .ui are as wide as their longest value: they shrink
+  // with the panel instead (the panel fits narrow docks and the Workbench)
+  for (QAbstractSpinBox* field : q->findChildren<QAbstractSpinBox*>())
+    {
+    field->setMinimumWidth(56);
+    }
+  for (QComboBox* combo : q->findChildren<QComboBox*>())
+    {
+    combo->setMinimumWidth(80);
+    combo->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    }
   theme->applyTo(q);
 }
 
@@ -1580,6 +1601,10 @@ void qSlicerAstroModelingModuleWidget::setMRMLScene(vtkMRMLScene* scene)
                       this, SLOT(onMRMLSceneEndBatchProcessEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::StartCloseEvent,
                       this, SLOT(onMRMLSceneStartCloseEvent()));
+  // a node used by a running 3DBarolo operation is removed: the operation is
+  // stopped first (the worker thread reads and writes these nodes)
+  this->qvtkReconnect(scene, vtkMRMLScene::NodeAboutToBeRemovedEvent,
+                      this, SLOT(onMRMLSceneNodeAboutToBeRemoved(vtkObject*, vtkObject*)));
   this->qvtkReconnect(scene, vtkMRMLScene::EndCloseEvent,
                       this, SLOT(onMRMLSceneEndCloseEvent()));
   this->qvtkReconnect(scene, vtkMRMLScene::EndRestoreEvent,
@@ -4504,6 +4529,38 @@ void qSlicerAstroModelingModuleWidget::onMRMLSceneEndCloseEvent()
     }
 
   this->onMRMLAstroModelingParametersNodeModified();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroModelingModuleWidget::onMRMLSceneNodeAboutToBeRemoved(vtkObject* sender, vtkObject* nodeObject)
+{
+  Q_UNUSED(sender);
+  Q_D(qSlicerAstroModelingModuleWidget);
+  vtkMRMLNode* node = vtkMRMLNode::SafeDownCast(nodeObject);
+  if (!node || !node->GetID() || !d->workerRunning() || !d->workerParametersNode)
+    {
+    return;
+    }
+  vtkMRMLAstroModelingParametersNode* parameters = d->workerParametersNode;
+  const char* usedIDs[] = {parameters->GetInputVolumeNodeID(), parameters->GetOutputVolumeNodeID(),
+                           parameters->GetResidualVolumeNodeID(), parameters->GetMaskSegmentationNodeID()};
+  bool used = (node == d->internalTableNode.GetPointer()) ||
+              (d->parametersNode && node == d->parametersNode->GetParamsTableNode()) ||
+              (d->parametersNode && node == d->parametersNode.GetPointer());
+  for (const char* usedID : usedIDs)
+    {
+    used = used || (usedID && !strcmp(usedID, node->GetID()));
+    }
+  if (!used)
+    {
+    return;
+    }
+  qInfo().noquote() << "3DBarolo: the operation is cancelled:" << node->GetName() << "is removed from the scene.";
+  d->stopWorker();
+  if (d->parametersNode)
+    {
+    d->parametersNode->SetStatus(0);
+    }
 }
 
 //---------------------------------------------------------------------------

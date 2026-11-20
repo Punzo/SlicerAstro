@@ -81,6 +81,22 @@ QLabel* RowLabel(const QString& text, const QString& toolTip, QWidget* parent)
   label->setToolTip(toolTip);
   return label;
 }
+//-----------------------------------------------------------------------------
+QToolButton* ConventionLabel(const QString& text, const QString& iconName, const QString& toolTip, QWidget* parent)
+{
+  // a tool button only to draw the themed icon beside the text (not
+  // clickable: no hover style, see astro.qss)
+  QToolButton* label = new QToolButton(parent);
+  label->setText(text);
+  label->setIcon(qSlicerAstroTheme::instance()->icon(iconName, "muted"));
+  label->setIconSize(QSize(16, 16));
+  label->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+  label->setAutoRaise(true);
+  label->setFocusPolicy(Qt::NoFocus);
+  label->setProperty("astroRole", "conventionLabel");
+  label->setToolTip(toolTip);
+  return label;
+}
 } // end of anonymous namespace
 
 //-----------------------------------------------------------------------------
@@ -91,7 +107,7 @@ public:
   QMap<QString, QLabel*> Facts;
   qSlicerAstroSegmentedButton* RightAscension{nullptr};
   qSlicerAstroSegmentedButton* Velocity{nullptr};
-  QLabel* VelocityLabel{nullptr};
+  QToolButton* VelocityLabel{nullptr};
   qSlicerAstroValueField* Beam[3] = {nullptr, nullptr, nullptr};
   QPushButton* EstimateButton{nullptr};
   QPushButton* ApplyButton{nullptr};
@@ -149,7 +165,8 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   facts->setColumnStretch(1, 1);
   layout->addWidget(factsCard);
 
-  // coordinate conventions of the readouts and axes
+  // coordinate conventions of the readouts and axes: one row each, an icon
+  // and a label, the choices across the width
   QGridLayout* conventions = new QGridLayout();
   conventions->setHorizontalSpacing(8);
   conventions->setVerticalSpacing(6);
@@ -160,22 +177,28 @@ qSlicerAstroInfoSection::qSlicerAstroInfoSection(QWidget* parent)
   d->RightAscension->addButton(tr("degrees"), tr("Right ascension in degrees."));
   QObject::connect(d->RightAscension, SIGNAL(currentIndexChanged(int)), this,
                    SLOT(onRightAscensionFormatChanged(int)));
-  conventions->addWidget(RowLabel(tr("RA"), d->RightAscension->toolTip(), this), 0, 0);
-  conventions->addWidget(d->RightAscension, 0, 1);
   d->Velocity = new qSlicerAstroSegmentedButton(this);
   d->Velocity->setObjectName("InfoVelocity");
   d->Velocity->setToolTip(tr("Velocity definition of the spectral axis in the readouts and on the axes."));
   d->Velocity->addButton(tr("radio"), tr("Radio velocities: v = c (f0 − f) / f0."));
   d->Velocity->addButton(tr("optical"), tr("Optical velocities: v = c (f0 − f) / f."));
   QObject::connect(d->Velocity, SIGNAL(currentIndexChanged(int)), this, SLOT(onVelocityDefinitionChanged(int)));
-  for (QWidget* segmented : {static_cast<QWidget*>(d->RightAscension), static_cast<QWidget*>(d->Velocity)})
+  QToolButton* rightAscensionLabel = ConventionLabel(tr("Right ascension"), "globe",
+                                                     d->RightAscension->toolTip(), this);
+  d->VelocityLabel = ConventionLabel(tr("Velocity"), "spectrum", d->Velocity->toolTip(), this);
+  conventions->addWidget(rightAscensionLabel, 0, 0);
+  conventions->addWidget(d->RightAscension, 0, 1);
+  conventions->addWidget(d->VelocityLabel, 1, 0);
+  conventions->addWidget(d->Velocity, 1, 1);
+  for (qSlicerAstroSegmentedButton* segmented : {d->RightAscension, d->Velocity})
     {
-    segmented->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Fixed);
+    segmented->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    for (int index = 0; index < segmented->count(); index++)
+      {
+      segmented->button(index)->setMinimumWidth(48);
+      }
     }
-  d->VelocityLabel = RowLabel(tr("Velocity"), d->Velocity->toolTip(), this);
-  conventions->addWidget(d->VelocityLabel, 0, 2);
-  conventions->addWidget(d->Velocity, 0, 3);
-  conventions->setColumnStretch(4, 1);
+  conventions->setColumnStretch(1, 1);
   layout->addLayout(conventions);
 
   // beam

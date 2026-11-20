@@ -163,6 +163,7 @@ protected slots:
   void onMRMLSceneEndBatchProcessEvent();
   void onMRMLSceneEndCloseEvent();
   void onMRMLSceneStartCloseEvent();
+  void onMRMLSceneNodeAboutToBeRemoved(vtkObject* sender, vtkObject* node);
   void onMRMLSceneStartImportEvent();
 
   void centerPVOffset();

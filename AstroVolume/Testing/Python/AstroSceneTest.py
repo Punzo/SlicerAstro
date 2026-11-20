@@ -508,7 +508,7 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
         except RuntimeError:
             pass  # the nodes of unknown classes are reported as errors
         self.assertTrue(logic.GetIncompatibleSceneImported())
-        self.assertIsNotNone(slicer.mrmlScene.GetFirstNodeByName("cube"))
+        self.assertIsNotNone(slicer.util.getFirstNodeByName("cube"))
         self.assertEqual(slicer.util.getNode("cube").GetSceneFormat(), 0)
         self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
         for node in slicer.util.getNodesByClass("vtkMRMLAstroMomentMapsParametersNode"):

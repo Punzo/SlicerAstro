@@ -713,6 +713,14 @@ public:
   void SetReprojectFunction(const ReprojectFunctionType& function);
 #endif
 
+  /// True while a computation runs with RunInBackground (the GUI processes
+  /// events meanwhile, e.g. timers: they must not start other computations
+  /// or remove the data in use).
+  bool IsRunningInBackground() const
+    {
+    return this->BackgroundRunDepth > 0;
+    }
+
 #ifndef __VTK_WRAP__
   /// Runner of long computations (e.g. a worker thread, the GUI responsive
   /// with a progress dialog): runs work and returns when it is done. label
@@ -732,6 +740,7 @@ public:
   void RunInBackground(const std::string& label, const std::function<void()>& work,
                        const std::function<int()>& progress, const std::function<void()>& cancel)
     {
+    this->BackgroundRunDepth++;
     if (this->BackgroundRunner)
       {
       this->BackgroundRunner(label, work, progress, cancel);
@@ -740,6 +749,7 @@ public:
       {
       work();
       }
+    this->BackgroundRunDepth--;
     }
 
   /// RunInBackground with the progress and the cancel request in the Status
@@ -784,6 +794,7 @@ protected:
   bool UpdatingTransferFunctionGaps{false};
   bool EnsuringVolumeSegmentations{false};
 #ifndef __VTK_WRAP__
+  int BackgroundRunDepth{0};
   BackgroundRunnerType BackgroundRunner;
   bool IncompatibleSceneImported{false};
   std::string LastMaskCopyError;

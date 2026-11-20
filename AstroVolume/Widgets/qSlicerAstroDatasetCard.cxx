@@ -86,30 +86,10 @@ protected:
     const QFontMetrics titleMetrics(titleFont);
     painter.setFont(titleFont);
     painter.setPen(theme->color("text"));
+    // the name on the whole width (the "active" chip is on the line below)
     QString name = this->Volume ? QString::fromUtf8(this->Volume->GetName()) : QString();
-    int chipWidth = 0;
-    const QFont chipFont = theme->font("monoSmall");
-    const QFontMetrics chipMetrics(chipFont);
-    const QString chipText = qSlicerAstroDatasetCard::tr("active");
-    if (this->Active)
-      {
-      chipWidth = chipMetrics.horizontalAdvance(chipText) + 14 + 6;
-      }
-    name = titleMetrics.elidedText(name, Qt::ElideMiddle, width - chipWidth);
+    name = titleMetrics.elidedText(name, Qt::ElideMiddle, width);
     painter.drawText(QRect(x, 0, width, titleMetrics.height()), Qt::AlignLeft | Qt::AlignVCenter, name);
-    if (this->Active)
-      {
-      const int chipX = x + titleMetrics.horizontalAdvance(name) + 6;
-      const QRectF chip(chipX + 0.5, (titleMetrics.height() - 18) / 2. + 0.5, chipWidth - 6, 18);
-      QPainterPath path;
-      path.addRoundedRect(chip, 9., 9.);
-      painter.fillPath(path, theme->color("accent-soft"));
-      painter.setPen(QPen(theme->color("accent"), 1.));
-      painter.drawPath(path);
-      painter.setFont(chipFont);
-      painter.setPen(theme->color("accent-ink"));
-      painter.drawText(chip, Qt::AlignCenter, chipText);
-      }
     // dimensions and unit
     const QFont metaFont = theme->font("monoSmall");
     const QFontMetrics metaMetrics(metaFont);
@@ -131,8 +111,26 @@ protected:
         }
       }
     const int metaY = titleMetrics.height() + 2;
-    painter.drawText(QRect(x, metaY, width, metaMetrics.height()), Qt::AlignLeft | Qt::AlignVCenter,
-                     metaMetrics.elidedText(meta, Qt::ElideRight, width));
+    // "active" chip at the right end of the dimensions line
+    int chipWidth = 0;
+    const QString chipText = qSlicerAstroDatasetCard::tr("active");
+    if (this->Active)
+      {
+      chipWidth = metaMetrics.horizontalAdvance(chipText) + 14;
+      const QRectF chip(x + width - chipWidth + 0.5, metaY + (metaMetrics.height() - 16) / 2. + 0.5,
+                        chipWidth - 1, 16);
+      QPainterPath path;
+      path.addRoundedRect(chip, 8., 8.);
+      painter.fillPath(path, theme->color("accent-soft"));
+      painter.setPen(QPen(theme->color("accent"), 1.));
+      painter.drawPath(path);
+      painter.setPen(theme->color("accent-ink"));
+      painter.drawText(chip, Qt::AlignCenter, chipText);
+      painter.setPen(theme->color("muted"));
+      }
+    const int metaWidth = width - (chipWidth > 0 ? chipWidth + 6 : 0);
+    painter.drawText(QRect(x, metaY, metaWidth, metaMetrics.height()), Qt::AlignLeft | Qt::AlignVCenter,
+                     metaMetrics.elidedText(meta, Qt::ElideRight, metaWidth));
     // integrated spectrum (cubes)
     const QVector<double> spectrum = this->Volume ?
       qSlicerAstroThumbnails::instance()->integratedSpectrum(this->Volume) : QVector<double>();

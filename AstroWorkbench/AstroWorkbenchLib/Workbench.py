@@ -109,18 +109,11 @@ class HeaderBar(qt.QFrame):
         self.roiButton.connect("clicked()", lambda: self.workbench.setInteraction("roi"))
         layout.addStretch(1)
 
-        # layout of the views
-        self.layoutButton = slicer.qSlicerAstroSegmentedButton()
-        self.layoutButton.setObjectName("WorkbenchLayoutButton")
-        self.layoutButton.toolTip = "Layout of the views."
-        self.layoutButton.addButton("", "One view: the channel map")
-        self.layoutButton.addButton("", "Three views: channel map, moment 0 and 3D")
-        self.layoutButton.addButton("", "Four views: channel map, 3D, position-velocity and moment 0")
-        for index, icon in enumerate(("layout1", "layout3", "layout4")):
-            self.layoutButton.button(index).setIcon(theme().icon(icon))
-            self.layoutButton.button(index).setObjectName(f"WorkbenchLayout_{icon}")
-        self.layoutButton.connect("currentIndexChanged(int)", self.workbench.setViewLayout)
+        # layout of the views: toolbar buttons like the tools, one checked
+        layout.addWidget(self.separator())
+        self.layoutButton = LayoutSwitch(self.workbench.setViewLayout)
         layout.addWidget(self.layoutButton)
+        layout.addWidget(self.separator())
         self.themeButton = iconButton("sun", "Light or dark theme")
         self.themeButton.setObjectName("WorkbenchThemeButton")
         self.themeButton.connect("clicked()", self.toggleTheme)
@@ -156,6 +149,74 @@ class HeaderBar(qt.QFrame):
     def cleanup(self):
         theme().disconnect("themeChanged()", self.updateThemeIcon)
 
+
+
+class LayoutSwitch(qt.QWidget):
+    """Layouts of the views as checkable toolbar buttons (one checked):
+    one view, three views, four views, views and a plot. currentIndex /
+    setCurrentIndex as a segmented control; onChanged(index) is called when
+    the layout changes."""
+
+    LAYOUTS = (("layout1", "One view: the channel map"),
+               ("layout3", "Three views: channel map, moment 0 and 3D"),
+               ("layout4", "Four views: channel map, 3D, position-velocity and moment 0"),
+               ("layoutPlot", "Views and a plot: channel map and 3D above, the spectrum of the data below "
+                              "(or the profiles made in Process)"))
+
+    def __init__(self, onChanged, parent=None):
+        qt.QWidget.__init__(self, parent)
+        self.setObjectName("WorkbenchLayoutButton")
+        self.toolTip = "Layout of the views."
+        self.onChanged = onChanged
+        self.index = -1
+        layout = qt.QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(2)
+        self.group = qt.QButtonGroup(self)
+        self.group.setExclusive(True)
+        self.buttons = []
+        for index, (icon, toolTip) in enumerate(self.LAYOUTS):
+            button = iconButton(icon, toolTip, checkable=True)
+            button.setObjectName(f"WorkbenchLayout_{icon}")
+            self.group.addButton(button, index)
+            layout.addWidget(button)
+            self.buttons.append(button)
+        self.group.connect("idClicked(int)", self.setCurrentIndex)
+
+    def count(self):
+        return len(self.buttons)
+
+    def button(self, index):
+        return self.buttons[index]
+
+    @property
+    def currentIndex(self):
+        return self.index
+
+    def setCurrentIndex(self, index, notify=True):
+        if index < 0 or index >= len(self.buttons):
+            return
+        button = self.buttons[index]
+        if not button.checked:
+            button.blockSignals(True)
+            button.checked = True
+            button.blockSignals(False)
+        if index == self.index:
+            return
+        self.index = index
+        if notify and self.onChanged is not None:
+            self.onChanged(index)
+
+    def clear(self):
+        """No button checked: a layout of Slicer that is not in the switch
+        (e.g. a maximized view)."""
+        self.group.setExclusive(False)
+        for button in self.buttons:
+            button.blockSignals(True)
+            button.checked = False
+            button.blockSignals(False)
+        self.group.setExclusive(True)
+        self.index = -1
 
 class Rail(qt.QFrame):
     """Activities: data, sample data, sky search (VO), layers, settings."""
@@ -487,9 +548,21 @@ class DatasetDrawer(qt.QFrame):
             nodes = [contours] if contours is not None else []
         # the products first, the dataset last: the panels showing the
         # dataset change their input once
+        volumeID = volume.GetID()
         for node in nodes + [volume]:
             if node.GetScene() is not None:
                 slicer.mrmlScene.RemoveNode(node)
+        # its spectrum in the plot view: emptied
+        for chart in slicer.util.getNodesByClass("vtkMRMLPlotChartNode"):
+            if chart.GetAttribute(Workbench.WORKBENCH_SPECTRUM) == "chart" and \
+                    chart.GetAttribute("SlicerAstro.SpectrumOf") == volumeID:
+                series = chart.GetNthPlotSeriesNode(0)
+                table = series.GetTableNode() if series is not None else None
+                if table is not None:
+                    table.GetTable().Initialize()
+                    table.Modified()
+                chart.SetTitle("")
+                chart.RemoveAttribute("SlicerAstro.SpectrumOf")
         self.refresh()
         return True
 
@@ -631,7 +704,15 @@ class StatusBar(qt.QFrame):
     def showMessage(self, text, milliseconds=8000):
         """A message in the status bar, for a few seconds."""
         self.hint.text = text
-        qt.QTimer.singleShot(milliseconds, lambda: setattr(self.hint, "text", "") if self.hint.text == text else None)
+        qt.QTimer.singleShot(milliseconds, lambda: self.clearMessage(text))
+
+    def clearMessage(self, text):
+        try:
+            if self.hint.text == text:
+                self.hint.text = ""
+        except ValueError:
+            # the status bar was deleted (Workbench left)
+            pass
 
     def subtle(self, text):
         return f"<span style='color:{theme().color('subtle').name()}'>{text}</span>"
@@ -719,6 +800,9 @@ class Workbench:
         if key.startswith("3D"):
             widget = layoutManager.threeDWidget(int(key[2:]))
             return widget.mrmlViewNode().GetID() if widget is not None else None
+        if key.startswith("Plot"):
+            widget = layoutManager.plotWidget(int(key[4:]))
+            return widget.mrmlPlotViewNode().GetID() if widget is not None else None
         widget = layoutManager.sliceWidget(key)
         return widget.mrmlSliceNode().GetID() if widget is not None else None
 
@@ -727,7 +811,7 @@ class Workbench:
         it shows a cube."""
         self.activeViewKey = key
         self.views.setActive(key)
-        if key.startswith("3D") or self.scrubberBar is None:
+        if key.startswith("3D") or key.startswith("Plot") or self.scrubberBar is None:
             return
         sliceNode = slicer.mrmlScene.GetNodeByID(self.viewNodeID(key))
         composite = slicer.app.layoutManager().sliceWidget(key).mrmlSliceCompositeNode()
@@ -742,6 +826,12 @@ class Workbench:
         node = slicer.mrmlScene.GetNodeByID(nodeID)
         viewNodeID = self.viewNodeID(key)
         if node is None or viewNodeID is None:
+            return
+        if key.startswith("Plot"):
+            # a cube dropped on the plot: its spectrum
+            if Astro.isAstroVolume(node) and Astro.dimensions(node) >= 3:
+                self.showSpectrumPlot(node)
+            self.setActiveView(key)
             return
         if node.IsA("vtkMRMLSegmentationNode"):
             self.visibility.addToView(node, viewNodeID)
@@ -885,14 +975,41 @@ class Workbench:
  </item>
 </layout>"""
 
+    PLOT_VIEWS = 3502
+    PLOT_VIEWS_LAYOUT = """
+<layout type="vertical" split="true">
+ <item splitSize="620">
+  <layout type="horizontal" split="true">
+   <item>
+    <view class="vtkMRMLSliceNode" singletontag="Red">
+     <property name="viewlabel" action="default">R</property>
+     <property name="viewcolor" action="default">#F34A33</property>
+    </view>
+   </item>
+   <item>
+    <view class="vtkMRMLViewNode" singletontag="1">
+     <property name="viewlabel" action="default">1</property>
+    </view>
+   </item>
+  </layout>
+ </item>
+ <item splitSize="380">
+  <view class="vtkMRMLPlotViewNode" singletontag="PlotView1">
+   <property name="viewlabel" action="default">P</property>
+  </view>
+ </item>
+</layout>"""
+
     def layouts(self):
         """Layouts of the switch: one view, three views (channel map,
-        moment 0, 3D) and four views."""
+        moment 0, 3D), four views, and views with a plot."""
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
         if not layoutNode.IsLayoutDescription(self.THREE_VIEWS):
             layoutNode.AddLayoutDescription(self.THREE_VIEWS, self.THREE_VIEWS_LAYOUT)
+        if not layoutNode.IsLayoutDescription(self.PLOT_VIEWS):
+            layoutNode.AddLayoutDescription(self.PLOT_VIEWS, self.PLOT_VIEWS_LAYOUT)
         return (slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpRedSliceView, self.THREE_VIEWS,
-                slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView)
+                slicer.vtkMRMLLayoutNode.SlicerLayoutFourUpView, self.PLOT_VIEWS)
 
     def fourViews(self):
         layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
@@ -907,6 +1024,116 @@ class Workbench:
         slicer.app.layoutManager().setLayout(self.layouts()[index])
         self.styleViews()
         self.arrangeViews()
+
+    def onLayoutChanged(self, arrangement=None):
+        """Layout changed elsewhere (maximize buttons of the views, "Open in
+        plot view" of Profiles): view bars on the new views, the layout
+        switch follows."""
+        if not self.active:
+            return
+        self.styleViews()
+        layouts = self.layouts()
+        arrangement = slicer.app.layoutManager().layoutLogic().GetLayoutNode().GetViewArrangement()
+        switch = self.header.layoutButton
+        if arrangement in layouts:
+            switch.setCurrentIndex(layouts.index(arrangement), notify=False)
+        else:
+            switch.clear()
+
+    WORKBENCH_SPECTRUM = "SlicerAstro.WorkbenchSpectrum"
+
+    def showSpectrumPlot(self, volume):
+        """The plot view of the layout with a plot: the profiles made in
+        Process for this cube if any, otherwise the spectrum of the cube
+        (flux per channel in Jy with a beam and Jy/beam data, otherwise the
+        sum of the values per channel)."""
+        layoutManager = slicer.app.layoutManager()
+        arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
+        if arrangement not in (self.PLOT_VIEWS, slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView):
+            return None
+        plotWidget = layoutManager.plotWidget(0) if layoutManager.plotViewCount > 0 else None
+        if plotWidget is None or volume is None or Astro.dimensions(volume) < 3:
+            return None
+        chart = None
+        profiles = slicer.util.getFirstNodeByClassByName("vtkMRMLPlotChartNode", "ProfileChart")
+        if profiles is not None and profiles.GetNumberOfPlotSeriesNodes() > 0:
+            for index in range(profiles.GetNumberOfPlotSeriesNodes()):
+                series = profiles.GetNthPlotSeriesNode(index)
+                if series is not None and series.GetName().startswith(volume.GetName()):
+                    chart = profiles
+                    break
+        if chart is None:
+            chart = self.spectrumChart(volume)
+        plotWidget.mrmlPlotViewNode().SetPlotChartNodeID(chart.GetID())
+        return chart
+
+    def spectrumChart(self, volume):
+        import numpy as np
+        scene = slicer.mrmlScene
+        chart = None
+        for node in slicer.util.getNodesByClass("vtkMRMLPlotChartNode"):
+            if node.GetAttribute(self.WORKBENCH_SPECTRUM) == "chart":
+                chart = node
+        if chart is None:
+            chart = scene.AddNewNodeByClass("vtkMRMLPlotChartNode", "Spectrum")
+            chart.SetAttribute(self.WORKBENCH_SPECTRUM, "chart")
+            chart.SetHideFromEditors(True)
+            table = scene.AddNewNodeByClass("vtkMRMLTableNode", "SpectrumTable")
+            table.SetAttribute(self.WORKBENCH_SPECTRUM, "table")
+            table.SetHideFromEditors(True)
+            series = scene.AddNewNodeByClass("vtkMRMLPlotSeriesNode", "Spectrum")
+            series.SetAttribute(self.WORKBENCH_SPECTRUM, "series")
+            series.SetHideFromEditors(True)
+            series.SetPlotType(slicer.vtkMRMLPlotSeriesNode.PlotTypeScatter)
+            series.SetMarkerStyle(slicer.vtkMRMLPlotSeriesNode.MarkerStyleNone)
+            series.SetLineWidth(2)
+            series.SetColor(242 / 255.0, 178 / 255.0, 76 / 255.0)
+            series.SetAndObserveTableNodeID(table.GetID())
+            chart.AddAndObservePlotSeriesNodeID(series.GetID())
+            chart.SetLegendVisibility(False)
+        series = chart.GetNthPlotSeriesNode(0)
+        table = series.GetTableNode()
+        if chart.GetAttribute("SlicerAstro.SpectrumOf") == volume.GetID() and \
+                chart.GetAttribute("SlicerAstro.SpectrumMTime") == str(volume.GetImageData().GetMTime()):
+            return chart
+        from vtk.util.numpy_support import vtk_to_numpy
+        dims = volume.GetImageData().GetDimensions()
+        values = vtk_to_numpy(volume.GetImageData().GetPointData().GetScalars()).reshape(dims[2], -1)
+        sums = np.nansum(values.astype(np.float64), axis=1)
+        unit = Astro.displayUnit(Astro.attribute(volume, "BUNIT", ""))
+        yTitle = f"Sum per channel ({unit})" if unit else "Sum per channel"
+        if Astro.hasBeam(volume) and Astro.attribute(volume, "BUNIT", "").strip().upper() in ("JY/BEAM", "JY/B"):
+            cdelt1 = abs(Astro.floatAttribute(volume, "CDELT1"))
+            cdelt2 = abs(Astro.floatAttribute(volume, "CDELT2"))
+            bmaj = Astro.floatAttribute(volume, "BMAJ")
+            bmin = Astro.floatAttribute(volume, "BMIN")
+            if cdelt1 > 0 and cdelt2 > 0 and bmin > 0:
+                beamPixels = np.pi / (4 * np.log(2)) * bmaj * bmin / (cdelt1 * cdelt2)
+                sums = sums / beamPixels
+                yTitle = "Flux per channel (Jy)"
+        velocities = Astro.channelVelocities(volume)
+        xTitle = f"Velocity ({Astro.spectralUnit(volume)})"
+        vtkTable = table.GetTable()
+        vtkTable.Initialize()
+        x = vtk.vtkDoubleArray()
+        x.SetName("velocity")
+        y = vtk.vtkDoubleArray()
+        y.SetName("flux")
+        for velocity, value in zip(velocities, sums):
+            x.InsertNextValue(velocity)
+            y.InsertNextValue(float(value))
+        vtkTable.AddColumn(x)
+        vtkTable.AddColumn(y)
+        table.Modified()
+        series.SetXColumnName("velocity")
+        series.SetYColumnName("flux")
+        series.SetName(volume.GetName())
+        chart.SetTitle(f"{volume.GetName()} · spectrum of the cube")
+        chart.SetXAxisTitle(xTitle)
+        chart.SetYAxisTitle(yTitle)
+        chart.SetAttribute("SlicerAstro.SpectrumOf", volume.GetID())
+        chart.SetAttribute("SlicerAstro.SpectrumMTime", str(volume.GetImageData().GetMTime()))
+        return chart
 
     def arrangeViews(self):
         """Red: channel map (XY) of the active cube; yellow: its moment-0
@@ -940,6 +1167,8 @@ class Workbench:
             if threeD is not None:
                 self.visibility.renderInView(volume, threeD)
         self.visibility.update()
+        if cube:
+            self.showSpectrumPlot(volume)
         if cube and self.scrubberBar is not None:
             self.setActiveView("Red")
             self.scrubberBar.onIndexChanged(self.scrubberBar.scrubber.currentIndex)
@@ -1108,6 +1337,7 @@ class Workbench:
         interaction = slicer.app.applicationLogic().GetInteractionNode()
         self.interactionObserver = interaction.AddObserver(interaction.InteractionModeChangedEvent,
                                                            self.onInteractionModeChanged)
+        slicer.app.layoutManager().connect("layoutChanged(int)", self.onLayoutChanged)
         console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
         if console is not None:
             console.connect("visibilityChanged(bool)", self.onConsoleVisibilityChanged)
@@ -1173,6 +1403,11 @@ class Workbench:
         only)."""
         if not self.active or not self.automaticContours.candidates():
             return
+        if slicer.modules.astrovolume.logic().IsRunningInBackground():
+            # another computation is running (its event loop runs this
+            # timer): later
+            self.automaticContoursTimer.start()
+            return
         updated = self.automaticContours.run()
         if updated:
             self.statusBar.showMessage(f"HI contours drawn on {', '.join(updated)}")
@@ -1210,6 +1445,7 @@ class Workbench:
         slicer.app.applicationLogic().GetSelectionNode().RemoveObserver(self.selectionObserver)
         slicer.app.applicationLogic().GetInteractionNode().RemoveObserver(self.interactionObserver)
         mainWindow = slicer.util.mainWindow()
+        slicer.app.layoutManager().disconnect("layoutChanged(int)", self.onLayoutChanged)
         console = mainWindow.findChild("QDockWidget", "PythonConsoleDockWidget")
         if console is not None:
             console.disconnect("visibilityChanged(bool)", self.onConsoleVisibilityChanged)

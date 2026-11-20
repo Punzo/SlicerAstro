@@ -165,7 +165,7 @@ class Inspector(qt.QFrame):
         self.setProperty("astroRole", "inspector")
         self.setObjectName("WorkbenchInspector")
         self.setMinimumWidth(340)
-        self.setMaximumWidth(420)
+        self.setMaximumWidth(640)
         layout = qt.QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
@@ -331,18 +331,26 @@ class Inspector(qt.QFrame):
         self.enterPanel(panel)
 
     def enterPanel(self, panel):
+        """The module panel shown in the inspector is entered (as the module
+        panel of Slicer does); the previous one is exited. A panel already
+        entered by Slicer (its module selected in Slicer) is neither entered
+        again nor exited here: Slicer keeps it."""
         if panel is self.shownPanel:
             return
-        for current in (self.shownPanel,):
-            if current is not None:
-                try:
+        current = self.shownPanel
+        if current is not None and getattr(self, "enteredPanel", None) is current:
+            try:
+                if current.isEntered:
                     current.exit()
-                except (AttributeError, ValueError):
-                    pass
+            except (AttributeError, ValueError):
+                pass
+        self.enteredPanel = None
         self.shownPanel = panel
         if panel is not None:
             try:
-                panel.enter()
+                if not panel.isEntered:
+                    panel.enter()
+                    self.enteredPanel = panel
             except (AttributeError, ValueError):
                 pass
 

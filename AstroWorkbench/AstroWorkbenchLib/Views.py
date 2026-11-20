@@ -12,6 +12,7 @@ import ctk
 import qt
 
 import slicer
+import vtk
 
 from . import Astro
 
@@ -342,6 +343,123 @@ class ThreeDViewBar(ViewBar):
         self.workbench.styleViews()
 
 
+
+def _rgb(hexColor):
+    color = qt.QColor(hexColor)
+    return color.red(), color.green(), color.blue()
+
+
+class PlotViewBar(ViewBar):
+    """Plot view: the chart shown (spectrum of the cube or profiles), fit
+    and maximize. The chart is drawn on the dark view background with the
+    text and lines of the view bars."""
+
+    def __init__(self, workbench, plotWidget, parent=None):
+        ViewBar.__init__(self, workbench, parent)
+        self.plotWidget = plotWidget
+        self.viewNode = plotWidget.mrmlPlotViewNode()
+        self.tag.text = "PLOT"
+        self.fitButton = self.button("expand", "Fit the plot to its data", objectName="ViewPlotFit")
+        self.fitButton.connect("clicked()", lambda: self.plotWidget.plotView().fitToContent())
+        self.maximizeButton = self.button("layout1", "Maximize this view / back to the views with a plot",
+                                          objectName="ViewPlotMaximize")
+        self.maximizeButton.connect("clicked()", self.toggleMaximized)
+        self.observe(self.viewNode, vtk.vtkCommand.ModifiedEvent, self.refresh)
+        self.saved = None
+        self.applyChartStyle()
+        self.refresh()
+
+    def chart(self):
+        view = self.plotWidget.plotView()
+        return view.chart() if view is not None else None
+
+    def chartParts(self, chart):
+        axes = [chart.GetAxis(index) for index in range(4)]
+        return [axis for axis in axes if axis is not None]
+
+    def applyChartStyle(self):
+        """Dark background, light text, dim grid (Slicer's values kept to be
+        restored when leaving the Workbench)."""
+        chart = self.chart()
+        if chart is None:
+            return
+        text = [value / 255.0 for value in _rgb(VIEW_TEXT)]
+        subtle = [value / 255.0 for value in _rgb(VIEW_SUBTLE)]
+        line = _rgb(VIEW_LINE)
+        grid = _rgb("#1A2236")
+        if self.saved is None:
+            background = chart.GetBackgroundBrush().GetColorObject()
+            self.saved = {
+                "background": (background.GetRed(), background.GetGreen(), background.GetBlue(),
+                               background.GetAlpha()),
+                "title": chart.GetTitleProperties().GetColor(),
+                "legend": chart.GetLegend().GetLabelProperties().GetColor(),
+                "axes": [],
+            }
+            for axis in self.chartParts(chart):
+                pen = axis.GetPen().GetColorObject()
+                gridPen = axis.GetGridPen().GetColorObject()
+                self.saved["axes"].append({
+                    "title": axis.GetTitleProperties().GetColor(),
+                    "label": axis.GetLabelProperties().GetColor(),
+                    "pen": (pen.GetRed(), pen.GetGreen(), pen.GetBlue(), pen.GetAlpha()),
+                    "grid": (gridPen.GetRed(), gridPen.GetGreen(), gridPen.GetBlue(), gridPen.GetAlpha()),
+                })
+        chart.GetBackgroundBrush().SetColor(*_rgb(VIEW), 255)
+        chart.GetTitleProperties().SetColor(*text)
+        chart.GetLegend().GetLabelProperties().SetColor(*text)
+        chart.GetLegend().GetBrush().SetColor(*_rgb(VIEW), 220)
+        chart.GetLegend().GetPen().SetColor(*line, 255)
+        for axis in self.chartParts(chart):
+            axis.GetTitleProperties().SetColor(*subtle)
+            axis.GetLabelProperties().SetColor(*subtle)
+            axis.GetPen().SetColor(*line, 255)
+            axis.GetGridPen().SetColor(*grid, 255)
+        self.renderPlot(chart)
+
+    def restoreChartStyle(self):
+        chart = self.chart()
+        if chart is None or self.saved is None:
+            return
+        chart.GetBackgroundBrush().SetColor(*self.saved["background"])
+        chart.GetTitleProperties().SetColor(*self.saved["title"])
+        chart.GetLegend().GetLabelProperties().SetColor(*self.saved["legend"])
+        chart.GetLegend().GetBrush().SetColor(255, 255, 255, 255)
+        chart.GetLegend().GetPen().SetColor(0, 0, 0, 255)
+        for axis, saved in zip(self.chartParts(chart), self.saved["axes"]):
+            axis.GetTitleProperties().SetColor(*saved["title"])
+            axis.GetLabelProperties().SetColor(*saved["label"])
+            axis.GetPen().SetColor(*saved["pen"])
+            axis.GetGridPen().SetColor(*saved["grid"])
+        self.saved = None
+        self.renderPlot(chart)
+
+    def renderPlot(self, chart):
+        if chart.GetScene() is not None:
+            chart.GetScene().SetDirty(True)
+        self.plotWidget.plotView().update()
+
+    def refresh(self, caller=None, event=None):
+        chartID = self.viewNode.GetPlotChartNodeID() if self.viewNode is not None else None
+        chart = slicer.mrmlScene.GetNodeByID(chartID) if chartID else None
+        title = chart.GetTitle() if chart is not None else ""
+        self.detail.text = title or (chart.GetName() if chart is not None else "no plot")
+        layoutNode = slicer.app.layoutManager().layoutLogic().GetLayoutNode()
+        maximized = layoutNode.GetViewArrangement() == slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView
+        self.maximizeButton.setIcon(viewIcon("layoutPlot" if maximized else "layout1"))
+
+    def toggleMaximized(self):
+        layoutManager = slicer.app.layoutManager()
+        arrangement = layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement()
+        oneUp = slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView
+        layoutManager.setLayout(self.workbench.PLOT_VIEWS if arrangement == oneUp else oneUp)
+        self.workbench.styleViews()
+
+    def cleanup(self):
+        self.restoreChartStyle()
+        ViewBar.cleanup(self)
+
+
 class ViewDecorator:
     """Installs the view bars and the vertical slice sliders on the views
     (also on views created later by a change of layout) and removes them."""
@@ -387,6 +505,16 @@ class ViewDecorator:
             widget.layout().insertWidget(0, bar)
             self.bars[key] = bar
             self.addFrame(key, widget, widget.threeDView())
+        for index in range(layoutManager.plotViewCount):
+            widget = layoutManager.plotWidget(index)
+            key = f"Plot{index}"
+            if widget is None or key in self.bars:
+                continue
+            widget.plotController().visible = False
+            bar = PlotViewBar(self.workbench, widget)
+            widget.layout().insertWidget(0, bar)
+            self.bars[key] = bar
+            self.addFrame(key, widget, widget.plotView())
         for bar in self.bars.values():
             bar.refresh()
         self.styleViewport()
@@ -438,6 +566,10 @@ class ViewDecorator:
                 if widget is not None:
                     widget.threeDController().visible = True
                     widget.mrmlViewNode().SetBoxVisible(self.saved.get(key, True))
+            elif key.startswith("Plot"):
+                widget = layoutManager.plotWidget(int(key[4:]))
+                if widget is not None:
+                    widget.plotController().visible = True
             else:
                 widget = layoutManager.sliceWidget(key)
                 if widget is not None:

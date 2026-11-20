@@ -70,6 +70,11 @@ def installShortcut():
     shortcut.setObjectName("AstroWorkbenchShortcut")
     shortcut.setContext(qt.Qt.ApplicationShortcut)
     shortcut.connect("activated()", lambda: workbench().toggle())
+    # the application quits with the Workbench open: it is left before the
+    # modules are unloaded (the module panels it entered are exited and its
+    # widgets removed while the modules still exist)
+    factoryManager = slicer.app.moduleManager().factoryManager()
+    factoryManager.connect("modulesAboutToBeUnloaded(QStringList)", lambda names: workbench().exit())
 
 
 #
@@ -148,6 +153,10 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
         self.test_ScrollAreasFit()
         self.setUp()
         self.test_HeaderTools()
+        self.setUp()
+        self.test_LayoutsAndPlot()
+        self.setUp()
+        self.test_InspectorWidth()
         self.setUp()
         self.test_DeleteDatasetWithEverything()
         self.setUp()
@@ -442,6 +451,80 @@ class AstroWorkbenchTest(ScriptedLoadableModuleTest):
                 self.assertScrollAreasFit(inspector, f"process step {index}")
         finally:
             mainWindow.resize(size)
+
+    def test_LayoutsAndPlot(self):
+        """The layout buttons of the header (one checked, following the
+        layout); the layout with a plot shows the spectrum of the cube in a
+        plot view with a view bar and the dark view colours, restored when
+        leaving the Workbench."""
+        import numpy as np
+        volume = self.cube()
+        slicer.app.applicationLogic().GetSelectionNode().SetActiveVolumeID(volume.GetID())
+        workbench().enter()
+        self.process(30)
+        switch = workbench().header.layoutButton
+        layoutManager = slicer.app.layoutManager()
+        layouts = workbench().layouts()
+        self.assertEqual(switch.count(), 4)
+        for index in range(switch.count()):
+            switch.button(index).click()
+            self.process(20)
+            self.assertEqual(layoutManager.layoutLogic().GetLayoutNode().GetViewArrangement(), layouts[index])
+            self.assertEqual(switch.currentIndex, index)
+            self.assertEqual([button.checked for button in switch.buttons],
+                             [i == index for i in range(switch.count())])
+        # the plot: spectrum of the cube (sum per channel; WEIN069 has no beam)
+        plotWidget = layoutManager.plotWidget(0)
+        self.assertIsNotNone(plotWidget)
+        self.assertFalse(plotWidget.plotController().visible)
+        self.assertIn("Plot0", workbench().views.bars)
+        chart = slicer.mrmlScene.GetNodeByID(plotWidget.mrmlPlotViewNode().GetPlotChartNodeID())
+        self.assertIsNotNone(chart)
+        self.assertEqual(chart.GetAttribute("SlicerAstro.SpectrumOf"), volume.GetID())
+        table = chart.GetNthPlotSeriesNode(0).GetTableNode().GetTable()
+        from vtk.util.numpy_support import vtk_to_numpy
+        dims = volume.GetImageData().GetDimensions()
+        values = vtk_to_numpy(volume.GetImageData().GetPointData().GetScalars()).reshape(dims[2], -1)
+        expected = np.nansum(values.astype(np.float64), axis=1)
+        self.assertEqual(table.GetNumberOfRows(), values.shape[0])
+        for channel in (0, values.shape[0] // 2, values.shape[0] - 1):
+            self.assertAlmostEqual(table.GetValue(channel, 1).ToDouble(), expected[channel],
+                                   delta=1e-6 * max(1.0, abs(expected[channel])))
+        background = plotWidget.plotView().chart().GetBackgroundBrush().GetColorObject()
+        self.assertEqual((background.GetRed(), background.GetGreen(), background.GetBlue()), (7, 10, 18))
+        # a layout set elsewhere (maximized plot): no button checked; back
+        layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUpPlotView)
+        self.process(20)
+        self.assertEqual(switch.currentIndex, -1)
+        self.assertFalse(any(button.checked for button in switch.buttons))
+        layoutManager.setLayout(workbench().PLOT_VIEWS)
+        self.process(20)
+        self.assertEqual(switch.currentIndex, 3)
+        # leaving the Workbench: Slicer's plot colours and controller
+        workbench().exit()
+        self.process(20)
+        background = plotWidget.plotView().chart().GetBackgroundBrush().GetColorObject()
+        self.assertNotEqual((background.GetRed(), background.GetGreen(), background.GetBlue()), (7, 10, 18))
+        self.assertTrue(plotWidget.plotController().visible)
+
+    def test_InspectorWidth(self):
+        """Every tab of the inspector fits its minimum width (nothing clipped
+        on the right) and the dataset card fits the drawer."""
+        self.cube()
+        workbench().enter()
+        self.process(30)
+        mainWindow = slicer.util.mainWindow()
+        inspector = workbench().inspector
+        right = mainWindow.findChild("QDockWidget", "WorkbenchInspector")
+        mainWindow.resizeDocks([right], [inspector.minimumWidth], qt.Qt.Horizontal)
+        self.process(20)
+        for name in ("Inspect", "Process", "Model"):
+            inspector.tabs[name].click()
+            self.process(30)
+            self.assertLessEqual(inspector.minimumSizeHint.width(), inspector.minimumWidth + 1, name)
+            for scroll in inspector.findChildren("QScrollArea"):
+                if scroll.isVisibleTo(inspector) and scroll.widget() is not None:
+                    self.assertLessEqual(scroll.widget().width, scroll.viewport().width + 1, name)
 
     def test_HeaderTools(self):
         """Placement tools: clicked again, placement ends; placement ended in

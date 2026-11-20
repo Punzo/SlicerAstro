@@ -243,7 +243,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             if not aperture:
                 self.assertGreater(np.count_nonzero(computed == 0.), 0)
             # WEIN069 has no beam: the sum of the intensities
-            chart = slicer.mrmlScene.GetFirstNodeByName("ProfileChart")
+            chart = slicer.util.getFirstNodeByName("ProfileChart")
             self.assertEqual(chart.GetYAxisTitle(), "Sum of the intensities per channel (JY/BEAM)")
             slicer.util.findChild(widget, "RegionButton").setCurrentIndex(0)
         self.delayDisplay("Test passed")
@@ -290,7 +290,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             self.assertTrue(np.array_equal(np.isnan(computed), np.isnan(expected)), name)
             valid = ~np.isnan(expected)
             np.testing.assert_allclose(computed[valid], expected[valid], rtol=1e-5, atol=1e-7, err_msg=name)
-            title = slicer.mrmlScene.GetFirstNodeByName("ProfileChart").GetYAxisTitle()
+            title = slicer.util.getFirstNodeByName("ProfileChart").GetYAxisTitle()
             if name == "beam":
                 self.assertEqual(title, "Total flux per channel (Jy)")
                 # Jy: the sum of the intensities times pixel area / beam area

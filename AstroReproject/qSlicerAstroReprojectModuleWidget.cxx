@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QPointer>
 #include <QApplication>
 #include <QCheckBox>
 #include <QComboBox>
@@ -106,7 +107,8 @@ public:
   void updateInputsTable();
   void updateSummary();
 
-  qSlicerAstroVolumeModuleWidget* astroVolumeWidget = nullptr;
+  /// Panel of the AstroVolume module (owned by that module)
+  QPointer<qSlicerAstroVolumeModuleWidget> astroVolumeWidget;
   vtkSmartPointer<vtkMRMLAstroReprojectParametersNode> parametersNode;
   vtkSmartPointer<vtkMRMLSelectionNode> selectionNode;
   bool updatingWidgets = false;

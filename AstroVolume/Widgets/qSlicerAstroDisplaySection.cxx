@@ -272,6 +272,7 @@ qSlicerAstroDisplaySection::qSlicerAstroDisplaySection(QWidget* parent)
 
   d->PercentageButton = new qSlicerAstroSegmentedButton(this);
   d->PercentageButton->setObjectName("DisplayPercentages");
+  d->PercentageButton->setProperty("compact", true);
   d->PercentageButton->setToolTip(tr("Window of the 2D colours with a percentage of the data."));
   for (double percentage : Percentages)
     {

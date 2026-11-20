@@ -96,6 +96,8 @@ QFrame[astroRole="segmented"] QToolButton {
   padding: 0px 8px;
   font-size: 12px;
 }
+/* many short choices (e.g. percentages): less padding, the row fits narrow panels */
+QFrame[astroRole="segmented"][compact="true"] QToolButton { padding: 0px 2px; }
 QFrame[astroRole="segmented"] QToolButton:hover { color: @text@; }
 QFrame[astroRole="segmented"] QToolButton:checked {
   background: @raised@;
@@ -289,6 +291,10 @@ QToolButton[astroRole="rail"]:hover { background: @hover@; color: @text@; }
 QToolButton[astroRole="rail"]:checked { background: @raised@; color: @text@; border-left: 3px solid @accent@; }
 QToolButton[astroRole="rail"]:disabled { color: @line-strong@; }
 
+/* icon + text labels of setting rows (Info conventions): not clickable */
+QToolButton[astroRole="conventionLabel"], QToolButton[astroRole="conventionLabel"]:hover {
+  background: transparent; border: none; padding: 0px 2px 0px 0px; color: @muted@; font-size: 12px;
+}
 QToolButton[astroRole="toolbar"] { border: none; border-radius: 8px; min-width: 30px; min-height: 30px; color: @muted@; }
 QToolButton[astroRole="toolbar"]:hover { background: @hover@; color: @text@; }
 QToolButton[astroRole="toolbar"]:checked { background: @accent-soft@; color: @accent-ink@; }

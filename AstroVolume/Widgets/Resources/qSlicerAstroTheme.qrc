@@ -37,6 +37,7 @@
         <file alias="Icons/layout1.svg">Icons/Astro/layout1.svg</file>
         <file alias="Icons/layout3.svg">Icons/Astro/layout3.svg</file>
         <file alias="Icons/layout4.svg">Icons/Astro/layout4.svg</file>
+        <file alias="Icons/layoutPlot.svg">Icons/Astro/layoutPlot.svg</file>
         <file alias="Icons/link.svg">Icons/Astro/link.svg</file>
         <file alias="Icons/lock.svg">Icons/Astro/lock.svg</file>
         <file alias="Icons/module-masking.svg">Icons/Astro/module-masking.svg</file>
