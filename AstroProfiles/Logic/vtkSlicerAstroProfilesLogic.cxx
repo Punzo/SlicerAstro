@@ -38,6 +38,7 @@
 #include <vtkDoubleArray.h>
 #include <vtkImageData.h>
 #include <algorithm>
+#include <memory>
 #include <cmath>
 #include <vector>
 #include <limits>
@@ -209,6 +210,15 @@ void vtkSlicerAstroProfilesLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode)
 {
+  bool result = false;
+  const bool started = this->StartCalculateProfile(pnode, [&result](bool success) { result = success; }, true);
+  return started && result;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroProfilesLogic::StartCalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode,
+                                                        const std::function<void(bool)>& done, bool synchronous)
+{
 
   if (!pnode)
     {
@@ -247,7 +257,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   bool maskActive = pnode->GetMaskActive();
 
   // input mask: a segment, on the voxel grid of the data (1 inside)
-  vtkNew<vtkImageData> maskImage;
+  vtkSmartPointer<vtkImageData> maskImage = vtkSmartPointer<vtkImageData>::New();
   unsigned char* maskVoxels = nullptr;
   if (maskActive)
     {
@@ -300,7 +310,8 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       return 0;
     }
 
-  bool cancel = false;
+  // written by the worker, read afterwards
+  std::shared_ptr<bool> cancel = std::make_shared<bool>(false);
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -312,8 +323,9 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
   // worker thread, the GUI responsive with a progress dialog): the progress
   // and the cancel request go to a node without observers (no MRML events
   // from a worker thread); the scene is modified before and after them only.
-  vtkNew<vtkMRMLAstroProfilesParametersNode> progressNode;
-  bool computeResult = true;
+  vtkSmartPointer<vtkMRMLAstroProfilesParametersNode> progressNode =
+    vtkSmartPointer<vtkMRMLAstroProfilesParametersNode>::New();
+  std::shared_ptr<bool> computeResult = std::make_shared<bool>(true);
   // what the computation uses in the worker thread, prepared here in the
   // GUI thread (vtkSlicerAstroVolumeLogic::RunInBackground): the voxel
   // buffers held (shared, not copied), a copy of the WCS, the attributes and
@@ -324,9 +336,13 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     vtkSlicerAstroVolumeLogic::CopyDisplayNodeForWorker(inputVolume);
   const double inputNAXIS1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
   const double inputNAXIS2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-  vtkNew<vtkMRMLAstroProfilesParametersNode> workerParameters;
+  vtkSmartPointer<vtkMRMLAstroProfilesParametersNode> workerParameters =
+    vtkSmartPointer<vtkMRMLAstroProfilesParametersNode>::New();
   workerParameters->Copy(pnode);
-  std::function<void()> compute = [&, pnode = workerParameters.GetPointer()]()
+  // everything captured by value: the job outlives this function; the
+  // buffers used through raw pointers are held explicitly
+  std::vector<vtkSmartPointer<vtkObject> > held = {maskImage, heldInput, heldProfile};
+  std::function<void()> compute = [=, pnode = workerParameters, held = held]() mutable
   {
   progressNode->SetStatus(1);
 
@@ -337,7 +353,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " astroDisplay not found!");
-    computeResult = false;
+    *computeResult = false;
     return;
     }
   double ijk[3], world[3];
@@ -350,7 +366,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
     {
     vtkErrorMacro("vtkSlicerAstroProfilesLogic::CalculateProfile :"
                   " WCS not found!");
-    computeResult = false;
+    *computeResult = false;
     return;
     }
   if (!strcmp(WCS->cunit[2], "m/s"))
@@ -413,7 +429,7 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
       ComputeProfile(inDPixel, outProfileDPixel, numSlice, dims[2], selection, progress);
       break;
     }
-  cancel = progress.IsCancelled();
+  *cancel = progress.IsCancelled();
   }
   (void)NaN;
 
@@ -425,57 +441,81 @@ bool vtkSlicerAstroProfilesLogic::CalculateProfile(vtkMRMLAstroProfilesParameter
 
 
   };
+  // the results go to the scene after the work, in the GUI thread (the
+  // nodes are held: they may be removed meanwhile)
+  vtkSmartPointer<vtkMRMLAstroProfilesParametersNode> parameters = pnode;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> profileHold = ProfileVolume;
+  std::function<void()> finish = [this, parameters, profileHold, progressNode, computeResult, cancel, done]()
+    {
+    vtkMRMLAstroProfilesParametersNode* pnode = parameters;
+    vtkMRMLAstroVolumeNode* ProfileVolume = profileHold;
+      if (!*computeResult)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+      if (progressNode->GetStatus() == -1)
+        {
+        pnode->SetStatus(-1);
+        }
+      *cancel = *cancel || progressNode->GetStatus() == -1;
+
+      if (*cancel)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+      int wasModifying = ProfileVolume->StartModify();
+      ProfileVolume->UpdateRangeAttributes();
+      ProfileVolume->UpdateDisplayThresholdAttributes();
+      int disabledModify = ProfileVolume->GetAstroVolumeDisplayNode()->StartModify();
+      ProfileVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
+      ProfileVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
+      double min = StringToDouble(ProfileVolume->GetAttribute("SlicerAstro.DATAMIN"));
+      double max = StringToDouble(ProfileVolume->GetAttribute("SlicerAstro.DATAMAX"));
+      double window = max-min;
+      double level = 0.5*(max+min);
+      ProfileVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
+      ProfileVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
+      ProfileVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+      ProfileVolume->EndModify(wasModifying);
+
+      pnode->SetStatus(100);
+
+      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        const long mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Update Time : "<<mtime<<" ms.");
+
+    if (done)
+      {
+      done(true);
+      }
+    };
   progressNode->SetStatus(1);
   if (this->Internal->AstroVolumeLogic)
     {
-    this->Internal->AstroVolumeLogic->RunInBackground("Calculating the profile...", compute, progressNode.GetPointer());
+    this->Internal->AstroVolumeLogic->StartInBackground("Calculating the profile...", compute,
+      [progressNode]() { return progressNode->GetStatus(); },
+      [progressNode]() { progressNode->SetStatus(-1); }, finish, synchronous);
     }
   else
     {
     compute();
+    finish();
     }
-  if (!computeResult)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-  if (progressNode->GetStatus() == -1)
-    {
-    pnode->SetStatus(-1);
-    }
-  cancel = cancel || progressNode->GetStatus() == -1;
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = ProfileVolume->StartModify();
-  ProfileVolume->UpdateRangeAttributes();
-  ProfileVolume->UpdateDisplayThresholdAttributes();
-  int disabledModify = ProfileVolume->GetAstroVolumeDisplayNode()->StartModify();
-  ProfileVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
-  ProfileVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
-  double min = StringToDouble(ProfileVolume->GetAttribute("SlicerAstro.DATAMIN"));
-  double max = StringToDouble(ProfileVolume->GetAttribute("SlicerAstro.DATAMAX"));
-  double window = max-min;
-  double level = 0.5*(max+min);
-  ProfileVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-  ProfileVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
-  ProfileVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
-  ProfileVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
   return true;
 }
 

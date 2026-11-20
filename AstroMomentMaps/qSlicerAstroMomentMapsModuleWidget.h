@@ -54,6 +54,10 @@ public slots:
   /// Slots to generate the moment maps.
   /// It creates the output volumes and calls the logic
   void onCalculate();
+  /// End of a computation started by onCalculate (GUI thread): the maps in
+  /// the views, or the message of the failure
+  void finishCalculation(bool success, const QString& zeroID, const QString& firstID, const QString& secondID,
+                         bool generateZero, bool generateFirst, bool generateSecond);
 
 protected:
   QScopedPointer<qSlicerAstroMomentMapsModuleWidgetPrivate> d_ptr;

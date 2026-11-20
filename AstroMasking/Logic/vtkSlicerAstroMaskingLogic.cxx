@@ -57,6 +57,8 @@
 #include <cassert>
 #include <cmath>
 #include <cstring>
+#include <vector>
+#include <memory>
 #include <iomanip>
 #include <limits>
 #include <iostream>
@@ -178,6 +180,15 @@ void vtkSlicerAstroMaskingLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *pnode)
 {
+  bool result = false;
+  const bool started = this->StartApplyBlank(pnode, [&result](bool success) { result = success; }, true);
+  return started && result;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroMaskingLogic::StartApplyBlank(vtkMRMLAstroMaskingParametersNode *pnode,
+                                          const std::function<void(bool)>& done, bool synchronous)
+{
   if (!pnode)
     {
     vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyBlank : "
@@ -219,7 +230,7 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     }
 
   // input mask: a segment, on the voxel grid of the data (1 inside)
-  vtkNew<vtkImageData> maskImage;
+  vtkSmartPointer<vtkImageData> maskImage = vtkSmartPointer<vtkImageData>::New();
   unsigned char* maskVoxels = nullptr;
   if (segmentationActive)
     {
@@ -281,7 +292,8 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
       return 0;
     }
 
-  bool cancel = false;
+  // written by the worker, read afterwards
+  std::shared_ptr<bool> cancelFlag = std::make_shared<bool>(false);
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -327,11 +339,16 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
   // (shared, not copied; vtkSlicerAstroVolumeLogic::RunInBackground)
   vtkSmartPointer<vtkImageData> heldInput = inputVolume->GetImageData();
   vtkSmartPointer<vtkImageData> heldOutput = outputVolume->GetImageData();
-  vtkNew<vtkMRMLAstroMaskingParametersNode> progressNode;
+  vtkSmartPointer<vtkMRMLAstroMaskingParametersNode> progressNode =
+    vtkSmartPointer<vtkMRMLAstroMaskingParametersNode>::New();
   progressNode->SetStatus(1);
   pnode->SetStatus(1);
-  std::function<void()> compute = [&]()
+  // everything captured by value: the job outlives this function; the
+  // buffers used through raw pointers are held explicitly
+  std::vector<vtkSmartPointer<vtkObject> > held = {maskImage, heldInput, heldOutput};
+  std::function<void()> compute = [=, held = held]() mutable
   {
+  bool& cancel = *cancelFlag;
   vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMaskingParametersNode> progress(
     progressNode.GetPointer(), numElements, 1, 99);
   vtkSMPTools::For(0, numElements, [&](vtkIdType firstIndex, vtkIdType lastIndex)
@@ -370,46 +387,75 @@ bool vtkSlicerAstroMaskingLogic::ApplyBlank(vtkMRMLAstroMaskingParametersNode *p
     });
   cancel = progress.IsCancelled();
   };
+  // the results go to the scene after the work, in the GUI thread (the
+  // nodes are held: they may be removed meanwhile)
+  std::function<void()> finish = [=, parameters = vtkSmartPointer<vtkMRMLAstroMaskingParametersNode>(pnode),
+                                  outputHold = vtkSmartPointer<vtkMRMLAstroVolumeNode>(outputVolume)]() mutable
+    {
+    bool& cancel = *cancelFlag;
+    vtkMRMLAstroMaskingParametersNode* pnode = parameters;
+    vtkMRMLAstroVolumeNode* outputVolume = outputHold;
+      cancel = cancel || progressNode->GetStatus() == -1;
+
+      end = std::chrono::steady_clock::now();
+
+        mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
+
+      if (cancel)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      start = std::chrono::steady_clock::now();
+
+      int wasModifying = outputVolume->StartModify();
+      outputVolume->UpdateRangeAttributes();
+      outputVolume->UpdateDisplayThresholdAttributes();
+      outputVolume->EndModify(wasModifying);
+
+      pnode->SetStatus(100);
+
+        mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Update Time : "<<mtime<<" ms.");
+
+    if (done)
+      {
+      done(true);
+      }
+    };
   if (this->GetAstroVolumeLogic())
     {
-    this->GetAstroVolumeLogic()->RunInBackground("Blanking the data...", compute, progressNode.GetPointer());
+    this->GetAstroVolumeLogic()->StartInBackground("Blanking the data...", compute,
+      [progressNode]() { return progressNode->GetStatus(); },
+      [progressNode]() { progressNode->SetStatus(-1); }, finish, synchronous);
     }
   else
     {
     compute();
+    finish();
     }
-  cancel = cancel || progressNode->GetStatus() == -1;
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
   return true;
 }
 
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode)
+{
+  bool result = false;
+  const bool started = this->StartApplyCrop(pnode, [&result](bool success) { result = success; }, true);
+  return started && result;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroMaskingLogic::StartApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode,
+                                          const std::function<void(bool)>& done, bool synchronous)
 {
   if (!pnode)
     {
@@ -524,12 +570,13 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   const int N2 = bounds[3] - bounds[2] + 1;
   const int N3 = bounds[5] - bounds[4] + 1;
 
-  vtkNew<vtkImageData> imageDataTemp;
+  vtkSmartPointer<vtkImageData> imageDataTemp = vtkSmartPointer<vtkImageData>::New();
   imageDataTemp->SetDimensions(N1, N2, N3);
   imageDataTemp->SetSpacing(1.,1.,1.);
   imageDataTemp->AllocateScalars(DataType, 1);
 
-  bool cancel = false;
+  // written by the worker, read afterwards
+  std::shared_ptr<bool> cancelFlag = std::make_shared<bool>(false);
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -548,10 +595,15 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
   // parallel over the channels (vtkSMPTools), in the background runner of
   // the AstroVolume logic (progress and cancel through a node without
   // observers); the output volume is set afterwards, in this thread
-  vtkNew<vtkMRMLAstroMaskingParametersNode> progressNode;
+  vtkSmartPointer<vtkMRMLAstroMaskingParametersNode> progressNode =
+    vtkSmartPointer<vtkMRMLAstroMaskingParametersNode>::New();
   progressNode->SetStatus(1);
-  std::function<void()> compute = [&]()
+  // everything captured by value: the job outlives this function; the
+  // buffers used through raw pointers are held explicitly
+  std::vector<vtkSmartPointer<vtkObject> > held = {sourceImageData, imageDataTemp};
+  std::function<void()> compute = [=, held = held]() mutable
   {
+  bool& cancel = *cancelFlag;
   vtkSlicerAstroSMPTools::ProgressReporter<vtkMRMLAstroMaskingParametersNode> progress(
     progressNode.GetPointer(), N3, 1, 99);
   vtkSMPTools::For(0, N3, [&](vtkIdType firstChannel, vtkIdType lastChannel)
@@ -575,97 +627,146 @@ bool vtkSlicerAstroMaskingLogic::ApplyCrop(vtkMRMLAstroMaskingParametersNode *pn
     });
   cancel = progress.IsCancelled();
   };
+  // the results go to the scene after the work, in the GUI thread (the
+  // nodes are held: they may be removed meanwhile)
+  std::function<void()> finish = [=, parameters = vtkSmartPointer<vtkMRMLAstroMaskingParametersNode>(pnode),
+                                  outputHold = vtkSmartPointer<vtkMRMLAstroVolumeNode>(outputVolume)]() mutable
+    {
+    bool& cancel = *cancelFlag;
+    vtkMRMLAstroMaskingParametersNode* pnode = parameters;
+    vtkMRMLAstroVolumeNode* outputVolume = outputHold;
+      cancel = cancel || progressNode->GetStatus() == -1;
+      sourceImageData = nullptr;
+
+      if (!cancel)
+        {
+        outputVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
+        outputVolume->SetAttribute("SlicerAstro.NAXIS1", IntToString(N1).c_str());
+        outputVolume->SetAttribute("SlicerAstro.NAXIS2", IntToString(N2).c_str());
+        outputVolume->SetAttribute("SlicerAstro.NAXIS3", IntToString(N3).c_str());
+        }
+      for (int axis = 0; axis < 6; axis++)
+        {
+        cropBounds[axis] = bounds[axis];
+        }
+
+      end = std::chrono::steady_clock::now();
+
+        mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
+
+      if (cancel)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      start = std::chrono::steady_clock::now();
+
+      outputVolume->UpdateRangeAttributes();
+      outputVolume->UpdateDisplayThresholdAttributes();
+
+      // center the volume
+      this->Internal->AstroVolumeLogic->CenterVolume(outputVolume);
+
+      // reference pixels with respect to the cutout cube (CRPIX can be fractional)
+      const double cPixXCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX1")) - cropBounds[0];
+      const double cPixYCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX2")) - cropBounds[2];
+      const double cPixZCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX3")) - cropBounds[4];
+
+      // update header keywords:
+      outputVolume->SetAttribute("SlicerAstro.CRPIX1", DoubleToString(cPixXCut).c_str());
+      outputVolume->SetAttribute("SlicerAstro.CRPIX2", DoubleToString(cPixYCut).c_str());
+      outputVolume->SetAttribute("SlicerAstro.CRPIX3", DoubleToString(cPixZCut).c_str());
+
+      vtkMRMLAstroVolumeDisplayNode* astroDisplay = outputVolume->GetAstroVolumeDisplayNode();
+      if (!astroDisplay)
+        {
+        vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
+                      " astroDisplay not found!");
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      wcsprm* wcs = astroDisplay->GetWCSStruct();
+      if (!wcs)
+        {
+        vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
+                      " wcs not found!");
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      wcs->crpix[0] = cPixXCut;
+      wcs->crpix[1] = cPixYCut;
+      wcs->crpix[2] = cPixZCut;
+
+      int wcsStatus;
+      if ((wcsStatus = wcsset(wcs)))
+        {
+        vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
+                      << vtkAstroWCSErrorMessage("wcsset", wcsStatus, wcs));
+        }
+
+      pnode->SetStatus(100);
+
+      end = std::chrono::steady_clock::now();
+
+        mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Update Time : "<<mtime<<" ms.");
+
+    if (done)
+      {
+      done(true);
+      }
+    };
   if (this->GetAstroVolumeLogic())
     {
-    this->GetAstroVolumeLogic()->RunInBackground("Cropping the data...", compute, progressNode.GetPointer());
+    this->GetAstroVolumeLogic()->StartInBackground("Cropping the data...", compute,
+      [progressNode]() { return progressNode->GetStatus(); },
+      [progressNode]() { progressNode->SetStatus(-1); }, finish, synchronous);
     }
   else
     {
     compute();
+    finish();
     }
-  cancel = cancel || progressNode->GetStatus() == -1;
-  sourceImageData = nullptr;
-
-  if (!cancel)
-    {
-    outputVolume->SetAndObserveImageData(imageDataTemp.GetPointer());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS1", IntToString(N1).c_str());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS2", IntToString(N2).c_str());
-    outputVolume->SetAttribute("SlicerAstro.NAXIS3", IntToString(N3).c_str());
-    }
-  for (int axis = 0; axis < 6; axis++)
-    {
-    cropBounds[axis] = bounds[axis];
-    }
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Masking Kernel Time : "<<mtime<<" ms.");
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-
-  // center the volume
-  this->Internal->AstroVolumeLogic->CenterVolume(outputVolume);
-
-  // reference pixels with respect to the cutout cube (CRPIX can be fractional)
-  const double cPixXCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX1")) - cropBounds[0];
-  const double cPixYCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX2")) - cropBounds[2];
-  const double cPixZCut = StringToDouble(outputVolume->GetAttribute("SlicerAstro.CRPIX3")) - cropBounds[4];
-
-  // update header keywords:
-  outputVolume->SetAttribute("SlicerAstro.CRPIX1", DoubleToString(cPixXCut).c_str());
-  outputVolume->SetAttribute("SlicerAstro.CRPIX2", DoubleToString(cPixYCut).c_str());
-  outputVolume->SetAttribute("SlicerAstro.CRPIX3", DoubleToString(cPixZCut).c_str());
-
-  vtkMRMLAstroVolumeDisplayNode* astroDisplay = outputVolume->GetAstroVolumeDisplayNode();
-  if (!astroDisplay)
-    {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
-                  " astroDisplay not found!");
-    pnode->SetStatus(100);
-    return false;
-    }
-
-  wcsprm* wcs = astroDisplay->GetWCSStruct();
-  if (!wcs)
-    {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
-                  " wcs not found!");
-    pnode->SetStatus(100);
-    return false;
-    }
-
-  wcs->crpix[0] = cPixXCut;
-  wcs->crpix[1] = cPixYCut;
-  wcs->crpix[2] = cPixZCut;
-
-  int wcsStatus;
-  if ((wcsStatus = wcsset(wcs)))
-    {
-    vtkErrorMacro("vtkSlicerAstroMaskingLogic::ApplyCrop :"
-                  << vtkAstroWCSErrorMessage("wcsset", wcsStatus, wcs));
-    }
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
   return true;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroMaskingLogic::StartApplyMask(vtkMRMLAstroMaskingParametersNode *pnode,
+                                                const std::function<void(bool)>& done, bool synchronous)
+{
+  if (!pnode || !pnode->GetOperation())
+    {
+    vtkErrorMacro("vtkSlicerAstroMaskingLogic::StartApplyMask : parameterNode or operation not found.");
+    return false;
+    }
+  if (!strcmp(pnode->GetOperation(), "Blank"))
+    {
+    return this->StartApplyBlank(pnode, done, synchronous);
+    }
+  if (!strcmp(pnode->GetOperation(), "Crop"))
+    {
+    return this->StartApplyCrop(pnode, done, synchronous);
+    }
+  vtkErrorMacro("vtkSlicerAstroMaskingLogic::StartApplyMask : Operation Type not found.");
+  return false;
 }
 
 //----------------------------------------------------------------------------

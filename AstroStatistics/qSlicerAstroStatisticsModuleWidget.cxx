@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QPointer>
 #include <QAbstractItemView>
 #include <QAction>
 #include <QFormLayout>
@@ -920,7 +921,31 @@ void qSlicerAstroStatisticsModuleWidget::onCalculate()
     }
   logic->EnsureStatisticsTable(d->parametersNode);
   d->parametersNode->SetStatus(1);
-  const bool computed = logic->CalculateStatistics(d->parametersNode);
+  // without blocking the user interface (progress in the run button); the
+  // results are shown when the computation is done
+  QPointer<qSlicerAstroStatisticsModuleWidget> self(this);
+  const bool started = logic->StartCalculateStatistics(d->parametersNode, [self](bool computed)
+    {
+    if (self)
+      {
+      self->finishCalculation(computed);
+      }
+    });
+  if (!started)
+    {
+    this->finishCalculation(false);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroStatisticsModuleWidget::finishCalculation(bool computed)
+{
+  Q_D(qSlicerAstroStatisticsModuleWidget);
+  vtkSlicerAstroStatisticsLogic* logic = d->logic();
+  if (!d->parametersNode || !logic)
+    {
+    return;
+    }
   d->parametersNode->SetStatus(0);
   const QString message = QString::fromStdString(logic->GetLastError());
   if (!computed)

@@ -26,6 +26,7 @@
 #include <vtkMRMLVolumeNode.h>
 #include <vtkPointData.h>
 #include <vtkDataArray.h>
+#include <vtkSlicerAstroVolumeLogic.h>
 
 #include <algorithm>
 #include <cmath>
@@ -37,45 +38,17 @@
 
 namespace
 {
-struct Stop
-{
-  double Position;
-  unsigned int Rgb;
-};
-
-// "Observatory" intensity and "Doppler" velocity colour maps of the design
-const Stop ObservatoryStops[] =
-{
-  {0., 0x070A12}, {0.17, 0x1B1F4A}, {0.33, 0x2B3F8C}, {0.50, 0x1F8FA6},
-  {0.67, 0x7FD3C4}, {0.83, 0xF2B24C}, {1., 0xFFF3D6}
-};
-const Stop DopplerStops[] =
-{
-  {0., 0x2F6BFF}, {0.25, 0x4FD1E0}, {0.5, 0xE8ECF4}, {0.75, 0xF2B24C}, {1., 0xE5672E}
-};
-
-//----------------------------------------------------------------------------
-template <size_t N>
-QColor Interpolate(const Stop (&stops)[N], double value)
+// Colour maps of SlicerAstro (vtkSlicerAstroVolumeLogic, the same tables are
+// used by the views)
+QColor MapColor(const char* name, double value)
 {
   if (!std::isfinite(value))
     {
     return QColor(0x070A12);
     }
-  value = std::max(0., std::min(1., value));
-  for (size_t i = 1; i < N; i++)
-    {
-    if (value <= stops[i].Position)
-      {
-      const double t = (value - stops[i - 1].Position) / (stops[i].Position - stops[i - 1].Position);
-      const QColor a(stops[i - 1].Rgb);
-      const QColor b(stops[i].Rgb);
-      return QColor::fromRgbF(a.redF() + t * (b.redF() - a.redF()),
-                              a.greenF() + t * (b.greenF() - a.greenF()),
-                              a.blueF() + t * (b.blueF() - a.blueF()));
-      }
-    }
-  return QColor(stops[N - 1].Rgb);
+  double rgb[3] = {0., 0., 0.};
+  vtkSlicerAstroVolumeLogic::GetColorMapColor(name, value, rgb);
+  return QColor::fromRgbF(rgb[0], rgb[1], rgb[2]);
 }
 
 //----------------------------------------------------------------------------
@@ -226,9 +199,12 @@ QImage ComputeImage(vtkMRMLVolumeNode* volume)
   // velocity fields: Doppler colour map, linear; other data: asinh stretch
   const char* datamodel = volume->GetAttribute("SlicerAstro.DATAMODEL");
   const char* bunit = volume->GetAttribute("SlicerAstro.BUNIT");
+  const bool dispersion = datamodel && std::string(datamodel) == "SECONDMOMENTMAP";
   const bool velocity = (datamodel && std::string(datamodel) == "FIRSTMOMENTMAP") ||
                         (dims[2] == 1 && bunit && (std::string(bunit) == "km/s" || std::string(bunit) == "m/s") &&
-                         !(datamodel && std::string(datamodel) == "SECONDMOMENTMAP"));
+                         !dispersion);
+  // maps of velocities (moment 1) and dispersions (moment 2): linear
+  const bool linear = velocity || dispersion;
   std::vector<double> sample;
   const size_t step = std::max<size_t>(1, map.size() / 200000);
   for (size_t p = 0; p < map.size(); p += step)
@@ -238,9 +214,9 @@ QImage ComputeImage(vtkMRMLVolumeNode* volume)
       sample.push_back(map[p]);
       }
     }
-  double low = Percentile(sample, velocity ? 0.02 : 0.005);
-  double high = Percentile(sample, velocity ? 0.98 : 0.998);
-  if (!velocity)
+  double low = Percentile(sample, linear ? 0.02 : 0.005);
+  double high = Percentile(sample, linear ? 0.98 : 0.998);
+  if (!linear)
     {
     // background at the median (the noise is dark)
     low = std::max(low, Percentile(sample, 0.5));
@@ -262,6 +238,10 @@ QImage ComputeImage(vtkMRMLVolumeNode* volume)
       if (velocity)
         {
         color = std::isfinite(value) ? qSlicerAstroThumbnails::dopplerColor(t) : QColor(0x070A12);
+        }
+      else if (dispersion)
+        {
+        color = std::isfinite(value) ? MapColor("Ember", t) : QColor(0x070A12);
         }
       else if (!std::isfinite(value))
         {
@@ -300,13 +280,13 @@ qSlicerAstroThumbnails* qSlicerAstroThumbnails::instance()
 //-----------------------------------------------------------------------------
 QColor qSlicerAstroThumbnails::observatoryColor(double value)
 {
-  return Interpolate(ObservatoryStops, value);
+  return MapColor("Observatory", value);
 }
 
 //-----------------------------------------------------------------------------
 QColor qSlicerAstroThumbnails::dopplerColor(double value)
 {
-  return Interpolate(DopplerStops, value);
+  return MapColor("Doppler", value);
 }
 
 //-----------------------------------------------------------------------------

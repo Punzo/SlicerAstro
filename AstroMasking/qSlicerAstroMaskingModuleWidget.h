@@ -30,6 +30,7 @@
 
 class qSlicerAstroMaskingModuleWidgetPrivate;
 class vtkMRMLAstroMaskingParametersNode;
+class vtkMRMLAstroVolumeNode;
 class vtkMRMLNode;
 class vtkSegment;
 
@@ -55,6 +56,8 @@ public slots:
   /// Slots to apply the masking operation.
   /// It creates an output volume and calls the logic
   void onApply();
+  /// End of an operation started by onApply (GUI thread)
+  void finishOperation(bool success, vtkMRMLAstroVolumeNode* inputVolume, vtkMRMLAstroVolumeNode* outputVolume);
 
 protected:
   QScopedPointer<qSlicerAstroMaskingModuleWidgetPrivate> d_ptr;

@@ -28,6 +28,8 @@
 #include <QPixmap>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <memory>
+#include <QPointer>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -609,57 +611,79 @@ void qSlicerAstroContoursSection::setContoursSmooth(bool smooth)
     copy->AddSegment(segmentCopy, segmentID);
     copies.push_back(copy);
     }
-  std::atomic<int> converted{0};
-  std::atomic<bool> cancelled{false};
-  const int total = static_cast<int>(copies.size());
-  // through the logic: the computation is known as running (e.g. the timers
-  // of the Workbench wait for it)
-  const std::function<void()> work = [&copies, &converted, &cancelled, surfaceName]()
+  // the job (it outlives this function: the user interface is not blocked)
+  struct SmoothJob
     {
-    for (const vtkSmartPointer<vtkSegmentation>& copy : copies)
+    std::vector<vtkSmartPointer<vtkSegmentation> > Copies;
+    std::atomic<int> Converted{0};
+    std::atomic<bool> Cancelled{false};
+    };
+  std::shared_ptr<SmoothJob> job = std::make_shared<SmoothJob>();
+  job->Copies = copies;
+  const int total = static_cast<int>(copies.size());
+  const std::string surface = surfaceName;
+  const std::function<void()> work = [job, surface]()
+    {
+    for (const vtkSmartPointer<vtkSegmentation>& copy : job->Copies)
       {
-      if (cancelled)
+      if (job->Cancelled)
         {
         return;
         }
-      copy->CreateRepresentation(surfaceName);
-      converted++;
+      copy->CreateRepresentation(surface);
+      job->Converted++;
       }
     };
-  const std::function<int()> progress = [&converted, total]()
+  const std::function<int()> progress = [job, total]()
     {
-    return total > 0 ? (100 * converted) / total : 100;
+    return total > 0 ? (100 * job->Converted) / total : 100;
     };
-  const std::function<void()> cancel = [&cancelled]() { cancelled = true; };
+  const std::function<void()> cancel = [job]() { job->Cancelled = true; };
+  // the surfaces to the segments of the contours afterwards, in the GUI
+  // thread (the contours may have been removed or replaced meanwhile)
+  QPointer<qSlicerAstroContoursSection> self(this);
+  vtkSmartPointer<vtkMRMLSegmentationNode> contoursHold = contours;
+  const std::function<void()> finish = [self, job, contoursHold, segmentIDs, surface]()
+    {
+    if (!self)
+      {
+      return;
+      }
+    qSlicerAstroContoursSectionPrivate* d = self->d_func();
+    vtkSegmentation* segmentation = contoursHold->GetSegmentation();
+    if (job->Cancelled || d->contoursNode(false) != contoursHold.GetPointer() || !segmentation)
+      {
+      const QSignalBlocker blocker(d->SmoothButton);
+      d->SmoothButton->setChecked(false);
+      return;
+      }
+    for (size_t ii = 0; ii < segmentIDs.size(); ii++)
+      {
+      vtkSegment* segment = segmentation->GetSegment(segmentIDs[ii]);
+      vtkSegment* segmentCopy = job->Copies[ii]->GetSegment(segmentIDs[ii]);
+      vtkDataObject* surfaceData = segmentCopy ? segmentCopy->GetRepresentation(surface) : nullptr;
+      if (segment && surfaceData)
+        {
+        segment->AddRepresentation(surface, surfaceData);
+        segmentation->InvokeEvent(vtkSegmentation::RepresentationModified, (void*)segmentIDs[ii].c_str());
+        }
+      }
+    segmentation->InvokeEvent(vtkSegmentation::ContainedRepresentationNamesModified);
+    vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(contoursHold, true);
+    };
+  // through the logic: the computation is known as running (e.g. the timers
+  // of the Workbench wait for it)
   vtkSlicerAstroVolumeLogic* logic = AstroVolumeLogic();
   if (logic)
     {
-    logic->RunInBackground(tr("Computing the smooth contour lines...").toStdString(), work, progress, cancel);
+    logic->StartInBackground(tr("Computing the smooth contour lines...").toStdString(), work, progress, cancel,
+                             finish, false);
     }
   else
     {
-    qSlicerAstroBackgroundRunner::run(this, tr("Computing the smooth contour lines..."), work, progress, cancel);
+    work();
+    finish();
     }
-
-  if (cancelled || d->contoursNode(false) != contours)
-    {
-    const QSignalBlocker blocker(d->SmoothButton);
-    d->SmoothButton->setChecked(false);
-    return;
-    }
-  for (size_t ii = 0; ii < segmentIDs.size(); ii++)
-    {
-    vtkSegment* segment = segmentation->GetSegment(segmentIDs[ii]);
-    vtkSegment* segmentCopy = copies[ii]->GetSegment(segmentIDs[ii]);
-    vtkDataObject* surface = segmentCopy ? segmentCopy->GetRepresentation(surfaceName) : nullptr;
-    if (segment && surface)
-      {
-      segment->AddRepresentation(surfaceName, surface);
-      segmentation->InvokeEvent(vtkSegmentation::RepresentationModified, (void*)segmentIDs[ii].c_str());
-      }
-    }
-  segmentation->InvokeEvent(vtkSegmentation::ContainedRepresentationNamesModified);
-  vtkSlicerAstroVolumeLogic::SetContoursSmooth2D(contours, true);
 }
 
 //-----------------------------------------------------------------------------

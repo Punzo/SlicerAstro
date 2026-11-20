@@ -26,6 +26,8 @@ class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
 // AstroStatisticss includes
+#include <functional>
+
 #include "vtkSlicerAstroStatisticsModuleLogicExport.h"
 
 #include <string>
@@ -63,7 +65,16 @@ public:
   /// the voxels), "ROI" (the box) or "Segmentation" (a segment of a mask).
   /// The results are added as a row of the table of the parameters node
   /// (EnsureStatisticsTable). On failure the reason is in GetLastError.
+  /// Synchronous: returns when the statistics are computed (scripts).
   bool CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode);
+
+#ifndef __VTK_WRAP__
+  /// Start the computation without blocking the user interface; done(success)
+  /// is called in the GUI thread at its end. Returns false if it could not
+  /// start (done is not called). Synchronous if synchronous is true.
+  bool StartCalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode,
+                                const std::function<void(bool)>& done, bool synchronous = false);
+#endif
   std::string GetLastError() { return this->LastError; }
 
   /// The table of the results of the parameters node: created if needed

@@ -149,6 +149,20 @@ public:
   /// gets a scene and after a scene is closed
   void AddAstroColorTables();
 
+  /// Colour-blind safe colour maps of SlicerAstro (tables in the scene with
+  /// these names, also used by the thumbnails):
+  /// "Observatory" (intensity: ink, indigo, teal, amber, cream),
+  /// "Doppler" (velocity, diverging: blue, cyan, light grey, amber, vermillion),
+  /// "Ember" (sequential: aubergine, magenta, orange, light yellow; e.g.
+  /// velocity dispersion).
+  /// Colour (RGB 0-1) at value (0-1) of one of these maps; false if the
+  /// name is unknown.
+  static bool GetColorMapColor(const char* name, double value, double rgb[3]);
+
+  /// Colour table of the moment maps of an order (0: Observatory,
+  /// 1: Doppler, 2: Ember)
+  static const char* GetMomentMapColorTableName(int order);
+
   /// Volume Rendering module logic (set by the AstroVolume module): used to
   /// create the volume rendering nodes and the cropping box of the volumes
   void SetVolumeRenderingLogic(vtkSlicerVolumeRenderingLogic* volumeRenderingLogic);
@@ -725,7 +739,7 @@ public:
   /// or remove the data in use).
   bool IsRunningInBackground() const
     {
-    return this->BackgroundRunDepth > 0;
+    return this->BackgroundRunDepth > 0 || this->BackgroundJobs > 0;
     }
 
 #ifndef __VTK_WRAP__
@@ -777,6 +791,48 @@ public:
     this->BackgroundRunDepth--;
     }
 
+  /// Starter of computations that do NOT block the user interface: starts
+  /// work in a worker thread and returns at once; finished runs in the GUI
+  /// thread after the work (also when cancelled). Set by the AstroVolume
+  /// module (qSlicerAstroBackgroundRunner::start).
+  typedef std::function<void(const std::string& label, const std::function<void()>& work,
+                             const std::function<int()>& progress, const std::function<void()>& cancel,
+                             const std::function<void()>& finished)> BackgroundStarterType;
+  void SetBackgroundStarter(BackgroundStarterType starter)
+    {
+    this->BackgroundStarter = starter;
+    }
+
+  /// Start work in the background without blocking the user interface (see
+  /// RunInBackground for the rules of the work); finished runs afterwards in
+  /// the GUI thread. Synchronous (work, then finished, before returning)
+  /// when synchronous is true (scripts, other logics) or without a starter
+  /// (no user interface).
+  void StartInBackground(const std::string& label, const std::function<void()>& work,
+                         const std::function<int()>& progress, const std::function<void()>& cancel,
+                         const std::function<void()>& finished, bool synchronous)
+    {
+    if (synchronous || !this->BackgroundStarter)
+      {
+      this->RunInBackground(label, work, progress, cancel);
+      if (finished)
+        {
+        finished();
+        }
+      return;
+      }
+    this->BackgroundJobs++;
+    int* jobs = &this->BackgroundJobs;
+    this->BackgroundStarter(label, work, progress, cancel, [jobs, finished]()
+      {
+      (*jobs)--;
+      if (finished)
+        {
+        finished();
+        }
+      });
+    }
+
   /// RunInBackground with the progress and the cancel request in the Status
   /// of progressNode (any node with GetStatus/SetStatus, -1: cancel), e.g. an
   /// unobserved copy of a parameters node used by ProgressReporter.
@@ -820,7 +876,9 @@ protected:
   bool EnsuringVolumeSegmentations{false};
 #ifndef __VTK_WRAP__
   int BackgroundRunDepth{0};
+  int BackgroundJobs{0};
   BackgroundRunnerType BackgroundRunner;
+  BackgroundStarterType BackgroundStarter;
   bool IncompatibleSceneImported{false};
   std::string LastMaskCopyError;
   std::string LastMaskSaveError;

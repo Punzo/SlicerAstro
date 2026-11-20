@@ -172,6 +172,7 @@ class AstroVolumeSegmentationsTestTest(ScriptedLoadableModuleTest):
         # smooth: closed surfaces in 2D, binary labelmaps again when off
         smoothButton = slicer.util.findChild(displayWidget, "ContoursSmooth")
         smoothButton.click()
+        self.assertTrue(slicer.qSlicerAstroBackgroundRunner().waitForJobs())
         slicer.app.processEvents()
         self.assertTrue(contours.ContainsRepresentation(surfaceName))
         self.assertEqual(displayNode.GetPreferredDisplayRepresentationName2D(), surfaceName)

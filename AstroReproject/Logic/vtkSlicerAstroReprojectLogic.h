@@ -23,6 +23,8 @@
 #include "vtkSlicerModuleLogic.h"
 
 // AstroReproject includes
+#include <functional>
+
 #include "vtkSlicerAstroReprojectModuleLogicExport.h"
 
 // STD includes
@@ -76,6 +78,15 @@ public:
   /// logic if set) and create or update the output volumes. Returns false on
   /// error or cancellation (GetLastError).
   bool Reproject(vtkMRMLAstroReprojectParametersNode *pnode);
+
+#ifndef __VTK_WRAP__
+  /// Start the reprojection without blocking the user interface; done(success)
+  /// is called in the GUI thread at its end (the reason of a failure in
+  /// GetLastError). Returns false if it could not start (done is not called).
+  /// Synchronous if synchronous is true.
+  bool StartReproject(vtkMRMLAstroReprojectParametersNode *pnode, const std::function<void(bool)>& done,
+                      bool synchronous = false);
+#endif
 
   /// Description of the output grid of the parameters (size, pixel and
   /// channel widths, frames, memory), or the reason why it can not be made

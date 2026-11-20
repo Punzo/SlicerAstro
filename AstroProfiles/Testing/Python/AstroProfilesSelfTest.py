@@ -138,6 +138,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Calculating profile")
         widget = slicer.modules.astroprofiles.widgetRepresentation()
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
 
         profileNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetProfileVolumeNodeID())
         self.assertIsNotNone(profileNode)
@@ -224,6 +225,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([sourceID])
             slicer.app.processEvents()
             slicer.util.findChild(widget, "ApplyButton").click()
+            slicer.qSlicerAstroBackgroundRunner().waitForJobs()
             self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
             self.assertEqual(parametersNode.GetMaskSegmentID(), sourceID)
             self.assertEqual(slicer.mrmlScene.GetNumberOfNodesByClass("vtkMRMLLabelMapVolumeNode"), 0)
@@ -283,6 +285,7 @@ class AstroProfilesSelfTestTest(ScriptedLoadableModuleTest):
             self.assertEqual((parametersNode.GetVelocityMin(), parametersNode.GetVelocityMax(),
                               parametersNode.GetIntensityMin()), (11., 36., 3.))
             slicer.util.findChild(widget, "ApplyButton").click()
+            slicer.qSlicerAstroBackgroundRunner().waitForJobs()
             profileNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetProfileVolumeNodeID())
             computed = voxelArray(profileNode).ravel().astype(np.float64)
             expected = referenceProfile(volumeNode, parametersNode.GetIntensityMin(), parametersNode.GetIntensityMax(),

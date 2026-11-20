@@ -122,6 +122,10 @@ public:
   ~vtkInternal();
 
   vtkSmartPointer<vtkSlicerAstroVolumeLogic> AstroVolumeLogic;
+  /// done and synchronous of the Apply in progress (StartApply), taken by
+  /// RunSmoothingFilter for its job
+  std::function<void(bool)> PendingDone;
+  bool PendingSynchronous{true};
 #ifdef SLICERASTRO_HAS_WEBGPU
   // WebGPU device reused by all the smoothing runs
   vtkSmartPointer<vtkAstroWebGPUDevice> WebGPUDevice;
@@ -208,6 +212,33 @@ void vtkSlicerAstroSmoothingLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 int vtkSlicerAstroSmoothingLogic::Apply(vtkMRMLAstroSmoothingParametersNode* pnode,
                                         vtkRenderWindow* renderWindow)
+{
+  int result = 0;
+  const bool started = this->StartApply(pnode, renderWindow, [&result](bool success) { result = success ? 1 : 0; },
+                                        true);
+  return started ? result : 0;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroSmoothingLogic::StartApply(vtkMRMLAstroSmoothingParametersNode* pnode,
+                                              vtkRenderWindow* renderWindow,
+                                              const std::function<void(bool)>& done, bool synchronous)
+{
+  this->Internal->PendingDone = done;
+  this->Internal->PendingSynchronous = synchronous;
+  const int started = this->ApplyFilter(pnode, renderWindow);
+  if (!started && this->Internal->PendingDone)
+    {
+    // failed before the filter ran: done is not called
+    this->Internal->PendingDone = nullptr;
+    }
+  this->Internal->PendingSynchronous = true;
+  return started != 0;
+}
+
+//----------------------------------------------------------------------------
+int vtkSlicerAstroSmoothingLogic::ApplyFilter(vtkMRMLAstroSmoothingParametersNode* pnode,
+                                              vtkRenderWindow* renderWindow)
 {
   if (!pnode)
     {
@@ -400,101 +431,149 @@ int vtkSlicerAstroSmoothingLogic::RunSmoothingFilter(vtkMRMLAstroSmoothingParame
   pnode->SetStatus(1);
   const std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
   filter->SetInputData(inputVolume->GetImageData());
-  std::function<void()> update = [filter]() { filter->Update(); };
-  if (inBackground && this->Internal->AstroVolumeLogic)
+  // the job: the filter (it holds its input), the nodes and a copy of the
+  // parameters (Apply restores the parameters of 1D/2D data before the end of
+  // a job that does not block the user interface)
+  std::function<void(bool)> done = this->Internal->PendingDone;
+  const bool synchronous = this->Internal->PendingSynchronous || !inBackground ||
+                           !this->Internal->AstroVolumeLogic;
+  this->Internal->PendingDone = nullptr;
+  vtkSmartPointer<vtkImageAlgorithm> filterHold = filter;
+  vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parameters = pnode;
+  vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode> parametersCopy =
+    vtkSmartPointer<vtkMRMLAstroSmoothingParametersNode>::New();
+  parametersCopy->Copy(pnode);
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> inputHold = inputVolume;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> outputHold = outputVolume;
+  vtkSmartPointer<vtkCallbackCommand> progressHold = progressCallback.GetPointer();
+  const std::string name = filterName ? filterName : "";
+  std::function<void()> update = [filterHold]() { filterHold->Update(); };
+  std::function<void()> finish = [this, filterHold, parameters, parametersCopy, inputHold, outputHold,
+                                  progressHold, name, start, done]()
     {
-    this->Internal->AstroVolumeLogic->RunInBackground("Smoothing the data...", update,
+    vtkImageAlgorithm* filter = filterHold;
+    vtkMRMLAstroSmoothingParametersNode* pnode = parameters;
+    vtkMRMLAstroVolumeNode* inputVolume = inputHold;
+    vtkMRMLAstroVolumeNode* outputVolume = outputHold;
+    vtkCallbackCommand* progressCallback = progressHold;
+    const char* filterName = name.c_str();
+      filter->RemoveObserver(progressCallback);
+      const std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+      vtkDebugMacro(<< filterName << " Time : "
+                    << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
+      if (this->SmoothingCancelRequested)
+        {
+        pnode->SetStatus(-1);
+        }
+
+      if (filter->GetAbortExecute() || pnode->GetStatus() == -1)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+      if (filter->GetErrorCode() || !filter->GetOutput() || !filter->GetOutput()->GetPointData()->GetScalars())
+        {
+        vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunSmoothingFilter : " << filterName << " failed.");
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      // The output volume takes the filter output buffer (shallow copy, no voxel copy)
+      vtkNew<vtkImageData> outputImage;
+      outputImage->ShallowCopy(filter->GetOutput());
+      outputImage->SetOrigin(0., 0., 0.);
+      outputImage->SetSpacing(1., 1., 1.);
+      int wasModifying = outputVolume->StartModify();
+      outputVolume->SetAndObserveImageData(outputImage);
+      // Gaussian smoothing: the beam of the output is the beam of the input
+      // convolved with the kernel; Jy/beam data are scaled by the ratio of the
+      // beam areas, so that point sources keep their peak (CASA imsmooth)
+      double newBeam[3], kernel[3];
+      if (ComputeSmoothedBeam(inputVolume, parametersCopy, newBeam, kernel))
+        {
+        const char* unit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
+        std::string bunit = unit ? unit : "";
+        std::transform(bunit.begin(), bunit.end(), bunit.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+        bunit.erase(std::remove(bunit.begin(), bunit.end(), ' '), bunit.end());
+        double oldBeam[2] = {atof(inputVolume->GetAttribute("SlicerAstro.BMAJ")) * 3600.,
+                             atof(inputVolume->GetAttribute("SlicerAstro.BMIN")) * 3600.};
+        if (bunit == "JY/BEAM")
+          {
+          const double scale = vtkAstroBeams::Area(newBeam[0], newBeam[1]) / vtkAstroBeams::Area(oldBeam[0], oldBeam[1]);
+          vtkDataArray* scalars = outputImage->GetPointData()->GetScalars();
+          vtkFloatArray* floats = vtkFloatArray::SafeDownCast(scalars);
+          vtkDoubleArray* doubles = vtkDoubleArray::SafeDownCast(scalars);
+          if (floats)
+            {
+            float* values = floats->GetPointer(0);
+            const float factor = static_cast<float>(scale);
+            vtkSMPTools::For(0, floats->GetNumberOfValues(), [values, factor](vtkIdType begin, vtkIdType end)
+              {
+              for (vtkIdType i = begin; i < end; i++)
+                {
+                values[i] *= factor;
+                }
+              });
+            }
+          else if (doubles)
+            {
+            double* values = doubles->GetPointer(0);
+            vtkSMPTools::For(0, doubles->GetNumberOfValues(), [values, scale](vtkIdType begin, vtkIdType end)
+              {
+              for (vtkIdType i = begin; i < end; i++)
+                {
+                values[i] *= scale;
+                }
+              });
+            }
+          scalars->Modified();
+          }
+        char value[64];
+        snprintf(value, sizeof(value), "%.17g", newBeam[0] / 3600.);
+        outputVolume->SetAttribute("SlicerAstro.BMAJ", value);
+        snprintf(value, sizeof(value), "%.17g", newBeam[1] / 3600.);
+        outputVolume->SetAttribute("SlicerAstro.BMIN", value);
+        snprintf(value, sizeof(value), "%.17g", newBeam[2]);
+        outputVolume->SetAttribute("SlicerAstro.BPA", value);
+        }
+      outputVolume->UpdateRangeAttributes();
+      outputVolume->UpdateDisplayThresholdAttributes();
+      outputVolume->EndModify(wasModifying);
+
+    pnode->SetStatus(100);
+    if (done)
+      {
+      done(true);
+      }
+    };
+  if (!synchronous)
+    {
+    this->Internal->AstroVolumeLogic->StartInBackground("Smoothing the data...", update,
       [this]() { return this->GetSmoothingProgress(); },
-      [this]() { this->CancelSmoothing(); });
+      [this]() { this->CancelSmoothing(); }, finish, false);
     }
   else
     {
-    update();
-    }
-  filter->RemoveObserver(progressCallback);
-  const std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-  vtkDebugMacro(<< filterName << " Time : "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << " ms.");
-  if (this->SmoothingCancelRequested)
-    {
-    pnode->SetStatus(-1);
-    }
-
-  if (filter->GetAbortExecute() || pnode->GetStatus() == -1)
-    {
-    pnode->SetStatus(100);
-    return 0;
-    }
-  if (filter->GetErrorCode() || !filter->GetOutput() || !filter->GetOutput()->GetPointData()->GetScalars())
-    {
-    vtkErrorMacro("vtkSlicerAstroSmoothingLogic::RunSmoothingFilter : " << filterName << " failed.");
-    pnode->SetStatus(100);
-    return 0;
-    }
-
-  // The output volume takes the filter output buffer (shallow copy, no voxel copy)
-  vtkNew<vtkImageData> outputImage;
-  outputImage->ShallowCopy(filter->GetOutput());
-  outputImage->SetOrigin(0., 0., 0.);
-  outputImage->SetSpacing(1., 1., 1.);
-  int wasModifying = outputVolume->StartModify();
-  outputVolume->SetAndObserveImageData(outputImage);
-  // Gaussian smoothing: the beam of the output is the beam of the input
-  // convolved with the kernel; Jy/beam data are scaled by the ratio of the
-  // beam areas, so that point sources keep their peak (CASA imsmooth)
-  double newBeam[3], kernel[3];
-  if (ComputeSmoothedBeam(inputVolume, pnode, newBeam, kernel))
-    {
-    const char* unit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
-    std::string bunit = unit ? unit : "";
-    std::transform(bunit.begin(), bunit.end(), bunit.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
-    bunit.erase(std::remove(bunit.begin(), bunit.end(), ' '), bunit.end());
-    double oldBeam[2] = {atof(inputVolume->GetAttribute("SlicerAstro.BMAJ")) * 3600.,
-                         atof(inputVolume->GetAttribute("SlicerAstro.BMIN")) * 3600.};
-    if (bunit == "JY/BEAM")
+    if (inBackground && this->Internal->AstroVolumeLogic)
       {
-      const double scale = vtkAstroBeams::Area(newBeam[0], newBeam[1]) / vtkAstroBeams::Area(oldBeam[0], oldBeam[1]);
-      vtkDataArray* scalars = outputImage->GetPointData()->GetScalars();
-      vtkFloatArray* floats = vtkFloatArray::SafeDownCast(scalars);
-      vtkDoubleArray* doubles = vtkDoubleArray::SafeDownCast(scalars);
-      if (floats)
-        {
-        float* values = floats->GetPointer(0);
-        const float factor = static_cast<float>(scale);
-        vtkSMPTools::For(0, floats->GetNumberOfValues(), [values, factor](vtkIdType begin, vtkIdType end)
-          {
-          for (vtkIdType i = begin; i < end; i++)
-            {
-            values[i] *= factor;
-            }
-          });
-        }
-      else if (doubles)
-        {
-        double* values = doubles->GetPointer(0);
-        vtkSMPTools::For(0, doubles->GetNumberOfValues(), [values, scale](vtkIdType begin, vtkIdType end)
-          {
-          for (vtkIdType i = begin; i < end; i++)
-            {
-            values[i] *= scale;
-            }
-          });
-        }
-      scalars->Modified();
+      this->Internal->AstroVolumeLogic->RunInBackground("Smoothing the data...", update,
+        [this]() { return this->GetSmoothingProgress(); },
+        [this]() { this->CancelSmoothing(); });
       }
-    char value[64];
-    snprintf(value, sizeof(value), "%.17g", newBeam[0] / 3600.);
-    outputVolume->SetAttribute("SlicerAstro.BMAJ", value);
-    snprintf(value, sizeof(value), "%.17g", newBeam[1] / 3600.);
-    outputVolume->SetAttribute("SlicerAstro.BMIN", value);
-    snprintf(value, sizeof(value), "%.17g", newBeam[2]);
-    outputVolume->SetAttribute("SlicerAstro.BPA", value);
+    else
+      {
+      update();
+      }
+    finish();
     }
-  outputVolume->UpdateRangeAttributes();
-  outputVolume->UpdateDisplayThresholdAttributes();
-  outputVolume->EndModify(wasModifying);
-
-  pnode->SetStatus(100);
   return 1;
 }
 
@@ -610,7 +689,12 @@ int vtkSlicerAstroSmoothingLogic::AnisotropicGaussianCPUFilter(vtkMRMLAstroSmoot
     }
   // 3D (possibly rotated) Gaussian kernel computed by the parameters node
   vtkSmartPointer<vtkAstroImageKernelSmooth> filter = NewSmoothFilter<vtkAstroImageKernelSmooth>(this->WebGPUDevice());
-  filter->SetKernel(pnode->GetGaussianKernel3D(),
+  // the filter gets its own copy of the kernel (a few values, not data): the
+  // parameters node recomputes its kernels in place when the parameters
+  // change, also while the filter runs in the background
+  vtkNew<vtkDoubleArray> kernel3D;
+  kernel3D->DeepCopy(pnode->GetGaussianKernel3D());
+  filter->SetKernel(kernel3D,
                     static_cast<int>(pnode->GetKernelLengthX()),
                     static_cast<int>(pnode->GetKernelLengthY()),
                     static_cast<int>(pnode->GetKernelLengthZ()));
@@ -626,7 +710,9 @@ int vtkSlicerAstroSmoothingLogic::IsotropicGaussianCPUFilter(vtkMRMLAstroSmoothi
     }
   // Separable Gaussian: 1D kernel computed by the parameters node, applied
   // along the axes with a non-zero parameter.
-  vtkDoubleArray* kernel1D = pnode->GetGaussianKernel1D();
+  // own copy of the kernel (see AnisotropicGaussianCPUFilter)
+  vtkNew<vtkDoubleArray> kernel1D;
+  kernel1D->DeepCopy(pnode->GetGaussianKernel1D());
   vtkSmartPointer<vtkAstroImageSeparableSmooth> filter = NewSmoothFilter<vtkAstroImageSeparableSmooth>(this->WebGPUDevice());
   filter->SetAxisKernel(0, pnode->GetParameterX() > 0.001 ? kernel1D : nullptr);
   filter->SetAxisKernel(1, pnode->GetParameterY() > 0.001 ? kernel1D : nullptr);

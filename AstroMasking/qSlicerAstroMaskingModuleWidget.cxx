@@ -18,6 +18,7 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QPointer>
 #include <QAbstractItemView>
 #include <QComboBox>
 #include <QDebug>
@@ -1363,9 +1364,36 @@ void qSlicerAstroMaskingModuleWidget::onApply()
   outputVolume->SetRASToIJKMatrix(transformationMatrix.GetPointer());
   outputVolume->SetAndObserveTransformNodeID(inputVolume->GetTransformNodeID());
 
-  // Run computation
-  const bool blank = !strcmp(d->parametersNode->GetOperation(), "Blank");
-  if (logic->ApplyMask(d->parametersNode))
+  // Run the operation without blocking the user interface (progress in the
+  // run button); the result is shown when it is done
+  QPointer<qSlicerAstroMaskingModuleWidget> self(this);
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> inputHold = inputVolume;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> outputHold = outputVolume;
+  const bool started = logic->StartApplyMask(d->parametersNode, [self, inputHold, outputHold](bool success)
+    {
+    if (self)
+      {
+      self->finishOperation(success, inputHold, outputHold);
+      }
+    });
+  if (!started)
+    {
+    this->finishOperation(false, inputVolume, outputVolume);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMaskingModuleWidget::finishOperation(bool success, vtkMRMLAstroVolumeNode* inputVolume,
+                                                     vtkMRMLAstroVolumeNode* outputVolume)
+{
+  Q_D(qSlicerAstroMaskingModuleWidget);
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene || !d->parametersNode || !inputVolume || !outputVolume)
+    {
+    return;
+    }
+  const bool blank = d->parametersNode->GetOperation() && !strcmp(d->parametersNode->GetOperation(), "Blank");
+  if (success)
     {
     // the module panel compares the input and the output in 3D (the
     // Workbench lists the output with the products of the input)

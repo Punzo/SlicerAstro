@@ -40,6 +40,7 @@
 #include <vtkMRMLScene.h>
 #include <vtkMRMLVolumeArchetypeStorageNode.h>
 #include <vtkSlicerApplicationLogic.h>
+#include <vtkSlicerAstroVolumeLogic.h>
 
 //-----------------------------------------------------------------------------
 /// \ingroup SlicerAstro_QtModules_AstroVolume
@@ -180,7 +181,7 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
     if (Name.contains(firstMomentMapName))
       {
       vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
-        (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "VelocityField"));
+        (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(1)));
       vtkMRMLColorTableNode *velocityFieldColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
       if (velocityFieldColorNode)
         {
@@ -194,7 +195,7 @@ void qSlicerAstroVolumeIOOptionsWidget::updateColorSelector()
     else if (Name.contains(secondMomentMapName))
       {
       vtkSmartPointer<vtkCollection> colorNodes = vtkSmartPointer<vtkCollection>::Take
-        (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", "Rainbow"));
+        (this->mrmlScene()->GetNodesByClassByName("vtkMRMLColorTableNode", vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(2)));
       vtkMRMLColorTableNode *rainbowColorNode = vtkMRMLColorTableNode::SafeDownCast(colorNodes->GetItemAsObject(0));
       if (rainbowColorNode)
         {

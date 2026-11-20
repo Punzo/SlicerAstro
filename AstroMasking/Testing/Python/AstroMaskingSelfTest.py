@@ -139,6 +139,7 @@ class AstroMaskingSelfTestTest(ScriptedLoadableModuleTest):
 
     def apply(self, widget, parametersNode):
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         outputNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
         self.assertIsNotNone(outputNode)
         return outputNode
@@ -295,6 +296,7 @@ class AstroMaskingSelfTestTest(ScriptedLoadableModuleTest):
         roiNode.SetXYZ(center[0] + 1.e4, center[1] + 1.e4, center[2] + 1.e4)
         roiNode.SetRadiusXYZ(1., 1., 1.)
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         outputNode = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID() or "")
         if outputNode is not None and outputNode.GetImageData() is not None:
             # nothing was cropped: the output is not a 0-voxel cube

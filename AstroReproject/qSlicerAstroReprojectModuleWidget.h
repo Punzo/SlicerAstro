@@ -56,6 +56,8 @@ public:
 public slots:
   /// Reproject the inputs with the parameters (creates the output volumes)
   void onApply();
+  /// End of a reprojection started by onApply (GUI thread)
+  void finishReprojection(bool success);
 
   /// Manual grid from the first input (north up: no rotation)
   void setManualGridFromInput();

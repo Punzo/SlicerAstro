@@ -107,6 +107,8 @@ class AstroSmoothingSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetGaussianKernels()
         widget = slicer.modules.astrosmoothing.widgetRepresentation()
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
+        slicer.app.processEvents()  # finish of the GPU (synchronous) runs
         outputVolume = slicer.mrmlScene.GetNodeByID(parametersNode.GetOutputVolumeNodeID())
         self.assertIsNotNone(outputVolume)
         return voxelArray(outputVolume).astype(np.float64)

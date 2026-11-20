@@ -83,6 +83,16 @@ public:
   /// \return Success flag
   int Apply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
 
+#ifndef __VTK_WRAP__
+  /// Start the smoothing without blocking the user interface (CPU and WebGPU
+  /// filters in a worker thread; the OpenGL filters need the GUI thread and
+  /// run synchronously); done(success) is called in the GUI thread at its
+  /// end. Returns false if it could not start (done is not called).
+  /// Synchronous if synchronous is true.
+  bool StartApply(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow,
+                  const std::function<void(bool)>& done, bool synchronous = false);
+#endif
+
   /// Beam of the data after a Gaussian smoothing: the beam of the input
   /// convolved with the kernel projected on the sky (its 3D covariance,
   /// rotations included, marginalized over the spectral axis and mapped to
@@ -109,6 +119,9 @@ public:
 
 
 protected:
+  /// The filter of the parameters (Apply, StartApply)
+  int ApplyFilter(vtkMRMLAstroSmoothingParametersNode *pnode, vtkRenderWindow *renderWindow);
+
   /// Run a smoothing filter (CPU or GPU) on the input volume of \a pnode and
   /// set its output (without copying the voxels) as the output volume image.
   /// inBackground: the filter runs in the background runner of the AstroVolume

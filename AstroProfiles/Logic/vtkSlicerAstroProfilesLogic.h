@@ -27,6 +27,8 @@ class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
 // AstroProfiless includes
+#include <functional>
+
 #include "vtkSlicerAstroProfilesModuleLogicExport.h"
 class vtkMRMLAstroProfilesParametersNode;
 
@@ -56,7 +58,16 @@ public:
   /// Run profile calculation algorithm
   /// \param MRML parameter node
   /// \return Success flag
+  /// Synchronous: returns when the profile is computed (scripts).
   bool CalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode);
+
+#ifndef __VTK_WRAP__
+  /// Start the computation without blocking the user interface; done(success)
+  /// is called in the GUI thread at its end. Returns false if it could not
+  /// start (done is not called). Synchronous if synchronous is true.
+  bool StartCalculateProfile(vtkMRMLAstroProfilesParametersNode *pnode,
+                             const std::function<void(bool)>& done, bool synchronous = false);
+#endif
 
   /// Measurements of a line profile (e.g. the global HI profile of a galaxy).
   /// \param velocity velocity of each channel (any order, e.g. km/s)

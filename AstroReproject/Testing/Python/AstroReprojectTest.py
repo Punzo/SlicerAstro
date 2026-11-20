@@ -634,6 +634,7 @@ class AstroReprojectTestTest(ScriptedLoadableModuleTest):
         summary = slicer.util.findChild(widget, "GridSummaryLabel")
         self.assertIn("16", summary.text)
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         slicer.app.processEvents()
         output = slicer.mrmlScene.GetNodeByID(pnode.GetOutputVolumeNodeID())
         self.assertIsNotNone(output)

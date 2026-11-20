@@ -1075,7 +1075,38 @@ bool vtkSlicerAstroReprojectLogic::GetCommonBeam(vtkMRMLAstroReprojectParameters
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+// A reprojection in a worker thread: what it uses (prepared in the GUI
+// thread: WCS copies, voxel buffers held, the input volumes held) and its
+// results
+struct ReprojectJob
+{
+  std::vector<vtkAstroReprojector::Input> Inputs;
+  std::vector<vtkSmartPointer<vtkMRMLAstroVolumeDisplayNode> > Displays;
+  std::vector<vtkSmartPointer<vtkImageData> > Held;
+  std::vector<vtkSmartPointer<vtkMRMLAstroVolumeNode> > Volumes;
+  WCSPointer OutputWCS;
+  int Dims[3] = {0, 0, 0};
+  vtkAstroReprojector::Options Options;
+  vtkAstroReprojector::Outputs Outputs;
+  std::atomic<int> Progress{0};
+  std::atomic<bool> Cancel{false};
+  bool Success{false};
+};
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode* pnode)
+{
+  bool result = false;
+  const bool started = this->StartReproject(pnode, [&result](bool success) { result = success; }, true);
+  return started && result;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroReprojectLogic::StartReproject(vtkMRMLAstroReprojectParametersNode* pnode,
+                                                  const std::function<void(bool)>& done, bool synchronous)
 {
   this->LastError.clear();
   this->LastWarnings.clear();
@@ -1162,128 +1193,171 @@ bool vtkSlicerAstroReprojectLogic::Reproject(vtkMRMLAstroReprojectParametersNode
     heldData.push_back(inputs[index].PrimaryBeam);
     }
 
-  // computation (background runner: progress and cancel)
-  vtkAstroReprojector::Outputs outputs;
-  std::atomic<int> progress{0};
-  std::atomic<bool> cancel{false};
-  bool success = false;
-  std::function<void()> work = [&]()
+  // the job: everything the worker uses, held until the end
+  std::shared_ptr<ReprojectJob> job = std::make_shared<ReprojectJob>();
+  job->Inputs = inputs;
+  job->Displays = workerDisplays;
+  job->Held = heldData;
+  for (vtkMRMLAstroVolumeNode* volume : volumes)
     {
-    success = vtkAstroReprojector::Run(inputs, outputWCS.get(), dims, options, outputs,
-                                       [&](double fraction) { progress = static_cast<int>(100. * fraction); },
-                                       &cancel);
+    job->Volumes.push_back(volume);
+    }
+  job->OutputWCS = std::move(outputWCS);
+  std::copy(dims, dims + 3, job->Dims);
+  job->Options = options;
+  std::function<void()> work = [job]()
+    {
+    ReprojectJob* state = job.get();
+    job->Success = vtkAstroReprojector::Run(job->Inputs, job->OutputWCS.get(), job->Dims, job->Options,
+                                            job->Outputs,
+                                            [state](double fraction) { state->Progress = static_cast<int>(100. * fraction); },
+                                            &job->Cancel);
     };
   vtkSlicerAstroVolumeLogic* astroVolumeLogic = this->GetAstroVolumeLogic();
   pnode->SetStatus(1);
+  // the output volumes are made after the work, in the GUI thread
+  vtkSmartPointer<vtkMRMLAstroReprojectParametersNode> parameters = pnode;
+  std::function<void()> finish = [this, job, parameters, done]()
+    {
+    vtkMRMLAstroReprojectParametersNode* pnode = parameters;
+    vtkMRMLScene* scene = this->GetMRMLScene();
+    vtkSlicerAstroVolumeLogic* astroVolumeLogic = this->GetAstroVolumeLogic();
+    vtkAstroReprojector::Outputs& outputs = job->Outputs;
+    WCSPointer& outputWCS = job->OutputWCS;
+    const bool success = job->Success && scene;
+    const bool cancel = job->Cancel;
+    std::vector<vtkMRMLAstroVolumeNode*> volumes;
+    for (const vtkSmartPointer<vtkMRMLAstroVolumeNode>& volume : job->Volumes)
+      {
+      volumes.push_back(volume);
+      }
+    pnode->SetStatus(0);
+      for (const std::string& warning : outputs.Warnings)
+        {
+        this->LastWarnings += warning + "\n";
+        vtkWarningMacro("vtkSlicerAstroReprojectLogic::Reproject : " << warning);
+        }
+      if (!success)
+        {
+        this->LastError = cancel ? "cancelled" : outputs.Error;
+        if (!cancel)
+          {
+          vtkErrorMacro("vtkSlicerAstroReprojectLogic::Reproject : " << outputs.Error);
+          }
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      // output volumes
+      vtkMRMLAstroVolumeNode* firstVolume = volumes[0];
+      vtkMRMLAstroVolumeNode* existing = vtkMRMLAstroVolumeNode::SafeDownCast(
+        pnode->GetOutputVolumeNodeID() ? scene->GetNodeByID(pnode->GetOutputVolumeNodeID()) : nullptr);
+      if (existing && std::find(volumes.begin(), volumes.end(), existing) != volumes.end())
+        {
+        existing = nullptr;
+        }
+      std::string name = existing ? existing->GetName() :
+        std::string(firstVolume->GetName()) + (volumes.size() > 1 ? "_Mosaic" : "_Reprojected");
+      if (!existing)
+        {
+        name = scene->GenerateUniqueName(name);
+        }
+      if (!astroVolumeLogic)
+        {
+        this->LastError = "the AstroVolume logic is not set";
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+      std::function<vtkMRMLAstroVolumeNode*(vtkMRMLAstroVolumeNode*, const std::string&, vtkImageData*, const std::string&)>
+        makeVolume = [&](vtkMRMLAstroVolumeNode* previous, const std::string& volumeName, vtkImageData* image,
+                         const std::string& unit) -> vtkMRMLAstroVolumeNode*
+        {
+        if (previous)
+          {
+          // replaced (same name)
+          scene->RemoveNode(previous);
+          }
+        vtkMRMLAstroVolumeNode* volume = astroVolumeLogic->CloneAstroVolume(scene, firstVolume, nullptr, "_Reprojected",
+                                                                            volumeName.c_str(), false);
+        if (!volume)
+          {
+          return nullptr;
+          }
+        vtkMRMLNode* noPreset = nullptr;
+        volume->SetPresetNode(noPreset);
+        std::string volumeError;
+        if (!SetOutputVolume(volume, image, outputWCS.get(), unit, outputs.Beam, volumeError))
+          {
+          this->LastError = volumeError;
+          scene->RemoveNode(volume);
+          return nullptr;
+          }
+        return volume;
+        };
+      vtkMRMLAstroVolumeNode* output = makeVolume(existing, name, outputs.Data, outputs.BUnit);
+      if (!output)
+        {
+        if (this->LastError.empty())
+          {
+          this->LastError = "the output volume could not be created";
+          }
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+      pnode->SetOutputVolumeNodeID(output->GetID());
+      struct ExtraOutput
+        {
+        vtkImageData* Image;
+        const char* Suffix;
+        std::string Unit;
+        const char* (vtkMRMLAstroReprojectParametersNode::*Get)();
+        void (vtkMRMLAstroReprojectParametersNode::*Set)(const char*);
+        };
+      const ExtraOutput extras[3] = {
+        {outputs.Weight, "_Weight", "", &vtkMRMLAstroReprojectParametersNode::GetWeightVolumeNodeID,
+         &vtkMRMLAstroReprojectParametersNode::SetWeightVolumeNodeID},
+        {outputs.Sensitivity, "_Sensitivity", outputs.BUnit, &vtkMRMLAstroReprojectParametersNode::GetSensitivityVolumeNodeID,
+         &vtkMRMLAstroReprojectParametersNode::SetSensitivityVolumeNodeID},
+        {outputs.Sault, "_Sault", outputs.BUnit, &vtkMRMLAstroReprojectParametersNode::GetSaultVolumeNodeID,
+         &vtkMRMLAstroReprojectParametersNode::SetSaultVolumeNodeID}};
+      for (const ExtraOutput& extraOutput : extras)
+        {
+        if (!extraOutput.Image)
+          {
+          continue;
+          }
+        const char* previousID = (pnode->*extraOutput.Get)();
+        vtkMRMLAstroVolumeNode* previous = vtkMRMLAstroVolumeNode::SafeDownCast(
+          previousID && *previousID ? scene->GetNodeByID(previousID) : nullptr);
+        const std::string extraName = previous ? std::string(previous->GetName()) :
+          scene->GenerateUniqueName(std::string(output->GetName()) + extraOutput.Suffix);
+        vtkMRMLAstroVolumeNode* volume = makeVolume(previous, extraName, extraOutput.Image, extraOutput.Unit);
+        (pnode->*extraOutput.Set)(volume ? volume->GetID() : "");
+        }
+    if (done)
+      {
+      done(true);
+      }
+    };
   if (astroVolumeLogic)
     {
-    astroVolumeLogic->RunInBackground("Reprojecting " + inputs[0].Name, work,
-                                      [&]() { return std::max(1, std::min(99, progress.load())); },
-                                      [&]() { cancel = true; });
+    astroVolumeLogic->StartInBackground("Reprojecting " + inputs[0].Name, work,
+                                        [job]() { return std::max(1, std::min(99, job->Progress.load())); },
+                                        [job]() { job->Cancel = true; }, finish, synchronous);
     }
   else
     {
     work();
-    }
-  pnode->SetStatus(0);
-  for (const std::string& warning : outputs.Warnings)
-    {
-    this->LastWarnings += warning + "\n";
-    vtkWarningMacro("vtkSlicerAstroReprojectLogic::Reproject : " << warning);
-    }
-  if (!success)
-    {
-    this->LastError = cancel ? "cancelled" : outputs.Error;
-    if (!cancel)
-      {
-      vtkErrorMacro("vtkSlicerAstroReprojectLogic::Reproject : " << outputs.Error);
-      }
-    return false;
-    }
-
-  // output volumes
-  vtkMRMLAstroVolumeNode* firstVolume = volumes[0];
-  vtkMRMLAstroVolumeNode* existing = vtkMRMLAstroVolumeNode::SafeDownCast(
-    pnode->GetOutputVolumeNodeID() ? scene->GetNodeByID(pnode->GetOutputVolumeNodeID()) : nullptr);
-  if (existing && std::find(volumes.begin(), volumes.end(), existing) != volumes.end())
-    {
-    existing = nullptr;
-    }
-  std::string name = existing ? existing->GetName() :
-    std::string(firstVolume->GetName()) + (volumes.size() > 1 ? "_Mosaic" : "_Reprojected");
-  if (!existing)
-    {
-    name = scene->GenerateUniqueName(name);
-    }
-  if (!astroVolumeLogic)
-    {
-    this->LastError = "the AstroVolume logic is not set";
-    return false;
-    }
-  std::function<vtkMRMLAstroVolumeNode*(vtkMRMLAstroVolumeNode*, const std::string&, vtkImageData*, const std::string&)>
-    makeVolume = [&](vtkMRMLAstroVolumeNode* previous, const std::string& volumeName, vtkImageData* image,
-                     const std::string& unit) -> vtkMRMLAstroVolumeNode*
-    {
-    if (previous)
-      {
-      // replaced (same name)
-      scene->RemoveNode(previous);
-      }
-    vtkMRMLAstroVolumeNode* volume = astroVolumeLogic->CloneAstroVolume(scene, firstVolume, nullptr, "_Reprojected",
-                                                                        volumeName.c_str(), false);
-    if (!volume)
-      {
-      return nullptr;
-      }
-    vtkMRMLNode* noPreset = nullptr;
-    volume->SetPresetNode(noPreset);
-    std::string volumeError;
-    if (!SetOutputVolume(volume, image, outputWCS.get(), unit, outputs.Beam, volumeError))
-      {
-      this->LastError = volumeError;
-      scene->RemoveNode(volume);
-      return nullptr;
-      }
-    return volume;
-    };
-  vtkMRMLAstroVolumeNode* output = makeVolume(existing, name, outputs.Data, outputs.BUnit);
-  if (!output)
-    {
-    if (this->LastError.empty())
-      {
-      this->LastError = "the output volume could not be created";
-      }
-    return false;
-    }
-  pnode->SetOutputVolumeNodeID(output->GetID());
-  struct ExtraOutput
-    {
-    vtkImageData* Image;
-    const char* Suffix;
-    std::string Unit;
-    const char* (vtkMRMLAstroReprojectParametersNode::*Get)();
-    void (vtkMRMLAstroReprojectParametersNode::*Set)(const char*);
-    };
-  const ExtraOutput extras[3] = {
-    {outputs.Weight, "_Weight", "", &vtkMRMLAstroReprojectParametersNode::GetWeightVolumeNodeID,
-     &vtkMRMLAstroReprojectParametersNode::SetWeightVolumeNodeID},
-    {outputs.Sensitivity, "_Sensitivity", outputs.BUnit, &vtkMRMLAstroReprojectParametersNode::GetSensitivityVolumeNodeID,
-     &vtkMRMLAstroReprojectParametersNode::SetSensitivityVolumeNodeID},
-    {outputs.Sault, "_Sault", outputs.BUnit, &vtkMRMLAstroReprojectParametersNode::GetSaultVolumeNodeID,
-     &vtkMRMLAstroReprojectParametersNode::SetSaultVolumeNodeID}};
-  for (const ExtraOutput& extraOutput : extras)
-    {
-    if (!extraOutput.Image)
-      {
-      continue;
-      }
-    const char* previousID = (pnode->*extraOutput.Get)();
-    vtkMRMLAstroVolumeNode* previous = vtkMRMLAstroVolumeNode::SafeDownCast(
-      previousID && *previousID ? scene->GetNodeByID(previousID) : nullptr);
-    const std::string extraName = previous ? std::string(previous->GetName()) :
-      scene->GenerateUniqueName(std::string(output->GetName()) + extraOutput.Suffix);
-    vtkMRMLAstroVolumeNode* volume = makeVolume(previous, extraName, extraOutput.Image, extraOutput.Unit);
-    (pnode->*extraOutput.Set)(volume ? volume->GetID() : "");
+    finish();
     }
   return true;
 }

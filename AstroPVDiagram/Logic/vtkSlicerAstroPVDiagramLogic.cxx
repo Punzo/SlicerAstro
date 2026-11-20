@@ -350,7 +350,7 @@ bool vtkSlicerAstroPVDiagramLogic::CalculateMomentMap(vtkMRMLAstroPVDiagramParam
     {
     momentMapNode = this->CreateMomentMapVolume(inputVolume, "PVDiagramSecondMomentMap", "km/s", "SECONDMOMENTMAP");
     vtkMRMLColorTableNode* rainbowColorTableNode = vtkMRMLColorTableNode::SafeDownCast
-      (this->GetMRMLScene()->GetFirstNodeByName("Rainbow"));
+      (this->GetMRMLScene()->GetFirstNodeByName(vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(2)));
     if (momentMapNode && rainbowColorTableNode)
       {
       momentMapNode->GetAstroVolumeDisplayNode()->SetAndObserveColorNodeID(rainbowColorTableNode->GetID());

@@ -30,6 +30,8 @@ class vtkSlicerAstroVolumeLogic;
 class vtkSegment;
 
 // AstroMaskings includes
+#include <functional>
+
 #include "vtkSlicerAstroMaskingModuleLogicExport.h"
 class vtkMRMLAstroMaskingParametersNode;
 
@@ -86,6 +88,19 @@ public:
   /// \param MRML parameter node
   /// \return Success flag
   bool ApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode);
+
+#ifndef __VTK_WRAP__
+  /// Start the operation (ApplyMask, ApplyBlank, ApplyCrop) without blocking
+  /// the user interface; done(success) is called in the GUI thread at its
+  /// end. Returns false if it could not start (done is not called).
+  /// Synchronous if synchronous is true.
+  bool StartApplyMask(vtkMRMLAstroMaskingParametersNode *pnode, const std::function<void(bool)>& done,
+                      bool synchronous = false);
+  bool StartApplyBlank(vtkMRMLAstroMaskingParametersNode *pnode, const std::function<void(bool)>& done,
+                       bool synchronous = false);
+  bool StartApplyCrop(vtkMRMLAstroMaskingParametersNode *pnode, const std::function<void(bool)>& done,
+                      bool synchronous = false);
+#endif
 
   /// Sets ROI to fit to input volume.
   /// If ROI is under a non-linear transform then the ROI transform will be reset to RAS.

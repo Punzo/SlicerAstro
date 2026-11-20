@@ -30,6 +30,7 @@
 
 class qSlicerAstroProfilesModuleWidgetPrivate;
 class vtkMRMLAstroProfilesParametersNode;
+class vtkMRMLAstroVolumeNode;
 class vtkMRMLNode;
 
 /// \ingroup SlicerAstro_QtModules_AstroProfiles
@@ -58,6 +59,10 @@ public slots:
   /// Slots to generate the profile.
   /// It creates an output volume and calls the logic
   void onCalculate();
+  /// End of a computation started by onCalculate (GUI thread): the table and
+  /// the plot of the profile, or the message of the failure
+  void finishCalculation(bool success, vtkMRMLAstroVolumeNode* inputVolume, vtkMRMLAstroVolumeNode* profileVolume,
+                         const QString& profileName, int N1);
 
   /// The profile in Slicer's plot view
   void onOpenPlotView();

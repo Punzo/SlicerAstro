@@ -130,7 +130,7 @@ def zeroMomentMap(cube):
         parameters.SetVelocityMax(max(velocities) + channelWidth)
         # the moment-0 map of the cube shared by the modules ("<cube>_mom0")
         moment = logic.CreateMomentMapVolume(cube, slicer.vtkSlicerAstroVolumeLogic.GetMomentMapName(cube, 0),
-                                             unit, "", "ZEROMOMENTMAP")
+                                             unit, slicer.vtkSlicerAstroVolumeLogic.GetMomentMapColorTableName(0), "ZEROMOMENTMAP")
         if moment is None:
             return None
         parameters.SetZeroMomentVolumeNodeID(moment.GetID())

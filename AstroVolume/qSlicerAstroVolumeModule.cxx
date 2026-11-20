@@ -467,6 +467,31 @@ void qSlicerAstroVolumeModule::setup()
   // Long computations of the SlicerAstro modules (reprojection, smoothing,
   // moment maps, ...): in a worker thread, the GUI responsive with a
   // progress dialog
+  // running background jobs are cancelled and waited for before the scene
+  // is closed and before the modules are unloaded (their results go to the
+  // scene, their logics must exist)
+  if (d->app->mrmlScene())
+    {
+    vtkNew<vtkCallbackCommand> closeCallback;
+    closeCallback->SetCallback([](vtkObject*, unsigned long, void*, void*)
+      {
+      qSlicerAstroBackgroundRunner::cancelAndWaitAll();
+      });
+    d->app->mrmlScene()->AddObserver(vtkMRMLScene::StartCloseEvent, closeCallback, 10.);
+    }
+  if (d->app->moduleManager() && d->app->moduleManager()->factoryManager())
+    {
+    QObject::connect(d->app->moduleManager()->factoryManager(), &qSlicerModuleFactoryManager::modulesAboutToBeUnloaded,
+                     this, [](const QStringList&) { qSlicerAstroBackgroundRunner::cancelAndWaitAll(); });
+    }
+  logic->SetBackgroundStarter([](const std::string& label, const std::function<void()>& work,
+                                  const std::function<int()>& progress, const std::function<void()>& cancel,
+                                  const std::function<void()>& finished)
+    {
+    qSlicerApplication* application = qSlicerApplication::application();
+    qSlicerAstroBackgroundRunner::start(application ? application->mainWindow() : nullptr,
+                                        QObject::tr(label.c_str()), work, progress, cancel, finished);
+    });
   logic->SetBackgroundRunner([](const std::string& label, const std::function<void()>& work,
                                  const std::function<int()>& progress, const std::function<void()>& cancel)
     {

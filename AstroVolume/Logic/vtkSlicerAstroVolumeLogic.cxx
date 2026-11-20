@@ -417,11 +417,142 @@ void vtkSlicerAstroVolumeLogic::UpdateSliceOrientationPresets()
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+struct ColorMapStop
+{
+  double Position;
+  unsigned int Rgb;
+};
+
+// Colour-blind safe maps of the SlicerAstro design (lightness increases
+// monotonically in the sequential maps; the diverging one has blue and orange
+// arms of similar lightness)
+const ColorMapStop MapObservatoryStops[] =
+{
+  {0., 0x070A12}, {0.17, 0x1B1F4A}, {0.33, 0x2B3F8C}, {0.50, 0x1F8FA6},
+  {0.67, 0x7FD3C4}, {0.83, 0xF2B24C}, {1., 0xFFF3D6}
+};
+const ColorMapStop MapDopplerStops[] =
+{
+  {0., 0x2F6BFF}, {0.25, 0x4FD1E0}, {0.5, 0xE8ECF4}, {0.75, 0xF2B24C}, {1., 0xE5672E}
+};
+const ColorMapStop MapEmberStops[] =
+{
+  {0., 0x12081F}, {0.2, 0x45155E}, {0.4, 0x8E2470}, {0.6, 0xD24A4F},
+  {0.8, 0xF59A3B}, {1., 0xFCEFB4}
+};
+
+struct ColorMapDefinition
+{
+  const char* Name;
+  const char* Description;
+  const ColorMapStop* Stops;
+  int NumberOfStops;
+  /// first entry dark: blank (NaN) pixels of maps, shown with the lowest
+  /// colour of the table, stay in the background
+  bool DarkFirstEntry;
+};
+
+const ColorMapDefinition ColorMaps[] =
+{
+  {"Observatory", "Intensity: ink, indigo, teal, amber, cream (colour-blind safe).",
+   MapObservatoryStops, static_cast<int>(sizeof(MapObservatoryStops) / sizeof(MapObservatoryStops[0])), false},
+  {"Doppler", "Velocity: blue (approaching), light grey (systemic), vermillion (receding) (colour-blind safe).",
+   MapDopplerStops, static_cast<int>(sizeof(MapDopplerStops) / sizeof(MapDopplerStops[0])), true},
+  {"Ember", "Sequential: aubergine, magenta, orange, light yellow; e.g. velocity dispersion (colour-blind safe).",
+   MapEmberStops, static_cast<int>(sizeof(MapEmberStops) / sizeof(MapEmberStops[0])), false},
+};
+
+const ColorMapDefinition* FindColorMap(const char* name)
+{
+  if (!name)
+    {
+    return nullptr;
+    }
+  for (const ColorMapDefinition& map : ColorMaps)
+    {
+    if (!strcmp(map.Name, name))
+      {
+      return &map;
+      }
+    }
+  return nullptr;
+}
+
+void InterpolateColorMap(const ColorMapDefinition& map, double value, double rgb[3])
+{
+  value = std::isfinite(value) ? std::max(0., std::min(1., value)) : 0.;
+  int i = 1;
+  while (i < map.NumberOfStops - 1 && value > map.Stops[i].Position)
+    {
+    i++;
+    }
+  const ColorMapStop& a = map.Stops[i - 1];
+  const ColorMapStop& b = map.Stops[i];
+  const double t = b.Position > a.Position ? (value - a.Position) / (b.Position - a.Position) : 0.;
+  for (int c = 0; c < 3; c++)
+    {
+    const int shift = 16 - 8 * c;
+    const double ca = ((a.Rgb >> shift) & 0xFF) / 255.;
+    const double cb = ((b.Rgb >> shift) & 0xFF) / 255.;
+    rgb[c] = ca + std::max(0., std::min(1., t)) * (cb - ca);
+    }
+}
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroVolumeLogic::GetColorMapColor(const char* name, double value, double rgb[3])
+{
+  const ColorMapDefinition* map = FindColorMap(name);
+  if (!map)
+    {
+    return false;
+    }
+  InterpolateColorMap(*map, value, rgb);
+  return true;
+}
+
+//----------------------------------------------------------------------------
+const char* vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(int order)
+{
+  return order == 1 ? "Doppler" : (order == 2 ? "Ember" : "Observatory");
+}
+
+//----------------------------------------------------------------------------
 void vtkSlicerAstroVolumeLogic::AddAstroColorTables()
 {
   if (!this->GetMRMLScene() || this->GetMRMLScene()->IsClosing())
     {
     return;
+    }
+
+  // colour-blind safe maps of SlicerAstro (Observatory, Doppler, Ember)
+  for (const ColorMapDefinition& map : ColorMaps)
+    {
+    if (this->GetMRMLScene()->GetFirstNodeByName(map.Name))
+      {
+      continue;
+      }
+    vtkNew<vtkMRMLColorTableNode> table;
+    table->SetType(vtkMRMLColorTableNode::User);
+    table->SetName(map.Name);
+    // singleton (fixed ID): a scene saved with it refers to the same node
+    table->SetSingletonTag((std::string("SlicerAstro.") + map.Name).c_str());
+    table->SetDescription(map.Description);
+    table->SetNumberOfColors(256);
+    for (int i = 0; i < 256; i++)
+      {
+      double rgb[3];
+      InterpolateColorMap(map, i / 255., rgb);
+      table->SetColor(i, rgb[0], rgb[1], rgb[2], 1.);
+      }
+    if (map.DarkFirstEntry)
+      {
+      table->SetColor(0, 7 / 255., 10 / 255., 18 / 255., 1.);
+      }
+    table->SetNamesFromColors();
+    this->GetMRMLScene()->AddNode(table.GetPointer());
     }
 
   // Add Astro 2D color functions
@@ -758,6 +889,9 @@ void vtkSlicerAstroVolumeLogic::AddAstroColorTables()
         !strcmp(tempColorTableNode->GetName(), "Heat") ||
         !strcmp(tempColorTableNode->GetName(), "Ronekers") ||
         !strcmp(tempColorTableNode->GetName(), "VelocityField") ||
+        !strcmp(tempColorTableNode->GetName(), "Observatory") ||
+        !strcmp(tempColorTableNode->GetName(), "Doppler") ||
+        !strcmp(tempColorTableNode->GetName(), "Ember") ||
         !strcmp(tempColorTableNode->GetName(), "Rainbow"))
       {
       tempColorTableNode->SetAttribute("SlicerAstro.AddFunctions", "on");

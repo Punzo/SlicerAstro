@@ -129,6 +129,7 @@ class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
         self.assertTrue(logic.SetManualGridFromInput(parametersNode, True, False, True), logic.GetLastError())
         self.assertEqual(parametersNode.GetRotation(), 0.)
         applyButton.click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         slicer.app.processEvents()
 
         northNode = self.outputVolume(parametersNode)
@@ -162,6 +163,7 @@ class AstroReprojectSelfTestTest(ScriptedLoadableModuleTest):
         parametersNode.SetSpectralGridMode(P.SpectralInput)
         parametersNode.SetReferenceVolumeNodeID(dssNode.GetID())
         applyButton.click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         slicer.app.processEvents()
 
         outputNode = self.outputVolume(parametersNode)

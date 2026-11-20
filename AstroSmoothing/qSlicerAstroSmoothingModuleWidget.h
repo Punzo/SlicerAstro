@@ -26,6 +26,7 @@
 #include "qSlicerAstroSmoothingModuleExport.h"
 
 class qSlicerAstroSmoothingModuleWidgetPrivate;
+class vtkMRMLAstroVolumeNode;
 class vtkMRMLNode;
 class vtkMRMLAstroSmoothingParametersNode;
 
@@ -50,6 +51,8 @@ public:
 public slots:
   /// Smooth the input data (new output volume)
   void onApply();
+  /// End of a smoothing started by onApply (GUI thread)
+  void finishSmoothing(bool success, vtkMRMLAstroVolumeNode* inputVolume, vtkMRMLAstroVolumeNode* outputVolume);
 
 protected:
   QScopedPointer<qSlicerAstroSmoothingModuleWidgetPrivate> d_ptr;

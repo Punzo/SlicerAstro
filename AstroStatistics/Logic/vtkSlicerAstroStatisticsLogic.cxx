@@ -54,6 +54,8 @@
 
 // Std includes
 #include <algorithm>
+#include <vector>
+#include <memory>
 #include <cassert>
 #include <iostream>
 #include <chrono>
@@ -168,7 +170,30 @@ void vtkSlicerAstroStatisticsLogic::RegisterNodes()
 }
 
 //----------------------------------------------------------------------------
+namespace
+{
+// Results of a computation in a worker thread, read afterwards in the GUI
+// thread (shared by the computation and its end)
+struct StatisticsResults
+{
+  double Max{0.}, Min{0.}, Mean{0.}, Median{0.}, Std{0.}, Sum{0.}, TotalFlux{0.};
+  vtkIdType Npixels{0};
+  bool Cancel{false};
+  bool ComputeResult{true};
+};
+} // end of anonymous namespace
+
+//----------------------------------------------------------------------------
 bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode)
+{
+  bool result = false;
+  const bool started = this->StartCalculateStatistics(pnode, [&result](bool success) { result = success; }, true);
+  return started && result;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroStatisticsLogic::StartCalculateStatistics(vtkMRMLAstroStatisticsParametersNode *pnode,
+                                                             const std::function<void(bool)>& done, bool synchronous)
 {
   this->LastError.clear();
 
@@ -207,7 +232,7 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     }
 
   // input mask: a segment, on the voxel grid of the data (1 inside)
-  vtkNew<vtkImageData> maskImage;
+  vtkSmartPointer<vtkImageData> maskImage = vtkSmartPointer<vtkImageData>::New();
   unsigned char* maskVoxels = nullptr;
   if (segmentationActive)
     {
@@ -281,9 +306,10 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   float *inFPixel = nullptr;
   double *inDPixel = nullptr;
   unsigned char *maskPixel = nullptr;
-  double Max = inputVolume->GetImageData()->GetScalarTypeMin(), Min = inputVolume->GetImageData()->GetScalarTypeMax();
-  double Mean = 0., Median = 0., Std = 0., Sum = 0., TotalFlux = 0.;
-  vtkIdType Npixels = 0;
+  // results: written by the computation, read at its end
+  std::shared_ptr<StatisticsResults> results = std::make_shared<StatisticsResults>();
+  results->Max = inputVolume->GetImageData()->GetScalarTypeMin();
+  results->Min = inputVolume->GetImageData()->GetScalarTypeMax();
 
   const int DataType = inputVolume->GetImageData()->GetPointData()->GetScalars()->GetDataType();
   switch (DataType)
@@ -299,8 +325,6 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
       return false;
     }
 
-  bool cancel = false;
-
   std::chrono::steady_clock::time_point start, end;
 
   long mtime = 0;
@@ -311,8 +335,8 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   // worker thread, the GUI responsive with a progress dialog): the progress
   // and the cancel request go to a node without observers (no MRML events
   // from a worker thread); the scene is modified before and after them only.
-  vtkNew<vtkMRMLAstroStatisticsParametersNode> progressNode;
-  bool computeResult = true;
+  vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode> progressNode =
+    vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode>::New();
   // what the computation uses in the worker thread, prepared here in the
   // GUI thread (vtkSlicerAstroVolumeLogic::RunInBackground): the voxels held
   // (shared, not copied), the bounds of the box (from its node and the
@@ -329,10 +353,24 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
     this->GetAstroVolumeLogic()->CalculateROICropVolumeBounds(pnode->GetROINode(), inputVolume, boxBounds);
     boxBoundsValid = true;
     }
-  vtkNew<vtkMRMLAstroStatisticsParametersNode> workerParameters;
+  vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode> workerParameters =
+    vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode>::New();
   workerParameters->Copy(pnode);
-  std::function<void()> compute = [&, pnode = workerParameters.GetPointer()]()
+  // everything captured by value: the job outlives this function; the
+  // buffers used through raw pointers are held explicitly
+  std::vector<vtkSmartPointer<vtkObject> > held = {maskImage, heldInput};
+  std::function<void()> compute = [=, pnode = workerParameters, held = held]() mutable
   {
+  double& Max = results->Max;
+  double& Min = results->Min;
+  double& Mean = results->Mean;
+  double& Median = results->Median;
+  double& Std = results->Std;
+  double& Sum = results->Sum;
+  double& TotalFlux = results->TotalFlux;
+  vtkIdType& Npixels = results->Npixels;
+  bool& cancel = results->Cancel;
+  bool& computeResult = results->ComputeResult;
   progressNode->SetStatus(1);
 
   if(segmentationActive)
@@ -744,125 +782,158 @@ bool vtkSlicerAstroStatisticsLogic::CalculateStatistics(vtkMRMLAstroStatisticsPa
   vtkDebugMacro("Statistics Kernel Time : "<<mtime<<" ms.");
 
   };
+  // the results go to the table after the work, in the GUI thread (the
+  // nodes are held: they may be removed meanwhile)
+  std::function<void()> finish = [=, parameters = vtkSmartPointer<vtkMRMLAstroStatisticsParametersNode>(pnode),
+                                  tableHold = vtkSmartPointer<vtkMRMLTableNode>(tableNode),
+                                  inputHold = vtkSmartPointer<vtkMRMLAstroVolumeNode>(inputVolume)]() mutable
+    {
+    vtkMRMLAstroStatisticsParametersNode* pnode = parameters;
+      double& Max = results->Max;
+      double& Min = results->Min;
+      double& Mean = results->Mean;
+      double& Median = results->Median;
+      double& Std = results->Std;
+      double& Sum = results->Sum;
+      double& TotalFlux = results->TotalFlux;
+      vtkIdType& Npixels = results->Npixels;
+      bool& cancel = results->Cancel;
+      bool& computeResult = results->ComputeResult;
+      if (!computeResult)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+      if (progressNode->GetStatus() == -1)
+        {
+        pnode->SetStatus(-1);
+        }
+      cancel = cancel || progressNode->GetStatus() == -1;
+
+      pnode->SetStatus(100);
+
+      if (cancel)
+        {
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+      double NaN = sqrt(-1);
+      // a row per calculation: the data and the region
+      tableNode->AddEmptyRow();
+      int serial = tableNode->GetNumberOfRows() - 1;
+      std::string CellText(inputVolume->GetName() ? inputVolume->GetName() : "");
+      CellText += " \xC2\xB7 ";
+      if (segmentationActive)
+        {
+        vtkMRMLSegmentationNode* maskNode = vtkMRMLSegmentationNode::SafeDownCast(
+          this->GetMRMLScene()->GetNodeByID(pnode->GetMaskSegmentationNodeID()));
+        vtkSegment* segment = (maskNode && maskNode->GetSegmentation() && pnode->GetMaskSegmentID()) ?
+          maskNode->GetSegmentation()->GetSegment(pnode->GetMaskSegmentID()) : nullptr;
+        CellText += segment && segment->GetName() ? segment->GetName() : "mask";
+        }
+      else if (wholeVolume)
+        {
+        CellText += "whole data";
+        }
+      else
+        {
+        CellText += pnode->GetROINode() && pnode->GetROINode()->GetName() ? pnode->GetROINode()->GetName() : "box";
+        }
+      tableNode->SetCellText(serial, 0, CellText.c_str());
+      // units of the data
+      const char* unit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
+      for (const char* column : {"Min", "Max", "Mean", "Std", "Median", "Sum"})
+        {
+        tableNode->SetColumnUnitLabel(column, unit ? unit : "");
+        }
+
+      if (!pnode->GetNpixels())
+        {
+        NpixelsArray->SetTuple1(serial, vtkDoubleArray::SafeDownCast(NpixelsArray) ? NaN : 0.);
+        }
+      else
+        {
+        NpixelsArray->SetTuple1(serial, static_cast<double>(Npixels));
+        }
+
+      if (!pnode->GetMin())
+        {
+        Min = NaN;
+        }
+      MinArray->SetValue(serial, Min);
+
+      if (!pnode->GetMax())
+        {
+        Max = NaN;
+        }
+      MaxArray->SetValue(serial, Max);
+
+      if (!pnode->GetMean())
+        {
+        Mean = NaN;
+        }
+      MeanArray->SetValue(serial, Mean);
+
+      if (!pnode->GetStd())
+        {
+        Std = NaN;
+        }
+      StdArray->SetValue(serial, Std);
+
+      if (!pnode->GetMedian())
+        {
+        Median = NaN;
+        }
+      MedianArray->SetValue(serial, Median);
+
+      if (!pnode->GetSum())
+        {
+        Sum = NaN;
+        }
+      SumArray->SetValue(serial, Sum);
+
+      if (!pnode->GetTotalFlux())
+        {
+        TotalFlux = NaN;
+        }
+      TotalFluxArray->SetValue(serial, TotalFlux);
+
+      serial++;
+      pnode->SetOutputSerial(serial + 1);
+
+      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        const long mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Update Time : "<<mtime<<" ms.");
+
+    if (done)
+      {
+      done(true);
+      }
+    };
   progressNode->SetStatus(1);
   if (this->Internal->AstroVolumeLogic)
     {
-    this->Internal->AstroVolumeLogic->RunInBackground("Calculating the statistics...", compute, progressNode.GetPointer());
+    this->Internal->AstroVolumeLogic->StartInBackground("Calculating the statistics...", compute,
+      [progressNode]() { return progressNode->GetStatus(); },
+      [progressNode]() { progressNode->SetStatus(-1); }, finish, synchronous);
     }
   else
     {
     compute();
+    finish();
     }
-  if (!computeResult)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-  if (progressNode->GetStatus() == -1)
-    {
-    pnode->SetStatus(-1);
-    }
-  cancel = cancel || progressNode->GetStatus() == -1;
-
-  pnode->SetStatus(100);
-
-  if (cancel)
-    {
-    return false;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  double NaN = sqrt(-1);
-  // a row per calculation: the data and the region
-  tableNode->AddEmptyRow();
-  int serial = tableNode->GetNumberOfRows() - 1;
-  std::string CellText(inputVolume->GetName() ? inputVolume->GetName() : "");
-  CellText += " \xC2\xB7 ";
-  if (segmentationActive)
-    {
-    vtkMRMLSegmentationNode* maskNode = vtkMRMLSegmentationNode::SafeDownCast(
-      this->GetMRMLScene()->GetNodeByID(pnode->GetMaskSegmentationNodeID()));
-    vtkSegment* segment = (maskNode && maskNode->GetSegmentation() && pnode->GetMaskSegmentID()) ?
-      maskNode->GetSegmentation()->GetSegment(pnode->GetMaskSegmentID()) : nullptr;
-    CellText += segment && segment->GetName() ? segment->GetName() : "mask";
-    }
-  else if (wholeVolume)
-    {
-    CellText += "whole data";
-    }
-  else
-    {
-    CellText += pnode->GetROINode() && pnode->GetROINode()->GetName() ? pnode->GetROINode()->GetName() : "box";
-    }
-  tableNode->SetCellText(serial, 0, CellText.c_str());
-  // units of the data
-  const char* unit = inputVolume->GetAttribute("SlicerAstro.BUNIT");
-  for (const char* column : {"Min", "Max", "Mean", "Std", "Median", "Sum"})
-    {
-    tableNode->SetColumnUnitLabel(column, unit ? unit : "");
-    }
-
-  if (!pnode->GetNpixels())
-    {
-    NpixelsArray->SetTuple1(serial, vtkDoubleArray::SafeDownCast(NpixelsArray) ? NaN : 0.);
-    }
-  else
-    {
-    NpixelsArray->SetTuple1(serial, static_cast<double>(Npixels));
-    }
-
-  if (!pnode->GetMin())
-    {
-    Min = NaN;
-    }
-  MinArray->SetValue(serial, Min);
-
-  if (!pnode->GetMax())
-    {
-    Max = NaN;
-    }
-  MaxArray->SetValue(serial, Max);
-
-  if (!pnode->GetMean())
-    {
-    Mean = NaN;
-    }
-  MeanArray->SetValue(serial, Mean);
-
-  if (!pnode->GetStd())
-    {
-    Std = NaN;
-    }
-  StdArray->SetValue(serial, Std);
-
-  if (!pnode->GetMedian())
-    {
-    Median = NaN;
-    }
-  MedianArray->SetValue(serial, Median);
-
-  if (!pnode->GetSum())
-    {
-    Sum = NaN;
-    }
-  SumArray->SetValue(serial, Sum);
-
-  if (!pnode->GetTotalFlux())
-    {
-    TotalFlux = NaN;
-    }
-  TotalFluxArray->SetValue(serial, TotalFlux);
-
-  serial++;
-  pnode->SetOutputSerial(serial + 1);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
   return true;
 }
 

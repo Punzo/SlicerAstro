@@ -27,6 +27,8 @@ class vtkMRMLVolumeNode;
 class vtkSlicerAstroVolumeLogic;
 
 // AstroMomentMapss includes
+#include <functional>
+
 #include "vtkSlicerAstroMomentMapsModuleLogicExport.h"
 class vtkMRMLAstroMomentMapsParametersNode;
 
@@ -56,7 +58,18 @@ public:
   /// Run moment maps calculation algorithm
   /// \param MRML parameter node
   /// \return Success flag
+  /// Synchronous: returns when the maps are computed (scripts, other logics).
   bool CalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode);
+
+#ifndef __VTK_WRAP__
+  /// Start the computation without blocking the user interface (worker
+  /// thread, AstroVolume background starter); done(success) is called in the
+  /// GUI thread when the maps are computed (or cancelled, or failed). Returns
+  /// false if the computation could not start (done is not called).
+  /// Synchronous if synchronous is true.
+  bool StartCalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode,
+                                const std::function<void(bool)>& done, bool synchronous = false);
+#endif
 
   /// Output volume of a moment map of a data cube (2D, the celestial WCS of
   /// the cube, no volume rendering), to be filled by CalculateMomentMaps.

@@ -26,6 +26,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPointer>
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QStringList>
@@ -267,15 +268,15 @@ void qSlicerAstroMomentMapsModuleWidgetPrivate::init()
   mapsLayout->addWidget(Overline(qSlicerAstroMomentMapsModuleWidget::tr("Maps"), maps));
   QGridLayout* togglesLayout = new QGridLayout();
   togglesLayout->setSpacing(6);
-  this->ZeroMomentToggle = new qSlicerAstroToggleCard("0", qSlicerAstroMomentMapsModuleWidget::tr("flux"), maps);
+  this->ZeroMomentToggle = new qSlicerAstroToggleCard("0th", qSlicerAstroMomentMapsModuleWidget::tr("flux"), maps);
   this->ZeroMomentToggle->setObjectName("ZeroMomentToggle");
   this->ZeroMomentToggle->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr(
     "Moment 0: integrated intensity (sum over the channels times the channel width)."));
-  this->FirstMomentToggle = new qSlicerAstroToggleCard("1", qSlicerAstroMomentMapsModuleWidget::tr("velocity"), maps);
+  this->FirstMomentToggle = new qSlicerAstroToggleCard("1st", qSlicerAstroMomentMapsModuleWidget::tr("velocity"), maps);
   this->FirstMomentToggle->setObjectName("FirstMomentToggle");
   this->FirstMomentToggle->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr(
     "Moment 1: intensity-weighted mean velocity (velocity field)."));
-  this->SecondMomentToggle = new qSlicerAstroToggleCard("2", qSlicerAstroMomentMapsModuleWidget::tr("dispersion"), maps);
+  this->SecondMomentToggle = new qSlicerAstroToggleCard("2nd", qSlicerAstroMomentMapsModuleWidget::tr("dispersion"), maps);
   this->SecondMomentToggle->setObjectName("SecondMomentToggle");
   this->SecondMomentToggle->setToolTip(qSlicerAstroMomentMapsModuleWidget::tr(
     "Moment 2: intensity-weighted velocity dispersion."));
@@ -1444,23 +1445,62 @@ void qSlicerAstroMomentMapsModuleWidget::onCalculate()
     {
     std::string unit = inputVolume->GetAttribute("SlicerAstro.BUNIT") ? inputVolume->GetAttribute("SlicerAstro.BUNIT") : "";
     unit += " km/s";
-    zeroMomentVolume = d->createMapVolume(inputVolume, 0, unit, nullptr, "ZEROMOMENTMAP");
+    zeroMomentVolume = d->createMapVolume(inputVolume, 0, unit, vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(0), "ZEROMOMENTMAP");
     d->parametersNode->SetZeroMomentVolumeNodeID(zeroMomentVolume ? zeroMomentVolume->GetID() : nullptr);
     }
   if (generateFirst || generateSecond)
     {
-    firstMomentVolume = d->createMapVolume(inputVolume, 1, "km/s", "VelocityField", "FIRSTMOMENTMAP");
+    firstMomentVolume = d->createMapVolume(inputVolume, 1, "km/s", vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(1), "FIRSTMOMENTMAP");
     d->parametersNode->SetFirstMomentVolumeNodeID(firstMomentVolume ? firstMomentVolume->GetID() : nullptr);
     }
   if (generateSecond)
     {
-    secondMomentVolume = d->createMapVolume(inputVolume, 2, "km/s", "Rainbow", "SECONDMOMENTMAP");
+    secondMomentVolume = d->createMapVolume(inputVolume, 2, "km/s", vtkSlicerAstroVolumeLogic::GetMomentMapColorTableName(2), "SECONDMOMENTMAP");
     d->parametersNode->SetSecondMomentVolumeNodeID(secondMomentVolume ? secondMomentVolume->GetID() : nullptr);
     }
 
 
-  // Run computation
-  if (!logic->CalculateMomentMaps(d->parametersNode))
+  // Run the computation without blocking the user interface: the panel
+  // shows the progress in its run button; the maps are shown when done
+  const QString zeroID = zeroMomentVolume ? QString::fromUtf8(zeroMomentVolume->GetID()) : QString();
+  const QString firstID = firstMomentVolume ? QString::fromUtf8(firstMomentVolume->GetID()) : QString();
+  const QString secondID = secondMomentVolume ? QString::fromUtf8(secondMomentVolume->GetID()) : QString();
+  QPointer<qSlicerAstroMomentMapsModuleWidget> self(this);
+  const bool started = logic->StartCalculateMomentMaps(d->parametersNode,
+    [self, zeroID, firstID, secondID, generateZero, generateFirst, generateSecond](bool success)
+    {
+    if (self)
+      {
+      self->finishCalculation(success, zeroID, firstID, secondID, generateZero, generateFirst, generateSecond);
+      }
+    });
+  if (!started)
+    {
+    this->finishCalculation(false, zeroID, firstID, secondID, generateZero, generateFirst, generateSecond);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroMomentMapsModuleWidget::finishCalculation(bool success, const QString& zeroID,
+                                                           const QString& firstID, const QString& secondID,
+                                                           bool generateZero, bool generateFirst,
+                                                           bool generateSecond)
+{
+  Q_D(qSlicerAstroMomentMapsModuleWidget);
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene || !d->parametersNode)
+    {
+    return;
+    }
+  // the maps of this computation (they may have been removed meanwhile)
+  vtkMRMLAstroVolumeNode* zeroMomentVolume = zeroID.isEmpty() ? nullptr :
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(zeroID.toUtf8().constData()));
+  vtkMRMLAstroVolumeNode* firstMomentVolume = firstID.isEmpty() ? nullptr :
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(firstID.toUtf8().constData()));
+  vtkMRMLAstroVolumeNode* secondMomentVolume = secondID.isEmpty() ? nullptr :
+    vtkMRMLAstroVolumeNode::SafeDownCast(scene->GetNodeByID(secondID.toUtf8().constData()));
+
+  if (!success)
     {
     const bool cancelled = d->CancelRequested;
     for (vtkMRMLAstroVolumeNode* map : {zeroMomentVolume, firstMomentVolume, secondMomentVolume})

@@ -18,6 +18,8 @@
 ==============================================================================*/
 
 // Qt includes
+#include <QPointer>
+#include <QTimer>
 #include <QButtonGroup>
 #include <QSignalBlocker>
 #include <QCheckBox>
@@ -1261,7 +1263,41 @@ void qSlicerAstroSmoothingModuleWidget::onApply()
     {
     qSlicerApplication::application()->processEvents();
     }
-  if (!logic->Apply(d->parametersNode, nullptr))
+  // without blocking the user interface (progress in the run button); the
+  // result is shown when the smoothing is done
+  QPointer<qSlicerAstroSmoothingModuleWidget> self(this);
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> inputHold = inputVolume;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> outputHold = outputVolume;
+  const bool started = logic->StartApply(d->parametersNode, nullptr, [self, inputHold, outputHold](bool success)
+    {
+    // next turn of the event loop: the OpenGL filters call this before
+    // releasing their offscreen context, and the views render in the finish
+    QTimer::singleShot(0, self, [self, inputHold, outputHold, success]()
+      {
+      if (self)
+        {
+        self->finishSmoothing(success, inputHold, outputHold);
+        }
+      });
+    });
+  if (!started)
+    {
+    this->finishSmoothing(false, inputVolume, outputVolume);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroSmoothingModuleWidget::finishSmoothing(bool success, vtkMRMLAstroVolumeNode* inputVolume,
+                                                       vtkMRMLAstroVolumeNode* outputVolume)
+{
+  Q_D(qSlicerAstroSmoothingModuleWidget);
+  vtkMRMLScene* scene = this->mrmlScene();
+  vtkSlicerAstroSmoothingLogic* logic = d->logic();
+  if (!scene || !logic || !d->parametersNode || !inputVolume || !outputVolume)
+    {
+    return;
+    }
+  if (!success)
     {
     const bool cancelled = d->CancelRequested;
     scene->RemoveNode(outputVolume);

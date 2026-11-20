@@ -195,6 +195,7 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
             slicer.util.findChild(widget, "SegmentsTableView").setSelectedSegmentIDs([sourceID])
             slicer.app.processEvents()
             slicer.util.findChild(widget, "ApplyButton").click()
+            slicer.qSlicerAstroBackgroundRunner().waitForJobs()
             # the segment is the mask: no label map volume
             self.assertEqual(parametersNode.GetMaskSegmentationNodeID(), segmentationNode.GetID())
             self.assertEqual(parametersNode.GetMaskSegmentID(), sourceID)
@@ -239,6 +240,7 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
         self.delayDisplay("Calculating moment maps")
         widget = slicer.modules.astromomentmaps.widgetRepresentation()
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
 
         nodes, maps = [], []
         for nodeID in (parametersNode.GetZeroMomentVolumeNodeID(),
@@ -248,6 +250,14 @@ class AstroMomentMapsSelfTestTest(ScriptedLoadableModuleTest):
             self.assertIsNotNone(node)
             nodes.append(node)
             maps.append(voxelArray(node)[0].astype(np.float64))
+
+        # colour-blind safe colour maps of SlicerAstro, as the thumbnails
+        self.assertEqual([node.GetDisplayNode().GetColorNode().GetName() for node in nodes],
+                         ["Observatory", "Doppler", "Ember"])
+        rgb = [0., 0., 0.]
+        self.assertTrue(slicer.vtkSlicerAstroVolumeLogic.GetColorMapColor("Doppler", 0.5, rgb))
+        self.assertTrue(all(c > 0.85 for c in rgb))  # systemic velocity: light grey
+        self.assertFalse(slicer.vtkSlicerAstroVolumeLogic.GetColorMapColor("NoSuchMap", 0.5, rgb))
 
         velocities, zmin, zmax = channelRange(volumeNode, parametersNode)
         expected = referenceMoments(voxelArray(volumeNode), velocities, zmin, zmax,

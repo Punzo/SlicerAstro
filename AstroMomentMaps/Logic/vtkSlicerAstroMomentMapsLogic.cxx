@@ -22,6 +22,7 @@
 #include "vtkSlicerAstroMomentMapsLogic.h"
 #include "vtkSlicerAstroConfigure.h"
 #include <functional>
+#include <memory>
 #include <vtkSlicerAstroSMPTools.h>
 #include <type_traits>
 #include <vector>
@@ -181,6 +182,16 @@ void vtkSlicerAstroMomentMapsLogic::RegisterNodes()
 //----------------------------------------------------------------------------
 bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode)
 {
+  bool result = false;
+  const bool started = this->StartCalculateMomentMaps(pnode, [&result](bool success) { result = success; }, true);
+  return started && result;
+}
+
+//----------------------------------------------------------------------------
+bool vtkSlicerAstroMomentMapsLogic::StartCalculateMomentMaps(vtkMRMLAstroMomentMapsParametersNode *pnode,
+                                                             const std::function<void(bool)>& done,
+                                                             bool synchronous)
+{
 
    if (!pnode)
      {
@@ -239,7 +250,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   bool maskActive = pnode->GetMaskActive();
 
   // input mask: a segment, on the voxel grid of the data (1 inside)
-  vtkNew<vtkImageData> maskImage;
+  vtkSmartPointer<vtkImageData> maskImage = vtkSmartPointer<vtkImageData>::New();
   unsigned char* maskVoxels = nullptr;
   if (maskActive)
     {
@@ -324,7 +335,8 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
       return 0;
     }
 
-  bool cancel = false;
+  // written by the worker, read afterwards
+  std::shared_ptr<bool> cancel = std::make_shared<bool>(false);
 
   std::chrono::steady_clock::time_point start, end;
 
@@ -336,8 +348,9 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
   // worker thread, the GUI responsive with a progress dialog): the progress
   // and the cancel request go to a node without observers (no MRML events
   // from a worker thread); the scene is modified before and after them only.
-  vtkNew<vtkMRMLAstroMomentMapsParametersNode> progressNode;
-  bool computeResult = true;
+  vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode> progressNode =
+    vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode>::New();
+  std::shared_ptr<bool> computeResult = std::make_shared<bool>(true);
   // what the computation uses in the worker thread, prepared here in the
   // GUI thread (vtkSlicerAstroVolumeLogic::RunInBackground): the voxel
   // buffers held (shared, not copied), a copy of the WCS, the attributes and
@@ -348,9 +361,13 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     vtkSlicerAstroVolumeLogic::CopyDisplayNodeForWorker(inputVolume);
   const double inputNAXIS1 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS1"));
   const double inputNAXIS2 = StringToDouble(inputVolume->GetAttribute("SlicerAstro.NAXIS2"));
-  vtkNew<vtkMRMLAstroMomentMapsParametersNode> workerParameters;
+  vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode> workerParameters =
+    vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode>::New();
   workerParameters->Copy(pnode);
-  std::function<void()> compute = [&, pnode = workerParameters.GetPointer()]()
+  // everything captured by value: the job outlives this function; the
+  // buffers used through raw pointers are held explicitly
+  std::vector<vtkSmartPointer<vtkObject> > held = {maskImage, heldInput, heldSecondMoment, zeroMomentImage, firstMomentImage};
+  std::function<void()> compute = [=, pnode = workerParameters, held = held]() mutable
   {
   progressNode->SetStatus(1);
 
@@ -361,7 +378,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " astroDisplay not found!");
-    computeResult = false;
+    *computeResult = false;
     return;
     }
   double ijk[3], world[3];
@@ -374,7 +391,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
     {
     vtkErrorMacro("vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps :"
                   " WCS not found!");
-    computeResult = false;
+    *computeResult = false;
     return;
     }
   if (!strcmp(WCS->cunit[2], "m/s"))
@@ -595,7 +612,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
         }
       progress.Done(lastIndex - firstIndex);
       });
-    cancel = progress.IsCancelled();
+    *cancel = progress.IsCancelled();
     }
     }
   else
@@ -858,7 +875,7 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
         }
       progress.Done(lastIndex - firstIndex);
       });
-    cancel = progress.IsCancelled();
+    *cancel = progress.IsCancelled();
     }
     }
 
@@ -870,94 +887,123 @@ bool vtkSlicerAstroMomentMapsLogic::CalculateMomentMaps(vtkMRMLAstroMomentMapsPa
 
 
   };
+  // the results go to the scene after the work, in the GUI thread (the
+  // nodes are held: they may be removed meanwhile)
+  vtkSmartPointer<vtkMRMLAstroMomentMapsParametersNode> parameters = pnode;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> zeroHold = ZeroMomentVolume;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> firstHold = FirstMomentVolume;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> secondHold = SecondMomentVolume;
+  std::function<void()> finish = [this, parameters, zeroHold, firstHold, secondHold, progressNode, computeResult,
+                                  cancel, done]()
+    {
+    vtkMRMLAstroMomentMapsParametersNode* pnode = parameters;
+    vtkMRMLAstroVolumeNode* ZeroMomentVolume = zeroHold;
+    vtkMRMLAstroVolumeNode* FirstMomentVolume = firstHold;
+    vtkMRMLAstroVolumeNode* SecondMomentVolume = secondHold;
+      if (!*computeResult)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+      if (progressNode->GetStatus() == -1)
+        {
+        pnode->SetStatus(-1);
+        }
+      *cancel = *cancel || progressNode->GetStatus() == -1;
+
+      if (*cancel)
+        {
+        pnode->SetStatus(100);
+        if (done)
+          {
+          done(false);
+          }
+        return;
+        }
+
+      std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+
+      if (pnode->GetGenerateZero())
+        {
+        int wasModifying = ZeroMomentVolume->StartModify();
+        ZeroMomentVolume->UpdateRangeAttributes();
+        ZeroMomentVolume->UpdateDisplayThresholdAttributes();
+        int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
+        ZeroMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
+        ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
+        double min = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
+        double max = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
+        double window = max-min;
+        double level = 0.5*(max+min);
+        ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
+        ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
+        ZeroMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+        ZeroMomentVolume->EndModify(wasModifying);
+        }
+      if (pnode->GetGenerateFirst())
+        {
+        int wasModifying = FirstMomentVolume->StartModify();
+        FirstMomentVolume->UpdateRangeAttributes();
+        FirstMomentVolume->UpdateDisplayThresholdAttributes();
+        int disabledModify = FirstMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
+        FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
+        FirstMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
+        double min = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
+        double max = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
+        double window = max-min;
+        double level = 0.5*(max+min);
+        FirstMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
+        FirstMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
+        FirstMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+        FirstMomentVolume->EndModify(wasModifying);
+        }
+      if (pnode->GetGenerateSecond())
+        {
+        int wasModifying = SecondMomentVolume->StartModify();
+        SecondMomentVolume->UpdateRangeAttributes();
+        SecondMomentVolume->UpdateDisplayThresholdAttributes();
+        int disabledModify = SecondMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
+        SecondMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
+        SecondMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
+        double min = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
+        double max = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
+        double window = max-min;
+        double level = 0.5*(max+min);
+        SecondMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
+        SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
+        SecondMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
+        SecondMomentVolume->EndModify(wasModifying);
+        }
+
+      pnode->SetStatus(100);
+
+      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+
+        const long mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
+
+      vtkDebugMacro("Update Time : "<<mtime<<" ms.");
+
+    if (done)
+      {
+      done(true);
+      }
+    };
   progressNode->SetStatus(1);
   if (this->Internal->AstroVolumeLogic)
     {
-    this->Internal->AstroVolumeLogic->RunInBackground("Calculating the moment maps...", compute, progressNode.GetPointer());
+    this->Internal->AstroVolumeLogic->StartInBackground("Calculating the moment maps...", compute,
+      [progressNode]() { return progressNode->GetStatus(); },
+      [progressNode]() { progressNode->SetStatus(-1); }, finish, synchronous);
     }
   else
     {
     compute();
+    finish();
     }
-  if (!computeResult)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-  if (progressNode->GetStatus() == -1)
-    {
-    pnode->SetStatus(-1);
-    }
-  cancel = cancel || progressNode->GetStatus() == -1;
-
-  if (cancel)
-    {
-    pnode->SetStatus(100);
-    return false;
-    }
-
-  start = std::chrono::steady_clock::now();
-
-  if (pnode->GetGenerateZero())
-    {
-    int wasModifying = ZeroMomentVolume->StartModify();
-    ZeroMomentVolume->UpdateRangeAttributes();
-    ZeroMomentVolume->UpdateDisplayThresholdAttributes();
-    int disabledModify = ZeroMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
-    ZeroMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
-    ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
-    double min = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
-    double max = StringToDouble(ZeroMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
-    double window = max-min;
-    double level = 0.5*(max+min);
-    ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-    ZeroMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
-    ZeroMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
-    ZeroMomentVolume->EndModify(wasModifying);
-    }
-  if (pnode->GetGenerateFirst())
-    {
-    int wasModifying = FirstMomentVolume->StartModify();
-    FirstMomentVolume->UpdateRangeAttributes();
-    FirstMomentVolume->UpdateDisplayThresholdAttributes();
-    int disabledModify = FirstMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
-    double min = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
-    double max = StringToDouble(FirstMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
-    double window = max-min;
-    double level = 0.5*(max+min);
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
-    FirstMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
-    FirstMomentVolume->EndModify(wasModifying);
-    }
-  if (pnode->GetGenerateSecond())
-    {
-    int wasModifying = SecondMomentVolume->StartModify();
-    SecondMomentVolume->UpdateRangeAttributes();
-    SecondMomentVolume->UpdateDisplayThresholdAttributes();
-    int disabledModify = SecondMomentVolume->GetAstroVolumeDisplayNode()->StartModify();
-    SecondMomentVolume->GetAstroVolumeDisplayNode()->ResetWindowLevelPresets();
-    SecondMomentVolume->GetAstroVolumeDisplayNode()->SetAutoWindowLevel(0);
-    double min = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMIN"));
-    double max = StringToDouble(SecondMomentVolume->GetAttribute("SlicerAstro.DATAMAX"));
-    double window = max-min;
-    double level = 0.5*(max+min);
-    SecondMomentVolume->GetAstroVolumeDisplayNode()->SetWindowLevel(window, level);
-    SecondMomentVolume->GetAstroVolumeDisplayNode()->SetThreshold(min, max);
-    SecondMomentVolume->GetAstroVolumeDisplayNode()->EndModify(disabledModify);
-    SecondMomentVolume->EndModify(wasModifying);
-    }
-
-  pnode->SetStatus(100);
-
-  end = std::chrono::steady_clock::now();
-
-    mtime = static_cast<long>(std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count());
-
-  vtkDebugMacro("Update Time : "<<mtime<<" ms.");
-
   return true;
 }
 

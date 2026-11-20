@@ -62,6 +62,8 @@ public:
 public slots:
   /// Calculate the statistics of the region (a row of the table)
   void onCalculate();
+  /// End of a computation started by onCalculate (GUI thread)
+  void finishCalculation(bool computed);
   /// Region (Region)
   void setRegion(int region);
 

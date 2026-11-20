@@ -155,6 +155,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
     def compute(self, widget, parametersNode):
         """Statistics of the last row of the output table."""
         slicer.util.findChild(widget, "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         table = parametersNode.GetTableNode().GetTable()
         row = table.GetNumberOfRows() - 1
         self.assertGreaterEqual(row, 0)
@@ -324,6 +325,7 @@ class AstroStatisticsSelfTestTest(ScriptedLoadableModuleTest):
         widget = slicer.modules.astrostatistics.widgetRepresentation()
         applyButton = slicer.util.findChild(widget, "ApplyButton")
         applyButton.click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
 
         table = parametersNode.GetTableNode().GetTable()
 

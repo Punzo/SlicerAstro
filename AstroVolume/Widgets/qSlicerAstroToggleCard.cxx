@@ -30,6 +30,9 @@ qSlicerAstroToggleCard::qSlicerAstroToggleCard(QWidget* parent)
   this->setCheckable(true);
   this->setAttribute(Qt::WA_Hover, true);
   this->setCursor(Qt::PointingHandCursor);
+  // a card is checked (accent) or not: no focus outline; clicks do not take
+  // the keyboard focus
+  this->setFocusPolicy(Qt::TabFocus);
   this->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
   QObject::connect(qSlicerAstroTheme::instance(), SIGNAL(themeChanged()), this, SLOT(update()));
 }
@@ -113,11 +116,6 @@ void qSlicerAstroToggleCard::paintEvent(QPaintEvent* event)
   painter.fillPath(path, background);
   painter.setPen(QPen(border, 1.));
   painter.drawPath(path);
-  if (this->hasFocus())
-    {
-    painter.setPen(QPen(theme->color("data"), 1.));
-    painter.drawRoundedRect(box.adjusted(1.5, 1.5, -1.5, -1.5), 7.5, 7.5);
-    }
 
   QFont titleFont = theme->font("body");
   titleFont.setWeight(QFont::Bold);

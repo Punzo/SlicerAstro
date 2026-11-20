@@ -1445,10 +1445,33 @@ void qSlicerAstroReprojectModuleWidget::onApply()
     {
     return;
     }
-  const QString title = tr("Reprojection");
+  // without blocking the user interface (progress dialog with Cancel; the
+  // Apply button is disabled until the end)
   d->ApplyButton->setEnabled(false);
-  const bool success = d->logic()->Reproject(d->parametersNode);
+  QPointer<qSlicerAstroReprojectModuleWidget> self(this);
+  const bool started = d->logic()->StartReproject(d->parametersNode, [self](bool success)
+    {
+    if (self)
+      {
+      self->finishReprojection(success);
+      }
+    });
+  if (!started)
+    {
+    this->finishReprojection(false);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroReprojectModuleWidget::finishReprojection(bool success)
+{
+  Q_D(qSlicerAstroReprojectModuleWidget);
   d->ApplyButton->setEnabled(true);
+  if (!d->parametersNode || !d->logic())
+    {
+    return;
+    }
+  const QString title = tr("Reprojection");
   const QString warnings = QString::fromStdString(d->logic()->GetLastWarnings()).trimmed();
   if (!success)
     {

@@ -32,6 +32,7 @@
 #include <QGridLayout>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QStackedWidget>
@@ -1580,8 +1581,46 @@ void qSlicerAstroProfilesModuleWidget::onCalculate()
   d->parametersNode->SetProfileVolumeNodeID(ProfileVolume->GetID());
   d->parametersNode->SetOutputSerial(serial + 1);
 
-  // Run computation
-  if (!logic->CalculateProfile(d->parametersNode))
+  // Run the computation without blocking the user interface (progress in
+  // the run button); the table and the plot are made when it is done
+  QPointer<qSlicerAstroProfilesModuleWidget> self(this);
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> inputHold = inputVolume;
+  vtkSmartPointer<vtkMRMLAstroVolumeNode> profileHold = ProfileVolume;
+  const bool started = logic->StartCalculateProfile(d->parametersNode,
+    [self, inputHold, profileHold, name, N1](bool success)
+    {
+    if (self)
+      {
+      self->finishCalculation(success, inputHold, profileHold, QString::fromStdString(name), N1);
+      }
+    });
+  if (!started)
+    {
+    this->finishCalculation(false, inputVolume, ProfileVolume, QString::fromStdString(name), N1);
+    }
+}
+
+//-----------------------------------------------------------------------------
+void qSlicerAstroProfilesModuleWidget::finishCalculation(bool success, vtkMRMLAstroVolumeNode* inputVolume,
+                                                        vtkMRMLAstroVolumeNode* ProfileVolume,
+                                                        const QString& profileName, int N1)
+{
+  Q_D(qSlicerAstroProfilesModuleWidget);
+  vtkMRMLScene* scene = this->mrmlScene();
+  if (!scene || !d->parametersNode || !inputVolume || !ProfileVolume)
+    {
+    return;
+    }
+  const std::string name = profileName.toStdString();
+  vtkMRMLAstroVolumeDisplayNode* astroDisplay = inputVolume->GetAstroVolumeDisplayNode();
+  struct wcsprm* WCS = astroDisplay ? astroDisplay->GetWCSStruct() : nullptr;
+  if (success && (!astroDisplay || !WCS || !ProfileVolume->GetScene()))
+    {
+    // the data were removed meanwhile
+    success = false;
+    }
+
+  if (!success)
     {
     const bool cancelled = d->CancelRequested;
     d->removeProfile(ProfileVolume);

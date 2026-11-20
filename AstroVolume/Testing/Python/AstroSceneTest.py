@@ -104,6 +104,7 @@ class AstroSceneTestTest(ScriptedLoadableModuleTest):
 
     def apply(self, moduleName):
         slicer.util.findChild(self.selectModule(moduleName), "ApplyButton").click()
+        slicer.qSlicerAstroBackgroundRunner().waitForJobs()
         slicer.app.processEvents()
 
     def runModeling(self, parametersNode, start, timeout=1500):

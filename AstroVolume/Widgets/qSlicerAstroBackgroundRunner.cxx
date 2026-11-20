@@ -22,6 +22,9 @@
 #include <QProgressDialog>
 #include <QPushButton>
 #include <QThread>
+#include <QCoreApplication>
+#include <QElapsedTimer>
+#include <QList>
 #include <QTimer>
 
 #include "qSlicerAstroBackgroundRunner.h"
@@ -89,6 +92,13 @@ private:
 // returns early)
 int RunDepth = 0;
 
+// Jobs started with start() and not finished
+QList<QPointer<qSlicerAstroBackgroundRunner> >& RunningJobs()
+{
+  static QList<QPointer<qSlicerAstroBackgroundRunner> > jobs;
+  return jobs;
+}
+
 class RunDepthGuard
 {
 public:
@@ -115,7 +125,166 @@ qSlicerAstroBackgroundRunner::~qSlicerAstroBackgroundRunner() = default;
 //---------------------------------------------------------------------------
 bool qSlicerAstroBackgroundRunner::isRunning()
 {
-  return RunDepth > 0;
+  return RunDepth > 0 || qSlicerAstroBackgroundRunner::runningJobs() > 0;
+}
+
+//---------------------------------------------------------------------------
+int qSlicerAstroBackgroundRunner::runningJobs()
+{
+  int count = 0;
+  for (const QPointer<qSlicerAstroBackgroundRunner>& job : RunningJobs())
+    {
+    count += job ? 1 : 0;
+    }
+  return count;
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroBackgroundRunner::start(QWidget* parent, const QString& label, const std::function<void()>& work,
+                                         const std::function<int()>& progress, const std::function<void()>& cancel,
+                                         const std::function<void()>& finished)
+{
+  qSlicerAstroBackgroundRunner* job = new qSlicerAstroBackgroundRunner(qApp);
+  job->Progress = progress;
+  job->Cancel = cancel;
+  job->Finished = finished;
+  job->Thread = QThread::create(work);
+  const QString text = label.endsWith("...") ? label.left(label.size() - 3) : label;
+  // the progress in the run button of the panel that started the work, or
+  // in a dialog that blocks nothing
+  qSlicerAstroRunButton* runButton = qSlicerAstroRunButton::activeButton();
+  if (runButton && runButton->isVisible())
+    {
+    job->Button = runButton;
+    runButton->setProgressText(text);
+    runButton->setRunning(true);
+    runButton->setProgress(0);
+    job->ButtonCancel = QObject::connect(runButton, &qSlicerAstroRunButton::cancelRequested, job,
+                                         [job]() { if (job->Cancel) { job->Cancel(); } });
+    }
+  else
+    {
+    QProgressDialog* dialog = new QProgressDialog(label, QObject::tr("Cancel"), 0, 100, parent);
+    dialog->setAttribute(Qt::WA_DeleteOnClose, false);
+    dialog->setWindowTitle(QObject::tr("SlicerAstro"));
+    dialog->setWindowModality(Qt::NonModal);
+    dialog->setMinimumDuration(500);
+    dialog->setAutoClose(false);
+    dialog->setAutoReset(false);
+    dialog->setValue(0);
+    QObject::connect(dialog, &QProgressDialog::canceled, job, [job]()
+      {
+      if (job->Dialog && !job->Finishing)
+        {
+        job->Dialog->setLabelText(QObject::tr("Cancelling..."));
+        }
+      if (job->Cancel && !job->Finishing)
+        {
+        job->Cancel();
+        }
+      });
+    job->Dialog = dialog;
+    }
+  job->Timer = new QTimer(job);
+  job->Timer->setInterval(100);
+  QObject::connect(job->Timer, SIGNAL(timeout()), job, SLOT(poll()));
+  RunningJobs().append(job);
+  job->Thread->start();
+  job->Timer->start();
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroBackgroundRunner::poll()
+{
+  if (this->Finishing)
+    {
+    return;
+    }
+  const int value = this->Progress ? this->Progress() : -1;
+  if (value >= 0 && value <= 100)
+    {
+    if (this->Button)
+      {
+      this->Button->setProgress(value);
+      }
+    if (this->Dialog && !this->Dialog->wasCanceled())
+      {
+      this->Dialog->setValue(value);
+      }
+    }
+  if (this->Thread && this->Thread->isFinished())
+    {
+    this->finish();
+    }
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroBackgroundRunner::finish()
+{
+  if (this->Finishing)
+    {
+    return;
+    }
+  this->Finishing = true;
+  this->Timer->stop();
+  this->Thread->wait();
+  delete this->Thread;
+  this->Thread = nullptr;
+  if (this->Button)
+    {
+    QObject::disconnect(this->ButtonCancel);
+    this->Button->setRunning(false);
+    }
+  if (this->Dialog)
+    {
+    this->Dialog->close();
+    this->Dialog->deleteLater();
+    }
+  RunningJobs().removeAll(QPointer<qSlicerAstroBackgroundRunner>(this));
+  // results to the scene, in the GUI thread
+  if (this->Finished)
+    {
+    this->Finished();
+    }
+  this->deleteLater();
+}
+
+//---------------------------------------------------------------------------
+bool qSlicerAstroBackgroundRunner::waitForJobs(int timeoutMs) const
+{
+  QElapsedTimer timer;
+  timer.start();
+  while (qSlicerAstroBackgroundRunner::runningJobs() > 0)
+    {
+    if (timer.elapsed() > timeoutMs)
+      {
+      return false;
+      }
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
+    QThread::msleep(5);
+    }
+  QCoreApplication::processEvents();
+  return true;
+}
+
+//---------------------------------------------------------------------------
+void qSlicerAstroBackgroundRunner::cancelAndWaitAll()
+{
+  const QList<QPointer<qSlicerAstroBackgroundRunner> > jobs = RunningJobs();
+  for (const QPointer<qSlicerAstroBackgroundRunner>& job : jobs)
+    {
+    if (job && !job->Finishing && job->Cancel)
+      {
+      job->Cancel();
+      }
+    }
+  for (const QPointer<qSlicerAstroBackgroundRunner>& job : jobs)
+    {
+    if (job && !job->Finishing)
+      {
+      job->finish();
+      }
+    }
 }
 
 //---------------------------------------------------------------------------

@@ -19,6 +19,7 @@
 
 // Qt includes
 #include <QObject>
+#include <QPointer>
 #include <QString>
 
 // STD includes
@@ -26,6 +27,11 @@
 
 #include "qSlicerAstroVolumeModuleWidgetsExport.h"
 
+#include <QProgressDialog>
+#include "qSlicerAstroRunButton.h"
+
+class QThread;
+class QTimer;
 class QWidget;
 
 /// \ingroup SlicerAstro_QtModules_AstroVolume_Widgets
@@ -61,11 +67,54 @@ public:
   static void run(QWidget* parent, const QString& label, const std::function<void()>& work,
                   const std::function<int()>& progress, const std::function<void()>& cancel);
 
-  /// True while run() runs a computation (also nested).
+  /// True while run() runs a computation (also nested) or jobs started with
+  /// start() run.
   static bool isRunning();
+
+  /// Start work in a worker thread and return at once: the user interface is
+  /// NOT blocked (the user keeps working while the work runs). The progress
+  /// is shown in the active run button of a panel (with its Cancel button)
+  /// or, without one, in a progress dialog that blocks nothing. finished
+  /// runs in the GUI thread after the work (also when cancelled): it gives
+  /// the results to the scene. The work must follow the rules of
+  /// vtkSlicerAstroVolumeLogic::RunInBackground (no scene access, data held
+  /// by the job: the data may be removed meanwhile).
+  static void start(QWidget* parent, const QString& label, const std::function<void()>& work,
+                    const std::function<int()>& progress, const std::function<void()>& cancel,
+                    const std::function<void()>& finished);
+
+  /// Jobs started with start() still running.
+  static int runningJobs();
+
+  /// Process the events until the jobs started with start() are finished
+  /// (their results given to the scene), at most timeoutMs. Returns false on
+  /// timeout. For scripts and tests (Python: an instance,
+  /// slicer.qSlicerAstroBackgroundRunner().waitForJobs()).
+  Q_INVOKABLE bool waitForJobs(int timeoutMs = 600000) const;
+
+  /// Cancel all the running jobs, wait for their threads and run their
+  /// finished functions (e.g. before the scene is closed or the application
+  /// quits).
+  static void cancelAndWaitAll();
+
+protected slots:
+  /// Progress of a job started with start(); its end
+  void poll();
 
 private:
   Q_DISABLE_COPY(qSlicerAstroBackgroundRunner);
+  /// End of a job: user interface restored, finished called, job deleted
+  void finish();
+
+  QThread* Thread{nullptr};
+  QTimer* Timer{nullptr};
+  QPointer<qSlicerAstroRunButton> Button;
+  QPointer<QProgressDialog> Dialog;
+  std::function<int()> Progress;
+  std::function<void()> Cancel;
+  std::function<void()> Finished;
+  QMetaObject::Connection ButtonCancel;
+  bool Finishing{false};
 };
 
 #endif
